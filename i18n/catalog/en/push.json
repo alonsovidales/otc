@@ -10,6 +10,8 @@
   "push.raid.stopped_title": {"text": "Storage disk stopped working"},
   "push.raid.stopped_top": {"text": "The disk in the top blue USB port failed. Your files are safe on the other one: replace it soon."},
   "push.raid.stopped_unknown": {"text": "One of the two storage disks failed. Your files are safe on the other one: replace it soon."},
+  "push.raid.stopped_working_bottom": {"text": "One of the two storage disks failed. Your files are safe on the one in the bottom blue USB port: replace the other one soon."},
+  "push.raid.stopped_working_top": {"text": "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon."},
   "push.raid.working_body": {"text": "The mirror is complete: every file is on both disks again."},
   "push.raid.working_title": {"text": "Storage disks working again"},
   "push.update.critical_body": {"text": "Install it from Settings."},

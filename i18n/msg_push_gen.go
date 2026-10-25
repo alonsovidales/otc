@@ -59,6 +59,16 @@ func PushRaidStoppedUnknown() Msg {
 	return Msg{Key: "push.raid.stopped_unknown"}
 }
 
+// PushRaidStoppedWorkingBottom is push.raid.stopped_working_bottom: "One of the two storage disks failed. Your files are safe on the one in the botto…".
+func PushRaidStoppedWorkingBottom() Msg {
+	return Msg{Key: "push.raid.stopped_working_bottom"}
+}
+
+// PushRaidStoppedWorkingTop is push.raid.stopped_working_top: "One of the two storage disks failed. Your files are safe on the one in the top b…".
+func PushRaidStoppedWorkingTop() Msg {
+	return Msg{Key: "push.raid.stopped_working_top"}
+}
+
 // PushRaidWorkingBody is push.raid.working_body: "The mirror is complete: every file is on both disks again.".
 func PushRaidWorkingBody() Msg {
 	return Msg{Key: "push.raid.working_body"}

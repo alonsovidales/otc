@@ -46,6 +46,14 @@
     "en": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
     "reviewed": "claude-backtranslation 2026-10-11 #4d8bd6f3"
   },
+  "push.raid.stopped_working_bottom": {
+    "text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no da porta USB azul de baixo: substitui o outro em breve.",
+    "en": "One of the two storage disks failed. Your files are safe on the one in the bottom blue USB port: replace the other one soon."
+  },
+  "push.raid.stopped_working_top": {
+    "text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no da porta USB azul de cima: substitui o outro em breve.",
+    "en": "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon."
+  },
   "push.raid.working_body": {
     "text": "O espelho está completo: todos os ficheiros voltaram a estar nos dois discos.",
     "en": "The mirror is complete: every file is on both disks again."

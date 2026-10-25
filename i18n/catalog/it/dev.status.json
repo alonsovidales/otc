@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu inferiore ha smesso di funzionare"},
   "dev.status.raid.degraded_top": {"text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu superiore ha smesso di funzionare"},
   "dev.status.raid.degraded_unknown": {"text": "Array RAID degradato: solo {active} di {total} dischi attivi – uno dei due dischi di archiviazione ha smesso di funzionare"},
+  "dev.status.raid.degraded_working_bottom": {"text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu inferiore funziona ancora, l’altro ha smesso di funzionare"},
+  "dev.status.raid.degraded_working_top": {"text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu superiore funziona ancora, l’altro ha smesso di funzionare"},
   "dev.status.tailscale.cli_missing": {"text": "tailscale non è installato su questo dispositivo"},
   "dev.status.tailscale.disable_failed": {"text": "impossibile disattivare Funnel: {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "impossibile attivare Funnel: {detail}"},

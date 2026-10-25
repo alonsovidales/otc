@@ -10,6 +10,8 @@
   "push.raid.stopped_title": {"text": "Um disco de armazenamento deixou de funcionar"},
   "push.raid.stopped_top": {"text": "O disco da porta USB azul de cima avariou. Os teus ficheiros estão seguros no outro: substitui-o em breve."},
   "push.raid.stopped_unknown": {"text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no outro: substitui-o em breve."},
+  "push.raid.stopped_working_bottom": {"text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no da porta USB azul de baixo: substitui o outro em breve."},
+  "push.raid.stopped_working_top": {"text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no da porta USB azul de cima: substitui o outro em breve."},
   "push.raid.working_body": {"text": "O espelho está completo: todos os ficheiros voltaram a estar nos dois discos."},
   "push.raid.working_title": {"text": "Os discos de armazenamento voltaram a funcionar"},
   "push.update.critical_body": {"text": "Instala-a em Definições."},

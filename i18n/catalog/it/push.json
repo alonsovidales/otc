@@ -10,6 +10,8 @@
   "push.raid.stopped_title": {"text": "Un disco di archiviazione ha smesso di funzionare"},
   "push.raid.stopped_top": {"text": "Il disco nella porta USB blu superiore si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto."},
   "push.raid.stopped_unknown": {"text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto."},
+  "push.raid.stopped_working_bottom": {"text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro su quello nella porta USB blu inferiore: sostituisci l’altro presto."},
+  "push.raid.stopped_working_top": {"text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro su quello nella porta USB blu superiore: sostituisci l’altro presto."},
   "push.raid.working_body": {"text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi."},
   "push.raid.working_title": {"text": "I dischi di archiviazione funzionano di nuovo"},
   "push.update.critical_body": {"text": "Installalo da Impostazioni."},

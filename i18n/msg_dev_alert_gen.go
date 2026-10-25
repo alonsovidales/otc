@@ -214,6 +214,16 @@ func DevAlertRaidStoppedDetailDisk(disk string) Msg {
 	return Msg{Key: "dev.alert.raid.stopped_detail_disk", Args: map[string]any{"disk": disk}}
 }
 
+// DevAlertRaidStoppedDetailWorkingBottom is dev.alert.raid.stopped_detail_working_bottom: "The disk in the bottom blue USB port still works and holds all your files, but t…".
+func DevAlertRaidStoppedDetailWorkingBottom() Msg {
+	return Msg{Key: "dev.alert.raid.stopped_detail_working_bottom"}
+}
+
+// DevAlertRaidStoppedDetailWorkingTop is dev.alert.raid.stopped_detail_working_top: "The disk in the top blue USB port still works and holds all your files, but they…".
+func DevAlertRaidStoppedDetailWorkingTop() Msg {
+	return Msg{Key: "dev.alert.raid.stopped_detail_working_top"}
+}
+
 // DevAlertRaidStoppedTop is dev.alert.raid.stopped_top: "The disk in the top blue USB port stopped working".
 func DevAlertRaidStoppedTop() Msg {
 	return Msg{Key: "dev.alert.raid.stopped_top"}

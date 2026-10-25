@@ -132,6 +132,14 @@
     "text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – um dos dois discos de armazenamento deixou de funcionar",
     "en": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working"
   },
+  "dev.status.raid.degraded_working_bottom": {
+    "text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de baixo continua a funcionar e o outro deixou de funcionar",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_top": {
+    "text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de cima continua a funcionar e o outro deixou de funcionar",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working"
+  },
   "dev.status.tailscale.cli_missing": {
     "text": "o tailscale não está instalado neste dispositivo",
     "en": "tailscale is not installed on this device"

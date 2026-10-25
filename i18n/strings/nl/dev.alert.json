@@ -203,6 +203,14 @@
     "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
     "reviewed": "claude-backtranslation 2026-10-11 #44c5c76f"
   },
+  "dev.alert.raid.stopped_detail_working_bottom": {
+    "text": "De schijf in de onderste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe, waarbij alles wat op de nieuwe kaart stond wordt gewist.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+  },
+  "dev.alert.raid.stopped_detail_working_top": {
+    "text": "De schijf in de bovenste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe, waarbij alles wat op de nieuwe kaart stond wordt gewist.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+  },
   "dev.alert.raid.stopped_top": {
     "text": "De schijf in de bovenste blauwe USB-poort werkt niet meer",
     "en": "The disk in the top blue USB port stopped working"

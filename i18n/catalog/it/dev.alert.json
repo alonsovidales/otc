@@ -41,6 +41,8 @@
   "dev.alert.raid.stopped_bottom": {"text": "Il disco nella porta USB blu inferiore ha smesso di funzionare"},
   "dev.alert.raid.stopped_detail": {"text": "I tuoi file sono al sicuro sull’altro disco, ma non sono più in mirror. Sostituiscilo con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda."},
   "dev.alert.raid.stopped_detail_disk": {"text": "I tuoi file sono al sicuro sull’altro disco, ma non sono più in mirror. Sostituiscilo con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda. ({disk})"},
+  "dev.alert.raid.stopped_detail_working_bottom": {"text": "Il disco nella porta USB blu inferiore funziona ancora e contiene tutti i tuoi file, ma non sono più in mirror. Sostituisci l’altro con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda."},
+  "dev.alert.raid.stopped_detail_working_top": {"text": "Il disco nella porta USB blu superiore funziona ancora e contiene tutti i tuoi file, ma non sono più in mirror. Sostituisci l’altro con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda."},
   "dev.alert.raid.stopped_top": {"text": "Il disco nella porta USB blu superiore ha smesso di funzionare"},
   "dev.alert.raid.stopped_unknown": {"text": "Uno dei due dischi di archiviazione ha smesso di funzionare"},
   "dev.alert.raid.working_detail": {"text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi."},

@@ -731,8 +731,11 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   mirror is whole again; the status line names it too (`raidwatch.Missing`). The alert and push go
   out through `Notify.AlertText` (an `alerttext.Alert`) and `Notify.PushText` (a `push.Text`);
   `Notify.Alert`/`Push` get the English when those are nil. Read from sysfs, no root:
-  where each disk is plugged in is recorded while the array is healthy (`<storage>/.raid-members.json`),
-  since a failed reader usually vanishes. Main instance only. The Pi 5 has one USB controller per blue
+  where each disk is plugged in is recorded once every disk is in the mirror, during a new mirror's
+  first copy too (md counts both in sync then; `<storage>/.raid-members.json`), since a failed reader
+  usually vanishes. With nothing recorded, the disk still working is named instead when it is in a
+  blue port (`raidwatch.StillWorking`; `dev.alert.raid.stopped_detail_working_*`,
+  `dev.status.raid.degraded_working_*`, `push.raid.stopped_working_*`). Main instance only. The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
   replacement. More storage: swap the cards for bigger ones one at a time (each is added and

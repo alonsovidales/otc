@@ -169,6 +169,16 @@ func DevStatusRaidDegradedUnknown(active int, total int) Msg {
 	return Msg{Key: "dev.status.raid.degraded_unknown", Args: map[string]any{"active": int64(active), "total": int64(total)}}
 }
 
+// DevStatusRaidDegradedWorkingBottom is dev.status.raid.degraded_working_bottom: "RAID array degraded: only {active} of {total} disks active - the disk in the bot…".
+func DevStatusRaidDegradedWorkingBottom(active int, total int) Msg {
+	return Msg{Key: "dev.status.raid.degraded_working_bottom", Args: map[string]any{"active": int64(active), "total": int64(total)}}
+}
+
+// DevStatusRaidDegradedWorkingTop is dev.status.raid.degraded_working_top: "RAID array degraded: only {active} of {total} disks active - the disk in the top…".
+func DevStatusRaidDegradedWorkingTop(active int, total int) Msg {
+	return Msg{Key: "dev.status.raid.degraded_working_top", Args: map[string]any{"active": int64(active), "total": int64(total)}}
+}
+
 // DevStatusTailscaleCliMissing is dev.status.tailscale.cli_missing: "tailscale is not installed on this device".
 func DevStatusTailscaleCliMissing() Msg {
 	return Msg{Key: "dev.status.tailscale.cli_missing"}

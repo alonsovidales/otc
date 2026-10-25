@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de onderste blauwe USB-poort werkt niet meer"},
   "dev.status.raid.degraded_top": {"text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de bovenste blauwe USB-poort werkt niet meer"},
   "dev.status.raid.degraded_unknown": {"text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – een van de twee opslagschijven werkt niet meer"},
+  "dev.status.raid.degraded_working_bottom": {"text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de onderste blauwe USB-poort werkt nog, de andere werkt niet meer"},
+  "dev.status.raid.degraded_working_top": {"text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de bovenste blauwe USB-poort werkt nog, de andere werkt niet meer"},
   "dev.status.tailscale.cli_missing": {"text": "tailscale is niet geïnstalleerd op dit apparaat"},
   "dev.status.tailscale.disable_failed": {"text": "kan Funnel niet uitschakelen: {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "kan Funnel niet inschakelen: {detail}"},

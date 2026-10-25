@@ -75,8 +75,10 @@ const (
 // label raidwatch.Missing's English for them ("the disk in the top blue
 // USB port"). One disk is named in every language. Several - which a
 // two-disk mirror that still runs can't have - are named only in English,
-// from label, as before; other languages say "one of the two".
-func StorageDiskStopped(ports []string, label string) Text {
+// from label, as before; other languages say "one of the two". working is
+// where the disk still working is (raidwatch.StillWorking, "top",
+// "bottom" or "unknown"), said when the missing one's port is unknown.
+func StorageDiskStopped(ports []string, label, working string) Text {
 	return func(lang string) (string, string) {
 		title := i18n.PushRaidStoppedTitle().Render(lang)
 		if len(ports) != 1 && english(lang) && label != "" {
@@ -89,6 +91,13 @@ func StorageDiskStopped(ports []string, label string) Text {
 				body = i18n.PushRaidStoppedTop()
 			case portBottom:
 				body = i18n.PushRaidStoppedBottom()
+			default:
+				switch working {
+				case portTop:
+					body = i18n.PushRaidStoppedWorkingTop()
+				case portBottom:
+					body = i18n.PushRaidStoppedWorkingBottom()
+				}
 			}
 		}
 		return title, body.Render(lang)

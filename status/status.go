@@ -223,14 +223,15 @@ func containerMemory(total, used uint64) (uint64, uint64) {
 // degradedMessage is the degraded mirror's status line in lang, naming
 // the disk that stopped working when raidwatch knows where it was plugged
 // in (raidwatch.MissingPorts: the ports as data, raidwatch.Missing: the
-// same in English).
+// same in English), or else the one still working (raidwatch.StillWorking).
 func degradedMessage(lang string, raid raidInfo) string {
-	return degradedText(lang, int(raid.devicesActive), int(raid.devicesTotal), raidwatch.MissingPorts(), raidwatch.Missing())
+	return degradedText(lang, int(raid.devicesActive), int(raid.devicesTotal), raidwatch.MissingPorts(), raidwatch.Missing(), raidwatch.StillWorking())
 }
 
 // degradedText is degradedMessage for the disks missing at ports, label
-// being raidwatch's English for them.
-func degradedText(lang string, active, total int, ports []raidwatch.Port, label string) string {
+// being raidwatch's English for them and working where the disk still
+// working is.
+func degradedText(lang string, active, total int, ports []raidwatch.Port, label string, working raidwatch.Port) string {
 	switch {
 	case len(ports) == 0:
 		return i18n.DevStatusRaidDegraded(active, total).Render(lang)
@@ -240,6 +241,12 @@ func degradedText(lang string, active, total int, ports []raidwatch.Port, label 
 			return i18n.DevStatusRaidDegradedTop(active, total).Render(lang)
 		case raidwatch.PortBottom:
 			return i18n.DevStatusRaidDegradedBottom(active, total).Render(lang)
+		}
+		switch working {
+		case raidwatch.PortTop:
+			return i18n.DevStatusRaidDegradedWorkingTop(active, total).Render(lang)
+		case raidwatch.PortBottom:
+			return i18n.DevStatusRaidDegradedWorkingBottom(active, total).Render(lang)
 		}
 		return i18n.DevStatusRaidDegradedUnknown(active, total).Render(lang)
 	}

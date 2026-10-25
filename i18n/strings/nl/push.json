@@ -46,6 +46,14 @@
     "en": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
     "reviewed": "claude-backtranslation 2026-10-11 #09a08da1"
   },
+  "push.raid.stopped_working_bottom": {
+    "text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de schijf in de onderste blauwe USB-poort: vervang de andere schijf binnenkort.",
+    "en": "One of the two storage disks failed. Your files are safe on the one in the bottom blue USB port: replace the other one soon."
+  },
+  "push.raid.stopped_working_top": {
+    "text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de schijf in de bovenste blauwe USB-poort: vervang de andere schijf binnenkort.",
+    "en": "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon."
+  },
   "push.raid.working_body": {
     "text": "De spiegel is compleet: elk bestand staat weer op beide schijven.",
     "en": "The mirror is complete: every file is on both disks again."

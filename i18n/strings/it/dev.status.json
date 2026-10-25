@@ -132,6 +132,14 @@
     "text": "Array RAID degradato: solo {active} di {total} dischi attivi – uno dei due dischi di archiviazione ha smesso di funzionare",
     "en": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working"
   },
+  "dev.status.raid.degraded_working_bottom": {
+    "text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu inferiore funziona ancora, l’altro ha smesso di funzionare",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_top": {
+    "text": "Array RAID degradato: solo {active} di {total} dischi attivi – il disco nella porta USB blu superiore funziona ancora, l’altro ha smesso di funzionare",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working"
+  },
   "dev.status.tailscale.cli_missing": {
     "text": "tailscale non è installato su questo dispositivo",
     "en": "tailscale is not installed on this device"

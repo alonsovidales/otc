@@ -6,8 +6,10 @@
 // once the mirror is complete again.
 //
 // A failed USB reader usually vanishes from the system, so where each
-// disk is plugged in is recorded while the array is healthy
-// (<storage>/.raid-members.json) and looked up when a slot goes missing.
+// disk is plugged in is recorded once every disk is in the mirror - during
+// a new mirror's first copy too - (<storage>/.raid-members.json) and
+// looked up when a slot goes missing; with nothing recorded, the disk
+// still working is named instead.
 // Everything is read from sysfs, which the unprivileged service may read;
 // the root scripts/raid_watch.py still drives the LEDs and re-adds a
 // replacement disk. Main instance only (websocket.Init).
@@ -108,10 +110,13 @@ func (m Member) Where() Port {
 }
 
 // failure is what the mirror is missing: the disks' Labels as one English
-// phrase, and their Ports, in the same order.
+// phrase, and their Ports, in the same order; and, when the one missing
+// disk's port isn't known, the port of the disk still working
+// (stillWorking), so the owner knows which one to keep.
 type failure struct {
-	label string
-	ports []Port
+	label   string
+	ports   []Port
+	working Port
 }
 
 // describe names the missing disks; none at all (md says degraded but
@@ -127,6 +132,27 @@ func describe(missing []Member) failure {
 		ports = append(ports, m.Where())
 	}
 	return failure{label: strings.Join(labels, " and "), ports: ports}
+}
+
+// stillWorking is where the one disk the mirror still has is plugged in,
+// when the missing disk's port isn't known and the other is in a blue
+// port: nothing was recorded (a new mirror whose first copy never
+// finished, or the service down when it failed) and the disk that dropped
+// off the USB bus left nothing to read. PortUnknown otherwise.
+func stillWorking(a array, f failure) Port {
+	if a.raidDisks != 2 || len(f.ports) != 1 || f.ports[0] != PortUnknown {
+		return PortUnknown
+	}
+	var in []Member
+	for _, m := range a.members {
+		if m.Slot >= 0 && m.inSync() {
+			in = append(in, m)
+		}
+	}
+	if len(in) != 1 {
+		return PortUnknown
+	}
+	return in[0].Where()
 }
 
 type array struct {
@@ -260,6 +286,18 @@ func MissingPorts() []Port {
 	return slices.Clone(broken.ports)
 }
 
+// StillWorking is where the disk the mirror still has is plugged in, when
+// Missing can't say where the missing one was (MissingPorts is
+// [PortUnknown]); PortUnknown otherwise, and while the mirror is whole.
+func StillWorking() Port {
+	mu.Lock()
+	defer mu.Unlock()
+	if broken.working == "" {
+		return PortUnknown
+	}
+	return broken.working
+}
+
 // Watch checks the array every minute, from 30 s after start. Blocks.
 func Watch(storagePath string, n Notify) {
 	time.Sleep(firstCheck)
@@ -338,11 +376,11 @@ func check(storagePath string, n Notify) {
 		mu.Lock()
 		broken = failure{}
 		mu.Unlock()
-		// Healthy and settled: record where each disk is, and say so if a
-		// failure was reported.
-		if a.syncAction != "" && a.syncAction != "idle" {
-			return
-		}
+		// Every disk in the mirror: record where each is. Already during
+		// a new mirror's first copy, which takes hours and in which md
+		// counts both disks in sync, so a disk that drops out of it is
+		// named; a replacement being rebuilt is not in sync, nor the
+		// mirror healthy, until it is done.
 		var cur []Member
 		for _, m := range a.members {
 			if m.Slot >= 0 && m.inSync() {
@@ -355,6 +393,10 @@ func check(storagePath string, n Notify) {
 			}
 			saveKnown(storagePath, cur)
 		}
+		// Settled: say so if a failure was reported.
+		if a.syncAction != "" && a.syncAction != "idle" {
+			return
+		}
 		if alerted {
 			_ = os.Remove(alertedPath)
 			n.alert(alerttext.New(i18n.DevAlertRaidWorkingTitle(), i18n.DevAlertRaidWorkingDetail()))
@@ -365,6 +407,7 @@ func check(storagePath string, n Notify) {
 
 	missing := missingSlots(a, known)
 	f := describe(missing)
+	f.working = stillWorking(a, f)
 	what := f.label
 	mu.Lock()
 	broken = f
@@ -377,13 +420,17 @@ func check(storagePath string, n Notify) {
 	if err := os.WriteFile(alertedPath, []byte(what+"\n"), 0o600); err != nil {
 		log.Error("raid: could not record the alert:", err)
 	}
-	log.Error("raid:", what, "stopped working - the array is degraded")
+	if f.working != PortUnknown {
+		log.Error("raid:", what, "stopped working - the array is degraded; the disk in the", f.working, "blue USB port still works")
+	} else {
+		log.Error("raid:", what, "stopped working - the array is degraded")
+	}
 	n.alert(stoppedAlert(missing, f))
 	ports := make([]string, len(f.ports))
 	for i, p := range f.ports {
 		ports[i] = string(p)
 	}
-	n.push(push.StorageDiskStopped(ports, what))
+	n.push(push.StorageDiskStopped(ports, what, string(f.working)))
 }
 
 // stoppedAlert is the Alert for f, the disks missing: one disk's in every
@@ -411,6 +458,13 @@ func stoppedAlert(missing []Member, f failure) alerttext.Alert {
 		title = i18n.DevAlertRaidStoppedTop()
 	case PortBottom:
 		title = i18n.DevAlertRaidStoppedBottom()
+	}
+	// Which one stopped isn't known: which one to keep is.
+	switch f.working {
+	case PortTop:
+		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailWorkingTop())
+	case PortBottom:
+		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailWorkingBottom())
 	}
 	if len(known) == 1 {
 		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailDisk(known[0]))

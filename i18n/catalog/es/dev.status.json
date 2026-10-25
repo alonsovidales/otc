@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul inferior ha dejado de funcionar"},
   "dev.status.raid.degraded_top": {"text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul superior ha dejado de funcionar"},
   "dev.status.raid.degraded_unknown": {"text": "RAID degradado: solo {active} de {total} discos activos; uno de los dos discos de almacenamiento ha dejado de funcionar"},
+  "dev.status.raid.degraded_working_bottom": {"text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul inferior sigue funcionando y el otro ha dejado de funcionar"},
+  "dev.status.raid.degraded_working_top": {"text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul superior sigue funcionando y el otro ha dejado de funcionar"},
   "dev.status.tailscale.cli_missing": {"text": "tailscale no está instalado en este dispositivo"},
   "dev.status.tailscale.disable_failed": {"text": "no se ha podido desactivar Funnel: {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "no se ha podido activar Funnel: {detail}"},

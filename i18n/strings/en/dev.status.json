@@ -146,6 +146,16 @@
     "args": [["active", "int"], ["total", "int"]],
     "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) is missing a disk the device can't place in a USB port. {active} is the number of disks working, {total} the number the mirror has (2)."
   },
+  "dev.status.raid.degraded_working_bottom": {
+    "text": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working",
+    "args": [["active", "int"], ["total", "int"]],
+    "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) is missing a disk and the device can't tell which one stopped, but can tell which still works: the device has two blue USB ports, one above the other, and the disk in the bottom one still works. {active} is the number of disks working, {total} the number the mirror has (2)."
+  },
+  "dev.status.raid.degraded_working_top": {
+    "text": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working",
+    "args": [["active", "int"], ["total", "int"]],
+    "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) is missing a disk and the device can't tell which one stopped, but can tell which still works: the device has two blue USB ports, one above the other, and the disk in the top one still works. {active} is the number of disks working, {total} the number the mirror has (2)."
+  },
   "dev.status.tailscale.cli_missing": {
     "text": "tailscale is not installed on this device",
     "note": "Error shown in Settings > Tailscale Funnel when turning it on or off: the tailscale program is missing from the device. tailscale (lower case) is the program's name."

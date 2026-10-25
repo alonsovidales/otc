@@ -278,3 +278,68 @@ func TestCapitalize(t *testing.T) {
 		}
 	}
 }
+
+// A new mirror's first copy takes hours, and md counts both disks in sync
+// during it: where each is plugged in is recorded then, so a disk that
+// drops out before the copy ends is named.
+func TestRecordedDuringFirstCopy(t *testing.T) {
+	f := newFakeSys(t)
+	f.write("block/md0/md/sync_action", "resync")
+	store := t.TempDir()
+	r := &recorder{}
+	check(store, r.notify())
+	if known := loadKnown(store); len(known) != 2 || known[1].Serial != "BBB" {
+		t.Fatalf("not recorded during the first copy: %+v", known)
+	}
+	f.unplug("sdb")
+	f.write("block/md0/md/degraded", "1")
+	f.write("block/md0/md/sync_action", "idle")
+	check(store, r.notify())
+	want := "The disk in the " + bluePort["xhci-hcd.1"] + " blue USB port stopped working"
+	if len(r.alerts) != 1 || !strings.HasPrefix(r.alerts[0], want) {
+		t.Fatalf("alerts: %v", r.alerts)
+	}
+	if StillWorking() != PortUnknown {
+		t.Errorf("the missing disk is named, yet StillWorking() = %q", StillWorking())
+	}
+}
+
+// Nothing recorded and the missing disk gone from the USB bus: the disk
+// still working is named instead, in the alert, the push and
+// StillWorking - and only when it is in a blue port.
+func TestStillWorking(t *testing.T) {
+	f := newFakeSys(t)
+	f.unplug("sdb")
+	f.write("block/md0/md/degraded", "1")
+	store := t.TempDir()
+	r := &recorder{}
+	check(store, r.notify())
+	bottom := bluePort["xhci-hcd.0"]
+	wantAlert := "One of the two storage disks stopped working | The disk in the " + bottom + " blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+	wantPush := "Storage disk stopped working | One of the two storage disks failed. Your files are safe on the one in the " + bottom + " blue USB port: replace the other one soon."
+	if len(r.alerts) != 1 || r.alerts[0] != wantAlert {
+		t.Errorf("alert:\n got %q\nwant %q", r.alerts, wantAlert)
+	}
+	if len(r.pushes) != 1 || r.pushes[0] != wantPush {
+		t.Errorf("push:\n got %q\nwant %q", r.pushes, wantPush)
+	}
+	if StillWorking() != Port(bottom) || Missing() != unknownLabel || !slices.Equal(MissingPorts(), []Port{PortUnknown}) {
+		t.Errorf("StillWorking() = %q, Missing() = %q, MissingPorts() = %v", StillWorking(), Missing(), MissingPorts())
+	}
+
+	// The disk left in a black port: nothing to say about it.
+	f.plug("sda", "xhci-hcd.0", "usb3", "3-2", "AAA")
+	check(t.TempDir(), (&recorder{}).notify())
+	if StillWorking() != PortUnknown {
+		t.Errorf("black port: StillWorking() = %q", StillWorking())
+	}
+
+	// Whole again: nothing still working to name.
+	f.plug("sdb", "xhci-hcd.1", "usb4", "4-1", "BBB")
+	f.member("sdb", "1", "in_sync")
+	f.write("block/md0/md/degraded", "0")
+	check(store, r.notify())
+	if StillWorking() != PortUnknown {
+		t.Errorf("healthy: StillWorking() = %q", StillWorking())
+	}
+}

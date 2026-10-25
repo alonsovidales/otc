@@ -41,6 +41,8 @@
   "dev.alert.raid.stopped_bottom": {"text": "The disk in the bottom blue USB port stopped working"},
   "dev.alert.raid.stopped_detail": {"text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
   "dev.alert.raid.stopped_detail_disk": {"text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})", "args": [["disk", "text"]]},
+  "dev.alert.raid.stopped_detail_working_bottom": {"text": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
+  "dev.alert.raid.stopped_detail_working_top": {"text": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
   "dev.alert.raid.stopped_top": {"text": "The disk in the top blue USB port stopped working"},
   "dev.alert.raid.stopped_unknown": {"text": "One of the two storage disks stopped working"},
   "dev.alert.raid.working_detail": {"text": "The mirror is complete: every file is on both disks again."},

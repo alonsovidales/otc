@@ -10,6 +10,8 @@
   "push.raid.stopped_title": {"text": "Opslagschijf werkt niet meer"},
   "push.raid.stopped_top": {"text": "De schijf in de bovenste blauwe USB-poort is uitgevallen. Je bestanden staan veilig op de andere schijf: vervang de uitgevallen schijf binnenkort."},
   "push.raid.stopped_unknown": {"text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de andere schijf: vervang de uitgevallen schijf binnenkort."},
+  "push.raid.stopped_working_bottom": {"text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de schijf in de onderste blauwe USB-poort: vervang de andere schijf binnenkort."},
+  "push.raid.stopped_working_top": {"text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de schijf in de bovenste blauwe USB-poort: vervang de andere schijf binnenkort."},
   "push.raid.working_body": {"text": "De spiegel is compleet: elk bestand staat weer op beide schijven."},
   "push.raid.working_title": {"text": "Opslagschijven werken weer"},
   "push.update.critical_body": {"text": "Installeer de update via Instellingen."},

@@ -10,6 +10,8 @@
   "push.raid.stopped_title": {"text": "Un disco de almacenamiento ha dejado de funcionar"},
   "push.raid.stopped_top": {"text": "El disco del puerto USB azul superior ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
   "push.raid.stopped_unknown": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
+  "push.raid.stopped_working_bottom": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el del puerto USB azul inferior: sustituye el otro pronto."},
+  "push.raid.stopped_working_top": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el del puerto USB azul superior: sustituye el otro pronto."},
   "push.raid.working_body": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},
   "push.raid.working_title": {"text": "Los discos de almacenamiento vuelven a funcionar"},
   "push.update.critical_body": {"text": "Instálala desde Ajustes."},

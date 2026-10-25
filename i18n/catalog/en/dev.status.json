@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working", "args": [["active", "int"], ["total", "int"]]},
   "dev.status.raid.degraded_top": {"text": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working", "args": [["active", "int"], ["total", "int"]]},
   "dev.status.raid.degraded_unknown": {"text": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working", "args": [["active", "int"], ["total", "int"]]},
+  "dev.status.raid.degraded_working_bottom": {"text": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working", "args": [["active", "int"], ["total", "int"]]},
+  "dev.status.raid.degraded_working_top": {"text": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working", "args": [["active", "int"], ["total", "int"]]},
   "dev.status.tailscale.cli_missing": {"text": "tailscale is not installed on this device"},
   "dev.status.tailscale.disable_failed": {"text": "could not disable Funnel: {detail}", "args": [["detail", "text"]]},
   "dev.status.tailscale.enable_failed": {"text": "could not enable Funnel: {detail}", "args": [["detail", "text"]]},

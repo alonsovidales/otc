@@ -41,6 +41,8 @@
   "dev.alert.raid.stopped_bottom": {"text": "Le disque du port USB bleu du bas ne fonctionne plus"},
   "dev.alert.raid.stopped_detail": {"text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même, en effaçant tout ce que contenait la nouvelle carte."},
   "dev.alert.raid.stopped_detail_disk": {"text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même, en effaçant tout ce que contenait la nouvelle carte. ({disk})"},
+  "dev.alert.raid.stopped_detail_working_bottom": {"text": "Le disque du port USB bleu du bas fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même, en effaçant tout ce que contenait la nouvelle carte."},
+  "dev.alert.raid.stopped_detail_working_top": {"text": "Le disque du port USB bleu du haut fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même, en effaçant tout ce que contenait la nouvelle carte."},
   "dev.alert.raid.stopped_top": {"text": "Le disque du port USB bleu du haut ne fonctionne plus"},
   "dev.alert.raid.stopped_unknown": {"text": "L’un des deux disques de stockage ne fonctionne plus"},
   "dev.alert.raid.working_detail": {"text": "Le miroir est complet : chaque fichier est de nouveau sur les deux disques."},

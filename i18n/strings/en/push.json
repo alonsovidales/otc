@@ -60,6 +60,16 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #fc2a15e7"
   },
+  "push.raid.stopped_working_bottom": {
+    "text": "One of the two storage disks failed. Your files are safe on the one in the bottom blue USB port: replace the other one soon.",
+    "note": "Body of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working, the device can't tell which, but can tell which still works: the device has two blue USB ports, one above the other, and the disk in the bottom one still works. The title is push.raid.stopped_title.",
+    "max": 180
+  },
+  "push.raid.stopped_working_top": {
+    "text": "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon.",
+    "note": "Body of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working, the device can't tell which, but can tell which still works: the device has two blue USB ports, one above the other, and the disk in the top one still works. The title is push.raid.stopped_title.",
+    "max": 180
+  },
   "push.raid.working_body": {
     "text": "The mirror is complete: every file is on both disks again.",
     "note": "Body of the push notification sent when both storage disks work again after one had stopped: each disk holds a copy of every file again. The title is push.raid.working_title.",

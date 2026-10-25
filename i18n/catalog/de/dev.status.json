@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im unteren blauen USB-Anschluss funktioniert nicht mehr"},
   "dev.status.raid.degraded_top": {"text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im oberen blauen USB-Anschluss funktioniert nicht mehr"},
   "dev.status.raid.degraded_unknown": {"text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – eines der beiden Speicherlaufwerke funktioniert nicht mehr"},
+  "dev.status.raid.degraded_working_bottom": {"text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im unteren blauen USB-Anschluss funktioniert noch, das andere nicht mehr"},
+  "dev.status.raid.degraded_working_top": {"text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im oberen blauen USB-Anschluss funktioniert noch, das andere nicht mehr"},
   "dev.status.tailscale.cli_missing": {"text": "tailscale ist auf diesem Gerät nicht installiert"},
   "dev.status.tailscale.disable_failed": {"text": "Funnel konnte nicht deaktiviert werden: {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "Funnel konnte nicht aktiviert werden: {detail}"},

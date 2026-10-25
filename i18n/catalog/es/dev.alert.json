@@ -41,6 +41,8 @@
   "dev.alert.raid.stopped_bottom": {"text": "El disco del puerto USB azul inferior ha dejado de funcionar"},
   "dev.alert.raid.stopped_detail": {"text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente, borrando lo que hubiera en la tarjeta nueva."},
   "dev.alert.raid.stopped_detail_disk": {"text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente, borrando lo que hubiera en la tarjeta nueva. ({disk})"},
+  "dev.alert.raid.stopped_detail_working_bottom": {"text": "El disco del puerto USB azul inferior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente, borrando lo que hubiera en la tarjeta nueva."},
+  "dev.alert.raid.stopped_detail_working_top": {"text": "El disco del puerto USB azul superior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente, borrando lo que hubiera en la tarjeta nueva."},
   "dev.alert.raid.stopped_top": {"text": "El disco del puerto USB azul superior ha dejado de funcionar"},
   "dev.alert.raid.stopped_unknown": {"text": "Uno de los dos discos de almacenamiento ha dejado de funcionar"},
   "dev.alert.raid.working_detail": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},

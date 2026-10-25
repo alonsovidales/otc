@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du bas ne fonctionne plus"},
   "dev.status.raid.degraded_top": {"text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du haut ne fonctionne plus"},
   "dev.status.raid.degraded_unknown": {"text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : l’un des deux disques de stockage ne fonctionne plus"},
+  "dev.status.raid.degraded_working_bottom": {"text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du bas fonctionne toujours, l’autre ne fonctionne plus"},
+  "dev.status.raid.degraded_working_top": {"text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du haut fonctionne toujours, l’autre ne fonctionne plus"},
   "dev.status.tailscale.cli_missing": {"text": "tailscale n’est pas installé sur cet appareil"},
   "dev.status.tailscale.disable_failed": {"text": "impossible de désactiver Funnel : {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "impossible d’activer Funnel : {detail}"},

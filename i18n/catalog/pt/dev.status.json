@@ -32,6 +32,8 @@
   "dev.status.raid.degraded_bottom": {"text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de baixo deixou de funcionar"},
   "dev.status.raid.degraded_top": {"text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de cima deixou de funcionar"},
   "dev.status.raid.degraded_unknown": {"text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – um dos dois discos de armazenamento deixou de funcionar"},
+  "dev.status.raid.degraded_working_bottom": {"text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de baixo continua a funcionar e o outro deixou de funcionar"},
+  "dev.status.raid.degraded_working_top": {"text": "Matriz RAID degradada: apenas {active} de {total} discos ativos – o disco da porta USB azul de cima continua a funcionar e o outro deixou de funcionar"},
   "dev.status.tailscale.cli_missing": {"text": "o tailscale não está instalado neste dispositivo"},
   "dev.status.tailscale.disable_failed": {"text": "não foi possível desativar o Funnel: {detail}"},
   "dev.status.tailscale.enable_failed": {"text": "não foi possível ativar o Funnel: {detail}"},

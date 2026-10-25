@@ -132,6 +132,14 @@
     "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – een van de twee opslagschijven werkt niet meer",
     "en": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working"
   },
+  "dev.status.raid.degraded_working_bottom": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de onderste blauwe USB-poort werkt nog, de andere werkt niet meer",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_top": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de bovenste blauwe USB-poort werkt nog, de andere werkt niet meer",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working"
+  },
   "dev.status.tailscale.cli_missing": {
     "text": "tailscale is niet geïnstalleerd op dit apparaat",
     "en": "tailscale is not installed on this device"

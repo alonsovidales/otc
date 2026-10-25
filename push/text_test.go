@@ -128,11 +128,25 @@ func TestStoragePushesEnglishUnchanged(t *testing.T) {
 	}
 	for _, c := range cases {
 		for _, lang := range []string{"", "en", "ja"} {
-			title, body := StorageDiskStopped(c.ports, c.label)(lang)
+			title, body := StorageDiskStopped(c.ports, c.label, "unknown")(lang)
 			if title != "Storage disk stopped working" || body != c.body {
 				t.Errorf("lang %q, ports %v: %q / %q", lang, c.ports, title, body)
 			}
 		}
+	}
+	// The missing disk's port unknown, the working one's known.
+	for working, want := range map[string]string{
+		"top":     "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon.",
+		"bottom":  "One of the two storage disks failed. Your files are safe on the one in the bottom blue USB port: replace the other one soon.",
+		"unknown": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
+	} {
+		if _, body := StorageDiskStopped([]string{"unknown"}, "one of the two storage disks", working)(""); body != want {
+			t.Errorf("working %q: %q", working, body)
+		}
+	}
+	// A missing disk whose port is known is named, whatever works.
+	if _, body := StorageDiskStopped([]string{"top"}, "the disk in the top blue USB port", "bottom")(""); body != cases[0].body {
+		t.Errorf("named disk and working: %q", body)
 	}
 	title, body := StorageDisksWorkingAgain()("")
 	if title != "Storage disks working again" || body != "The mirror is complete: every file is on both disks again." {
