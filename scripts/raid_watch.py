@@ -308,11 +308,15 @@ def root_base_disk() -> str | None:
         return base_disk(src)
     return None
 
-def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=None):
+def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=None, why=None):
     """Pick a disk not in md array, large enough, and not the root disk.
     `skip` holds (disk, size) pairs whose last add failed and are waiting
     out their backoff - filtered here, so one of those can't hide another,
-    valid disk. `disks` is list_block_disks() when the caller has it."""
+    valid disk. `disks` is list_block_disks() when the caller has it.
+    `why`, a dict, gets each disk left out that isn't the mirror's own, with
+    the reason in words, for the storage log."""
+    if why is None:
+        why = {}
     # Disks present
     if disks is None:
         disks = list_block_disks()  # list of ("/dev/sdX", size)
@@ -330,10 +334,12 @@ def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=No
         # as a "candidate" every single poll and mdadm --add just fails on
         # them forever, spamming the log for no benefit.
         if sz == 0:
+            why[d] = "no card in it"
             continue
 
         # A failed add being backed off (see main).
         if (d, sz) in skip:
+            why[d] = "adding it failed; it is tried again in a few minutes"
             continue
 
         # Exclude any disk that is already a member (whole disk or parent of a partition member)
@@ -342,15 +348,18 @@ def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=No
 
         # Exclude root disk if applicable
         if root_base and base == root_base:
+            why[d] = "it holds the system"
             continue
 
         # Exclude mounted disks (anything with a mountpoint)
         mounts = run(["lsblk", "-ndo", "MOUNTPOINT", d]).stdout.strip().splitlines()
         if any(m for m in mounts if m):
+            why[d] = "it is mounted (in use)"
             continue
 
         # Must be large enough relative to existing member
         if existing_member_size and sz < int(existing_member_size * CONFIG["auto_repair_min_size_ratio"]):
+            why[d] = f"too small: {human_size(sz)}, and the working disk is {human_size(existing_member_size)}"
             continue
 
         candidates.append((d, sz))
@@ -629,6 +638,175 @@ def now():
     return time.time()
 
 # ----------------------------
+# Settings > Logs > Storage
+# ----------------------------
+# The otc service can't read the journal, so what this script prints also
+# goes, each line with the time, to a file it may read: the disks the Pi
+# sees, the mirror's state, what was done about it (and why a disk was not
+# used), and the kernel's own lines about USB, the disks and the mirror.
+# Root writes it in a root-owned directory - never under /var/lib/otc,
+# which otc owns - and keeps it small: past STORAGE_LOG_MAX it moves to .1
+# and starts again (the Logs screen reads a smaller file from its start).
+STORAGE_LOG = "/var/log/otc-storage/storage.log"
+STORAGE_LOG_MAX = 512 * 1024
+
+class StorageLog:
+    def __init__(self, path=STORAGE_LOG, max_bytes=STORAGE_LOG_MAX, clock=None):
+        self.path, self.max_bytes = path, max_bytes
+        self.clock = clock or (lambda: time.strftime("%Y-%m-%dT%H:%M:%S%z"))
+        self.pending = ""
+        self.failed = False
+
+    def write(self, s):
+        self.pending += s
+        while "\n" in self.pending:
+            line, self.pending = self.pending.split("\n", 1)
+            self._append(f"{self.clock()} {line}\n")
+        return len(s)
+
+    def flush(self):
+        pass
+
+    def _append(self, text):
+        try:
+            os.makedirs(os.path.dirname(self.path), mode=0o755, exist_ok=True)
+            try:
+                if os.stat(self.path).st_size + len(text) > self.max_bytes:
+                    os.replace(self.path, self.path + ".1")
+            except FileNotFoundError:
+                pass
+            fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o644)
+            try:
+                os.write(fd, text.encode("utf-8", "replace"))
+            finally:
+                os.close(fd)
+            self.failed = False
+        except OSError as e:
+            if not self.failed:  # once, to the journal
+                self.failed = True
+                sys.__stderr__.write(f"[raid-watch] storage log not written: {e}\n")
+
+class Tee:
+    """sys.stdout for main(): the journal as before, and the storage log."""
+    def __init__(self, *outs):
+        self.outs = outs
+
+    def write(self, s):
+        for o in self.outs:
+            try:
+                o.write(s)
+            except Exception:
+                pass
+        return len(s)
+
+    def flush(self):
+        for o in self.outs:
+            try:
+                o.flush()
+            except Exception:
+                pass
+
+def _read(path):
+    try:
+        return Path(path).read_text().strip()
+    except Exception:
+        return ""
+
+def human_size(n):
+    return f"{n / 1e9:.1f} GB" if n >= 1e9 else f"{n / 1e6:.0f} MB"
+
+_USB_CTRL = re.compile(r"^xhci-hcd\.\d+$")
+_USB_BUS = re.compile(r"^usb(\d+)$")
+_USB_PORT = re.compile(r"^(\d+)-([0-9.]+)$")
+
+def disks_seen(sys_root="/sys"):
+    """The whole disks (sd*) the kernel has now, read from sysfs - no fork,
+    so it can be looked at often: name, size (0 = a reader with no card),
+    model, and where it is plugged in with the speed it runs at, the way
+    raidwatch.locate reads it (e.g. "xhci-hcd.1 usb4 4-1 at 5000 Mb/s")."""
+    out = []
+    try:
+        names = sorted(os.listdir(os.path.join(sys_root, "block")))
+    except OSError:
+        return out
+    for name in names:
+        if not name.startswith("sd"):
+            continue
+        base = os.path.join(sys_root, "block", name)
+        try:
+            size = int(_read(os.path.join(base, "size")) or 0) * 512
+        except ValueError:
+            size = 0
+        model = " ".join(x for x in (_read(os.path.join(base, "device", "vendor")),
+                                     _read(os.path.join(base, "device", "model"))) if x)
+        where = ""
+        parts = os.path.realpath(base).split("/")
+        for i in range(len(parts) - 2):
+            if _USB_CTRL.match(parts[i]) and _USB_BUS.match(parts[i + 1]) and _USB_PORT.match(parts[i + 2]):
+                speed = _read(os.path.join(sys_root, "bus", "usb", "devices", parts[i + 2], "speed"))
+                where = f"{parts[i]} {parts[i + 1]} {parts[i + 2]}" + (f" at {speed} Mb/s" if speed else "")
+                break
+        out.append((name, size, model, where))
+    return out
+
+def describe_disks(disks):
+    if not disks:
+        return "disks the Pi sees: none (no USB disk or card reader)"
+    items = []
+    for name, size, model, where in disks:
+        what = human_size(size) if size else "no card in it"
+        extra = ", ".join(x for x in (model, where) if x)
+        items.append(f"{name} {what}" + (f" ({extra})" if extra else ""))
+    return "disks the Pi sees: " + "; ".join(items)
+
+def describe_array(state, members, raid_disks=2):
+    if not state and not members:
+        return "mirror md0: not assembled"
+    slots = []
+    for slot in range(max([raid_disks] + [k + 1 for k in members])):
+        m = members.get(slot)
+        slots.append(f"slot {slot} {m['device']} ({m['state']})" if m else f"slot {slot} empty")
+    return f"mirror md0: {state or 'unknown'}; " + "; ".join(slots)
+
+# Kernel lines worth keeping: USB devices coming and going, the disks'
+# errors, the mirror's and the filesystem's own messages.
+KERNEL_DISK_LINE = re.compile(
+    r"\b(usb \d+-[\d.]+|usb-storage|uas|xhci|sd[a-z]+\b|sd \d+:\d+|scsi|md\d+|md/raid|raid1|"
+    r"I/O error|blk_update_request|Buffer I/O|EXT4-fs)", re.I)
+KERNEL_KEEP = 150
+
+# /proc/mdstat's progress: "recovery = 12.3% (...) finish=95.2min ...".
+PROGRESS_LINE = re.compile(r"(resync|recovery)\s*=\s*([\d.]+%)(?:[^\n]*?(finish=\S+))?")
+
+def kernel_disk_lines(cursor, output=None):
+    """The kernel's lines about USB, the disks and the mirror after cursor
+    (with none, this boot's - the last KERNEL_KEEP), and the cursor to go on
+    from. `output` stands in for journalctl's in the selftest."""
+    if output is None:
+        cmd = ["journalctl", "-k", "-b", "-o", "short-iso", "--no-pager", "--show-cursor"]
+        if cursor:
+            cmd += ["--after-cursor", cursor]
+        r = run(cmd)
+        if r.returncode != 0:
+            return None, cursor
+        output = r.stdout or ""
+    lines, new = [], cursor
+    for line in output.splitlines():
+        if line.startswith("-- cursor: "):
+            new = line[len("-- cursor: "):].strip()
+            continue
+        if line.startswith("-- "):
+            continue
+        # "2026-10-25T10:00:00+0100 host kernel: usb 2-1: USB disconnect..."
+        m = re.match(r"^(\S+)\s+\S+\s+kernel:\s?(.*)$", line)
+        msg = m.group(2) if m else line.strip()  # a message's further lines are indented
+        if KERNEL_DISK_LINE.search(msg):
+            lines.append(f"kernel {m.group(1)} {msg}" if m else f"kernel {msg}")
+    if len(lines) > KERNEL_KEEP:
+        lines = [f"kernel ({len(lines) - KERNEL_KEEP} earlier lines left out)"] + lines[-KERNEL_KEEP:]
+    return lines, new
+
+# ----------------------------
 # LED state machine
 # ----------------------------
 class BlinkState:
@@ -677,6 +855,9 @@ def main():
     raid_dev = CONFIG["raid_dev"]
     raid_name = raid_name_from_dev(raid_dev)
 
+    # Everything printed also goes to Settings > Logs > Storage.
+    sys.stdout = Tee(sys.stdout, StorageLog())
+
     print(f"[raid-watch] Monitoring {raid_dev} (name: {raid_name})")
     gpio_setup()
 
@@ -708,6 +889,26 @@ def main():
     # Looked at every GROW_CHECK_S only: it reads the disks (lsblk,
     # dumpe2fs), and a healthy array's disks are left to rest.
     grow_retry = {"check": 0.0, "array": 0.0, "array_delay": 0, "fs": 0.0, "fs_delay": 0}
+    # The storage log: the disks seen (looked at every DISKS_EVERY_S), the
+    # kernel's lines about them (every KERNEL_EVERY_S, and at once when the
+    # disks or the mirror change), why a disk wasn't added, and how far a
+    # rebuild has got (every PROGRESS_EVERY_S).
+    DISKS_EVERY_S, KERNEL_EVERY_S, PROGRESS_EVERY_S = 5, 30, 600
+    seen = {"disks": None, "disks_at": 0.0, "kernel": None, "kernel_at": 0.0,
+            "kernel_failed": False, "why": {}, "progress_at": 0.0}
+
+    def kernel_lines():
+        lines, seen["kernel"] = kernel_disk_lines(seen["kernel"])
+        seen["kernel_at"] = time.monotonic()
+        if lines is None:
+            if not seen["kernel_failed"]:
+                seen["kernel_failed"] = True
+                print("[raid-watch] the kernel's log can't be read (journalctl)")
+            return
+        for line in lines:
+            print(line)
+
+    kernel_lines()
 
     try:
         while True:
@@ -734,7 +935,19 @@ def main():
             summary = (state, tuple(sorted((k, v.get("state")) for k, v in members.items())))
             changed[0] = summary != last_summary[0]
             last_summary[0] = summary
-            log(f"members: {members}")
+            log(describe_array(state, members) if array_present else "mirror md0: not assembled")
+
+            mono = time.monotonic()
+            disks_changed = False
+            if mono - seen["disks_at"] >= DISKS_EVERY_S or changed[0]:
+                seen["disks_at"] = mono
+                cur = disks_seen()
+                if cur != seen["disks"]:
+                    disks_changed = True
+                    seen["disks"] = cur
+                    print(describe_disks(cur))
+            if changed[0] or disks_changed or mono - seen["kernel_at"] >= KERNEL_EVERY_S:
+                kernel_lines()
 
             # Default: turn off until we decide
             led.set_mode(0, "off")
@@ -775,27 +988,21 @@ def main():
 
             # LED logic
             if "degraded" in state or len(members) < 2:
-                log(f"Degraded: {members}")
                 # Some member missing/failed
                 for slot in (0, 1):
-                    log(f"Slot: {slot}")
                     if slot not in members:
-                        log(f"Slot not a member")
                         # Missing member -> solid red
                         led.set_mode(slot, "solid_red")
                     else:
                         # The surviving member: green unless rebuilding
                         if rebuilding and rebuilding_slot == slot:
-                            log(f"rebuilding slot")
                             # If the only member is somehow "rebuilding" (rare), blink red
                             led.set_mode(slot, "blink_red")
                         else:
-                            log(f"not rebuilding slot")
                             led.set_mode(slot, "solid_green")
             else:
                 # Two members present
                 if rebuilding and rebuilding_slot is not None:
-                    log(f"Rebuilding")
                     # Target (rebuilding) -> blink red
                     led.set_mode(rebuilding_slot, "blink_red")
                     # Source (newer events) -> blink green
@@ -804,7 +1011,6 @@ def main():
                 else:
                     # Healthy + in-sync
                     # mdadm reports "clean", "active", etc. Without rebuild markers.
-                    log(f"Healty")
                     led.set_mode(0, "solid_green")
                     led.set_mode(1, "solid_green")
 
@@ -813,10 +1019,8 @@ def main():
 
             # Auto-repair path
             if CONFIG["auto_repair_enable"] and array_present:
-                log("Auto repair enabled")
                 # If degraded and exactly one member present, try to find a candidate
                 if ("degraded" in state) or (len(members) < 2):
-                    log("Degraded:", state)
                     # Determine size of existing member to filter candidates
                     sizes = []
                     for m in members.values():
@@ -830,7 +1034,13 @@ def main():
                         del failed_adds[k]
                     mono = time.monotonic()
                     waiting = {k for k, v in failed_adds.items() if mono < v["next_try"]}
-                    candidate = pick_candidate_disk(existing_size, detail, skip=waiting, disks=disks)
+                    why = {}
+                    candidate = pick_candidate_disk(existing_size, detail, skip=waiting, disks=disks, why=why)
+                    if why != seen["why"]:
+                        for d, reason in sorted(why.items()):
+                            if seen["why"].get(d) != reason:
+                                print(f"[raid-watch] {d} is not added to the mirror: {reason}")
+                        seen["why"] = why
                     if candidate:
                         add_key = (candidate, dict(disks).get(candidate, 0))
                         retrying = add_key in failed_adds
@@ -853,8 +1063,17 @@ def main():
                             print("[raid-watch] Member added, rebuild should start automatically.")
                 else:
                     failed_adds.clear()
+                    seen["why"] = {}
             else:
                 failed_adds.clear()
+
+            if rebuilding and mono - seen["progress_at"] >= PROGRESS_EVERY_S:
+                seen["progress_at"] = mono
+                m = PROGRESS_LINE.search(mdst)
+                if m:
+                    print(f"[raid-watch] {m.group(1)}: {m.group(2)}" + (f", {m.group(3)}" if m.group(3) else ""))
+            elif not rebuilding:
+                seen["progress_at"] = 0.0
 
             # Bigger cards: grow the array, then its filesystem (above
             # GROW_MARGIN). Only once the mirror is complete and settled.
@@ -887,5 +1106,105 @@ def main():
     finally:
         gpio_cleanup()
 
+def selftest():
+    """python3 raid_watch.py --selftest: the storage log's helpers, with no
+    root, mdadm or Pi needed."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        # Lines get the time, a partial line waits, the file moves to .1
+        # past its size, and a symlink in its place is refused.
+        log_path = os.path.join(tmp, "log", "storage.log")
+        sl = StorageLog(log_path, max_bytes=60, clock=lambda: "T")
+        sl.write("one\ntw")
+        assert Path(log_path).read_text() == "T one\n", Path(log_path).read_text()
+        sl.write("o\n")
+        assert Path(log_path).read_text() == "T one\nT two\n"
+        sl.write("x" * 50 + "\n")
+        assert Path(log_path + ".1").read_text() == "T one\nT two\n"
+        assert Path(log_path).read_text() == "T " + "x" * 50 + "\n"
+        os.remove(log_path)
+        os.symlink(os.path.join(tmp, "elsewhere"), log_path)
+        sys_stderr, sys.__stderr__ = sys.__stderr__, open(os.devnull, "w")
+        try:
+            sl.write("never\n")
+        finally:
+            sys.__stderr__.close()
+            sys.__stderr__ = sys_stderr
+        assert not os.path.exists(os.path.join(tmp, "elsewhere")) and sl.failed
+
+        # The disks a Pi 5 shows: a card in the controller-1 blue port at
+        # USB 3, an empty reader at USB 2, and a disk that isn't USB.
+        sys_root = os.path.join(tmp, "sys")
+        def disk(name, size, path, vendor="Generic", model="Card Reader"):
+            dev = os.path.join(sys_root, path, name)
+            os.makedirs(os.path.join(dev, "device"))
+            Path(dev, "size").write_text(f"{size}\n")
+            Path(dev, "device", "vendor").write_text(vendor + "  \n")
+            Path(dev, "device", "model").write_text(model + "\n")
+            os.makedirs(os.path.join(sys_root, "block"), exist_ok=True)
+            os.symlink(dev, os.path.join(sys_root, "block", name))
+        usb = "devices/platform/axi/1000120000.pcie/1f00300000.usb/xhci-hcd.1/usb4/4-1/4-1:1.0/host0/target0:0:0/0:0:0:0/block"
+        disk("sda", 1000215216, usb)
+        os.makedirs(os.path.join(sys_root, "bus/usb/devices/4-1"))
+        Path(sys_root, "bus/usb/devices/4-1/speed").write_text("5000\n")
+        disk("sdb", 0, usb.replace("xhci-hcd.1/usb4/4-1/4-1:1.0", "xhci-hcd.0/usb1/1-2/1-2:1.0"))
+        os.makedirs(os.path.join(sys_root, "bus/usb/devices/1-2"))
+        Path(sys_root, "bus/usb/devices/1-2/speed").write_text("480\n")
+        disk("sdc", 2048, "devices/platform/sata/host1/block", vendor="", model="Disk")
+        os.makedirs(os.path.join(sys_root, "block", "mmcblk0"))
+        seen = disks_seen(sys_root)
+        assert [d[0] for d in seen] == ["sda", "sdb", "sdc"], seen
+        assert seen[0] == ("sda", 1000215216 * 512, "Generic Card Reader", "xhci-hcd.1 usb4 4-1 at 5000 Mb/s"), seen[0]
+        assert seen[1][1] == 0 and seen[1][3] == "xhci-hcd.0 usb1 1-2 at 480 Mb/s", seen[1]
+        assert seen[2][2:] == ("Disk", ""), seen[2]
+        said = describe_disks(seen)
+        assert said == ("disks the Pi sees: sda 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1 at 5000 Mb/s); "
+                        "sdb no card in it (Generic Card Reader, xhci-hcd.0 usb1 1-2 at 480 Mb/s); sdc 1 MB (Disk)"), said
+        assert describe_disks([]).endswith("none (no USB disk or card reader)")
+
+    # The mirror in one line, a missing slot included.
+    said = describe_array("clean, degraded", {0: {"device": "/dev/sda", "state": "active sync"}})
+    assert said == "mirror md0: clean, degraded; slot 0 /dev/sda (active sync); slot 1 empty", said
+
+    # The kernel's lines: only the disks', with their time, and the cursor.
+    out = "\n".join([
+        "2026-10-25T10:00:00+0100 otc kernel: usb 4-1: USB disconnect, device number 2",
+        "2026-10-25T10:00:01+0100 otc kernel: md/raid1:md0: Disk failure on sdb, disabling device.",
+        "                                         md/raid1:md0: Operation continuing on 1 devices.",
+        "2026-10-25T10:00:02+0100 otc kernel: brcmfmac: power management disabled",
+        "2026-10-25T10:00:03+0100 otc kernel: I/O error, dev sda, sector 2048 op 0x1:(WRITE)",
+        "-- No entries --",
+        "-- cursor: s=abc;i=42",
+    ])
+    lines, cur = kernel_disk_lines(None, output=out)
+    assert cur == "s=abc;i=42", cur
+    assert lines == [
+        "kernel 2026-10-25T10:00:00+0100 usb 4-1: USB disconnect, device number 2",
+        "kernel 2026-10-25T10:00:01+0100 md/raid1:md0: Disk failure on sdb, disabling device.",
+        "kernel md/raid1:md0: Operation continuing on 1 devices.",
+        "kernel 2026-10-25T10:00:03+0100 I/O error, dev sda, sector 2048 op 0x1:(WRITE)",
+    ], lines
+    many = "\n".join(f"2026-10-25T10:00:00+0100 otc kernel: usb 1-{i}: new device" for i in range(KERNEL_KEEP + 5))
+    lines, _ = kernel_disk_lines("s=old", output=many)
+    assert len(lines) == KERNEL_KEEP + 1 and lines[0] == "kernel (5 earlier lines left out)", lines[:2]
+
+    # Rebuild progress from /proc/mdstat.
+    m = PROGRESS_LINE.search("      [>....]  recovery =  0.0% (9600/125762560) finish=871.8min speed=2400K/sec\n")
+    assert (m.group(1), m.group(2), m.group(3)) == ("recovery", "0.0%", "finish=871.8min"), m.groups()
+    m = PROGRESS_LINE.search("      resync=DELAYED\n      [=>...]  resync = 7.5% (1/2)\n")
+    assert (m.group(2), m.group(3)) == ("7.5%", None), m.groups()
+
+    # Why a disk wasn't taken: no card, too small; the mirror's own isn't listed.
+    why = {}
+    pick = pick_candidate_disk(512_000_000_000, {"members": {0: {"device": "/dev/sda", "state": "active sync"}}},
+                               disks=[("/dev/sda", 512_000_000_000), ("/dev/sdb", 0), ("/dev/sdc", 128_000_000_000)], why=why)
+    assert pick is None, pick
+    assert why == {"/dev/sdb": "no card in it",
+                   "/dev/sdc": "too small: 128.0 GB, and the working disk is 512.0 GB"}, why
+    print("selftest ok")
+
 if __name__ == "__main__":
-    main()
+    if "--selftest" in sys.argv:
+        selftest()
+    else:
+        main()

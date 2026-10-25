@@ -735,7 +735,16 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   first copy too (md counts both in sync then; `<storage>/.raid-members.json`), since a failed reader
   usually vanishes. With nothing recorded, the disk still working is named instead when it is in a
   blue port (`raidwatch.StillWorking`; `dev.alert.raid.stopped_detail_working_*`,
-  `dev.status.raid.degraded_working_*`, `push.raid.stopped_working_*`). Main instance only. The Pi 5 has one USB controller per blue
+  `dev.status.raid.degraded_working_*`, `push.raid.stopped_working_*`). Main instance only.
+  The storage log (release 138): `raid_watch.py` writes what it prints, with times, to
+  `/var/log/otc-storage/storage.log` (root-owned, 0644, 512 KB and a `.1`) - the disks the Pi sees
+  with their USB port and speed, the mirror's state in one line, why a disk wasn't added, a
+  rebuild's progress every 10 minutes, and the kernel's lines about USB, the disks and md
+  (`journalctl -k`, every 30 s and on any change) - because the service can't read the journal and
+  root must not write in its log directory; `raidwatch.FollowLog` copies each new line into the
+  device's own log as `storage: …` (Settings > Logs > Device, every app; its place kept in
+  `<storage>/.storage-log-read`, by the file's first line). `python3 scripts/raid_watch.py
+  --selftest` tests the script's side. The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
   replacement. More storage: swap the cards for bigger ones one at a time (each is added and

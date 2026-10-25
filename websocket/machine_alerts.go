@@ -51,6 +51,10 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 			},
 			PushText: func(t push.Text) { ps.NotifyText(t, push.Target{}) },
 		})
+		// What the root mirror watcher sees and does, copied into this
+		// device's log (Settings > Logs > Device): the disks, the mirror,
+		// why a disk wasn't added, the kernel's lines about them.
+		go raidwatch.FollowLog(cfg.GetStr("otc", "storage-path"))
 	}
 
 	// A Wi-Fi that stopped sending properly (Pit, brcmfmac over SDIO) is
