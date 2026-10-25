@@ -2030,6 +2030,12 @@ same `/ws` protocol.
 kept in its own directory so the two are worked on independently - port screen by screen, keeping
 the iOS file/type names (SwiftUI view ↔ Composable, ObservableObject ↔ ViewModel, Keychain ↔
 EncryptedSharedPreferences, PhotoKit ↔ MediaStore, BGTaskScheduler ↔ WorkManager, APNs ↔ FCM).
+Android's background sync (`sync/SyncScheduler.kt`) has more than iOS can: besides the 15-minute
+periodic run, a MediaStore content trigger (images and videos, 5 s update delay, 1 min max) fires
+`MediaWorker`, which arms the next trigger (APPEND_OR_REPLACE behind itself, never REPLACE: that
+cancels the running worker) and queues a one-time `SoonWorker` sync (network required; it retries
+while another sync runs in the process). Armed by `scheduleNext()` on every backgrounding,
+re-armed by WorkManager after a reboot, cancelled at Log Out.
 `make pb` writes its protobuf bindings (`--java_out=lite` + `--kotlin_out=lite`, package
 `cloud.offthe.otc.proto`, one file per type) to `app/android/app/src/main/proto-gen/`, which is
 gitignored like `proto/generated`. The root `.gitignore` ignores the device binary as `/otc` - anchored, because the

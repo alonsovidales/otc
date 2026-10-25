@@ -70,6 +70,8 @@ object PhotoSync {
     /** In backfill(): the catch-up, everything added since the floor. */
     const val CATCH_UP = "*"
     private val syncing = AtomicBoolean(false)
+    /** A sync is going (in front, or a WorkManager run in this process). */
+    val isSyncing: Boolean get() = syncing.get()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val prefs get() = OTCApp.instance.getSharedPreferences("otc_sync", Context.MODE_PRIVATE)
 
