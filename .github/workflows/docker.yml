@@ -1,0 +1,291 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The Docker image (beta, docs/docker.md), in step with the device releases:
+# when scripts/release.sh pushes a new line of the signed manifest to main,
+# this builds that release's image for linux/amd64 and linux/arm64 (each on
+# its own native runner), tests each one (docker/smoke/test-image.sh: it
+# starts, serves the web app, signs in, restarts), and only once both pass
+# publishes them as ghcr.io/alonsovidales/otc:<release>, moving :beta and
+# :latest to it. A failure publishes nothing; the Pi release is never
+# affected.
+#
+# By hand (Actions > docker > Run workflow): a release number (empty: the
+# newest) and whether to publish - off by default, so a run only builds and
+# tests. :beta and :latest only ever move to the newest release.
+#
+# The image is built from the release's own signed archives (src.tar.gz and
+# web-dist.tar.gz, checked against the manifest), never from this checkout:
+# nothing untracked reaches it. This checkout only provides the build file,
+# the test and the sign-in client.
+name: docker
+
+on:
+  push:
+    branches: [main]
+    paths: [scripts/updates/VERSIONS]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release number (empty: the newest)"
+        required: false
+        type: string
+      publish:
+        description: "Publish the image once its tests pass"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-image
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/alonsovidales/otc
+
+jobs:
+  prep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      release: ${{ steps.pick.outputs.release }}
+      revision: ${{ steps.pick.outputs.revision }}
+      newest: ${{ steps.pick.outputs.newest }}
+      publish: ${{ steps.pick.outputs.publish }}
+      skip: ${{ steps.skip.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Pick the release and check the signed manifest
+        id: pick
+        env:
+          INPUT_RELEASE: ${{ inputs.release }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          manifest=scripts/updates/VERSIONS
+          base64 -d < scripts/updates/VERSIONS.sig > "$RUNNER_TEMP/versions.sig"
+          openssl pkeyutl -verify -pubin -inkey scripts/release-signing.pub -rawin \
+            -in "$manifest" -sigfile "$RUNNER_TEMP/versions.sig"
+          newest=$(tail -n 1 "$manifest" | cut -f 1)
+          release=${INPUT_RELEASE:-$newest}
+          case "$release" in ''|*[!0-9]*) echo "::error::the release must be a number, not '$release'"; exit 1 ;; esac
+          line=$(awk -F '\t' -v n="$release" '$1 == n' "$manifest")
+          [ -n "$line" ] || { echo "::error::release $release is not in the manifest"; exit 1; }
+          if [ "$EVENT" = push ]; then publish=true; else publish=${INPUT_PUBLISH:-false}; fi
+          # The tag's commit, for the image's revision label.
+          revision=$(git ls-remote origin "refs/tags/v$release^{}" "refs/tags/v$release" | awk 'NR == 1 || /\^\{\}$/ {c = $1} END {print c}')
+          [ -n "$revision" ] || { echo "::error::no tag v$release"; exit 1; }
+          printf '%s\n' "$line" | cut -f 3 > "$RUNNER_TEMP/web.sha"
+          printf '%s\n' "$line" | cut -f 5 > "$RUNNER_TEMP/src.sha"
+          {
+            echo "release=$release"
+            echo "revision=$revision"
+            echo "newest=$newest"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+          echo "release $release (newest $newest), tag commit $revision, publish $publish"
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Already published?
+        env:
+          RELEASE: ${{ steps.pick.outputs.release }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # A push that adds no new line (or a re-run) doesn't build again;
+          # by hand it always does.
+          skip=false
+          if [ "$EVENT" = push ] && docker buildx imagetools inspect "$IMAGE:$RELEASE" >/dev/null 2>&1; then
+            skip=true
+            echo "$IMAGE:$RELEASE is already published"
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+        id: published
+
+      - name: Download the release's archives and check them against the manifest
+        if: steps.published.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.pick.outputs.release }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          gh release download "v$RELEASE" -R "$GITHUB_REPOSITORY" -p src.tar.gz -p web-dist.tar.gz -D "$RUNNER_TEMP/release"
+          echo "$(cat "$RUNNER_TEMP/src.sha")  $RUNNER_TEMP/release/src.tar.gz" | sha256sum -c -
+          echo "$(cat "$RUNNER_TEMP/web.sha")  $RUNNER_TEMP/release/web-dist.tar.gz" | sha256sum -c -
+
+      - uses: actions/upload-artifact@v4
+        if: steps.published.outputs.skip != 'true'
+        with:
+          name: release-archives
+          path: ${{ runner.temp }}/release/
+          retention-days: 3
+
+      - name: Skip the rest
+        id: skip
+        if: always()
+        run: echo "skip=${{ steps.published.outputs.skip || 'false' }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prep
+    if: needs.prep.outputs.skip != 'true'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    # A cold build compiles OpenCV (docker/base.Dockerfile); after that the
+    # two base images come from the Actions cache.
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      packages: write
+    env:
+      ARCH: ${{ matrix.arch }}
+      RELEASE: ${{ needs.prep.outputs.release }}
+      OTC_RELEASE: ${{ needs.prep.outputs.release }}
+      OTC_REVISION: ${{ needs.prep.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-archives
+          path: ${{ runner.temp }}/release
+
+      - name: Unpack the release
+        run: |
+          set -euo pipefail
+          SRC=$RUNNER_TEMP/src WEB=$RUNNER_TEMP/web SMOKE_SRC=$RUNNER_TEMP/smoke-src
+          printf 'SRC=%s\nWEB=%s\nSMOKE_SRC=%s\n' "$SRC" "$WEB" "$SMOKE_SRC" >> "$GITHUB_ENV"
+          mkdir -p "$SRC" "$WEB" "$SMOKE_SRC/proto" "$SMOKE_SRC/docker"
+          tar -xzf "$RUNNER_TEMP/release/src.tar.gz" -C "$SRC" --strip-components=1
+          tar -xzf "$RUNNER_TEMP/release/web-dist.tar.gz" -C "$WEB"
+          [ -f "$SRC/docker/Dockerfile" ] || { echo "::error::release $RELEASE has no docker/Dockerfile"; exit 1; }
+          # The sign-in client's sources, alone (docker/docker-bake.hcl, smoke).
+          cp go.mod go.sum "$SMOKE_SRC/"
+          cp proto/messages.proto "$SMOKE_SRC/proto/"
+          cp -R docker/smoke "$SMOKE_SRC/docker/"
+          # git archive dates every file at the tag's commit: the image's
+          # timestamps follow it, the same in the tested and the pushed
+          # image (whose layers are checked against each other below).
+          echo "SOURCE_DATE_EPOCH=$(stat -c %Y "$SRC/go.mod")" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+      # The Actions cache for buildx from run steps.
+      - uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          docker buildx bake -f docker/docker-bake.hcl otc-build otc-base otc smoke \
+            --set "*.platform=linux/$ARCH" \
+            --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
+            --set "otc-build.cache-to=type=gha,scope=otc-build-$ARCH,mode=max" \
+            --set "otc-base.cache-from=type=gha,scope=otc-base-$ARCH" \
+            --set "otc-base.cache-to=type=gha,scope=otc-base-$ARCH,mode=max" \
+            --set "otc.output=type=docker,name=otc-test:$RELEASE" \
+            --set "smoke.output=type=local,dest=$RUNNER_TEMP/smoke-out"
+
+      - name: Test
+        run: docker/smoke/test-image.sh "otc-test:$RELEASE" "$RELEASE" "$RUNNER_TEMP/smoke-out/otc-smoke" "$RUNNER_TEMP/otc-data"
+
+      - name: Log in to the registry
+        if: needs.prep.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push the tested image (by digest, untagged)
+        if: needs.prep.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          docker buildx bake -f docker/docker-bake.hcl otc \
+            --set "*.platform=linux/$ARCH" \
+            --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
+            --set "otc-base.cache-from=type=gha,scope=otc-base-$ARCH" \
+            --set "otc.output=type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file "$RUNNER_TEMP/meta.json"
+          digest=$(jq -r '.otc."containerimage.digest"' "$RUNNER_TEMP/meta.json")
+          case "$digest" in sha256:*) ;; *) echo "::error::no digest in the build's metadata"; exit 1 ;; esac
+          # The same layers as the image the test ran.
+          tested=$(docker image inspect -f '{{json .RootFS.Layers}}' "otc-test:$RELEASE" | jq -c .)
+          pushed=$(docker buildx imagetools inspect "$IMAGE@$digest" --format '{{json .Image}}' \
+            | jq -c --arg p "linux/$ARCH" 'if has("rootfs") then .rootfs.diff_ids else .[$p].rootfs.diff_ids end')
+          if [ "$tested" != "$pushed" ]; then
+            echo "::error::the pushed image's layers differ from the tested image's"
+            echo "tested: $tested"; echo "pushed: $pushed"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/digests"
+          echo "$digest" > "$RUNNER_TEMP/digests/$ARCH"
+          echo "pushed $IMAGE@$digest (linux/$ARCH), the tested image"
+
+      - uses: actions/upload-artifact@v4
+        if: needs.prep.outputs.publish == 'true'
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/${{ matrix.arch }}
+          retention-days: 3
+
+  publish:
+    needs: [prep, build]
+    if: needs.prep.outputs.skip != 'true' && needs.prep.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE: ${{ needs.prep.outputs.release }}
+      NEWEST: ${{ needs.prep.outputs.newest }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Tag both architectures as the release
+        run: |
+          set -euo pipefail
+          tags=(-t "$IMAGE:$RELEASE")
+          if [ "$RELEASE" = "$NEWEST" ]; then tags+=(-t "$IMAGE:beta" -t "$IMAGE:latest"); fi
+          refs=()
+          for arch in amd64 arm64; do refs+=("$IMAGE@$(cat "$RUNNER_TEMP/digests/$arch")"); done
+          docker buildx imagetools create "${tags[@]}" \
+            --annotation "index:org.opencontainers.image.title=Off The Cloud (beta)" \
+            --annotation "index:org.opencontainers.image.description=Off The Cloud on a home server: a private family social network and home NAS for photos and files. Beta; on a Raspberry Pi, use the Off The Cloud image." \
+            --annotation "index:org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --annotation "index:org.opencontainers.image.licenses=AGPL-3.0-or-later" \
+            --annotation "index:org.opencontainers.image.version=$RELEASE" \
+            "${refs[@]}"
+          docker buildx imagetools inspect "$IMAGE:$RELEASE"
+          moved=""; [ "$RELEASE" = "$NEWEST" ] && moved=", and :beta and :latest with it"
+          echo "Published $IMAGE:$RELEASE$moved." >> "$GITHUB_STEP_SUMMARY"

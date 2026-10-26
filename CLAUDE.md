@@ -442,7 +442,14 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners for the
   primary (`listenersFatal`; a user's instance logs a busy port and keeps serving through the bridge)
   and no `:80` in `api`, extra interface skips in `lantls`. `PubKey.container` and
-  `RespUpdateInfo.container` tell the clients.
+  `RespUpdateInfo.container` tell the clients. Publishing: `.github/workflows/docker.yml` runs when
+  a release's manifest line reaches main (or by hand, publishing off by default). It verifies
+  `VERSIONS.sig`, builds from the release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked)
+  with `docker/docker-bake.hcl` (base pair cached in the Actions cache per arch), natively on amd64
+  and arm64, runs `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password,
+  `docker/smoke` sign-in client, restart, no panic), pushes each by digest only after its test
+  passed and checks its layers against the tested image, then tags `:<N>` (and `:beta`/`:latest`
+  for the newest release). The test script runs on any Linux Docker host (or Colima).
 - `cfg` — INI config loader (`etc/otc_<env>.ini`, falling back to `/etc/otc_<env>.ini`); `env` is
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
