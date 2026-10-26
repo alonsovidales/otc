@@ -29,6 +29,7 @@ import { dragSelection } from "./dragSelect";
 import { useDragSelect } from "./useDragSelect";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 import { refusedText } from "./photoCopies";
+import { openWaitingTab } from "./zipTab";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -823,6 +824,10 @@ export default function FilesExplorer({
   const shareOrZip = async (openZip: boolean) => {
     if (!selected.length || preparing || refuseOnDemo()) return;
     setPreparing(openZip ? "zip" : "share");
+    // As Images: the ZIP's tab opens at the click, since a browser blocks
+    // one opened once the archive is made, seconds later.
+    const tab = openZip ? openWaitingTab(t) : null;
+    let sent = false;
     try {
       const paths = selected.map(f => f.path.includes("/") ? f.path : joinPath(path, f.path));
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -830,13 +835,17 @@ export default function FilesExplorer({
       });
       if (resp.payload?.$case === "respShareLink" && resp.payload.respShareLink.link) {
         const link = resp.payload.respShareLink.link;
-        if (openZip) window.open(link, "_blank");
-        else {
+        if (openZip) {
+          if (tab && !tab.closed) tab.location.href = link;
+          else window.open(link, "_blank");
+          sent = true;
+        } else {
           try { await navigator.clipboard.writeText(link); alert(t("web.files.selection.link_copied")); }
           catch { window.open(link, "_blank"); }
         }
       }
     } finally {
+      if (!sent) tab?.close();
       setPreparing(null);
     }
   };
