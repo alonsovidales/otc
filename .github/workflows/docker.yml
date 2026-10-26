@@ -196,15 +196,26 @@ jobs:
           set -euo pipefail
           # The release and the outputs are under RUNNER_TEMP, outside this
           # checkout: bake only reads and writes there when allowed to.
-          docker buildx bake -f docker/docker-bake.hcl otc-build otc-base otc smoke \
-            --allow "fs.read=$RUNNER_TEMP" --allow "fs.write=$RUNNER_TEMP" \
-            --set "*.platform=linux/$ARCH" \
-            --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
-            --set "otc-build.cache-to=type=gha,scope=otc-build-$ARCH,mode=max" \
-            --set "otc-base.cache-from=type=gha,scope=otc-base-$ARCH" \
-            --set "otc-base.cache-to=type=gha,scope=otc-base-$ARCH,mode=max" \
-            --set "otc.output=type=docker,name=otc-test:$RELEASE" \
-            --set "smoke.output=type=local,dest=$RUNNER_TEMP/smoke-out"
+          build() {
+            docker buildx bake -f docker/docker-bake.hcl otc-build otc-base otc smoke \
+              --allow "fs.read=$RUNNER_TEMP" --allow "fs.write=$RUNNER_TEMP" \
+              --set "*.platform=linux/$ARCH" \
+              --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
+              --set "otc-build.cache-to=type=gha,scope=otc-build-$ARCH,mode=max" \
+              --set "otc-base.cache-from=type=gha,scope=otc-base-$ARCH" \
+              --set "otc-base.cache-to=type=gha,scope=otc-base-$ARCH,mode=max" \
+              --set "otc.output=type=docker,name=otc-test:$RELEASE" \
+              --set "smoke.output=type=local,dest=$RUNNER_TEMP/smoke-out"
+          }
+          # A download the build makes (Go, ONNX Runtime, protoc, Debian's
+          # packages) can fail for a while upstream: up to three tries, a
+          # minute apart. What already built is kept, so a try only redoes
+          # what failed.
+          for try in 1 2 3; do
+            build && exit 0
+            [ "$try" = 3 ] || { echo "::warning::build try $try failed, trying again in a minute"; sleep 60; }
+          done
+          exit 1
 
       - name: Test
         run: docker/smoke/test-image.sh "otc-test:$RELEASE" "$RELEASE" "$RUNNER_TEMP/smoke-out/otc-smoke" "$RUNNER_TEMP/otc-data"
