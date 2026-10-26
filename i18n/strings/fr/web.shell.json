@@ -109,6 +109,10 @@
     "text": "Fichier {type}",
     "en": "{type} file"
   },
+  "web.shell.link.done": {
+    "text": "Le téléchargement a commencé. Vous pouvez fermer cet onglet.",
+    "en": "Your download has started. You can close this tab."
+  },
   "web.shell.link.empty": {
     "text": "L’appareil a renvoyé un fichier vide.",
     "en": "The device returned an empty file."

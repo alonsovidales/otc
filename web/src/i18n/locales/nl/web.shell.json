@@ -26,6 +26,7 @@
   "web.shell.download.started_sr": "\u2068{name}\u2069: download gestart",
   "web.shell.file_icon.generic": "DATA",
   "web.shell.file_icon.label": "{type}-bestand",
+  "web.shell.link.done": "Je download is gestart. Je kunt dit tabblad nu sluiten.",
   "web.shell.link.empty": "Het apparaat heeft een leeg bestand teruggestuurd.",
   "web.shell.link.failed": "Kan die link niet downloaden.",
   "web.shell.link.invalid": "Die link is niet meer geldig.",

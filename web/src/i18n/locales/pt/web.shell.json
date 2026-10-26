@@ -26,6 +26,7 @@
   "web.shell.download.started_sr": "\u2068{name}\u2069: transferência iniciada",
   "web.shell.file_icon.generic": "FICH",
   "web.shell.file_icon.label": "Ficheiro {type}",
+  "web.shell.link.done": "A transferência começou. Já podes fechar este separador.",
   "web.shell.link.empty": "O dispositivo devolveu um ficheiro vazio.",
   "web.shell.link.failed": "Não foi possível transferir o conteúdo dessa ligação.",
   "web.shell.link.invalid": "Essa ligação já não é válida.",

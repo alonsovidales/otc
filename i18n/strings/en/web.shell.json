@@ -128,6 +128,10 @@
     "args": [["type", "text"]],
     "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, a file extension in capitals, or web.shell.file_icon.generic."
   },
+  "web.shell.link.done": {
+    "text": "Your download has started. You can close this tab.",
+    "note": "The whole page of a shared download link once the archive has arrived and the browser was told to save it; shown when the browser doesn't let the page close its own tab (the tab closes by itself otherwise)."
+  },
   "web.shell.link.empty": {
     "text": "The device returned an empty file.",
     "note": "The whole page when the archive of a shared download link came back empty."

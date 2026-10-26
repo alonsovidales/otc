@@ -109,6 +109,10 @@
     "text": "{type}-bestand",
     "en": "{type} file"
   },
+  "web.shell.link.done": {
+    "text": "Je download is gestart. Je kunt dit tabblad nu sluiten.",
+    "en": "Your download has started. You can close this tab."
+  },
   "web.shell.link.empty": {
     "text": "Het apparaat heeft een leeg bestand teruggestuurd.",
     "en": "The device returned an empty file."

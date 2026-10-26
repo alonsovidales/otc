@@ -26,6 +26,7 @@
   "web.shell.download.started_sr": "\u2068{name}\u2069: download started",
   "web.shell.file_icon.generic": "FILE",
   "web.shell.file_icon.label": "{type} file",
+  "web.shell.link.done": "Your download has started. You can close this tab.",
   "web.shell.link.empty": "The device returned an empty file.",
   "web.shell.link.failed": "Could not download that link.",
   "web.shell.link.invalid": "That link is no longer valid.",

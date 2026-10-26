@@ -701,6 +701,7 @@ export type MessageKey =
   | "web.shell.download.started_sr"
   | "web.shell.file_icon.generic"
   | "web.shell.file_icon.label"
+  | "web.shell.link.done"
   | "web.shell.link.empty"
   | "web.shell.link.failed"
   | "web.shell.link.invalid"
@@ -1638,6 +1639,7 @@ export interface MessageArgs {
   "web.shell.download.started_sr": { name: string };
   "web.shell.file_icon.generic": undefined;
   "web.shell.file_icon.label": { type: string };
+  "web.shell.link.done": undefined;
   "web.shell.link.empty": undefined;
   "web.shell.link.failed": undefined;
   "web.shell.link.invalid": undefined;

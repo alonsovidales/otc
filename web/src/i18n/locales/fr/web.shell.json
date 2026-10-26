@@ -26,6 +26,7 @@
   "web.shell.download.started_sr": "\u2068{name}\u2069 : téléchargement lancé",
   "web.shell.file_icon.generic": "FICH.",
   "web.shell.file_icon.label": "Fichier {type}",
+  "web.shell.link.done": "Le téléchargement a commencé. Vous pouvez fermer cet onglet.",
   "web.shell.link.empty": "L’appareil a renvoyé un fichier vide.",
   "web.shell.link.failed": "Impossible de télécharger ce lien.",
   "web.shell.link.invalid": "Ce lien n’est plus valide.",

@@ -26,6 +26,7 @@
   "web.shell.download.started_sr": "\u2068{name}\u2069: descarga iniciada",
   "web.shell.file_icon.generic": "ARCH",
   "web.shell.file_icon.label": "Archivo {type}",
+  "web.shell.link.done": "La descarga ha empezado. Ya puedes cerrar esta pestaña.",
   "web.shell.link.empty": "El dispositivo ha devuelto un archivo vacío.",
   "web.shell.link.failed": "No se ha podido descargar ese enlace.",
   "web.shell.link.invalid": "Ese enlace ya no es válido.",

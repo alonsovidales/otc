@@ -371,6 +371,7 @@ function App() {
   const startedDownloadRef = useRef<string | null>(null);
   const [downloadError, setDownloadError] = useState<UiText | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloadDone, setDownloadDone] = useState(false);
   useEffect(() => {
     if (!downloadLink) return;
     if (startedDownloadRef.current === downloadLink) return;
@@ -424,7 +425,15 @@ function App() {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        URL.revokeObjectURL(url);
+        // The tab has nothing more to do. Images and Files open it for the
+        // ZIP, so it may close itself - after a moment, for the browser to
+        // take the file (one that refuses, a tab someone opened by hand,
+        // shows that the download started instead of 100% for good).
+        setDownloadDone(true);
+        window.setTimeout(() => {
+          window.close();
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        }, 2000);
       } catch (err: any) {
         // Reported inline rather than through alert(), which blocks the
         // whole tab until someone dismisses it - and this view has nothing
@@ -450,6 +459,8 @@ function App() {
       <div className="download-view">
         {downloadError
           ? <p className="sf-note error">{downloadError(t)}</p>
+          : downloadDone
+          ? <p className="sf-note">{t("web.shell.link.done")}</p>
           : <Spinner label={downloadProgress === null
               ? t("web.shell.link.preparing")
               : t("web.shell.link.progress", { percent: percentText(t, Math.round(downloadProgress * 100)) })} />}

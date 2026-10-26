@@ -109,6 +109,10 @@
     "text": "Ficheiro {type}",
     "en": "{type} file"
   },
+  "web.shell.link.done": {
+    "text": "A transferência começou. Já podes fechar este separador.",
+    "en": "Your download has started. You can close this tab."
+  },
   "web.shell.link.empty": {
     "text": "O dispositivo devolveu um ficheiro vazio.",
     "en": "The device returned an empty file."
