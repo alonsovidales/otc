@@ -41,11 +41,15 @@ RUN mkdir -p proto/generated \
  && sed -n '/^# >>> schema-migrations/,/^# <<< schema-migrations/p' scripts/install.sh > /out/schema-migrations.sh \
  && grep -q '^apply_schema_migrations otc$' /out/schema-migrations.sh \
  && [ "$(tail -n 1 /out/schema-migrations.sh)" = '# <<< schema-migrations' ]
+# The disk mirror's helper (docker/compose.mirror.yaml), static: the
+# entrypoint runs it as root, before anything reads the storage.
+RUN CGO_ENABLED=0 go build -o /out/otc-mirror ./docker/mirror
 
 FROM ${BASE_IMAGE}
 ARG OTC_RELEASE
 ARG OTC_REVISION=
 COPY --from=build /out/otc /usr/bin/otc
+COPY --from=build /out/otc-mirror /usr/local/sbin/otc-mirror
 COPY --from=build /out/schema-migrations.sh /usr/share/otc/
 COPY --from=web / /var/www/
 COPY db/db.sql models/models/tag_list_4585.txt.gz scripts/release-signing.pub /usr/share/otc/

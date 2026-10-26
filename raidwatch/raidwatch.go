@@ -13,6 +13,14 @@
 // Everything is read from sysfs, which the unprivileged service may read;
 // the root scripts/raid_watch.py still drives the LEDs and re-adds a
 // replacement disk. Main instance only (websocket.Init).
+//
+// In a container it watches the container's own mirror instead
+// (docker/compose.mirror.yaml: container.MirrorArray, never md0 nor any
+// other of the host's arrays), whose disks have no USB port to name: each
+// is named by what the owner called it in .env, found by its device number
+// (container.MirrorDisks), and recorded by slot the same way so the one that
+// vanished can still be named. The root otc-mirror there assembles it and
+// adds a replacement.
 package raidwatch
 
 import (
@@ -30,6 +38,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/push"
@@ -67,6 +76,9 @@ type Member struct {
 	Port     string `json:"port"`               // e.g. "xhci-hcd.1 usb4 4-1"
 	Position string `json:"position,omitempty"` // "top", "bottom", or "" when not a Pi 5 blue port
 	Serial   string `json:"serial,omitempty"`
+	// Disk is the disk's name in .env, in the container's mirror (no Port
+	// there); "" on a Raspberry Pi, and for a disk that isn't one of the two.
+	Disk string `json:"disk,omitempty"`
 }
 
 // inSync: md counts the member as an up-to-date copy.
@@ -81,8 +93,12 @@ func (m Member) inSync() bool {
 
 // Label names the disk the way the owner can find it, in English: the
 // log, Missing() and the alert for several disks, which no key names (one
-// disk's alerts and pushes say it in every language, by its Port).
+// disk's alerts and pushes say it in every language, by its Port; in the
+// container's mirror its alerts, by its Disk).
 func (m Member) Label() string {
+	if m.Disk != "" {
+		return "the disk " + m.Disk // i18n-ignore: English only, see above
+	}
 	if m.Position != "" {
 		return "the disk in the " + m.Position + " blue USB port" // i18n-ignore: English only, see above
 	}
@@ -112,11 +128,15 @@ func (m Member) Where() Port {
 // failure is what the mirror is missing: the disks' Labels as one English
 // phrase, and their Ports, in the same order; and, when the one missing
 // disk's port isn't known, the port of the disk still working
-// (stillWorking), so the owner knows which one to keep.
+// (stillWorking), so the owner knows which one to keep. The container's
+// mirror names its disks instead: disks, in the same order ("" for one
+// nothing is known of), and workingDisk (stillWorkingDisk).
 type failure struct {
-	label   string
-	ports   []Port
-	working Port
+	label       string
+	ports       []Port
+	working     Port
+	disks       []string
+	workingDisk string
 }
 
 // describe names the missing disks; none at all (md says degraded but
@@ -143,6 +163,44 @@ func stillWorking(a array, f failure) Port {
 	if a.raidDisks != 2 || len(f.ports) != 1 || f.ports[0] != PortUnknown {
 		return PortUnknown
 	}
+	m, ok := soleInSync(a)
+	if !ok {
+		return PortUnknown
+	}
+	return m.Where()
+}
+
+// diskNames are the missing disks' names in .env, for the container's
+// mirror: "" for one nothing is known of, and that alone when none is
+// missing yet md says degraded (describe's unknownLabel).
+func diskNames(missing []Member) []string {
+	if len(missing) == 0 {
+		return []string{""}
+	}
+	names := make([]string, 0, len(missing))
+	for _, m := range missing {
+		names = append(names, m.Disk)
+	}
+	return names
+}
+
+// stillWorkingDisk is stillWorking for the container's mirror: the name
+// of the one disk it still has, when the missing disk's name isn't known
+// (nothing recorded, and md no longer lists it or it isn't one of the
+// .env disks any more). "" otherwise.
+func stillWorkingDisk(a array, f failure) string {
+	if a.raidDisks != 2 || len(f.disks) != 1 || f.disks[0] != "" {
+		return ""
+	}
+	m, ok := soleInSync(a)
+	if !ok {
+		return ""
+	}
+	return m.Disk
+}
+
+// soleInSync is the array's one up-to-date copy, when it has exactly one.
+func soleInSync(a array) (Member, bool) {
 	var in []Member
 	for _, m := range a.members {
 		if m.Slot >= 0 && m.inSync() {
@@ -150,9 +208,33 @@ func stillWorking(a array, f failure) Port {
 		}
 	}
 	if len(in) != 1 {
-		return PortUnknown
+		return Member{}, false
 	}
-	return in[0].Where()
+	return in[0], true
+}
+
+// target is the array watched and how its disks are named: md0 and the
+// USB ports on a Raspberry Pi; in a container its own mirror and the names
+// the owner gave its disks in .env, by device number ("major:minor").
+type target struct {
+	name  string
+	disks map[string]string // nil on a Raspberry Pi
+}
+
+// named: the disks are named by .env, not by a USB port.
+func (t target) named() bool { return t.disks != nil }
+
+// watched is the array to watch now: in a container, the mirror the
+// start-up script handed over (none without it: name "").
+func watched() target {
+	if !container.Enabled() {
+		return target{name: mdName}
+	}
+	t := target{name: container.MirrorArray(), disks: map[string]string{}}
+	for _, d := range container.MirrorDisks() {
+		t.disks[d.Dev] = d.Label
+	}
+	return t
 }
 
 type array struct {
@@ -170,9 +252,14 @@ func readTrim(p string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// readArray reads md0 from sysfs; ok is false when there is no array.
-func readArray() (a array, ok bool) {
-	md := filepath.Join(sysRoot, "block", mdName, "md")
+// readArray reads t's array from sysfs; ok is false when there is no
+// array. A disk is located by its USB port, or in the container's mirror
+// named by its device number (md/dev-*/block/dev).
+func readArray(t target) (a array, ok bool) {
+	if t.name == "" {
+		return a, false
+	}
+	md := filepath.Join(sysRoot, "block", t.name, "md")
 	n, err := strconv.Atoi(readTrim(filepath.Join(md, "raid_disks")))
 	if err != nil || n == 0 {
 		return a, false
@@ -189,7 +276,11 @@ func readArray() (a array, ok bool) {
 		}
 		dev := strings.TrimPrefix(filepath.Base(dir), "dev-")
 		m := Member{Slot: slot, Dev: dev, State: readTrim(filepath.Join(dir, "state"))}
-		m.Port, m.Position, m.Serial = locate(dev)
+		if t.named() {
+			m.Disk = t.disks[readTrim(filepath.Join(dir, "block", "dev"))]
+		} else {
+			m.Port, m.Position, m.Serial = locate(dev)
+		}
 		a.members = append(a.members, m)
 	}
 	sort.Slice(a.members, func(i, j int) bool { return a.members[i].Slot < a.members[j].Slot })
@@ -298,6 +389,24 @@ func StillWorking() Port {
 	return broken.working
 }
 
+// MissingDisks is MissingPorts for the container's mirror: the name in
+// .env of each disk Missing names, in the same order ("" for one nothing
+// is known of), or nil - always on a Raspberry Pi, whose disks have ports.
+func MissingDisks() []string {
+	mu.Lock()
+	defer mu.Unlock()
+	return slices.Clone(broken.disks)
+}
+
+// StillWorkingDisk is StillWorking for the container's mirror: the name in
+// .env of the disk it still has, when MissingDisks can't name the missing
+// one ([""]); "" otherwise.
+func StillWorkingDisk() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return broken.workingDisk
+}
+
 // Watch checks the array every minute, from 30 s after start. Blocks.
 func Watch(storagePath string, n Notify) {
 	time.Sleep(firstCheck)
@@ -351,19 +460,44 @@ func missingSlots(a array, known map[int]Member) []Member {
 			continue
 		}
 		// A replacement being rebuilt into the slot is not the disk that
-		// failed: name the one recorded there.
-		if k, ok := known[s]; ok && (!here || m.Port == "" || strings.Contains(m.State, "spare")) {
+		// failed: name the one recorded there. So for one md still lists
+		// but that left nothing to name it by.
+		if k, ok := known[s]; ok && (!here || (m.Port == "" && m.Disk == "") || strings.Contains(m.State, "spare")) {
 			m = k
 		} else if !here {
 			m = Member{Slot: s}
+			// The container's mirror, with nothing recorded (it failed in
+			// the first minute): md still lists the failed disk, faulty and
+			// with no slot, and its name in .env says which it was.
+			if f, ok := soleFaultyNamed(a); ok && a.raidDisks-len(bySlot) == 1 {
+				f.Slot = s
+				m = f
+			}
 		}
 		out = append(out, m)
 	}
 	return out
 }
 
+// soleFaultyNamed is the one member md lists as faulty with no slot, when
+// there is exactly one and it is named by .env (never on a Raspberry Pi,
+// whose members have no Disk).
+func soleFaultyNamed(a array) (Member, bool) {
+	var found []Member
+	for _, m := range a.members {
+		if m.Slot < 0 && strings.Contains(m.State, "faulty") {
+			found = append(found, m)
+		}
+	}
+	if len(found) != 1 || found[0].Disk == "" {
+		return Member{}, false
+	}
+	return found[0], true
+}
+
 func check(storagePath string, n Notify) {
-	a, ok := readArray()
+	t := watched()
+	a, ok := readArray(t)
 	if !ok {
 		return
 	}
@@ -389,7 +523,11 @@ func check(storagePath string, n Notify) {
 		}
 		if len(cur) == a.raidDisks && changed(known, cur) {
 			for _, m := range cur {
-				log.Info("raid: slot", m.Slot, "is", m.Label(), "("+m.Port+")")
+				if t.named() {
+					log.Info("raid: slot", m.Slot, "of", t.name, "is", m.Label(), "("+m.Dev+")")
+				} else {
+					log.Info("raid: slot", m.Slot, "is", m.Label(), "("+m.Port+")")
+				}
 			}
 			saveKnown(storagePath, cur)
 		}
@@ -408,6 +546,10 @@ func check(storagePath string, n Notify) {
 	missing := missingSlots(a, known)
 	f := describe(missing)
 	f.working = stillWorking(a, f)
+	if t.named() {
+		f.disks = diskNames(missing)
+		f.workingDisk = stillWorkingDisk(a, f)
+	}
 	what := f.label
 	mu.Lock()
 	broken = f
@@ -419,6 +561,16 @@ func check(storagePath string, n Notify) {
 	// alert per failure is enough.
 	if err := os.WriteFile(alertedPath, []byte(what+"\n"), 0o600); err != nil {
 		log.Error("raid: could not record the alert:", err)
+	}
+	if t.named() {
+		if f.workingDisk != "" {
+			log.Error("raid:", what, "stopped working -", t.name, "is degraded; the disk", f.workingDisk, "still works")
+		} else {
+			log.Error("raid:", what, "stopped working -", t.name, "is degraded")
+		}
+		n.alert(namedStoppedAlert(f))
+		n.push(push.StorageDiskStoppedUnnamed())
+		return
 	}
 	if f.working != PortUnknown {
 		log.Error("raid:", what, "stopped working - the array is degraded; the disk in the", f.working, "blue USB port still works")
@@ -472,6 +624,24 @@ func stoppedAlert(missing []Member, f failure) alerttext.Alert {
 	return alerttext.New(title, i18n.DevAlertRaidStoppedDetail())
 }
 
+// namedStoppedAlert is stoppedAlert for the container's mirror, whose
+// disks are named by .env: one disk's in every language, by its name - or,
+// when it isn't known, with the name of the one still working, else as one
+// of the two. Several only in English, from their labels, as on a Pi.
+func namedStoppedAlert(f failure) alerttext.Alert {
+	detail := i18n.DevAlertRaidStoppedDetailNamed()
+	if len(f.disks) != 1 {
+		return alerttext.English(capitalize(f.label)+" stopped working", alerttext.EnglishOf(detail)) // i18n-ignore: English only, for several missing disks, which no key names
+	}
+	if f.disks[0] != "" {
+		return alerttext.New(i18n.DevAlertRaidStoppedNamed(f.disks[0]), detail)
+	}
+	if f.workingDisk != "" {
+		return alerttext.New(i18n.DevAlertRaidStoppedUnknown(), i18n.DevAlertRaidStoppedDetailWorkingNamed(f.workingDisk))
+	}
+	return alerttext.New(i18n.DevAlertRaidStoppedUnknown(), detail)
+}
+
 // changed: the recorded disks differ from these (another disk, or the
 // same one moved to another port).
 func changed(known map[int]Member, cur []Member) bool {
@@ -480,7 +650,7 @@ func changed(known map[int]Member, cur []Member) bool {
 	}
 	for _, m := range cur {
 		k, ok := known[m.Slot]
-		if !ok || k.Port != m.Port || k.Serial != m.Serial || k.Dev != m.Dev || k.Position != m.Position {
+		if !ok || k.Port != m.Port || k.Serial != m.Serial || k.Dev != m.Dev || k.Position != m.Position || k.Disk != m.Disk {
 			return true
 		}
 	}

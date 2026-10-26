@@ -5,6 +5,7 @@ package status
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -192,5 +193,99 @@ func TestContainerMemory(t *testing.T) {
 	}
 	if used == 0 {
 		t.Error("used is 0")
+	}
+}
+
+// A NAS's /proc/mdstat as a container sees it: the host's own arrays
+// around the container's mirror, md127, here rebuilding onto a new disk.
+const mdstatHostAndMirror = `Personalities : [raid1] [linear] [raid0] [raid10] [raid6] [raid5] [raid4]
+md2 : active raid1 sata1p3[0]
+      1942745600 blocks super 1.2 [1/1] [U]
+
+md127 : active raid1 sde[2] sdc[0]
+      3906886464 blocks super 1.2 [2/1] [U_]
+      [>....................]  recovery =  3.2% (125024256/3906886464) finish=312.9min speed=201408K/sec
+      bitmap: 0/30 pages [0KB], 65536KB chunk
+
+md1 : active raid1 sata1p2[0]
+      2097088 blocks [16/1] [U_______________]
+
+md0 : active raid1 sata1p1[0]
+      2490176 blocks [16/1] [U_______________]
+
+unused devices: <none>
+`
+
+// In a container with its own mirror the status is that array's, found
+// by its name among the host's - never the first array listed, nor one
+// whose name starts the same.
+func TestReadRaidStatusTheContainersMirror(t *testing.T) {
+	orig := mdstatPath
+	defer func() { mdstatPath = orig }()
+	write := func(content string) {
+		mdstatPath = filepath.Join(t.TempDir(), "mdstat")
+		if err := os.WriteFile(mdstatPath, []byte(content), 0644); err != nil {
+			t.Fatalf("writing fixture: %v", err)
+		}
+	}
+	t.Setenv("OTC_CONTAINER", "1")
+	t.Setenv("OTC_MIRROR_ARRAY", "md127")
+
+	write(mdstatHostAndMirror)
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidSyncing || info.syncPercent != 3.2 || info.devicesTotal != 2 || info.devicesActive != 1 || info.level != "raid1" {
+		t.Errorf("rebuilding: %+v", info)
+	}
+
+	healthy := strings.Replace(mdstatHostAndMirror, "[2/1] [U_]\n      [>....................]  recovery =  3.2% (125024256/3906886464) finish=312.9min speed=201408K/sec", "[2/2] [UU]", 1)
+	write(healthy)
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidInSync || info.devicesTotal != 2 || info.devicesActive != 2 {
+		t.Errorf("whole, the host's arrays degraded: %+v", info)
+	}
+
+	t.Setenv("OTC_MIRROR_ARRAY", "md_otc") // as the host's mdadm may name it
+	write(strings.Replace(healthy, "md127 :", "md_otc :", 1))
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidInSync || info.devicesActive != 2 {
+		t.Errorf("md_otc: %+v", info)
+	}
+	t.Setenv("OTC_MIRROR_ARRAY", "md127")
+
+	degraded := strings.Replace(healthy, "md127 : active raid1 sde[2] sdc[0]\n      3906886464 blocks super 1.2 [2/2] [UU]", "md127 : active raid1 sdc[0]\n      3906886464 blocks super 1.2 [2/1] [U_]", 1)
+	write(degraded)
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidDegraded || info.devicesActive != 1 {
+		t.Errorf("degraded: %+v", info)
+	}
+
+	// Gone from the file, or another name: no mirror, whatever else is
+	// there.
+	t.Setenv("OTC_MIRROR_ARRAY", "md12")
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidNone || info.devicesTotal != 0 {
+		t.Errorf("md12, not listed: %+v", info)
+	}
+	t.Setenv("OTC_MIRROR_ARRAY", "md1")
+	if info := readRaidStatus(); info.devicesTotal != 16 {
+		t.Errorf("md1 is the host's md1, not md127: %+v", info)
+	}
+	t.Setenv("OTC_MIRROR_ARRAY", "")
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidNone {
+		t.Errorf("no mirror: %+v", info)
+	}
+}
+
+func TestMdstatArray(t *testing.T) {
+	want := "md127 : active raid1 sde[2] sdc[0]\n      3906886464 blocks super 1.2 [2/1] [U_]\n      [>....................]  recovery =  3.2% (125024256/3906886464) finish=312.9min speed=201408K/sec\n      bitmap: 0/30 pages [0KB], 65536KB chunk"
+	if got := mdstatArray(mdstatHostAndMirror, "md127"); got != want {
+		t.Errorf("md127:\n got %q\nwant %q", got, want)
+	}
+	if got := mdstatArray(mdstatHostAndMirror, "md0"); got != "md0 : active raid1 sata1p1[0]\n      2490176 blocks [16/1] [U_______________]" {
+		t.Errorf("md0: %q", got)
+	}
+	// The last array, with no blank line before the end.
+	if got := mdstatArray("md127 : active raid1 sdc[0] sdd[1]\n      10 blocks [2/2] [UU]", "md127"); got != "md127 : active raid1 sdc[0] sdd[1]\n      10 blocks [2/2] [UU]" {
+		t.Errorf("at the end: %q", got)
+	}
+	for _, name := range []string{"md12", "md1270", "Personalities", "unused devices", "blocks super 1.2 [2/1] [U_]"} {
+		if got := mdstatArray(mdstatHostAndMirror, name); got != "" {
+			t.Errorf("%q: %q", name, got)
+		}
 	}
 }

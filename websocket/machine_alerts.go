@@ -41,9 +41,9 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// A disk of the mirror that stops working: an Alert and a push naming
 	// the USB port it is in, and another once the mirror is whole again.
 	// The one device error that is pushed - the others never are (#64).
-	// Not in a container: /proc/mdstat is the host's there, whose arrays
-	// the host itself watches.
-	if sup != nil && !container.Enabled() && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
+	// In a container only with its own mirror (mirrorWatched), whose alerts
+	// name a disk as in .env and whose pushes don't name it at all.
+	if sup != nil && mirrorWatched() && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
 		go raidwatch.Watch(cfg.GetStr("otc", "storage-path"), raidwatch.Notify{
 			AlertText: func(a alerttext.Alert) {
 				if err := dao.AddStorageNotification(a); err != nil {
@@ -52,9 +52,10 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 			},
 			PushText: func(t push.Text) { ps.NotifyText(t, push.Target{}) },
 		})
-		// What the root mirror watcher sees and does, copied into this
-		// device's log (Settings > Logs > Device): the disks, the mirror,
-		// why a disk wasn't added, the kernel's lines about them.
+		// What the root mirror watcher (raid_watch.py, or otc-mirror in a
+		// container) sees and does, copied into this device's log
+		// (Settings > Logs > Device): the disks, the mirror, why a disk
+		// wasn't added, the kernel's lines about them.
 		go raidwatch.FollowLog(cfg.GetStr("otc", "storage-path"))
 	}
 
@@ -74,6 +75,15 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 			network.Managed()
 		}()
 	}
+}
+
+// mirrorWatched: this machine has a mirror of the device's own to watch -
+// md0 on a Raspberry Pi, or in a container the one docker/compose.mirror.yaml
+// builds (container.MirrorArray), whose disks the alerts name as in .env.
+// Never another of the host's arrays: /proc/mdstat and /sys/block are the
+// host's in a container, and the host watches its own.
+func mirrorWatched() bool {
+	return !container.Enabled() || container.MirrorArray() != ""
 }
 
 // updateTitles are the English titles of the alert for an update to

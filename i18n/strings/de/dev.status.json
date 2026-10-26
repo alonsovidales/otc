@@ -124,6 +124,10 @@
     "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im unteren blauen USB-Anschluss funktioniert nicht mehr",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working"
   },
+  "dev.status.raid.degraded_named": {
+    "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk {disk} funktioniert nicht mehr",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} stopped working"
+  },
   "dev.status.raid.degraded_top": {
     "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im oberen blauen USB-Anschluss funktioniert nicht mehr",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working"
@@ -135,6 +139,10 @@
   "dev.status.raid.degraded_working_bottom": {
     "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im unteren blauen USB-Anschluss funktioniert noch, das andere nicht mehr",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_named": {
+    "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk {disk} funktioniert noch, das andere nicht mehr",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} still works, the other one stopped working"
   },
   "dev.status.raid.degraded_working_top": {
     "text": "RAID-Verbund beeinträchtigt: nur {active} von {total} Laufwerken aktiv – das Laufwerk im oberen blauen USB-Anschluss funktioniert noch, das andere nicht mehr",

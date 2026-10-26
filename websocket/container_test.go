@@ -276,6 +276,27 @@ func TestContainerGateOffElsewhere(t *testing.T) {
 	}
 }
 
+// The mirror's disks are watched on a Raspberry Pi, and in a container
+// only when it has a mirror of its own (docker/compose.mirror.yaml).
+func TestMirrorWatched(t *testing.T) {
+	for _, c := range []struct {
+		container, array string
+		want             bool
+	}{
+		{"", "", true},
+		{"", "md127", true},
+		{"1", "", false},
+		{"1", "md127", true},
+		{"1", "sda", false},
+	} {
+		t.Setenv("OTC_CONTAINER", c.container)
+		t.Setenv("OTC_MIRROR_ARRAY", c.array)
+		if got := mirrorWatched(); got != c.want {
+			t.Errorf("OTC_CONTAINER=%q OTC_MIRROR_ARRAY=%q: %v, want %v", c.container, c.array, got, c.want)
+		}
+	}
+}
+
 // GetPubKey tells the first-run setup it is a container's.
 func TestPubKeySaysContainer(t *testing.T) {
 	for _, on := range []string{"1", ""} {

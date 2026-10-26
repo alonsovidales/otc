@@ -124,6 +124,10 @@
     "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du bas ne fonctionne plus",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working"
   },
+  "dev.status.raid.degraded_named": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque {disk} ne fonctionne plus",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} stopped working"
+  },
   "dev.status.raid.degraded_top": {
     "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du haut ne fonctionne plus",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working"
@@ -135,6 +139,10 @@
   "dev.status.raid.degraded_working_bottom": {
     "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du bas fonctionne toujours, l’autre ne fonctionne plus",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_named": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque {disk} fonctionne toujours, l’autre ne fonctionne plus",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} still works, the other one stopped working"
   },
   "dev.status.raid.degraded_working_top": {
     "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du haut fonctionne toujours, l’autre ne fonctionne plus",

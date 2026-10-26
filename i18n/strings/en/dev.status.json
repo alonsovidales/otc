@@ -136,6 +136,11 @@
     "args": [["active", "int"], ["total", "int"]],
     "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) is missing a disk, naming it: the device has two blue USB ports, one above the other, and the disk in the bottom one stopped working. {active} is the number of disks working, {total} the number the mirror has (2)."
   },
+  "dev.status.raid.degraded_named": {
+    "text": "RAID array degraded: only {active} of {total} disks active - the disk {disk} stopped working",
+    "args": [["active", "int"], ["total", "int"], ["disk", "text"]],
+    "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) of a device that runs in Docker is missing a disk, naming it: {disk} is the disk's name as the owner wrote it in the .env file on the server, such as ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1111111 (keep it as it is). {active} is the number of disks working, {total} the number the mirror has (2)."
+  },
   "dev.status.raid.degraded_top": {
     "text": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working",
     "args": [["active", "int"], ["total", "int"]],
@@ -150,6 +155,11 @@
     "text": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working",
     "args": [["active", "int"], ["total", "int"]],
     "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) is missing a disk and the device can't tell which one stopped, but can tell which still works: the device has two blue USB ports, one above the other, and the disk in the bottom one still works. {active} is the number of disks working, {total} the number the mirror has (2)."
+  },
+  "dev.status.raid.degraded_working_named": {
+    "text": "RAID array degraded: only {active} of {total} disks active - the disk {disk} still works, the other one stopped working",
+    "args": [["active", "int"], ["total", "int"], ["disk", "text"]],
+    "note": "Warning shown in every app's device status while the storage mirror (two disks, each holding a copy of every file) of a device that runs in Docker is missing a disk and the device can't tell which one stopped, but can tell which still works: {disk}, its name as the owner wrote it in the .env file on the server, such as ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1111111 (keep it as it is). {active} is the number of disks working, {total} the number the mirror has (2)."
   },
   "dev.status.raid.degraded_working_top": {
     "text": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port still works, the other one stopped working",

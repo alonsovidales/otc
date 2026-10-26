@@ -159,6 +159,11 @@ func DevStatusRaidDegradedBottom(active int, total int) Msg {
 	return Msg{Key: "dev.status.raid.degraded_bottom", Args: map[string]any{"active": int64(active), "total": int64(total)}}
 }
 
+// DevStatusRaidDegradedNamed is dev.status.raid.degraded_named: "RAID array degraded: only {active} of {total} disks active - the disk {disk} sto…".
+func DevStatusRaidDegradedNamed(active int, total int, disk string) Msg {
+	return Msg{Key: "dev.status.raid.degraded_named", Args: map[string]any{"active": int64(active), "total": int64(total), "disk": disk}}
+}
+
 // DevStatusRaidDegradedTop is dev.status.raid.degraded_top: "RAID array degraded: only {active} of {total} disks active - the disk in the top…".
 func DevStatusRaidDegradedTop(active int, total int) Msg {
 	return Msg{Key: "dev.status.raid.degraded_top", Args: map[string]any{"active": int64(active), "total": int64(total)}}
@@ -172,6 +177,11 @@ func DevStatusRaidDegradedUnknown(active int, total int) Msg {
 // DevStatusRaidDegradedWorkingBottom is dev.status.raid.degraded_working_bottom: "RAID array degraded: only {active} of {total} disks active - the disk in the bot…".
 func DevStatusRaidDegradedWorkingBottom(active int, total int) Msg {
 	return Msg{Key: "dev.status.raid.degraded_working_bottom", Args: map[string]any{"active": int64(active), "total": int64(total)}}
+}
+
+// DevStatusRaidDegradedWorkingNamed is dev.status.raid.degraded_working_named: "RAID array degraded: only {active} of {total} disks active - the disk {disk} sti…".
+func DevStatusRaidDegradedWorkingNamed(active int, total int, disk string) Msg {
+	return Msg{Key: "dev.status.raid.degraded_working_named", Args: map[string]any{"active": int64(active), "total": int64(total), "disk": disk}}
 }
 
 // DevStatusRaidDegradedWorkingTop is dev.status.raid.degraded_working_top: "RAID array degraded: only {active} of {total} disks active - the disk in the top…".

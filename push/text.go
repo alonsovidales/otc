@@ -104,8 +104,18 @@ func StorageDiskStopped(ports []string, label, working string) Text {
 	}
 }
 
+// StorageDiskStoppedUnnamed is StorageDiskStopped for the container's
+// mirror, whose disks are known by the names their owner gave them in .env
+// - a model and a serial number, such as
+// ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1111111. That name is none of Apple's
+// or Google's business, so the push says "one of the two storage disks"
+// in every language; the alert in the apps names the disk.
+func StorageDiskStoppedUnnamed() Text {
+	return StorageDiskStopped([]string{portUnknown}, "", portUnknown)
+}
+
 // StorageDisksWorkingAgain is the push for a mirror that is whole again
-// after StorageDiskStopped.
+// after StorageDiskStopped (or StorageDiskStoppedUnnamed).
 func StorageDisksWorkingAgain() Text {
 	return func(lang string) (string, string) {
 		return i18n.PushRaidWorkingTitle().Render(lang), i18n.PushRaidWorkingBody().Render(lang)

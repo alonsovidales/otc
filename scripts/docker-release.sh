@@ -12,9 +12,13 @@
 # manifest), never from this checkout, for linux/arm64 (natively) and
 # linux/amd64 (under Rosetta). It tests each one with
 # docker/smoke/test-image.sh: it starts, serves the web app, signs in and
-# restarts. Only once both pass does it publish them as
-# ghcr.io/alonsovidales/otc:<release>, moving :beta and :latest to it when it
-# is the newest release. A failure publishes nothing; the Pi release is never
+# restarts; then again on two mirrored disks (--mirror, two loop devices in
+# the VM): the container builds the mirror, mounts it and assembles it again
+# once it is recreated. Only once both architectures pass both tests does it
+# publish them as ghcr.io/alonsovidales/otc:<release>, moving :beta and
+# :latest to it when it is the newest release. A release from before the disk
+# mirror (no docker/mirror in its source) is refused, since its image can't
+# pass the second test. A failure publishes nothing; the Pi release is never
 # affected. --no-publish only builds and tests; --arch builds and tests one
 # architecture and never publishes. A release already published is not built
 # again (only :beta and :latest are put right, if a run stopped before moving
@@ -160,8 +164,9 @@ revision=$(gzip -dc "$work/release/src.tar.gz" 2>/dev/null | git get-tar-commit-
 tar -xzf "$work/release/src.tar.gz" -C "$work/src" --strip-components=1
 tar -xzf "$work/release/web-dist.tar.gz" -C "$work/web"
 [ -f "$work/src/docker/Dockerfile" ] || die "release $release has no docker/Dockerfile"
+[ -d "$work/src/docker/mirror" ] || die "release $release predates the disk mirror (docker/mirror): its image can't pass the mirror test"
 # The build file, the test and the sign-in client, as committed.
-git archive HEAD docker/docker-bake.hcl docker/compose.yaml docker/smoke go.mod go.sum proto/messages.proto \
+git archive HEAD docker/docker-bake.hcl docker/compose.yaml docker/compose.mirror.yaml docker/smoke go.mod go.sum proto/messages.proto \
     | tar -x -C "$work/tools"
 # The sign-in client's sources alone (docker/docker-bake.hcl, smoke).
 cp "$work/tools/go.mod" "$work/tools/go.sum" "$work/smoke-src/"
@@ -240,6 +245,26 @@ if $publish; then
     fi
 fi
 
+# clear_mirror_test <image> <data dir>: what a run stopped mid-test leaves
+# on the VM's disk for the mirror test - its data dir and its two disks, their
+# array stopped and their loop devices detached first (test-image.sh refuses
+# to start over them).
+clear_mirror_test() {
+    # shellcheck disable=SC2016 # the container's sh expands them
+    docker run --rm --privileged --network none -v /dev:/dev -v /srv:/parent --entrypoint sh "$1" -c '
+        for f in "$1.disk1" "$1.disk2"; do
+            [ -e "$f" ] || continue
+            for l in $(losetup -j "$f" | cut -d: -f1); do
+                for h in /sys/block/"${l#/dev/}"/holders/*; do
+                    [ -e "$h" ] && mdadm --stop "/dev/${h##*/}"
+                done
+                losetup -d "$l"
+            done
+            rm -f "$f"
+        done
+        rm -rf "$1"' sh "/parent/${2#/srv/}" >/dev/null
+}
+
 bake() {
     docker buildx bake --builder "$BUILDER" -f "$work/tools/docker/docker-bake.hcl" \
         --allow "fs.read=$work" --allow "fs.write=$work" \
@@ -273,6 +298,13 @@ for arch in $arches; do
     docker run --rm -v /srv:/parent --entrypoint rm "$tested" -rf "/parent/${data#/srv/}" >/dev/null
     "$work/tools/docker/smoke/test-image.sh" "$tested" "$release" "$work/smoke-$arch/otc-smoke" "$data" \
         || die "$tested failed its test: nothing was published"
+
+    step "testing $tested on two mirrored disks"
+    data="/srv/otc-image-test-mirror-$arch"
+    docker rm -f otc-image-test otc-image-test-client >/dev/null 2>&1 || true
+    clear_mirror_test "$tested" "$data"
+    "$work/tools/docker/smoke/test-image.sh" --mirror "$tested" "$release" "$work/smoke-$arch/otc-smoke" "$data" \
+        || die "$tested failed its mirror test: nothing was published"
 
     $publish || continue
     step "pushing the tested image for linux/$arch (by digest, untagged)"

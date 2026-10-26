@@ -1,0 +1,27 @@
+# Off The Cloud on a home server - BETA: two disks of this server, mirrored by
+# the device itself, as on a Raspberry Pi (docs/docker.md, "Two disks,
+# mirrored"). Not for a NAS that mirrors its own disks (Synology, TrueNAS,
+# Unraid): keep the folder on its pool instead.
+#
+# Put this file next to compose.yaml, and these lines in .env (see env.example):
+#   COMPOSE_FILE=compose.yaml:compose.mirror.yaml
+#   OTC_MIRROR_DISK1=/dev/disk/by-id/<the first disk>
+#   OTC_MIRROR_DISK2=/dev/disk/by-id/<the second disk>
+# then: docker compose up -d
+services:
+  otc:
+    environment:
+      OTC_MIRROR: "1"
+      OTC_MIRROR_DISK1: "${OTC_MIRROR_DISK1:?set OTC_MIRROR_DISK1 in .env}"
+      OTC_MIRROR_DISK2: "${OTC_MIRROR_DISK2:?set OTC_MIRROR_DISK2 in .env}"
+      OTC_MIRROR_ERASE: "${OTC_MIRROR_ERASE:-}"   # disks that may be erased; never needed for blank ones
+    devices:                                   # inside the container, always these two names
+      - source: "${OTC_MIRROR_DISK1}"          # the long form: USB disks' names hold a ':'
+        target: /dev/otc-disk1
+        permissions: rwm
+      - source: "${OTC_MIRROR_DISK2}"
+        target: /dev/otc-disk2
+        permissions: rwm
+    device_cgroup_rules: ["b 9:* rmw"]        # md arrays (block major 9)
+    cap_add: [SYS_ADMIN, MKNOD, SYS_RESOURCE] # mdadm and mount; the md device node; growing the filesystem online
+    security_opt: ["apparmor=unconfined", "label=disable"]   # mounting inside the container

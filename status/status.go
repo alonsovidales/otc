@@ -109,24 +109,59 @@ func parseMdstat(content string) (info raidInfo, found bool) {
 // any non-Linux/non-RAID setup) — not an error worth logging, just nothing
 // to report.
 //
-// In a container it is always RaidState_RaidNone: /proc/mdstat is the
-// host's there, and its first array could be anything (a NAS's own system
-// array). The device keeps no mirror of its own in a container; the folder
-// it is given sits on whatever redundancy the host provides, and the host
+// In a container /proc/mdstat is the host's, and its first array could be
+// anything (a NAS's own system array): only the container's own mirror
+// (docker/compose.mirror.yaml, container.MirrorArray) is reported, found by
+// its name. Without one it is RaidState_RaidNone: the folder the device is
+// given sits on whatever redundancy the host provides, and the host
 // watches that.
 func readRaidStatus() raidInfo {
+	array := ""
 	if container.Enabled() {
-		return raidInfo{state: pb.RaidState_RaidNone}
+		if array = container.MirrorArray(); array == "" {
+			return raidInfo{state: pb.RaidState_RaidNone}
+		}
 	}
-	content, err := os.ReadFile(mdstatPath)
+	raw, err := os.ReadFile(mdstatPath)
 	if err != nil {
 		return raidInfo{state: pb.RaidState_RaidNone}
 	}
-	info, found := parseMdstat(string(content))
+	content := string(raw)
+	if array != "" {
+		// Only the mirror's own lines, its name put as parseMdstat (the
+		// Raspberry Pi's md0) reads it: a host's mdadm may call it md_otc.
+		if content = mdstatArray(content, array); content != "" {
+			content = "md0" + content[len(array):]
+		}
+	}
+	info, found := parseMdstat(content)
 	if !found {
 		return raidInfo{state: pb.RaidState_RaidNone}
 	}
 	return info
+}
+
+// mdstatArray is the part of /proc/mdstat's content about the array name
+// ("md127"): its own line ("md127 : active raid1 ...") and the indented
+// ones under it (its size and disks, a rebuild's progress, its bitmap), or
+// "" when it isn't there.
+func mdstatArray(content, name string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		head, rest, ok := strings.Cut(line, ":")
+		if !ok || strings.TrimSpace(head) != name || strings.TrimLeft(line, " \t") != line {
+			continue
+		}
+		if f := strings.Fields(rest); len(f) == 0 || (f[0] != "active" && f[0] != "inactive") {
+			continue
+		}
+		end := i + 1
+		for end < len(lines) && strings.TrimSpace(lines[end]) != "" && strings.TrimLeft(lines[end], " \t") != lines[end] {
+			end++
+		}
+		return strings.Join(lines[i:end], "\n")
+	}
+	return ""
 }
 
 func diskUsage(path string) (all, used, free uint64, err error) {
@@ -224,7 +259,12 @@ func containerMemory(total, used uint64) (uint64, uint64) {
 // the disk that stopped working when raidwatch knows where it was plugged
 // in (raidwatch.MissingPorts: the ports as data, raidwatch.Missing: the
 // same in English), or else the one still working (raidwatch.StillWorking).
+// The container's mirror names its disks as in .env instead
+// (raidwatch.MissingDisks, raidwatch.StillWorkingDisk).
 func degradedMessage(lang string, raid raidInfo) string {
+	if container.MirrorArray() != "" {
+		return degradedNamedText(lang, int(raid.devicesActive), int(raid.devicesTotal), raidwatch.MissingDisks(), raidwatch.Missing(), raidwatch.StillWorkingDisk())
+	}
 	return degradedText(lang, int(raid.devicesActive), int(raid.devicesTotal), raidwatch.MissingPorts(), raidwatch.Missing(), raidwatch.StillWorking())
 }
 
@@ -250,12 +290,36 @@ func degradedText(lang string, active, total int, ports []raidwatch.Port, label 
 		}
 		return i18n.DevStatusRaidDegradedUnknown(active, total).Render(lang)
 	}
-	// Several disks missing, which a two-disk mirror that still runs
-	// can't have: named in English as they always were, left out in other
-	// languages rather than joined from pieces.
+	return degradedSeveral(lang, active, total, label)
+}
+
+// degradedSeveral is the line for several disks missing, which a two-disk
+// mirror that still runs can't have: named in English as they always were,
+// from label, left out in other languages rather than joined from pieces.
+func degradedSeveral(lang string, active, total int, label string) string {
 	msg := i18n.DevStatusRaidDegraded(active, total).Render(lang)
 	if label != "" && devtext.English(lang) {
 		msg += " - " + label + " stopped working" // i18n-ignore: English only, for several missing disks, which no key names
 	}
 	return msg
+}
+
+// degradedNamedText is degradedText for the container's mirror: disks are
+// the missing disks' names in .env ("" for one nothing is known of), label
+// raidwatch's English for them and working the name of the disk still
+// working, when the missing one's isn't known.
+func degradedNamedText(lang string, active, total int, disks []string, label, working string) string {
+	switch {
+	case len(disks) == 0:
+		return i18n.DevStatusRaidDegraded(active, total).Render(lang)
+	case len(disks) == 1:
+		if disks[0] != "" {
+			return i18n.DevStatusRaidDegradedNamed(active, total, disks[0]).Render(lang)
+		}
+		if working != "" {
+			return i18n.DevStatusRaidDegradedWorkingNamed(active, total, working).Render(lang)
+		}
+		return i18n.DevStatusRaidDegradedUnknown(active, total).Render(lang)
+	}
+	return degradedSeveral(lang, active, total, label)
 }

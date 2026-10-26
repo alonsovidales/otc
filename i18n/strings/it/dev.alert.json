@@ -203,13 +203,25 @@
     "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
     "reviewed": "claude-backtranslation 2026-10-11 #39f1e45a"
   },
+  "dev.alert.raid.stopped_detail_named": {
+    "text": "I tuoi file sono al sicuro sull’altro disco, ma non sono più in mirror. Sostituiscilo con un disco vuoto di capacità almeno uguale, scrivi in .env il nome del nuovo disco al posto di quello vecchio (OTC_MIRROR_DISK1 o OTC_MIRROR_DISK2) ed esegui docker compose up -d: il dispositivo lo aggiunge e ci copia tutto.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it."
+  },
   "dev.alert.raid.stopped_detail_working_bottom": {
     "text": "Il disco nella porta USB blu inferiore funziona ancora e contiene tutti i tuoi file, ma non sono più in mirror. Sostituisci l’altro con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda.",
     "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
   },
+  "dev.alert.raid.stopped_detail_working_named": {
+    "text": "Il disco {disk} funziona ancora e contiene tutti i tuoi file, ma non sono più in mirror. Sostituisci l’altro con un disco vuoto di capacità almeno uguale, scrivi in .env il nome del nuovo disco al posto di quello vecchio ed esegui docker compose up -d: il dispositivo lo aggiunge e ci copia tutto.",
+    "en": "The disk {disk} still works and holds all your files, but they are no longer mirrored. Replace the other one with an empty disk at least as large, put the new disk's name in .env in place of the old one and run docker compose up -d: the device adds it and copies everything onto it."
+  },
   "dev.alert.raid.stopped_detail_working_top": {
     "text": "Il disco nella porta USB blu superiore funziona ancora e contiene tutti i tuoi file, ma non sono più in mirror. Sostituisci l’altro con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda.",
     "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+  },
+  "dev.alert.raid.stopped_named": {
+    "text": "Il disco {disk} ha smesso di funzionare",
+    "en": "The disk {disk} stopped working"
   },
   "dev.alert.raid.stopped_top": {
     "text": "Il disco nella porta USB blu superiore ha smesso di funzionare",

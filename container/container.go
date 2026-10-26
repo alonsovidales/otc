@@ -8,9 +8,10 @@
 // Inside a container the machine's own files tell the host's story: its
 // memory (/proc/meminfo), its disk arrays (/proc/mdstat), its CPUs. This
 // package answers for the container instead - its memory limit, whether a
-// release's image has been published yet - and holds the rules for the
-// first owner password, which a container may be asked for from anywhere
-// its port reaches.
+// release's image has been published yet, which array is its own disk
+// mirror when it has one (mirror.go) - and holds the rules for the first
+// owner password, which a container may be asked for from anywhere its
+// port reaches.
 package container
 
 import (

@@ -270,14 +270,31 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #81b12246"
   },
+  "dev.alert.raid.stopped_detail_named": {
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it.",
+    "note": "Detail of the alert dev.alert.raid.stopped_named (or dev.alert.raid.stopped_unknown) on a device that runs in Docker with its own disk mirror (two disks on the owner's server, each holding a copy of every file): one of the two disks stopped working. The owner replaces it with an empty disk, writes the new disk's name in the .env file on that server in place of the old one and runs a command there; the device then adds the new disk to the mirror and copies the files onto it. .env, OTC_MIRROR_DISK1, OTC_MIRROR_DISK2 and docker compose up -d are a file name, the two settings in it that name the disks, and a command: keep them exactly as they are.",
+    "stored": true
+  },
   "dev.alert.raid.stopped_detail_working_bottom": {
     "text": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card.",
     "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the bottom of its two blue USB ports, one above the other. The owner replaces the other disk, in the top port. A card is the storage card (an SD card in a USB reader) the disk is. The device erases the new card before copying the files onto it.",
     "stored": true
   },
+  "dev.alert.raid.stopped_detail_working_named": {
+    "text": "The disk {disk} still works and holds all your files, but they are no longer mirrored. Replace the other one with an empty disk at least as large, put the new disk's name in .env in place of the old one and run docker compose up -d: the device adds it and copies everything onto it.",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the two disks stopped working and the device can't tell which) on a device that runs in Docker with its own disk mirror, when it can tell which disk still works: {disk}, its name as the owner wrote it in the .env file on the server, such as ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1111111 (keep it as it is). The owner replaces the other disk with an empty one, writes the new disk's name in .env in place of the old one and runs a command; the device then adds it to the mirror and copies the files onto it. .env and docker compose up -d are a file name and a command: keep them exactly as they are.",
+    "stored": true
+  },
   "dev.alert.raid.stopped_detail_working_top": {
     "text": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card.",
     "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the top of its two blue USB ports, one above the other. The owner replaces the other disk, in the bottom port. A card is the storage card (an SD card in a USB reader) the disk is. The device erases the new card before copying the files onto it.",
+    "stored": true
+  },
+  "dev.alert.raid.stopped_named": {
+    "text": "The disk {disk} stopped working",
+    "args": [["disk", "text"]],
+    "note": "Title of an alert in Alerts on a device that runs in Docker with its own disk mirror (two disks on the owner's server, each holding a copy of every file): one of the two disks stopped working. {disk} is the disk's name as the owner wrote it in the .env file on that server, such as ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1111111: keep it as it is.",
     "stored": true
   },
   "dev.alert.raid.stopped_top": {

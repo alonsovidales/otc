@@ -3,6 +3,8 @@
 #
 # Put this file in a folder with a .env file next to it (see env.example),
 # then: docker compose up -d
+# For two disks of this server mirrored by the device itself, as on a Pi, add
+# compose.mirror.yaml next to it (see env.example) before the first start.
 services:
   otc:
     image: ghcr.io/alonsovidales/otc:beta   # or :<release> to choose when you update

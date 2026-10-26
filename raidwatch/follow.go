@@ -21,7 +21,8 @@ import (
 // about USB, the disks and md - to a root-owned file, since this service
 // can't read the journal and root must not write in this service's own
 // log directory. FollowLog copies each new line into this device's log as
-// "storage: ...", so Settings > Logs > Device shows it in every app.
+// "storage: ...", so Settings > Logs > Device shows it in every app. In a
+// container with its own mirror, otc-mirror (docker/mirror) writes it.
 var storageLogPath = "/var/log/otc-storage/storage.log"
 
 const (
@@ -42,8 +43,9 @@ type followPos struct {
 }
 
 // FollowLog copies the storage log into this device's log, every 5 s.
-// Main instance only, not in a container (where there is no watcher).
-// Blocks.
+// Main instance only; in a container only with its own mirror, whose root
+// otc-mirror writes the same file in the same format (without the kernel's
+// lines, which a container can't read). Blocks.
 func FollowLog(storagePath string) {
 	pos := loadFollowPos(storagePath)
 	for {

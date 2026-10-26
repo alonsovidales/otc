@@ -20,6 +20,12 @@
 # /var/lib/otc or /mnt/storage is sourced or followed through a symbolic
 # link, the release marker is checked before it is compared, and files there
 # are written as otc.
+#
+# With OTC_MIRROR=1 (docker/compose.mirror.yaml) /mnt/storage is a mirror of
+# two disks: otc-mirror builds or assembles it and mounts it there before
+# anything reads the storage, watches it while the device runs and stops it
+# after MariaDB. Without a mounted mirror the container doesn't start: it
+# never falls back to the folder underneath.
 set -uo pipefail
 
 OTC_UID=7310
@@ -35,9 +41,11 @@ ENV_FILE=$CONF/otc-install.env
 INI=$CONF/otc_dev.ini
 LIVE_INI=/etc/otc_dev.ini
 SETUP_WINDOW=$CONF/setup-window
+MODE_FILE=$CONF/storage-mode
 UPDATE_LOG=$CONF/update-log/update.log
 SHARE=/usr/share/otc
 RELEASE=$(cat "$SHARE/release")
+MIRROR_TOOL=/usr/local/sbin/otc-mirror
 
 # install.sh's pinned models (its step 6): the image carries none of them.
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
@@ -56,6 +64,15 @@ TAIL_PID=
 DL_PID=
 LAST_DUMP=
 RESTORE_DIR=
+MIRROR_ARRAY=
+MIRROR_DEV1=
+MIRROR_DEV2=
+MIRROR_LABEL1=
+MIRROR_LABEL2=
+MIRROR_UUID=
+MIRROR_MOUNTED=0
+WATCH_PID=
+WATCH_STARTED=0
 
 log() { echo "[otc] $*"; }
 
@@ -108,6 +125,133 @@ read_ports() {
     if [ "$HTTP_PORT" = "$LAN_TLS_PORT" ] || [ "$HTTP_PORT" = "$DB_PORT" ] || [ "$LAN_TLS_PORT" = "$DB_PORT" ]; then
         die "OTC_HTTP_PORT, OTC_LAN_TLS_PORT and OTC_DB_PORT must be three different ports"
     fi
+}
+
+# ---------------------------------------------------------------------------
+# 0. The two-disk mirror (OTC_MIRROR=1), before anything reads the storage
+# ---------------------------------------------------------------------------
+# mirror_prepare [--no-create]: otc-mirror builds, assembles or adopts the
+# mirror of /dev/otc-disk1 and /dev/otc-disk2 and mounts it on $STORAGE.
+# What it mounted comes back on stdout as key=value lines, each checked,
+# never evaluated; what it says for people comes on stderr, and when it
+# refuses, its last line is the reason the container stops with.
+mirror_prepare() {
+    local out err rc n k v line msg=()
+    [ "${OTC_MIRROR:-0}" = 1 ] || return 0
+    # A volume of its own for the database would be hidden under the
+    # mirror, and a new database made on the mirror instead.
+    mountpoint -q "$DATADIR" \
+        && die "$DATADIR is a volume of its own, which the disk mirror would hide: remove that line from compose.yaml (with the mirror, the database lives on it)"
+    log "preparing the disk mirror on ${OTC_MIRROR_DISK1:-?} and ${OTC_MIRROR_DISK2:-?}"
+    err=$(mktemp) || die "could not create a temporary file"
+    out=$("$MIRROR_TOOL" prepare "$@" 2>"$err")
+    rc=$?
+    while IFS= read -r line || [ -n "$line" ]; do msg+=("$line"); done < "$err"
+    rm -f "$err"
+    n=${#msg[@]}
+    if [ "$rc" != 0 ]; then
+        [ "$n" -gt 1 ] && printf '[otc-mirror] %s\n' "${msg[@]:0:n-1}" >&2
+        [ "$n" -gt 0 ] && die "${msg[n-1]}"
+        die "the disk mirror is not ready (otc-mirror stopped with exit $rc)"
+    fi
+    [ "$n" -gt 0 ] && printf '[otc-mirror] %s\n' "${msg[@]}"
+    while IFS='=' read -r k v; do
+        case "$k" in
+            array) [[ "$v" =~ ^md[A-Za-z0-9_]{1,32}$ ]] && MIRROR_ARRAY=$v ;;
+            dev1) [[ "$v" =~ ^[0-9]{1,4}:[0-9]{1,7}$ ]] && MIRROR_DEV1=$v ;;
+            dev2) [[ "$v" =~ ^[0-9]{1,4}:[0-9]{1,7}$ ]] && MIRROR_DEV2=$v ;;
+            label1) [[ "$v" =~ ^[^[:cntrl:]]{1,255}$ ]] && MIRROR_LABEL1=$v ;;
+            label2) [[ "$v" =~ ^[^[:cntrl:]]{1,255}$ ]] && MIRROR_LABEL2=$v ;;
+            uuid) [[ "$v" =~ ^[0-9a-f]{8}(:[0-9a-f]{8}){3}$ ]] && MIRROR_UUID=$v ;;
+        esac
+    done <<< "$out"
+    [ -n "$MIRROR_ARRAY" ] || die "otc-mirror didn't say which array it mounted"
+    MIRROR_MOUNTED=1
+    # One disk may be /dev/null in .env (gone, until its replacement is named).
+    [ -n "$MIRROR_DEV1" ] || [ -n "$MIRROR_DEV2" ] || die "otc-mirror didn't say which disks the mirror is on"
+    [ -n "$MIRROR_UUID" ] || die "otc-mirror didn't say which mirror it mounted"
+}
+
+# Where this device's files are, kept in $MODE_FILE once it starts: "folder"
+# (the storage volume) or "mirror <its UUID>". Dropping the mirror from .env
+# by mistake (or adding it to a device that has its files in the folder)
+# would otherwise start an empty device on the other one, and a device whose
+# mirror isn't on the disks named never starts over on a new one by itself.
+# Deleting the file is how to choose the other storage on purpose.
+storage_mode_check() {
+    local mode='' uuid=''
+    if [ -e "$MODE_FILE" ] || [ -L "$MODE_FILE" ]; then
+        [ -f "$MODE_FILE" ] && [ ! -L "$MODE_FILE" ] || die "$MODE_FILE isn't a plain file: delete it"
+        read -r mode uuid < "$MODE_FILE"
+    fi
+    case "${OTC_MIRROR:-0}:$mode" in
+        1:mirror)
+            [[ "$uuid" =~ ^[0-9a-f]{8}(:[0-9a-f]{8}){3}$ ]] || die "$MODE_FILE names no mirror: delete it"
+            export OTC_MIRROR_UUID=$uuid ;;
+        1:folder)
+            die "this device keeps its files in the storage folder, not on a disk mirror: remove the mirror lines (COMPOSE_FILE, OTC_MIRROR_*) from .env. Moving the files onto a mirror isn't supported yet; to start over with a new, empty device on the mirror, move the storage folder's contents somewhere else and delete storage-mode in the device's config folder" ;;
+        1:)
+            # The folder under the mirror, before it is mounted there.
+            [ -d "$DATADIR/otc" ] \
+                && die "the storage folder already holds a device's files: moving them onto a disk mirror isn't supported yet. Remove the mirror lines from .env to go on with them, or empty the folder to start a new device on the mirror" ;;
+        0:mirror)
+            die "this device keeps its files on its two-disk mirror: put the mirror lines back in .env (COMPOSE_FILE=compose.yaml:compose.mirror.yaml, OTC_MIRROR_DISK1 and OTC_MIRROR_DISK2; docs/docker.md). To start over with a new, empty device in the storage folder instead, delete storage-mode in the device's config folder (the mirror stays as it is)" ;;
+        0:folder|0:) ;;
+        *) die "$MODE_FILE says '$mode': delete it" ;;
+    esac
+}
+
+storage_mode_record() {
+    local want=folder
+    [ -n "$MIRROR_ARRAY" ] && want="mirror $MIRROR_UUID"
+    [ -f "$MODE_FILE" ] && [ "$(head -c 128 "$MODE_FILE")" = "$want" ] && return 0
+    { printf '%s\n' "$want" > "$MODE_FILE.tmp" && chmod 0644 "$MODE_FILE.tmp" && mv -f "$MODE_FILE.tmp" "$MODE_FILE"; } \
+        || die "could not write $MODE_FILE"
+}
+
+# The mirror's watcher (its state, a rebuild's progress, growing onto bigger
+# disks, in the storage log): a root child of this script, started again by
+# supervise when it stops, at most every 10 s.
+start_watch() {
+    env --default-signal "$MIRROR_TOOL" watch --array "$MIRROR_ARRAY" &
+    WATCH_PID=$!
+    WATCH_STARTED=$(date +%s)
+}
+
+check_watch() {
+    local rc
+    [ -n "$MIRROR_ARRAY" ] || return 0
+    if [ -n "$WATCH_PID" ] && ! alive "$WATCH_PID"; then
+        wait "$WATCH_PID" 2>/dev/null
+        rc=$?
+        WATCH_PID=
+        log "WARNING: the disk mirror's watcher stopped (exit $rc): starting it again"
+    fi
+    if [ -z "$WATCH_PID" ] && [ $(( $(date +%s) - WATCH_STARTED )) -ge 10 ]; then
+        start_watch
+    fi
+}
+
+stop_watch() {
+    local i
+    [ -n "$WATCH_PID" ] || return 0
+    kill -TERM "$WATCH_PID" 2>/dev/null
+    for ((i = 0; i < 10; i++)); do
+        alive "$WATCH_PID" || break
+        pause 1
+    done
+    kill -KILL "$WATCH_PID" 2>/dev/null
+    wait "$WATCH_PID" 2>/dev/null
+    WATCH_PID=
+}
+
+# mirror_release, once MariaDB and the device have stopped: the mirror
+# unmounted and its array stopped, each step best effort (an array still
+# busy is adopted at the next start).
+mirror_release() {
+    [ "$MIRROR_MOUNTED" = 1 ] || return 0
+    MIRROR_MOUNTED=0
+    "$MIRROR_TOOL" release --array "$MIRROR_ARRAY" 2>&1 | sed 's/^/[otc-mirror] /'
 }
 
 # ---------------------------------------------------------------------------
@@ -593,11 +737,18 @@ setup_password() {
 # (A background job of this script starts with SIGINT ignored; env puts
 # every signal back to its default, as systemd starts a service.)
 start_app() {
+    local mirror=()
+    # The mirror the device watches and names in its alerts: its array, and
+    # each disk's major:minor and name (the device's environment only).
+    [ -z "$MIRROR_ARRAY" ] || mirror=(
+        OTC_MIRROR_ARRAY="$MIRROR_ARRAY" OTC_MIRROR_DEV1="$MIRROR_DEV1" OTC_MIRROR_DEV2="$MIRROR_DEV2"
+        OTC_MIRROR_LABEL1="$MIRROR_LABEL1" OTC_MIRROR_LABEL2="$MIRROR_LABEL2"
+    )
     install_live_config
     (
         cd "$STATE" || exit 1
         echo 500 > /proc/self/oom_score_adj
-        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc \
+        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc "${mirror[@]}" \
             setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs /usr/bin/otc dev
     ) &
     APP_PID=$!
@@ -622,10 +773,12 @@ stop_app() {
 
 stop_all() {
     [ "$BASHPID" = "$$" ] || return 0
+    stop_watch
     [ -z "$DL_PID" ] || kill -TERM "$DL_PID" 2>/dev/null
     stop_app
     [ -z "$TAIL_PID" ] || kill -TERM "$TAIL_PID" 2>/dev/null
     stop_mariadb
+    mirror_release
 }
 
 # trigger NAME: the device asked for something with $STATE/NAME. Only a
@@ -708,6 +861,7 @@ supervise() {
             start_app
             continue
         fi
+        check_watch
         if trigger bridge.request && run_bridge_runner; then
             log "restarting the device with its new bridge setting"
             stop_app
@@ -842,8 +996,12 @@ finish_prepare() {
 cmd_run() {
     trap on_stop TERM INT
     log "Off The Cloud release $RELEASE (beta container)"
+    storage_mode_check
+    mirror_prepare
+    [ -z "$MIRROR_ARRAY" ] || start_watch
     preflight
     prepare_dirs
+    storage_mode_record
     check_downgrade
     fetch_models
     start_mariadb
@@ -869,9 +1027,12 @@ cmd_run() {
 
 cmd_restore() {
     trap on_stop TERM INT
+    storage_mode_check
+    mirror_prepare --no-create
     [ -d "$DATADIR/otc" ] && die "$DATADIR already holds a database: a copy is restored into a storage folder without one (move $DATADIR aside first)"
     restore_dir "${1:-}"
     prepare
+    storage_mode_record
     restore_databases
     finish_prepare always
     log "restored: start the device again (docker compose up -d)"

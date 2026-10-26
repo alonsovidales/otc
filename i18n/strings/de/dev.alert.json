@@ -203,13 +203,25 @@
     "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
     "reviewed": "claude-backtranslation 2026-10-11 #0778b46c"
   },
+  "dev.alert.raid.stopped_detail_named": {
+    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch ein leeres, mindestens gleich großes Laufwerk, trage in .env den Namen des neuen Laufwerks anstelle des alten ein (OTC_MIRROR_DISK1 oder OTC_MIRROR_DISK2) und führe docker compose up -d aus: Das Gerät fügt es hinzu und kopiert alles darauf.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it."
+  },
   "dev.alert.raid.stopped_detail_working_bottom": {
     "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf, wobei alles gelöscht wird, was sich auf der neuen Karte befand.",
     "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
   },
+  "dev.alert.raid.stopped_detail_working_named": {
+    "text": "Das Laufwerk {disk} funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch ein leeres, mindestens gleich großes Laufwerk, trage in .env den Namen des neuen Laufwerks anstelle des alten ein und führe docker compose up -d aus: Das Gerät fügt es hinzu und kopiert alles darauf.",
+    "en": "The disk {disk} still works and holds all your files, but they are no longer mirrored. Replace the other one with an empty disk at least as large, put the new disk's name in .env in place of the old one and run docker compose up -d: the device adds it and copies everything onto it."
+  },
   "dev.alert.raid.stopped_detail_working_top": {
     "text": "Das Laufwerk im oberen blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf, wobei alles gelöscht wird, was sich auf der neuen Karte befand.",
     "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+  },
+  "dev.alert.raid.stopped_named": {
+    "text": "Das Laufwerk {disk} funktioniert nicht mehr",
+    "en": "The disk {disk} stopped working"
   },
   "dev.alert.raid.stopped_top": {
     "text": "Das Laufwerk im oberen blauen USB-Anschluss funktioniert nicht mehr",

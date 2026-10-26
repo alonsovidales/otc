@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/alonsovidales/otc/container"
 )
 
 // fakeSys builds the sysfs a Raspberry Pi 5 shows for a two-disk md0:
@@ -18,6 +20,7 @@ type fakeSys struct {
 }
 
 func newFakeSys(t *testing.T) *fakeSys {
+	t.Setenv(container.EnvVar, "") // a Raspberry Pi, even in the image's own test run
 	f := &fakeSys{t: t, root: t.TempDir()}
 	f.write("bus/usb/devices/usb2/speed", "5000")
 	f.write("bus/usb/devices/usb4/speed", "5000")

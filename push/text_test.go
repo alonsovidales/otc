@@ -154,6 +154,21 @@ func TestStoragePushesEnglishUnchanged(t *testing.T) {
 	}
 }
 
+// The container's mirror names its disks by model and serial number, which
+// stay out of a push: it says "one of the two" in every language.
+func TestStorageDiskStoppedUnnamed(t *testing.T) {
+	for lang, want := range map[string][2]string{
+		"":   {"Storage disk stopped working", "One of the two storage disks failed. Your files are safe on the other one: replace it soon."},
+		"en": {"Storage disk stopped working", "One of the two storage disks failed. Your files are safe on the other one: replace it soon."},
+		"es": {"Un disco de almacenamiento ha dejado de funcionar", "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
+	} {
+		title, body := StorageDiskStoppedUnnamed()(lang)
+		if title != want[0] || body != want[1] {
+			t.Errorf("lang %q: %q / %q", lang, title, body)
+		}
+	}
+}
+
 // The bridge's offline alert, as bridge/websocket's offlineAlertText
 // writes it.
 func TestOfflineAlertEnglishUnchanged(t *testing.T) {

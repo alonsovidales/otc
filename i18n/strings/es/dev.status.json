@@ -124,6 +124,10 @@
     "text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul inferior ha dejado de funcionar",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working"
   },
+  "dev.status.raid.degraded_named": {
+    "text": "RAID degradado: solo {active} de {total} discos activos; el disco {disk} ha dejado de funcionar",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} stopped working"
+  },
   "dev.status.raid.degraded_top": {
     "text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul superior ha dejado de funcionar",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working"
@@ -135,6 +139,10 @@
   "dev.status.raid.degraded_working_bottom": {
     "text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul inferior sigue funcionando y el otro ha dejado de funcionar",
     "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port still works, the other one stopped working"
+  },
+  "dev.status.raid.degraded_working_named": {
+    "text": "RAID degradado: solo {active} de {total} discos activos; el disco {disk} sigue funcionando y el otro ha dejado de funcionar",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk {disk} still works, the other one stopped working"
   },
   "dev.status.raid.degraded_working_top": {
     "text": "RAID degradado: solo {active} de {total} discos activos; el disco del puerto USB azul superior sigue funcionando y el otro ha dejado de funcionar",

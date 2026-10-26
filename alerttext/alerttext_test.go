@@ -34,6 +34,7 @@ func everyAlertKey() map[string]struct {
 		logs    = " If this keeps happening, send the logs from Settings > Logs."
 		mirror  = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
 		restart = " Restart the device from Settings, or connect it to your router with an Ethernet cable."
+		disk    = "ata-WDC_WD40EFRX-68N32N0_WD-WCC7K2222222"
 	)
 	type c = struct {
 		m    i18n.Msg
@@ -83,6 +84,10 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.raid.stopped_detail_working_bottom": {i18n.DevAlertRaidStoppedDetailWorkingBottom(), "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
 		"dev.alert.raid.working_title":                 {i18n.DevAlertRaidWorkingTitle(), "Both storage disks are working again"},
 		"dev.alert.raid.working_detail":                {i18n.DevAlertRaidWorkingDetail(), "The mirror is complete: every file is on both disks again."},
+		// New with the container's mirror (no older English).
+		"dev.alert.raid.stopped_named":                {i18n.DevAlertRaidStoppedNamed(disk), "The disk " + disk + " stopped working"},
+		"dev.alert.raid.stopped_detail_named":         {i18n.DevAlertRaidStoppedDetailNamed(), "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it."},
+		"dev.alert.raid.stopped_detail_working_named": {i18n.DevAlertRaidStoppedDetailWorkingNamed(disk), "The disk " + disk + " still works and holds all your files, but they are no longer mirrored. Replace the other one with an empty disk at least as large, put the new disk's name in .env in place of the old one and run docker compose up -d: the device adds it and copies everything onto it."},
 
 		"dev.alert.setaside.title":  {i18n.DevAlertSetasideTitle(name), name + " was set aside"},
 		"dev.alert.setaside.detail": {i18n.DevAlertSetasideDetail(), "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."},

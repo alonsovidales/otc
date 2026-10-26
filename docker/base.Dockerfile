@@ -6,8 +6,9 @@
 #
 #   build  the toolchain: OpenCV built from source, Go, protoc and ONNX
 #          Runtime's headers and library
-#   base   what the device runs on: MariaDB, ffmpeg, tini and the OpenCV and
-#          ONNX Runtime libraries the build links against
+#   base   what the device runs on: MariaDB, ffmpeg, tini, the OpenCV and
+#          ONNX Runtime libraries the build links against, and mdadm and
+#          e2fsprogs for the optional disk mirror (docker/compose.mirror.yaml)
 #
 #   docker buildx build -f docker/base.Dockerfile --target build -t otc-build --load docker
 #   docker buildx build -f docker/base.Dockerfile --target base -t otc-base --load docker
@@ -111,11 +112,12 @@ RUN groupadd -g "$OTC_UID" otc \
  && useradd -r -u "$MYSQL_UID" -g mysql -d /nonexistent -s /usr/sbin/nologin mysql \
  && apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg mariadb-server mariadb-client tini \
-        ca-certificates curl openssl iproute2 libjpeg62-turbo libpng16-16t64 \
+        ca-certificates curl openssl iproute2 libjpeg62-turbo libpng16-16t64 mdadm e2fsprogs \
  && rm -rf /var/lib/apt/lists/* /var/lib/mysql/* \
  && [ "$(id -u otc)" = "$OTC_UID" ] && [ "$(id -u mysql)" = "$MYSQL_UID" ] && [ "$(id -g mysql)" = "$MYSQL_UID" ] \
  && for c in mysql mysqladmin mariadb-admin mariadb-dump mariadb-install-db mariadb-upgrade mariadbd \
-             ffmpeg ffprobe tini setpriv mountpoint ss curl openssl; do \
+             ffmpeg ffprobe tini setpriv mountpoint ss curl openssl \
+             mdadm mkfs.ext4 resize2fs dumpe2fs wipefs blkid blockdev losetup findmnt unshare; do \
         command -v "$c" >/dev/null || { echo "missing $c" >&2; exit 1; }; \
     done
 COPY --from=build /opt/opencv-runtime/ /usr/local/lib/

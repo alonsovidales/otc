@@ -439,25 +439,56 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   X-Forwarded-For; user ports from the HTTP port, checked against the host), the updater
   (image-gated releases, no Apply; a registry that can't be asked marks the check
   `ImageCheckFailed`, which keeps the alert and shows Settings' check error), raidwatch and RAID
-  status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners for the
-  primary (`listenersFatal`; a user's instance logs a busy port and keeps serving through the bridge)
-  and no `:80` in `api`, extra interface skips in `lantls`. `PubKey.container` and
-  `RespUpdateInfo.container` tell the clients. Publishing is local, never GitHub Actions (the
-  owner, 2026-10-26: Actions cost too much): `scripts/docker-release.sh [--no-publish] [--arch
-  amd64|arm64] [N]` on the Mac, after `release.sh`. It verifies `VERSIONS.sig`, builds from the
-  release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked) with `docker/docker-bake.hcl`
-  (the build file, test and client from HEAD by `git archive`), arm64 natively and amd64 under
-  Rosetta (which shows amd64 containers an x86 `/proc/cpuinfo`, SSE4.1 included), runs
-  `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password, `docker/smoke`
-  sign-in client, restart, no panic), pushes each by digest only after its test passed and checks
-  its layers against the tested image, then tags `:<N>` (and `:beta`/`:latest` for the newest
-  release); a release already on ghcr.io is left alone. It all runs in a Colima VM of its own
-  (profile `otc-image`, 8 CPUs/12 GB/80 GB, `--vz-rosetta`) with its own `DOCKER_CONFIG`
+  status (off, or the mirror's array in mirror mode, below), files_manager's sizing (`GOMAXPROCS`,
+  ffmpeg threads), fatal listeners for the primary (`listenersFatal`; a user's instance logs a busy
+  port and keeps serving through the bridge) and no `:80` in `api`, extra interface skips in `lantls`.
+  `PubKey.container` and `RespUpdateInfo.container` tell the clients. Publishing is local, never
+  GitHub Actions (the owner, 2026-10-26: Actions cost too much): `scripts/docker-release.sh
+  [--no-publish] [--arch amd64|arm64] [N]` on the Mac, after `release.sh`. It verifies
+  `VERSIONS.sig`, builds from the release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked)
+  with `docker/docker-bake.hcl` (the build file, test and client from HEAD by `git archive`), arm64
+  natively and amd64 under Rosetta (which shows amd64 containers an x86 `/proc/cpuinfo`, SSE4.1
+  included), runs `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password,
+  `docker/smoke` sign-in client, restart, no panic), then `test-image.sh --mirror` (the same on two
+  blank 3 GiB loop disks made by a privileged helper, plus the mount, `/proc/mdstat` and a down/up
+  reassembly; a release without `docker/mirror` is refused), pushes each by digest only after both
+  passed and checks its layers against the tested image, then tags `:<N>` (and `:beta`/`:latest` for
+  the newest release); a release already on ghcr.io is left alone. It all runs in a Colima VM of its
+  own (profile `otc-image`, 8 CPUs/12 GB/80 GB, `--vz-rosetta`) with its own `DOCKER_CONFIG`
   (`~/.otc/image-build/docker`) and a docker-container buildx builder (`otc-image`) whose cache keeps
   the toolchain and OpenCV between releases; the default Colima VM, its containers and `~/.docker`
   are never touched. The VM is stopped at the end if the script started it. Publishing needs gh's
   token with `write:packages` (`gh auth refresh -h github.com -s write:packages`, the owner's to
   run) and logs out of ghcr.io at the end. The test script runs on any Linux Docker host.
+  Mirror mode (opt-in: `docker/compose.mirror.yaml` through `COMPOSE_FILE`, which sets
+  `OTC_MIRROR=1`): `.env` names two whole disks (`OTC_MIRROR_DISK1/2`, by-id paths Docker maps to
+  `/dev/otc-disk1/2`; their basenames are the labels) and, by the same strings, any that may be wiped
+  when not blank (`OTC_MIRROR_ERASE`). `otc-mirror` (`docker/mirror`, pure Go, root,
+  `/usr/local/sbin`) `prepare`s the RAID1 - adopts an active array on them, assembles their
+  superblocks, or builds one only on free disks that are blank or listed, never touching another
+  array's - and mounts it on `/mnt/storage` over the empty host folder. The entrypoint runs it before
+  preflight (`--no-create` for restore), reads its `key=value` stdout without eval and dies when it
+  fails (never falling back to the folder; a `/mnt/storage/mysql` volume is refused, the mirror would
+  hide it), supervises `watch --array` (state, rebuild progress and the Pi's grow, in
+  `/var/log/otc-storage/storage.log`) and runs `release` after MariaDB in `stop_all`. Only the
+  device's environment gets `OTC_MIRROR_ARRAY`, `OTC_MIRROR_DEV1/2` (major:minor) and
+  `OTC_MIRROR_LABEL1/2` (`container.MirrorArray`/`MirrorDisks`); otc-mirror itself takes
+  `OTC_MIRROR_DEV1/2` as device paths (a test override), so the entrypoint never exports them. The
+  override adds the two devices, `device_cgroup_rules`
+  `b 9:* rmw`, `SYS_ADMIN` + `MKNOD` + `SYS_RESOURCE` (online `resize2fs`) and AppArmor/SELinux off
+  (Docker's AppArmor profile refuses mount; the devices in the long `source`/`target` form, as USB
+  disks' by-id names hold a `:`): root in that container is close to root on the host, while the
+  device still runs with no capabilities. Rules otc-mirror keeps (each from a review or the VM):
+  only arrays named `otc`/`*:otc` are used (another system's raid1 never), and once
+  `config/storage-mode` names this device's mirror (`OTC_MIRROR_UUID`) only that one; `mkfs.ext4`
+  only on an array built in that run, never on one whose filesystem can't be read (a read error on a
+  degraded mirror hides it from blkid and wipefs); a disk is "blank" only if its first and last MiB
+  read back; `OTC_MIRROR_ERASE` only by `/dev/disk/by-id/` name; a former member is re-added only if
+  its superblock's Array State doesn't show it ran without a disk the mirror runs on now (split
+  copies are left for the owner); a faulty member doesn't make the array foreign; `mdadm --grow`
+  runs under `unshare --mount` on a private read-write sysfs (Docker's `/sys` is read-only); a disk
+  may be `/dev/null` in `.env` to run on the other alone (never to build). The entrypoint's
+  `config/storage-mode` (`folder` or `mirror <uuid>`) refuses a start on the other storage.
 - `cfg` — INI config loader (`etc/otc_<env>.ini`, falling back to `/etc/otc_<env>.ini`); `env` is
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
