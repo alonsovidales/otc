@@ -442,14 +442,22 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners for the
   primary (`listenersFatal`; a user's instance logs a busy port and keeps serving through the bridge)
   and no `:80` in `api`, extra interface skips in `lantls`. `PubKey.container` and
-  `RespUpdateInfo.container` tell the clients. Publishing: `.github/workflows/docker.yml` runs when
-  a release's manifest line reaches main (or by hand, publishing off by default). It verifies
-  `VERSIONS.sig`, builds from the release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked)
-  with `docker/docker-bake.hcl` (base pair cached in the Actions cache per arch), natively on amd64
-  and arm64, runs `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password,
-  `docker/smoke` sign-in client, restart, no panic), pushes each by digest only after its test
-  passed and checks its layers against the tested image, then tags `:<N>` (and `:beta`/`:latest`
-  for the newest release). The test script runs on any Linux Docker host (or Colima).
+  `RespUpdateInfo.container` tell the clients. Publishing is local, never GitHub Actions (the
+  owner, 2026-10-26: Actions cost too much): `scripts/docker-release.sh [--no-publish] [--arch
+  amd64|arm64] [N]` on the Mac, after `release.sh`. It verifies `VERSIONS.sig`, builds from the
+  release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked) with `docker/docker-bake.hcl`
+  (the build file, test and client from HEAD by `git archive`), arm64 natively and amd64 under
+  Rosetta (which shows amd64 containers an x86 `/proc/cpuinfo`, SSE4.1 included), runs
+  `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password, `docker/smoke`
+  sign-in client, restart, no panic), pushes each by digest only after its test passed and checks
+  its layers against the tested image, then tags `:<N>` (and `:beta`/`:latest` for the newest
+  release); a release already on ghcr.io is left alone. It all runs in a Colima VM of its own
+  (profile `otc-image`, 8 CPUs/12 GB/80 GB, `--vz-rosetta`) with its own `DOCKER_CONFIG`
+  (`~/.otc/image-build/docker`) and a docker-container buildx builder (`otc-image`) whose cache keeps
+  the toolchain and OpenCV between releases; the default Colima VM, its containers and `~/.docker`
+  are never touched. The VM is stopped at the end if the script started it. Publishing needs gh's
+  token with `write:packages` (`gh auth refresh -h github.com -s write:packages`, the owner's to
+  run) and logs out of ghcr.io at the end. The test script runs on any Linux Docker host.
 - `cfg` — INI config loader (`etc/otc_<env>.ini`, falling back to `/etc/otc_<env>.ini`); `env` is
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,
@@ -2418,6 +2426,9 @@ main must be finished by hand (`pull --rebase`, push). The key is Ed25519 at
 `~/.otc/otc-release-signing.pem` on the Mac mini (passphrase in the Keychain item
 `otc-release-signing`; never on GitHub - back it up offline); its public half is
 `scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`.
+Then run `scripts/docker-release.sh` (the `container` paragraph above): the Docker image for that
+release is built, tested and published from the Mac (about an hour cold, less once its cache is
+warm); a failure there never touches the Pi release.
 
 Issue #183: a release is **minor** (default), **major** (`--major`: security, stability or
 durability) or **critical** (`--critical`: breaks compatibility with the bridge or the apps if not

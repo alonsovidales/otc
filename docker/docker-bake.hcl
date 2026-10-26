@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # The image and the two it is built on, in one build (docker buildx bake),
-# as .github/workflows/docker.yml makes it for every release:
+# as scripts/docker-release.sh makes it for every release:
 #
 #   otc-build  the toolchain (docker/base.Dockerfile, target build)
 #   otc-base   what the device runs on (docker/base.Dockerfile, target base)

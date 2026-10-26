@@ -174,3 +174,4 @@ git commit -q -m "Release $N ($LABEL, $KIND): $SUMMARY"
 git push -q origin main \
     || { echo "release v$N is published but main was not pushed (moved meanwhile?): pull --rebase and push main by hand - until then devices simply don't see v$N"; exit 1; }
 echo "release $N (version $LABEL, $KIND) published and signed: web $WEB_SHA, source $SRC_SHA"
+echo "next: scripts/docker-release.sh $N (the Docker image for this release)"

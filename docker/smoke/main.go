@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // otc-smoke signs in to a freshly started container the way the apps do,
-// for the image's tests before it is published (.github/workflows/docker.yml):
+// for the image's tests before it is published (scripts/docker-release.sh):
 //
 //	otc-smoke -addr 127.0.0.1:8080 -password-file pw.txt -release 141
 //

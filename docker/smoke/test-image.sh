@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# The tests an image passes before it is published (.github/workflows/docker.yml),
-# on any Linux Docker host:
+# The tests an image passes before it is published (scripts/docker-release.sh),
+# on any Linux Docker host (Colima included):
 #
 #   docker/smoke/test-image.sh <image> <release> <otc-smoke binary> [data dir]
 #
