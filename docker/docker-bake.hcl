@@ -14,6 +14,8 @@
 #   SRC=<release src> WEB=<unpacked web-dist.tar.gz> OTC_RELEASE=<N> \
 #       docker buildx bake -f docker/docker-bake.hcl otc --set otc.output=type=docker,name=otc:<N>
 #
+# (with --allow fs.read=<dir> for SRC and WEB outside the current directory).
+#
 # smoke's context is a directory holding only go.mod, go.sum,
 # proto/messages.proto and docker/smoke (SMOKE_SRC); its output is the
 # binary alone.

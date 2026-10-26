@@ -194,7 +194,10 @@ jobs:
       - name: Build
         run: |
           set -euo pipefail
+          # The release and the outputs are under RUNNER_TEMP, outside this
+          # checkout: bake only reads and writes there when allowed to.
           docker buildx bake -f docker/docker-bake.hcl otc-build otc-base otc smoke \
+            --allow "fs.read=$RUNNER_TEMP" --allow "fs.write=$RUNNER_TEMP" \
             --set "*.platform=linux/$ARCH" \
             --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
             --set "otc-build.cache-to=type=gha,scope=otc-build-$ARCH,mode=max" \
@@ -219,6 +222,7 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx bake -f docker/docker-bake.hcl otc \
+            --allow "fs.read=$RUNNER_TEMP" --allow "fs.write=$RUNNER_TEMP" \
             --set "*.platform=linux/$ARCH" \
             --set "otc-build.cache-from=type=gha,scope=otc-build-$ARCH" \
             --set "otc-base.cache-from=type=gha,scope=otc-base-$ARCH" \
