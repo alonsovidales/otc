@@ -1,18 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from "react-router-dom";
-import './index.css'
-import App from './App.tsx'
-import TipLayer from './components/TipLayer.tsx'
-import { I18nProvider } from './i18n'
-
-createRoot(document.getElementById('root')!).render(
-  <I18nProvider>
-    <BrowserRouter>
-      <App />
-      <TipLayer />
-    </BrowserRouter>
-  </I18nProvider>
-)
+// The page's entry. Most of the app is a chunk of its own, loaded with what
+// it needs as this runs: the public page of a shared gallery (issue #180,
+// /shared#<uuid>.<secret>), opened by anyone with its link, loads only what
+// it shows (sharedEntry.tsx), never the whole app (appEntry.tsx).
+if (window.location.pathname === "/shared") void import("./sharedEntry");
+else void import("./appEntry");

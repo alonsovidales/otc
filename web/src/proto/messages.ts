@@ -22,43 +22,6 @@ export namespace StatusErrorCode {
   export type UNRECOGNIZED = typeof StatusErrorCode.UNRECOGNIZED;
 }
 
-export function statusErrorCodeFromJSON(object: any): StatusErrorCode {
-  switch (object) {
-    case 0:
-    case "DiskError":
-      return StatusErrorCode.DiskError;
-    case 1:
-    case "Syncing":
-      return StatusErrorCode.Syncing;
-    case 2:
-    case "MissingDisk":
-      return StatusErrorCode.MissingDisk;
-    case 3:
-    case "ErrorInDisk":
-      return StatusErrorCode.ErrorInDisk;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return StatusErrorCode.UNRECOGNIZED;
-  }
-}
-
-export function statusErrorCodeToJSON(object: StatusErrorCode): string {
-  switch (object) {
-    case StatusErrorCode.DiskError:
-      return "DiskError";
-    case StatusErrorCode.Syncing:
-      return "Syncing";
-    case StatusErrorCode.MissingDisk:
-      return "MissingDisk";
-    case StatusErrorCode.ErrorInDisk:
-      return "ErrorInDisk";
-    case StatusErrorCode.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
 /**
  * Issue #65: RAID health as its own explicit state, not something the
  * client has to infer from errors being present/absent. NoRaid covers a
@@ -87,48 +50,6 @@ export namespace RaidState {
   export type UNRECOGNIZED = typeof RaidState.UNRECOGNIZED;
 }
 
-export function raidStateFromJSON(object: any): RaidState {
-  switch (object) {
-    case 0:
-    case "RaidUnknown":
-      return RaidState.RaidUnknown;
-    case 1:
-    case "RaidNone":
-      return RaidState.RaidNone;
-    case 2:
-    case "RaidInSync":
-      return RaidState.RaidInSync;
-    case 3:
-    case "RaidSyncing":
-      return RaidState.RaidSyncing;
-    case 4:
-    case "RaidDegraded":
-      return RaidState.RaidDegraded;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return RaidState.UNRECOGNIZED;
-  }
-}
-
-export function raidStateToJSON(object: RaidState): string {
-  switch (object) {
-    case RaidState.RaidUnknown:
-      return "RaidUnknown";
-    case RaidState.RaidNone:
-      return "RaidNone";
-    case RaidState.RaidInSync:
-      return "RaidInSync";
-    case RaidState.RaidSyncing:
-      return "RaidSyncing";
-    case RaidState.RaidDegraded:
-      return "RaidDegraded";
-    case RaidState.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
 export const FriendShipStatus = { Pending: 0, Accepted: 1, Blocked: 2, UNRECOGNIZED: -1 } as const;
 
 export type FriendShipStatus = typeof FriendShipStatus[keyof typeof FriendShipStatus];
@@ -138,38 +59,6 @@ export namespace FriendShipStatus {
   export type Accepted = typeof FriendShipStatus.Accepted;
   export type Blocked = typeof FriendShipStatus.Blocked;
   export type UNRECOGNIZED = typeof FriendShipStatus.UNRECOGNIZED;
-}
-
-export function friendShipStatusFromJSON(object: any): FriendShipStatus {
-  switch (object) {
-    case 0:
-    case "Pending":
-      return FriendShipStatus.Pending;
-    case 1:
-    case "Accepted":
-      return FriendShipStatus.Accepted;
-    case 2:
-    case "Blocked":
-      return FriendShipStatus.Blocked;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return FriendShipStatus.UNRECOGNIZED;
-  }
-}
-
-export function friendShipStatusToJSON(object: FriendShipStatus): string {
-  switch (object) {
-    case FriendShipStatus.Pending:
-      return "Pending";
-    case FriendShipStatus.Accepted:
-      return "Accepted";
-    case FriendShipStatus.Blocked:
-      return "Blocked";
-    case FriendShipStatus.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
 }
 
 export const ActionType = { FriendshipReq: 0, LikePub: 1, LikeComm: 2, NewSocialComm: 3, UNRECOGNIZED: -1 } as const;
@@ -182,43 +71,6 @@ export namespace ActionType {
   export type LikeComm = typeof ActionType.LikeComm;
   export type NewSocialComm = typeof ActionType.NewSocialComm;
   export type UNRECOGNIZED = typeof ActionType.UNRECOGNIZED;
-}
-
-export function actionTypeFromJSON(object: any): ActionType {
-  switch (object) {
-    case 0:
-    case "FriendshipReq":
-      return ActionType.FriendshipReq;
-    case 1:
-    case "LikePub":
-      return ActionType.LikePub;
-    case 2:
-    case "LikeComm":
-      return ActionType.LikeComm;
-    case 3:
-    case "NewSocialComm":
-      return ActionType.NewSocialComm;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return ActionType.UNRECOGNIZED;
-  }
-}
-
-export function actionTypeToJSON(object: ActionType): string {
-  switch (object) {
-    case ActionType.FriendshipReq:
-      return "FriendshipReq";
-    case ActionType.LikePub:
-      return "LikePub";
-    case ActionType.LikeComm:
-      return "LikeComm";
-    case ActionType.NewSocialComm:
-      return "NewSocialComm";
-    case ActionType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
 }
 
 export const BridgeOnboardErrorType = {
@@ -239,48 +91,6 @@ export namespace BridgeOnboardErrorType {
   export type unknown_owner = typeof BridgeOnboardErrorType.unknown_owner;
   export type pending_approval = typeof BridgeOnboardErrorType.pending_approval;
   export type UNRECOGNIZED = typeof BridgeOnboardErrorType.UNRECOGNIZED;
-}
-
-export function bridgeOnboardErrorTypeFromJSON(object: any): BridgeOnboardErrorType {
-  switch (object) {
-    case 0:
-    case "generic_error":
-      return BridgeOnboardErrorType.generic_error;
-    case 1:
-    case "taken_domain":
-      return BridgeOnboardErrorType.taken_domain;
-    case 2:
-    case "secret_missmatch":
-      return BridgeOnboardErrorType.secret_missmatch;
-    case 3:
-    case "unknown_owner":
-      return BridgeOnboardErrorType.unknown_owner;
-    case 4:
-    case "pending_approval":
-      return BridgeOnboardErrorType.pending_approval;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return BridgeOnboardErrorType.UNRECOGNIZED;
-  }
-}
-
-export function bridgeOnboardErrorTypeToJSON(object: BridgeOnboardErrorType): string {
-  switch (object) {
-    case BridgeOnboardErrorType.generic_error:
-      return "generic_error";
-    case BridgeOnboardErrorType.taken_domain:
-      return "taken_domain";
-    case BridgeOnboardErrorType.secret_missmatch:
-      return "secret_missmatch";
-    case BridgeOnboardErrorType.unknown_owner:
-      return "unknown_owner";
-    case BridgeOnboardErrorType.pending_approval:
-      return "pending_approval";
-    case BridgeOnboardErrorType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
 }
 
 /**
@@ -326,58 +136,6 @@ export namespace NotificationType {
   export type NotificationError = typeof NotificationType.NotificationError;
   export type NotificationUpdate = typeof NotificationType.NotificationUpdate;
   export type UNRECOGNIZED = typeof NotificationType.UNRECOGNIZED;
-}
-
-export function notificationTypeFromJSON(object: any): NotificationType {
-  switch (object) {
-    case 0:
-    case "NotificationLikePublication":
-      return NotificationType.NotificationLikePublication;
-    case 1:
-    case "NotificationLikeComment":
-      return NotificationType.NotificationLikeComment;
-    case 2:
-    case "NotificationNewComment":
-      return NotificationType.NotificationNewComment;
-    case 3:
-    case "NotificationFriendRequest":
-      return NotificationType.NotificationFriendRequest;
-    case 4:
-    case "NotificationFriendAccepted":
-      return NotificationType.NotificationFriendAccepted;
-    case 5:
-    case "NotificationError":
-      return NotificationType.NotificationError;
-    case 6:
-    case "NotificationUpdate":
-      return NotificationType.NotificationUpdate;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return NotificationType.UNRECOGNIZED;
-  }
-}
-
-export function notificationTypeToJSON(object: NotificationType): string {
-  switch (object) {
-    case NotificationType.NotificationLikePublication:
-      return "NotificationLikePublication";
-    case NotificationType.NotificationLikeComment:
-      return "NotificationLikeComment";
-    case NotificationType.NotificationNewComment:
-      return "NotificationNewComment";
-    case NotificationType.NotificationFriendRequest:
-      return "NotificationFriendRequest";
-    case NotificationType.NotificationFriendAccepted:
-      return "NotificationFriendAccepted";
-    case NotificationType.NotificationError:
-      return "NotificationError";
-    case NotificationType.NotificationUpdate:
-      return "NotificationUpdate";
-    case NotificationType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
 }
 
 export interface StatusErrors {
@@ -1454,38 +1212,6 @@ export namespace GetSharedGalleryItem_Part {
   export type PREVIEW = typeof GetSharedGalleryItem_Part.PREVIEW;
   export type ORIGINAL = typeof GetSharedGalleryItem_Part.ORIGINAL;
   export type UNRECOGNIZED = typeof GetSharedGalleryItem_Part.UNRECOGNIZED;
-}
-
-export function getSharedGalleryItem_PartFromJSON(object: any): GetSharedGalleryItem_Part {
-  switch (object) {
-    case 0:
-    case "THUMBNAIL":
-      return GetSharedGalleryItem_Part.THUMBNAIL;
-    case 1:
-    case "PREVIEW":
-      return GetSharedGalleryItem_Part.PREVIEW;
-    case 2:
-    case "ORIGINAL":
-      return GetSharedGalleryItem_Part.ORIGINAL;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return GetSharedGalleryItem_Part.UNRECOGNIZED;
-  }
-}
-
-export function getSharedGalleryItem_PartToJSON(object: GetSharedGalleryItem_Part): string {
-  switch (object) {
-    case GetSharedGalleryItem_Part.THUMBNAIL:
-      return "THUMBNAIL";
-    case GetSharedGalleryItem_Part.PREVIEW:
-      return "PREVIEW";
-    case GetSharedGalleryItem_Part.ORIGINAL:
-      return "ORIGINAL";
-    case GetSharedGalleryItem_Part.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
 }
 
 /** A video of the gallery, streamed: answered with a RespMediaURL. */
@@ -3493,24 +3219,6 @@ export const StatusErrors: MessageFns<StatusErrors> = {
     return message;
   },
 
-  fromJSON(object: any): StatusErrors {
-    return {
-      StatusErrorCode: isSet(object.StatusErrorCode) ? statusErrorCodeFromJSON(object.StatusErrorCode) : 0,
-      Message: isSet(object.Message) ? globalThis.String(object.Message) : "",
-    };
-  },
-
-  toJSON(message: StatusErrors): unknown {
-    const obj: any = {};
-    if (message.StatusErrorCode !== 0) {
-      obj.StatusErrorCode = statusErrorCodeToJSON(message.StatusErrorCode);
-    }
-    if (message.Message !== "") {
-      obj.Message = message.Message;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<StatusErrors>, I>>(base?: I): StatusErrors {
     return StatusErrors.fromPartial(base ?? ({} as any));
   },
@@ -3545,15 +3253,6 @@ export const GetStatus: MessageFns<GetStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetStatus {
-    return {};
-  },
-
-  toJSON(_: GetStatus): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetStatus>, I>>(base?: I): GetStatus {
@@ -3795,84 +3494,6 @@ export const Status: MessageFns<Status> = {
     return message;
   },
 
-  fromJSON(object: any): Status {
-    return {
-      online: isSet(object.online) ? globalThis.Boolean(object.online) : false,
-      disks: isSet(object.disks) ? globalThis.Number(object.disks) : 0,
-      errors: globalThis.Array.isArray(object?.errors) ? object.errors.map((e: any) => StatusErrors.fromJSON(e)) : [],
-      raidSize: isSet(object.raidSize) ? globalThis.Number(object.raidSize) : 0,
-      raidUsage: isSet(object.raidUsage) ? globalThis.Number(object.raidUsage) : 0,
-      diskSize: isSet(object.diskSize) ? globalThis.Number(object.diskSize) : 0,
-      diskUsage: isSet(object.diskUsage) ? globalThis.Number(object.diskUsage) : 0,
-      cpuUsagePrc: isSet(object.cpuUsagePrc) ? globalThis.Number(object.cpuUsagePrc) : 0,
-      memSize: isSet(object.memSize) ? globalThis.Number(object.memSize) : 0,
-      memUsage: isSet(object.memUsage) ? globalThis.Number(object.memUsage) : 0,
-      raidState: isSet(object.raidState) ? raidStateFromJSON(object.raidState) : 0,
-      raidLevel: isSet(object.raidLevel) ? globalThis.String(object.raidLevel) : "",
-      raidDevicesActive: isSet(object.raidDevicesActive) ? globalThis.Number(object.raidDevicesActive) : 0,
-      raidSyncPercent: isSet(object.raidSyncPercent) ? globalThis.Number(object.raidSyncPercent) : 0,
-      updateAlert: isSet(object.updateAlert) ? UpdateAlert.fromJSON(object.updateAlert) : undefined,
-      language: isSet(object.language) ? globalThis.String(object.language) : undefined,
-      demo: isSet(object.demo) ? globalThis.Boolean(object.demo) : false,
-    };
-  },
-
-  toJSON(message: Status): unknown {
-    const obj: any = {};
-    if (message.online !== false) {
-      obj.online = message.online;
-    }
-    if (message.disks !== 0) {
-      obj.disks = Math.round(message.disks);
-    }
-    if (message.errors?.length) {
-      obj.errors = message.errors.map((e) => StatusErrors.toJSON(e));
-    }
-    if (message.raidSize !== 0) {
-      obj.raidSize = Math.round(message.raidSize);
-    }
-    if (message.raidUsage !== 0) {
-      obj.raidUsage = Math.round(message.raidUsage);
-    }
-    if (message.diskSize !== 0) {
-      obj.diskSize = Math.round(message.diskSize);
-    }
-    if (message.diskUsage !== 0) {
-      obj.diskUsage = Math.round(message.diskUsage);
-    }
-    if (message.cpuUsagePrc !== 0) {
-      obj.cpuUsagePrc = message.cpuUsagePrc;
-    }
-    if (message.memSize !== 0) {
-      obj.memSize = Math.round(message.memSize);
-    }
-    if (message.memUsage !== 0) {
-      obj.memUsage = Math.round(message.memUsage);
-    }
-    if (message.raidState !== 0) {
-      obj.raidState = raidStateToJSON(message.raidState);
-    }
-    if (message.raidLevel !== "") {
-      obj.raidLevel = message.raidLevel;
-    }
-    if (message.raidDevicesActive !== 0) {
-      obj.raidDevicesActive = Math.round(message.raidDevicesActive);
-    }
-    if (message.raidSyncPercent !== 0) {
-      obj.raidSyncPercent = message.raidSyncPercent;
-    }
-    if (message.updateAlert !== undefined) {
-      obj.updateAlert = UpdateAlert.toJSON(message.updateAlert);
-    }
-    if (message.language !== undefined) {
-      obj.language = message.language;
-    }
-    if (message.demo !== false) {
-      obj.demo = message.demo;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Status>, I>>(base?: I): Status {
     return Status.fromPartial(base ?? ({} as any));
   },
@@ -3959,28 +3580,6 @@ export const UpdateAlert: MessageFns<UpdateAlert> = {
     return message;
   },
 
-  fromJSON(object: any): UpdateAlert {
-    return {
-      level: isSet(object.level) ? globalThis.String(object.level) : "",
-      version: isSet(object.version) ? globalThis.String(object.version) : "",
-      summary: isSet(object.summary) ? globalThis.String(object.summary) : "",
-    };
-  },
-
-  toJSON(message: UpdateAlert): unknown {
-    const obj: any = {};
-    if (message.level !== "") {
-      obj.level = message.level;
-    }
-    if (message.version !== "") {
-      obj.version = message.version;
-    }
-    if (message.summary !== "") {
-      obj.summary = message.summary;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<UpdateAlert>, I>>(base?: I): UpdateAlert {
     return UpdateAlert.fromPartial(base ?? ({} as any));
   },
@@ -4051,28 +3650,6 @@ export const Auth: MessageFns<Auth> = {
     return message;
   },
 
-  fromJSON(object: any): Auth {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      key: isSet(object.key) ? bytesFromBase64(object.key) : new Uint8Array(0),
-      create: isSet(object.create) ? globalThis.Boolean(object.create) : false,
-    };
-  },
-
-  toJSON(message: Auth): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.key.length !== 0) {
-      obj.key = base64FromBytes(message.key);
-    }
-    if (message.create !== false) {
-      obj.create = message.create;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Auth>, I>>(base?: I): Auth {
     return Auth.fromPartial(base ?? ({} as any));
   },
@@ -4108,15 +3685,6 @@ export const ReqIssueSessionToken: MessageFns<ReqIssueSessionToken> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqIssueSessionToken {
-    return {};
-  },
-
-  toJSON(_: ReqIssueSessionToken): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqIssueSessionToken>, I>>(base?: I): ReqIssueSessionToken {
@@ -4178,24 +3746,6 @@ export const SessionToken: MessageFns<SessionToken> = {
     return message;
   },
 
-  fromJSON(object: any): SessionToken {
-    return {
-      token: isSet(object.token) ? globalThis.String(object.token) : "",
-      expiresAtUnixMs: isSet(object.expiresAtUnixMs) ? BigInt(object.expiresAtUnixMs) : 0n,
-    };
-  },
-
-  toJSON(message: SessionToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    if (message.expiresAtUnixMs !== 0n) {
-      obj.expiresAtUnixMs = message.expiresAtUnixMs.toString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SessionToken>, I>>(base?: I): SessionToken {
     return SessionToken.fromPartial(base ?? ({} as any));
   },
@@ -4241,18 +3791,6 @@ export const RespSessionToken: MessageFns<RespSessionToken> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespSessionToken {
-    return { sessionToken: isSet(object.sessionToken) ? SessionToken.fromJSON(object.sessionToken) : undefined };
-  },
-
-  toJSON(message: RespSessionToken): unknown {
-    const obj: any = {};
-    if (message.sessionToken !== undefined) {
-      obj.sessionToken = SessionToken.toJSON(message.sessionToken);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespSessionToken>, I>>(base?: I): RespSessionToken {
@@ -4301,18 +3839,6 @@ export const ReqAuthWithToken: MessageFns<ReqAuthWithToken> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqAuthWithToken {
-    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
-  },
-
-  toJSON(message: ReqAuthWithToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqAuthWithToken>, I>>(base?: I): ReqAuthWithToken {
@@ -4392,32 +3918,6 @@ export const ReqIsDomainAvailable: MessageFns<ReqIsDomainAvailable> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqIsDomainAvailable {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      candidateDomain: isSet(object.candidateDomain) ? globalThis.String(object.candidateDomain) : "",
-    };
-  },
-
-  toJSON(message: ReqIsDomainAvailable): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.candidateDomain !== "") {
-      obj.candidateDomain = message.candidateDomain;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqIsDomainAvailable>, I>>(base?: I): ReqIsDomainAvailable {
@@ -4524,40 +4024,6 @@ export const ReqRegisterUserDomain: MessageFns<ReqRegisterUserDomain> = {
     return message;
   },
 
-  fromJSON(object: any): ReqRegisterUserDomain {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      userDomain: isSet(object.userDomain) ? globalThis.String(object.userDomain) : "",
-      userOwnerUuid: isSet(object.userOwnerUuid) ? globalThis.String(object.userOwnerUuid) : "",
-      userSecret: isSet(object.userSecret) ? globalThis.String(object.userSecret) : "",
-    };
-  },
-
-  toJSON(message: ReqRegisterUserDomain): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.userDomain !== "") {
-      obj.userDomain = message.userDomain;
-    }
-    if (message.userOwnerUuid !== "") {
-      obj.userOwnerUuid = message.userOwnerUuid;
-    }
-    if (message.userSecret !== "") {
-      obj.userSecret = message.userSecret;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqRegisterUserDomain>, I>>(base?: I): ReqRegisterUserDomain {
     return ReqRegisterUserDomain.fromPartial(base ?? ({} as any));
   },
@@ -4609,18 +4075,6 @@ export const RespDomainAvailable: MessageFns<RespDomainAvailable> = {
     return message;
   },
 
-  fromJSON(object: any): RespDomainAvailable {
-    return { available: isSet(object.available) ? globalThis.Boolean(object.available) : false };
-  },
-
-  toJSON(message: RespDomainAvailable): unknown {
-    const obj: any = {};
-    if (message.available !== false) {
-      obj.available = message.available;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespDomainAvailable>, I>>(base?: I): RespDomainAvailable {
     return RespDomainAvailable.fromPartial(base ?? ({} as any));
   },
@@ -4656,15 +4110,6 @@ export const ReqRevokeSessionToken: MessageFns<ReqRevokeSessionToken> = {
     return message;
   },
 
-  fromJSON(_: any): ReqRevokeSessionToken {
-    return {};
-  },
-
-  toJSON(_: ReqRevokeSessionToken): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqRevokeSessionToken>, I>>(base?: I): ReqRevokeSessionToken {
     return ReqRevokeSessionToken.fromPartial(base ?? ({} as any));
   },
@@ -4697,15 +4142,6 @@ export const GetPubKey: MessageFns<GetPubKey> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetPubKey {
-    return {};
-  },
-
-  toJSON(_: GetPubKey): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetPubKey>, I>>(base?: I): GetPubKey {
@@ -4813,40 +4249,6 @@ export const PubKey: MessageFns<PubKey> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): PubKey {
-    return {
-      publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0),
-      isNewDevice: isSet(object.isNewDevice) ? globalThis.Boolean(object.isNewDevice) : false,
-      isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false,
-      demo: isSet(object.demo) ? globalThis.Boolean(object.demo) : false,
-      demoPassword: isSet(object.demoPassword) ? globalThis.String(object.demoPassword) : "",
-      container: isSet(object.container) ? globalThis.Boolean(object.container) : false,
-    };
-  },
-
-  toJSON(message: PubKey): unknown {
-    const obj: any = {};
-    if (message.publicKey.length !== 0) {
-      obj.publicKey = base64FromBytes(message.publicKey);
-    }
-    if (message.isNewDevice !== false) {
-      obj.isNewDevice = message.isNewDevice;
-    }
-    if (message.isPrimary !== false) {
-      obj.isPrimary = message.isPrimary;
-    }
-    if (message.demo !== false) {
-      obj.demo = message.demo;
-    }
-    if (message.demoPassword !== "") {
-      obj.demoPassword = message.demoPassword;
-    }
-    if (message.container !== false) {
-      obj.container = message.container;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<PubKey>, I>>(base?: I): PubKey {
@@ -4962,40 +4364,6 @@ export const UploadFile: MessageFns<UploadFile> = {
     return message;
   },
 
-  fromJSON(object: any): UploadFile {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
-      forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
-      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
-    };
-  },
-
-  toJSON(message: UploadFile): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.content.length !== 0) {
-      obj.content = base64FromBytes(message.content);
-    }
-    if (message.forceOverride !== false) {
-      obj.forceOverride = message.forceOverride;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.cloudId !== "") {
-      obj.cloudId = message.cloudId;
-    }
-    if (message.modified !== undefined) {
-      obj.modified = message.modified.toISOString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<UploadFile>, I>>(base?: I): UploadFile {
     return UploadFile.fromPartial(base ?? ({} as any));
   },
@@ -5058,24 +4426,6 @@ export const HasFile: MessageFns<HasFile> = {
     return message;
   },
 
-  fromJSON(object: any): HasFile {
-    return {
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
-    };
-  },
-
-  toJSON(message: HasFile): unknown {
-    const obj: any = {};
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    if (message.cloudId !== "") {
-      obj.cloudId = message.cloudId;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<HasFile>, I>>(base?: I): HasFile {
     return HasFile.fromPartial(base ?? ({} as any));
   },
@@ -5121,20 +4471,6 @@ export const HasCloudIds: MessageFns<HasCloudIds> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): HasCloudIds {
-    return {
-      cloudIds: globalThis.Array.isArray(object?.cloudIds) ? object.cloudIds.map((e: any) => globalThis.String(e)) : [],
-    };
-  },
-
-  toJSON(message: HasCloudIds): unknown {
-    const obj: any = {};
-    if (message.cloudIds?.length) {
-      obj.cloudIds = message.cloudIds;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<HasCloudIds>, I>>(base?: I): HasCloudIds {
@@ -5194,24 +4530,6 @@ export const CloudIdFile: MessageFns<CloudIdFile> = {
     return message;
   },
 
-  fromJSON(object: any): CloudIdFile {
-    return {
-      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-    };
-  },
-
-  toJSON(message: CloudIdFile): unknown {
-    const obj: any = {};
-    if (message.cloudId !== "") {
-      obj.cloudId = message.cloudId;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<CloudIdFile>, I>>(base?: I): CloudIdFile {
     return CloudIdFile.fromPartial(base ?? ({} as any));
   },
@@ -5257,20 +4575,6 @@ export const CloudIdsFound: MessageFns<CloudIdsFound> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): CloudIdsFound {
-    return {
-      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => CloudIdFile.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: CloudIdsFound): unknown {
-    const obj: any = {};
-    if (message.files?.length) {
-      obj.files = message.files.map((e) => CloudIdFile.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<CloudIdsFound>, I>>(base?: I): CloudIdsFound {
@@ -5319,20 +4623,6 @@ export const HasHashes: MessageFns<HasHashes> = {
     return message;
   },
 
-  fromJSON(object: any): HasHashes {
-    return {
-      hashes: globalThis.Array.isArray(object?.hashes) ? object.hashes.map((e: any) => globalThis.String(e)) : [],
-    };
-  },
-
-  toJSON(message: HasHashes): unknown {
-    const obj: any = {};
-    if (message.hashes?.length) {
-      obj.hashes = message.hashes;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<HasHashes>, I>>(base?: I): HasHashes {
     return HasHashes.fromPartial(base ?? ({} as any));
   },
@@ -5379,20 +4669,6 @@ export const HashesFound: MessageFns<HashesFound> = {
     return message;
   },
 
-  fromJSON(object: any): HashesFound {
-    return {
-      hashes: globalThis.Array.isArray(object?.hashes) ? object.hashes.map((e: any) => globalThis.String(e)) : [],
-    };
-  },
-
-  toJSON(message: HashesFound): unknown {
-    const obj: any = {};
-    if (message.hashes?.length) {
-      obj.hashes = message.hashes;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<HashesFound>, I>>(base?: I): HashesFound {
     return HashesFound.fromPartial(base ?? ({} as any));
   },
@@ -5437,18 +4713,6 @@ export const FileExists: MessageFns<FileExists> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): FileExists {
-    return { exists: isSet(object.exists) ? globalThis.Boolean(object.exists) : false };
-  },
-
-  toJSON(message: FileExists): unknown {
-    const obj: any = {};
-    if (message.exists !== false) {
-      obj.exists = message.exists;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<FileExists>, I>>(base?: I): FileExists {
@@ -5552,40 +4816,6 @@ export const LinkFile: MessageFns<LinkFile> = {
     return message;
   },
 
-  fromJSON(object: any): LinkFile {
-    return {
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
-      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
-    };
-  },
-
-  toJSON(message: LinkFile): unknown {
-    const obj: any = {};
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.forceOverride !== false) {
-      obj.forceOverride = message.forceOverride;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.cloudId !== "") {
-      obj.cloudId = message.cloudId;
-    }
-    if (message.modified !== undefined) {
-      obj.modified = message.modified.toISOString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<LinkFile>, I>>(base?: I): LinkFile {
     return LinkFile.fromPartial(base ?? ({} as any));
   },
@@ -5659,28 +4889,6 @@ export const DelFile: MessageFns<DelFile> = {
     return message;
   },
 
-  fromJSON(object: any): DelFile {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      everyCopy: isSet(object.everyCopy) ? globalThis.Boolean(object.everyCopy) : undefined,
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : undefined,
-    };
-  },
-
-  toJSON(message: DelFile): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.everyCopy !== undefined) {
-      obj.everyCopy = message.everyCopy;
-    }
-    if (message.hash !== undefined) {
-      obj.hash = message.hash;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<DelFile>, I>>(base?: I): DelFile {
     return DelFile.fromPartial(base ?? ({} as any));
   },
@@ -5738,24 +4946,6 @@ export const GetFile: MessageFns<GetFile> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetFile {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-    };
-  },
-
-  toJSON(message: GetFile): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetFile>, I>>(base?: I): GetFile {
@@ -5816,24 +5006,6 @@ export const SetUploadOnly: MessageFns<SetUploadOnly> = {
     return message;
   },
 
-  fromJSON(object: any): SetUploadOnly {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
-    };
-  },
-
-  toJSON(message: SetUploadOnly): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.uploadOnly !== false) {
-      obj.uploadOnly = message.uploadOnly;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetUploadOnly>, I>>(base?: I): SetUploadOnly {
     return SetUploadOnly.fromPartial(base ?? ({} as any));
   },
@@ -5881,18 +5053,6 @@ export const ListFileVersions: MessageFns<ListFileVersions> = {
     return message;
   },
 
-  fromJSON(object: any): ListFileVersions {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
-  },
-
-  toJSON(message: ListFileVersions): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ListFileVersions>, I>>(base?: I): ListFileVersions {
     return ListFileVersions.fromPartial(base ?? ({} as any));
   },
@@ -5937,20 +5097,6 @@ export const FileVersions: MessageFns<FileVersions> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): FileVersions {
-    return {
-      versions: globalThis.Array.isArray(object?.versions) ? object.versions.map((e: any) => File.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: FileVersions): unknown {
-    const obj: any = {};
-    if (message.versions?.length) {
-      obj.versions = message.versions.map((e) => File.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<FileVersions>, I>>(base?: I): FileVersions {
@@ -6010,24 +5156,6 @@ export const SetOutOfImages: MessageFns<SetOutOfImages> = {
     return message;
   },
 
-  fromJSON(object: any): SetOutOfImages {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
-    };
-  },
-
-  toJSON(message: SetOutOfImages): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.outOfImages !== false) {
-      obj.outOfImages = message.outOfImages;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetOutOfImages>, I>>(base?: I): SetOutOfImages {
     return SetOutOfImages.fromPartial(base ?? ({} as any));
   },
@@ -6062,15 +5190,6 @@ export const ListOutOfImages: MessageFns<ListOutOfImages> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ListOutOfImages {
-    return {};
-  },
-
-  toJSON(_: ListOutOfImages): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ListOutOfImages>, I>>(base?: I): ListOutOfImages {
@@ -6116,18 +5235,6 @@ export const OutOfImagesFolders: MessageFns<OutOfImagesFolders> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): OutOfImagesFolders {
-    return { paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [] };
-  },
-
-  toJSON(message: OutOfImagesFolders): unknown {
-    const obj: any = {};
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<OutOfImagesFolders>, I>>(base?: I): OutOfImagesFolders {
@@ -6187,24 +5294,6 @@ export const ListFiles: MessageFns<ListFiles> = {
     return message;
   },
 
-  fromJSON(object: any): ListFiles {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      recursive: isSet(object.recursive) ? globalThis.Boolean(object.recursive) : false,
-    };
-  },
-
-  toJSON(message: ListFiles): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.recursive !== false) {
-      obj.recursive = message.recursive;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ListFiles>, I>>(base?: I): ListFiles {
     return ListFiles.fromPartial(base ?? ({} as any));
   },
@@ -6250,18 +5339,6 @@ export const GetFolderUsage: MessageFns<GetFolderUsage> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetFolderUsage {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
-  },
-
-  toJSON(message: GetFolderUsage): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetFolderUsage>, I>>(base?: I): GetFolderUsage {
@@ -6358,36 +5435,6 @@ export const FolderUsageEntry: MessageFns<FolderUsageEntry> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): FolderUsageEntry {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      isDir: isSet(object.isDir) ? globalThis.Boolean(object.isDir) : false,
-      filesSize: isSet(object.filesSize) ? BigInt(object.filesSize) : 0n,
-      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
-      versionsSize: isSet(object.versionsSize) ? BigInt(object.versionsSize) : 0n,
-    };
-  },
-
-  toJSON(message: FolderUsageEntry): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.isDir !== false) {
-      obj.isDir = message.isDir;
-    }
-    if (message.filesSize !== 0n) {
-      obj.filesSize = message.filesSize.toString();
-    }
-    if (message.fileCount !== 0) {
-      obj.fileCount = Math.round(message.fileCount);
-    }
-    if (message.versionsSize !== 0n) {
-      obj.versionsSize = message.versionsSize.toString();
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<FolderUsageEntry>, I>>(base?: I): FolderUsageEntry {
@@ -6490,38 +5537,6 @@ export const FolderUsage: MessageFns<FolderUsage> = {
     return message;
   },
 
-  fromJSON(object: any): FolderUsage {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      entries: globalThis.Array.isArray(object?.entries)
-        ? object.entries.map((e: any) => FolderUsageEntry.fromJSON(e))
-        : [],
-      filesSize: isSet(object.filesSize) ? BigInt(object.filesSize) : 0n,
-      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
-      versionsSize: isSet(object.versionsSize) ? BigInt(object.versionsSize) : 0n,
-    };
-  },
-
-  toJSON(message: FolderUsage): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.entries?.length) {
-      obj.entries = message.entries.map((e) => FolderUsageEntry.toJSON(e));
-    }
-    if (message.filesSize !== 0n) {
-      obj.filesSize = message.filesSize.toString();
-    }
-    if (message.fileCount !== 0) {
-      obj.fileCount = Math.round(message.fileCount);
-    }
-    if (message.versionsSize !== 0n) {
-      obj.versionsSize = message.versionsSize.toString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FolderUsage>, I>>(base?: I): FolderUsage {
     return FolderUsage.fromPartial(base ?? ({} as any));
   },
@@ -6583,24 +5598,6 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
     return message;
   },
 
-  fromJSON(object: any): GetThumbnails {
-    return {
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
-    };
-  },
-
-  toJSON(message: GetThumbnails): unknown {
-    const obj: any = {};
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    if (message.smallThumbnails !== false) {
-      obj.smallThumbnails = message.smallThumbnails;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetThumbnails>, I>>(base?: I): GetThumbnails {
     return GetThumbnails.fromPartial(base ?? ({} as any));
   },
@@ -6657,24 +5654,6 @@ export const SearchFiles: MessageFns<SearchFiles> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SearchFiles {
-    return {
-      query: isSet(object.query) ? globalThis.String(object.query) : "",
-      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
-    };
-  },
-
-  toJSON(message: SearchFiles): unknown {
-    const obj: any = {};
-    if (message.query !== "") {
-      obj.query = message.query;
-    }
-    if (message.limit !== 0) {
-      obj.limit = Math.round(message.limit);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SearchFiles>, I>>(base?: I): SearchFiles {
@@ -6760,32 +5739,6 @@ export const GetLogs: MessageFns<GetLogs> = {
     return message;
   },
 
-  fromJSON(object: any): GetLogs {
-    return {
-      source: isSet(object.source) ? globalThis.String(object.source) : "",
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      maxBytes: isSet(object.maxBytes) ? globalThis.Number(object.maxBytes) : 0,
-      waitSeconds: isSet(object.waitSeconds) ? globalThis.Number(object.waitSeconds) : 0,
-    };
-  },
-
-  toJSON(message: GetLogs): unknown {
-    const obj: any = {};
-    if (message.source !== "") {
-      obj.source = message.source;
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.maxBytes !== 0) {
-      obj.maxBytes = Math.round(message.maxBytes);
-    }
-    if (message.waitSeconds !== 0) {
-      obj.waitSeconds = Math.round(message.waitSeconds);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetLogs>, I>>(base?: I): GetLogs {
     return GetLogs.fromPartial(base ?? ({} as any));
   },
@@ -6863,28 +5816,6 @@ export const Logs: MessageFns<Logs> = {
     return message;
   },
 
-  fromJSON(object: any): Logs {
-    return {
-      text: isSet(object.text) ? globalThis.String(object.text) : "",
-      nextOffset: isSet(object.nextOffset) ? BigInt(object.nextOffset) : 0n,
-      size: isSet(object.size) ? BigInt(object.size) : 0n,
-    };
-  },
-
-  toJSON(message: Logs): unknown {
-    const obj: any = {};
-    if (message.text !== "") {
-      obj.text = message.text;
-    }
-    if (message.nextOffset !== 0n) {
-      obj.nextOffset = message.nextOffset.toString();
-    }
-    if (message.size !== 0n) {
-      obj.size = message.size.toString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Logs>, I>>(base?: I): Logs {
     return Logs.fromPartial(base ?? ({} as any));
   },
@@ -6931,18 +5862,6 @@ export const SendLogs: MessageFns<SendLogs> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SendLogs {
-    return { note: isSet(object.note) ? globalThis.String(object.note) : "" };
-  },
-
-  toJSON(message: SendLogs): unknown {
-    const obj: any = {};
-    if (message.note !== "") {
-      obj.note = message.note;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SendLogs>, I>>(base?: I): SendLogs {
@@ -7033,36 +5952,6 @@ export const BridgeSendLogs: MessageFns<BridgeSendLogs> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): BridgeSendLogs {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      note: isSet(object.note) ? globalThis.String(object.note) : "",
-      logs: isSet(object.logs) ? bytesFromBase64(object.logs) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: BridgeSendLogs): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.note !== "") {
-      obj.note = message.note;
-    }
-    if (message.logs.length !== 0) {
-      obj.logs = base64FromBytes(message.logs);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<BridgeSendLogs>, I>>(base?: I): BridgeSendLogs {
@@ -7237,62 +6126,6 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     return message;
   },
 
-  fromJSON(object: any): SearchPhotos {
-    return {
-      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
-      token: isSet(object.token) ? globalThis.String(object.token) : "",
-      includeVideos: isSet(object.includeVideos) ? globalThis.Boolean(object.includeVideos) : false,
-      personIds: globalThis.Array.isArray(object?.personIds)
-        ? object.personIds.map((e: any) => globalThis.String(e))
-        : [],
-      before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
-      have: isSet(object.have) ? globalThis.Number(object.have) : 0,
-      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
-      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
-      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
-      omitThumbnails: isSet(object.omitThumbnails) ? globalThis.Boolean(object.omitThumbnails) : false,
-      newerThan: isSet(object.newerThan) ? fromJsonTimestamp(object.newerThan) : undefined,
-    };
-  },
-
-  toJSON(message: SearchPhotos): unknown {
-    const obj: any = {};
-    if (message.tags?.length) {
-      obj.tags = message.tags;
-    }
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    if (message.includeVideos !== false) {
-      obj.includeVideos = message.includeVideos;
-    }
-    if (message.personIds?.length) {
-      obj.personIds = message.personIds;
-    }
-    if (message.before !== undefined) {
-      obj.before = message.before.toISOString();
-    }
-    if (message.have !== 0) {
-      obj.have = Math.round(message.have);
-    }
-    if (message.groupId !== "") {
-      obj.groupId = message.groupId;
-    }
-    if (message.limit !== 0) {
-      obj.limit = Math.round(message.limit);
-    }
-    if (message.smallThumbnails !== false) {
-      obj.smallThumbnails = message.smallThumbnails;
-    }
-    if (message.omitThumbnails !== false) {
-      obj.omitThumbnails = message.omitThumbnails;
-    }
-    if (message.newerThan !== undefined) {
-      obj.newerThan = message.newerThan.toISOString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SearchPhotos>, I>>(base?: I): SearchPhotos {
     return SearchPhotos.fromPartial(base ?? ({} as any));
   },
@@ -7411,42 +6244,6 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     return message;
   },
 
-  fromJSON(object: any): ListOfFiles {
-    return {
-      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [],
-      token: isSet(object.token) ? globalThis.String(object.token) : "",
-      outOfImagesSupported: isSet(object.outOfImagesSupported)
-        ? globalThis.Boolean(object.outOfImagesSupported)
-        : false,
-      folderOutOfImages: isSet(object.folderOutOfImages) ? globalThis.Boolean(object.folderOutOfImages) : false,
-      askAgainFrom: isSet(object.askAgainFrom) ? globalThis.Number(object.askAgainFrom) : 0,
-      oldestFirst: isSet(object.oldestFirst) ? globalThis.Boolean(object.oldestFirst) : false,
-    };
-  },
-
-  toJSON(message: ListOfFiles): unknown {
-    const obj: any = {};
-    if (message.files?.length) {
-      obj.files = message.files.map((e) => File.toJSON(e));
-    }
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    if (message.outOfImagesSupported !== false) {
-      obj.outOfImagesSupported = message.outOfImagesSupported;
-    }
-    if (message.folderOutOfImages !== false) {
-      obj.folderOutOfImages = message.folderOutOfImages;
-    }
-    if (message.askAgainFrom !== 0) {
-      obj.askAgainFrom = Math.round(message.askAgainFrom);
-    }
-    if (message.oldestFirst !== false) {
-      obj.oldestFirst = message.oldestFirst;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ListOfFiles>, I>>(base?: I): ListOfFiles {
     return ListOfFiles.fromPartial(base ?? ({} as any));
   },
@@ -7531,34 +6328,6 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     return message;
   },
 
-  fromJSON(object: any): ReqPhotoDateBuckets {
-    return {
-      tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
-      personIds: globalThis.Array.isArray(object?.personIds)
-        ? object.personIds.map((e: any) => globalThis.String(e))
-        : [],
-      includeVideos: isSet(object.includeVideos) ? globalThis.Boolean(object.includeVideos) : false,
-      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
-    };
-  },
-
-  toJSON(message: ReqPhotoDateBuckets): unknown {
-    const obj: any = {};
-    if (message.tags?.length) {
-      obj.tags = message.tags;
-    }
-    if (message.personIds?.length) {
-      obj.personIds = message.personIds;
-    }
-    if (message.includeVideos !== false) {
-      obj.includeVideos = message.includeVideos;
-    }
-    if (message.groupId !== "") {
-      obj.groupId = message.groupId;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqPhotoDateBuckets>, I>>(base?: I): ReqPhotoDateBuckets {
     return ReqPhotoDateBuckets.fromPartial(base ?? ({} as any));
   },
@@ -7619,24 +6388,6 @@ export const PhotoDateBucket: MessageFns<PhotoDateBucket> = {
     return message;
   },
 
-  fromJSON(object: any): PhotoDateBucket {
-    return {
-      month: isSet(object.month) ? globalThis.String(object.month) : "",
-      count: isSet(object.count) ? globalThis.Number(object.count) : 0,
-    };
-  },
-
-  toJSON(message: PhotoDateBucket): unknown {
-    const obj: any = {};
-    if (message.month !== "") {
-      obj.month = message.month;
-    }
-    if (message.count !== 0) {
-      obj.count = Math.round(message.count);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<PhotoDateBucket>, I>>(base?: I): PhotoDateBucket {
     return PhotoDateBucket.fromPartial(base ?? ({} as any));
   },
@@ -7682,22 +6433,6 @@ export const RespPhotoDateBuckets: MessageFns<RespPhotoDateBuckets> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespPhotoDateBuckets {
-    return {
-      buckets: globalThis.Array.isArray(object?.buckets)
-        ? object.buckets.map((e: any) => PhotoDateBucket.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: RespPhotoDateBuckets): unknown {
-    const obj: any = {};
-    if (message.buckets?.length) {
-      obj.buckets = message.buckets.map((e) => PhotoDateBucket.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespPhotoDateBuckets>, I>>(base?: I): RespPhotoDateBuckets {
@@ -7895,68 +6630,6 @@ export const File: MessageFns<File> = {
     return message;
   },
 
-  fromJSON(object: any): File {
-    return {
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      size: isSet(object.size) ? globalThis.Number(object.size) : 0,
-      content: isSet(object.content) ? bytesFromBase64(object.content) : undefined,
-      uploadOnly: isSet(object.uploadOnly) ? globalThis.Boolean(object.uploadOnly) : false,
-      versions: isSet(object.versions) ? globalThis.Number(object.versions) : 0,
-      size64: isSet(object.size64) ? BigInt(object.size64) : 0n,
-      outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
-      thumbnailSmall: isSet(object.thumbnailSmall) ? globalThis.Boolean(object.thumbnailSmall) : undefined,
-      copies: isSet(object.copies) ? globalThis.Number(object.copies) : undefined,
-    };
-  },
-
-  toJSON(message: File): unknown {
-    const obj: any = {};
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    if (message.mime !== "") {
-      obj.mime = message.mime;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.modified !== undefined) {
-      obj.modified = message.modified.toISOString();
-    }
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.size !== 0) {
-      obj.size = Math.round(message.size);
-    }
-    if (message.content !== undefined) {
-      obj.content = base64FromBytes(message.content);
-    }
-    if (message.uploadOnly !== false) {
-      obj.uploadOnly = message.uploadOnly;
-    }
-    if (message.versions !== 0) {
-      obj.versions = Math.round(message.versions);
-    }
-    if (message.size64 !== 0n) {
-      obj.size64 = message.size64.toString();
-    }
-    if (message.outOfImages !== false) {
-      obj.outOfImages = message.outOfImages;
-    }
-    if (message.thumbnailSmall !== undefined) {
-      obj.thumbnailSmall = message.thumbnailSmall;
-    }
-    if (message.copies !== undefined) {
-      obj.copies = Math.round(message.copies);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<File>, I>>(base?: I): File {
     return File.fromPartial(base ?? ({} as any));
   },
@@ -8048,32 +6721,6 @@ export const Ack: MessageFns<Ack> = {
     return message;
   },
 
-  fromJSON(object: any): Ack {
-    return {
-      ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false,
-      errorMsg: isSet(object.errorMsg) ? globalThis.String(object.errorMsg) : "",
-      code: isSet(object.code) ? globalThis.String(object.code) : "",
-      retryAfterSeconds: isSet(object.retryAfterSeconds) ? globalThis.Number(object.retryAfterSeconds) : 0,
-    };
-  },
-
-  toJSON(message: Ack): unknown {
-    const obj: any = {};
-    if (message.ok !== false) {
-      obj.ok = message.ok;
-    }
-    if (message.errorMsg !== "") {
-      obj.errorMsg = message.errorMsg;
-    }
-    if (message.code !== "") {
-      obj.code = message.code;
-    }
-    if (message.retryAfterSeconds !== 0) {
-      obj.retryAfterSeconds = Math.round(message.retryAfterSeconds);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Ack>, I>>(base?: I): Ack {
     return Ack.fromPartial(base ?? ({} as any));
   },
@@ -8110,15 +6757,6 @@ export const GetTags: MessageFns<GetTags> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetTags {
-    return {};
-  },
-
-  toJSON(_: GetTags): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetTags>, I>>(base?: I): GetTags {
@@ -8164,18 +6802,6 @@ export const TagsList: MessageFns<TagsList> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): TagsList {
-    return { tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [] };
-  },
-
-  toJSON(message: TagsList): unknown {
-    const obj: any = {};
-    if (message.tags?.length) {
-      obj.tags = message.tags;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<TagsList>, I>>(base?: I): TagsList {
@@ -8233,24 +6859,6 @@ export const ChangeKey: MessageFns<ChangeKey> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ChangeKey {
-    return {
-      oldKey: isSet(object.oldKey) ? bytesFromBase64(object.oldKey) : new Uint8Array(0),
-      newKey: isSet(object.newKey) ? bytesFromBase64(object.newKey) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: ChangeKey): unknown {
-    const obj: any = {};
-    if (message.oldKey.length !== 0) {
-      obj.oldKey = base64FromBytes(message.oldKey);
-    }
-    if (message.newKey.length !== 0) {
-      obj.newKey = base64FromBytes(message.newKey);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ChangeKey>, I>>(base?: I): ChangeKey {
@@ -8320,28 +6928,6 @@ export const VideoTrim: MessageFns<VideoTrim> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): VideoTrim {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      startSecs: isSet(object.startSecs) ? globalThis.Number(object.startSecs) : 0,
-      endSecs: isSet(object.endSecs) ? globalThis.Number(object.endSecs) : 0,
-    };
-  },
-
-  toJSON(message: VideoTrim): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.startSecs !== 0) {
-      obj.startSecs = message.startSecs;
-    }
-    if (message.endSecs !== 0) {
-      obj.endSecs = message.endSecs;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<VideoTrim>, I>>(base?: I): VideoTrim {
@@ -8414,28 +7000,6 @@ export const NewSocialPublication: MessageFns<NewSocialPublication> = {
     return message;
   },
 
-  fromJSON(object: any): NewSocialPublication {
-    return {
-      text: isSet(object.text) ? globalThis.String(object.text) : "",
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-      trims: globalThis.Array.isArray(object?.trims) ? object.trims.map((e: any) => VideoTrim.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: NewSocialPublication): unknown {
-    const obj: any = {};
-    if (message.text !== "") {
-      obj.text = message.text;
-    }
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    if (message.trims?.length) {
-      obj.trims = message.trims.map((e) => VideoTrim.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<NewSocialPublication>, I>>(base?: I): NewSocialPublication {
     return NewSocialPublication.fromPartial(base ?? ({} as any));
   },
@@ -8495,24 +7059,6 @@ export const GetEvents: MessageFns<GetEvents> = {
     return message;
   },
 
-  fromJSON(object: any): GetEvents {
-    return {
-      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
-      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-    };
-  },
-
-  toJSON(message: GetEvents): unknown {
-    const obj: any = {};
-    if (message.since !== undefined) {
-      obj.since = message.since.toISOString();
-    }
-    if (message.total !== 0) {
-      obj.total = Math.round(message.total);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetEvents>, I>>(base?: I): GetEvents {
     return GetEvents.fromPartial(base ?? ({} as any));
   },
@@ -8558,18 +7104,6 @@ export const GetSocialPublicationFiles: MessageFns<GetSocialPublicationFiles> = 
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetSocialPublicationFiles {
-    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
-  },
-
-  toJSON(message: GetSocialPublicationFiles): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetSocialPublicationFiles>, I>>(base?: I): GetSocialPublicationFiles {
@@ -8627,24 +7161,6 @@ export const GetPublicationMedia: MessageFns<GetPublicationMedia> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetPublicationMedia {
-    return {
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-    };
-  },
-
-  toJSON(message: GetPublicationMedia): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetPublicationMedia>, I>>(base?: I): GetPublicationMedia {
@@ -8716,28 +7232,6 @@ export const SharedGallerySource: MessageFns<SharedGallerySource> = {
     return message;
   },
 
-  fromJSON(object: any): SharedGallerySource {
-    return {
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
-      directory: isSet(object.directory) ? globalThis.String(object.directory) : "",
-    };
-  },
-
-  toJSON(message: SharedGallerySource): unknown {
-    const obj: any = {};
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    if (message.groupId !== "") {
-      obj.groupId = message.groupId;
-    }
-    if (message.directory !== "") {
-      obj.directory = message.directory;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedGallerySource>, I>>(base?: I): SharedGallerySource {
     return SharedGallerySource.fromPartial(base ?? ({} as any));
   },
@@ -8784,18 +7278,6 @@ export const PreviewSharedGallery: MessageFns<PreviewSharedGallery> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): PreviewSharedGallery {
-    return { source: isSet(object.source) ? SharedGallerySource.fromJSON(object.source) : undefined };
-  },
-
-  toJSON(message: PreviewSharedGallery): unknown {
-    const obj: any = {};
-    if (message.source !== undefined) {
-      obj.source = SharedGallerySource.toJSON(message.source);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<PreviewSharedGallery>, I>>(base?: I): PreviewSharedGallery {
@@ -8882,32 +7364,6 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
     return message;
   },
 
-  fromJSON(object: any): SharedGalleryPreview {
-    return {
-      files: isSet(object.files) ? globalThis.Number(object.files) : 0,
-      bytes: isSet(object.bytes) ? BigInt(object.bytes) : 0n,
-      skipped: isSet(object.skipped) ? globalThis.Number(object.skipped) : 0,
-      videos: isSet(object.videos) ? globalThis.Number(object.videos) : 0,
-    };
-  },
-
-  toJSON(message: SharedGalleryPreview): unknown {
-    const obj: any = {};
-    if (message.files !== 0) {
-      obj.files = Math.round(message.files);
-    }
-    if (message.bytes !== 0n) {
-      obj.bytes = message.bytes.toString();
-    }
-    if (message.skipped !== 0) {
-      obj.skipped = Math.round(message.skipped);
-    }
-    if (message.videos !== 0) {
-      obj.videos = Math.round(message.videos);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedGalleryPreview>, I>>(base?: I): SharedGalleryPreview {
     return SharedGalleryPreview.fromPartial(base ?? ({} as any));
   },
@@ -8990,32 +7446,6 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
     return message;
   },
 
-  fromJSON(object: any): CreateSharedGallery {
-    return {
-      source: isSet(object.source) ? SharedGallerySource.fromJSON(object.source) : undefined,
-      description: isSet(object.description) ? globalThis.String(object.description) : "",
-      ttlHours: isSet(object.ttlHours) ? globalThis.Number(object.ttlHours) : 0,
-      lowRes: isSet(object.lowRes) ? globalThis.Boolean(object.lowRes) : false,
-    };
-  },
-
-  toJSON(message: CreateSharedGallery): unknown {
-    const obj: any = {};
-    if (message.source !== undefined) {
-      obj.source = SharedGallerySource.toJSON(message.source);
-    }
-    if (message.description !== "") {
-      obj.description = message.description;
-    }
-    if (message.ttlHours !== 0) {
-      obj.ttlHours = Math.round(message.ttlHours);
-    }
-    if (message.lowRes !== false) {
-      obj.lowRes = message.lowRes;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<CreateSharedGallery>, I>>(base?: I): CreateSharedGallery {
     return CreateSharedGallery.fromPartial(base ?? ({} as any));
   },
@@ -9065,18 +7495,6 @@ export const GetSharedGalleryJob: MessageFns<GetSharedGalleryJob> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetSharedGalleryJob {
-    return { jobId: isSet(object.jobId) ? globalThis.String(object.jobId) : "" };
-  },
-
-  toJSON(message: GetSharedGalleryJob): unknown {
-    const obj: any = {};
-    if (message.jobId !== "") {
-      obj.jobId = message.jobId;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetSharedGalleryJob>, I>>(base?: I): GetSharedGalleryJob {
@@ -9208,48 +7626,6 @@ export const SharedGalleryJob: MessageFns<SharedGalleryJob> = {
     return message;
   },
 
-  fromJSON(object: any): SharedGalleryJob {
-    return {
-      jobId: isSet(object.jobId) ? globalThis.String(object.jobId) : "",
-      done: isSet(object.done) ? globalThis.Number(object.done) : 0,
-      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-      bytesDone: isSet(object.bytesDone) ? BigInt(object.bytesDone) : 0n,
-      bytesTotal: isSet(object.bytesTotal) ? BigInt(object.bytesTotal) : 0n,
-      finished: isSet(object.finished) ? globalThis.Boolean(object.finished) : false,
-      error: isSet(object.error) ? globalThis.String(object.error) : "",
-      link: isSet(object.link) ? globalThis.String(object.link) : "",
-    };
-  },
-
-  toJSON(message: SharedGalleryJob): unknown {
-    const obj: any = {};
-    if (message.jobId !== "") {
-      obj.jobId = message.jobId;
-    }
-    if (message.done !== 0) {
-      obj.done = Math.round(message.done);
-    }
-    if (message.total !== 0) {
-      obj.total = Math.round(message.total);
-    }
-    if (message.bytesDone !== 0n) {
-      obj.bytesDone = message.bytesDone.toString();
-    }
-    if (message.bytesTotal !== 0n) {
-      obj.bytesTotal = message.bytesTotal.toString();
-    }
-    if (message.finished !== false) {
-      obj.finished = message.finished;
-    }
-    if (message.error !== "") {
-      obj.error = message.error;
-    }
-    if (message.link !== "") {
-      obj.link = message.link;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedGalleryJob>, I>>(base?: I): SharedGalleryJob {
     return SharedGalleryJob.fromPartial(base ?? ({} as any));
   },
@@ -9312,24 +7688,6 @@ export const OpenSharedGallery: MessageFns<OpenSharedGallery> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): OpenSharedGallery {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: OpenSharedGallery): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<OpenSharedGallery>, I>>(base?: I): OpenSharedGallery {
@@ -9437,40 +7795,6 @@ export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
     return message;
   },
 
-  fromJSON(object: any): SharedGalleryItem {
-    return {
-      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
-      size: isSet(object.size) ? BigInt(object.size) : 0n,
-      taken: isSet(object.taken) ? fromJsonTimestamp(object.taken) : undefined,
-      hasPreview: isSet(object.hasPreview) ? globalThis.Boolean(object.hasPreview) : false,
-    };
-  },
-
-  toJSON(message: SharedGalleryItem): unknown {
-    const obj: any = {};
-    if (message.index !== 0) {
-      obj.index = Math.round(message.index);
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.mime !== "") {
-      obj.mime = message.mime;
-    }
-    if (message.size !== 0n) {
-      obj.size = message.size.toString();
-    }
-    if (message.taken !== undefined) {
-      obj.taken = message.taken.toISOString();
-    }
-    if (message.hasPreview !== false) {
-      obj.hasPreview = message.hasPreview;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedGalleryItem>, I>>(base?: I): SharedGalleryItem {
     return SharedGalleryItem.fromPartial(base ?? ({} as any));
   },
@@ -9564,36 +7888,6 @@ export const SharedGallery: MessageFns<SharedGallery> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SharedGallery {
-    return {
-      description: isSet(object.description) ? globalThis.String(object.description) : "",
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      expires: isSet(object.expires) ? fromJsonTimestamp(object.expires) : undefined,
-      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => SharedGalleryItem.fromJSON(e)) : [],
-      lowRes: isSet(object.lowRes) ? globalThis.Boolean(object.lowRes) : false,
-    };
-  },
-
-  toJSON(message: SharedGallery): unknown {
-    const obj: any = {};
-    if (message.description !== "") {
-      obj.description = message.description;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.expires !== undefined) {
-      obj.expires = message.expires.toISOString();
-    }
-    if (message.items?.length) {
-      obj.items = message.items.map((e) => SharedGalleryItem.toJSON(e));
-    }
-    if (message.lowRes !== false) {
-      obj.lowRes = message.lowRes;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SharedGallery>, I>>(base?: I): SharedGallery {
@@ -9704,40 +7998,6 @@ export const GetSharedGalleryItem: MessageFns<GetSharedGalleryItem> = {
     return message;
   },
 
-  fromJSON(object: any): GetSharedGalleryItem {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
-      part: isSet(object.part) ? getSharedGalleryItem_PartFromJSON(object.part) : 0,
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
-    };
-  },
-
-  toJSON(message: GetSharedGalleryItem): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.index !== 0) {
-      obj.index = Math.round(message.index);
-    }
-    if (message.part !== 0) {
-      obj.part = getSharedGalleryItem_PartToJSON(message.part);
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.length !== 0) {
-      obj.length = Math.round(message.length);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetSharedGalleryItem>, I>>(base?: I): GetSharedGalleryItem {
     return GetSharedGalleryItem.fromPartial(base ?? ({} as any));
   },
@@ -9811,28 +8071,6 @@ export const GetSharedGalleryStream: MessageFns<GetSharedGalleryStream> = {
     return message;
   },
 
-  fromJSON(object: any): GetSharedGalleryStream {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
-    };
-  },
-
-  toJSON(message: GetSharedGalleryStream): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.index !== 0) {
-      obj.index = Math.round(message.index);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetSharedGalleryStream>, I>>(base?: I): GetSharedGalleryStream {
     return GetSharedGalleryStream.fromPartial(base ?? ({} as any));
   },
@@ -9868,15 +8106,6 @@ export const ListSharedLinks: MessageFns<ListSharedLinks> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ListSharedLinks {
-    return {};
-  },
-
-  toJSON(_: ListSharedLinks): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ListSharedLinks>, I>>(base?: I): ListSharedLinks {
@@ -10025,52 +8254,6 @@ export const SharedLinkInfo: MessageFns<SharedLinkInfo> = {
     return message;
   },
 
-  fromJSON(object: any): SharedLinkInfo {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
-      description: isSet(object.description) ? globalThis.String(object.description) : "",
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      expires: isSet(object.expires) ? fromJsonTimestamp(object.expires) : undefined,
-      opens: isSet(object.opens) ? globalThis.Number(object.opens) : 0,
-      lastOpened: isSet(object.lastOpened) ? fromJsonTimestamp(object.lastOpened) : undefined,
-      bytes: isSet(object.bytes) ? BigInt(object.bytes) : 0n,
-      files: isSet(object.files) ? globalThis.Number(object.files) : 0,
-    };
-  },
-
-  toJSON(message: SharedLinkInfo): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.kind !== "") {
-      obj.kind = message.kind;
-    }
-    if (message.description !== "") {
-      obj.description = message.description;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.expires !== undefined) {
-      obj.expires = message.expires.toISOString();
-    }
-    if (message.opens !== 0) {
-      obj.opens = Math.round(message.opens);
-    }
-    if (message.lastOpened !== undefined) {
-      obj.lastOpened = message.lastOpened.toISOString();
-    }
-    if (message.bytes !== 0n) {
-      obj.bytes = message.bytes.toString();
-    }
-    if (message.files !== 0) {
-      obj.files = Math.round(message.files);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedLinkInfo>, I>>(base?: I): SharedLinkInfo {
     return SharedLinkInfo.fromPartial(base ?? ({} as any));
   },
@@ -10125,20 +8308,6 @@ export const SharedLinks: MessageFns<SharedLinks> = {
     return message;
   },
 
-  fromJSON(object: any): SharedLinks {
-    return {
-      links: globalThis.Array.isArray(object?.links) ? object.links.map((e: any) => SharedLinkInfo.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: SharedLinks): unknown {
-    const obj: any = {};
-    if (message.links?.length) {
-      obj.links = message.links.map((e) => SharedLinkInfo.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SharedLinks>, I>>(base?: I): SharedLinks {
     return SharedLinks.fromPartial(base ?? ({} as any));
   },
@@ -10183,18 +8352,6 @@ export const DeleteSharedLink: MessageFns<DeleteSharedLink> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DeleteSharedLink {
-    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
-  },
-
-  toJSON(message: DeleteSharedLink): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DeleteSharedLink>, I>>(base?: I): DeleteSharedLink {
@@ -10263,28 +8420,6 @@ export const ReqGetMediaURL: MessageFns<ReqGetMediaURL> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqGetMediaURL {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-    };
-  },
-
-  toJSON(message: ReqGetMediaURL): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetMediaURL>, I>>(base?: I): ReqGetMediaURL {
@@ -10374,32 +8509,6 @@ export const RespMediaURL: MessageFns<RespMediaURL> = {
     return message;
   },
 
-  fromJSON(object: any): RespMediaURL {
-    return {
-      url: isSet(object.url) ? globalThis.String(object.url) : "",
-      totalSize: isSet(object.totalSize) ? BigInt(object.totalSize) : 0n,
-      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
-      expiresAtUnixMs: isSet(object.expiresAtUnixMs) ? BigInt(object.expiresAtUnixMs) : 0n,
-    };
-  },
-
-  toJSON(message: RespMediaURL): unknown {
-    const obj: any = {};
-    if (message.url !== "") {
-      obj.url = message.url;
-    }
-    if (message.totalSize !== 0n) {
-      obj.totalSize = message.totalSize.toString();
-    }
-    if (message.mime !== "") {
-      obj.mime = message.mime;
-    }
-    if (message.expiresAtUnixMs !== 0n) {
-      obj.expiresAtUnixMs = message.expiresAtUnixMs.toString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespMediaURL>, I>>(base?: I): RespMediaURL {
     return RespMediaURL.fromPartial(base ?? ({} as any));
   },
@@ -10475,28 +8584,6 @@ export const ReqGetMediaRange: MessageFns<ReqGetMediaRange> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqGetMediaRange {
-    return {
-      token: isSet(object.token) ? globalThis.String(object.token) : "",
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      length: isSet(object.length) ? BigInt(object.length) : 0n,
-    };
-  },
-
-  toJSON(message: ReqGetMediaRange): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.length !== 0n) {
-      obj.length = message.length.toString();
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetMediaRange>, I>>(base?: I): ReqGetMediaRange {
@@ -10586,32 +8673,6 @@ export const RespMediaRange: MessageFns<RespMediaRange> = {
     return message;
   },
 
-  fromJSON(object: any): RespMediaRange {
-    return {
-      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      totalSize: isSet(object.totalSize) ? BigInt(object.totalSize) : 0n,
-      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
-    };
-  },
-
-  toJSON(message: RespMediaRange): unknown {
-    const obj: any = {};
-    if (message.content.length !== 0) {
-      obj.content = base64FromBytes(message.content);
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.totalSize !== 0n) {
-      obj.totalSize = message.totalSize.toString();
-    }
-    if (message.mime !== "") {
-      obj.mime = message.mime;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespMediaRange>, I>>(base?: I): RespMediaRange {
     return RespMediaRange.fromPartial(base ?? ({} as any));
   },
@@ -10648,15 +8709,6 @@ export const ReqCheckUpdate: MessageFns<ReqCheckUpdate> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqCheckUpdate {
-    return {};
-  },
-
-  toJSON(_: ReqCheckUpdate): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqCheckUpdate>, I>>(base?: I): ReqCheckUpdate {
@@ -10735,32 +8787,6 @@ export const UpdateRelease: MessageFns<UpdateRelease> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UpdateRelease {
-    return {
-      version: isSet(object.version) ? globalThis.Number(object.version) : 0,
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
-      label: isSet(object.label) ? globalThis.String(object.label) : "",
-      summary: isSet(object.summary) ? globalThis.String(object.summary) : "",
-    };
-  },
-
-  toJSON(message: UpdateRelease): unknown {
-    const obj: any = {};
-    if (message.version !== 0) {
-      obj.version = Math.round(message.version);
-    }
-    if (message.kind !== "") {
-      obj.kind = message.kind;
-    }
-    if (message.label !== "") {
-      obj.label = message.label;
-    }
-    if (message.summary !== "") {
-      obj.summary = message.summary;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UpdateRelease>, I>>(base?: I): UpdateRelease {
@@ -10922,58 +8948,6 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     return message;
   },
 
-  fromJSON(object: any): RespUpdateInfo {
-    return {
-      currentVersion: isSet(object.currentVersion) ? globalThis.Number(object.currentVersion) : 0,
-      latestVersion: isSet(object.latestVersion) ? globalThis.Number(object.latestVersion) : 0,
-      pending: globalThis.Array.isArray(object?.pending)
-        ? object.pending.map((e: any) => UpdateRelease.fromJSON(e))
-        : [],
-      state: isSet(object.state) ? globalThis.String(object.state) : "",
-      message: isSet(object.message) ? globalThis.String(object.message) : "",
-      lastUpdated: isSet(object.lastUpdated) ? globalThis.String(object.lastUpdated) : "",
-      checkError: isSet(object.checkError) ? globalThis.String(object.checkError) : "",
-      currentLabel: isSet(object.currentLabel) ? globalThis.String(object.currentLabel) : "",
-      latestLabel: isSet(object.latestLabel) ? globalThis.String(object.latestLabel) : "",
-      container: isSet(object.container) ? globalThis.Boolean(object.container) : false,
-    };
-  },
-
-  toJSON(message: RespUpdateInfo): unknown {
-    const obj: any = {};
-    if (message.currentVersion !== 0) {
-      obj.currentVersion = Math.round(message.currentVersion);
-    }
-    if (message.latestVersion !== 0) {
-      obj.latestVersion = Math.round(message.latestVersion);
-    }
-    if (message.pending?.length) {
-      obj.pending = message.pending.map((e) => UpdateRelease.toJSON(e));
-    }
-    if (message.state !== "") {
-      obj.state = message.state;
-    }
-    if (message.message !== "") {
-      obj.message = message.message;
-    }
-    if (message.lastUpdated !== "") {
-      obj.lastUpdated = message.lastUpdated;
-    }
-    if (message.checkError !== "") {
-      obj.checkError = message.checkError;
-    }
-    if (message.currentLabel !== "") {
-      obj.currentLabel = message.currentLabel;
-    }
-    if (message.latestLabel !== "") {
-      obj.latestLabel = message.latestLabel;
-    }
-    if (message.container !== false) {
-      obj.container = message.container;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespUpdateInfo>, I>>(base?: I): RespUpdateInfo {
     return RespUpdateInfo.fromPartial(base ?? ({} as any));
   },
@@ -11018,15 +8992,6 @@ export const ReqApplyUpdate: MessageFns<ReqApplyUpdate> = {
     return message;
   },
 
-  fromJSON(_: any): ReqApplyUpdate {
-    return {};
-  },
-
-  toJSON(_: ReqApplyUpdate): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqApplyUpdate>, I>>(base?: I): ReqApplyUpdate {
     return ReqApplyUpdate.fromPartial(base ?? ({} as any));
   },
@@ -11059,15 +9024,6 @@ export const RestartDevice: MessageFns<RestartDevice> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): RestartDevice {
-    return {};
-  },
-
-  toJSON(_: RestartDevice): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RestartDevice>, I>>(base?: I): RestartDevice {
@@ -11113,18 +9069,6 @@ export const RestartingDevice: MessageFns<RestartingDevice> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RestartingDevice {
-    return { expectedSeconds: isSet(object.expectedSeconds) ? globalThis.Number(object.expectedSeconds) : 0 };
-  },
-
-  toJSON(message: RestartingDevice): unknown {
-    const obj: any = {};
-    if (message.expectedSeconds !== 0) {
-      obj.expectedSeconds = Math.round(message.expectedSeconds);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RestartingDevice>, I>>(base?: I): RestartingDevice {
@@ -11195,28 +9139,6 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
     return message;
   },
 
-  fromJSON(object: any): ReqSetupTailscale {
-    return {
-      authKey: isSet(object.authKey) ? globalThis.String(object.authKey) : "",
-      enable: isSet(object.enable) ? globalThis.Boolean(object.enable) : false,
-      authKeySealed: isSet(object.authKeySealed) ? bytesFromBase64(object.authKeySealed) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: ReqSetupTailscale): unknown {
-    const obj: any = {};
-    if (message.authKey !== "") {
-      obj.authKey = message.authKey;
-    }
-    if (message.enable !== false) {
-      obj.enable = message.enable;
-    }
-    if (message.authKeySealed.length !== 0) {
-      obj.authKeySealed = base64FromBytes(message.authKeySealed);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqSetupTailscale>, I>>(base?: I): ReqSetupTailscale {
     return ReqSetupTailscale.fromPartial(base ?? ({} as any));
   },
@@ -11254,15 +9176,6 @@ export const ReqGetTailscaleStatus: MessageFns<ReqGetTailscaleStatus> = {
     return message;
   },
 
-  fromJSON(_: any): ReqGetTailscaleStatus {
-    return {};
-  },
-
-  toJSON(_: ReqGetTailscaleStatus): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqGetTailscaleStatus>, I>>(base?: I): ReqGetTailscaleStatus {
     return ReqGetTailscaleStatus.fromPartial(base ?? ({} as any));
   },
@@ -11295,15 +9208,6 @@ export const ReqGetBridgeAccess: MessageFns<ReqGetBridgeAccess> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqGetBridgeAccess {
-    return {};
-  },
-
-  toJSON(_: ReqGetBridgeAccess): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetBridgeAccess>, I>>(base?: I): ReqGetBridgeAccess {
@@ -11437,50 +9341,6 @@ export const RespBridgeAccess: MessageFns<RespBridgeAccess> = {
     return message;
   },
 
-  fromJSON(object: any): RespBridgeAccess {
-    return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      bridge: isSet(object.bridge) ? globalThis.String(object.bridge) : "",
-      pending: isSet(object.pending) ? globalThis.Boolean(object.pending) : false,
-      error: isSet(object.error) ? globalThis.String(object.error) : "",
-      providers: globalThis.Array.isArray(object?.providers)
-        ? object.providers.map((e: any) => globalThis.String(e))
-        : [],
-      leftReason: isSet(object.leftReason) ? globalThis.String(object.leftReason) : "",
-      localAddress: isSet(object.localAddress) ? globalThis.String(object.localAddress) : "",
-    };
-  },
-
-  toJSON(message: RespBridgeAccess): unknown {
-    const obj: any = {};
-    if (message.enabled !== false) {
-      obj.enabled = message.enabled;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.bridge !== "") {
-      obj.bridge = message.bridge;
-    }
-    if (message.pending !== false) {
-      obj.pending = message.pending;
-    }
-    if (message.error !== "") {
-      obj.error = message.error;
-    }
-    if (message.providers?.length) {
-      obj.providers = message.providers;
-    }
-    if (message.leftReason !== "") {
-      obj.leftReason = message.leftReason;
-    }
-    if (message.localAddress !== "") {
-      obj.localAddress = message.localAddress;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespBridgeAccess>, I>>(base?: I): RespBridgeAccess {
     return RespBridgeAccess.fromPartial(base ?? ({} as any));
   },
@@ -11521,15 +9381,6 @@ export const ReqDisableBridge: MessageFns<ReqDisableBridge> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqDisableBridge {
-    return {};
-  },
-
-  toJSON(_: ReqDisableBridge): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqDisableBridge>, I>>(base?: I): ReqDisableBridge {
@@ -11610,32 +9461,6 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
     return message;
   },
 
-  fromJSON(object: any): ReqBridgeSignIn {
-    return {
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-      password: isSet(object.password) ? globalThis.String(object.password) : "",
-      setupCode: isSet(object.setupCode) ? globalThis.String(object.setupCode) : "",
-      passwordSealed: isSet(object.passwordSealed) ? bytesFromBase64(object.passwordSealed) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: ReqBridgeSignIn): unknown {
-    const obj: any = {};
-    if (message.email !== "") {
-      obj.email = message.email;
-    }
-    if (message.password !== "") {
-      obj.password = message.password;
-    }
-    if (message.setupCode !== "") {
-      obj.setupCode = message.setupCode;
-    }
-    if (message.passwordSealed.length !== 0) {
-      obj.passwordSealed = base64FromBytes(message.passwordSealed);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqBridgeSignIn>, I>>(base?: I): ReqBridgeSignIn {
     return ReqBridgeSignIn.fromPartial(base ?? ({} as any));
   },
@@ -11696,24 +9521,6 @@ export const RespBridgeSignedIn: MessageFns<RespBridgeSignedIn> = {
     return message;
   },
 
-  fromJSON(object: any): RespBridgeSignedIn {
-    return {
-      setupToken: isSet(object.setupToken) ? globalThis.String(object.setupToken) : "",
-      email: isSet(object.email) ? globalThis.String(object.email) : "",
-    };
-  },
-
-  toJSON(message: RespBridgeSignedIn): unknown {
-    const obj: any = {};
-    if (message.setupToken !== "") {
-      obj.setupToken = message.setupToken;
-    }
-    if (message.email !== "") {
-      obj.email = message.email;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespBridgeSignedIn>, I>>(base?: I): RespBridgeSignedIn {
     return RespBridgeSignedIn.fromPartial(base ?? ({} as any));
   },
@@ -11770,24 +9577,6 @@ export const ReqEnableBridge: MessageFns<ReqEnableBridge> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqEnableBridge {
-    return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      setupToken: isSet(object.setupToken) ? globalThis.String(object.setupToken) : "",
-    };
-  },
-
-  toJSON(message: ReqEnableBridge): unknown {
-    const obj: any = {};
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.setupToken !== "") {
-      obj.setupToken = message.setupToken;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqEnableBridge>, I>>(base?: I): ReqEnableBridge {
@@ -11892,40 +9681,6 @@ export const RespTailscaleStatus: MessageFns<RespTailscaleStatus> = {
     return message;
   },
 
-  fromJSON(object: any): RespTailscaleStatus {
-    return {
-      installed: isSet(object.installed) ? globalThis.Boolean(object.installed) : false,
-      loggedIn: isSet(object.loggedIn) ? globalThis.Boolean(object.loggedIn) : false,
-      funnelOn: isSet(object.funnelOn) ? globalThis.Boolean(object.funnelOn) : false,
-      publicUrl: isSet(object.publicUrl) ? globalThis.String(object.publicUrl) : "",
-      loginUrl: isSet(object.loginUrl) ? globalThis.String(object.loginUrl) : "",
-      error: isSet(object.error) ? globalThis.String(object.error) : "",
-    };
-  },
-
-  toJSON(message: RespTailscaleStatus): unknown {
-    const obj: any = {};
-    if (message.installed !== false) {
-      obj.installed = message.installed;
-    }
-    if (message.loggedIn !== false) {
-      obj.loggedIn = message.loggedIn;
-    }
-    if (message.funnelOn !== false) {
-      obj.funnelOn = message.funnelOn;
-    }
-    if (message.publicUrl !== "") {
-      obj.publicUrl = message.publicUrl;
-    }
-    if (message.loginUrl !== "") {
-      obj.loginUrl = message.loginUrl;
-    }
-    if (message.error !== "") {
-      obj.error = message.error;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespTailscaleStatus>, I>>(base?: I): RespTailscaleStatus {
     return RespTailscaleStatus.fromPartial(base ?? ({} as any));
   },
@@ -11999,30 +9754,6 @@ export const GetSocialPublications: MessageFns<GetSocialPublications> = {
     return message;
   },
 
-  fromJSON(object: any): GetSocialPublications {
-    return {
-      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
-      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-      excludeUuids: globalThis.Array.isArray(object?.excludeUuids)
-        ? object.excludeUuids.map((e: any) => globalThis.String(e))
-        : [],
-    };
-  },
-
-  toJSON(message: GetSocialPublications): unknown {
-    const obj: any = {};
-    if (message.since !== undefined) {
-      obj.since = message.since.toISOString();
-    }
-    if (message.total !== 0) {
-      obj.total = Math.round(message.total);
-    }
-    if (message.excludeUuids?.length) {
-      obj.excludeUuids = message.excludeUuids;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetSocialPublications>, I>>(base?: I): GetSocialPublications {
     return GetSocialPublications.fromPartial(base ?? ({} as any));
   },
@@ -12093,28 +9824,6 @@ export const NewSocialComment: MessageFns<NewSocialComment> = {
     return message;
   },
 
-  fromJSON(object: any): NewSocialComment {
-    return {
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      comment: isSet(object.comment) ? globalThis.String(object.comment) : "",
-      publisher: isSet(object.publisher) ? globalThis.String(object.publisher) : "",
-    };
-  },
-
-  toJSON(message: NewSocialComment): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.comment !== "") {
-      obj.comment = message.comment;
-    }
-    if (message.publisher !== "") {
-      obj.publisher = message.publisher;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<NewSocialComment>, I>>(base?: I): NewSocialComment {
     return NewSocialComment.fromPartial(base ?? ({} as any));
   },
@@ -12163,18 +9872,6 @@ export const DelSocialComment: MessageFns<DelSocialComment> = {
     return message;
   },
 
-  fromJSON(object: any): DelSocialComment {
-    return { commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "" };
-  },
-
-  toJSON(message: DelSocialComment): unknown {
-    const obj: any = {};
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<DelSocialComment>, I>>(base?: I): DelSocialComment {
     return DelSocialComment.fromPartial(base ?? ({} as any));
   },
@@ -12219,18 +9916,6 @@ export const DelSocialPublication: MessageFns<DelSocialPublication> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DelSocialPublication {
-    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
-  },
-
-  toJSON(message: DelSocialPublication): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DelSocialPublication>, I>>(base?: I): DelSocialPublication {
@@ -12288,24 +9973,6 @@ export const DidSendFriendshipReq: MessageFns<DidSendFriendshipReq> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DidSendFriendshipReq {
-    return {
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-    };
-  },
-
-  toJSON(message: DidSendFriendshipReq): unknown {
-    const obj: any = {};
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DidSendFriendshipReq>, I>>(base?: I): DidSendFriendshipReq {
@@ -12429,46 +10096,6 @@ export const Friendship: MessageFns<Friendship> = {
     return message;
   },
 
-  fromJSON(object: any): Friendship {
-    return {
-      originProfile: isSet(object.originProfile) ? Profile.fromJSON(object.originProfile) : undefined,
-      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
-      sent: isSet(object.sent) ? globalThis.Boolean(object.sent) : false,
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      latestSync: isSet(object.latestSync) ? fromJsonTimestamp(object.latestSync) : undefined,
-      notificationsStarted: isSet(object.notificationsStarted)
-        ? globalThis.Boolean(object.notificationsStarted)
-        : false,
-      leaving: isSet(object.leaving) ? globalThis.Boolean(object.leaving) : false,
-    };
-  },
-
-  toJSON(message: Friendship): unknown {
-    const obj: any = {};
-    if (message.originProfile !== undefined) {
-      obj.originProfile = Profile.toJSON(message.originProfile);
-    }
-    if (message.status !== 0) {
-      obj.status = friendShipStatusToJSON(message.status);
-    }
-    if (message.sent !== false) {
-      obj.sent = message.sent;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.latestSync !== undefined) {
-      obj.latestSync = message.latestSync.toISOString();
-    }
-    if (message.notificationsStarted !== false) {
-      obj.notificationsStarted = message.notificationsStarted;
-    }
-    if (message.leaving !== false) {
-      obj.leaving = message.leaving;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Friendship>, I>>(base?: I): Friendship {
     return Friendship.fromPartial(base ?? ({} as any));
   },
@@ -12523,22 +10150,6 @@ export const Friendships: MessageFns<Friendships> = {
     return message;
   },
 
-  fromJSON(object: any): Friendships {
-    return {
-      friendships: globalThis.Array.isArray(object?.friendships)
-        ? object.friendships.map((e: any) => Friendship.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: Friendships): unknown {
-    const obj: any = {};
-    if (message.friendships?.length) {
-      obj.friendships = message.friendships.map((e) => Friendship.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Friendships>, I>>(base?: I): Friendships {
     return Friendships.fromPartial(base ?? ({} as any));
   },
@@ -12572,15 +10183,6 @@ export const FriendshipsList: MessageFns<FriendshipsList> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): FriendshipsList {
-    return {};
-  },
-
-  toJSON(_: FriendshipsList): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<FriendshipsList>, I>>(base?: I): FriendshipsList {
@@ -12626,18 +10228,6 @@ export const FriendshipRequest: MessageFns<FriendshipRequest> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): FriendshipRequest {
-    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
-  },
-
-  toJSON(message: FriendshipRequest): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<FriendshipRequest>, I>>(base?: I): FriendshipRequest {
@@ -12708,28 +10298,6 @@ export const FriendshipInterRequest: MessageFns<FriendshipInterRequest> = {
     return message;
   },
 
-  fromJSON(object: any): FriendshipInterRequest {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      originProfile: isSet(object.originProfile) ? Profile.fromJSON(object.originProfile) : undefined,
-    };
-  },
-
-  toJSON(message: FriendshipInterRequest): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.originProfile !== undefined) {
-      obj.originProfile = Profile.toJSON(message.originProfile);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FriendshipInterRequest>, I>>(base?: I): FriendshipInterRequest {
     return FriendshipInterRequest.fromPartial(base ?? ({} as any));
   },
@@ -12789,24 +10357,6 @@ export const ChangeFriendStatus: MessageFns<ChangeFriendStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ChangeFriendStatus {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
-    };
-  },
-
-  toJSON(message: ChangeFriendStatus): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.status !== 0) {
-      obj.status = friendShipStatusToJSON(message.status);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ChangeFriendStatus>, I>>(base?: I): ChangeFriendStatus {
@@ -12876,28 +10426,6 @@ export const DeleteFriendship: MessageFns<DeleteFriendship> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DeleteFriendship {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      deleteTheirData: isSet(object.deleteTheirData) ? globalThis.Boolean(object.deleteTheirData) : false,
-      askThemToDeleteMine: isSet(object.askThemToDeleteMine) ? globalThis.Boolean(object.askThemToDeleteMine) : false,
-    };
-  },
-
-  toJSON(message: DeleteFriendship): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.deleteTheirData !== false) {
-      obj.deleteTheirData = message.deleteTheirData;
-    }
-    if (message.askThemToDeleteMine !== false) {
-      obj.askThemToDeleteMine = message.askThemToDeleteMine;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DeleteFriendship>, I>>(base?: I): DeleteFriendship {
@@ -12970,28 +10498,6 @@ export const FriendshipInterDelete: MessageFns<FriendshipInterDelete> = {
     return message;
   },
 
-  fromJSON(object: any): FriendshipInterDelete {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      forgetMe: isSet(object.forgetMe) ? globalThis.Boolean(object.forgetMe) : false,
-    };
-  },
-
-  toJSON(message: FriendshipInterDelete): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.forgetMe !== false) {
-      obj.forgetMe = message.forgetMe;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FriendshipInterDelete>, I>>(base?: I): FriendshipInterDelete {
     return FriendshipInterDelete.fromPartial(base ?? ({} as any));
   },
@@ -13040,18 +10546,6 @@ export const LikePublication: MessageFns<LikePublication> = {
     return message;
   },
 
-  fromJSON(object: any): LikePublication {
-    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
-  },
-
-  toJSON(message: LikePublication): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<LikePublication>, I>>(base?: I): LikePublication {
     return LikePublication.fromPartial(base ?? ({} as any));
   },
@@ -13096,18 +10590,6 @@ export const LikeComment: MessageFns<LikeComment> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): LikeComment {
-    return { commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "" };
-  },
-
-  toJSON(message: LikeComment): unknown {
-    const obj: any = {};
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<LikeComment>, I>>(base?: I): LikeComment {
@@ -13156,18 +10638,6 @@ export const GetPublicationLikers: MessageFns<GetPublicationLikers> = {
     return message;
   },
 
-  fromJSON(object: any): GetPublicationLikers {
-    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
-  },
-
-  toJSON(message: GetPublicationLikers): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetPublicationLikers>, I>>(base?: I): GetPublicationLikers {
     return GetPublicationLikers.fromPartial(base ?? ({} as any));
   },
@@ -13212,18 +10682,6 @@ export const GetCommentLikers: MessageFns<GetCommentLikers> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetCommentLikers {
-    return { commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "" };
-  },
-
-  toJSON(message: GetCommentLikers): unknown {
-    const obj: any = {};
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetCommentLikers>, I>>(base?: I): GetCommentLikers {
@@ -13272,20 +10730,6 @@ export const Likers: MessageFns<Likers> = {
     return message;
   },
 
-  fromJSON(object: any): Likers {
-    return {
-      likers: globalThis.Array.isArray(object?.likers) ? object.likers.map((e: any) => Profile.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: Likers): unknown {
-    const obj: any = {};
-    if (message.likers?.length) {
-      obj.likers = message.likers.map((e) => Profile.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Likers>, I>>(base?: I): Likers {
     return Likers.fromPartial(base ?? ({} as any));
   },
@@ -13319,15 +10763,6 @@ export const GetSettings: MessageFns<GetSettings> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetSettings {
-    return {};
-  },
-
-  toJSON(_: GetSettings): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetSettings>, I>>(base?: I): GetSettings {
@@ -13373,18 +10808,6 @@ export const SetSettings: MessageFns<SetSettings> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SetSettings {
-    return { domain: isSet(object.domain) ? globalThis.String(object.domain) : "" };
-  },
-
-  toJSON(message: SetSettings): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SetSettings>, I>>(base?: I): SetSettings {
@@ -13510,46 +10933,6 @@ export const Settings: MessageFns<Settings> = {
     return message;
   },
 
-  fromJSON(object: any): Settings {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      bridgeSecret: isSet(object.bridgeSecret) ? globalThis.String(object.bridgeSecret) : "",
-      faceRecognitionEnabled: isSet(object.faceRecognitionEnabled)
-        ? globalThis.Boolean(object.faceRecognitionEnabled)
-        : false,
-      socialStorageLimitMb: isSet(object.socialStorageLimitMb) ? globalThis.Number(object.socialStorageLimitMb) : 0,
-      socialStorageUsedBytes: isSet(object.socialStorageUsedBytes) ? BigInt(object.socialStorageUsedBytes) : 0n,
-      imageTaggingEnabled: isSet(object.imageTaggingEnabled) ? globalThis.Boolean(object.imageTaggingEnabled) : false,
-      language: isSet(object.language) ? globalThis.String(object.language) : undefined,
-    };
-  },
-
-  toJSON(message: Settings): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.bridgeSecret !== "") {
-      obj.bridgeSecret = message.bridgeSecret;
-    }
-    if (message.faceRecognitionEnabled !== false) {
-      obj.faceRecognitionEnabled = message.faceRecognitionEnabled;
-    }
-    if (message.socialStorageLimitMb !== 0) {
-      obj.socialStorageLimitMb = Math.round(message.socialStorageLimitMb);
-    }
-    if (message.socialStorageUsedBytes !== 0n) {
-      obj.socialStorageUsedBytes = message.socialStorageUsedBytes.toString();
-    }
-    if (message.imageTaggingEnabled !== false) {
-      obj.imageTaggingEnabled = message.imageTaggingEnabled;
-    }
-    if (message.language !== undefined) {
-      obj.language = message.language;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Settings>, I>>(base?: I): Settings {
     return Settings.fromPartial(base ?? ({} as any));
   },
@@ -13636,32 +11019,6 @@ export const ReadFile: MessageFns<ReadFile> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReadFile {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
-    };
-  },
-
-  toJSON(message: ReadFile): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.length !== 0) {
-      obj.length = Math.round(message.length);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReadFile>, I>>(base?: I): ReadFile {
@@ -13805,48 +11162,6 @@ export const FileChunk: MessageFns<FileChunk> = {
     return message;
   },
 
-  fromJSON(object: any): FileChunk {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      hash: isSet(object.hash) ? globalThis.String(object.hash) : "",
-      mime: isSet(object.mime) ? globalThis.String(object.mime) : "",
-      size: isSet(object.size) ? BigInt(object.size) : 0n,
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
-    };
-  },
-
-  toJSON(message: FileChunk): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.hash !== "") {
-      obj.hash = message.hash;
-    }
-    if (message.mime !== "") {
-      obj.mime = message.mime;
-    }
-    if (message.size !== 0n) {
-      obj.size = message.size.toString();
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.modified !== undefined) {
-      obj.modified = message.modified.toISOString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FileChunk>, I>>(base?: I): FileChunk {
     return FileChunk.fromPartial(base ?? ({} as any));
   },
@@ -13958,40 +11273,6 @@ export const BeginUpload: MessageFns<BeginUpload> = {
     return message;
   },
 
-  fromJSON(object: any): BeginUpload {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      size: isSet(object.size) ? BigInt(object.size) : 0n,
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      modified: isSet(object.modified) ? fromJsonTimestamp(object.modified) : undefined,
-      forceOverride: isSet(object.forceOverride) ? globalThis.Boolean(object.forceOverride) : false,
-      cloudId: isSet(object.cloudId) ? globalThis.String(object.cloudId) : "",
-    };
-  },
-
-  toJSON(message: BeginUpload): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.size !== 0n) {
-      obj.size = message.size.toString();
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.modified !== undefined) {
-      obj.modified = message.modified.toISOString();
-    }
-    if (message.forceOverride !== false) {
-      obj.forceOverride = message.forceOverride;
-    }
-    if (message.cloudId !== "") {
-      obj.cloudId = message.cloudId;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BeginUpload>, I>>(base?: I): BeginUpload {
     return BeginUpload.fromPartial(base ?? ({} as any));
   },
@@ -14041,18 +11322,6 @@ export const UploadStarted: MessageFns<UploadStarted> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UploadStarted {
-    return { uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "" };
-  },
-
-  toJSON(message: UploadStarted): unknown {
-    const obj: any = {};
-    if (message.uploadId !== "") {
-      obj.uploadId = message.uploadId;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UploadStarted>, I>>(base?: I): UploadStarted {
@@ -14126,28 +11395,6 @@ export const UploadChunk: MessageFns<UploadChunk> = {
     return message;
   },
 
-  fromJSON(object: any): UploadChunk {
-    return {
-      uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "",
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: UploadChunk): unknown {
-    const obj: any = {};
-    if (message.uploadId !== "") {
-      obj.uploadId = message.uploadId;
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<UploadChunk>, I>>(base?: I): UploadChunk {
     return UploadChunk.fromPartial(base ?? ({} as any));
   },
@@ -14197,18 +11444,6 @@ export const UploadProgress: MessageFns<UploadProgress> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UploadProgress {
-    return { received: isSet(object.received) ? BigInt(object.received) : 0n };
-  },
-
-  toJSON(message: UploadProgress): unknown {
-    const obj: any = {};
-    if (message.received !== 0n) {
-      obj.received = message.received.toString();
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UploadProgress>, I>>(base?: I): UploadProgress {
@@ -14268,24 +11503,6 @@ export const FinishUpload: MessageFns<FinishUpload> = {
     return message;
   },
 
-  fromJSON(object: any): FinishUpload {
-    return {
-      uploadId: isSet(object.uploadId) ? globalThis.String(object.uploadId) : "",
-      sha256: isSet(object.sha256) ? globalThis.String(object.sha256) : "",
-    };
-  },
-
-  toJSON(message: FinishUpload): unknown {
-    const obj: any = {};
-    if (message.uploadId !== "") {
-      obj.uploadId = message.uploadId;
-    }
-    if (message.sha256 !== "") {
-      obj.sha256 = message.sha256;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FinishUpload>, I>>(base?: I): FinishUpload {
     return FinishUpload.fromPartial(base ?? ({} as any));
   },
@@ -14331,18 +11548,6 @@ export const SetSocialStorageLimit: MessageFns<SetSocialStorageLimit> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SetSocialStorageLimit {
-    return { mb: isSet(object.mb) ? globalThis.Number(object.mb) : 0 };
-  },
-
-  toJSON(message: SetSocialStorageLimit): unknown {
-    const obj: any = {};
-    if (message.mb !== 0) {
-      obj.mb = Math.round(message.mb);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SetSocialStorageLimit>, I>>(base?: I): SetSocialStorageLimit {
@@ -14391,18 +11596,6 @@ export const SetFaceRecognitionEnabled: MessageFns<SetFaceRecognitionEnabled> = 
     return message;
   },
 
-  fromJSON(object: any): SetFaceRecognitionEnabled {
-    return { enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false };
-  },
-
-  toJSON(message: SetFaceRecognitionEnabled): unknown {
-    const obj: any = {};
-    if (message.enabled !== false) {
-      obj.enabled = message.enabled;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetFaceRecognitionEnabled>, I>>(base?: I): SetFaceRecognitionEnabled {
     return SetFaceRecognitionEnabled.fromPartial(base ?? ({} as any));
   },
@@ -14447,18 +11640,6 @@ export const SetImageTaggingEnabled: MessageFns<SetImageTaggingEnabled> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SetImageTaggingEnabled {
-    return { enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false };
-  },
-
-  toJSON(message: SetImageTaggingEnabled): unknown {
-    const obj: any = {};
-    if (message.enabled !== false) {
-      obj.enabled = message.enabled;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SetImageTaggingEnabled>, I>>(base?: I): SetImageTaggingEnabled {
@@ -14516,24 +11697,6 @@ export const SetLanguage: MessageFns<SetLanguage> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SetLanguage {
-    return {
-      language: isSet(object.language) ? globalThis.String(object.language) : "",
-      expected: isSet(object.expected) ? globalThis.String(object.expected) : undefined,
-    };
-  },
-
-  toJSON(message: SetLanguage): unknown {
-    const obj: any = {};
-    if (message.language !== "") {
-      obj.language = message.language;
-    }
-    if (message.expected !== undefined) {
-      obj.expected = message.expected;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SetLanguage>, I>>(base?: I): SetLanguage {
@@ -14616,32 +11779,6 @@ export const Person: MessageFns<Person> = {
     return message;
   },
 
-  fromJSON(object: any): Person {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      faceCount: isSet(object.faceCount) ? globalThis.Number(object.faceCount) : 0,
-      coverThumbnail: isSet(object.coverThumbnail) ? bytesFromBase64(object.coverThumbnail) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: Person): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.faceCount !== 0) {
-      obj.faceCount = Math.round(message.faceCount);
-    }
-    if (message.coverThumbnail.length !== 0) {
-      obj.coverThumbnail = base64FromBytes(message.coverThumbnail);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Person>, I>>(base?: I): Person {
     return Person.fromPartial(base ?? ({} as any));
   },
@@ -14678,15 +11815,6 @@ export const ListPeople: MessageFns<ListPeople> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ListPeople {
-    return {};
-  },
-
-  toJSON(_: ListPeople): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ListPeople>, I>>(base?: I): ListPeople {
@@ -14732,20 +11860,6 @@ export const People: MessageFns<People> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): People {
-    return {
-      people: globalThis.Array.isArray(object?.people) ? object.people.map((e: any) => Person.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: People): unknown {
-    const obj: any = {};
-    if (message.people?.length) {
-      obj.people = message.people.map((e) => Person.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<People>, I>>(base?: I): People {
@@ -14805,24 +11919,6 @@ export const RenamePerson: MessageFns<RenamePerson> = {
     return message;
   },
 
-  fromJSON(object: any): RenamePerson {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-    };
-  },
-
-  toJSON(message: RenamePerson): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RenamePerson>, I>>(base?: I): RenamePerson {
     return RenamePerson.fromPartial(base ?? ({} as any));
   },
@@ -14868,18 +11964,6 @@ export const DeletePerson: MessageFns<DeletePerson> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DeletePerson {
-    return { id: isSet(object.id) ? globalThis.String(object.id) : "" };
-  },
-
-  toJSON(message: DeletePerson): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DeletePerson>, I>>(base?: I): DeletePerson {
@@ -14937,26 +12021,6 @@ export const MergePeople: MessageFns<MergePeople> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): MergePeople {
-    return {
-      targetId: isSet(object.targetId) ? globalThis.String(object.targetId) : "",
-      sourceIds: globalThis.Array.isArray(object?.sourceIds)
-        ? object.sourceIds.map((e: any) => globalThis.String(e))
-        : [],
-    };
-  },
-
-  toJSON(message: MergePeople): unknown {
-    const obj: any = {};
-    if (message.targetId !== "") {
-      obj.targetId = message.targetId;
-    }
-    if (message.sourceIds?.length) {
-      obj.sourceIds = message.sourceIds;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<MergePeople>, I>>(base?: I): MergePeople {
@@ -15039,32 +12103,6 @@ export const ImageGroup: MessageFns<ImageGroup> = {
     return message;
   },
 
-  fromJSON(object: any): ImageGroup {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
-      coverThumbnail: isSet(object.coverThumbnail) ? bytesFromBase64(object.coverThumbnail) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: ImageGroup): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.fileCount !== 0) {
-      obj.fileCount = Math.round(message.fileCount);
-    }
-    if (message.coverThumbnail.length !== 0) {
-      obj.coverThumbnail = base64FromBytes(message.coverThumbnail);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ImageGroup>, I>>(base?: I): ImageGroup {
     return ImageGroup.fromPartial(base ?? ({} as any));
   },
@@ -15114,18 +12152,6 @@ export const ListImageGroups: MessageFns<ListImageGroups> = {
     return message;
   },
 
-  fromJSON(object: any): ListImageGroups {
-    return { smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false };
-  },
-
-  toJSON(message: ListImageGroups): unknown {
-    const obj: any = {};
-    if (message.smallThumbnails !== false) {
-      obj.smallThumbnails = message.smallThumbnails;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ListImageGroups>, I>>(base?: I): ListImageGroups {
     return ListImageGroups.fromPartial(base ?? ({} as any));
   },
@@ -15170,20 +12196,6 @@ export const ImageGroups: MessageFns<ImageGroups> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ImageGroups {
-    return {
-      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => ImageGroup.fromJSON(e)) : [],
-    };
-  },
-
-  toJSON(message: ImageGroups): unknown {
-    const obj: any = {};
-    if (message.groups?.length) {
-      obj.groups = message.groups.map((e) => ImageGroup.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ImageGroups>, I>>(base?: I): ImageGroups {
@@ -15254,28 +12266,6 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
     return message;
   },
 
-  fromJSON(object: any): CreateImageGroup {
-    return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
-    };
-  },
-
-  toJSON(message: CreateImageGroup): unknown {
-    const obj: any = {};
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    if (message.smallThumbnails !== false) {
-      obj.smallThumbnails = message.smallThumbnails;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<CreateImageGroup>, I>>(base?: I): CreateImageGroup {
     return CreateImageGroup.fromPartial(base ?? ({} as any));
   },
@@ -15322,18 +12312,6 @@ export const RespImageGroup: MessageFns<RespImageGroup> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespImageGroup {
-    return { group: isSet(object.group) ? ImageGroup.fromJSON(object.group) : undefined };
-  },
-
-  toJSON(message: RespImageGroup): unknown {
-    const obj: any = {};
-    if (message.group !== undefined) {
-      obj.group = ImageGroup.toJSON(message.group);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespImageGroup>, I>>(base?: I): RespImageGroup {
@@ -15395,24 +12373,6 @@ export const AddToImageGroup: MessageFns<AddToImageGroup> = {
     return message;
   },
 
-  fromJSON(object: any): AddToImageGroup {
-    return {
-      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-    };
-  },
-
-  toJSON(message: AddToImageGroup): unknown {
-    const obj: any = {};
-    if (message.groupId !== "") {
-      obj.groupId = message.groupId;
-    }
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<AddToImageGroup>, I>>(base?: I): AddToImageGroup {
     return AddToImageGroup.fromPartial(base ?? ({} as any));
   },
@@ -15469,24 +12429,6 @@ export const RemoveFromImageGroup: MessageFns<RemoveFromImageGroup> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RemoveFromImageGroup {
-    return {
-      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
-      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
-    };
-  },
-
-  toJSON(message: RemoveFromImageGroup): unknown {
-    const obj: any = {};
-    if (message.groupId !== "") {
-      obj.groupId = message.groupId;
-    }
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RemoveFromImageGroup>, I>>(base?: I): RemoveFromImageGroup {
@@ -15547,24 +12489,6 @@ export const RenameImageGroup: MessageFns<RenameImageGroup> = {
     return message;
   },
 
-  fromJSON(object: any): RenameImageGroup {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-    };
-  },
-
-  toJSON(message: RenameImageGroup): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RenameImageGroup>, I>>(base?: I): RenameImageGroup {
     return RenameImageGroup.fromPartial(base ?? ({} as any));
   },
@@ -15610,18 +12534,6 @@ export const DeleteImageGroup: MessageFns<DeleteImageGroup> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): DeleteImageGroup {
-    return { id: isSet(object.id) ? globalThis.String(object.id) : "" };
-  },
-
-  toJSON(message: DeleteImageGroup): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<DeleteImageGroup>, I>>(base?: I): DeleteImageGroup {
@@ -15670,18 +12582,6 @@ export const StartReprocess: MessageFns<StartReprocess> = {
     return message;
   },
 
-  fromJSON(object: any): StartReprocess {
-    return { forceRestart: isSet(object.forceRestart) ? globalThis.Boolean(object.forceRestart) : false };
-  },
-
-  toJSON(message: StartReprocess): unknown {
-    const obj: any = {};
-    if (message.forceRestart !== false) {
-      obj.forceRestart = message.forceRestart;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<StartReprocess>, I>>(base?: I): StartReprocess {
     return StartReprocess.fromPartial(base ?? ({} as any));
   },
@@ -15715,15 +12615,6 @@ export const GetReprocessStatus: MessageFns<GetReprocessStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetReprocessStatus {
-    return {};
-  },
-
-  toJSON(_: GetReprocessStatus): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetReprocessStatus>, I>>(base?: I): GetReprocessStatus {
@@ -15793,28 +12684,6 @@ export const ReprocessStatus: MessageFns<ReprocessStatus> = {
     return message;
   },
 
-  fromJSON(object: any): ReprocessStatus {
-    return {
-      status: isSet(object.status) ? globalThis.String(object.status) : "",
-      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-      processed: isSet(object.processed) ? globalThis.Number(object.processed) : 0,
-    };
-  },
-
-  toJSON(message: ReprocessStatus): unknown {
-    const obj: any = {};
-    if (message.status !== "") {
-      obj.status = message.status;
-    }
-    if (message.total !== 0) {
-      obj.total = Math.round(message.total);
-    }
-    if (message.processed !== 0) {
-      obj.processed = Math.round(message.processed);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReprocessStatus>, I>>(base?: I): ReprocessStatus {
     return ReprocessStatus.fromPartial(base ?? ({} as any));
   },
@@ -15850,15 +12719,6 @@ export const StopReprocess: MessageFns<StopReprocess> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): StopReprocess {
-    return {};
-  },
-
-  toJSON(_: StopReprocess): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<StopReprocess>, I>>(base?: I): StopReprocess {
@@ -15906,18 +12766,6 @@ export const SetBridgeSecret: MessageFns<SetBridgeSecret> = {
     return message;
   },
 
-  fromJSON(object: any): SetBridgeSecret {
-    return { secret: isSet(object.secret) ? globalThis.String(object.secret) : "" };
-  },
-
-  toJSON(message: SetBridgeSecret): unknown {
-    const obj: any = {};
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetBridgeSecret>, I>>(base?: I): SetBridgeSecret {
     return SetBridgeSecret.fromPartial(base ?? ({} as any));
   },
@@ -15951,15 +12799,6 @@ export const ListStorageDevices: MessageFns<ListStorageDevices> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ListStorageDevices {
-    return {};
-  },
-
-  toJSON(_: ListStorageDevices): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ListStorageDevices>, I>>(base?: I): ListStorageDevices {
@@ -16032,28 +12871,6 @@ export const StorageDevice: MessageFns<StorageDevice> = {
     return message;
   },
 
-  fromJSON(object: any): StorageDevice {
-    return {
-      path: isSet(object.path) ? globalThis.String(object.path) : "",
-      sizeBytes: isSet(object.sizeBytes) ? BigInt(object.sizeBytes) : 0n,
-      model: isSet(object.model) ? globalThis.String(object.model) : "",
-    };
-  },
-
-  toJSON(message: StorageDevice): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    if (message.sizeBytes !== 0n) {
-      obj.sizeBytes = message.sizeBytes.toString();
-    }
-    if (message.model !== "") {
-      obj.model = message.model;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<StorageDevice>, I>>(base?: I): StorageDevice {
     return StorageDevice.fromPartial(base ?? ({} as any));
   },
@@ -16102,22 +12919,6 @@ export const StorageDevices: MessageFns<StorageDevices> = {
     return message;
   },
 
-  fromJSON(object: any): StorageDevices {
-    return {
-      devices: globalThis.Array.isArray(object?.devices)
-        ? object.devices.map((e: any) => StorageDevice.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: StorageDevices): unknown {
-    const obj: any = {};
-    if (message.devices?.length) {
-      obj.devices = message.devices.map((e) => StorageDevice.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<StorageDevices>, I>>(base?: I): StorageDevices {
     return StorageDevices.fromPartial(base ?? ({} as any));
   },
@@ -16164,22 +12965,6 @@ export const SetupStorage: MessageFns<SetupStorage> = {
     return message;
   },
 
-  fromJSON(object: any): SetupStorage {
-    return {
-      devicePaths: globalThis.Array.isArray(object?.devicePaths)
-        ? object.devicePaths.map((e: any) => globalThis.String(e))
-        : [],
-    };
-  },
-
-  toJSON(message: SetupStorage): unknown {
-    const obj: any = {};
-    if (message.devicePaths?.length) {
-      obj.devicePaths = message.devicePaths;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetupStorage>, I>>(base?: I): SetupStorage {
     return SetupStorage.fromPartial(base ?? ({} as any));
   },
@@ -16213,15 +12998,6 @@ export const ListWifiNetworks: MessageFns<ListWifiNetworks> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ListWifiNetworks {
-    return {};
-  },
-
-  toJSON(_: ListWifiNetworks): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ListWifiNetworks>, I>>(base?: I): ListWifiNetworks {
@@ -16313,36 +13089,6 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
     return message;
   },
 
-  fromJSON(object: any): WifiNetwork {
-    return {
-      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
-      signal: isSet(object.signal) ? globalThis.Number(object.signal) : 0,
-      secured: isSet(object.secured) ? globalThis.Boolean(object.secured) : false,
-      current: isSet(object.current) ? globalThis.Boolean(object.current) : false,
-      unsupported: isSet(object.unsupported) ? globalThis.Boolean(object.unsupported) : false,
-    };
-  },
-
-  toJSON(message: WifiNetwork): unknown {
-    const obj: any = {};
-    if (message.ssid !== "") {
-      obj.ssid = message.ssid;
-    }
-    if (message.signal !== 0) {
-      obj.signal = Math.round(message.signal);
-    }
-    if (message.secured !== false) {
-      obj.secured = message.secured;
-    }
-    if (message.current !== false) {
-      obj.current = message.current;
-    }
-    if (message.unsupported !== false) {
-      obj.unsupported = message.unsupported;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<WifiNetwork>, I>>(base?: I): WifiNetwork {
     return WifiNetwork.fromPartial(base ?? ({} as any));
   },
@@ -16391,22 +13137,6 @@ export const WifiNetworks: MessageFns<WifiNetworks> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): WifiNetworks {
-    return {
-      networks: globalThis.Array.isArray(object?.networks)
-        ? object.networks.map((e: any) => WifiNetwork.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: WifiNetworks): unknown {
-    const obj: any = {};
-    if (message.networks?.length) {
-      obj.networks = message.networks.map((e) => WifiNetwork.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<WifiNetworks>, I>>(base?: I): WifiNetworks {
@@ -16466,24 +13196,6 @@ export const SetWifi: MessageFns<SetWifi> = {
     return message;
   },
 
-  fromJSON(object: any): SetWifi {
-    return {
-      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
-      password: isSet(object.password) ? globalThis.String(object.password) : "",
-    };
-  },
-
-  toJSON(message: SetWifi): unknown {
-    const obj: any = {};
-    if (message.ssid !== "") {
-      obj.ssid = message.ssid;
-    }
-    if (message.password !== "") {
-      obj.password = message.password;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SetWifi>, I>>(base?: I): SetWifi {
     return SetWifi.fromPartial(base ?? ({} as any));
   },
@@ -16518,15 +13230,6 @@ export const GetWifiStatus: MessageFns<GetWifiStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetWifiStatus {
-    return {};
-  },
-
-  toJSON(_: GetWifiStatus): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetWifiStatus>, I>>(base?: I): GetWifiStatus {
@@ -16616,36 +13319,6 @@ export const WifiStatus: MessageFns<WifiStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): WifiStatus {
-    return {
-      managed: isSet(object.managed) ? globalThis.Boolean(object.managed) : false,
-      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
-      signal: isSet(object.signal) ? globalThis.Number(object.signal) : 0,
-      wired: isSet(object.wired) ? globalThis.Boolean(object.wired) : false,
-      lastJoin: isSet(object.lastJoin) ? WifiJoin.fromJSON(object.lastJoin) : undefined,
-    };
-  },
-
-  toJSON(message: WifiStatus): unknown {
-    const obj: any = {};
-    if (message.managed !== false) {
-      obj.managed = message.managed;
-    }
-    if (message.ssid !== "") {
-      obj.ssid = message.ssid;
-    }
-    if (message.signal !== 0) {
-      obj.signal = Math.round(message.signal);
-    }
-    if (message.wired !== false) {
-      obj.wired = message.wired;
-    }
-    if (message.lastJoin !== undefined) {
-      obj.lastJoin = WifiJoin.toJSON(message.lastJoin);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<WifiStatus>, I>>(base?: I): WifiStatus {
@@ -16755,40 +13428,6 @@ export const WifiJoin: MessageFns<WifiJoin> = {
     return message;
   },
 
-  fromJSON(object: any): WifiJoin {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
-      state: isSet(object.state) ? globalThis.String(object.state) : "",
-      code: isSet(object.code) ? globalThis.String(object.code) : "",
-      message: isSet(object.message) ? globalThis.String(object.message) : "",
-      restored: isSet(object.restored) ? globalThis.Boolean(object.restored) : false,
-    };
-  },
-
-  toJSON(message: WifiJoin): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.ssid !== "") {
-      obj.ssid = message.ssid;
-    }
-    if (message.state !== "") {
-      obj.state = message.state;
-    }
-    if (message.code !== "") {
-      obj.code = message.code;
-    }
-    if (message.message !== "") {
-      obj.message = message.message;
-    }
-    if (message.restored !== false) {
-      obj.restored = message.restored;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<WifiJoin>, I>>(base?: I): WifiJoin {
     return WifiJoin.fromPartial(base ?? ({} as any));
   },
@@ -16862,28 +13501,6 @@ export const JoinWifi: MessageFns<JoinWifi> = {
     return message;
   },
 
-  fromJSON(object: any): JoinWifi {
-    return {
-      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
-      password: isSet(object.password) ? bytesFromBase64(object.password) : new Uint8Array(0),
-      hidden: isSet(object.hidden) ? globalThis.Boolean(object.hidden) : false,
-    };
-  },
-
-  toJSON(message: JoinWifi): unknown {
-    const obj: any = {};
-    if (message.ssid !== "") {
-      obj.ssid = message.ssid;
-    }
-    if (message.password.length !== 0) {
-      obj.password = base64FromBytes(message.password);
-    }
-    if (message.hidden !== false) {
-      obj.hidden = message.hidden;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<JoinWifi>, I>>(base?: I): JoinWifi {
     return JoinWifi.fromPartial(base ?? ({} as any));
   },
@@ -16954,28 +13571,6 @@ export const RegisterWebPush: MessageFns<RegisterWebPush> = {
     return message;
   },
 
-  fromJSON(object: any): RegisterWebPush {
-    return {
-      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
-      p256dh: isSet(object.p256dh) ? globalThis.String(object.p256dh) : "",
-      auth: isSet(object.auth) ? globalThis.String(object.auth) : "",
-    };
-  },
-
-  toJSON(message: RegisterWebPush): unknown {
-    const obj: any = {};
-    if (message.endpoint !== "") {
-      obj.endpoint = message.endpoint;
-    }
-    if (message.p256dh !== "") {
-      obj.p256dh = message.p256dh;
-    }
-    if (message.auth !== "") {
-      obj.auth = message.auth;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RegisterWebPush>, I>>(base?: I): RegisterWebPush {
     return RegisterWebPush.fromPartial(base ?? ({} as any));
   },
@@ -17024,18 +13619,6 @@ export const RegisterApnsToken: MessageFns<RegisterApnsToken> = {
     return message;
   },
 
-  fromJSON(object: any): RegisterApnsToken {
-    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
-  },
-
-  toJSON(message: RegisterApnsToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RegisterApnsToken>, I>>(base?: I): RegisterApnsToken {
     return RegisterApnsToken.fromPartial(base ?? ({} as any));
   },
@@ -17080,18 +13663,6 @@ export const UnregisterApnsToken: MessageFns<UnregisterApnsToken> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UnregisterApnsToken {
-    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
-  },
-
-  toJSON(message: UnregisterApnsToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UnregisterApnsToken>, I>>(base?: I): UnregisterApnsToken {
@@ -17140,18 +13711,6 @@ export const RegisterFcmToken: MessageFns<RegisterFcmToken> = {
     return message;
   },
 
-  fromJSON(object: any): RegisterFcmToken {
-    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
-  },
-
-  toJSON(message: RegisterFcmToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RegisterFcmToken>, I>>(base?: I): RegisterFcmToken {
     return RegisterFcmToken.fromPartial(base ?? ({} as any));
   },
@@ -17196,18 +13755,6 @@ export const UnregisterFcmToken: MessageFns<UnregisterFcmToken> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UnregisterFcmToken {
-    return { token: isSet(object.token) ? globalThis.String(object.token) : "" };
-  },
-
-  toJSON(message: UnregisterFcmToken): unknown {
-    const obj: any = {};
-    if (message.token !== "") {
-      obj.token = message.token;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UnregisterFcmToken>, I>>(base?: I): UnregisterFcmToken {
@@ -17256,18 +13803,6 @@ export const UnregisterWebPush: MessageFns<UnregisterWebPush> = {
     return message;
   },
 
-  fromJSON(object: any): UnregisterWebPush {
-    return { endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "" };
-  },
-
-  toJSON(message: UnregisterWebPush): unknown {
-    const obj: any = {};
-    if (message.endpoint !== "") {
-      obj.endpoint = message.endpoint;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<UnregisterWebPush>, I>>(base?: I): UnregisterWebPush {
     return UnregisterWebPush.fromPartial(base ?? ({} as any));
   },
@@ -17301,15 +13836,6 @@ export const GetVapidPublicKey: MessageFns<GetVapidPublicKey> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetVapidPublicKey {
-    return {};
-  },
-
-  toJSON(_: GetVapidPublicKey): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetVapidPublicKey>, I>>(base?: I): GetVapidPublicKey {
@@ -17355,18 +13881,6 @@ export const VapidPublicKey: MessageFns<VapidPublicKey> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): VapidPublicKey {
-    return { key: isSet(object.key) ? globalThis.String(object.key) : "" };
-  },
-
-  toJSON(message: VapidPublicKey): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<VapidPublicKey>, I>>(base?: I): VapidPublicKey {
@@ -17437,28 +13951,6 @@ export const BridgeRegister: MessageFns<BridgeRegister> = {
     return message;
   },
 
-  fromJSON(object: any): BridgeRegister {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: BridgeRegister): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BridgeRegister>, I>>(base?: I): BridgeRegister {
     return BridgeRegister.fromPartial(base ?? ({} as any));
   },
@@ -17507,18 +13999,6 @@ export const BridgeAckOnboard: MessageFns<BridgeAckOnboard> = {
     return message;
   },
 
-  fromJSON(object: any): BridgeAckOnboard {
-    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
-  },
-
-  toJSON(message: BridgeAckOnboard): unknown {
-    const obj: any = {};
-    if (message.ok !== false) {
-      obj.ok = message.ok;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BridgeAckOnboard>, I>>(base?: I): BridgeAckOnboard {
     return BridgeAckOnboard.fromPartial(base ?? ({} as any));
   },
@@ -17563,18 +14043,6 @@ export const BridgeClientInfo: MessageFns<BridgeClientInfo> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): BridgeClientInfo {
-    return { remoteAddr: isSet(object.remoteAddr) ? globalThis.String(object.remoteAddr) : "" };
-  },
-
-  toJSON(message: BridgeClientInfo): unknown {
-    const obj: any = {};
-    if (message.remoteAddr !== "") {
-      obj.remoteAddr = message.remoteAddr;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<BridgeClientInfo>, I>>(base?: I): BridgeClientInfo {
@@ -17643,28 +14111,6 @@ export const RotateBridgeSecret: MessageFns<RotateBridgeSecret> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RotateBridgeSecret {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: RotateBridgeSecret): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RotateBridgeSecret>, I>>(base?: I): RotateBridgeSecret {
@@ -17737,28 +14183,6 @@ export const BridgeReleaseDomain: MessageFns<BridgeReleaseDomain> = {
     return message;
   },
 
-  fromJSON(object: any): BridgeReleaseDomain {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: BridgeReleaseDomain): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BridgeReleaseDomain>, I>>(base?: I): BridgeReleaseDomain {
     return BridgeReleaseDomain.fromPartial(base ?? ({} as any));
   },
@@ -17805,18 +14229,6 @@ export const RotateBridgeSecretAck: MessageFns<RotateBridgeSecretAck> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RotateBridgeSecretAck {
-    return { newSecret: isSet(object.newSecret) ? globalThis.String(object.newSecret) : "" };
-  },
-
-  toJSON(message: RotateBridgeSecretAck): unknown {
-    const obj: any = {};
-    if (message.newSecret !== "") {
-      obj.newSecret = message.newSecret;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RotateBridgeSecretAck>, I>>(base?: I): RotateBridgeSecretAck {
@@ -17898,32 +14310,6 @@ export const ReqSetDeviceDisabled: MessageFns<ReqSetDeviceDisabled> = {
     return message;
   },
 
-  fromJSON(object: any): ReqSetDeviceDisabled {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      disabled: isSet(object.disabled) ? globalThis.Boolean(object.disabled) : false,
-    };
-  },
-
-  toJSON(message: ReqSetDeviceDisabled): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.disabled !== false) {
-      obj.disabled = message.disabled;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqSetDeviceDisabled>, I>>(base?: I): ReqSetDeviceDisabled {
     return ReqSetDeviceDisabled.fromPartial(base ?? ({} as any));
   },
@@ -17960,15 +14346,6 @@ export const RegenerateBridgeSecret: MessageFns<RegenerateBridgeSecret> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): RegenerateBridgeSecret {
-    return {};
-  },
-
-  toJSON(_: RegenerateBridgeSecret): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RegenerateBridgeSecret>, I>>(base?: I): RegenerateBridgeSecret {
@@ -18114,58 +14491,6 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     return message;
   },
 
-  fromJSON(object: any): UpdatePushRegistrations {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      apnsTokens: globalThis.Array.isArray(object?.apnsTokens)
-        ? object.apnsTokens.map((e: any) => globalThis.String(e))
-        : [],
-      webPushSubs: globalThis.Array.isArray(object?.webPushSubs)
-        ? object.webPushSubs.map((e: any) => WebPushSub.fromJSON(e))
-        : [],
-      vapidPublicKey: isSet(object.vapidPublicKey) ? globalThis.String(object.vapidPublicKey) : "",
-      vapidPrivateKey: isSet(object.vapidPrivateKey) ? globalThis.String(object.vapidPrivateKey) : "",
-      fcmTokens: globalThis.Array.isArray(object?.fcmTokens)
-        ? object.fcmTokens.map((e: any) => globalThis.String(e))
-        : [],
-      language: isSet(object.language) ? globalThis.String(object.language) : "",
-    };
-  },
-
-  toJSON(message: UpdatePushRegistrations): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.apnsTokens?.length) {
-      obj.apnsTokens = message.apnsTokens;
-    }
-    if (message.webPushSubs?.length) {
-      obj.webPushSubs = message.webPushSubs.map((e) => WebPushSub.toJSON(e));
-    }
-    if (message.vapidPublicKey !== "") {
-      obj.vapidPublicKey = message.vapidPublicKey;
-    }
-    if (message.vapidPrivateKey !== "") {
-      obj.vapidPrivateKey = message.vapidPrivateKey;
-    }
-    if (message.fcmTokens?.length) {
-      obj.fcmTokens = message.fcmTokens;
-    }
-    if (message.language !== "") {
-      obj.language = message.language;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<UpdatePushRegistrations>, I>>(base?: I): UpdatePushRegistrations {
     return UpdatePushRegistrations.fromPartial(base ?? ({} as any));
   },
@@ -18242,28 +14567,6 @@ export const WebPushSub: MessageFns<WebPushSub> = {
     return message;
   },
 
-  fromJSON(object: any): WebPushSub {
-    return {
-      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
-      p256dh: isSet(object.p256dh) ? globalThis.String(object.p256dh) : "",
-      auth: isSet(object.auth) ? globalThis.String(object.auth) : "",
-    };
-  },
-
-  toJSON(message: WebPushSub): unknown {
-    const obj: any = {};
-    if (message.endpoint !== "") {
-      obj.endpoint = message.endpoint;
-    }
-    if (message.p256dh !== "") {
-      obj.p256dh = message.p256dh;
-    }
-    if (message.auth !== "") {
-      obj.auth = message.auth;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<WebPushSub>, I>>(base?: I): WebPushSub {
     return WebPushSub.fromPartial(base ?? ({} as any));
   },
@@ -18310,18 +14613,6 @@ export const UpdatePushRegistrationsAck: MessageFns<UpdatePushRegistrationsAck> 
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): UpdatePushRegistrationsAck {
-    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
-  },
-
-  toJSON(message: UpdatePushRegistrationsAck): unknown {
-    const obj: any = {};
-    if (message.ok !== false) {
-      obj.ok = message.ok;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<UpdatePushRegistrationsAck>, I>>(base?: I): UpdatePushRegistrationsAck {
@@ -18447,48 +14738,6 @@ export const BridgeNotify: MessageFns<BridgeNotify> = {
     return message;
   },
 
-  fromJSON(object: any): BridgeNotify {
-    return {
-      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      title: isSet(object.title) ? globalThis.String(object.title) : "",
-      body: isSet(object.body) ? globalThis.String(object.body) : "",
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
-    };
-  },
-
-  toJSON(message: BridgeNotify): unknown {
-    const obj: any = {};
-    if (message.ownerUuid !== "") {
-      obj.ownerUuid = message.ownerUuid;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.title !== "") {
-      obj.title = message.title;
-    }
-    if (message.body !== "") {
-      obj.body = message.body;
-    }
-    if (message.kind !== "") {
-      obj.kind = message.kind;
-    }
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BridgeNotify>, I>>(base?: I): BridgeNotify {
     return BridgeNotify.fromPartial(base ?? ({} as any));
   },
@@ -18542,18 +14791,6 @@ export const BridgeNotifyAck: MessageFns<BridgeNotifyAck> = {
     return message;
   },
 
-  fromJSON(object: any): BridgeNotifyAck {
-    return { ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false };
-  },
-
-  toJSON(message: BridgeNotifyAck): unknown {
-    const obj: any = {};
-    if (message.ok !== false) {
-      obj.ok = message.ok;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<BridgeNotifyAck>, I>>(base?: I): BridgeNotifyAck {
     return BridgeNotifyAck.fromPartial(base ?? ({} as any));
   },
@@ -18587,15 +14824,6 @@ export const GetProfile: MessageFns<GetProfile> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetProfile {
-    return {};
-  },
-
-  toJSON(_: GetProfile): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetProfile>, I>>(base?: I): GetProfile {
@@ -18676,32 +14904,6 @@ export const Profile: MessageFns<Profile> = {
     return message;
   },
 
-  fromJSON(object: any): Profile {
-    return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      image: isSet(object.image) ? bytesFromBase64(object.image) : undefined,
-      text: isSet(object.text) ? globalThis.String(object.text) : "",
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-    };
-  },
-
-  toJSON(message: Profile): unknown {
-    const obj: any = {};
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.image !== undefined) {
-      obj.image = base64FromBytes(message.image);
-    }
-    if (message.text !== "") {
-      obj.text = message.text;
-    }
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Profile>, I>>(base?: I): Profile {
     return Profile.fromPartial(base ?? ({} as any));
   },
@@ -18751,18 +14953,6 @@ export const ShareFilesLink: MessageFns<ShareFilesLink> = {
     return message;
   },
 
-  fromJSON(object: any): ShareFilesLink {
-    return { paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [] };
-  },
-
-  toJSON(message: ShareFilesLink): unknown {
-    const obj: any = {};
-    if (message.paths?.length) {
-      obj.paths = message.paths;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ShareFilesLink>, I>>(base?: I): ShareFilesLink {
     return ShareFilesLink.fromPartial(base ?? ({} as any));
   },
@@ -18807,18 +14997,6 @@ export const ShareLink: MessageFns<ShareLink> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ShareLink {
-    return { link: isSet(object.link) ? globalThis.String(object.link) : "" };
-  },
-
-  toJSON(message: ShareLink): unknown {
-    const obj: any = {};
-    if (message.link !== "") {
-      obj.link = message.link;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ShareLink>, I>>(base?: I): ShareLink {
@@ -18903,32 +15081,6 @@ export const DownloadSharedLink: MessageFns<DownloadSharedLink> = {
     return message;
   },
 
-  fromJSON(object: any): DownloadSharedLink {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-      offset: isSet(object.offset) ? BigInt(object.offset) : 0n,
-      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
-    };
-  },
-
-  toJSON(message: DownloadSharedLink): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    if (message.offset !== 0n) {
-      obj.offset = message.offset.toString();
-    }
-    if (message.length !== 0) {
-      obj.length = Math.round(message.length);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<DownloadSharedLink>, I>>(base?: I): DownloadSharedLink {
     return DownloadSharedLink.fromPartial(base ?? ({} as any));
   },
@@ -18978,18 +15130,6 @@ export const NewSocial: MessageFns<NewSocial> = {
     return message;
   },
 
-  fromJSON(object: any): NewSocial {
-    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
-  },
-
-  toJSON(message: NewSocial): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<NewSocial>, I>>(base?: I): NewSocial {
     return NewSocial.fromPartial(base ?? ({} as any));
   },
@@ -19034,18 +15174,6 @@ export const SharedFiles: MessageFns<SharedFiles> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SharedFiles {
-    return { content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0) };
-  },
-
-  toJSON(message: SharedFiles): unknown {
-    const obj: any = {};
-    if (message.content.length !== 0) {
-      obj.content = base64FromBytes(message.content);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SharedFiles>, I>>(base?: I): SharedFiles {
@@ -19178,48 +15306,6 @@ export const Comment: MessageFns<Comment> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): Comment {
-    return {
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
-      comment: isSet(object.comment) ? globalThis.String(object.comment) : "",
-      publisher: isSet(object.publisher) ? globalThis.String(object.publisher) : "",
-      likes: isSet(object.likes) ? globalThis.Number(object.likes) : 0,
-      dateTime: isSet(object.dateTime) ? fromJsonTimestamp(object.dateTime) : undefined,
-      liked: isSet(object.liked) ? globalThis.Boolean(object.liked) : false,
-      own: isSet(object.own) ? globalThis.Boolean(object.own) : false,
-    };
-  },
-
-  toJSON(message: Comment): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    if (message.comment !== "") {
-      obj.comment = message.comment;
-    }
-    if (message.publisher !== "") {
-      obj.publisher = message.publisher;
-    }
-    if (message.likes !== 0) {
-      obj.likes = Math.round(message.likes);
-    }
-    if (message.dateTime !== undefined) {
-      obj.dateTime = message.dateTime.toISOString();
-    }
-    if (message.liked !== false) {
-      obj.liked = message.liked;
-    }
-    if (message.own !== false) {
-      obj.own = message.own;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<Comment>, I>>(base?: I): Comment {
@@ -19373,52 +15459,6 @@ export const SocialPublication: MessageFns<SocialPublication> = {
     return message;
   },
 
-  fromJSON(object: any): SocialPublication {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      text: isSet(object.text) ? globalThis.String(object.text) : "",
-      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [],
-      comments: globalThis.Array.isArray(object?.comments) ? object.comments.map((e: any) => Comment.fromJSON(e)) : [],
-      likes: isSet(object.likes) ? globalThis.Number(object.likes) : 0,
-      publisher: isSet(object.publisher) ? Profile.fromJSON(object.publisher) : undefined,
-      liked: isSet(object.liked) ? globalThis.Boolean(object.liked) : false,
-      own: isSet(object.own) ? globalThis.Boolean(object.own) : false,
-      dateTime: isSet(object.dateTime) ? fromJsonTimestamp(object.dateTime) : undefined,
-    };
-  },
-
-  toJSON(message: SocialPublication): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.text !== "") {
-      obj.text = message.text;
-    }
-    if (message.files?.length) {
-      obj.files = message.files.map((e) => File.toJSON(e));
-    }
-    if (message.comments?.length) {
-      obj.comments = message.comments.map((e) => Comment.toJSON(e));
-    }
-    if (message.likes !== 0) {
-      obj.likes = Math.round(message.likes);
-    }
-    if (message.publisher !== undefined) {
-      obj.publisher = Profile.toJSON(message.publisher);
-    }
-    if (message.liked !== false) {
-      obj.liked = message.liked;
-    }
-    if (message.own !== false) {
-      obj.own = message.own;
-    }
-    if (message.dateTime !== undefined) {
-      obj.dateTime = message.dateTime.toISOString();
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<SocialPublication>, I>>(base?: I): SocialPublication {
     return SocialPublication.fromPartial(base ?? ({} as any));
   },
@@ -19473,18 +15513,6 @@ export const SocialPublicationFiles: MessageFns<SocialPublicationFiles> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SocialPublicationFiles {
-    return { files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => File.fromJSON(e)) : [] };
-  },
-
-  toJSON(message: SocialPublicationFiles): unknown {
-    const obj: any = {};
-    if (message.files?.length) {
-      obj.files = message.files.map((e) => File.toJSON(e));
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SocialPublicationFiles>, I>>(base?: I): SocialPublicationFiles {
@@ -19691,72 +15719,6 @@ export const FileExifInfo: MessageFns<FileExifInfo> = {
     return message;
   },
 
-  fromJSON(object: any): FileExifInfo {
-    return {
-      cameraMake: isSet(object.cameraMake) ? globalThis.String(object.cameraMake) : "",
-      cameraModel: isSet(object.cameraModel) ? globalThis.String(object.cameraModel) : "",
-      takenAt: isSet(object.takenAt) ? fromJsonTimestamp(object.takenAt) : undefined,
-      exposureTime: isSet(object.exposureTime) ? globalThis.String(object.exposureTime) : "",
-      fNumber: isSet(object.fNumber) ? globalThis.String(object.fNumber) : "",
-      iso: isSet(object.iso) ? globalThis.Number(object.iso) : 0,
-      focalLength: isSet(object.focalLength) ? globalThis.String(object.focalLength) : "",
-      width: isSet(object.width) ? globalThis.Number(object.width) : 0,
-      height: isSet(object.height) ? globalThis.Number(object.height) : 0,
-      hasGps: isSet(object.hasGps) ? globalThis.Boolean(object.hasGps) : false,
-      latitude: isSet(object.latitude) ? globalThis.Number(object.latitude) : 0,
-      longitude: isSet(object.longitude) ? globalThis.Number(object.longitude) : 0,
-      city: isSet(object.city) ? globalThis.String(object.city) : "",
-      country: isSet(object.country) ? globalThis.String(object.country) : "",
-    };
-  },
-
-  toJSON(message: FileExifInfo): unknown {
-    const obj: any = {};
-    if (message.cameraMake !== "") {
-      obj.cameraMake = message.cameraMake;
-    }
-    if (message.cameraModel !== "") {
-      obj.cameraModel = message.cameraModel;
-    }
-    if (message.takenAt !== undefined) {
-      obj.takenAt = message.takenAt.toISOString();
-    }
-    if (message.exposureTime !== "") {
-      obj.exposureTime = message.exposureTime;
-    }
-    if (message.fNumber !== "") {
-      obj.fNumber = message.fNumber;
-    }
-    if (message.iso !== 0) {
-      obj.iso = Math.round(message.iso);
-    }
-    if (message.focalLength !== "") {
-      obj.focalLength = message.focalLength;
-    }
-    if (message.width !== 0) {
-      obj.width = Math.round(message.width);
-    }
-    if (message.height !== 0) {
-      obj.height = Math.round(message.height);
-    }
-    if (message.hasGps !== false) {
-      obj.hasGps = message.hasGps;
-    }
-    if (message.latitude !== 0) {
-      obj.latitude = message.latitude;
-    }
-    if (message.longitude !== 0) {
-      obj.longitude = message.longitude;
-    }
-    if (message.city !== "") {
-      obj.city = message.city;
-    }
-    if (message.country !== "") {
-      obj.country = message.country;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FileExifInfo>, I>>(base?: I): FileExifInfo {
     return FileExifInfo.fromPartial(base ?? ({} as any));
   },
@@ -19816,18 +15778,6 @@ export const GetFileInfo: MessageFns<GetFileInfo> = {
     return message;
   },
 
-  fromJSON(object: any): GetFileInfo {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
-  },
-
-  toJSON(message: GetFileInfo): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<GetFileInfo>, I>>(base?: I): GetFileInfo {
     return GetFileInfo.fromPartial(base ?? ({} as any));
   },
@@ -19883,26 +15833,6 @@ export const SocialPublications: MessageFns<SocialPublications> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): SocialPublications {
-    return {
-      publications: globalThis.Array.isArray(object?.publications)
-        ? object.publications.map((e: any) => SocialPublication.fromJSON(e))
-        : [],
-      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
-    };
-  },
-
-  toJSON(message: SocialPublications): unknown {
-    const obj: any = {};
-    if (message.publications?.length) {
-      obj.publications = message.publications.map((e) => SocialPublication.toJSON(e));
-    }
-    if (message.since !== undefined) {
-      obj.since = message.since.toISOString();
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<SocialPublications>, I>>(base?: I): SocialPublications {
@@ -19985,32 +15915,6 @@ export const Event: MessageFns<Event> = {
     return message;
   },
 
-  fromJSON(object: any): Event {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      dt: isSet(object.dt) ? fromJsonTimestamp(object.dt) : undefined,
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      content: isSet(object.content) ? globalThis.String(object.content) : "",
-    };
-  },
-
-  toJSON(message: Event): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.dt !== undefined) {
-      obj.dt = message.dt.toISOString();
-    }
-    if (message.type !== "") {
-      obj.type = message.type;
-    }
-    if (message.content !== "") {
-      obj.content = message.content;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Event>, I>>(base?: I): Event {
     return Event.fromPartial(base ?? ({} as any));
   },
@@ -20069,24 +15973,6 @@ export const Events: MessageFns<Events> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): Events {
-    return {
-      events: globalThis.Array.isArray(object?.events) ? object.events.map((e: any) => Event.fromJSON(e)) : [],
-      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
-    };
-  },
-
-  toJSON(message: Events): unknown {
-    const obj: any = {};
-    if (message.events?.length) {
-      obj.events = message.events.map((e) => Event.toJSON(e));
-    }
-    if (message.since !== undefined) {
-      obj.since = message.since.toISOString();
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<Events>, I>>(base?: I): Events {
@@ -20282,68 +16168,6 @@ export const Notification: MessageFns<Notification> = {
     return message;
   },
 
-  fromJSON(object: any): Notification {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      dt: isSet(object.dt) ? fromJsonTimestamp(object.dt) : undefined,
-      type: isSet(object.type) ? notificationTypeFromJSON(object.type) : 0,
-      actorName: isSet(object.actorName) ? globalThis.String(object.actorName) : "",
-      actorDomain: isSet(object.actorDomain) ? globalThis.String(object.actorDomain) : "",
-      pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "",
-      commentUuid: isSet(object.commentUuid) ? globalThis.String(object.commentUuid) : "",
-      acknowledged: isSet(object.acknowledged) ? globalThis.Boolean(object.acknowledged) : false,
-      actorImage: isSet(object.actorImage) ? bytesFromBase64(object.actorImage) : undefined,
-      thumbnail: isSet(object.thumbnail) ? bytesFromBase64(object.thumbnail) : undefined,
-      title: isSet(object.title) ? globalThis.String(object.title) : "",
-      details: isSet(object.details) ? globalThis.String(object.details) : "",
-      occurrences: isSet(object.occurrences) ? globalThis.Number(object.occurrences) : 0,
-    };
-  },
-
-  toJSON(message: Notification): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.dt !== undefined) {
-      obj.dt = message.dt.toISOString();
-    }
-    if (message.type !== 0) {
-      obj.type = notificationTypeToJSON(message.type);
-    }
-    if (message.actorName !== "") {
-      obj.actorName = message.actorName;
-    }
-    if (message.actorDomain !== "") {
-      obj.actorDomain = message.actorDomain;
-    }
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    if (message.commentUuid !== "") {
-      obj.commentUuid = message.commentUuid;
-    }
-    if (message.acknowledged !== false) {
-      obj.acknowledged = message.acknowledged;
-    }
-    if (message.actorImage !== undefined) {
-      obj.actorImage = base64FromBytes(message.actorImage);
-    }
-    if (message.thumbnail !== undefined) {
-      obj.thumbnail = base64FromBytes(message.thumbnail);
-    }
-    if (message.title !== "") {
-      obj.title = message.title;
-    }
-    if (message.details !== "") {
-      obj.details = message.details;
-    }
-    if (message.occurrences !== 0) {
-      obj.occurrences = Math.round(message.occurrences);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<Notification>, I>>(base?: I): Notification {
     return Notification.fromPartial(base ?? ({} as any));
   },
@@ -20402,18 +16226,6 @@ export const ReqListNotifications: MessageFns<ReqListNotifications> = {
     return message;
   },
 
-  fromJSON(object: any): ReqListNotifications {
-    return { limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0 };
-  },
-
-  toJSON(message: ReqListNotifications): unknown {
-    const obj: any = {};
-    if (message.limit !== 0) {
-      obj.limit = Math.round(message.limit);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqListNotifications>, I>>(base?: I): ReqListNotifications {
     return ReqListNotifications.fromPartial(base ?? ({} as any));
   },
@@ -20460,22 +16272,6 @@ export const RespNotifications: MessageFns<RespNotifications> = {
     return message;
   },
 
-  fromJSON(object: any): RespNotifications {
-    return {
-      notifications: globalThis.Array.isArray(object?.notifications)
-        ? object.notifications.map((e: any) => Notification.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: RespNotifications): unknown {
-    const obj: any = {};
-    if (message.notifications?.length) {
-      obj.notifications = message.notifications.map((e) => Notification.toJSON(e));
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespNotifications>, I>>(base?: I): RespNotifications {
     return RespNotifications.fromPartial(base ?? ({} as any));
   },
@@ -20509,15 +16305,6 @@ export const ReqGetNotificationCount: MessageFns<ReqGetNotificationCount> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqGetNotificationCount {
-    return {};
-  },
-
-  toJSON(_: ReqGetNotificationCount): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetNotificationCount>, I>>(base?: I): ReqGetNotificationCount {
@@ -20565,20 +16352,6 @@ export const RespNotificationCount: MessageFns<RespNotificationCount> = {
     return message;
   },
 
-  fromJSON(object: any): RespNotificationCount {
-    return {
-      unacknowledgedCount: isSet(object.unacknowledgedCount) ? globalThis.Number(object.unacknowledgedCount) : 0,
-    };
-  },
-
-  toJSON(message: RespNotificationCount): unknown {
-    const obj: any = {};
-    if (message.unacknowledgedCount !== 0) {
-      obj.unacknowledgedCount = Math.round(message.unacknowledgedCount);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespNotificationCount>, I>>(base?: I): RespNotificationCount {
     return RespNotificationCount.fromPartial(base ?? ({} as any));
   },
@@ -20612,15 +16385,6 @@ export const ReqMarkNotificationsAcknowledged: MessageFns<ReqMarkNotificationsAc
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqMarkNotificationsAcknowledged {
-    return {};
-  },
-
-  toJSON(_: ReqMarkNotificationsAcknowledged): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqMarkNotificationsAcknowledged>, I>>(
@@ -20672,18 +16436,6 @@ export const ReqGetPublication: MessageFns<ReqGetPublication> = {
     return message;
   },
 
-  fromJSON(object: any): ReqGetPublication {
-    return { pubUuid: isSet(object.pubUuid) ? globalThis.String(object.pubUuid) : "" };
-  },
-
-  toJSON(message: ReqGetPublication): unknown {
-    const obj: any = {};
-    if (message.pubUuid !== "") {
-      obj.pubUuid = message.pubUuid;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqGetPublication>, I>>(base?: I): ReqGetPublication {
     return ReqGetPublication.fromPartial(base ?? ({} as any));
   },
@@ -20728,18 +16480,6 @@ export const RespPublication: MessageFns<RespPublication> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespPublication {
-    return { publication: isSet(object.publication) ? SocialPublication.fromJSON(object.publication) : undefined };
-  },
-
-  toJSON(message: RespPublication): unknown {
-    const obj: any = {};
-    if (message.publication !== undefined) {
-      obj.publication = SocialPublication.toJSON(message.publication);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespPublication>, I>>(base?: I): RespPublication {
@@ -20856,44 +16596,6 @@ export const User: MessageFns<User> = {
     return message;
   },
 
-  fromJSON(object: any): User {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      username: isSet(object.username) ? globalThis.String(object.username) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
-      subdomain: isSet(object.subdomain) ? globalThis.String(object.subdomain) : "",
-      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
-      created: isSet(object.created) ? fromJsonTimestamp(object.created) : undefined,
-      bridgeAccess: isSet(object.bridgeAccess) ? globalThis.Boolean(object.bridgeAccess) : false,
-    };
-  },
-
-  toJSON(message: User): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.username !== "") {
-      obj.username = message.username;
-    }
-    if (message.port !== 0) {
-      obj.port = Math.round(message.port);
-    }
-    if (message.subdomain !== "") {
-      obj.subdomain = message.subdomain;
-    }
-    if (message.active !== false) {
-      obj.active = message.active;
-    }
-    if (message.created !== undefined) {
-      obj.created = message.created.toISOString();
-    }
-    if (message.bridgeAccess !== false) {
-      obj.bridgeAccess = message.bridgeAccess;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<User>, I>>(base?: I): User {
     return User.fromPartial(base ?? ({} as any));
   },
@@ -20933,15 +16635,6 @@ export const ReqListUsers: MessageFns<ReqListUsers> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqListUsers {
-    return {};
-  },
-
-  toJSON(_: ReqListUsers): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqListUsers>, I>>(base?: I): ReqListUsers {
@@ -20998,24 +16691,6 @@ export const RespUsers: MessageFns<RespUsers> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespUsers {
-    return {
-      users: globalThis.Array.isArray(object?.users) ? object.users.map((e: any) => User.fromJSON(e)) : [],
-      passwordSet: isSet(object.passwordSet) ? globalThis.Boolean(object.passwordSet) : undefined,
-    };
-  },
-
-  toJSON(message: RespUsers): unknown {
-    const obj: any = {};
-    if (message.users?.length) {
-      obj.users = message.users.map((e) => User.toJSON(e));
-    }
-    if (message.passwordSet !== undefined) {
-      obj.passwordSet = message.passwordSet;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespUsers>, I>>(base?: I): RespUsers {
@@ -21098,32 +16773,6 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     return message;
   },
 
-  fromJSON(object: any): ReqCreateUser {
-    return {
-      username: isSet(object.username) ? globalThis.String(object.username) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
-      requestBridgeAccess: isSet(object.requestBridgeAccess) ? globalThis.Boolean(object.requestBridgeAccess) : false,
-      password: isSet(object.password) ? bytesFromBase64(object.password) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: ReqCreateUser): unknown {
-    const obj: any = {};
-    if (message.username !== "") {
-      obj.username = message.username;
-    }
-    if (message.port !== 0) {
-      obj.port = Math.round(message.port);
-    }
-    if (message.requestBridgeAccess !== false) {
-      obj.requestBridgeAccess = message.requestBridgeAccess;
-    }
-    if (message.password.length !== 0) {
-      obj.password = base64FromBytes(message.password);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqCreateUser>, I>>(base?: I): ReqCreateUser {
     return ReqCreateUser.fromPartial(base ?? ({} as any));
   },
@@ -21184,24 +16833,6 @@ export const ReqDeleteUser: MessageFns<ReqDeleteUser> = {
     return message;
   },
 
-  fromJSON(object: any): ReqDeleteUser {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      confirmUsername: isSet(object.confirmUsername) ? globalThis.String(object.confirmUsername) : "",
-    };
-  },
-
-  toJSON(message: ReqDeleteUser): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.confirmUsername !== "") {
-      obj.confirmUsername = message.confirmUsername;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqDeleteUser>, I>>(base?: I): ReqDeleteUser {
     return ReqDeleteUser.fromPartial(base ?? ({} as any));
   },
@@ -21260,24 +16891,6 @@ export const ReqSetUserActive: MessageFns<ReqSetUserActive> = {
     return message;
   },
 
-  fromJSON(object: any): ReqSetUserActive {
-    return {
-      uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "",
-      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
-    };
-  },
-
-  toJSON(message: ReqSetUserActive): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    if (message.active !== false) {
-      obj.active = message.active;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<ReqSetUserActive>, I>>(base?: I): ReqSetUserActive {
     return ReqSetUserActive.fromPartial(base ?? ({} as any));
   },
@@ -21323,18 +16936,6 @@ export const ReqGetUserMetrics: MessageFns<ReqGetUserMetrics> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqGetUserMetrics {
-    return { uuid: isSet(object.uuid) ? globalThis.String(object.uuid) : "" };
-  },
-
-  toJSON(message: ReqGetUserMetrics): unknown {
-    const obj: any = {};
-    if (message.uuid !== "") {
-      obj.uuid = message.uuid;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetUserMetrics>, I>>(base?: I): ReqGetUserMetrics {
@@ -21405,28 +17006,6 @@ export const RespUserMetrics: MessageFns<RespUserMetrics> = {
     return message;
   },
 
-  fromJSON(object: any): RespUserMetrics {
-    return {
-      storageMb: isSet(object.storageMb) ? globalThis.Number(object.storageMb) : 0,
-      storagePct: isSet(object.storagePct) ? globalThis.Number(object.storagePct) : 0,
-      activeConnections: isSet(object.activeConnections) ? globalThis.Number(object.activeConnections) : 0,
-    };
-  },
-
-  toJSON(message: RespUserMetrics): unknown {
-    const obj: any = {};
-    if (message.storageMb !== 0) {
-      obj.storageMb = message.storageMb;
-    }
-    if (message.storagePct !== 0) {
-      obj.storagePct = message.storagePct;
-    }
-    if (message.activeConnections !== 0) {
-      obj.activeConnections = Math.round(message.activeConnections);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespUserMetrics>, I>>(base?: I): RespUserMetrics {
     return RespUserMetrics.fromPartial(base ?? ({} as any));
   },
@@ -21462,15 +17041,6 @@ export const ReqGetInstanceRole: MessageFns<ReqGetInstanceRole> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): ReqGetInstanceRole {
-    return {};
-  },
-
-  toJSON(_: ReqGetInstanceRole): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetInstanceRole>, I>>(base?: I): ReqGetInstanceRole {
@@ -21516,18 +17086,6 @@ export const RespInstanceRole: MessageFns<RespInstanceRole> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): RespInstanceRole {
-    return { isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false };
-  },
-
-  toJSON(message: RespInstanceRole): unknown {
-    const obj: any = {};
-    if (message.isPrimary !== false) {
-      obj.isPrimary = message.isPrimary;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<RespInstanceRole>, I>>(base?: I): RespInstanceRole {
@@ -21585,24 +17143,6 @@ export const GetFriendshipStatus: MessageFns<GetFriendshipStatus> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): GetFriendshipStatus {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: GetFriendshipStatus): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetFriendshipStatus>, I>>(base?: I): GetFriendshipStatus {
@@ -21663,24 +17203,6 @@ export const FriendshipStatusReply: MessageFns<FriendshipStatusReply> = {
     return message;
   },
 
-  fromJSON(object: any): FriendshipStatusReply {
-    return {
-      status: isSet(object.status) ? friendShipStatusFromJSON(object.status) : 0,
-      notFound: isSet(object.notFound) ? globalThis.Boolean(object.notFound) : false,
-    };
-  },
-
-  toJSON(message: FriendshipStatusReply): unknown {
-    const obj: any = {};
-    if (message.status !== 0) {
-      obj.status = friendShipStatusToJSON(message.status);
-    }
-    if (message.notFound !== false) {
-      obj.notFound = message.notFound;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<FriendshipStatusReply>, I>>(base?: I): FriendshipStatusReply {
     return FriendshipStatusReply.fromPartial(base ?? ({} as any));
   },
@@ -21739,24 +17261,6 @@ export const AuthAsFriend: MessageFns<AuthAsFriend> = {
     return message;
   },
 
-  fromJSON(object: any): AuthAsFriend {
-    return {
-      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
-      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
-    };
-  },
-
-  toJSON(message: AuthAsFriend): unknown {
-    const obj: any = {};
-    if (message.domain !== "") {
-      obj.domain = message.domain;
-    }
-    if (message.secret !== "") {
-      obj.secret = message.secret;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<AuthAsFriend>, I>>(base?: I): AuthAsFriend {
     return AuthAsFriend.fromPartial(base ?? ({} as any));
   },
@@ -21802,18 +17306,6 @@ export const ReqGetStaticAsset: MessageFns<ReqGetStaticAsset> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqGetStaticAsset {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
-  },
-
-  toJSON(message: ReqGetStaticAsset): unknown {
-    const obj: any = {};
-    if (message.path !== "") {
-      obj.path = message.path;
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqGetStaticAsset>, I>>(base?: I): ReqGetStaticAsset {
@@ -21873,24 +17365,6 @@ export const RespStaticAsset: MessageFns<RespStaticAsset> = {
     return message;
   },
 
-  fromJSON(object: any): RespStaticAsset {
-    return {
-      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
-      contentType: isSet(object.contentType) ? globalThis.String(object.contentType) : "",
-    };
-  },
-
-  toJSON(message: RespStaticAsset): unknown {
-    const obj: any = {};
-    if (message.content.length !== 0) {
-      obj.content = base64FromBytes(message.content);
-    }
-    if (message.contentType !== "") {
-      obj.contentType = message.contentType;
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespStaticAsset>, I>>(base?: I): RespStaticAsset {
     return RespStaticAsset.fromPartial(base ?? ({} as any));
   },
@@ -21925,15 +17399,6 @@ export const GetLocalEndpoint: MessageFns<GetLocalEndpoint> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(_: any): GetLocalEndpoint {
-    return {};
-  },
-
-  toJSON(_: GetLocalEndpoint): unknown {
-    const obj: any = {};
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<GetLocalEndpoint>, I>>(base?: I): GetLocalEndpoint {
@@ -22001,30 +17466,6 @@ export const LocalEndpoint: MessageFns<LocalEndpoint> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): LocalEndpoint {
-    return {
-      addresses: globalThis.Array.isArray(object?.addresses)
-        ? object.addresses.map((e: any) => globalThis.String(e))
-        : [],
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
-      certSha256: isSet(object.certSha256) ? bytesFromBase64(object.certSha256) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: LocalEndpoint): unknown {
-    const obj: any = {};
-    if (message.addresses?.length) {
-      obj.addresses = message.addresses;
-    }
-    if (message.port !== 0) {
-      obj.port = Math.round(message.port);
-    }
-    if (message.certSha256.length !== 0) {
-      obj.certSha256 = base64FromBytes(message.certSha256);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<LocalEndpoint>, I>>(base?: I): LocalEndpoint {
@@ -23807,690 +19248,6 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       reader.skip(tag & 7);
     }
     return message;
-  },
-
-  fromJSON(object: any): ReqEnvelope {
-    return {
-      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
-      lang: isSet(object.lang) ? globalThis.String(object.lang) : "",
-      payload: isSet(object.reqListFiles)
-        ? { $case: "reqListFiles", reqListFiles: ListFiles.fromJSON(object.reqListFiles) }
-        : isSet(object.reqGetStatus)
-        ? { $case: "reqGetStatus", reqGetStatus: GetStatus.fromJSON(object.reqGetStatus) }
-        : isSet(object.reqAuth)
-        ? { $case: "reqAuth", reqAuth: Auth.fromJSON(object.reqAuth) }
-        : isSet(object.reqUploadFile)
-        ? { $case: "reqUploadFile", reqUploadFile: UploadFile.fromJSON(object.reqUploadFile) }
-        : isSet(object.reqGetFile)
-        ? { $case: "reqGetFile", reqGetFile: GetFile.fromJSON(object.reqGetFile) }
-        : isSet(object.reqDelFile)
-        ? { $case: "reqDelFile", reqDelFile: DelFile.fromJSON(object.reqDelFile) }
-        : isSet(object.reqSearchPhotos)
-        ? { $case: "reqSearchPhotos", reqSearchPhotos: SearchPhotos.fromJSON(object.reqSearchPhotos) }
-        : isSet(object.reqGetTags)
-        ? { $case: "reqGetTags", reqGetTags: GetTags.fromJSON(object.reqGetTags) }
-        : isSet(object.reqChangeKey)
-        ? { $case: "reqChangeKey", reqChangeKey: ChangeKey.fromJSON(object.reqChangeKey) }
-        : isSet(object.reqGetSettings)
-        ? { $case: "reqGetSettings", reqGetSettings: GetSettings.fromJSON(object.reqGetSettings) }
-        : isSet(object.reqSetSettings)
-        ? { $case: "reqSetSettings", reqSetSettings: SetSettings.fromJSON(object.reqSetSettings) }
-        : isSet(object.reqNewSocialPublication)
-        ? {
-          $case: "reqNewSocialPublication",
-          reqNewSocialPublication: NewSocialPublication.fromJSON(object.reqNewSocialPublication),
-        }
-        : isSet(object.reqGetSocialPublications)
-        ? {
-          $case: "reqGetSocialPublications",
-          reqGetSocialPublications: GetSocialPublications.fromJSON(object.reqGetSocialPublications),
-        }
-        : isSet(object.reqGetSocialPublicationFiles)
-        ? {
-          $case: "reqGetSocialPublicationFiles",
-          reqGetSocialPublicationFiles: GetSocialPublicationFiles.fromJSON(object.reqGetSocialPublicationFiles),
-        }
-        : isSet(object.reqFriendshipRequest)
-        ? {
-          $case: "reqFriendshipRequest",
-          reqFriendshipRequest: FriendshipRequest.fromJSON(object.reqFriendshipRequest),
-        }
-        : isSet(object.reqFriendshipInterRequest)
-        ? {
-          $case: "reqFriendshipInterRequest",
-          reqFriendshipInterRequest: FriendshipInterRequest.fromJSON(object.reqFriendshipInterRequest),
-        }
-        : isSet(object.reqDidSendFriendshipReq)
-        ? {
-          $case: "reqDidSendFriendshipReq",
-          reqDidSendFriendshipReq: DidSendFriendshipReq.fromJSON(object.reqDidSendFriendshipReq),
-        }
-        : isSet(object.reqFriendshipsList)
-        ? { $case: "reqFriendshipsList", reqFriendshipsList: FriendshipsList.fromJSON(object.reqFriendshipsList) }
-        : isSet(object.reqChangeFriendStatus)
-        ? {
-          $case: "reqChangeFriendStatus",
-          reqChangeFriendStatus: ChangeFriendStatus.fromJSON(object.reqChangeFriendStatus),
-        }
-        : isSet(object.reqGetFriendshipStatus)
-        ? {
-          $case: "reqGetFriendshipStatus",
-          reqGetFriendshipStatus: GetFriendshipStatus.fromJSON(object.reqGetFriendshipStatus),
-        }
-        : isSet(object.reqAuthAsFriend)
-        ? { $case: "reqAuthAsFriend", reqAuthAsFriend: AuthAsFriend.fromJSON(object.reqAuthAsFriend) }
-        : isSet(object.reqNewSocialComment)
-        ? { $case: "reqNewSocialComment", reqNewSocialComment: NewSocialComment.fromJSON(object.reqNewSocialComment) }
-        : isSet(object.reqGetEvents)
-        ? { $case: "reqGetEvents", reqGetEvents: GetEvents.fromJSON(object.reqGetEvents) }
-        : isSet(object.reqDelSocialComment)
-        ? { $case: "reqDelSocialComment", reqDelSocialComment: DelSocialComment.fromJSON(object.reqDelSocialComment) }
-        : isSet(object.reqLikePublication)
-        ? { $case: "reqLikePublication", reqLikePublication: LikePublication.fromJSON(object.reqLikePublication) }
-        : isSet(object.reqLikeComment)
-        ? { $case: "reqLikeComment", reqLikeComment: LikeComment.fromJSON(object.reqLikeComment) }
-        : isSet(object.reqBridgeRegister)
-        ? { $case: "reqBridgeRegister", reqBridgeRegister: BridgeRegister.fromJSON(object.reqBridgeRegister) }
-        : isSet(object.reqGetProfile)
-        ? { $case: "reqGetProfile", reqGetProfile: GetProfile.fromJSON(object.reqGetProfile) }
-        : isSet(object.reqSetProfile)
-        ? { $case: "reqSetProfile", reqSetProfile: Profile.fromJSON(object.reqSetProfile) }
-        : isSet(object.reqShareFilesLink)
-        ? { $case: "reqShareFilesLink", reqShareFilesLink: ShareFilesLink.fromJSON(object.reqShareFilesLink) }
-        : isSet(object.reqDownloadSharedLink)
-        ? {
-          $case: "reqDownloadSharedLink",
-          reqDownloadSharedLink: DownloadSharedLink.fromJSON(object.reqDownloadSharedLink),
-        }
-        : isSet(object.reqGetPubKey)
-        ? { $case: "reqGetPubKey", reqGetPubKey: GetPubKey.fromJSON(object.reqGetPubKey) }
-        : isSet(object.reqGetPublicationLikers)
-        ? {
-          $case: "reqGetPublicationLikers",
-          reqGetPublicationLikers: GetPublicationLikers.fromJSON(object.reqGetPublicationLikers),
-        }
-        : isSet(object.reqGetCommentLikers)
-        ? { $case: "reqGetCommentLikers", reqGetCommentLikers: GetCommentLikers.fromJSON(object.reqGetCommentLikers) }
-        : isSet(object.reqDelSocialPublication)
-        ? {
-          $case: "reqDelSocialPublication",
-          reqDelSocialPublication: DelSocialPublication.fromJSON(object.reqDelSocialPublication),
-        }
-        : isSet(object.reqGetFileInfo)
-        ? { $case: "reqGetFileInfo", reqGetFileInfo: GetFileInfo.fromJSON(object.reqGetFileInfo) }
-        : isSet(object.reqSetBridgeSecret)
-        ? { $case: "reqSetBridgeSecret", reqSetBridgeSecret: SetBridgeSecret.fromJSON(object.reqSetBridgeSecret) }
-        : isSet(object.reqListStorageDevices)
-        ? {
-          $case: "reqListStorageDevices",
-          reqListStorageDevices: ListStorageDevices.fromJSON(object.reqListStorageDevices),
-        }
-        : isSet(object.reqSetupStorage)
-        ? { $case: "reqSetupStorage", reqSetupStorage: SetupStorage.fromJSON(object.reqSetupStorage) }
-        : isSet(object.reqRegenerateBridgeSecret)
-        ? {
-          $case: "reqRegenerateBridgeSecret",
-          reqRegenerateBridgeSecret: RegenerateBridgeSecret.fromJSON(object.reqRegenerateBridgeSecret),
-        }
-        : isSet(object.reqRotateBridgeSecret)
-        ? {
-          $case: "reqRotateBridgeSecret",
-          reqRotateBridgeSecret: RotateBridgeSecret.fromJSON(object.reqRotateBridgeSecret),
-        }
-        : isSet(object.reqListWifiNetworks)
-        ? { $case: "reqListWifiNetworks", reqListWifiNetworks: ListWifiNetworks.fromJSON(object.reqListWifiNetworks) }
-        : isSet(object.reqSetWifi)
-        ? { $case: "reqSetWifi", reqSetWifi: SetWifi.fromJSON(object.reqSetWifi) }
-        : isSet(object.reqRegisterWebPush)
-        ? { $case: "reqRegisterWebPush", reqRegisterWebPush: RegisterWebPush.fromJSON(object.reqRegisterWebPush) }
-        : isSet(object.reqRegisterApnsToken)
-        ? {
-          $case: "reqRegisterApnsToken",
-          reqRegisterApnsToken: RegisterApnsToken.fromJSON(object.reqRegisterApnsToken),
-        }
-        : isSet(object.reqGetVapidPublicKey)
-        ? {
-          $case: "reqGetVapidPublicKey",
-          reqGetVapidPublicKey: GetVapidPublicKey.fromJSON(object.reqGetVapidPublicKey),
-        }
-        : isSet(object.reqHasFile)
-        ? { $case: "reqHasFile", reqHasFile: HasFile.fromJSON(object.reqHasFile) }
-        : isSet(object.reqLinkFile)
-        ? { $case: "reqLinkFile", reqLinkFile: LinkFile.fromJSON(object.reqLinkFile) }
-        : isSet(object.reqUpdatePushRegistrations)
-        ? {
-          $case: "reqUpdatePushRegistrations",
-          reqUpdatePushRegistrations: UpdatePushRegistrations.fromJSON(object.reqUpdatePushRegistrations),
-        }
-        : isSet(object.reqSetFaceRecognitionEnabled)
-        ? {
-          $case: "reqSetFaceRecognitionEnabled",
-          reqSetFaceRecognitionEnabled: SetFaceRecognitionEnabled.fromJSON(object.reqSetFaceRecognitionEnabled),
-        }
-        : isSet(object.reqListPeople)
-        ? { $case: "reqListPeople", reqListPeople: ListPeople.fromJSON(object.reqListPeople) }
-        : isSet(object.reqRenamePerson)
-        ? { $case: "reqRenamePerson", reqRenamePerson: RenamePerson.fromJSON(object.reqRenamePerson) }
-        : isSet(object.reqDeletePerson)
-        ? { $case: "reqDeletePerson", reqDeletePerson: DeletePerson.fromJSON(object.reqDeletePerson) }
-        : isSet(object.reqMergePeople)
-        ? { $case: "reqMergePeople", reqMergePeople: MergePeople.fromJSON(object.reqMergePeople) }
-        : isSet(object.reqStartReprocess)
-        ? { $case: "reqStartReprocess", reqStartReprocess: StartReprocess.fromJSON(object.reqStartReprocess) }
-        : isSet(object.reqGetReprocessStatus)
-        ? {
-          $case: "reqGetReprocessStatus",
-          reqGetReprocessStatus: GetReprocessStatus.fromJSON(object.reqGetReprocessStatus),
-        }
-        : isSet(object.reqStopReprocess)
-        ? { $case: "reqStopReprocess", reqStopReprocess: StopReprocess.fromJSON(object.reqStopReprocess) }
-        : isSet(object.reqPhotoDateBuckets)
-        ? {
-          $case: "reqPhotoDateBuckets",
-          reqPhotoDateBuckets: ReqPhotoDateBuckets.fromJSON(object.reqPhotoDateBuckets),
-        }
-        : isSet(object.reqListNotifications)
-        ? {
-          $case: "reqListNotifications",
-          reqListNotifications: ReqListNotifications.fromJSON(object.reqListNotifications),
-        }
-        : isSet(object.reqGetNotificationCount)
-        ? {
-          $case: "reqGetNotificationCount",
-          reqGetNotificationCount: ReqGetNotificationCount.fromJSON(object.reqGetNotificationCount),
-        }
-        : isSet(object.reqMarkNotificationsAcknowledged)
-        ? {
-          $case: "reqMarkNotificationsAcknowledged",
-          reqMarkNotificationsAcknowledged: ReqMarkNotificationsAcknowledged.fromJSON(
-            object.reqMarkNotificationsAcknowledged,
-          ),
-        }
-        : isSet(object.reqGetPublication)
-        ? { $case: "reqGetPublication", reqGetPublication: ReqGetPublication.fromJSON(object.reqGetPublication) }
-        : isSet(object.reqListUsers)
-        ? { $case: "reqListUsers", reqListUsers: ReqListUsers.fromJSON(object.reqListUsers) }
-        : isSet(object.reqCreateUser)
-        ? { $case: "reqCreateUser", reqCreateUser: ReqCreateUser.fromJSON(object.reqCreateUser) }
-        : isSet(object.reqDeleteUser)
-        ? { $case: "reqDeleteUser", reqDeleteUser: ReqDeleteUser.fromJSON(object.reqDeleteUser) }
-        : isSet(object.reqGetUserMetrics)
-        ? { $case: "reqGetUserMetrics", reqGetUserMetrics: ReqGetUserMetrics.fromJSON(object.reqGetUserMetrics) }
-        : isSet(object.reqGetInstanceRole)
-        ? { $case: "reqGetInstanceRole", reqGetInstanceRole: ReqGetInstanceRole.fromJSON(object.reqGetInstanceRole) }
-        : isSet(object.reqSetUserActive)
-        ? { $case: "reqSetUserActive", reqSetUserActive: ReqSetUserActive.fromJSON(object.reqSetUserActive) }
-        : isSet(object.reqGetStaticAsset)
-        ? { $case: "reqGetStaticAsset", reqGetStaticAsset: ReqGetStaticAsset.fromJSON(object.reqGetStaticAsset) }
-        : isSet(object.reqGetMediaUrl)
-        ? { $case: "reqGetMediaUrl", reqGetMediaUrl: ReqGetMediaURL.fromJSON(object.reqGetMediaUrl) }
-        : isSet(object.reqGetMediaRange)
-        ? { $case: "reqGetMediaRange", reqGetMediaRange: ReqGetMediaRange.fromJSON(object.reqGetMediaRange) }
-        : isSet(object.reqCheckUpdate)
-        ? { $case: "reqCheckUpdate", reqCheckUpdate: ReqCheckUpdate.fromJSON(object.reqCheckUpdate) }
-        : isSet(object.reqApplyUpdate)
-        ? { $case: "reqApplyUpdate", reqApplyUpdate: ReqApplyUpdate.fromJSON(object.reqApplyUpdate) }
-        : isSet(object.reqSetupTailscale)
-        ? { $case: "reqSetupTailscale", reqSetupTailscale: ReqSetupTailscale.fromJSON(object.reqSetupTailscale) }
-        : isSet(object.reqGetTailscaleStatus)
-        ? {
-          $case: "reqGetTailscaleStatus",
-          reqGetTailscaleStatus: ReqGetTailscaleStatus.fromJSON(object.reqGetTailscaleStatus),
-        }
-        : isSet(object.reqListImageGroups)
-        ? { $case: "reqListImageGroups", reqListImageGroups: ListImageGroups.fromJSON(object.reqListImageGroups) }
-        : isSet(object.reqCreateImageGroup)
-        ? { $case: "reqCreateImageGroup", reqCreateImageGroup: CreateImageGroup.fromJSON(object.reqCreateImageGroup) }
-        : isSet(object.reqAddToImageGroup)
-        ? { $case: "reqAddToImageGroup", reqAddToImageGroup: AddToImageGroup.fromJSON(object.reqAddToImageGroup) }
-        : isSet(object.reqRenameImageGroup)
-        ? { $case: "reqRenameImageGroup", reqRenameImageGroup: RenameImageGroup.fromJSON(object.reqRenameImageGroup) }
-        : isSet(object.reqDeleteImageGroup)
-        ? { $case: "reqDeleteImageGroup", reqDeleteImageGroup: DeleteImageGroup.fromJSON(object.reqDeleteImageGroup) }
-        : isSet(object.reqBridgeNotify)
-        ? { $case: "reqBridgeNotify", reqBridgeNotify: BridgeNotify.fromJSON(object.reqBridgeNotify) }
-        : isSet(object.reqBridgeClientInfo)
-        ? { $case: "reqBridgeClientInfo", reqBridgeClientInfo: BridgeClientInfo.fromJSON(object.reqBridgeClientInfo) }
-        : isSet(object.reqDeleteFriendship)
-        ? { $case: "reqDeleteFriendship", reqDeleteFriendship: DeleteFriendship.fromJSON(object.reqDeleteFriendship) }
-        : isSet(object.reqFriendshipInterDelete)
-        ? {
-          $case: "reqFriendshipInterDelete",
-          reqFriendshipInterDelete: FriendshipInterDelete.fromJSON(object.reqFriendshipInterDelete),
-        }
-        : isSet(object.reqHasCloudIds)
-        ? { $case: "reqHasCloudIds", reqHasCloudIds: HasCloudIds.fromJSON(object.reqHasCloudIds) }
-        : isSet(object.reqSetUploadOnly)
-        ? { $case: "reqSetUploadOnly", reqSetUploadOnly: SetUploadOnly.fromJSON(object.reqSetUploadOnly) }
-        : isSet(object.reqListFileVersions)
-        ? { $case: "reqListFileVersions", reqListFileVersions: ListFileVersions.fromJSON(object.reqListFileVersions) }
-        : isSet(object.reqUnregisterApnsToken)
-        ? {
-          $case: "reqUnregisterApnsToken",
-          reqUnregisterApnsToken: UnregisterApnsToken.fromJSON(object.reqUnregisterApnsToken),
-        }
-        : isSet(object.reqUnregisterWebPush)
-        ? {
-          $case: "reqUnregisterWebPush",
-          reqUnregisterWebPush: UnregisterWebPush.fromJSON(object.reqUnregisterWebPush),
-        }
-        : isSet(object.reqGetBridgeAccess)
-        ? { $case: "reqGetBridgeAccess", reqGetBridgeAccess: ReqGetBridgeAccess.fromJSON(object.reqGetBridgeAccess) }
-        : isSet(object.reqBridgeSignIn)
-        ? { $case: "reqBridgeSignIn", reqBridgeSignIn: ReqBridgeSignIn.fromJSON(object.reqBridgeSignIn) }
-        : isSet(object.reqEnableBridge)
-        ? { $case: "reqEnableBridge", reqEnableBridge: ReqEnableBridge.fromJSON(object.reqEnableBridge) }
-        : isSet(object.reqRegisterFcmToken)
-        ? { $case: "reqRegisterFcmToken", reqRegisterFcmToken: RegisterFcmToken.fromJSON(object.reqRegisterFcmToken) }
-        : isSet(object.reqUnregisterFcmToken)
-        ? {
-          $case: "reqUnregisterFcmToken",
-          reqUnregisterFcmToken: UnregisterFcmToken.fromJSON(object.reqUnregisterFcmToken),
-        }
-        : isSet(object.reqSetSocialStorageLimit)
-        ? {
-          $case: "reqSetSocialStorageLimit",
-          reqSetSocialStorageLimit: SetSocialStorageLimit.fromJSON(object.reqSetSocialStorageLimit),
-        }
-        : isSet(object.reqReadFile)
-        ? { $case: "reqReadFile", reqReadFile: ReadFile.fromJSON(object.reqReadFile) }
-        : isSet(object.reqBeginUpload)
-        ? { $case: "reqBeginUpload", reqBeginUpload: BeginUpload.fromJSON(object.reqBeginUpload) }
-        : isSet(object.reqUploadChunk)
-        ? { $case: "reqUploadChunk", reqUploadChunk: UploadChunk.fromJSON(object.reqUploadChunk) }
-        : isSet(object.reqFinishUpload)
-        ? { $case: "reqFinishUpload", reqFinishUpload: FinishUpload.fromJSON(object.reqFinishUpload) }
-        : isSet(object.reqPreviewSharedGallery)
-        ? {
-          $case: "reqPreviewSharedGallery",
-          reqPreviewSharedGallery: PreviewSharedGallery.fromJSON(object.reqPreviewSharedGallery),
-        }
-        : isSet(object.reqCreateSharedGallery)
-        ? {
-          $case: "reqCreateSharedGallery",
-          reqCreateSharedGallery: CreateSharedGallery.fromJSON(object.reqCreateSharedGallery),
-        }
-        : isSet(object.reqGetSharedGalleryJob)
-        ? {
-          $case: "reqGetSharedGalleryJob",
-          reqGetSharedGalleryJob: GetSharedGalleryJob.fromJSON(object.reqGetSharedGalleryJob),
-        }
-        : isSet(object.reqOpenSharedGallery)
-        ? {
-          $case: "reqOpenSharedGallery",
-          reqOpenSharedGallery: OpenSharedGallery.fromJSON(object.reqOpenSharedGallery),
-        }
-        : isSet(object.reqGetSharedGalleryItem)
-        ? {
-          $case: "reqGetSharedGalleryItem",
-          reqGetSharedGalleryItem: GetSharedGalleryItem.fromJSON(object.reqGetSharedGalleryItem),
-        }
-        : isSet(object.reqGetSharedGalleryStream)
-        ? {
-          $case: "reqGetSharedGalleryStream",
-          reqGetSharedGalleryStream: GetSharedGalleryStream.fromJSON(object.reqGetSharedGalleryStream),
-        }
-        : isSet(object.reqListSharedLinks)
-        ? { $case: "reqListSharedLinks", reqListSharedLinks: ListSharedLinks.fromJSON(object.reqListSharedLinks) }
-        : isSet(object.reqDeleteSharedLink)
-        ? { $case: "reqDeleteSharedLink", reqDeleteSharedLink: DeleteSharedLink.fromJSON(object.reqDeleteSharedLink) }
-        : isSet(object.reqSetImageTaggingEnabled)
-        ? {
-          $case: "reqSetImageTaggingEnabled",
-          reqSetImageTaggingEnabled: SetImageTaggingEnabled.fromJSON(object.reqSetImageTaggingEnabled),
-        }
-        : isSet(object.reqDisableBridge)
-        ? { $case: "reqDisableBridge", reqDisableBridge: ReqDisableBridge.fromJSON(object.reqDisableBridge) }
-        : isSet(object.reqBridgeReleaseDomain)
-        ? {
-          $case: "reqBridgeReleaseDomain",
-          reqBridgeReleaseDomain: BridgeReleaseDomain.fromJSON(object.reqBridgeReleaseDomain),
-        }
-        : isSet(object.reqGetThumbnails)
-        ? { $case: "reqGetThumbnails", reqGetThumbnails: GetThumbnails.fromJSON(object.reqGetThumbnails) }
-        : isSet(object.reqGetLogs)
-        ? { $case: "reqGetLogs", reqGetLogs: GetLogs.fromJSON(object.reqGetLogs) }
-        : isSet(object.reqSendLogs)
-        ? { $case: "reqSendLogs", reqSendLogs: SendLogs.fromJSON(object.reqSendLogs) }
-        : isSet(object.reqBridgeSendLogs)
-        ? { $case: "reqBridgeSendLogs", reqBridgeSendLogs: BridgeSendLogs.fromJSON(object.reqBridgeSendLogs) }
-        : isSet(object.reqGetLocalEndpoint)
-        ? { $case: "reqGetLocalEndpoint", reqGetLocalEndpoint: GetLocalEndpoint.fromJSON(object.reqGetLocalEndpoint) }
-        : isSet(object.reqSearchFiles)
-        ? { $case: "reqSearchFiles", reqSearchFiles: SearchFiles.fromJSON(object.reqSearchFiles) }
-        : isSet(object.reqSetOutOfImages)
-        ? { $case: "reqSetOutOfImages", reqSetOutOfImages: SetOutOfImages.fromJSON(object.reqSetOutOfImages) }
-        : isSet(object.reqListOutOfImages)
-        ? { $case: "reqListOutOfImages", reqListOutOfImages: ListOutOfImages.fromJSON(object.reqListOutOfImages) }
-        : isSet(object.reqRestartDevice)
-        ? { $case: "reqRestartDevice", reqRestartDevice: RestartDevice.fromJSON(object.reqRestartDevice) }
-        : isSet(object.reqSetLanguage)
-        ? { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.fromJSON(object.reqSetLanguage) }
-        : isSet(object.reqGetFolderUsage)
-        ? { $case: "reqGetFolderUsage", reqGetFolderUsage: GetFolderUsage.fromJSON(object.reqGetFolderUsage) }
-        : isSet(object.reqHasHashes)
-        ? { $case: "reqHasHashes", reqHasHashes: HasHashes.fromJSON(object.reqHasHashes) }
-        : isSet(object.reqRemoveFromImageGroup)
-        ? {
-          $case: "reqRemoveFromImageGroup",
-          reqRemoveFromImageGroup: RemoveFromImageGroup.fromJSON(object.reqRemoveFromImageGroup),
-        }
-        : isSet(object.reqGetWifiStatus)
-        ? { $case: "reqGetWifiStatus", reqGetWifiStatus: GetWifiStatus.fromJSON(object.reqGetWifiStatus) }
-        : isSet(object.reqJoinWifi)
-        ? { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.fromJSON(object.reqJoinWifi) }
-        : isSet(object.reqSetDeviceDisabled)
-        ? {
-          $case: "reqSetDeviceDisabled",
-          reqSetDeviceDisabled: ReqSetDeviceDisabled.fromJSON(object.reqSetDeviceDisabled),
-        }
-        : isSet(object.reqIssueSessionToken)
-        ? {
-          $case: "reqIssueSessionToken",
-          reqIssueSessionToken: ReqIssueSessionToken.fromJSON(object.reqIssueSessionToken),
-        }
-        : isSet(object.reqAuthWithToken)
-        ? { $case: "reqAuthWithToken", reqAuthWithToken: ReqAuthWithToken.fromJSON(object.reqAuthWithToken) }
-        : isSet(object.reqRevokeSessionToken)
-        ? {
-          $case: "reqRevokeSessionToken",
-          reqRevokeSessionToken: ReqRevokeSessionToken.fromJSON(object.reqRevokeSessionToken),
-        }
-        : isSet(object.reqIsDomainAvailable)
-        ? {
-          $case: "reqIsDomainAvailable",
-          reqIsDomainAvailable: ReqIsDomainAvailable.fromJSON(object.reqIsDomainAvailable),
-        }
-        : isSet(object.reqRegisterUserDomain)
-        ? {
-          $case: "reqRegisterUserDomain",
-          reqRegisterUserDomain: ReqRegisterUserDomain.fromJSON(object.reqRegisterUserDomain),
-        }
-        : isSet(object.reqGetPublicationMedia)
-        ? {
-          $case: "reqGetPublicationMedia",
-          reqGetPublicationMedia: GetPublicationMedia.fromJSON(object.reqGetPublicationMedia),
-        }
-        : undefined,
-    };
-  },
-
-  toJSON(message: ReqEnvelope): unknown {
-    const obj: any = {};
-    if (message.id !== 0) {
-      obj.id = Math.round(message.id);
-    }
-    if (message.lang !== "") {
-      obj.lang = message.lang;
-    }
-    if (message.payload?.$case === "reqListFiles") {
-      obj.reqListFiles = ListFiles.toJSON(message.payload.reqListFiles);
-    } else if (message.payload?.$case === "reqGetStatus") {
-      obj.reqGetStatus = GetStatus.toJSON(message.payload.reqGetStatus);
-    } else if (message.payload?.$case === "reqAuth") {
-      obj.reqAuth = Auth.toJSON(message.payload.reqAuth);
-    } else if (message.payload?.$case === "reqUploadFile") {
-      obj.reqUploadFile = UploadFile.toJSON(message.payload.reqUploadFile);
-    } else if (message.payload?.$case === "reqGetFile") {
-      obj.reqGetFile = GetFile.toJSON(message.payload.reqGetFile);
-    } else if (message.payload?.$case === "reqDelFile") {
-      obj.reqDelFile = DelFile.toJSON(message.payload.reqDelFile);
-    } else if (message.payload?.$case === "reqSearchPhotos") {
-      obj.reqSearchPhotos = SearchPhotos.toJSON(message.payload.reqSearchPhotos);
-    } else if (message.payload?.$case === "reqGetTags") {
-      obj.reqGetTags = GetTags.toJSON(message.payload.reqGetTags);
-    } else if (message.payload?.$case === "reqChangeKey") {
-      obj.reqChangeKey = ChangeKey.toJSON(message.payload.reqChangeKey);
-    } else if (message.payload?.$case === "reqGetSettings") {
-      obj.reqGetSettings = GetSettings.toJSON(message.payload.reqGetSettings);
-    } else if (message.payload?.$case === "reqSetSettings") {
-      obj.reqSetSettings = SetSettings.toJSON(message.payload.reqSetSettings);
-    } else if (message.payload?.$case === "reqNewSocialPublication") {
-      obj.reqNewSocialPublication = NewSocialPublication.toJSON(message.payload.reqNewSocialPublication);
-    } else if (message.payload?.$case === "reqGetSocialPublications") {
-      obj.reqGetSocialPublications = GetSocialPublications.toJSON(message.payload.reqGetSocialPublications);
-    } else if (message.payload?.$case === "reqGetSocialPublicationFiles") {
-      obj.reqGetSocialPublicationFiles = GetSocialPublicationFiles.toJSON(message.payload.reqGetSocialPublicationFiles);
-    } else if (message.payload?.$case === "reqFriendshipRequest") {
-      obj.reqFriendshipRequest = FriendshipRequest.toJSON(message.payload.reqFriendshipRequest);
-    } else if (message.payload?.$case === "reqFriendshipInterRequest") {
-      obj.reqFriendshipInterRequest = FriendshipInterRequest.toJSON(message.payload.reqFriendshipInterRequest);
-    } else if (message.payload?.$case === "reqDidSendFriendshipReq") {
-      obj.reqDidSendFriendshipReq = DidSendFriendshipReq.toJSON(message.payload.reqDidSendFriendshipReq);
-    } else if (message.payload?.$case === "reqFriendshipsList") {
-      obj.reqFriendshipsList = FriendshipsList.toJSON(message.payload.reqFriendshipsList);
-    } else if (message.payload?.$case === "reqChangeFriendStatus") {
-      obj.reqChangeFriendStatus = ChangeFriendStatus.toJSON(message.payload.reqChangeFriendStatus);
-    } else if (message.payload?.$case === "reqGetFriendshipStatus") {
-      obj.reqGetFriendshipStatus = GetFriendshipStatus.toJSON(message.payload.reqGetFriendshipStatus);
-    } else if (message.payload?.$case === "reqAuthAsFriend") {
-      obj.reqAuthAsFriend = AuthAsFriend.toJSON(message.payload.reqAuthAsFriend);
-    } else if (message.payload?.$case === "reqNewSocialComment") {
-      obj.reqNewSocialComment = NewSocialComment.toJSON(message.payload.reqNewSocialComment);
-    } else if (message.payload?.$case === "reqGetEvents") {
-      obj.reqGetEvents = GetEvents.toJSON(message.payload.reqGetEvents);
-    } else if (message.payload?.$case === "reqDelSocialComment") {
-      obj.reqDelSocialComment = DelSocialComment.toJSON(message.payload.reqDelSocialComment);
-    } else if (message.payload?.$case === "reqLikePublication") {
-      obj.reqLikePublication = LikePublication.toJSON(message.payload.reqLikePublication);
-    } else if (message.payload?.$case === "reqLikeComment") {
-      obj.reqLikeComment = LikeComment.toJSON(message.payload.reqLikeComment);
-    } else if (message.payload?.$case === "reqBridgeRegister") {
-      obj.reqBridgeRegister = BridgeRegister.toJSON(message.payload.reqBridgeRegister);
-    } else if (message.payload?.$case === "reqGetProfile") {
-      obj.reqGetProfile = GetProfile.toJSON(message.payload.reqGetProfile);
-    } else if (message.payload?.$case === "reqSetProfile") {
-      obj.reqSetProfile = Profile.toJSON(message.payload.reqSetProfile);
-    } else if (message.payload?.$case === "reqShareFilesLink") {
-      obj.reqShareFilesLink = ShareFilesLink.toJSON(message.payload.reqShareFilesLink);
-    } else if (message.payload?.$case === "reqDownloadSharedLink") {
-      obj.reqDownloadSharedLink = DownloadSharedLink.toJSON(message.payload.reqDownloadSharedLink);
-    } else if (message.payload?.$case === "reqGetPubKey") {
-      obj.reqGetPubKey = GetPubKey.toJSON(message.payload.reqGetPubKey);
-    } else if (message.payload?.$case === "reqGetPublicationLikers") {
-      obj.reqGetPublicationLikers = GetPublicationLikers.toJSON(message.payload.reqGetPublicationLikers);
-    } else if (message.payload?.$case === "reqGetCommentLikers") {
-      obj.reqGetCommentLikers = GetCommentLikers.toJSON(message.payload.reqGetCommentLikers);
-    } else if (message.payload?.$case === "reqDelSocialPublication") {
-      obj.reqDelSocialPublication = DelSocialPublication.toJSON(message.payload.reqDelSocialPublication);
-    } else if (message.payload?.$case === "reqGetFileInfo") {
-      obj.reqGetFileInfo = GetFileInfo.toJSON(message.payload.reqGetFileInfo);
-    } else if (message.payload?.$case === "reqSetBridgeSecret") {
-      obj.reqSetBridgeSecret = SetBridgeSecret.toJSON(message.payload.reqSetBridgeSecret);
-    } else if (message.payload?.$case === "reqListStorageDevices") {
-      obj.reqListStorageDevices = ListStorageDevices.toJSON(message.payload.reqListStorageDevices);
-    } else if (message.payload?.$case === "reqSetupStorage") {
-      obj.reqSetupStorage = SetupStorage.toJSON(message.payload.reqSetupStorage);
-    } else if (message.payload?.$case === "reqRegenerateBridgeSecret") {
-      obj.reqRegenerateBridgeSecret = RegenerateBridgeSecret.toJSON(message.payload.reqRegenerateBridgeSecret);
-    } else if (message.payload?.$case === "reqRotateBridgeSecret") {
-      obj.reqRotateBridgeSecret = RotateBridgeSecret.toJSON(message.payload.reqRotateBridgeSecret);
-    } else if (message.payload?.$case === "reqListWifiNetworks") {
-      obj.reqListWifiNetworks = ListWifiNetworks.toJSON(message.payload.reqListWifiNetworks);
-    } else if (message.payload?.$case === "reqSetWifi") {
-      obj.reqSetWifi = SetWifi.toJSON(message.payload.reqSetWifi);
-    } else if (message.payload?.$case === "reqRegisterWebPush") {
-      obj.reqRegisterWebPush = RegisterWebPush.toJSON(message.payload.reqRegisterWebPush);
-    } else if (message.payload?.$case === "reqRegisterApnsToken") {
-      obj.reqRegisterApnsToken = RegisterApnsToken.toJSON(message.payload.reqRegisterApnsToken);
-    } else if (message.payload?.$case === "reqGetVapidPublicKey") {
-      obj.reqGetVapidPublicKey = GetVapidPublicKey.toJSON(message.payload.reqGetVapidPublicKey);
-    } else if (message.payload?.$case === "reqHasFile") {
-      obj.reqHasFile = HasFile.toJSON(message.payload.reqHasFile);
-    } else if (message.payload?.$case === "reqLinkFile") {
-      obj.reqLinkFile = LinkFile.toJSON(message.payload.reqLinkFile);
-    } else if (message.payload?.$case === "reqUpdatePushRegistrations") {
-      obj.reqUpdatePushRegistrations = UpdatePushRegistrations.toJSON(message.payload.reqUpdatePushRegistrations);
-    } else if (message.payload?.$case === "reqSetFaceRecognitionEnabled") {
-      obj.reqSetFaceRecognitionEnabled = SetFaceRecognitionEnabled.toJSON(message.payload.reqSetFaceRecognitionEnabled);
-    } else if (message.payload?.$case === "reqListPeople") {
-      obj.reqListPeople = ListPeople.toJSON(message.payload.reqListPeople);
-    } else if (message.payload?.$case === "reqRenamePerson") {
-      obj.reqRenamePerson = RenamePerson.toJSON(message.payload.reqRenamePerson);
-    } else if (message.payload?.$case === "reqDeletePerson") {
-      obj.reqDeletePerson = DeletePerson.toJSON(message.payload.reqDeletePerson);
-    } else if (message.payload?.$case === "reqMergePeople") {
-      obj.reqMergePeople = MergePeople.toJSON(message.payload.reqMergePeople);
-    } else if (message.payload?.$case === "reqStartReprocess") {
-      obj.reqStartReprocess = StartReprocess.toJSON(message.payload.reqStartReprocess);
-    } else if (message.payload?.$case === "reqGetReprocessStatus") {
-      obj.reqGetReprocessStatus = GetReprocessStatus.toJSON(message.payload.reqGetReprocessStatus);
-    } else if (message.payload?.$case === "reqStopReprocess") {
-      obj.reqStopReprocess = StopReprocess.toJSON(message.payload.reqStopReprocess);
-    } else if (message.payload?.$case === "reqPhotoDateBuckets") {
-      obj.reqPhotoDateBuckets = ReqPhotoDateBuckets.toJSON(message.payload.reqPhotoDateBuckets);
-    } else if (message.payload?.$case === "reqListNotifications") {
-      obj.reqListNotifications = ReqListNotifications.toJSON(message.payload.reqListNotifications);
-    } else if (message.payload?.$case === "reqGetNotificationCount") {
-      obj.reqGetNotificationCount = ReqGetNotificationCount.toJSON(message.payload.reqGetNotificationCount);
-    } else if (message.payload?.$case === "reqMarkNotificationsAcknowledged") {
-      obj.reqMarkNotificationsAcknowledged = ReqMarkNotificationsAcknowledged.toJSON(
-        message.payload.reqMarkNotificationsAcknowledged,
-      );
-    } else if (message.payload?.$case === "reqGetPublication") {
-      obj.reqGetPublication = ReqGetPublication.toJSON(message.payload.reqGetPublication);
-    } else if (message.payload?.$case === "reqListUsers") {
-      obj.reqListUsers = ReqListUsers.toJSON(message.payload.reqListUsers);
-    } else if (message.payload?.$case === "reqCreateUser") {
-      obj.reqCreateUser = ReqCreateUser.toJSON(message.payload.reqCreateUser);
-    } else if (message.payload?.$case === "reqDeleteUser") {
-      obj.reqDeleteUser = ReqDeleteUser.toJSON(message.payload.reqDeleteUser);
-    } else if (message.payload?.$case === "reqGetUserMetrics") {
-      obj.reqGetUserMetrics = ReqGetUserMetrics.toJSON(message.payload.reqGetUserMetrics);
-    } else if (message.payload?.$case === "reqGetInstanceRole") {
-      obj.reqGetInstanceRole = ReqGetInstanceRole.toJSON(message.payload.reqGetInstanceRole);
-    } else if (message.payload?.$case === "reqSetUserActive") {
-      obj.reqSetUserActive = ReqSetUserActive.toJSON(message.payload.reqSetUserActive);
-    } else if (message.payload?.$case === "reqGetStaticAsset") {
-      obj.reqGetStaticAsset = ReqGetStaticAsset.toJSON(message.payload.reqGetStaticAsset);
-    } else if (message.payload?.$case === "reqGetMediaUrl") {
-      obj.reqGetMediaUrl = ReqGetMediaURL.toJSON(message.payload.reqGetMediaUrl);
-    } else if (message.payload?.$case === "reqGetMediaRange") {
-      obj.reqGetMediaRange = ReqGetMediaRange.toJSON(message.payload.reqGetMediaRange);
-    } else if (message.payload?.$case === "reqCheckUpdate") {
-      obj.reqCheckUpdate = ReqCheckUpdate.toJSON(message.payload.reqCheckUpdate);
-    } else if (message.payload?.$case === "reqApplyUpdate") {
-      obj.reqApplyUpdate = ReqApplyUpdate.toJSON(message.payload.reqApplyUpdate);
-    } else if (message.payload?.$case === "reqSetupTailscale") {
-      obj.reqSetupTailscale = ReqSetupTailscale.toJSON(message.payload.reqSetupTailscale);
-    } else if (message.payload?.$case === "reqGetTailscaleStatus") {
-      obj.reqGetTailscaleStatus = ReqGetTailscaleStatus.toJSON(message.payload.reqGetTailscaleStatus);
-    } else if (message.payload?.$case === "reqListImageGroups") {
-      obj.reqListImageGroups = ListImageGroups.toJSON(message.payload.reqListImageGroups);
-    } else if (message.payload?.$case === "reqCreateImageGroup") {
-      obj.reqCreateImageGroup = CreateImageGroup.toJSON(message.payload.reqCreateImageGroup);
-    } else if (message.payload?.$case === "reqAddToImageGroup") {
-      obj.reqAddToImageGroup = AddToImageGroup.toJSON(message.payload.reqAddToImageGroup);
-    } else if (message.payload?.$case === "reqRenameImageGroup") {
-      obj.reqRenameImageGroup = RenameImageGroup.toJSON(message.payload.reqRenameImageGroup);
-    } else if (message.payload?.$case === "reqDeleteImageGroup") {
-      obj.reqDeleteImageGroup = DeleteImageGroup.toJSON(message.payload.reqDeleteImageGroup);
-    } else if (message.payload?.$case === "reqBridgeNotify") {
-      obj.reqBridgeNotify = BridgeNotify.toJSON(message.payload.reqBridgeNotify);
-    } else if (message.payload?.$case === "reqBridgeClientInfo") {
-      obj.reqBridgeClientInfo = BridgeClientInfo.toJSON(message.payload.reqBridgeClientInfo);
-    } else if (message.payload?.$case === "reqDeleteFriendship") {
-      obj.reqDeleteFriendship = DeleteFriendship.toJSON(message.payload.reqDeleteFriendship);
-    } else if (message.payload?.$case === "reqFriendshipInterDelete") {
-      obj.reqFriendshipInterDelete = FriendshipInterDelete.toJSON(message.payload.reqFriendshipInterDelete);
-    } else if (message.payload?.$case === "reqHasCloudIds") {
-      obj.reqHasCloudIds = HasCloudIds.toJSON(message.payload.reqHasCloudIds);
-    } else if (message.payload?.$case === "reqSetUploadOnly") {
-      obj.reqSetUploadOnly = SetUploadOnly.toJSON(message.payload.reqSetUploadOnly);
-    } else if (message.payload?.$case === "reqListFileVersions") {
-      obj.reqListFileVersions = ListFileVersions.toJSON(message.payload.reqListFileVersions);
-    } else if (message.payload?.$case === "reqUnregisterApnsToken") {
-      obj.reqUnregisterApnsToken = UnregisterApnsToken.toJSON(message.payload.reqUnregisterApnsToken);
-    } else if (message.payload?.$case === "reqUnregisterWebPush") {
-      obj.reqUnregisterWebPush = UnregisterWebPush.toJSON(message.payload.reqUnregisterWebPush);
-    } else if (message.payload?.$case === "reqGetBridgeAccess") {
-      obj.reqGetBridgeAccess = ReqGetBridgeAccess.toJSON(message.payload.reqGetBridgeAccess);
-    } else if (message.payload?.$case === "reqBridgeSignIn") {
-      obj.reqBridgeSignIn = ReqBridgeSignIn.toJSON(message.payload.reqBridgeSignIn);
-    } else if (message.payload?.$case === "reqEnableBridge") {
-      obj.reqEnableBridge = ReqEnableBridge.toJSON(message.payload.reqEnableBridge);
-    } else if (message.payload?.$case === "reqRegisterFcmToken") {
-      obj.reqRegisterFcmToken = RegisterFcmToken.toJSON(message.payload.reqRegisterFcmToken);
-    } else if (message.payload?.$case === "reqUnregisterFcmToken") {
-      obj.reqUnregisterFcmToken = UnregisterFcmToken.toJSON(message.payload.reqUnregisterFcmToken);
-    } else if (message.payload?.$case === "reqSetSocialStorageLimit") {
-      obj.reqSetSocialStorageLimit = SetSocialStorageLimit.toJSON(message.payload.reqSetSocialStorageLimit);
-    } else if (message.payload?.$case === "reqReadFile") {
-      obj.reqReadFile = ReadFile.toJSON(message.payload.reqReadFile);
-    } else if (message.payload?.$case === "reqBeginUpload") {
-      obj.reqBeginUpload = BeginUpload.toJSON(message.payload.reqBeginUpload);
-    } else if (message.payload?.$case === "reqUploadChunk") {
-      obj.reqUploadChunk = UploadChunk.toJSON(message.payload.reqUploadChunk);
-    } else if (message.payload?.$case === "reqFinishUpload") {
-      obj.reqFinishUpload = FinishUpload.toJSON(message.payload.reqFinishUpload);
-    } else if (message.payload?.$case === "reqPreviewSharedGallery") {
-      obj.reqPreviewSharedGallery = PreviewSharedGallery.toJSON(message.payload.reqPreviewSharedGallery);
-    } else if (message.payload?.$case === "reqCreateSharedGallery") {
-      obj.reqCreateSharedGallery = CreateSharedGallery.toJSON(message.payload.reqCreateSharedGallery);
-    } else if (message.payload?.$case === "reqGetSharedGalleryJob") {
-      obj.reqGetSharedGalleryJob = GetSharedGalleryJob.toJSON(message.payload.reqGetSharedGalleryJob);
-    } else if (message.payload?.$case === "reqOpenSharedGallery") {
-      obj.reqOpenSharedGallery = OpenSharedGallery.toJSON(message.payload.reqOpenSharedGallery);
-    } else if (message.payload?.$case === "reqGetSharedGalleryItem") {
-      obj.reqGetSharedGalleryItem = GetSharedGalleryItem.toJSON(message.payload.reqGetSharedGalleryItem);
-    } else if (message.payload?.$case === "reqGetSharedGalleryStream") {
-      obj.reqGetSharedGalleryStream = GetSharedGalleryStream.toJSON(message.payload.reqGetSharedGalleryStream);
-    } else if (message.payload?.$case === "reqListSharedLinks") {
-      obj.reqListSharedLinks = ListSharedLinks.toJSON(message.payload.reqListSharedLinks);
-    } else if (message.payload?.$case === "reqDeleteSharedLink") {
-      obj.reqDeleteSharedLink = DeleteSharedLink.toJSON(message.payload.reqDeleteSharedLink);
-    } else if (message.payload?.$case === "reqSetImageTaggingEnabled") {
-      obj.reqSetImageTaggingEnabled = SetImageTaggingEnabled.toJSON(message.payload.reqSetImageTaggingEnabled);
-    } else if (message.payload?.$case === "reqDisableBridge") {
-      obj.reqDisableBridge = ReqDisableBridge.toJSON(message.payload.reqDisableBridge);
-    } else if (message.payload?.$case === "reqBridgeReleaseDomain") {
-      obj.reqBridgeReleaseDomain = BridgeReleaseDomain.toJSON(message.payload.reqBridgeReleaseDomain);
-    } else if (message.payload?.$case === "reqGetThumbnails") {
-      obj.reqGetThumbnails = GetThumbnails.toJSON(message.payload.reqGetThumbnails);
-    } else if (message.payload?.$case === "reqGetLogs") {
-      obj.reqGetLogs = GetLogs.toJSON(message.payload.reqGetLogs);
-    } else if (message.payload?.$case === "reqSendLogs") {
-      obj.reqSendLogs = SendLogs.toJSON(message.payload.reqSendLogs);
-    } else if (message.payload?.$case === "reqBridgeSendLogs") {
-      obj.reqBridgeSendLogs = BridgeSendLogs.toJSON(message.payload.reqBridgeSendLogs);
-    } else if (message.payload?.$case === "reqGetLocalEndpoint") {
-      obj.reqGetLocalEndpoint = GetLocalEndpoint.toJSON(message.payload.reqGetLocalEndpoint);
-    } else if (message.payload?.$case === "reqSearchFiles") {
-      obj.reqSearchFiles = SearchFiles.toJSON(message.payload.reqSearchFiles);
-    } else if (message.payload?.$case === "reqSetOutOfImages") {
-      obj.reqSetOutOfImages = SetOutOfImages.toJSON(message.payload.reqSetOutOfImages);
-    } else if (message.payload?.$case === "reqListOutOfImages") {
-      obj.reqListOutOfImages = ListOutOfImages.toJSON(message.payload.reqListOutOfImages);
-    } else if (message.payload?.$case === "reqRestartDevice") {
-      obj.reqRestartDevice = RestartDevice.toJSON(message.payload.reqRestartDevice);
-    } else if (message.payload?.$case === "reqSetLanguage") {
-      obj.reqSetLanguage = SetLanguage.toJSON(message.payload.reqSetLanguage);
-    } else if (message.payload?.$case === "reqGetFolderUsage") {
-      obj.reqGetFolderUsage = GetFolderUsage.toJSON(message.payload.reqGetFolderUsage);
-    } else if (message.payload?.$case === "reqHasHashes") {
-      obj.reqHasHashes = HasHashes.toJSON(message.payload.reqHasHashes);
-    } else if (message.payload?.$case === "reqRemoveFromImageGroup") {
-      obj.reqRemoveFromImageGroup = RemoveFromImageGroup.toJSON(message.payload.reqRemoveFromImageGroup);
-    } else if (message.payload?.$case === "reqGetWifiStatus") {
-      obj.reqGetWifiStatus = GetWifiStatus.toJSON(message.payload.reqGetWifiStatus);
-    } else if (message.payload?.$case === "reqJoinWifi") {
-      obj.reqJoinWifi = JoinWifi.toJSON(message.payload.reqJoinWifi);
-    } else if (message.payload?.$case === "reqSetDeviceDisabled") {
-      obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
-    } else if (message.payload?.$case === "reqIssueSessionToken") {
-      obj.reqIssueSessionToken = ReqIssueSessionToken.toJSON(message.payload.reqIssueSessionToken);
-    } else if (message.payload?.$case === "reqAuthWithToken") {
-      obj.reqAuthWithToken = ReqAuthWithToken.toJSON(message.payload.reqAuthWithToken);
-    } else if (message.payload?.$case === "reqRevokeSessionToken") {
-      obj.reqRevokeSessionToken = ReqRevokeSessionToken.toJSON(message.payload.reqRevokeSessionToken);
-    } else if (message.payload?.$case === "reqIsDomainAvailable") {
-      obj.reqIsDomainAvailable = ReqIsDomainAvailable.toJSON(message.payload.reqIsDomainAvailable);
-    } else if (message.payload?.$case === "reqRegisterUserDomain") {
-      obj.reqRegisterUserDomain = ReqRegisterUserDomain.toJSON(message.payload.reqRegisterUserDomain);
-    } else if (message.payload?.$case === "reqGetPublicationMedia") {
-      obj.reqGetPublicationMedia = GetPublicationMedia.toJSON(message.payload.reqGetPublicationMedia);
-    }
-    return obj;
   },
 
   create<I extends Exact<DeepPartial<ReqEnvelope>, I>>(base?: I): ReqEnvelope {
@@ -26528,326 +21285,6 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
     return message;
   },
 
-  fromJSON(object: any): RespEnvelope {
-    return {
-      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
-      error: isSet(object.error) ? globalThis.Boolean(object.error) : false,
-      errorMessage: isSet(object.errorMessage) ? globalThis.String(object.errorMessage) : "",
-      errorCode: isSet(object.errorCode) ? globalThis.String(object.errorCode) : "",
-      payload: isSet(object.respStatus)
-        ? { $case: "respStatus", respStatus: Status.fromJSON(object.respStatus) }
-        : isSet(object.respAck)
-        ? { $case: "respAck", respAck: Ack.fromJSON(object.respAck) }
-        : isSet(object.respFile)
-        ? { $case: "respFile", respFile: File.fromJSON(object.respFile) }
-        : isSet(object.respListOfFiles)
-        ? { $case: "respListOfFiles", respListOfFiles: ListOfFiles.fromJSON(object.respListOfFiles) }
-        : isSet(object.respTagsList)
-        ? { $case: "respTagsList", respTagsList: TagsList.fromJSON(object.respTagsList) }
-        : isSet(object.respSettings)
-        ? { $case: "respSettings", respSettings: Settings.fromJSON(object.respSettings) }
-        : isSet(object.respBridgeAckOnboard)
-        ? {
-          $case: "respBridgeAckOnboard",
-          respBridgeAckOnboard: BridgeAckOnboard.fromJSON(object.respBridgeAckOnboard),
-        }
-        : isSet(object.respProfile)
-        ? { $case: "respProfile", respProfile: Profile.fromJSON(object.respProfile) }
-        : isSet(object.respShareLink)
-        ? { $case: "respShareLink", respShareLink: ShareLink.fromJSON(object.respShareLink) }
-        : isSet(object.respFriendships)
-        ? { $case: "respFriendships", respFriendships: Friendships.fromJSON(object.respFriendships) }
-        : isSet(object.respSharedFiles)
-        ? { $case: "respSharedFiles", respSharedFiles: SharedFiles.fromJSON(object.respSharedFiles) }
-        : isSet(object.respNewSocial)
-        ? { $case: "respNewSocial", respNewSocial: NewSocial.fromJSON(object.respNewSocial) }
-        : isSet(object.respSocialPublications)
-        ? {
-          $case: "respSocialPublications",
-          respSocialPublications: SocialPublications.fromJSON(object.respSocialPublications),
-        }
-        : isSet(object.respSocialPublicationFiles)
-        ? {
-          $case: "respSocialPublicationFiles",
-          respSocialPublicationFiles: SocialPublicationFiles.fromJSON(object.respSocialPublicationFiles),
-        }
-        : isSet(object.respFriendshipStatus)
-        ? {
-          $case: "respFriendshipStatus",
-          respFriendshipStatus: FriendshipStatusReply.fromJSON(object.respFriendshipStatus),
-        }
-        : isSet(object.respEvents)
-        ? { $case: "respEvents", respEvents: Events.fromJSON(object.respEvents) }
-        : isSet(object.respPubKey)
-        ? { $case: "respPubKey", respPubKey: PubKey.fromJSON(object.respPubKey) }
-        : isSet(object.respLikers)
-        ? { $case: "respLikers", respLikers: Likers.fromJSON(object.respLikers) }
-        : isSet(object.respFileInfo)
-        ? { $case: "respFileInfo", respFileInfo: FileExifInfo.fromJSON(object.respFileInfo) }
-        : isSet(object.respStorageDevices)
-        ? { $case: "respStorageDevices", respStorageDevices: StorageDevices.fromJSON(object.respStorageDevices) }
-        : isSet(object.respRotateBridgeSecretAck)
-        ? {
-          $case: "respRotateBridgeSecretAck",
-          respRotateBridgeSecretAck: RotateBridgeSecretAck.fromJSON(object.respRotateBridgeSecretAck),
-        }
-        : isSet(object.respWifiNetworks)
-        ? { $case: "respWifiNetworks", respWifiNetworks: WifiNetworks.fromJSON(object.respWifiNetworks) }
-        : isSet(object.respVapidPublicKey)
-        ? { $case: "respVapidPublicKey", respVapidPublicKey: VapidPublicKey.fromJSON(object.respVapidPublicKey) }
-        : isSet(object.respFileExists)
-        ? { $case: "respFileExists", respFileExists: FileExists.fromJSON(object.respFileExists) }
-        : isSet(object.respUpdatePushRegistrationsAck)
-        ? {
-          $case: "respUpdatePushRegistrationsAck",
-          respUpdatePushRegistrationsAck: UpdatePushRegistrationsAck.fromJSON(object.respUpdatePushRegistrationsAck),
-        }
-        : isSet(object.respPeople)
-        ? { $case: "respPeople", respPeople: People.fromJSON(object.respPeople) }
-        : isSet(object.respReprocessStatus)
-        ? { $case: "respReprocessStatus", respReprocessStatus: ReprocessStatus.fromJSON(object.respReprocessStatus) }
-        : isSet(object.respPhotoDateBuckets)
-        ? {
-          $case: "respPhotoDateBuckets",
-          respPhotoDateBuckets: RespPhotoDateBuckets.fromJSON(object.respPhotoDateBuckets),
-        }
-        : isSet(object.respNotifications)
-        ? { $case: "respNotifications", respNotifications: RespNotifications.fromJSON(object.respNotifications) }
-        : isSet(object.respNotificationCount)
-        ? {
-          $case: "respNotificationCount",
-          respNotificationCount: RespNotificationCount.fromJSON(object.respNotificationCount),
-        }
-        : isSet(object.respPublication)
-        ? { $case: "respPublication", respPublication: RespPublication.fromJSON(object.respPublication) }
-        : isSet(object.respUsers)
-        ? { $case: "respUsers", respUsers: RespUsers.fromJSON(object.respUsers) }
-        : isSet(object.respUserMetrics)
-        ? { $case: "respUserMetrics", respUserMetrics: RespUserMetrics.fromJSON(object.respUserMetrics) }
-        : isSet(object.respInstanceRole)
-        ? { $case: "respInstanceRole", respInstanceRole: RespInstanceRole.fromJSON(object.respInstanceRole) }
-        : isSet(object.respStaticAsset)
-        ? { $case: "respStaticAsset", respStaticAsset: RespStaticAsset.fromJSON(object.respStaticAsset) }
-        : isSet(object.respMediaUrl)
-        ? { $case: "respMediaUrl", respMediaUrl: RespMediaURL.fromJSON(object.respMediaUrl) }
-        : isSet(object.respMediaRange)
-        ? { $case: "respMediaRange", respMediaRange: RespMediaRange.fromJSON(object.respMediaRange) }
-        : isSet(object.respUpdateInfo)
-        ? { $case: "respUpdateInfo", respUpdateInfo: RespUpdateInfo.fromJSON(object.respUpdateInfo) }
-        : isSet(object.respTailscaleStatus)
-        ? {
-          $case: "respTailscaleStatus",
-          respTailscaleStatus: RespTailscaleStatus.fromJSON(object.respTailscaleStatus),
-        }
-        : isSet(object.respImageGroups)
-        ? { $case: "respImageGroups", respImageGroups: ImageGroups.fromJSON(object.respImageGroups) }
-        : isSet(object.respImageGroup)
-        ? { $case: "respImageGroup", respImageGroup: RespImageGroup.fromJSON(object.respImageGroup) }
-        : isSet(object.respBridgeNotifyAck)
-        ? { $case: "respBridgeNotifyAck", respBridgeNotifyAck: BridgeNotifyAck.fromJSON(object.respBridgeNotifyAck) }
-        : isSet(object.respSessionToken)
-        ? { $case: "respSessionToken", respSessionToken: RespSessionToken.fromJSON(object.respSessionToken) }
-        : isSet(object.respDomainAvailable)
-        ? {
-          $case: "respDomainAvailable",
-          respDomainAvailable: RespDomainAvailable.fromJSON(object.respDomainAvailable),
-        }
-        : isSet(object.respCloudIdsFound)
-        ? { $case: "respCloudIdsFound", respCloudIdsFound: CloudIdsFound.fromJSON(object.respCloudIdsFound) }
-        : isSet(object.respFileVersions)
-        ? { $case: "respFileVersions", respFileVersions: FileVersions.fromJSON(object.respFileVersions) }
-        : isSet(object.respBridgeAccess)
-        ? { $case: "respBridgeAccess", respBridgeAccess: RespBridgeAccess.fromJSON(object.respBridgeAccess) }
-        : isSet(object.respBridgeSignedIn)
-        ? { $case: "respBridgeSignedIn", respBridgeSignedIn: RespBridgeSignedIn.fromJSON(object.respBridgeSignedIn) }
-        : isSet(object.respFileChunk)
-        ? { $case: "respFileChunk", respFileChunk: FileChunk.fromJSON(object.respFileChunk) }
-        : isSet(object.respUploadStarted)
-        ? { $case: "respUploadStarted", respUploadStarted: UploadStarted.fromJSON(object.respUploadStarted) }
-        : isSet(object.respUploadProgress)
-        ? { $case: "respUploadProgress", respUploadProgress: UploadProgress.fromJSON(object.respUploadProgress) }
-        : isSet(object.respSharedGalleryPreview)
-        ? {
-          $case: "respSharedGalleryPreview",
-          respSharedGalleryPreview: SharedGalleryPreview.fromJSON(object.respSharedGalleryPreview),
-        }
-        : isSet(object.respSharedGalleryJob)
-        ? {
-          $case: "respSharedGalleryJob",
-          respSharedGalleryJob: SharedGalleryJob.fromJSON(object.respSharedGalleryJob),
-        }
-        : isSet(object.respSharedGallery)
-        ? { $case: "respSharedGallery", respSharedGallery: SharedGallery.fromJSON(object.respSharedGallery) }
-        : isSet(object.respSharedLinks)
-        ? { $case: "respSharedLinks", respSharedLinks: SharedLinks.fromJSON(object.respSharedLinks) }
-        : isSet(object.respLogs)
-        ? { $case: "respLogs", respLogs: Logs.fromJSON(object.respLogs) }
-        : isSet(object.respLocalEndpoint)
-        ? { $case: "respLocalEndpoint", respLocalEndpoint: LocalEndpoint.fromJSON(object.respLocalEndpoint) }
-        : isSet(object.respOutOfImagesFolders)
-        ? {
-          $case: "respOutOfImagesFolders",
-          respOutOfImagesFolders: OutOfImagesFolders.fromJSON(object.respOutOfImagesFolders),
-        }
-        : isSet(object.respRestartingDevice)
-        ? {
-          $case: "respRestartingDevice",
-          respRestartingDevice: RestartingDevice.fromJSON(object.respRestartingDevice),
-        }
-        : isSet(object.respFolderUsage)
-        ? { $case: "respFolderUsage", respFolderUsage: FolderUsage.fromJSON(object.respFolderUsage) }
-        : isSet(object.respHashesFound)
-        ? { $case: "respHashesFound", respHashesFound: HashesFound.fromJSON(object.respHashesFound) }
-        : isSet(object.respWifiStatus)
-        ? { $case: "respWifiStatus", respWifiStatus: WifiStatus.fromJSON(object.respWifiStatus) }
-        : undefined,
-    };
-  },
-
-  toJSON(message: RespEnvelope): unknown {
-    const obj: any = {};
-    if (message.id !== 0) {
-      obj.id = Math.round(message.id);
-    }
-    if (message.error !== false) {
-      obj.error = message.error;
-    }
-    if (message.errorMessage !== "") {
-      obj.errorMessage = message.errorMessage;
-    }
-    if (message.errorCode !== "") {
-      obj.errorCode = message.errorCode;
-    }
-    if (message.payload?.$case === "respStatus") {
-      obj.respStatus = Status.toJSON(message.payload.respStatus);
-    } else if (message.payload?.$case === "respAck") {
-      obj.respAck = Ack.toJSON(message.payload.respAck);
-    } else if (message.payload?.$case === "respFile") {
-      obj.respFile = File.toJSON(message.payload.respFile);
-    } else if (message.payload?.$case === "respListOfFiles") {
-      obj.respListOfFiles = ListOfFiles.toJSON(message.payload.respListOfFiles);
-    } else if (message.payload?.$case === "respTagsList") {
-      obj.respTagsList = TagsList.toJSON(message.payload.respTagsList);
-    } else if (message.payload?.$case === "respSettings") {
-      obj.respSettings = Settings.toJSON(message.payload.respSettings);
-    } else if (message.payload?.$case === "respBridgeAckOnboard") {
-      obj.respBridgeAckOnboard = BridgeAckOnboard.toJSON(message.payload.respBridgeAckOnboard);
-    } else if (message.payload?.$case === "respProfile") {
-      obj.respProfile = Profile.toJSON(message.payload.respProfile);
-    } else if (message.payload?.$case === "respShareLink") {
-      obj.respShareLink = ShareLink.toJSON(message.payload.respShareLink);
-    } else if (message.payload?.$case === "respFriendships") {
-      obj.respFriendships = Friendships.toJSON(message.payload.respFriendships);
-    } else if (message.payload?.$case === "respSharedFiles") {
-      obj.respSharedFiles = SharedFiles.toJSON(message.payload.respSharedFiles);
-    } else if (message.payload?.$case === "respNewSocial") {
-      obj.respNewSocial = NewSocial.toJSON(message.payload.respNewSocial);
-    } else if (message.payload?.$case === "respSocialPublications") {
-      obj.respSocialPublications = SocialPublications.toJSON(message.payload.respSocialPublications);
-    } else if (message.payload?.$case === "respSocialPublicationFiles") {
-      obj.respSocialPublicationFiles = SocialPublicationFiles.toJSON(message.payload.respSocialPublicationFiles);
-    } else if (message.payload?.$case === "respFriendshipStatus") {
-      obj.respFriendshipStatus = FriendshipStatusReply.toJSON(message.payload.respFriendshipStatus);
-    } else if (message.payload?.$case === "respEvents") {
-      obj.respEvents = Events.toJSON(message.payload.respEvents);
-    } else if (message.payload?.$case === "respPubKey") {
-      obj.respPubKey = PubKey.toJSON(message.payload.respPubKey);
-    } else if (message.payload?.$case === "respLikers") {
-      obj.respLikers = Likers.toJSON(message.payload.respLikers);
-    } else if (message.payload?.$case === "respFileInfo") {
-      obj.respFileInfo = FileExifInfo.toJSON(message.payload.respFileInfo);
-    } else if (message.payload?.$case === "respStorageDevices") {
-      obj.respStorageDevices = StorageDevices.toJSON(message.payload.respStorageDevices);
-    } else if (message.payload?.$case === "respRotateBridgeSecretAck") {
-      obj.respRotateBridgeSecretAck = RotateBridgeSecretAck.toJSON(message.payload.respRotateBridgeSecretAck);
-    } else if (message.payload?.$case === "respWifiNetworks") {
-      obj.respWifiNetworks = WifiNetworks.toJSON(message.payload.respWifiNetworks);
-    } else if (message.payload?.$case === "respVapidPublicKey") {
-      obj.respVapidPublicKey = VapidPublicKey.toJSON(message.payload.respVapidPublicKey);
-    } else if (message.payload?.$case === "respFileExists") {
-      obj.respFileExists = FileExists.toJSON(message.payload.respFileExists);
-    } else if (message.payload?.$case === "respUpdatePushRegistrationsAck") {
-      obj.respUpdatePushRegistrationsAck = UpdatePushRegistrationsAck.toJSON(
-        message.payload.respUpdatePushRegistrationsAck,
-      );
-    } else if (message.payload?.$case === "respPeople") {
-      obj.respPeople = People.toJSON(message.payload.respPeople);
-    } else if (message.payload?.$case === "respReprocessStatus") {
-      obj.respReprocessStatus = ReprocessStatus.toJSON(message.payload.respReprocessStatus);
-    } else if (message.payload?.$case === "respPhotoDateBuckets") {
-      obj.respPhotoDateBuckets = RespPhotoDateBuckets.toJSON(message.payload.respPhotoDateBuckets);
-    } else if (message.payload?.$case === "respNotifications") {
-      obj.respNotifications = RespNotifications.toJSON(message.payload.respNotifications);
-    } else if (message.payload?.$case === "respNotificationCount") {
-      obj.respNotificationCount = RespNotificationCount.toJSON(message.payload.respNotificationCount);
-    } else if (message.payload?.$case === "respPublication") {
-      obj.respPublication = RespPublication.toJSON(message.payload.respPublication);
-    } else if (message.payload?.$case === "respUsers") {
-      obj.respUsers = RespUsers.toJSON(message.payload.respUsers);
-    } else if (message.payload?.$case === "respUserMetrics") {
-      obj.respUserMetrics = RespUserMetrics.toJSON(message.payload.respUserMetrics);
-    } else if (message.payload?.$case === "respInstanceRole") {
-      obj.respInstanceRole = RespInstanceRole.toJSON(message.payload.respInstanceRole);
-    } else if (message.payload?.$case === "respStaticAsset") {
-      obj.respStaticAsset = RespStaticAsset.toJSON(message.payload.respStaticAsset);
-    } else if (message.payload?.$case === "respMediaUrl") {
-      obj.respMediaUrl = RespMediaURL.toJSON(message.payload.respMediaUrl);
-    } else if (message.payload?.$case === "respMediaRange") {
-      obj.respMediaRange = RespMediaRange.toJSON(message.payload.respMediaRange);
-    } else if (message.payload?.$case === "respUpdateInfo") {
-      obj.respUpdateInfo = RespUpdateInfo.toJSON(message.payload.respUpdateInfo);
-    } else if (message.payload?.$case === "respTailscaleStatus") {
-      obj.respTailscaleStatus = RespTailscaleStatus.toJSON(message.payload.respTailscaleStatus);
-    } else if (message.payload?.$case === "respImageGroups") {
-      obj.respImageGroups = ImageGroups.toJSON(message.payload.respImageGroups);
-    } else if (message.payload?.$case === "respImageGroup") {
-      obj.respImageGroup = RespImageGroup.toJSON(message.payload.respImageGroup);
-    } else if (message.payload?.$case === "respBridgeNotifyAck") {
-      obj.respBridgeNotifyAck = BridgeNotifyAck.toJSON(message.payload.respBridgeNotifyAck);
-    } else if (message.payload?.$case === "respSessionToken") {
-      obj.respSessionToken = RespSessionToken.toJSON(message.payload.respSessionToken);
-    } else if (message.payload?.$case === "respDomainAvailable") {
-      obj.respDomainAvailable = RespDomainAvailable.toJSON(message.payload.respDomainAvailable);
-    } else if (message.payload?.$case === "respCloudIdsFound") {
-      obj.respCloudIdsFound = CloudIdsFound.toJSON(message.payload.respCloudIdsFound);
-    } else if (message.payload?.$case === "respFileVersions") {
-      obj.respFileVersions = FileVersions.toJSON(message.payload.respFileVersions);
-    } else if (message.payload?.$case === "respBridgeAccess") {
-      obj.respBridgeAccess = RespBridgeAccess.toJSON(message.payload.respBridgeAccess);
-    } else if (message.payload?.$case === "respBridgeSignedIn") {
-      obj.respBridgeSignedIn = RespBridgeSignedIn.toJSON(message.payload.respBridgeSignedIn);
-    } else if (message.payload?.$case === "respFileChunk") {
-      obj.respFileChunk = FileChunk.toJSON(message.payload.respFileChunk);
-    } else if (message.payload?.$case === "respUploadStarted") {
-      obj.respUploadStarted = UploadStarted.toJSON(message.payload.respUploadStarted);
-    } else if (message.payload?.$case === "respUploadProgress") {
-      obj.respUploadProgress = UploadProgress.toJSON(message.payload.respUploadProgress);
-    } else if (message.payload?.$case === "respSharedGalleryPreview") {
-      obj.respSharedGalleryPreview = SharedGalleryPreview.toJSON(message.payload.respSharedGalleryPreview);
-    } else if (message.payload?.$case === "respSharedGalleryJob") {
-      obj.respSharedGalleryJob = SharedGalleryJob.toJSON(message.payload.respSharedGalleryJob);
-    } else if (message.payload?.$case === "respSharedGallery") {
-      obj.respSharedGallery = SharedGallery.toJSON(message.payload.respSharedGallery);
-    } else if (message.payload?.$case === "respSharedLinks") {
-      obj.respSharedLinks = SharedLinks.toJSON(message.payload.respSharedLinks);
-    } else if (message.payload?.$case === "respLogs") {
-      obj.respLogs = Logs.toJSON(message.payload.respLogs);
-    } else if (message.payload?.$case === "respLocalEndpoint") {
-      obj.respLocalEndpoint = LocalEndpoint.toJSON(message.payload.respLocalEndpoint);
-    } else if (message.payload?.$case === "respOutOfImagesFolders") {
-      obj.respOutOfImagesFolders = OutOfImagesFolders.toJSON(message.payload.respOutOfImagesFolders);
-    } else if (message.payload?.$case === "respRestartingDevice") {
-      obj.respRestartingDevice = RestartingDevice.toJSON(message.payload.respRestartingDevice);
-    } else if (message.payload?.$case === "respFolderUsage") {
-      obj.respFolderUsage = FolderUsage.toJSON(message.payload.respFolderUsage);
-    } else if (message.payload?.$case === "respHashesFound") {
-      obj.respHashesFound = HashesFound.toJSON(message.payload.respHashesFound);
-    } else if (message.payload?.$case === "respWifiStatus") {
-      obj.respWifiStatus = WifiStatus.toJSON(message.payload.respWifiStatus);
-    }
-    return obj;
-  },
-
   create<I extends Exact<DeepPartial<RespEnvelope>, I>>(base?: I): RespEnvelope {
     return RespEnvelope.fromPartial(base ?? ({} as any));
   },
@@ -27397,31 +21834,6 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
   },
 };
 
-function bytesFromBase64(b64: string): Uint8Array {
-  if ((globalThis as any).Buffer) {
-    return Uint8Array.from(globalThis.Buffer.from(b64, "base64"));
-  } else {
-    const bin = globalThis.atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; ++i) {
-      arr[i] = bin.charCodeAt(i);
-    }
-    return arr;
-  }
-}
-
-function base64FromBytes(arr: Uint8Array): string {
-  if ((globalThis as any).Buffer) {
-    return globalThis.Buffer.from(arr).toString("base64");
-  } else {
-    const bin: string[] = [];
-    arr.forEach((byte) => {
-      bin.push(globalThis.String.fromCharCode(byte));
-    });
-    return globalThis.btoa(bin.join(""));
-  }
-}
-
 type Builtin = Date | Function | Uint8Array | string | number | boolean | bigint | undefined;
 
 export type DeepPartial<T> = T extends Builtin ? T
@@ -27447,25 +21859,9 @@ function fromTimestamp(t: Timestamp): Date {
   return new globalThis.Date(millis);
 }
 
-function fromJsonTimestamp(o: any): Date {
-  if (o instanceof globalThis.Date) {
-    return o;
-  } else if (typeof o === "string") {
-    return new globalThis.Date(o);
-  } else {
-    return fromTimestamp(Timestamp.fromJSON(o));
-  }
-}
-
-function isSet(value: any): boolean {
-  return value !== null && value !== undefined;
-}
-
 export interface MessageFns<T> {
   encode(message: T, writer?: BinaryWriter): BinaryWriter;
   decode(input: BinaryReader | Uint8Array, length?: number): T;
-  fromJSON(object: any): T;
-  toJSON(message: T): unknown;
   create<I extends Exact<DeepPartial<T>, I>>(base?: I): T;
   fromPartial<I extends Exact<DeepPartial<T>, I>>(object: I): T;
 }

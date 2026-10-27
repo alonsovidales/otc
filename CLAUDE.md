@@ -1636,8 +1636,53 @@ messages: test for a request with no answer with `err instanceof NoAnswer` (`net
 by its text, and import `t` there from `../i18n/runtime`, never `../i18n` (a cycle through the
 provider and `useWS`). `web/` has no test runner
 (`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
-SSR loader); `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so
-compare counts before and after a change.
+SSR loader, `net-test.mjs` the socket's clocks and the password's sealing); `npm run lint` already
+reports about 120 problems (mostly `no-explicit-any`), so compare counts before and after a change.
+
+Holding up on the web (the 2026-10 review). Loading: `main.tsx` is only a tiny entry - `/shared`
+imports `sharedEntry.tsx` (the gallery, its socket set as App sets it), everything else
+`appEntry.tsx` (App): a shared gallery's visitor never loads the app. `index.css` is linked from
+`index.html` (its colours from the first paint), and node-forge is its own chunk (`forge-*.js`,
+`vite.config.ts`) loaded only where `crypto.subtle` is missing (a plain-HTTP page at home):
+`pwCrypto.ts` seals with WebCrypto RSA-OAEP everywhere else, so `encryptWithPubKey` is async. The
+TS bindings have no `fromJSON`/`toJSON` (`outputJsonMethods=false` in the makefile's
+`ts_proto_opt`). `index.html` carries a Content-Security-Policy (scripts, styles, workers, fonts
+from `'self'`; pictures and media also `blob:`; `connect-src 'self' ws: wss: https://off-the.cloud`;
+`frame-src` OpenStreetMap; no objects, no `<base>`): the dev server strips it (`vite.config.ts`),
+and a new origin the app reaches must be added there. The device's static handler adds `nosniff`,
+`frame-ancestors 'none'` and `X-Frame-Options: DENY` (`api/api.go` `serveStatic`). Errors: every
+section is inside an `ErrorBoundary` (in its own component, `where="tab"`; SettingsForm only
+inside the app's, `appEntry.tsx`): "Something went wrong" with Reload and Go to Images in place of
+the section, the top bar and menu staying. A section moves to another without App through
+`showSection.ts` (it presses the menu's own item, found by its `data-tour`; with no menu it saves
+the last tab and reloads). The socket (`ws.ts`): a request waits 60 s, 5 min for a transfer
+(`cTransfers`: its clock waits while this browser's bytes still leave), and work the device
+finishes before answering has no clock of its own (`cOpenEnded`: a post's videos, an update, the
+disks, a network); past its time with no frame since it went, or 20 s of silence while only small
+requests wait (`cQuick`), the socket is dropped - never while a transfer may be arriving - and
+the next request opens another; an opening that hangs gives up after 15 s. The polls (storage
+status, the Alerts badge: `devicePoll.ts`) go through `request()`, which reconnects, backing off
+to a minute; `useWS` asks for the status again on `online` and when the tab is shown, and replaces
+the stored token every 30 min while signed in. Feedback: Images' toasts and link dialog are shared
+(`useToasts.ts`, `ToastView.tsx`, `LinkDialog` in `ConfirmDialog.tsx`) - Files says with them what
+a share, an open, a version's download or a delete came to (the device's words), deletes with its
+progress on the button, and keeps a download's `blob:` URL 40 s. Settings' results are a fixed
+toast in two always-present live regions (`role=alert` for an error, which stays until closed).
+Social: a post with no files is a card of text; the first page has a spinner, then the device's
+words and Try again (`usePageRetry`); a comment stays in its field until the device has it, and
+then only that post comes again (`refreshPost`, `ReqGetPublication`, keeping a like made
+meanwhile); its photos are buttons with alt text (`web.social.viewer.photo_by_position`); a blob
+URL is made only for a type `inlineTypes.ts` allows (`safeImage`/`safeVideo`, Files'
+`INLINE_MIME`), anything else is download-only in the viewer. Images drops a thumbnail's bytes once
+its Blob exists (`thumbOf`'s WeakMap; the post dialog reuses the Blob) and lets the browser skip
+months off screen (`.pg-sec` `content-visibility`, room from `--pg-sec-rows`); its empty library
+uploads to `/Uploads/` (`uploadAsNew`: `name (2).jpg` when taken). Files' list rows are memoised
+(`FileRow`, actions behind a ref) in blocks of 100 with `content-visibility` (per row it cost as
+much as it saved), and the grid keeps at most 1,000 thumbnails, the least recently seen going
+first. The composer uploads one file at a time with its progress, stops when some failed to ask
+whether to post the rest or try again, and never sends a file twice. `/shared` fetches the
+thumbnails of the tiles in view, four at a time. The viewer's map loads on Show on map, with no
+Referer and sandboxed.
 
 "Your device was updated" (`components/DeviceUpdatedNotice.tsx`, rules in `deviceBuild.ts`,
 `node web/scripts/device-build-test.mjs`): a single-page app never reloads itself, so a tab open
@@ -1679,7 +1724,7 @@ is for Files' capture-phase Escape), wheel and one-finger touch moves are cancel
 card's text scrolls, the focus goes back to the opener if it had keyboard focus, else the account
 button, and a polite live region reads each new step. It sends nothing, so the demo needs nothing.
 
-Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in main.tsx: shown at
+Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in appEntry.tsx: shown at
 once on hover and on keyboard focus, in a portal), not `title`, whose tip waits about a second. An
 icon-only control also gets an `aria-label` (`data-tip` isn't read out); a text button whose tip
 explains more carries the same text as `aria-description`. `title` stays only for a cut-off name's

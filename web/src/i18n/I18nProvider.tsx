@@ -11,7 +11,7 @@ import "./deviceSync";
 const cFirstPaintWaitMs = 3000;
 
 /**
- * The root of the app (main.tsx): every component under it follows the
+ * The root of the app (appEntry.tsx, sharedEntry.tsx): every component under it follows the
  * language as it changes, without a reload.
  */
 export default function I18nProvider({ children }: { children: ReactNode }) {

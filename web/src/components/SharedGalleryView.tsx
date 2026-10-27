@@ -115,6 +115,34 @@ export default function SharedGalleryView() {
   useEffect(() => {
     if (!link) return;
     let cancelled = false;
+    (async () => {
+      try {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqOpenSharedGallery", reqOpenSharedGallery: { uuid: link.uuid, secret: link.secret } };
+        });
+        if (cancelled) return;
+        if (resp.payload?.$case !== "respSharedGallery") {
+          const message = resp.errorMessage;
+          setError(() => (message ? asIs(message) : say("web.files.gallery.not_found")));
+          return;
+        }
+        setGallery(resp.payload.respSharedGallery);
+      } catch (err: any) {
+        if (!cancelled) setError(() => failureText(err, "web.files.gallery.open_failed"));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [link]);
+
+  // Thumbnails, four at a time, for the tiles on or near the screen (F14
+  // of the 2026-10 review): every one of a big gallery used to be fetched
+  // in order however little of it was looked at, each piece of a public
+  // link holding the device's budget.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!gallery || !grid) return;
+    let cancelled = false;
     const stop = () => cancelled;
     // Thumbnails reach the grid in batches: one setThumbs per thumbnail
     // copied the map and re-rendered every tile each time, which grows
@@ -133,51 +161,47 @@ export default function SharedGalleryView() {
       // A timer, not requestAnimationFrame, which stalls in a background tab.
       if (flushTimer == null) flushTimer = setTimeout(flush, 100);
     };
-    (async () => {
+    const queue: number[] = [];
+    let running = 0;
+    const fetchThumb = async (i: number) => {
       try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqOpenSharedGallery", reqOpenSharedGallery: { uuid: link.uuid, secret: link.secret } };
-        });
-        if (cancelled) return;
-        if (resp.payload?.$case !== "respSharedGallery") {
-          const message = resp.errorMessage;
-          setError(() => (message ? asIs(message) : say("web.files.gallery.not_found")));
-          return;
+        const b = await fetchPart(i, GetSharedGalleryItem_Part.THUMBNAIL, undefined, stop);
+        if (!cancelled) addThumb(i, objectURL(b));
+      } catch {
+        // A gallery made before its files had thumbnails: the
+        // screen-sized preview stands in; without one either, the
+        // tile shows the file's name.
+        if (!cancelled && gallery.items.find((it) => it.index === i)?.hasPreview) {
+          try {
+            const b = await fetchPart(i, GetSharedGalleryItem_Part.PREVIEW, undefined, stop);
+            if (!cancelled) addThumb(i, objectURL(b));
+          } catch { /* the name, then */ }
         }
-        const g = resp.payload.respSharedGallery;
-        setGallery(g);
-        // Thumbnails, four at a time, in order.
-        let next = 0;
-        const worker = async () => {
-          while (!cancelled && next < g.items.length) {
-            const i = next++;
-            try {
-              const b = await fetchPart(i, GetSharedGalleryItem_Part.THUMBNAIL, undefined, stop);
-              if (!cancelled) addThumb(i, objectURL(b));
-            } catch {
-              // A gallery made before its files had thumbnails: the
-              // screen-sized preview stands in; without one either, the
-              // tile shows the file's name.
-              if (g.items[i].hasPreview) {
-                try {
-                  const b = await fetchPart(i, GetSharedGalleryItem_Part.PREVIEW, undefined, stop);
-                  if (!cancelled) addThumb(i, objectURL(b));
-                } catch { /* the name, then */ }
-              }
-            }
-          }
-        };
-        await Promise.all([worker(), worker(), worker(), worker()]);
-        flush();
-      } catch (err: any) {
-        if (!cancelled) setError(() => failureText(err, "web.files.gallery.open_failed"));
       }
-    })();
+    };
+    const pump = () => {
+      while (!cancelled && running < 4 && queue.length) {
+        const i = queue.shift()!;
+        running++;
+        void fetchThumb(i).finally(() => { running--; pump(); });
+      }
+    };
+    const obs = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        obs.unobserve(en.target);
+        const i = Number((en.target as HTMLElement).dataset.index);
+        if (Number.isInteger(i)) queue.push(i);
+      }
+      pump();
+    }, { rootMargin: "800px 0px" });
+    grid.querySelectorAll<HTMLElement>("[data-index]").forEach((el) => obs.observe(el));
     return () => {
       cancelled = true;
+      obs.disconnect();
       if (flushTimer != null) clearTimeout(flushTimer);
     };
-  }, [link, fetchPart, objectURL]);
+  }, [gallery, fetchPart, objectURL]);
 
   // The tab's title: the gallery's description, or ours in the language
   // on screen.
@@ -270,9 +294,9 @@ export default function SharedGalleryView() {
           <div className="sg-bar"><div style={{ width: `${(100 * dl.done) / dl.total}%` }} /></div>
         </div>
       )}
-      <div className="sg-grid">
+      <div className="sg-grid" ref={gridRef}>
         {items.map(it => (
-          <button key={it.index} className={`sg-tile${selected.has(it.index) ? " on" : ""}`}
+          <button key={it.index} data-index={it.index} className={`sg-tile${selected.has(it.index) ? " on" : ""}`}
             onClick={() => (selecting ? toggle(it.index) : setOpen(it.index))}
             aria-label={it.name} aria-pressed={selecting ? selected.has(it.index) : undefined}>
             {thumbs[it.index]

@@ -230,3 +230,41 @@ func TestServeStaticCacheHeaders(t *testing.T) {
 		t.Errorf("expected a new ETag, got %q (was %q)", got, etag)
 	}
 }
+
+// The app's files are never sniffed into another type nor framed by
+// another site (F23 of the 2026-10 review): every answer of the static
+// handler says so, the page and the SPA's fallback for an unknown path
+// included.
+func TestServeStaticSecurityHeaders(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"index.html":               "<html>spa shell</html>",
+		"assets/index-Bx3_k9-Q.js": "console.log(1)",
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatalf("making fixture dir: %v", err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+			t.Fatalf("writing fixture file: %v", err)
+		}
+	}
+	api := newTestAPI(t, dir+"/")
+	for _, path := range []string{"/", "/shared", "/assets/index-Bx3_k9-Q.js"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		api.muxHTTPServer.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: expected status 200, got %d", path, rec.Code)
+		}
+		for header, want := range map[string]string{
+			"X-Content-Type-Options":  "nosniff",
+			"Content-Security-Policy": "frame-ancestors 'none'",
+			"X-Frame-Options":         "DENY",
+		} {
+			if got := rec.Header().Get(header); got != want {
+				t.Errorf("%s: %s = %q, want %q", path, header, got, want)
+			}
+		}
+	}
+}

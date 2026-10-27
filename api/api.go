@@ -230,6 +230,14 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debug("Serving static:", path)
+	// A file is what its type says (no sniffing a picture into a page), and
+	// no other site may frame the app, a click on it under someone else's
+	// page. frame-ancestors works only as a header; the rest of the app's
+	// Content-Security-Policy is in its index.html, which the bridge
+	// relays too (web/index.html).
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
+	w.Header().Set("X-Frame-Options", "DENY")
 	if cc := staticCacheControl(r.URL.Path, path); cc != "" {
 		w.Header().Set("Cache-Control", cc)
 	}

@@ -7,7 +7,22 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- F23 of the 2026-10 review: scripts, styles, workers and fonts only
+         from the page's own address; pictures and media also from blob:
+         (what the app makes of what the device sends); the socket to the
+         device (ws: on a plain-HTTP page at home, wss: otherwise - any
+         host, as `vite preview` and the phone apps' web view talk to
+         another one) and the bridge's API (BridgePanel asks whether a
+         sign-in with Google or Apple can come back here); OpenStreetMap's
+         page for the viewer's map. frame-ancestors can't be set here: the
+         device's HTTP server sends it (api/api.go serveStatic), and the
+         bridge for what it relays. The dev server leaves this out
+         (vite.config.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' ws: wss: https://off-the.cloud; frame-src https://www.openstreetmap.org; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>Off The Cloud</title>
+    <!-- In the page, not behind the entry script (src/main.tsx): its colours
+         are there from the first paint, as the whole app's CSS was. -->
+    <link rel="stylesheet" href="/src/index.css" />
   </head>
   <body>
     <div id="root"></div>

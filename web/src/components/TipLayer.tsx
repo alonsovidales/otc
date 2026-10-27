@@ -12,7 +12,7 @@ type Tip = { text: string; x: number; y: number; below: boolean };
  * about a second, too long for an icon whose meaning isn't obvious (the
  * upload-only lock). Drawn fixed in a portal, so a container's
  * `overflow: hidden` (the files table) can't clip it. Mounted once, in
- * main.tsx. Give the element an aria-label too: `data-tip` isn't read out.
+ * appEntry.tsx. Give the element an aria-label too: `data-tip` isn't read out.
  */
 export default function TipLayer() {
   const [tip, setTip] = useState<Tip | null>(null);

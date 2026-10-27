@@ -53,7 +53,7 @@ pb:
 	  --go_out=$(PROTO_OUT) --go_opt=paths=source_relative \
 	  --go-grpc_out=$(PROTO_OUT) --go-grpc_opt=paths=source_relative \
 	  --ts_proto_out=$(PROTO_TS_OUT) \
-	  --ts_proto_opt=enumsAsLiterals=true,oneof=unions,useEnumNamesAsValues=true,esModuleInterop=true,useOptionals=messages,outputServices=none,forceLong=bigint \
+	  --ts_proto_opt=enumsAsLiterals=true,oneof=unions,useEnumNamesAsValues=true,esModuleInterop=true,useOptionals=messages,outputServices=none,forceLong=bigint,outputJsonMethods=false \
   	  --swift_out=./app/ios/OffTheCloud/OffTheCloud/ \
 	  --swift_opt=Visibility=Public \
 	  --java_out=lite:./app/android/app/src/main/proto-gen/ \
