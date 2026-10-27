@@ -586,6 +586,17 @@ export type MessageKey =
   | "web.settings.social.title"
   | "web.settings.social.too_small"
   | "web.settings.social.using"
+  | "web.settings.storage.adding"
+  | "web.settings.storage.confirm"
+  | "web.settings.storage.confirm_text"
+  | "web.settings.storage.confirm_title"
+  | "web.settings.storage.copying"
+  | "web.settings.storage.failed"
+  | "web.settings.storage.look_alike"
+  | "web.settings.storage.new_disk"
+  | "web.settings.storage.not_added"
+  | "web.settings.storage.title"
+  | "web.settings.storage.use"
   | "web.settings.tagging.disable"
   | "web.settings.tagging.enable"
   | "web.settings.tagging.hint"
@@ -1579,6 +1590,17 @@ export interface MessageArgs {
   "web.settings.social.title": undefined;
   "web.settings.social.too_small": undefined;
   "web.settings.social.using": { size: string };
+  "web.settings.storage.adding": { disk: string };
+  "web.settings.storage.confirm": undefined;
+  "web.settings.storage.confirm_text": { disk: string };
+  "web.settings.storage.confirm_title": undefined;
+  "web.settings.storage.copying": { disk: string };
+  "web.settings.storage.failed": undefined;
+  "web.settings.storage.look_alike": undefined;
+  "web.settings.storage.new_disk": { disk: string };
+  "web.settings.storage.not_added": { disk: string };
+  "web.settings.storage.title": undefined;
+  "web.settings.storage.use": undefined;
   "web.settings.tagging.disable": undefined;
   "web.settings.tagging.enable": undefined;
   "web.settings.tagging.hint": undefined;

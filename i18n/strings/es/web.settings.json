@@ -497,6 +497,57 @@
     "text": "Ahora ocupan {size}.",
     "en": "Using {size} now."
   },
+  "web.settings.storage.adding": {
+    "text": "Borrando {disk} y añadiéndolo al espejo…",
+    "en": "Erasing {disk} and adding it to the mirror…",
+    "reviewed": "claude-backtranslation 2026-10-27 #3ed7d11f"
+  },
+  "web.settings.storage.confirm": {
+    "text": "Borrar y usar",
+    "en": "Erase and use it",
+    "reviewed": "claude-backtranslation 2026-10-27 #1c8d0bec"
+  },
+  "web.settings.storage.confirm_text": {
+    "text": "Se borrará todo lo que hay en {disk}: todos sus archivos y particiones, para siempre. Después pasará a ser el segundo disco del espejo, y el dispositivo copiará en él todos tus archivos.",
+    "en": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "reviewed": "claude-backtranslation 2026-10-27 #52eba32c"
+  },
+  "web.settings.storage.confirm_title": {
+    "text": "¿Borrar este disco y usarlo para el espejo?",
+    "en": "Erase this disk and use it for the mirror?",
+    "reviewed": "claude-backtranslation 2026-10-27 #29bd371e"
+  },
+  "web.settings.storage.copying": {
+    "text": "{disk} es ahora el segundo disco del espejo. El dispositivo está copiando en él todos tus archivos, lo que puede tardar horas; mientras tanto puedes seguir usando el dispositivo.",
+    "en": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile."
+  },
+  "web.settings.storage.failed": {
+    "text": "No se ha podido usar el disco para el espejo.",
+    "en": "The disk could not be used for the mirror."
+  },
+  "web.settings.storage.look_alike": {
+    "text": "Otro disco conectado parece idéntico a este, así que no se puede elegir ninguno de los dos aquí: desconecta primero el que quieras conservar.",
+    "en": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "reviewed": "claude-backtranslation 2026-10-27 #5313b8eb"
+  },
+  "web.settings.storage.new_disk": {
+    "text": "Se ha encontrado un disco nuevo: {disk}. Contiene datos, así que no se ha añadido al espejo.",
+    "en": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "reviewed": "claude-backtranslation 2026-10-27 #25221173"
+  },
+  "web.settings.storage.not_added": {
+    "text": "{disk} no se ha añadido al espejo. En Alertas se explica por qué.",
+    "en": "{disk} wasn't added to the mirror. Alerts says why."
+  },
+  "web.settings.storage.title": {
+    "text": "Almacenamiento",
+    "en": "Storage"
+  },
+  "web.settings.storage.use": {
+    "text": "Usarlo para el espejo",
+    "en": "Use it for the mirror",
+    "reviewed": "claude-backtranslation 2026-10-27 #b0182df5"
+  },
   "web.settings.tagging.disable": {
     "text": "Desactivar etiquetado de imágenes",
     "en": "Disable Image Tagging"

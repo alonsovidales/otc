@@ -497,6 +497,57 @@
     "text": "Nu in gebruik: {size}.",
     "en": "Using {size} now."
   },
+  "web.settings.storage.adding": {
+    "text": "{disk} wordt gewist en aan de spiegel toegevoegd…",
+    "en": "Erasing {disk} and adding it to the mirror…",
+    "reviewed": "claude-backtranslation 2026-10-27 #0c76e23b"
+  },
+  "web.settings.storage.confirm": {
+    "text": "Wissen en gebruiken",
+    "en": "Erase and use it",
+    "reviewed": "claude-backtranslation 2026-10-27 #0cf55d54"
+  },
+  "web.settings.storage.confirm_text": {
+    "text": "Alles op {disk} wordt gewist: al zijn bestanden en partities, voorgoed. Daarna wordt hij de tweede schijf van de spiegel, en het apparaat kopieert al je bestanden erop.",
+    "en": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "reviewed": "claude-backtranslation 2026-10-27 #15b962bc"
+  },
+  "web.settings.storage.confirm_title": {
+    "text": "Deze schijf wissen en gebruiken voor de spiegel?",
+    "en": "Erase this disk and use it for the mirror?",
+    "reviewed": "claude-backtranslation 2026-10-27 #872d57fe"
+  },
+  "web.settings.storage.copying": {
+    "text": "{disk} is nu de tweede schijf van de spiegel. Het apparaat kopieert al je bestanden erop, wat uren kan duren; je kunt het apparaat intussen gewoon gebruiken.",
+    "en": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile."
+  },
+  "web.settings.storage.failed": {
+    "text": "De schijf kon niet voor de spiegel worden gebruikt.",
+    "en": "The disk could not be used for the mirror."
+  },
+  "web.settings.storage.look_alike": {
+    "text": "Een andere aangesloten schijf lijkt precies op deze, dus geen van beide kan hier worden gekozen: koppel eerst de schijf los die je wilt houden.",
+    "en": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "reviewed": "claude-backtranslation 2026-10-27 #a1c3ac73"
+  },
+  "web.settings.storage.new_disk": {
+    "text": "Nieuwe schijf gevonden: {disk}. Er staan gegevens op, dus hij is niet aan de spiegel toegevoegd.",
+    "en": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "reviewed": "claude-backtranslation 2026-10-27 #cc033a49"
+  },
+  "web.settings.storage.not_added": {
+    "text": "{disk} is niet aan de spiegel toegevoegd. Onder Meldingen staat waarom.",
+    "en": "{disk} wasn't added to the mirror. Alerts says why."
+  },
+  "web.settings.storage.title": {
+    "text": "Opslag",
+    "en": "Storage"
+  },
+  "web.settings.storage.use": {
+    "text": "Gebruiken voor de spiegel",
+    "en": "Use it for the mirror",
+    "reviewed": "claude-backtranslation 2026-10-27 #25f6d733"
+  },
   "web.settings.tagging.disable": {
     "text": "Beeldherkenning uitschakelen",
     "en": "Disable Image Tagging"

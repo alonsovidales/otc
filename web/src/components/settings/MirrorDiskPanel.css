@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Settings › Storage (MirrorDiskPanel.tsx). Sits inside a .sf-section and
+   uses SettingsForm.css's sf-* pieces and UpdatePanel.css's up-line; this
+   adds the disks offered and the copy's lines. A disk's model is the disk's
+   own words: long ones wrap rather than widen the page. */
+
+.md-text { margin: 0 0 8px; overflow-wrap: anywhere; }
+.md-disk + .md-disk { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.md-disk .sf-btn { margin-top: 0; }
+.md-copy .md-text { margin: 0; }
+.md-copy .md-state { margin: 0; }

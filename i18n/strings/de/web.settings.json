@@ -497,6 +497,57 @@
     "text": "Derzeit belegt: {size}.",
     "en": "Using {size} now."
   },
+  "web.settings.storage.adding": {
+    "text": "{disk} wird gelöscht und zur Spiegelung hinzugefügt…",
+    "en": "Erasing {disk} and adding it to the mirror…",
+    "reviewed": "claude-backtranslation 2026-10-27 #b483da94"
+  },
+  "web.settings.storage.confirm": {
+    "text": "Löschen und verwenden",
+    "en": "Erase and use it",
+    "reviewed": "claude-backtranslation 2026-10-27 #bf9e2212"
+  },
+  "web.settings.storage.confirm_text": {
+    "text": "Alles auf {disk} wird gelöscht: alle Dateien und Partitionen darauf, endgültig. Danach wird es das zweite Laufwerk der Spiegelung, und das Gerät kopiert alle deine Dateien darauf.",
+    "en": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "reviewed": "claude-backtranslation 2026-10-27 #3d770c3d"
+  },
+  "web.settings.storage.confirm_title": {
+    "text": "Dieses Laufwerk löschen und für die Spiegelung verwenden?",
+    "en": "Erase this disk and use it for the mirror?",
+    "reviewed": "claude-backtranslation 2026-10-27 #f02abf71"
+  },
+  "web.settings.storage.copying": {
+    "text": "{disk} ist jetzt das zweite Laufwerk der Spiegelung. Das Gerät kopiert alle deine Dateien darauf, was Stunden dauern kann; du kannst das Gerät währenddessen weiter verwenden.",
+    "en": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile."
+  },
+  "web.settings.storage.failed": {
+    "text": "Das Laufwerk konnte nicht für die Spiegelung verwendet werden.",
+    "en": "The disk could not be used for the mirror."
+  },
+  "web.settings.storage.look_alike": {
+    "text": "Ein anderes angeschlossenes Laufwerk sieht genauso aus wie dieses, deshalb kann hier keines von beiden ausgewählt werden: Ziehe zuerst das ab, das du behalten möchtest.",
+    "en": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "reviewed": "claude-backtranslation 2026-10-27 #2fa57a1e"
+  },
+  "web.settings.storage.new_disk": {
+    "text": "Neues Laufwerk gefunden: {disk}. Es enthält Daten, deshalb wurde es nicht zur Spiegelung hinzugefügt.",
+    "en": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "reviewed": "claude-backtranslation 2026-10-27 #fb70f2b0"
+  },
+  "web.settings.storage.not_added": {
+    "text": "{disk} wurde nicht zur Spiegelung hinzugefügt. Unter Hinweise steht, warum.",
+    "en": "{disk} wasn't added to the mirror. Alerts says why."
+  },
+  "web.settings.storage.title": {
+    "text": "Speicher",
+    "en": "Storage"
+  },
+  "web.settings.storage.use": {
+    "text": "Für die Spiegelung verwenden",
+    "en": "Use it for the mirror",
+    "reviewed": "claude-backtranslation 2026-10-27 #814079fa"
+  },
   "web.settings.tagging.disable": {
     "text": "Bilderkennung ausschalten",
     "en": "Disable Image Tagging"

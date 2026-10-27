@@ -190,7 +190,7 @@
   },
   "web.settings.general.starting": {
     "text": "Starting…",
-    "note": "Label of a Settings button (Reprocess All Media, Resume Reprocessing, Update to …) while the device starts the job.",
+    "note": "Label of a Settings button (Reprocess All Media, Resume Reprocessing, Update to …, Erase and use it) while the device starts the job.",
     "max": 24
   },
   "web.settings.general.update_failed": {
@@ -591,6 +591,72 @@
     "text": "Using {size} now.",
     "args": [["size", "text"]],
     "note": "Sentence after the explanation in Settings > Friends' posts storage. {size} is the space friends' posts take now, already formatted with its unit (1.25 GB)."
+  },
+  "web.settings.storage.adding": {
+    "text": "Erasing {disk} and adding it to the mirror…",
+    "args": [["disk", "user"]],
+    "note": "Shown with a spinner in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in after the owner confirmed, until the device starts copying the files onto the disk. {disk} names it as in web.settings.storage.new_disk.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #6d491701"
+  },
+  "web.settings.storage.confirm": {
+    "text": "Erase and use it",
+    "note": "The red button of the confirmation web.settings.storage.confirm_title: erases the disk and adds it to the mirror.",
+    "max": 32,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #eb4566f3"
+  },
+  "web.settings.storage.confirm_text": {
+    "text": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "args": [["disk", "user"]],
+    "note": "Text of the confirmation web.settings.storage.confirm_title. {disk} names the disk as in web.settings.storage.new_disk (\"Generic Card Reader · 512.1 GB\"). It must say plainly that nothing on that disk can be recovered afterwards.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #9bfe84fb"
+  },
+  "web.settings.storage.confirm_title": {
+    "text": "Erase this disk and use it for the mirror?",
+    "note": "Title of the confirmation after web.settings.storage.use in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in. Buttons: Cancel and web.settings.storage.confirm.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #993f5b2c"
+  },
+  "web.settings.storage.copying": {
+    "text": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile.",
+    "args": [["disk", "user"]],
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in above a progress bar while the device copies every file onto the disk just added. {disk} names it as in web.settings.storage.new_disk."
+  },
+  "web.settings.storage.failed": {
+    "text": "The disk could not be used for the mirror.",
+    "note": "Error in the confirmation web.settings.storage.confirm_title when the device's answer doesn't say why. Nothing was erased."
+  },
+  "web.settings.storage.look_alike": {
+    "text": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in in place of the button web.settings.storage.use when two disks plugged in have the same name and size, so the owner couldn't tell which one would be erased.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #401a634d"
+  },
+  "web.settings.storage.new_disk": {
+    "text": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "args": [["disk", "user"]],
+    "note": "Text of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: a disk was plugged in while the mirror lacks its second disk, and the device didn't add it by itself because something is on it (files, a partition table: most new disks come formatted). {disk} names it by what the disk calls itself and its size, such as \"Generic Card Reader · 512.1 GB\" (or the size alone). The button under it is web.settings.storage.use.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #521ac418"
+  },
+  "web.settings.storage.not_added": {
+    "text": "{disk} wasn't added to the mirror. Alerts says why.",
+    "args": [["disk", "user"]],
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device didn't add the disk the owner chose (it checks everything again before erasing it). Alerts is the app's page of the device's alerts, where one says why. {disk} names it as in web.settings.storage.new_disk."
+  },
+  "web.settings.storage.title": {
+    "text": "Storage",
+    "note": "Heading of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in.",
+    "max": 24
+  },
+  "web.settings.storage.use": {
+    "text": "Use it for the mirror",
+    "note": "Button under web.settings.storage.new_disk in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: asks to erase that disk and add it as the mirror's second disk (a confirmation follows, web.settings.storage.confirm_title).",
+    "max": 32,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #4422f89b"
   },
   "web.settings.tagging.disable": {
     "text": "Disable Image Tagging",

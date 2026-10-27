@@ -14,6 +14,7 @@ import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
 import LanguagePanel from "./settings/LanguagePanel";
 import WifiPanel from "./settings/WifiPanel";
+import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
@@ -371,6 +372,10 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         <h3>{t("web.settings.profile.title")}</h3>
         <ProfileCard authenticated={true} />
       </section>
+
+      {/* Storage: a disk the mirror could take, erased once confirmed
+          (nothing shows otherwise). */}
+      <MirrorDiskPanel />
 
       <LanguagePanel />
 
