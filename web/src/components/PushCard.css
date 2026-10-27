@@ -1,0 +1,38 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* "Get notified when family posts" (PushCard.tsx): a quiet card above the
+   feed, as wide as its posts. Above it, not in it: the feed measures its
+   own top for the first post's room (Social.css). */
+.pn-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--mist);
+}
+.pn-icon { flex: none; display: flex; color: var(--gold); }
+.pn-body { flex: 1; min-width: 0; }
+.pn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.pn-on { padding: 8px 14px; border-radius: 999px; font-size: 14px; line-height: 20px; }
+.pn-later {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 0;
+  background: none;
+  color: var(--mist-dim);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.pn-later:hover:not(:disabled) { filter: none; background: rgba(234, 242, 239, 0.08); color: var(--mist); }
+.pn-status { margin: 0; font-size: 14px; line-height: 20px; }
+/* Empty, it takes no room, and stays in the page to be announced. */
+.pn-status:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.pn-error { margin: 6px 0 0; color: var(--danger); font-size: 13px; }

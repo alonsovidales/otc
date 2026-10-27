@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trans, useT } from "../i18n";
 import { say, type UiText } from "./uiText";
 import { formatTimecode, type TrimRange } from "./videoTrim";
+import { useBackLayer } from "./backStack";
 import "./VideoTrimmer.css";
 
 export type { TrimRange };
@@ -39,6 +40,8 @@ type Props = {
 
 export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
   const t = useT();
+  // Back is Cancel (backStack.ts).
+  useBackLayer(true, onCancel);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   // A browser that can't decode the clip doesn't necessarily fire `error`

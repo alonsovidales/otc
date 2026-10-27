@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
 import { useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
-import FilesExplorer from "./components/FilesExplorer";
 import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
-import SettingsForm from "./components/SettingsForm";
 import ProfileCard from "./components/ProfileCard";
 import { useDownloadLink } from "./components/downloadLink";
 import FriendshipsManager from "./components/FriendshipsManager";
 import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
 import TopSearch from "./components/TopSearch";
-import PeopleView from "./components/PeopleView";
 import CollectionsView from "./components/CollectionsView";
 import { showAll } from "./components/photoFilter";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
@@ -23,9 +20,8 @@ import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
-import { useSearchParams } from "react-router-dom";
 import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
-import { promptForPushIfNeverAsked, reregisterPush } from "./net/webPush";
+import { reregisterPush } from "./net/webPush";
 import { useLanguage, useT } from "./i18n";
 import { asIs, percentText, say, type UiText } from "./components/uiText";
 import DeviceUnreachable from "./components/DeviceUnreachable";
@@ -34,17 +30,30 @@ import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
 import { DemoBanner, DemoRefusedNotice, DemoWelcome } from "./components/DemoBanner";
 import { useDemo } from "./components/useDemo";
-import { isDemo } from "./net/demo";
 import DeviceUpdatedNotice from "./components/DeviceUpdatedNotice";
 import type { DeviceStatus } from "./net/deviceStatus";
-import { loadLastTab, saveLastTab } from "./net/uiState";
-import SharedGalleryView from "./components/SharedGalleryView";
+import { asTabKey, loadLastTab, saveLastTab } from "./net/uiState";
 import AccountMenu from "./components/AccountMenu";
 import TopSignIn, { type Interrupted } from "./components/TopSignIn";
 import LanguagePicker from "./components/LanguagePicker";
 import { pageEndpoint } from "./net/endpoint";
 import Tour from "./components/Tour";
 import { claimAutoTour, type TourStepId } from "./components/tourSteps";
+import { backSection, followBackSection } from "./components/backStack";
+import { restoreSession } from "./net/sessionRestore";
+import ReconnectingBanner from "./components/ReconnectingBanner";
+import BigFileDialog from "./components/BigFileDialog";
+import { isTooBigForMemory } from "./components/bigFile";
+import { lazyPart } from "./components/lazyPart";
+import Part from "./components/Part";
+
+// Loaded when first opened (F3 of the 2026-10 review; lazyPart.ts).
+const FilesExplorer = lazyPart(() => import("./components/FilesExplorer"));
+const SettingsForm = lazyPart(() => import("./components/SettingsForm"));
+const PeopleView = lazyPart(() => import("./components/PeopleView"));
+// main.tsx gives /shared its own entry (sharedEntry.tsx): this one is never
+// needed by the app's.
+const SharedGalleryView = lazyPart(() => import("./components/SharedGalleryView"));
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -52,6 +61,19 @@ declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password:
 const cOwnTopTabs: TabKey[] = ["PhotoGallery", "People", "Collections"];
 // Where a signed-out visitor lands (see landIfSignedOut).
 const cLandingTab: TabKey = "Profile";
+// Issue #105: the tabs that have nothing to show without a session. The
+// rest (Profile, SignIn - a new device's setup) render something
+// meaningful signed out, which is exactly why Profile is where a failed
+// restore lands - it's this device's public face, reachable with no
+// session at all, under the top bar's password field to sign in again.
+// Issue #118: Social is in this list too. Its feed is an authenticated
+// request for a browser (only a friend's *device* reads it anonymously),
+// so signed out it rendered an empty timeline - a blank page with a
+// Sign In button in the corner - whenever a session token expired,
+// whether that was found out on reload or mid-session. The public
+// profile is what an unregistered visitor gets, and it is what an
+// expired session should get too.
+const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Settings", "Notifications", "Friends", "Social"];
 
 // Issue #38/#39: whether the device is new (no owner password yet), asked
 // once per load - again only while the device hasn't said (null: it
@@ -81,7 +103,28 @@ function App() {
   // restores whatever tab was last open rather than always landing here.
   const [tab, setTab] = useState<TabKey>(() => loadLastTab() ?? "Profile"); // i18n-ignore: a tab's key
   const [authenticated, setAuthenticated] = useState(false);
-  const [sp] = useSearchParams();
+  // The page's query (an old ?download= link): read once, as nothing in
+  // the app changes it.
+  const sp = useMemo(() => new URLSearchParams(window.location.search), []);
+
+  // Back and Forward (components/backStack.ts). A section moved to - from
+  // the menu, the top bar, or a link in a page - is a history entry of its
+  // own (goTo); a section App sets by itself (a sign-in landing on the
+  // feed, a restore that failed, People without face recognition) rewrites
+  // the entry it is on. Back to an entry shows its section, or what stands
+  // for it now (sectionFor).
+  const movedTo = useRef<TabKey | null>(null);
+  const shownTab = useRef(tab);
+  shownTab.current = tab;
+  const goTo = useCallback((next: TabKey) => {
+    if (next === shownTab.current) return;
+    movedTo.current = next;
+    setTab(next);
+  }, []);
+  useEffect(() => {
+    backSection(tab, movedTo.current === tab);
+    movedTo.current = null;
+  }, [tab]);
 
   // Issue #78: a tapped notification names a post (and maybe a comment on
   // it) for Social to open/scroll to. Lives here rather than inside
@@ -208,20 +251,6 @@ function App() {
     window.scrollTo(0, 0);
   }, [tab]);
 
-  // Issue #105: the tabs that have nothing to show without a session. The
-  // rest (Profile, Social, SignIn - a new device's setup) render something
-  // meaningful signed out, which is exactly why Profile is where a failed
-  // restore lands - it's this device's public face, reachable with no
-  // session at all, under the top bar's password field to sign in again.
-  // Issue #118: Social is in this list too. Its feed is an authenticated
-  // request for a browser (only a friend's *device* reads it anonymously),
-  // so signed out it rendered an empty timeline - a blank page with a
-  // Sign In button in the corner - whenever a session token expired,
-  // whether that was found out on reload or mid-session. The public
-  // profile is what an unregistered visitor gets, and it is what an
-  // expired session should get too.
-  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Settings", "Notifications", "Friends", "Social"];
-
   // Sends the viewer somewhere usable when a session couldn't be restored,
   // rather than leaving them on a view that can only ever say "Signing in…".
   // Deliberately only moves *off* an authenticated-only tab: someone whose
@@ -240,11 +269,9 @@ function App() {
   // shared gallery or a download (claimAutoTour marks it seen as it opens);
   // and again, from its first step, with Show the tour in the account menu
   // or Settings. autoTour says at once (before React renders) that the open
-  // one came by itself; pushAfterTour holds the notification prompt
-  // (handleSignedIn) until it closes.
+  // one came by itself.
   const [tour, setTour] = useState<{ step: TourStepId; auto: boolean } | null>(null);
   const autoTour = useRef(false);
-  const pushAfterTour = useRef(false);
   const openTour = useCallback((auto: boolean) => {
     setDrawerOpen(false);
     autoTour.current = auto;
@@ -258,41 +285,45 @@ function App() {
     return true;
   }, [mobile, openTour]);
   const moveTour = useCallback((step: TourStepId) => setTour((cur) => (cur ? { ...cur, step } : cur)), []);
-  // Skip, Done, Esc or a click: the prompt it held back is asked now,
-  // inside that event.
+  // Skip, Done, Esc, Back or a click.
   const closeTour = useCallback(() => {
     setTour(null);
     autoTour.current = false;
-    if (pushAfterTour.current) {
-      pushAfterTour.current = false;
-      promptForPushIfNeverAsked();
-    }
   }, []);
-  // The session ended: the tour goes with it (and its held prompt).
+  // The session ended: the tour goes with it.
   useEffect(() => {
     if (authenticated) return;
     setTour(null);
     autoTour.current = false;
-    pushAfterTour.current = false;
   }, [authenticated]);
 
-  // Issue #43: nudge for browser push permission right after sign-in,
-  // rather than requiring the user to go find "Enable Notifications" in
-  // Settings — only for the plain browser (mobile already registers for
-  // APNs natively, see OffTheCloudApp.swift's AppDelegate; this path has
-  // no bearing on that one). promptForPushIfNeverAsked no-ops after the
-  // first time it's ever asked, whichever way it went. When the tour
-  // opens by itself it waits for the tour to close, so the two never show
-  // together.
+  // A sign-in lands on the feed, with the tour the first time. Browser
+  // notifications (issue #43) are asked for from a button (PushCard, at
+  // the top of the feed): asked right after a sign-in, Safari refused (it
+  // needs a click), and the flag that it had been asked stopped any try
+  // after that.
   const handleSignedIn = () => {
     setTab("Social");
-    const touring = startAutoTour();
-    // Not for a demo device: its pushes aren't anyone's.
-    if (!mobile && !isDemo()) {
-      if (touring) pushAfterTour.current = true;
-      else promptForPushIfNeverAsked();
-    }
+    startAutoTour();
   };
+
+  // Back to a section (backStack.ts): what App shows for it now - signed
+  // out, the landing page for one that needs a session; Images for People
+  // without face recognition; the feed for the landing page once signed in.
+  const sectionFor = (want: TabKey): TabKey => {
+    if (!authenticated && cAuthOnlyTabs.includes(want)) return cLandingTab;
+    if (want === "People" && faces === false) return "PhotoGallery";
+    if (want === "SignIn" && !setupShown) return authenticated ? "Social" : cLandingTab;
+    if (want === "Profile" && authenticated) return "Social";
+    return want;
+  };
+  const sectionForRef = useRef(sectionFor);
+  sectionForRef.current = sectionFor;
+  useEffect(() => followBackSection((t) => {
+    const shown = sectionForRef.current(asTabKey(t) ?? "PhotoGallery"); // i18n-ignore: a tab's key
+    setTab(shown);
+    return shown;
+  }), []);
 
   // The device writes this browser's pushes in the language the page shows
   // (docs/i18n.md, last_ui_language): a subscription it already has goes
@@ -376,36 +407,49 @@ function App() {
     // reload doesn't drop back to the sign-in form. Issue #101: what's
     // persisted is a single-use session token the device issued, not the
     // password — redeeming it establishes this connection's session and
-    // rotates a fresh token into storage (see useWS.authWithToken).
+    // rotates a fresh token into storage (see useWS.authWithToken). A
+    // restore that got no answer (a blip, the bridge saying the device
+    // can't be reached) keeps "Signing in…" and tries again
+    // (net/sessionRestore.ts): at once when the browser is back online or
+    // the device answers again (the unreachable screen clearing).
     useEffect(() => {
-      const token = loadPersistedToken();
-      if (!token) {
+      if (!loadPersistedToken()) {
         // Nothing to restore: whatever tab was last open, if it needs a
         // session we have no way to get one without the password.
         landIfSignedOut();
         return;
       }
-      (async () => {
-        try {
-          const ok = await useWS.authWithToken(token);
-          // Issue #53: unlike a fresh manual sign-in (handleSignedIn,
-          // which jumps to Social), this is a reload — `tab` was already
-          // initialized from the last-open view, and clobbering that back
-          // to Social on every reload is exactly the bug this issue is
-          // about. Only step in if the restored tab is "SignIn" itself (a
-          // reload during setup), which isn't a sensible place to land now
-          // that this succeeded.
-          if (ok && tab === "SignIn") setTab("Social");
-          // Issue #105: an expired or already-spent token is the ordinary
-          // end of a session, not an error state to sit in.
-          if (!ok) landIfSignedOut();
-        } catch (e) {
-          console.error("Auto-auth from stored session failed:", e);
-          landIfSignedOut();
-        } finally {
-          setRestoringSession(false);
-        }
-      })();
+      const restore = restoreSession({
+        token: loadPersistedToken,
+        redeem: (token) => useWS.authWithToken(token),
+        wake: (now) => {
+          const onOnline = () => now();
+          window.addEventListener("online", onOnline);
+          let was = getDeviceStatus();
+          const off = subscribeDeviceStatus((status) => {
+            if (was && !status) now();
+            was = status;
+          });
+          return () => { window.removeEventListener("online", onOnline); off(); };
+        },
+        onNoAnswer: (attempt, e) => console.error(`Restoring the session got no answer (try ${attempt}):`, e),
+      });
+      void restore.done.then((outcome) => {
+        if (outcome === "stopped") return;
+        // Issue #53: unlike a fresh manual sign-in (handleSignedIn, which
+        // jumps to Social), this is a reload — `tab` was already
+        // initialized from the last-open view, and clobbering that back to
+        // Social on every reload is exactly the bug this issue is about.
+        // Only step in if the restored tab is "SignIn" itself (a reload
+        // during setup), which isn't a sensible place to land now that
+        // this succeeded.
+        if (outcome === "signed_in") setTab((current) => (current === "SignIn" ? "Social" : current));
+        // Issue #105: an expired or already-spent token is the ordinary
+        // end of a session, not an error state to sit in.
+        else landIfSignedOut();
+        setRestoringSession(false);
+      });
+      return restore.stop;
     }, []);
   }
 
@@ -425,6 +469,11 @@ function App() {
   const [downloadError, setDownloadError] = useState<UiText | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [downloadDone, setDownloadDone] = useState(false);
+  // F11 of the 2026-10 review: the archive is put together in this page's
+  // memory before the browser saves it. A big one asks first, once its
+  // first part says how big (BigFileDialog); Cancel stops it there.
+  const [bigAsk, setBigAsk] = useState<{ bytes: number; answer: (go: boolean) => void } | null>(null);
+  const [downloadCancelled, setDownloadCancelled] = useState(false);
   useEffect(() => {
     if (!downloadLink) return;
     if (startedDownloadRef.current === downloadLink) return;
@@ -465,6 +514,14 @@ function App() {
           parts.push(chunk.data);
           offset += chunk.data.length;
           if (total > 0) setDownloadProgress(offset / total);
+          if (parts.length === 1 && offset < total && isTooBigForMemory(total)) {
+            const go = await new Promise<boolean>((answer) => setBigAsk({ bytes: total, answer }));
+            setBigAsk(null);
+            if (!go) {
+              setDownloadCancelled(true);
+              return;
+            }
+          }
         }
         if (total === 0) {
           setDownloadError(() => say("web.shell.link.empty"));
@@ -511,7 +568,7 @@ function App() {
   // Issue #180: a shared gallery's page (/shared#<uuid>.<secret>) - for
   // anyone with the link, signed in or not; nothing else of the app shows.
   if (window.location.pathname === "/shared") {
-    return <SharedGalleryView />;
+    return <Part><SharedGalleryView /></Part>;
   }
 
   if (!!downloadLink) {
@@ -519,11 +576,16 @@ function App() {
       <div className="download-view">
         {downloadError
           ? <p className="sf-note error">{downloadError(t)}</p>
+          : downloadCancelled
+          ? <p className="sf-note">{t("web.shell.link.cancelled")}</p>
           : downloadDone
           ? <p className="sf-note">{t("web.shell.link.done")}</p>
           : <Spinner label={downloadProgress === null
               ? t("web.shell.link.preparing")
               : t("web.shell.link.progress", { percent: percentText(t, Math.round(downloadProgress * 100)) })} />}
+        {bigAsk && (
+          <BigFileDialog bytes={bigAsk.bytes} kind="save" onGo={() => bigAsk.answer(true)} onCancel={() => bigAsk.answer(false)} />
+        )}
       </div>
     );
   }
@@ -573,7 +635,7 @@ function App() {
             Photos: picking a tag or a person shows Images, a folder or a
             file Files. */}
         {authenticated
-          ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowFiles={() => setTab("AdminPannel")} />
+          ? <TopSearch onShowPhotos={() => goTo("PhotoGallery")} onShowFiles={() => goTo("AdminPannel")} />
           : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
@@ -594,7 +656,7 @@ function App() {
             and closes. */}
         {authenticated && (
           <AccountMenu
-            onOpenSettings={() => setTab("Settings")}
+            onOpenSettings={() => goTo("Settings")}
             onShowTour={inSetup ? undefined : () => openTour(false)}
             refreshKey={tab === "Settings"}
             tip={canHover}
@@ -629,17 +691,18 @@ function App() {
             if (next === "PhotoGallery") showAll();
             // Files in the menu is the folder, not the results of a search.
             if (next === "AdminPannel") leaveFilesSearch();
-            setTab(next);
+            goTo(next);
           }}
           onCloseDrawer={() => setDrawerOpen(false)}
           onExpand={() => (wide ? setMenuExpanded(true) : setDrawerOpen(true))}
         />
       )}
       <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
-      {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
+      {authenticated && <UpdateBanner onOpenSettings={() => goTo("Settings")} />}
       {authenticated && demo && <DemoBanner />}
       {demo && <DemoRefusedNotice />}
       {servedByDevice && <DeviceUpdatedNotice />}
+      <ReconnectingBanner active={authenticated} />
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}
       <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>
@@ -650,7 +713,9 @@ function App() {
             own tab below, reached from the Social header's button. */}
         {tab === "Profile" && !authenticated && <ProfileCard authenticated={authenticated} />}
         {tab === "Friends" && authenticated && <FriendshipsManager />}
-        {tab === "Social" && (
+        {/* While a session is restored the feed waits with the rest (a
+            restore that got no answer keeps trying). */}
+        {tab === "Social" && (authenticated || !restoringSession ? (
           <Social
             authenticated={authenticated}
             openPubUuid={openPubUuid}
@@ -658,7 +723,7 @@ function App() {
             onOpened={() => { setOpenPubUuid(null); setOpenCommentUuid(null); }}
             onRegisterOpenComposer={(open) => setOpenComposer(() => open)}
           />
-        )}
+        ) : signedOutPlaceholder)}
         {tab === "SignIn" && setupShown && <SignIn isPrimary={setupInfo?.isPrimary ?? true} container={setupInfo?.container ?? false} onDone={finishSetup} />}
         {/* Issue #53 follow-up: these three are authenticated-only views
             with no meaningful signed-out state (unlike Profile/Social
@@ -668,20 +733,24 @@ function App() {
             persistence): the component would mount and fire its data
             request before the auto-auth from #46 had resolved, surfacing
             as a bare "not authenticated" error instead of just waiting. */}
-        {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
+        {/* Files, People and Settings load when first opened (Part). Images
+            going to Collections - out of a collection, or after deleting
+            it - stands in for the collection's entry rather than adding
+            one: Back doesn't open a collection that was left. */}
+        {tab === "AdminPannel" && (authenticated ? <Part><FilesExplorer initialPath="/" /></Part> : signedOutPlaceholder)}
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
-        {tab === "People" && (authenticated ? faces && <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
-        {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
-        {tab === "Settings" && (authenticated ? <SettingsForm onShowTour={() => openTour(false)} /> : signedOutPlaceholder)}
+        {tab === "People" && (authenticated ? faces && <Part><PeopleView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
+        {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => goTo("PhotoGallery")} /> : signedOutPlaceholder)}
+        {tab === "Settings" && (authenticated ? <Part><SettingsForm onShowTour={() => openTour(false)} /></Part> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage
             onOpenPost={(pubUuid, commentUuid) => {
               setOpenPubUuid(pubUuid);
               setOpenCommentUuid(commentUuid);
-              setTab("Social");
+              goTo("Social");
             }}
-            onOpenFriendRequests={() => setTab("Friends")}
-            onOpenSettings={() => setTab("Settings")}
+            onOpenFriendRequests={() => goTo("Friends")}
+            onOpenSettings={() => goTo("Settings")}
             onAcknowledged={clearNotificationCount}
           />
         ) : signedOutPlaceholder)}

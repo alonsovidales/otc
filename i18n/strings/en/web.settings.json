@@ -44,7 +44,7 @@
   },
   "web.settings.bridge.leave": {
     "text": "Leave the bridge",
-    "note": "Button in Settings > Bridge access that takes the device off the bridge (the browser asks to confirm first).",
+    "note": "Button in Settings > Bridge access that takes the device off the bridge. A dialog asks first, with these words as its title and as its button (beside Cancel).",
     "max": 32,
     "review": "required",
     "reviewed": "shipped 2026-10-11 #3b35df49"
@@ -52,7 +52,7 @@
   "web.settings.bridge.leave_confirm": {
     "text": "Take this device off the bridge? {domain} is given back and the device restarts. It keeps everything on it and works at home, at {address}, but is no longer reachable from outside or by your friends. You can join again later.",
     "args": [["domain", "text"], ["address", "text"]],
-    "note": "Confirmation the browser shows after Leave the bridge in Settings > Bridge access (OK and Cancel are the browser's). {domain} is the device's address on the bridge (home.off-the.cloud); {address} is where it can be opened at home afterwards (http://192.168.1.20).",
+    "note": "The question of the dialog after Leave the bridge in Settings > Bridge access, titled Leave the bridge, with the buttons Cancel and Leave the bridge. {domain} is the device's address on the bridge (home.off-the.cloud); {address} is where it can be opened at home afterwards (http://192.168.1.20).",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #5ce3a8cc"
   },

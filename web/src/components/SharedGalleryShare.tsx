@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedGallerySource, SharedGalleryPreview, SharedGalleryJob } from "../proto/messages";
 import Spinner from "./Spinner";
+import { useBackLayer } from "./backStack";
 import "./SharedGalleryShare.css";
 import { Trans, useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
@@ -173,6 +174,12 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   useLayoutEffect(() => {
     dismissRef.current = dismissable;
     onCloseRef.current = onClose;
+  });
+  // Back closes it when Escape would (backStack.ts); a copy under way
+  // stays, with its link to come.
+  useBackLayer(true, () => {
+    if (!dismissRef.current) return false;
+    onCloseRef.current();
   });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -11,6 +11,22 @@
     "text": "Uitloggen…",
     "en": "Signing out…"
   },
+  "web.shell.big_file.one_of": {
+    "text": "Een van deze bestanden is {size}; je browser houdt het helemaal in het geheugen voordat het wordt opgeslagen. Doorgaan?",
+    "en": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.open": {
+    "text": "Dit is {size}; je browser houdt het helemaal in het geheugen voordat het wordt getoond. Doorgaan?",
+    "en": "This is {size}; your browser will hold it all in memory before showing it. Continue?"
+  },
+  "web.shell.big_file.save": {
+    "text": "Dit is {size}; je browser houdt het helemaal in het geheugen voordat het wordt opgeslagen. Doorgaan?",
+    "en": "This is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.title": {
+    "text": "Een groot bestand",
+    "en": "A large file"
+  },
   "web.shell.connection.closed": {
     "text": "Verbinding met het apparaat verbroken",
     "en": "WS connection closed"
@@ -31,6 +47,10 @@
   "web.shell.connection.not_connected": {
     "text": "Geen verbinding met het apparaat",
     "en": "WS not connected"
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "Opnieuw verbinden…",
+    "en": "Reconnecting…"
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Inmiddels ingelogd.",
@@ -105,6 +125,14 @@
     "text": "Naar Afbeeldingen",
     "en": "Go to Images"
   },
+  "web.shell.error.part_text": {
+    "text": "Misschien is de verbinding weggevallen, of is het apparaat bijgewerkt sinds je deze pagina opende. Laad opnieuw om het nog eens te proberen.",
+    "en": "The connection may have dropped, or the device was updated since this page opened. Reload to try again."
+  },
+  "web.shell.error.part_title": {
+    "text": "Dit deel van de app kon niet worden geladen",
+    "en": "This part of the app couldn't load"
+  },
   "web.shell.error.reload": {
     "text": "Opnieuw laden",
     "en": "Reload"
@@ -128,6 +156,10 @@
   "web.shell.file_icon.label": {
     "text": "{type}-bestand",
     "en": "{type} file"
+  },
+  "web.shell.link.cancelled": {
+    "text": "Download geannuleerd. Je kunt dit tabblad nu sluiten.",
+    "en": "Download cancelled. You can close this tab."
   },
   "web.shell.link.done": {
     "text": "Je download is gestart. Je kunt dit tabblad nu sluiten.",

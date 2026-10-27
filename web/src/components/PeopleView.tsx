@@ -16,6 +16,7 @@ import { say, type UiText } from "./uiText";
 import { useDragSelect } from "./useDragSelect";
 import { refuseOnDemo } from "../net/demo";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { useBackLayer } from "./backStack";
 import "./PeopleView.css";
 
 // The People page: the faces the device found, named people first, each a
@@ -1259,6 +1260,11 @@ function ConfirmDialog({
   }, [opener, place]);
 
   const dismiss = () => { if (!busy) onCancel(); };
+  // Back is Cancel (backStack.ts), except while the device is at work.
+  useBackLayer(true, () => {
+    if (busy) return false;
+    onCancel();
+  });
 
   return (
     <dialog

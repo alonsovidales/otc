@@ -14,6 +14,9 @@ import { fileSize } from "../net/fileSize";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
+import { requestStreamURL } from "../net/media";
+import { readFileInPieces } from "./mediaDownload";
+import { useBackLayer } from "./backStack";
 import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
@@ -48,6 +51,9 @@ type Source = "server" | "local";
 
 export default function NewPostPicker({ onCancel, onPosted }: Props) {
   const t = useT();
+  // Back closes it, as its × does (backStack.ts). Loaded when first opened
+  // (Social wraps it in a layer's Part).
+  useBackLayer(true, onCancel);
   const [source, setSource] = useState<Source>("server");
 
   // -------- local files (issue #87) --------------------------------------
@@ -361,37 +367,42 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     { kind: "server"; path: string; url: string } | { kind: "local"; file: File; url: string } | null
   >(null);
   const [trimLoading, setTrimLoading] = useState<string | null>(null);
-  // Object URLs for library videos pulled down to be trimmed - cached so
-  // reopening the trimmer on the same clip doesn't refetch it, revoked
-  // together when the composer closes.
+  // Object URLs for library videos read to be trimmed - cached so reopening
+  // the trimmer on the same clip doesn't read it again, revoked together
+  // when the composer closes. A stream's link isn't kept: it expires.
   const trimUrlsRef = useRef<Map<string, string>>(new Map());
   useEffect(() => () => {
     trimUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
   }, []);
 
-  // Trimming needs the real video, not the thumbnail the strip shows, so
-  // a library pick has to be fetched in full first (same reqGetFile the
-  // gallery's own viewer uses). That can be a few seconds on a large clip
-  // - hence the per-item spinner rather than a button that looks inert.
+  // Trimming needs the real video, not the thumbnail the strip shows. A
+  // library pick streams from the device, as the viewer plays it
+  // (GetMediaURL): a long clip is never read whole into this page, and the
+  // device needn't hand over a whole video in one GetFile. A clip it
+  // doesn't stream (a short one) is read in 4 MB ReadFile pieces. That can
+  // be a few seconds - hence the per-item spinner rather than a button that
+  // looks inert.
   const openServerTrimmer = async (path: string) => {
     const cached = trimUrlsRef.current.get(path);
     if (cached) { setTrimming({ kind: "server", path, url: cached }); return; }
     setTrimLoading(path);
     setError(null);
     try {
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path } };
-      });
-      if (resp.payload?.$case === "respFile" && resp.payload.respFile) {
-        const full = resp.payload.respFile;
-        const url = bytesToURL(full.content, full.mime || "video/mp4");
-        trimUrlsRef.current.set(path, url);
-        setTrimming({ kind: "server", path, url });
-      } else {
-        const message = resp.errorMessage;
-        setError(() => (message ? asIs(message) : say("web.social.composer.trim_load_failed")));
+      const stream = await requestStreamURL({ path });
+      if (stream) {
+        setTrimming({ kind: "server", path, url: stream });
+        return;
       }
-    } catch (err: any) {
+      const parts = await readFileInPieces(path, () => {});
+      if (!parts) {
+        setError(() => say("web.social.composer.trim_load_failed"));
+        return;
+      }
+      const mime = selectedFilesRef.current.get(path)?.mime || "video/mp4";
+      const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: mime }));
+      trimUrlsRef.current.set(path, url);
+      setTrimming({ kind: "server", path, url });
+    } catch (err) {
       setError(() => errorText(err));
     } finally {
       setTrimLoading(null);

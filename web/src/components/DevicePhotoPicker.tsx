@@ -5,6 +5,7 @@ import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { File as MsgFile, ImageGroup, RespEnvelope } from "../proto/messages";
 import { say, type UiText } from "./uiText";
+import { useBackLayer } from "./backStack";
 import "./DevicePhotoPicker.css";
 
 // Issue #178: the profile picture can come from the photos on the device
@@ -28,6 +29,8 @@ const cFirstPagePhotos = 12;
 
 export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const t = useT();
+  // Back is Cancel (backStack.ts).
+  useBackLayer(true, onCancel);
   const [groups, setGroups] = useState<ImageGroup[]>([]);
   const [group, setGroup] = useState("");
   const [items, setItems] = useState<{ f: MsgFile; url: string }[]>([]);

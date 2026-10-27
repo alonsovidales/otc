@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* A layer (the viewer, the composer) while its part loads, or when it
+   couldn't (Part.tsx): the dimmed page with the spinner or the notice
+   in its middle, where the layer would be - above the top bar (30) and the
+   menu's drawer (39-40), as the layers are. */
+.lzp-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, .72);
+  color: var(--mist);
+}
+.lzp-card {
+  margin: 0;
+  max-width: 420px;
+  padding: 24px 20px;
+  border-radius: 12px;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+}

@@ -3,15 +3,18 @@
 // The dialogs over Images and the viewer: Modal, a small card over the
 // dimmed page, and ConfirmDialog, a question with Cancel and a red button
 // (Delete...), and maybe a second, outlined one before it (issue #201's
-// "Delete only this copy"). Images' dialogs use them, and the photo viewer
+// "Delete only this copy") - or an ember one for a question that loses
+// nothing (BigFileDialog's). Images' dialogs use them, and the photo viewer
 // (MediaViewer) asks with ConfirmDialog before deleting what it shows.
 // LinkDialog shows a share link to copy by hand (Images and Files). Styled
-// in PhotoGallery.css (.pg-dlg*, .pg-btn).
+// in PhotoGallery.css (.pg-dlg*, .pg-btn). Back closes a Modal, as Cancel
+// does (backStack.ts), except while it is at work.
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useT } from "../i18n";
 import Spinner from "./Spinner";
 import type { UiText } from "./uiText";
+import { useBackLayer } from "./backStack";
 import "./PhotoGallery.css";
 
 const cFocusable = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
@@ -51,6 +54,10 @@ export function Modal({ labelledBy, busy = false, wide = false, onClose, childre
   useLayoutEffect(() => {
     busyRef.current = busy;
     onCloseRef.current = onClose;
+  });
+  useBackLayer(true, () => {
+    if (busyRef.current) return false;
+    onCloseRef.current();
   });
 
   // What had the keyboard's focus before the dialog gets it back on close.
@@ -109,11 +116,13 @@ export function Modal({ labelledBy, busy = false, wide = false, onClose, childre
   );
 }
 
-export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel, other }: {
+export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel, other, tone = "danger" }: {
   title: string;
   text: ReactNode;
   confirm: string;
   busyText: string;
+  // The go-ahead's colour: red for what is lost, ember for the rest.
+  tone?: "danger" | "primary";
   // Does the work: an error to show in the dialog, or null when done (the
   // caller closes the dialog then).
   onConfirm: () => Promise<UiText | null>;
@@ -154,7 +163,7 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
             {busy === "other" ? <Spinner label={busyText} /> : other.label}
           </button>
         )}
-        <button type="button" className="pg-btn danger" onClick={() => void run("confirm", onConfirm)} disabled={busy != null} aria-busy={busy === "confirm"}>
+        <button type="button" className={`pg-btn ${tone}`} onClick={() => void run("confirm", onConfirm)} disabled={busy != null} aria-busy={busy === "confirm"}>
           {busy === "confirm" ? <Spinner label={busyText} /> : confirm}
         </button>
       </div>

@@ -600,6 +600,26 @@
     "text": "Gebruiker zonder naam",
     "en": "Unnamed user"
   },
+  "web.social.push.failed": {
+    "text": "Pushmeldingen konden niet worden ingeschakeld.",
+    "en": "Notifications couldn't be turned on."
+  },
+  "web.social.push.not_now": {
+    "text": "Niet nu",
+    "en": "Not now"
+  },
+  "web.social.push.on": {
+    "text": "Pushmeldingen staan aan. Je kunt ze uitzetten in Instellingen.",
+    "en": "Notifications are on. You can turn them off in Settings."
+  },
+  "web.social.push.turn_on": {
+    "text": "Melding bij nieuwe berichten van je familie",
+    "en": "Get notified when family posts"
+  },
+  "web.social.push.turning_on": {
+    "text": "Inschakelen…",
+    "en": "Turning on…"
+  },
   "web.social.time.days": {
     "text": "{days} d",
     "en": "{days}d"

@@ -11,6 +11,7 @@ import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
+import { useBackLayer } from "./backStack";
 import "./LogsPanel.css";
 
 type Source = "app" | "update";
@@ -45,6 +46,8 @@ export default function LogsPanel() {
 
 function LogsViewer({ onClose }: { onClose: () => void }) {
   const t = useT();
+  // Back closes it, as its × does (backStack.ts).
+  useBackLayer(true, onClose);
   const [source, setSource] = useState<Source>("app");
   const [text, setText] = useState("");
   const [paused, setPaused] = useState(false);

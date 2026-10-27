@@ -17,10 +17,18 @@ import "./SharedGalleryView.css";
 import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type PlainKey, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
+import { isTooBigForMemory } from "./bigFile";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
+import { useBackLayer } from "./backStack";
+
+// The question before a big download (F11 of the 2026-10 review), loaded
+// only when one is asked: this page loads what it shows.
+const BigFileDialog = lazyPart(() => import("./BigFileDialog"));
 
 const CHUNK = 4 << 20;
-type Part = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
-type FetchPart = (index: number, part: Part, onBytes?: (n: number, total: number) => void, shouldStop?: () => boolean) => Promise<Blob>;
+type ItemPart = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
+type FetchPart = (index: number, part: ItemPart, onBytes?: (n: number, total: number) => void, shouldStop?: () => boolean) => Promise<Blob>;
 // How many steps either side of the open item the viewer keeps already
 // loaded photos and clips for, so stepping back shows them at once.
 const cViewerKeep = 2;
@@ -66,6 +74,9 @@ export default function SharedGalleryView() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dl, setDl] = useState<{ done: number; total: number; bytes: number } | null>(null);
+  // Originals are put together in this page's memory before each is
+  // saved: a big one asks first (bigFile.ts), with the biggest's size.
+  const [bigAsk, setBigAsk] = useState<{ bytes: number; several: boolean; indexes: number[] } | null>(null);
   const urls = useRef<string[]>([]);
   // The viewer's loaded photos and clips by item index (blob URLs only,
   // never a stream URL, which expires) - see Viewer.
@@ -209,8 +220,13 @@ export default function SharedGalleryView() {
     if (gallery) document.title = gallery.description || t("web.files.gallery.title");
   }, [gallery, t]);
 
-  const download = async (indexes: number[]) => {
+  const download = async (indexes: number[], bigOk = false) => {
     if (!gallery || dl) return;
+    const biggest = Math.max(0, ...indexes.map((i) => Number(gallery.items[i]?.size ?? 0)));
+    if (!bigOk && isTooBigForMemory(biggest)) {
+      setBigAsk({ bytes: biggest, several: indexes.length > 1, indexes });
+      return;
+    }
     setDl({ done: 0, total: indexes.length, bytes: 0 });
     try {
       for (const [k, i] of indexes.entries()) {
@@ -313,6 +329,16 @@ export default function SharedGalleryView() {
           onClose={() => setOpen(null)} onMove={d => setOpen(i => (i === null ? null : (i + d + items.length) % items.length))}
           onDownload={() => void download([open])} />
       )}
+      {bigAsk && (
+        <Part kind="layer" onClose={() => setBigAsk(null)}>
+          <BigFileDialog
+            bytes={bigAsk.bytes}
+            kind={bigAsk.several ? "one_of" : "save"}
+            onGo={() => { setBigAsk(null); void download(bigAsk.indexes, true); }}
+            onCancel={() => setBigAsk(null)}
+          />
+        </Part>
+      )}
     </div>
   );
 }
@@ -324,6 +350,9 @@ function Viewer(props: {
 }) {
   const { item, index, count, thumb, link, fetchPart, cache, onClose, onMove, onDownload } = props;
   const t = useT();
+  // Back closes it (backStack.ts): on a phone, Back used to leave the
+  // gallery for wherever its link was opened from.
+  useBackLayer(true, onClose);
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
@@ -347,7 +376,7 @@ function Viewer(props: {
         cache.delete(k);
       });
     };
-    const load = async (part: Part) => {
+    const load = async (part: ItemPart) => {
       const hit = cache.get(index);
       if (hit) { show(hit); return; }
       const b = await fetchPart(index, part, progress, () => cancelled);

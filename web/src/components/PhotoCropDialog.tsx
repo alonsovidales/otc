@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n";
 import { say, type UiText } from "./uiText";
+import { useBackLayer } from "./backStack";
 import "./PhotoCropDialog.css";
 
 // The profile picture's circle crop (issue #178) - the same one the setup
@@ -22,6 +23,8 @@ type Props = {
 
 export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
   const t = useT();
+  // Back is Cancel (backStack.ts).
+  useBackLayer(true, onCancel);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [error, setError] = useState<UiText | null>(null);

@@ -18,6 +18,8 @@ import { encryptForConnection } from "../net/pwCrypto";
 import type { RespEnvelope } from "../proto/messages";
 import { Trans, useT } from "../i18n";
 import { asIs, say, type PlainKey, type UiText } from "./uiText";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { replaceAddress } from "./backStack";
 import "./UpdatePanel.css";
 import "./BridgePanel.css";
 import { refuseOnDemo } from "../net/demo";
@@ -59,6 +61,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UiText | null>(null);
+  // Leave the bridge asks first, in the app's own dialog.
+  const [askLeave, setAskLeave] = useState(false);
   const onStatusRef = useRef(onStatus);
   // Issue #182 follow-up: whether Google/Apple sign-in can come back to
   // this page's address - asked of the bridge when the quick check says no.
@@ -135,7 +139,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
     params.delete("setup_token");
     params.delete("bridge_signin");
     const rest = params.toString();
-    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+    replaceAddress(window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
     void redeem(returned);
   }, [redeem]);
 
@@ -203,10 +207,10 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
 
   // Issue #182: leaving the bridge. The device gives its name back and
   // restarts local-only; this page, if it came through the bridge, stops
-  // answering - the device is then at http://otc.local:8080 at home.
-  const leave = async () => {
-    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
-    if (!window.confirm(t("web.settings.bridge.leave_confirm", { domain: `${access?.domain}`, address: localUrl }))) return;
+  // answering - the device is then at http://otc.local:8080 at home. Asked
+  // first in the app's dialog (it was the browser's confirm()), which shows
+  // why it didn't happen; done, the panel shows where the device is now.
+  const leave = async (): Promise<UiText | null> => {
     setBusy(true);
     setError(null);
     try {
@@ -214,13 +218,15 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         (e as any).payload = { $case: "reqDisableBridge", reqDisableBridge: {} };
       });
       if (resp.payload?.$case !== "respBridgeAccess") {
-        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.leave_failed")));
-        return;
+        return resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.leave_failed");
       }
       const a = resp.payload.respBridgeAccess;
+      setAskLeave(false);
       setAccess({ ...a, providers: a.providers ?? [] });
-    } catch (e: any) {
-      setError(() => asIs(e?.message ?? String(e)));
+      return null;
+    } catch (e) {
+      const words = (e as { message?: unknown } | null)?.message;
+      return words ? asIs(String(words)) : say("web.settings.bridge.leave_failed");
     } finally {
       setBusy(false);
     }
@@ -244,11 +250,21 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
           }} />
         </p>
         <div className="up-actions">
-          <button className="sf-btn sf-danger" disabled={busy} onClick={() => void leave()}>
+          <button className="sf-btn sf-danger" disabled={busy} onClick={() => { if (!refuseOnDemo()) setAskLeave(true); }}>
             {busy ? t("web.settings.bridge.leaving") : t("web.settings.bridge.leave")}
           </button>
         </div>
         {error && <p className="up-error">{error(t)}</p>}
+        {askLeave && (
+          <ConfirmDialog
+            title={t("web.settings.bridge.leave")}
+            text={t("web.settings.bridge.leave_confirm", { domain: access.domain, address: localUrl })}
+            confirm={t("web.settings.bridge.leave")}
+            busyText={t("web.settings.bridge.leaving")}
+            onConfirm={leave}
+            onCancel={() => setAskLeave(false)}
+          />
+        )}
       </section>
     );
   }

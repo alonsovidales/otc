@@ -1,0 +1,37 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* "Reconnecting…" (ReconnectingBanner.tsx): a pill just under the top bar,
+   in the middle of the page beside the menu - over the pages' own bars
+   (35), under the menu's drawer (39-40) and the dialogs (50 and up). */
+.rc-wrap {
+  position: fixed;
+  z-index: 37;
+  top: calc(var(--topbar-h) + 8px);
+  left: var(--content-left, 0px);
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.rc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--mist);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  font-size: 13px;
+  line-height: 18px;
+  animation: rc-in .2s ease-out;
+}
+.rc-pill .spinner { color: var(--gold); }
+@keyframes rc-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .rc-pill { animation: none; }
+}

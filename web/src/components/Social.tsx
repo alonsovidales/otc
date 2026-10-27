@@ -3,7 +3,10 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
-import NewPostPicker from "./NewPostPicker";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
+import PushCard from "./PushCard";
+import { useBackLayer } from "./backStack";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -25,6 +28,9 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { showSection } from "./showSection";
 import { safeImage, safeVideo } from "./inlineTypes";
 import { asIs, say, type UiText } from "./uiText";
+
+// The composer, loaded when first opened (lazyPart.ts).
+const NewPostPicker = lazyPart(() => import("./NewPostPicker"));
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -609,6 +615,8 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
     setLikers(null);
     setLikersError(null);
   }, []);
+  // Back closes it (backStack.ts).
+  useBackLayer(likersOpen, closeLikers);
   // One avatar URL per liker while the list is up, freed with it - not a
   // new, never-freed one for every liker on every render of Social.
   const likerURLs = useMemo(
@@ -778,6 +786,8 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
     setViewerDownloadOnly(false);
     setViewerPub(null);
   }, []);
+  // Back closes the pop-up (backStack.ts).
+  useBackLayer(viewerOpen, closeViewer);
 
   const nextImg = useCallback(() => {
     if (!viewerPub?.files.length) return;
@@ -957,6 +967,9 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
 
   return (
     <div className="sv-wrap">
+      {/* Browser notifications, asked for from a button (PushCard): above
+          the feed, whose top the first post's room is measured from. */}
+      {authenticated && <PushCard />}
       {/* Right: feed */}
       <div className="sv-feed" ref={feedElRef}>
         {/* Issue #79: an empty timeline invites the first post instead of
@@ -1025,10 +1038,12 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
           ever wires that button up once authenticated. */}
 
       {authenticated && pickerOpen && (
-        <NewPostPicker
-          onCancel={() => setPickerOpen(false)}
-          onPosted={() => { setPickerOpen(false); void loadFeed(); }}
-        />
+        <Part kind="layer" onClose={() => setPickerOpen(false)}>
+          <NewPostPicker
+            onCancel={() => setPickerOpen(false)}
+            onPosted={() => { setPickerOpen(false); void loadFeed(); }}
+          />
+        </Part>
       )}
 
       {/* Image modal */}

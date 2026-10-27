@@ -11,6 +11,7 @@ import { RaidState } from "../proto/messages";
 import type { Status } from "../proto/messages";
 import { useT, type TFunction } from "../i18n";
 import { percentText } from "./uiText";
+import { useBackLayer } from "./backStack";
 import "./Sidebar.css";
 
 type Props = {
@@ -113,6 +114,10 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
     onSelect(key);
     closeDrawer();
   };
+
+  // Back closes the drawer (backStack.ts); a pick in it is one history
+  // entry, the section's.
+  useBackLayer(drawerOpen, closeDrawer);
 
   const showStorage = () => {
     revealStorage.current = true;

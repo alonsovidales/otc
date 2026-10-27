@@ -5,11 +5,12 @@
 // screenshots. serve.mjs aliases every import of net/useWS to this file.
 
 // What a signed-in browser would have stored: a live session token (restored
-// on load through authWithToken below), the Images tab, push already asked.
+// on load through authWithToken below), the Images tab, the feed's
+// notifications card put away.
 try {
   localStorage.setItem("otc_session_token", JSON.stringify({ token: "promo", expiresAtMs: Date.now() + 30 * 60 * 1000 }));
   localStorage.setItem("otc_last_tab", "PhotoGallery");
-  localStorage.setItem("otc_push_prompted", "1");
+  localStorage.setItem("otc_push_card_dismissed", "1");
   localStorage.setItem("otc_menu_open", "1");
 } catch { /* not needed to render */ }
 

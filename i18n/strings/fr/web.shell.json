@@ -11,6 +11,22 @@
     "text": "Déconnexion…",
     "en": "Signing out…"
   },
+  "web.shell.big_file.one_of": {
+    "text": "L’un de ces fichiers fait {size} ; votre navigateur le gardera entièrement en mémoire avant de l’enregistrer. Continuer ?",
+    "en": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.open": {
+    "text": "Ce fichier fait {size} ; votre navigateur le gardera entièrement en mémoire avant de l’afficher. Continuer ?",
+    "en": "This is {size}; your browser will hold it all in memory before showing it. Continue?"
+  },
+  "web.shell.big_file.save": {
+    "text": "Ce fichier fait {size} ; votre navigateur le gardera entièrement en mémoire avant de l’enregistrer. Continuer ?",
+    "en": "This is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.title": {
+    "text": "Un fichier volumineux",
+    "en": "A large file"
+  },
   "web.shell.connection.closed": {
     "text": "Connexion à l’appareil fermée",
     "en": "WS connection closed"
@@ -31,6 +47,10 @@
   "web.shell.connection.not_connected": {
     "text": "Non connecté à l’appareil",
     "en": "WS not connected"
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "Reconnexion…",
+    "en": "Reconnecting…"
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Connexion établie entre-temps.",
@@ -105,6 +125,14 @@
     "text": "Aller dans Images",
     "en": "Go to Images"
   },
+  "web.shell.error.part_text": {
+    "text": "La connexion a peut-être été coupée, ou l’appareil a été mis à jour depuis l’ouverture de cette page. Rechargez pour réessayer.",
+    "en": "The connection may have dropped, or the device was updated since this page opened. Reload to try again."
+  },
+  "web.shell.error.part_title": {
+    "text": "Cette partie de l’app n’a pas pu se charger",
+    "en": "This part of the app couldn't load"
+  },
   "web.shell.error.reload": {
     "text": "Recharger",
     "en": "Reload"
@@ -128,6 +156,10 @@
   "web.shell.file_icon.label": {
     "text": "Fichier {type}",
     "en": "{type} file"
+  },
+  "web.shell.link.cancelled": {
+    "text": "Téléchargement annulé. Vous pouvez fermer cet onglet.",
+    "en": "Download cancelled. You can close this tab."
   },
   "web.shell.link.done": {
     "text": "Le téléchargement a commencé. Vous pouvez fermer cet onglet.",

@@ -25,7 +25,9 @@ import { refuseOnDemo } from "../net/demo";
 import "./PhotoGallery.css";
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
-import MediaViewer, { type ViewerItem } from "./MediaViewer";
+import type { ViewerItem } from "./MediaViewer";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
 import { ConfirmDialog, LinkDialog, Modal } from "./ConfirmDialog";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
@@ -44,6 +46,9 @@ import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
   type ScrollAt, type UpCursor,
 } from "./newerPhotos";
+
+// The viewer, loaded when first opened (lazyPart.ts).
+const MediaViewer = lazyPart(() => import("./MediaViewer"));
 
 // A search's first page asks for only this many photos (SearchPhotos.limit):
 // a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
@@ -1720,8 +1725,10 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
 
       <ToastView toast={toast} onDismiss={dismissToast} beforeAction={swallowSecondClick} />
 
-      {/* The shared viewer (MediaViewer.tsx), also used by Files. */}
+      {/* The shared viewer (MediaViewer.tsx), also used by Files: loaded
+          when first opened. */}
       {openIdx != null && openIdx < items.length && (
+        <Part kind="layer" onClose={closeViewer}>
         <MediaViewer
           items={viewerItems}
           index={openIdx}
@@ -1738,6 +1745,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
           }}
           inCollection={group != null}
         />
+        </Part>
       )}
 
       {sharing && <SharedGalleryShare source={sharing} onClose={() => setSharing(null)} />}

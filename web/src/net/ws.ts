@@ -118,10 +118,32 @@ export class WSClient {
   private lastDrainAt = 0;
   private lastBuffered = 0;
   private watchTimer?: ReturnType<typeof setInterval>;
+  // Down: the last socket closed or was dropped, or the last opening
+  // failed, and none has opened since - while signed in, the requests
+  // around it (the polls) are reconnecting (App's "Reconnecting…").
+  private down = false;
+  private downListeners = new Set<(down: boolean) => void>();
 
   onMessage(fn: RespListener) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /** Whether the socket is down (see `down`). */
+  isDown = () => this.down;
+
+  /** fn hears each change of isDown(); returns the unsubscribe. */
+  onDownChange = (fn: (down: boolean) => void) => {
+    this.downListeners.add(fn);
+    return () => { this.downListeners.delete(fn); };
+  };
+
+  private setDown(down: boolean) {
+    if (this.down === down) return;
+    this.down = down;
+    this.downListeners.forEach((fn) => {
+      try { fn(down); } catch (e) { console.error("socket listener failed:", e); }
+    });
   }
 
   connect(url: string): Promise<void> {
@@ -144,6 +166,7 @@ export class WSClient {
         this.connecting = undefined;
         this.failConnect = undefined;
         this.lastFrameAt = Date.now();
+        this.setDown(false);
         noteLanguageConnection();
         resolve();
       };
@@ -204,6 +227,7 @@ export class WSClient {
       this.connecting = undefined;
       this.failConnect?.(new NoAnswer(text));
       this.failConnect = undefined;
+      this.setDown(true);
     }
     ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
     try { ws.close(); } catch { /* already closed */ }

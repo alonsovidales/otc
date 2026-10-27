@@ -11,6 +11,22 @@
     "text": "A terminar sessão…",
     "en": "Signing out…"
   },
+  "web.shell.big_file.one_of": {
+    "text": "Um destes ficheiros tem {size}; o navegador vai mantê-lo todo na memória antes de o guardar. Continuar?",
+    "en": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.open": {
+    "text": "Tem {size}; o navegador vai mantê-lo todo na memória antes de o mostrar. Continuar?",
+    "en": "This is {size}; your browser will hold it all in memory before showing it. Continue?"
+  },
+  "web.shell.big_file.save": {
+    "text": "Tem {size}; o navegador vai mantê-lo todo na memória antes de o guardar. Continuar?",
+    "en": "This is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.title": {
+    "text": "Um ficheiro grande",
+    "en": "A large file"
+  },
   "web.shell.connection.closed": {
     "text": "Ligação ao dispositivo fechada",
     "en": "WS connection closed"
@@ -31,6 +47,10 @@
   "web.shell.connection.not_connected": {
     "text": "Sem ligação ao dispositivo",
     "en": "WS not connected"
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "A ligar de novo…",
+    "en": "Reconnecting…"
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Entretanto, a sessão foi iniciada.",
@@ -105,6 +125,14 @@
     "text": "Ir para Imagens",
     "en": "Go to Images"
   },
+  "web.shell.error.part_text": {
+    "text": "A ligação pode ter caído, ou o dispositivo foi atualizado desde que abriste esta página. Recarrega para tentar novamente.",
+    "en": "The connection may have dropped, or the device was updated since this page opened. Reload to try again."
+  },
+  "web.shell.error.part_title": {
+    "text": "Não foi possível carregar esta parte da app",
+    "en": "This part of the app couldn't load"
+  },
   "web.shell.error.reload": {
     "text": "Recarregar",
     "en": "Reload"
@@ -128,6 +156,10 @@
   "web.shell.file_icon.label": {
     "text": "Ficheiro {type}",
     "en": "{type} file"
+  },
+  "web.shell.link.cancelled": {
+    "text": "Transferência cancelada. Já podes fechar este separador.",
+    "en": "Download cancelled. You can close this tab."
   },
   "web.shell.link.done": {
     "text": "A transferência começou. Já podes fechar este separador.",

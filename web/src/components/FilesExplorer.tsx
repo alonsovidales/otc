@@ -16,7 +16,12 @@ import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import { deviceCantSearchFiles, fold, foundParts, takeFilesRequest, useFilesRequest, type Span } from "./filesNav";
 import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
-import MediaViewer, { type ViewerItem } from "./MediaViewer";
+import type { ViewerItem } from "./MediaViewer";
+import { lazyPart } from "./lazyPart";
+import Part from "./Part";
+import BigFileDialog from "./BigFileDialog";
+import { isTooBigForMemory } from "./bigFile";
+import { useBackLayer } from "./backStack";
 import { reloadAfterImagesChanged } from "./libraryStore";
 import { refuseOnDemo } from "../net/demo";
 import "./FilesExplorer.css";
@@ -35,6 +40,9 @@ import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { LinkDialog } from "./ConfirmDialog";
+
+// The viewer, loaded when first opened (lazyPart.ts).
+const MediaViewer = lazyPart(() => import("./MediaViewer"));
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -503,7 +511,7 @@ function FilesExplorerView({
 
   // Issue #132: the versions pop-up - which file it is for and the older
   // versions the device listed (newest first), or null when closed.
-  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; versions: PbFile[] } | null>(null);
+  const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; size: number; versions: PbFile[] } | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);
 
   // Issue #192: what the last listing said about keeping folders out of
@@ -530,6 +538,17 @@ function FilesExplorerView({
 
   // Image viewer
   const [viewer, setViewer] = useState<{ name: string; url: string } | null>(null);
+  const closeImage = () => {
+    if (viewer) URL.revokeObjectURL(viewer.url);
+    setViewer(null);
+  };
+  // Back closes the pop-ups as their × does (backStack.ts).
+  useBackLayer(!!viewer, closeImage);
+  useBackLayer(!!versionsOf, () => setVersionsOf(null));
+  // F11 of the 2026-10 review: what Files saves or shows in a tab is read
+  // whole into memory first. A file past bigFile.ts's limit asks before
+  // (BigFileDialog): its open, or one of its versions.
+  const [bigAsk, setBigAsk] = useState<{ bytes: number; kind: "save" | "open"; go: () => void } | null>(null);
 
   // Issue #71: the only feedback a click on a file used to get was however
   // long GetFile's round trip took - nothing changed on screen in the
@@ -752,7 +771,7 @@ function FilesExplorerView({
   const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => setDragOver(false);
 
   // -------- click entries (4, 5) ----------
-  const openEntry = async (f: PbFile) => {
+  const openEntry = async (f: PbFile, bigOk = false) => {
     if (!isDir(f) && isMedia(f)) {
       openMedia(f);
       return;
@@ -780,6 +799,12 @@ function FilesExplorerView({
     // can't pile up into several viewers/tabs popping open back to back
     // once each fetch happens to land.
     if (openingPath !== null) return;
+    const opensInline = !isImg(f) && canOpenInline(leafName(f.path));
+    // Its Download or Open is a click of its own, which the tab below opens in.
+    if (!bigOk && isTooBigForMemory(fileSize(f))) {
+      setBigAsk({ bytes: fileSize(f), kind: opensInline ? "open" : "save", go: () => void openEntry(f, true) });
+      return;
+    }
     setOpeningPath(f.path);
 
     // Issue #72: open a blank tab synchronously, in the same tick as the
@@ -790,7 +815,6 @@ function FilesExplorerView({
     // browser's native viewer for anything it can render (PDFs chief among
     // them) instead of always forcing a download the way this used to,
     // unconditionally, for every non-image type.
-    const opensInline = !isImg(f) && canOpenInline(leafName(f.path));
     const preopenedTab = opensInline ? window.open("", "_blank") : null;
     // No handle back into the app for whatever the file links to (a link
     // in a PDF could otherwise point this tab at a fake sign-in page).
@@ -1008,13 +1032,13 @@ function FilesExplorerView({
   const openVersions = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
     setVersionsLoading(true);
-    setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: [] });
+    setVersionsOf({ path: full, name: leafName(full), mime: f.mime, size: fileSize(f), versions: [] });
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqListFileVersions", reqListFileVersions: { path: full } };
       });
       if (resp.payload?.$case === "respFileVersions") {
-        setVersionsOf({ path: full, name: leafName(full), mime: f.mime, versions: resp.payload.respFileVersions.versions });
+        setVersionsOf({ path: full, name: leafName(full), mime: f.mime, size: fileSize(f), versions: resp.payload.respFileVersions.versions });
       }
     } finally {
       setVersionsLoading(false);
@@ -1025,7 +1049,11 @@ function FilesExplorerView({
   // Saved, never rendered (octet-stream, as every download here); its URL
   // is let go after a while, not at once (a revoke right after the click
   // could save nothing). What went wrong shows.
-  const downloadVersion = async (full: string, hash: string, name: string, mime: string) => {
+  const downloadVersion = async (full: string, hash: string, name: string, mime: string, bytes: number, bigOk = false) => {
+    if (!bigOk && isTooBigForMemory(bytes)) {
+      setBigAsk({ bytes, kind: "save", go: () => void downloadVersion(full, hash, name, mime, bytes, true) });
+      return;
+    }
     const failed = (words?: string) =>
       showToast({ text: failText(words, (tt) => tt("web.files.versions.download_failed", { name })), error: true });
     try {
@@ -1413,7 +1441,7 @@ function FilesExplorerView({
   // Whether something lies over the folder or the results (the viewer, a
   // pop-up: theirs to close Escape with).
   const overlayOpen = useRef(false);
-  overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder || linkShown);
+  overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder || linkShown || bigAsk);
   const inResults = results !== null;
 
   // A found folder opens in Files; a photo or video in the viewer, paging
@@ -2234,6 +2262,7 @@ function FilesExplorerView({
       </div>
 
       {mediaViewer && (
+        <Part kind="layer" onClose={closeViewer}>
         <MediaViewer
           items={viewerItems}
           index={mediaViewer.index}
@@ -2251,6 +2280,7 @@ function FilesExplorerView({
           }}
           deleteBlocked={viewerDeleteBlocked}
         />
+        </Part>
       )}
 
       {/* Issue #132: the versions pop-up - every older version of the
@@ -2267,13 +2297,13 @@ function FilesExplorerView({
                 <li className="fb-versions-item current">
                   <span className="fb-versions-when">{t("web.files.versions.current")}</span>
                   <span className="fb-versions-size" />
-                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime)}>{t("common.download")}</button>
+                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime, versionsOf.size)}>{t("common.download")}</button>
                 </li>
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
                     <span className="fb-versions-when">{t("web.files.versions.replaced", { date: v.modified ? fmtDate(t.lang, v.modified, dateTimeFields) : "—" })}</span>
                     <span className="fb-versions-size">{fmtBytes(t, fileSize(v))}</span>
-                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>{t("common.download")}</button>
+                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime, fileSize(v))}>{t("common.download")}</button>
                   </li>
                 ))}
               </ul>
@@ -2283,9 +2313,9 @@ function FilesExplorerView({
       )}
 
       {viewer && (
-        <div className="fb-modal" onClick={() => { URL.revokeObjectURL(viewer.url); setViewer(null); }}>
+        <div className="fb-modal" onClick={closeImage}>
           <div className="fb-modal-body" onClick={(e)=>e.stopPropagation()}>
-            <button className="fb-close" onClick={() => { URL.revokeObjectURL(viewer.url); setViewer(null); }}>✕</button>
+            <button className="fb-close" onClick={closeImage}>✕</button>
             <img className="fb-full" src={viewer.url} alt={viewer.name} />
             <div className="fb-cap">{viewer.name}</div>
           </div>
@@ -2293,6 +2323,14 @@ function FilesExplorerView({
       )}
       {sharingFolder && <SharedGalleryShare source={{ directory: sharingFolder }} onClose={() => setSharingFolder(null)} />}
       {linkShown && <LinkDialog link={linkShown} onClose={() => setLinkShown(null)} />}
+      {bigAsk && (
+        <BigFileDialog
+          bytes={bigAsk.bytes}
+          kind={bigAsk.kind}
+          onGo={() => { setBigAsk(null); bigAsk.go(); }}
+          onCancel={() => setBigAsk(null)}
+        />
+      )}
       <ToastView toast={toast} onDismiss={dismissToast} />
     </div>
   );

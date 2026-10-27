@@ -73,7 +73,9 @@
 .btn { border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 8px; padding: 2px 10px; cursor: pointer; }
 .btn.danger { background: var(--danger-bg); border-color: rgba(255,138,117,.4); color: var(--danger); }
 
-.fb-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 1000; }
+/* Over the top bar (30) and the menu's drawer (39-40), under the dialogs
+   (60: a big version's question) and the toasts (70) it opens. */
+.fb-modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 55; }
 .fb-modal-body { position: relative; max-width: 95vw; max-height: 90vh; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .fb-close { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--panel); color: var(--mist); cursor: pointer; }
 .fb-full { max-width: 90vw; max-height: 80vh; display: block; }

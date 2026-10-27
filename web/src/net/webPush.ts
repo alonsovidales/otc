@@ -125,25 +125,10 @@ export async function unregisterPushOnSignOut(): Promise<void> {
   await sub.unsubscribe();
 }
 
-// Ask once, proactively, right after sign-in, rather than requiring the
-// user to find "Enable Notifications" in Settings themselves — the
-// browser's native Allow/Block prompt still can't be skipped (no API does
-// that, by design), but at least the ask itself doesn't have to be
-// buried. "Once" here means once ever per browser, not once per session:
-// if the user already granted, denied, or was already asked and dismissed
-// it, Notification.permission is no longer "default" and this is a no-op.
-const cPromptedStorageKey = "otc_push_prompted";
-
-export function promptForPushIfNeverAsked(): void {
-  if (!pushSupported() || typeof Notification === "undefined") return;
-  if (Notification.permission !== "default") return;
-  try {
-    if (localStorage.getItem(cPromptedStorageKey)) return;
-    localStorage.setItem(cPromptedStorageKey, "1");
-  } catch {
-    // No localStorage — fall through and ask anyway rather than never
-    // asking; worst case is one repeat prompt per page load in that
-    // (rare) environment, not silence forever.
-  }
-  void enablePush();
+/** Whether this browser can have notifications and hasn't been asked to
+ *  (or closed the question unanswered): the feed's card offers them then
+ *  (PushCard). Asked only from a click: Safari refuses a question no click
+ *  asked for. */
+export function pushUndecided(): boolean {
+  return pushSupported() && typeof Notification !== "undefined" && Notification.permission === "default";
 }

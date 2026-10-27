@@ -11,6 +11,22 @@
     "text": "Uscita…",
     "en": "Signing out…"
   },
+  "web.shell.big_file.one_of": {
+    "text": "Uno di questi file occupa {size}; il browser lo terrà tutto in memoria prima di salvarlo. Continuare?",
+    "en": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.open": {
+    "text": "Occupa {size}; il browser lo terrà tutto in memoria prima di mostrarlo. Continuare?",
+    "en": "This is {size}; your browser will hold it all in memory before showing it. Continue?"
+  },
+  "web.shell.big_file.save": {
+    "text": "Occupa {size}; il browser lo terrà tutto in memoria prima di salvarlo. Continuare?",
+    "en": "This is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.title": {
+    "text": "Un file di grandi dimensioni",
+    "en": "A large file"
+  },
   "web.shell.connection.closed": {
     "text": "Connessione al dispositivo chiusa",
     "en": "WS connection closed"
@@ -31,6 +47,10 @@
   "web.shell.connection.not_connected": {
     "text": "Non connesso al dispositivo",
     "en": "WS not connected"
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "Riconnessione…",
+    "en": "Reconnecting…"
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Accesso già effettuato nel frattempo.",
@@ -105,6 +125,14 @@
     "text": "Vai a Immagini",
     "en": "Go to Images"
   },
+  "web.shell.error.part_text": {
+    "text": "Forse la connessione si è interrotta, oppure il dispositivo è stato aggiornato da quando hai aperto questa pagina. Ricarica per riprovare.",
+    "en": "The connection may have dropped, or the device was updated since this page opened. Reload to try again."
+  },
+  "web.shell.error.part_title": {
+    "text": "Impossibile caricare questa parte dell’app",
+    "en": "This part of the app couldn't load"
+  },
   "web.shell.error.reload": {
     "text": "Ricarica",
     "en": "Reload"
@@ -128,6 +156,10 @@
   "web.shell.file_icon.label": {
     "text": "File {type}",
     "en": "{type} file"
+  },
+  "web.shell.link.cancelled": {
+    "text": "Download annullato. Ora puoi chiudere questa scheda.",
+    "en": "Download cancelled. You can close this tab."
   },
   "web.shell.link.done": {
     "text": "Il download è iniziato. Ora puoi chiudere questa scheda.",

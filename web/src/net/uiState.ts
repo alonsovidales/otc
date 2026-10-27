@@ -20,10 +20,14 @@ export function saveLastTab(tab: TabKey) {
   }
 }
 
+/** s as a tab's key, if it is one (a stored tab, a history entry's). */
+export function asTabKey(s: string | null | undefined): TabKey | null {
+  return (cValidTabs as readonly string[]).includes(s ?? "") ? (s as TabKey) : null;
+}
+
 export function loadLastTab(): TabKey | null {
   try {
-    const stored = localStorage.getItem(cTabStorageKey);
-    return (cValidTabs as string[]).includes(stored ?? "") ? (stored as TabKey) : null;
+    return asTabKey(localStorage.getItem(cTabStorageKey));
   } catch {
     return null;
   }

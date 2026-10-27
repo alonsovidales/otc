@@ -696,11 +696,16 @@ export type MessageKey =
   | "web.shell.account.label"
   | "web.shell.account.sign_out"
   | "web.shell.account.signing_out"
+  | "web.shell.big_file.one_of"
+  | "web.shell.big_file.open"
+  | "web.shell.big_file.save"
+  | "web.shell.big_file.title"
   | "web.shell.connection.closed"
   | "web.shell.connection.no_answer"
   | "web.shell.connection.no_key"
   | "web.shell.connection.no_push_key"
   | "web.shell.connection.not_connected"
+  | "web.shell.connection.reconnecting"
   | "web.shell.connection.signed_in_meanwhile"
   | "web.shell.connection.too_many"
   | "web.shell.demo.banner"
@@ -719,12 +724,15 @@ export type MessageKey =
   | "web.shell.download.started"
   | "web.shell.download.started_sr"
   | "web.shell.error.images"
+  | "web.shell.error.part_text"
+  | "web.shell.error.part_title"
   | "web.shell.error.reload"
   | "web.shell.error.text"
   | "web.shell.error.text_reload"
   | "web.shell.error.title"
   | "web.shell.file_icon.generic"
   | "web.shell.file_icon.label"
+  | "web.shell.link.cancelled"
   | "web.shell.link.done"
   | "web.shell.link.empty"
   | "web.shell.link.failed"
@@ -972,6 +980,11 @@ export type MessageKey =
   | "web.social.profile.saving"
   | "web.social.profile.unexpected"
   | "web.social.profile.unnamed"
+  | "web.social.push.failed"
+  | "web.social.push.not_now"
+  | "web.social.push.on"
+  | "web.social.push.turn_on"
+  | "web.social.push.turning_on"
   | "web.social.time.days"
   | "web.social.time.days_ago"
   | "web.social.time.hours"
@@ -1707,11 +1720,16 @@ export interface MessageArgs {
   "web.shell.account.label": undefined;
   "web.shell.account.sign_out": undefined;
   "web.shell.account.signing_out": undefined;
+  "web.shell.big_file.one_of": { size: string };
+  "web.shell.big_file.open": { size: string };
+  "web.shell.big_file.save": { size: string };
+  "web.shell.big_file.title": undefined;
   "web.shell.connection.closed": undefined;
   "web.shell.connection.no_answer": undefined;
   "web.shell.connection.no_key": undefined;
   "web.shell.connection.no_push_key": undefined;
   "web.shell.connection.not_connected": undefined;
+  "web.shell.connection.reconnecting": undefined;
   "web.shell.connection.signed_in_meanwhile": undefined;
   "web.shell.connection.too_many": undefined;
   "web.shell.demo.banner": undefined;
@@ -1730,12 +1748,15 @@ export interface MessageArgs {
   "web.shell.download.started": undefined;
   "web.shell.download.started_sr": { name: string };
   "web.shell.error.images": undefined;
+  "web.shell.error.part_text": undefined;
+  "web.shell.error.part_title": undefined;
   "web.shell.error.reload": undefined;
   "web.shell.error.text": undefined;
   "web.shell.error.text_reload": undefined;
   "web.shell.error.title": undefined;
   "web.shell.file_icon.generic": undefined;
   "web.shell.file_icon.label": { type: string };
+  "web.shell.link.cancelled": undefined;
   "web.shell.link.done": undefined;
   "web.shell.link.empty": undefined;
   "web.shell.link.failed": undefined;
@@ -1990,6 +2011,11 @@ export interface MessageArgs {
   "web.social.profile.saving": undefined;
   "web.social.profile.unexpected": undefined;
   "web.social.profile.unnamed": undefined;
+  "web.social.push.failed": undefined;
+  "web.social.push.not_now": undefined;
+  "web.social.push.on": undefined;
+  "web.social.push.turn_on": undefined;
+  "web.social.push.turning_on": undefined;
   "web.social.time.days": { days: number };
   "web.social.time.days_ago": { days: number };
   "web.social.time.hours": { hours: number };

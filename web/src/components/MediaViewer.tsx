@@ -5,7 +5,9 @@
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download, and Delete where the caller allows it
-// (issue #199). The apps do the same with ImageModal.
+// (issue #199). The apps do the same with ImageModal. Loaded when first
+// opened (lazyPart.ts: Images and Files wrap it in a layer's Part); Back
+// closes it.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
@@ -21,6 +23,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import type { UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
+import { useBackLayer } from "./backStack";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -64,12 +67,21 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 // its read-ahead share one request per path, so stepping onto a neighbour
 // still on its way waits for that answer rather than asking again. Kept
 // even when the viewer moved on before it came: stepping back to it is
-// what the cache is for.
+// what the cache is for. A video (a clip too short for the device to
+// stream) is read in 4 MB ReadFile pieces instead, as Files reads: GetFile
+// is for what the device converts (a HEIC shown as a JPEG), and a device
+// may refuse it a whole video.
 const inFlight = new Map<string, Promise<Blob | null>>();
 function fetchWhole(item: ViewerItem): Promise<Blob | null> {
   let p = inFlight.get(item.path);
   if (!p) {
     p = (async () => {
+      if (isVideoFile(item)) {
+        const parts = await readFileInPieces(item.path, () => {});
+        const clip = parts ? new Blob(parts as BlobPart[], { type: item.mime || "video/mp4" }) : null;
+        if (clip && item.hash) fullSizeCache.put(item.hash, clip);
+        return clip;
+      }
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         e.payload = { $case: "reqGetFile", reqGetFile: { path: item.path, hash: "" } };
       });
@@ -158,6 +170,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   inCollection?: boolean;
 }) {
   const t = useT();
+  // Back closes the viewer (backStack.ts), as its × does.
+  useBackLayer(true, onClose);
   const [hiURL, setHiURL] = useState<string | null>(null);
   // A full-size photo (or a small video fetched whole) is a blob of
   // several MB: freed after the commit that took it off screen - the next

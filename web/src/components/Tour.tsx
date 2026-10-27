@@ -9,10 +9,10 @@
 // it; when the step's own control is on screen (a menu item, the top bar's
 // menu button or "+ New post", the account picture) the dimmed layer
 // leaves a hole with an ember ring around it. A click in the hole ends the
-// tour and goes on to that control; anywhere else on the dimmed layer, Esc
-// and Skip end it too. It never navigates, sends nothing and opens nothing
-// of its own. App keeps its step, so it comes back where it was after the
-// device-unreachable screen.
+// tour and goes on to that control; anywhere else on the dimmed layer, Esc,
+// Back and Skip end it too. It never navigates, sends nothing and opens
+// nothing of its own. App keeps its step, so it comes back where it was
+// after the device-unreachable screen.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
@@ -20,6 +20,7 @@ import logo from "../assets/off_the_cloud.png";
 import { Trans, useT } from "../i18n";
 import { FRIEND_TLD } from "../net/friendDomain";
 import { AlertsIcon, CollectionsIcon, FilesIcon, FriendsIcon, ImagesIcon, MenuIcon, PeopleIcon, SettingsIcon, SocialIcon } from "./NavIcons";
+import { useBackLayer } from "./backStack";
 import {
   cStepTargets, dimPath, holeFor, holeRadius, insideHole, roundedBoxPath, stepAfter, stepBefore, stepPlace, tourSteps,
   type Box, type TourStepId,
@@ -272,6 +273,8 @@ export default function Tour({ step: wanted, faces, onStep, onClose }: Props) {
   });
 
   const end = useCallback(() => live.current.onClose(), []);
+  // Back is Skip (backStack.ts).
+  useBackLayer(true, end);
   const goNext = useCallback(() => {
     const { step: at, steps: all, last: atLast, onStep: move, onClose: close } = live.current;
     if (atLast) { close(); return; }

@@ -600,6 +600,26 @@
     "text": "Benutzer ohne Namen",
     "en": "Unnamed user"
   },
+  "web.social.push.failed": {
+    "text": "Benachrichtigungen konnten nicht eingeschaltet werden.",
+    "en": "Notifications couldn't be turned on."
+  },
+  "web.social.push.not_now": {
+    "text": "Nicht jetzt",
+    "en": "Not now"
+  },
+  "web.social.push.on": {
+    "text": "Benachrichtigungen sind eingeschaltet. Du kannst sie in den Einstellungen ausschalten.",
+    "en": "Notifications are on. You can turn them off in Settings."
+  },
+  "web.social.push.turn_on": {
+    "text": "Bei neuen Beiträgen der Familie benachrichtigen",
+    "en": "Get notified when family posts"
+  },
+  "web.social.push.turning_on": {
+    "text": "Wird eingeschaltet…",
+    "en": "Turning on…"
+  },
   "web.social.time.days": {
     "text": "{days} T.",
     "en": "{days}d"

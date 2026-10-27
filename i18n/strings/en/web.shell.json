@@ -14,6 +14,26 @@
     "note": "The Sign out item of the account menu while this browser signs out.",
     "max": 24
   },
+  "web.shell.big_file.one_of": {
+    "text": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?",
+    "args": [["size", "text"]],
+    "note": "Under A large file (web.shell.big_file.title), before several files of a shared gallery are downloaded and the biggest is above about 500 MB. {size} is that file's size, such as 1.2 GB. The buttons are Cancel and Download."
+  },
+  "web.shell.big_file.open": {
+    "text": "This is {size}; your browser will hold it all in memory before showing it. Continue?",
+    "args": [["size", "text"]],
+    "note": "Under A large file (web.shell.big_file.title), before a big file from Files opens in a tab of its own (a PDF, say). {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Open."
+  },
+  "web.shell.big_file.save": {
+    "text": "This is {size}; your browser will hold it all in memory before saving. Continue?",
+    "args": [["size", "text"]],
+    "note": "Under A large file (web.shell.big_file.title), before a big download. {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Download."
+  },
+  "web.shell.big_file.title": {
+    "text": "A large file",
+    "note": "Title of the question asked in the web app before a file above about 500 MB is put together in the browser's memory to be saved or shown: a shared ZIP link, a file in Files, a shared gallery's originals. Under it web.shell.big_file.save, .open or .one_of, and the buttons Cancel and Download (or Open).",
+    "max": 60
+  },
   "web.shell.connection.closed": {
     "text": "WS connection closed",
     "note": "Error shown where an action failed because the connection to the device closed before the answer came (a note under a form, a failed download). WS is the WebSocket connection to the device; write it as the connection to the device."
@@ -35,6 +55,11 @@
   "web.shell.connection.not_connected": {
     "text": "WS not connected",
     "note": "Error shown where an action failed because there was no connection to the device (a note under a form, a failed download). WS is the WebSocket connection to the device; write it as the connection to the device."
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "Reconnecting…",
+    "note": "Small pill under the top bar of the web app while its connection to the device dropped and is being opened again; what the page shows may be out of date meanwhile.",
+    "max": 32
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Signed in meanwhile.",
@@ -123,6 +148,15 @@
     "note": "Button under Something went wrong: opens Images, the photo library section of the menu, instead of the page that stopped working.",
     "max": 32
   },
+  "web.shell.error.part_text": {
+    "text": "The connection may have dropped, or the device was updated since this page opened. Reload to try again.",
+    "note": "Under This part of the app couldn't load (web.shell.error.part_title), above the Reload button."
+  },
+  "web.shell.error.part_title": {
+    "text": "This part of the app couldn't load",
+    "note": "Shown in place of a section of the web app (Settings, People, Files) or of the photo viewer or the post composer, loaded only when first opened, when it could not be fetched from the device. Under it web.shell.error.part_text and a Reload button (web.shell.error.reload).",
+    "max": 60
+  },
   "web.shell.error.reload": {
     "text": "Reload",
     "note": "Button under Something went wrong: loads the page again.",
@@ -150,6 +184,10 @@
     "text": "{type} file",
     "args": [["type", "text"]],
     "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, a file extension in capitals, or web.shell.file_icon.generic."
+  },
+  "web.shell.link.cancelled": {
+    "text": "Download cancelled. You can close this tab.",
+    "note": "The page of a shared ZIP link after Cancel was pressed on the question about its size (web.shell.big_file.save)."
   },
   "web.shell.link.done": {
     "text": "Your download has started. You can close this tab.",

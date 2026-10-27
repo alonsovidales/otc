@@ -600,6 +600,26 @@
     "text": "Utente senza nome",
     "en": "Unnamed user"
   },
+  "web.social.push.failed": {
+    "text": "Impossibile attivare le notifiche.",
+    "en": "Notifications couldn't be turned on."
+  },
+  "web.social.push.not_now": {
+    "text": "Non ora",
+    "en": "Not now"
+  },
+  "web.social.push.on": {
+    "text": "Le notifiche sono attive. Puoi disattivarle in Impostazioni.",
+    "en": "Notifications are on. You can turn them off in Settings."
+  },
+  "web.social.push.turn_on": {
+    "text": "Ricevi una notifica per i post della famiglia",
+    "en": "Get notified when family posts"
+  },
+  "web.social.push.turning_on": {
+    "text": "Attivazione…",
+    "en": "Turning on…"
+  },
   "web.social.time.days": {
     "text": "{days} g",
     "en": "{days}d"

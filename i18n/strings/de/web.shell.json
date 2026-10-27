@@ -11,6 +11,22 @@
     "text": "Wird abgemeldet…",
     "en": "Signing out…"
   },
+  "web.shell.big_file.one_of": {
+    "text": "Eine dieser Dateien ist {size} groß; dein Browser hält sie vor dem Speichern ganz im Arbeitsspeicher. Fortfahren?",
+    "en": "One of these files is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.open": {
+    "text": "Sie ist {size} groß; dein Browser hält sie vor dem Anzeigen ganz im Arbeitsspeicher. Fortfahren?",
+    "en": "This is {size}; your browser will hold it all in memory before showing it. Continue?"
+  },
+  "web.shell.big_file.save": {
+    "text": "Sie ist {size} groß; dein Browser hält sie vor dem Speichern ganz im Arbeitsspeicher. Fortfahren?",
+    "en": "This is {size}; your browser will hold it all in memory before saving. Continue?"
+  },
+  "web.shell.big_file.title": {
+    "text": "Eine große Datei",
+    "en": "A large file"
+  },
   "web.shell.connection.closed": {
     "text": "Verbindung zum Gerät geschlossen",
     "en": "WS connection closed"
@@ -31,6 +47,10 @@
   "web.shell.connection.not_connected": {
     "text": "Keine Verbindung zum Gerät",
     "en": "WS not connected"
+  },
+  "web.shell.connection.reconnecting": {
+    "text": "Wird neu verbunden…",
+    "en": "Reconnecting…"
   },
   "web.shell.connection.signed_in_meanwhile": {
     "text": "Inzwischen angemeldet.",
@@ -105,6 +125,14 @@
     "text": "Bilder öffnen",
     "en": "Go to Images"
   },
+  "web.shell.error.part_text": {
+    "text": "Vielleicht ist die Verbindung abgebrochen, oder das Gerät wurde aktualisiert, seit diese Seite geöffnet wurde. Lade neu, um es erneut zu versuchen.",
+    "en": "The connection may have dropped, or the device was updated since this page opened. Reload to try again."
+  },
+  "web.shell.error.part_title": {
+    "text": "Dieser Teil der App konnte nicht geladen werden",
+    "en": "This part of the app couldn't load"
+  },
   "web.shell.error.reload": {
     "text": "Neu laden",
     "en": "Reload"
@@ -128,6 +156,10 @@
   "web.shell.file_icon.label": {
     "text": "{type}-Datei",
     "en": "{type} file"
+  },
+  "web.shell.link.cancelled": {
+    "text": "Download abgebrochen. Du kannst diesen Tab jetzt schließen.",
+    "en": "Download cancelled. You can close this tab."
   },
   "web.shell.link.done": {
     "text": "Der Download hat begonnen. Du kannst diesen Tab jetzt schließen.",
