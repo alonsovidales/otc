@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  {{template "head" (head . (t "site.pi.meta.title") (t "site.pi.meta.description"))}}
+  <style nonce="{{.Nonce}}">
+    {{- template "site-style"}}
+    {{- template "compare-style"}}
+    /* The setup's steps, numbered. */
+    ol.cards{counter-reset:step}
+    ol.cards li{counter-increment:step}
+    ol.cards li::before{content:counter(step);display:inline-grid;place-items:center;width:26px;height:26px;margin-bottom:10px;
+      border-radius:999px;background:var(--gold);color:var(--ink);font-weight:800;font-size:14.5px}
+    .more{max-width:1200px;margin:16px auto 0;text-align:center;font-weight:700}
+  </style>
+</head>
+<body>
+
+  {{template "header" .}}
+
+  <main>
+    <div class="container hero">
+      <h1>{{t "site.pi.hero.title"}}</h1>
+      <p class="lead">{{t "site.pi.hero.lead"}}</p>
+      <div class="demo-row">
+        <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+        <span class="demo-note">{{t "site.landing.hero.demo_note"}}</span>
+      </div>
+    </div>
+
+    <section id="need">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.pi.need.title"}}</h2>
+        </div>
+        <ul class="cards">
+          <li>{{template "spans" (rich "site.pi.need.pi")}}</li>
+          <li>{{template "spans" (rich "site.pi.need.card")}}</li>
+          <li>{{template "spans" (rich "site.pi.need.drives")}}</li>
+          <li>{{template "spans" (rich "site.pi.need.power")}}</li>
+          <li>{{template "spans" (rich "site.pi.need.nothing")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="setup">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.pi.setup.title"}}</h2>
+        </div>
+        <ol class="cards two">
+          <li>{{template "spans" (rich "site.pi.setup.card")}}</li>
+          <li>{{template "spans" (rich "site.pi.setup.plug")}}</li>
+          <li>{{template "spans" (rich "site.pi.setup.finish")}}</li>
+          <li>{{template "spans" (rich "site.pi.setup.signin")}}</li>
+        </ol>
+        <p class="more"><a href="{{.Home}}#install">{{t "site.landing.install.label"}}</a></p>
+      </div>
+    </section>
+
+    <section id="mirror">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.pi.mirror.title"}}</h2>
+        </div>
+        <ul class="cards two">
+          <li>{{template "spans" (rich "site.pi.mirror.copies")}}</li>
+          <li>{{template "spans" (rich "site.pi.mirror.replace")}}</li>
+          <li>{{template "spans" (rich "site.pi.mirror.grow")}}</li>
+          <li>{{template "spans" (rich "site.pi.mirror.away")}}</li>
+        </ul>
+        <p class="more"><a href="{{.Home}}#faq-backup">{{t "site.landing.faq.backup.q"}}</a></p>
+      </div>
+    </section>
+
+    <section id="lights">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.pi.lights.title"}}</h2>
+        </div>
+        <div class="prose">
+          <p>{{t "site.pi.lights.text"}}</p>
+          <ul class="cards two">
+            <li>{{template "spans" (rich "site.landing.faq.lights.state1")}}</li>
+            <li>{{template "spans" (rich "site.landing.faq.lights.state2")}}</li>
+            <li>{{template "spans" (rich "site.landing.faq.lights.state3")}}</li>
+            <li>{{template "spans" (rich "site.landing.faq.lights.state4")}}</li>
+            <li>{{template "spans" (rich "site.landing.faq.lights.state5")}}</li>
+          </ul>
+        </div>
+        <p class="more"><a href="{{.Home}}#faq-lights">{{t "site.landing.faq.lights.q"}}</a></p>
+      </div>
+    </section>
+
+    <section id="recover">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.pi.recover.title"}}</h2>
+        </div>
+        <div class="prose">
+          <p>{{t "site.pi.recover.text"}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="try">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.alt.try.title"}}</h2>
+        </div>
+        <div class="try">
+          <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+          <a class="btn" href="{{.Home}}#install">{{t "site.landing.install.label"}}</a>
+        </div>
+        <p class="demo-note try-note">{{t "site.landing.hero.demo_note"}}</p>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.faq.eyebrow"}}</span>
+          <h2>{{t "site.landing.faq.title"}}</h2>
+        </div>
+        <div class="faq">
+          <details id="faq-other" open>
+            <summary>{{t "site.pi.faq.other.q"}}</summary>
+            <p>{{t "site.pi.faq.other.a"}}</p>
+          </details>
+          <details id="faq-cost">
+            <summary>{{t "site.pi.faq.cost.q"}}</summary>
+            <p>{{t "site.pi.faq.cost.a"}}</p>
+          </details>
+          <details id="faq-away">
+            <summary>{{t "site.pi.faq.away.q"}}</summary>
+            <p>{{t "site.pi.faq.away.a"}}</p>
+          </details>
+          <details id="faq-updates">
+            <summary>{{t "site.pi.faq.updates.q"}}</summary>
+            <p>{{t "site.pi.faq.updates.a"}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{template "footer" .}}
+  {{template "faq-script" .}}
+</body>
+</html>

@@ -139,8 +139,8 @@ func TestFontNamesCarryTheirHash(t *testing.T) {
 	}
 }
 
-// robots.txt, sitemap.xml and llms.txt: their types, what they say, HEAD
-// like GET, and GET and HEAD only.
+// robots.txt, sitemap.xml, llms.txt and llms-full.txt: their types, what
+// they say, HEAD like GET, and GET and HEAD only.
 func TestCrawlerFiles(t *testing.T) {
 	api := siteAPI(t)
 	base := "https://bridge.test"
@@ -148,13 +148,18 @@ func TestCrawlerFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	full, err := site.LLMsFull(base)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for target, want := range map[string]struct {
 		ct   string
 		body []byte
 	}{
-		"/robots.txt":  {"text/plain; charset=utf-8", site.Robots(base)},
-		"/sitemap.xml": {"application/xml; charset=utf-8", sitemap},
-		"/llms.txt":    {"text/plain; charset=utf-8", site.LLMs(base)},
+		"/robots.txt":    {"text/plain; charset=utf-8", site.Robots(base)},
+		"/sitemap.xml":   {"application/xml; charset=utf-8", sitemap},
+		"/llms.txt":      {"text/plain; charset=utf-8", site.LLMs(base)},
+		"/llms-full.txt": {"text/plain; charset=utf-8", full},
 	} {
 		rec := siteGet(api, http.MethodGet, target, nil)
 		if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != want.ct || !bytes.Equal(rec.Body.Bytes(), want.body) {
@@ -181,7 +186,7 @@ func TestCrawlerFiles(t *testing.T) {
 			Loc string `xml:"loc"`
 		} `xml:"url"`
 	}
-	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 4*len(i18n.Languages())+2 {
+	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 5*len(i18n.Languages())+2 {
 		t.Errorf("sitemap: %v, %d addresses", err, len(set.URLs))
 	}
 	if llms := siteGet(api, http.MethodGet, "/llms.txt", nil).Body.String(); !strings.HasPrefix(llms, "# Off The Cloud\n\n> ") || !strings.Contains(llms, "## Questions") {
@@ -210,7 +215,8 @@ var nonceValue = regexp.MustCompile(`nonce="[^"]*"`)
 func TestSiteAnswersAreGzipped(t *testing.T) {
 	api := siteAPI(t)
 	gz := map[string]string{"Accept-Encoding": "gzip, deflate, br"}
-	for _, target := range []string{"/", "/es/", "/account", "/private-social-network", "/google-photos-alternative", "/google-drive-alternative", "/robots.txt", "/sitemap.xml", "/llms.txt", "/unavailable"} {
+	for _, target := range []string{"/", "/es/", "/account", "/private-social-network", "/google-photos-alternative", "/google-drive-alternative",
+		"/raspberry-pi-home-server", "/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/unavailable"} {
 		plain := siteGet(api, http.MethodGet, target, nil)
 		rec := siteGet(api, http.MethodGet, target, gz)
 		if rec.Code != http.StatusOK || rec.Header().Get("Content-Encoding") != "gzip" || plain.Header().Get("Content-Encoding") != "" {
@@ -249,11 +255,12 @@ func TestSiteAnswersAreGzipped(t *testing.T) {
 	}
 }
 
-// The comparison pages, at /<slug> and /<code>/<slug>, chosen like the
-// landing page's language; any other /<code>/<x> is still a 404.
+// The comparison pages and the Raspberry Pi page, at /<slug> and
+// /<code>/<slug>, chosen like the landing page's language; any other
+// /<code>/<x> is still a 404.
 func TestSiteComparisonPages(t *testing.T) {
 	api := siteAPI(t)
-	for _, slug := range []string{site.SocialSlug, site.AlternativeSlug, site.DriveSlug} {
+	for _, slug := range []string{site.SocialSlug, site.AlternativeSlug, site.DriveSlug, site.PiSlug} {
 		for _, al := range []string{"", "en-US,en;q=0.9", "ja-JP"} {
 			rec := siteGet(api, http.MethodGet, "/"+slug, map[string]string{"Accept-Language": al})
 			checkPage(t, "/"+slug+" with "+al, rec, http.StatusOK, site.English())

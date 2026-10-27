@@ -11,7 +11,8 @@ import (
 )
 
 // What crawlers read about the site besides its pages, on the bridge's own
-// host: /robots.txt, /sitemap.xml and /llms.txt (bridge/api serves them).
+// host: /robots.txt, /sitemap.xml, /llms.txt and /llms-full.txt
+// (llmsfull.go; bridge/api serves them).
 // They are built from the same tables as the pages (the carried languages,
 // localized) and, for llms.txt, from the catalog when asked, so a new
 // language, a new public page or a reworded text shows up in them by
@@ -121,8 +122,10 @@ var llmsText = struct {
 		{nameKey: "site.social.link", href: "/" + SocialSlug, key: "site.social.meta.description"},
 		{nameKey: "site.alt.link", href: "/" + AlternativeSlug, key: "site.alt.meta.description"},
 		{nameKey: "site.drive.link", href: "/" + DriveSlug, key: "site.drive.meta.description"},
+		{nameKey: "site.pi.link", href: "/" + PiSlug, key: "site.pi.meta.description"},
 		{name: "Privacy notice", href: "/privacy"},
 		{name: "Terms of use", href: "/terms"},
+		{name: "Every page of the site in one file", href: "/llms-full.txt"},
 	},
 	questions: []string{
 		"site.landing.faq.social_how.q",

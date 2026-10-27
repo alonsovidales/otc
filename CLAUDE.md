@@ -1531,15 +1531,20 @@ old `account.html` there is never served). `bridge/static/` holds privacy, terms
 and the assets, copied to `/var/www` by the deploy. For search: the
 three comparison pages (`social.html` at `/private-social-network`, `alternative.html` at
 `/google-photos-alternative`, `drive.html` at `/google-drive-alternative`, each also under
-`/<code>/...`, routed like `/account`) share the landing page's head, header and footer
-(`pages/common.html`, `pages/site.css`, plus `pages/compare.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
+`/<code>/...`, routed like `/account`) and the Raspberry Pi page (`pi.html` at
+`/raspberry-pi-home-server`: what it needs, the setup, the mirrored drives, the lights, a new Pi;
+linked from the hardware answer and the footer, its claims the landing page's FAQ's) share the
+landing page's head, header and footer (`pages/common.html`, `pages/site.css`, plus
+`pages/compare.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
 the same `@id`s in every language, nothing the page doesn't state - no ratings, counts or
 versions, and no person: the Organization has no founder; `og-1200x630.jpg` is the hero photo's
 crop); the account page says noindex. Titles are at most 60 characters and descriptions 155 in
 every language (the keys' `max`); the comparison pages' titles leave out the brand, which search
 engines show beside them. `/robots.txt`, `/sitemap.xml` and `/llms.txt` come from
 `bridge/site/crawl.go` (llms.txt rendered from the English catalog, its keys in `llmsText`, each
-question linked to its own answer). Every FAQ question is a `<details id="faq-<key>">` (`faqID`:
+question linked to its own answer), and `/llms-full.txt` from `llmsfull.go`: every public page in
+English, rendered and read back into Markdown (its `<main>`; no pictures, scripts or forms), made
+once per origin. Every FAQ question is a `<details id="faq-<key>">` (`faqID`:
 `site.landing.faq.social_how.q` is `#faq-social-how`) that common.html's `faq-script` opens when
 the address names it. The header links the account page in the page's language (`.Account`, and
 `localHref` for the texts' `account`/`signup` tags); below the width its links need (1006 px in

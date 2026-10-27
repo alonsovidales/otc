@@ -430,6 +430,8 @@ func TestLLMs(t *testing.T) {
 		"- [" + mdEscape(i18n.T(en, "site.social.link", nil)) + "](" + base + "/" + SocialSlug + "): " + mdEscape(i18n.T(en, "site.social.meta.description", nil)) + "\n",
 		"- [" + mdEscape(i18n.T(en, "site.alt.link", nil)) + "](" + base + "/" + AlternativeSlug + "): " + mdEscape(i18n.T(en, "site.alt.meta.description", nil)) + "\n",
 		"- [" + mdEscape(i18n.T(en, "site.drive.link", nil)) + "](" + base + "/" + DriveSlug + "): " + mdEscape(i18n.T(en, "site.drive.meta.description", nil)) + "\n",
+		"- [" + mdEscape(i18n.T(en, "site.pi.link", nil)) + "](" + base + "/" + PiSlug + "): " + mdEscape(i18n.T(en, "site.pi.meta.description", nil)) + "\n",
+		"](" + base + "/llms-full.txt)",
 		"](" + base + "/privacy)",
 		"](" + base + "/terms)",
 		"\n## Questions\n",
@@ -780,18 +782,33 @@ func TestFAQIDs(t *testing.T) {
 					details = append(details, n)
 				}
 			}
-			var keys []string
+			// The question keys the page shows, by their text: a question
+			// may also be a link's text (the Raspberry Pi page's to the
+			// landing page's answers), so each <summary> names its own.
+			byText := map[string]string{}
 			for _, u := range pageUsesOf(t, page) {
-				if question.MatchString(u) && !slices.Contains(keys, u) {
-					keys = append(keys, u)
+				if question.MatchString(u) {
+					byText[i18n.T(l.Code, u, nil)] = u
 				}
 			}
-			if len(details) != len(keys) || len(keys) == 0 {
-				t.Fatalf("%s in %s: %d questions, %d question keys", page, l.Code, len(details), len(keys))
+			if len(details) == 0 {
+				t.Fatalf("%s in %s: no questions", page, l.Code)
 			}
 			for i, d := range details {
-				if id := attr(d, "id"); id != faqID(keys[i]) || ids[id] != 1 {
-					t.Errorf("%s in %s: question %d has id %q (%d on the page), want %q", page, l.Code, i+1, id, ids[id], faqID(keys[i]))
+				var summary string
+				for c := range d.Descendants() {
+					if c.DataAtom == atom.Summary && c.FirstChild != nil {
+						summary = c.FirstChild.Data
+						break
+					}
+				}
+				key, ok := byText[summary]
+				if !ok {
+					t.Errorf("%s in %s: question %d, %q, is no question key's", page, l.Code, i+1, summary)
+					continue
+				}
+				if id := attr(d, "id"); id != faqID(key) || ids[id] != 1 {
+					t.Errorf("%s in %s: question %d has id %q (%d on the page), want %q", page, l.Code, i+1, id, ids[id], faqID(key))
 				}
 			}
 		}
@@ -921,5 +938,65 @@ func TestLandingPictures(t *testing.T) {
 	}
 	if seen < 40 {
 		t.Errorf("only %d pictures", seen)
+	}
+}
+
+// llms-full.txt is every public page in English, read back from the pages
+// themselves: each page's address and headline, every question of its FAQ,
+// the comparison tables' rows; Markdown only, its links absolute, nothing
+// the pages don't show, and what two install tabs both show once.
+func TestLLMsFull(t *testing.T) {
+	base := testOptions.Base
+	raw, err := LLMsFull(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(raw)
+	en := English()
+	if !strings.HasPrefix(out, "# Off The Cloud\n\n> "+mdEscape(i18n.T(en, llmsText.summary, nil))+"\n\n") {
+		t.Errorf("llms-full.txt starts:\n%s", out[:min(len(out), 400)])
+	}
+	for _, page := range publicPages {
+		if !strings.Contains(out, "\nPage: "+base+PagePath(page, en)+"\n") {
+			t.Errorf("no section for %s", page)
+		}
+		rendered, err := Render(page, en, testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := html.Parse(bytes.NewReader(rendered))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for n := range doc.Descendants() {
+			if n.DataAtom == atom.Summary && n.FirstChild != nil && attr(n.Parent.Parent, "class") == "faq" {
+				if q := "#### " + mdEscape(n.FirstChild.Data) + "\n"; !strings.Contains(out, q) {
+					t.Errorf("%s: no question %q", page, q)
+				}
+			}
+		}
+	}
+	for _, want := range []string{
+		"## " + mdEscape(i18n.T(en, "site.landing.hero.title_1", nil)),
+		"## " + mdEscape(i18n.T(en, "site.pi.hero.title", nil)) + "\n",
+		mdEscape(i18n.T(en, "site.landing.faq.storage.a", nil)),
+		mdEscape(i18n.T(en, "site.pi.recover.text", nil)),
+		"|  | Off The Cloud | Instagram | Facebook | WhatsApp | FamilyAlbum | Pixelfed |\n",
+		"| " + mdEscape(i18n.T(en, "site.social.row.where", nil)) + " | " + mdEscape(i18n.T(en, "site.social.cell.own_device", nil)) + " |",
+		"- **" + mdEscape(i18n.T(en, "site.landing.glance.storage.label", nil)) + "**: ",
+		"[" + mdEscape(i18n.T(en, "site.landing.hero.demo", nil)) + "](" + demo + ")",
+		"```\n# ",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("llms-full.txt has no %q", want)
+		}
+	}
+	for _, bad := range []string{"site.", "<b>", "<a ", "</", "](/", "](#", "Your system", "class="} {
+		if i := strings.Index(out, bad); i >= 0 {
+			t.Errorf("llms-full.txt has %q: ...%s...", bad, out[max(0, i-80):min(len(out), i+80)])
+		}
+	}
+	if note := mdEscape(i18n.T(en, "site.landing.install.requirements", nil)); strings.Count(out, "Only have a 4 GB Pi?") != 1 {
+		t.Errorf("the install block's requirements are there %d times, want once (%.40s)", strings.Count(out, "Only have a 4 GB Pi?"), note)
 	}
 }

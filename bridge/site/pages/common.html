@@ -1,7 +1,7 @@
 {{/*
-  What the public pages (landing.html and the comparison pages social.html,
-  alternative.html and drive.html) share, as template definitions: no page
-  of its own.
+  What the public pages (landing.html, the comparison pages social.html,
+  alternative.html and drive.html, pi.html and notfound.html) share, as
+  template definitions: no page of its own.
 
     head        the <head>'s metadata, from (head . title description): head.go
     fonts       the preloads of the two fonts every page shows first (their
@@ -23,8 +23,8 @@
   .Sections: "" on the landing page itself, its address (/, /<code>/) on
   the others, so #faq becomes /#faq there. The logo links to .Home, the
   sign-in and sign-up to the account page in the page's language
-  (.Account), and the footer to the comparison pages in the page's
-  language (.Compare).
+  (.Account), and the footer to the comparison pages (.Compare) and the
+  Raspberry Pi home server page (.Pi) in the page's language.
 */}}
 
 {{define "head" -}}
@@ -109,6 +109,7 @@
       <div class="footer-links">
         <a href="https://github.com/alonsovidales/otc">GitHub</a>
         <a href="https://github.com/alonsovidales/otc#readme">{{t "site.landing.footer.docs"}}</a>
+        <a href="{{.Pi}}"{{if eq .Page "pi.html"}} aria-current="page"{{end}}>{{t "site.pi.footer"}}</a>
         <span class="footer-compare">{{t "site.landing.glance.compare_with"}}
           <a href="{{.Compare.Social}}"{{if eq .Page "social.html"}} aria-current="page"{{end}}>{{t "site.landing.glance.compare_social"}}</a> ·
           <a href="{{.Compare.Photos}}"{{if eq .Page "alternative.html"}} aria-current="page"{{end}}>{{t "site.landing.glance.compare_photos"}}</a> ·

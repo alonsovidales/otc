@@ -1,0 +1,88 @@
+@html.lang=en
+Raspberry Pi 5 home server and NAS for your family
+@meta.description=Turn a Raspberry Pi 5 and two USB drives into your family's home server: a private social network, photo backup and NAS, set up from your phone.
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
+A Raspberry Pi 5 home server for your family
+Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two USB drives into your family's home server: a private social network for your family and friends, a backup of everyone's photos and videos, and a NAS for your files. The computer app prepares its card, your phone or Mac finishes the setup in about 20 minutes, and each drive keeps a full copy of everything.
+@a.href=https://demo.off-the.cloud/
+Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+What you need
+A Raspberry Pi 5 with 8 GB of memory. One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory.
+A microSD card for the system. 8 GB or more. Your photos, files and settings live on the drives, not on the card.
+Two USB drives for your files. USB sticks, SSDs, hard disks or microSD cards in USB card readers, in the Pi's two blue USB ports. Each keeps a full copy, so the smaller one sets how much space you have.
+A good power supply and a cooler. The official 27 W USB-C power supply, or a better one, and an active cooler: with a weaker supply the Pi can restart from low voltage while it works through your photos.
+No keyboard, monitor or Linux knowledge. A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth.
+Set it up in about 20 minutes
+Make the card. The computer app downloads the image and checks its signature, then writes the card on Windows and Linux, or hands it to Raspberry Pi Imager on a Mac. You can also flash the image with Imager yourself.
+Plug it in. The two drives go in the blue USB ports and the card in the Pi; then power it on. After a minute it shows up over Bluetooth.
+Finish over Bluetooth. Tap Set up a new device in the iPhone or Android app, or choose On this Mac in the Mac app. It asks for your Wi-Fi, a name and a password for the device and how to use the drives, then installs the software.
+Sign in. The app connects to the new device with the password you chose, and any browser opens it at its address.
+@a.href=/#install
+Get your device running
+Two drives, a full copy on each
+Every file twice. The drives are a mirror (RAID-1): each holds everything. If one stops working, the device carries on with the other, and an alert names the USB port of the one to replace.
+Replacing one. Plug in a drive at least as large and the device copies everything onto it by itself, erasing what was on it. Another alert says when both are working again.
+More space. Swap the drives for bigger ones, one at a time: once both are bigger, the device grows its storage by itself, without stopping.
+A copy kept elsewhere. Now and then, swap one drive for a spare: the one that comes out is a full copy of the device, and Recover this device in the setup brings it back.
+@a.href=/#faq-backup
+How do I back up my device?
+Status lights, if you want them
+Two optional lights, one per drive, show at a glance how the mirror is doing. Each is a red and a green LED wired to the Pi's pins through a resistor, and the device lights them by itself:
+Both green: both disks are working and hold the same files.
+One red, one green: the disk on red has stopped working or was taken out. Your files are safe on the other one: replace the red one soon.
+One flashing red, one green: a new disk is being filled with a copy of your files. Don't take out the green one until both are green again.
+Both red: no mirror is running: the device was set up without two disks, or neither disk is working.
+Both off: the device is off, or still starting.
+@a.href=/#faq-lights
+How do I wire the status lights?
+If the Pi itself dies
+Your photos, files and settings are on the drives, so a new Pi takes over: move the card and the drives to it and power it on. If the card is lost too, flash a new one, attach the same drives and choose Recover this device in the setup: the device comes back as it was, with the same password. Start fresh instead would erase both drives.
+See it before you buy anything
+@a.href=https://demo.off-the.cloud/
+@a.href=/#install
+Try the demo Get your device running
+Look around a real device with a made-up family's photos and files. No sign-up.
+FAQ
+Questions people actually ask
+Can I use another computer instead of a Raspberry Pi 5?
+Yes. The install script runs on any 64-bit machine with Ubuntu, Debian or another Debian-based Linux, Intel/AMD or ARM, from an old PC to a mini PC, with 8 GB of memory, and gives you the same app. The ready-made image, the setup over Bluetooth, the status lights and the alerts that name a USB port are the Raspberry Pi 5's.
+What does it cost?
+The software is free and open source: you buy the Pi, its card, two drives, a power supply and a cooler once, and at home it needs nothing else. To reach it from outside your home, the bridge is free for its first two years, then €9.99 + VAT a year with up to five addresses.
+Can I reach it when I'm away from home?
+Yes: the bridge gives your device an address like casa.off-the.cloud, which the apps use whenever you're out, and your friends' devices reach it there. At home the apps connect straight to the device, at the speed of your own network.
+How does it stay up to date?
+When a new release is out, the device says so in its alerts, and Update in Settings installs it: the device checks the release against the project's signature, builds it and restarts. Your photos and files stay where they are.
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/raspberry-pi-home-server
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation Raspberry Pi 5 home server Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

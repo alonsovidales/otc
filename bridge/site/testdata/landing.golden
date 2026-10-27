@@ -263,6 +263,8 @@ Apps for phones and computers, an account for each person in the family, and an 
 How it compares with Google Photos and iCloud
 Do I need to buy special hardware?
 A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.
+@a.href=/raspberry-pi-home-server
+The Raspberry Pi 5 home server, step by step
 Is there a pre-built image I can just flash?
 @a.href=#install
 Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with Image Tagging and Face Recognition turned off in Settings): see the Raspberry Pi 5 image tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.
@@ -452,13 +454,14 @@ Everything is documented in the README — architecture, config, and every insta
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/raspberry-pi-home-server
 @a.href=/private-social-network
 @a.href=/google-photos-alternative
 @a.href=/google-drive-alternative
 @a.href=#contact
 @a.href=/privacy
 @a.href=/terms
-GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms
+GitHub Documentation Raspberry Pi 5 home server Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms
 @div.aria-label=Screenshot
 @button.aria-label=Close
 ✕

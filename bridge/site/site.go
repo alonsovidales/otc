@@ -5,10 +5,13 @@
 // / in English and /<code>/ in every other language, the account page, at
 // /account and /<code>/account, the three comparison pages, at
 // /private-social-network, /google-photos-alternative and
-// /google-drive-alternative (and under /<code>/), and the
+// /google-drive-alternative, the Raspberry Pi home server page, at
+// /raspberry-pi-home-server (each also under /<code>/), the page for an
+// address the site doesn't have (notfound, answered with a 404), and the
 // two pages a device's own address shows when the bridge answers for it
 // (disabled, unavailable). It also writes what crawlers read about the
-// site (crawl.go: robots.txt, sitemap.xml, llms.txt).
+// site (crawl.go: robots.txt, sitemap.xml, llms.txt; llmsfull.go:
+// llms-full.txt).
 //
 // The pages are html/template files embedded in the binary (pages/), so a
 // deploy never serves a stale copy left in the static directory, and their
@@ -60,6 +63,7 @@ const (
 	Social      = "social.html"
 	Alternative = "alternative.html"
 	Drive       = "drive.html"
+	Pi          = "pi.html"
 	Disabled    = "disabled.html"
 	Unavailable = "unavailable.html"
 	Account     = "account.html"
@@ -74,6 +78,10 @@ const (
 	SocialSlug      = "private-social-network"
 	AlternativeSlug = "google-photos-alternative"
 	DriveSlug       = "google-drive-alternative"
+	// PiSlug is the page about the Raspberry Pi 5 as the family's home
+	// server: what it needs, its setup, the mirrored drives, the lights
+	// and bringing it back when the Pi dies.
+	PiSlug = "raspberry-pi-home-server"
 )
 
 // localized are the pages with an address in every carried language, by
@@ -88,6 +96,7 @@ var localized = []struct {
 	{Social, SocialSlug, true},
 	{Alternative, AlternativeSlug, true},
 	{Drive, DriveSlug, true},
+	{Pi, PiSlug, true},
 }
 
 // Localized returns the page whose address in a language is
@@ -231,6 +240,9 @@ type data struct {
 	// (/private-social-network, /<code>/private-social-network...), where
 	// the landing page's and the footer's links to them go.
 	Compare comparePages
+	// Pi is the Raspberry Pi home server page in this language, which
+	// the landing page's answer about hardware and the footer link.
+	Pi string
 	// Canonical and Alternates are the page's own address and its
 	// addresses in every carried language (hreflang, plus x-default: the
 	// English one): the landing page's, the account page's or the
@@ -269,6 +281,7 @@ func pageData(page string, l i18n.Language, o Options) data {
 			Photos: PagePath(Alternative, l.Code),
 			Drive:  PagePath(Drive, l.Code),
 		},
+		Pi:         PagePath(Pi, l.Code),
 		Canonical:  o.Base + PagePath(page, l.Code),
 		Alternates: alternates(page, o.Base),
 	}

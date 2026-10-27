@@ -165,6 +165,8 @@ func TestVisitPage(t *testing.T) {
 		"/en/account":                    "/account",
 		"/google-photos-alternative":     "/google-photos-alternative",
 		"/it/private-social-network":     "/it/private-social-network",
+		"/raspberry-pi-home-server":      "/raspberry-pi-home-server",
+		"/nl/raspberry-pi-home-server":   "/nl/raspberry-pi-home-server",
 		"/privacy":                       "/privacy",
 		"/privacy.html":                  "/privacy",
 		"/terms.html":                    "/terms",

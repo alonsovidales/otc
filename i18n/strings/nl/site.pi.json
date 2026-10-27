@@ -1,0 +1,138 @@
+{
+  "site.pi.faq.away.a": {
+    "text": "Ja: de bridge geeft je apparaat een adres als casa.off-the.cloud, dat de apps gebruiken zodra je weg bent, en daar bereiken de apparaten van je vrienden het. Thuis maken de apps rechtstreeks verbinding met het apparaat, op de snelheid van je eigen netwerk.",
+    "en": "Yes: the bridge gives your device an address like casa.off-the.cloud, which the apps use whenever you're out, and your friends' devices reach it there. At home the apps connect straight to the device, at the speed of your own network."
+  },
+  "site.pi.faq.away.q": {
+    "text": "Kan ik er buitenshuis bij?",
+    "en": "Can I reach it when I'm away from home?"
+  },
+  "site.pi.faq.cost.a": {
+    "text": "De software is gratis en open source: je koopt één keer de Pi, de kaart, twee schijven, een voeding en een koeler, en thuis is er verder niets nodig. Om hem buitenshuis te bereiken, is de bridge de eerste twee jaar gratis en kost hij daarna € 9,99 + btw per jaar, met maximaal vijf adressen.",
+    "en": "The software is free and open source: you buy the Pi, its card, two drives, a power supply and a cooler once, and at home it needs nothing else. To reach it from outside your home, the bridge is free for its first two years, then €9.99 + VAT a year with up to five addresses."
+  },
+  "site.pi.faq.cost.q": {
+    "text": "Wat kost het?",
+    "en": "What does it cost?"
+  },
+  "site.pi.faq.other.a": {
+    "text": "Ja. Het installatiescript draait op elke 64-bits machine met Ubuntu, Debian of een andere op Debian gebaseerde Linux, Intel/AMD of ARM, van een oude pc tot een mini-pc, met 8 GB geheugen, en je krijgt dezelfde app. De kant-en-klare image, de configuratie via Bluetooth, de statuslampjes en de meldingen die een USB-poort noemen, zijn er alleen op de Raspberry Pi 5.",
+    "en": "Yes. The install script runs on any 64-bit machine with Ubuntu, Debian or another Debian-based Linux, Intel/AMD or ARM, from an old PC to a mini PC, with 8 GB of memory, and gives you the same app. The ready-made image, the setup over Bluetooth, the status lights and the alerts that name a USB port are the Raspberry Pi 5's."
+  },
+  "site.pi.faq.other.q": {
+    "text": "Kan ik een andere computer gebruiken in plaats van een Raspberry Pi 5?",
+    "en": "Can I use another computer instead of a Raspberry Pi 5?"
+  },
+  "site.pi.faq.updates.a": {
+    "text": "Als er een nieuwe versie is, meldt het apparaat dat in zijn meldingen, en Bijwerken in Instellingen installeert die: het apparaat controleert de versie met de handtekening van het project, bouwt hem en herstart. Je foto’s en bestanden blijven waar ze zijn.",
+    "en": "When a new release is out, the device says so in its alerts, and Update in Settings installs it: the device checks the release against the project's signature, builds it and restarts. Your photos and files stay where they are."
+  },
+  "site.pi.faq.updates.q": {
+    "text": "Hoe blijft het up-to-date?",
+    "en": "How does it stay up to date?"
+  },
+  "site.pi.footer": {
+    "text": "Thuisserver met Raspberry Pi 5",
+    "en": "Raspberry Pi 5 home server"
+  },
+  "site.pi.hero.lead": {
+    "text": "Off The Cloud is gratis opensourcesoftware die van een Raspberry Pi 5 en twee USB-schijven de thuisserver van je gezin maakt: een privé sociaal netwerk voor je gezin en je vrienden, een reservekopie van ieders foto’s en video’s, en een NAS voor je bestanden. De computerapp maakt de kaart klaar, je telefoon of Mac rondt de configuratie in ongeveer 20 minuten af, en elke schijf bewaart een volledige kopie van alles.",
+    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two USB drives into your family's home server: a private social network for your family and friends, a backup of everyone's photos and videos, and a NAS for your files. The computer app prepares its card, your phone or Mac finishes the setup in about 20 minutes, and each drive keeps a full copy of everything."
+  },
+  "site.pi.hero.title": {
+    "text": "Een thuisserver met een Raspberry Pi 5 voor je gezin",
+    "en": "A Raspberry Pi 5 home server for your family"
+  },
+  "site.pi.lights.text": {
+    "text": "Twee optionele lampjes, één per schijf, laten in één oogopslag zien hoe het met de spiegel gaat. Elk is een rode en een groene led, via een weerstand aangesloten op de pinnen van de Pi, en het apparaat zet ze zelf aan:",
+    "en": "Two optional lights, one per drive, show at a glance how the mirror is doing. Each is a red and a green LED wired to the Pi's pins through a resistor, and the device lights them by itself:"
+  },
+  "site.pi.lights.title": {
+    "text": "Statuslampjes, als je ze wilt",
+    "en": "Status lights, if you want them"
+  },
+  "site.pi.link": {
+    "text": "De thuisserver met een Raspberry Pi 5, stap voor stap",
+    "en": "The Raspberry Pi 5 home server, step by step"
+  },
+  "site.pi.meta.description": {
+    "text": "Maak van een Raspberry Pi 5 en twee USB-schijven de thuisserver van je gezin: privé sociaal netwerk, fotoback-up en NAS, ingesteld met je telefoon.",
+    "en": "Turn a Raspberry Pi 5 and two USB drives into your family's home server: a private social network, photo backup and NAS, set up from your phone."
+  },
+  "site.pi.meta.title": {
+    "text": "Raspberry Pi 5 als thuisserver en NAS voor je gezin",
+    "en": "Raspberry Pi 5 home server and NAS for your family"
+  },
+  "site.pi.mirror.away": {
+    "text": "<b>Een kopie op een andere plek.</b> Wissel af en toe een schijf om voor een reserveschijf: de schijf die eruit komt is een volledige kopie van het apparaat, en Dit apparaat herstellen in de configuratie zet die terug.",
+    "en": "<b>A copy kept elsewhere.</b> Now and then, swap one drive for a spare: the one that comes out is a full copy of the device, and Recover this device in the setup brings it back."
+  },
+  "site.pi.mirror.copies": {
+    "text": "<b>Elk bestand twee keer.</b> De schijven vormen een spiegel (RAID-1): elke schijf bevat alles. Werkt er een niet meer, dan gaat het apparaat verder met de andere, en een melding noemt de USB-poort van de schijf die je moet vervangen.",
+    "en": "<b>Every file twice.</b> The drives are a mirror (RAID-1): each holds everything. If one stops working, the device carries on with the other, and an alert names the USB port of the one to replace."
+  },
+  "site.pi.mirror.grow": {
+    "text": "<b>Meer ruimte.</b> Vervang de schijven één voor één door grotere: zodra beide groter zijn, vergroot het apparaat de opslag zelf, zonder te stoppen.",
+    "en": "<b>More space.</b> Swap the drives for bigger ones, one at a time: once both are bigger, the device grows its storage by itself, without stopping."
+  },
+  "site.pi.mirror.replace": {
+    "text": "<b>Er een vervangen.</b> Sluit een schijf aan die minstens even groot is en het apparaat kopieert er zelf alles naartoe, waarbij wordt gewist wat erop stond. Een volgende melding zegt wanneer beide weer werken.",
+    "en": "<b>Replacing one.</b> Plug in a drive at least as large and the device copies everything onto it by itself, erasing what was on it. Another alert says when both are working again."
+  },
+  "site.pi.mirror.title": {
+    "text": "Twee schijven, op elk een volledige kopie",
+    "en": "Two drives, a full copy on each"
+  },
+  "site.pi.need.card": {
+    "text": "<b>Een microSD-kaart voor het systeem.</b> Van 8 GB of meer. Je foto’s, bestanden en instellingen staan op de schijven, niet op de kaart.",
+    "en": "<b>A microSD card for the system.</b> 8 GB or more. Your photos, files and settings live on the drives, not on the card."
+  },
+  "site.pi.need.drives": {
+    "text": "<b>Twee USB-schijven voor je bestanden.</b> USB-sticks, ssd’s, harde schijven of microSD-kaarten in USB-kaartlezers, in de twee blauwe USB-poorten van de Pi. Elke schijf bewaart een volledige kopie, dus de kleinste bepaalt hoeveel ruimte je hebt.",
+    "en": "<b>Two USB drives for your files.</b> USB sticks, SSDs, hard disks or microSD cards in USB card readers, in the Pi's two blue USB ports. Each keeps a full copy, so the smaller one sets how much space you have."
+  },
+  "site.pi.need.nothing": {
+    "text": "<b>Geen toetsenbord, monitor of kennis van Linux.</b> Een Mac-, Windows- of Linux-computer maakt de kaart klaar, en je telefoon of Mac rondt de configuratie af via Bluetooth.",
+    "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
+  },
+  "site.pi.need.pi": {
+    "text": "<b>Een Raspberry Pi 5 met 8 GB geheugen.</b> Een met 4 GB werkt ook, met Beeldherkenning en Gezichtsherkenning uitgeschakeld voordat je een reservekopie van je foto’s maakt: die hebben meer geheugen nodig.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory."
+  },
+  "site.pi.need.power": {
+    "text": "<b>Een goede voeding en een koeler.</b> De officiële USB-C-voeding van 27 W, of een betere, en een actieve koeler: met een zwakkere voeding kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt.",
+    "en": "<b>A good power supply and a cooler.</b> The official 27 W USB-C power supply, or a better one, and an active cooler: with a weaker supply the Pi can restart from low voltage while it works through your photos."
+  },
+  "site.pi.need.title": {
+    "text": "Wat je nodig hebt",
+    "en": "What you need"
+  },
+  "site.pi.recover.text": {
+    "text": "Je foto’s, bestanden en instellingen staan op de schijven, dus een nieuwe Pi neemt het over: zet de kaart en de schijven over en zet hem aan. Ben je ook de kaart kwijt, flash dan een nieuwe, sluit dezelfde schijven aan en kies Dit apparaat herstellen in de configuratie: het apparaat komt terug zoals het was, met hetzelfde wachtwoord. Opnieuw beginnen zou beide schijven wissen.",
+    "en": "Your photos, files and settings are on the drives, so a new Pi takes over: move the card and the drives to it and power it on. If the card is lost too, flash a new one, attach the same drives and choose Recover this device in the setup: the device comes back as it was, with the same password. Start fresh instead would erase both drives."
+  },
+  "site.pi.recover.title": {
+    "text": "Als de Pi zelf kapotgaat",
+    "en": "If the Pi itself dies"
+  },
+  "site.pi.setup.card": {
+    "text": "<b>Maak de kaart.</b> De computerapp downloadt de image en controleert de handtekening, en schrijft daarna de kaart op Windows en Linux, of geeft de image op een Mac door aan Raspberry Pi Imager. Je kunt de image ook zelf flashen met Imager.",
+    "en": "<b>Make the card.</b> The computer app downloads the image and checks its signature, then writes the card on Windows and Linux, or hands it to Raspberry Pi Imager on a Mac. You can also flash the image with Imager yourself."
+  },
+  "site.pi.setup.finish": {
+    "text": "<b>Rond af via Bluetooth.</b> Tik op Nieuw apparaat instellen in de iPhone- of Android-app, of kies Op deze Mac in de Mac-app. De app vraagt om je wifi, een naam en wachtwoord voor het apparaat en hoe de schijven moeten worden gebruikt, en installeert daarna de software.",
+    "en": "<b>Finish over Bluetooth.</b> Tap Set up a new device in the iPhone or Android app, or choose On this Mac in the Mac app. It asks for your Wi-Fi, a name and a password for the device and how to use the drives, then installs the software."
+  },
+  "site.pi.setup.plug": {
+    "text": "<b>Sluit alles aan.</b> De twee schijven gaan in de blauwe USB-poorten en de kaart in de Pi; zet hem daarna aan. Na een minuut is hij te vinden via Bluetooth.",
+    "en": "<b>Plug it in.</b> The two drives go in the blue USB ports and the card in the Pi; then power it on. After a minute it shows up over Bluetooth."
+  },
+  "site.pi.setup.signin": {
+    "text": "<b>Log in.</b> De app maakt verbinding met het nieuwe apparaat met het wachtwoord dat je hebt gekozen, en elke browser opent het op zijn adres.",
+    "en": "<b>Sign in.</b> The app connects to the new device with the password you chose, and any browser opens it at its address."
+  },
+  "site.pi.setup.title": {
+    "text": "In ongeveer 20 minuten ingesteld",
+    "en": "Set it up in about 20 minutes"
+  }
+}

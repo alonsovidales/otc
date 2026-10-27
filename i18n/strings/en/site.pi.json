@@ -1,0 +1,161 @@
+{
+  "site.pi.faq.away.a": {
+    "text": "Yes: the bridge gives your device an address like casa.off-the.cloud, which the apps use whenever you're out, and your friends' devices reach it there. At home the apps connect straight to the device, at the speed of your own network.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: answer to \"Can I reach it when I'm away from home?\". The bridge: our relay service at off-the.cloud; keep the address casa.off-the.cloud as it is."
+  },
+  "site.pi.faq.away.q": {
+    "text": "Can I reach it when I'm away from home?",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: a question."
+  },
+  "site.pi.faq.cost.a": {
+    "text": "The software is free and open source: you buy the Pi, its card, two drives, a power supply and a cooler once, and at home it needs nothing else. To reach it from outside your home, the bridge is free for its first two years, then €9.99 + VAT a year with up to five addresses.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: answer to \"What does it cost?\". The bridge: our relay service, which makes the device reachable away from home. Commercial terms: keep the meaning exact. Prices: write them as your language writes euros (9,99 € in many languages), and keep every number exact."
+  },
+  "site.pi.faq.cost.q": {
+    "text": "What does it cost?",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: a question."
+  },
+  "site.pi.faq.other.a": {
+    "text": "Yes. The install script runs on any 64-bit machine with Ubuntu, Debian or another Debian-based Linux, Intel/AMD or ARM, from an old PC to a mini PC, with 8 GB of memory, and gives you the same app. The ready-made image, the setup over Bluetooth, the status lights and the alerts that name a USB port are the Raspberry Pi 5's.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: answer to \"Can I use another computer instead of a Raspberry Pi 5?\". The install script is the one-line command for any Debian-based Linux. Intel/AMD or ARM: the two kinds of processor it supports."
+  },
+  "site.pi.faq.other.q": {
+    "text": "Can I use another computer instead of a Raspberry Pi 5?",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: a question."
+  },
+  "site.pi.faq.updates.a": {
+    "text": "When a new release is out, the device says so in its alerts, and Update in Settings installs it: the device checks the release against the project's signature, builds it and restarts. Your photos and files stay where they are.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: answer to \"How does it stay up to date?\". Alerts: the device's Alerts tab, as the apps name it; Update is the button in Settings: use the apps' wording in your language. A security statement: keep its meaning exact."
+  },
+  "site.pi.faq.updates.q": {
+    "text": "How does it stay up to date?",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): questions at the bottom of the page: a question."
+  },
+  "site.pi.footer": {
+    "text": "Raspberry Pi 5 home server",
+    "note": "Website footer: link to the page about the Raspberry Pi 5 home server (off-the.cloud/raspberry-pi-home-server). Short, like the footer's other links.",
+    "max": 32
+  },
+  "site.pi.hero.lead": {
+    "text": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two USB drives into your family's home server: a private social network for your family and friends, a backup of everyone's photos and videos, and a NAS for your files. The computer app prepares its card, your phone or Mac finishes the setup in about 20 minutes, and each drive keeps a full copy of everything.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the opening paragraph under the main heading. It is often quoted on its own, so keep it plain and complete. The computer app is the Mac, Windows or Linux app, which prepares the Pi's microSD card. NAS: storage on the home network."
+  },
+  "site.pi.hero.title": {
+    "text": "A Raspberry Pi 5 home server for your family",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the main heading at the top of the page. A home server: a small computer at home that keeps the family's things instead of a company's servers.",
+    "max": 70
+  },
+  "site.pi.lights.text": {
+    "text": "Two optional lights, one per drive, show at a glance how the mirror is doing. Each is a red and a green LED wired to the Pi's pins through a resistor, and the device lights them by itself:",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the paragraph about the two optional status lights, before a list of what their colours mean (site.landing.faq.lights.state1 to state5). The mirror: the two drives that keep the same files."
+  },
+  "site.pi.lights.title": {
+    "text": "Status lights, if you want them",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): heading of the section about the two optional status lights.",
+    "max": 50
+  },
+  "site.pi.link": {
+    "text": "The Raspberry Pi 5 home server, step by step",
+    "note": "Website: text of the link to the page about the Raspberry Pi 5 home server (off-the.cloud/raspberry-pi-home-server), after the landing page's answer about the hardware; also its name in llms.txt.",
+    "max": 60
+  },
+  "site.pi.meta.description": {
+    "text": "Turn a Raspberry Pi 5 and two USB drives into your family's home server: a private social network, photo backup and NAS, set up from your phone.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. NAS: storage on a small device at home; keep NAS if your language uses it. At most 155 characters, so search engines show it whole.",
+    "max": 155
+  },
+  "site.pi.meta.title": {
+    "text": "Raspberry Pi 5 home server and NAS for your family",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (a Raspberry Pi home server, a Raspberry Pi NAS). Search engines show the site's name beside it. At most 60 characters, so they show it whole.",
+    "max": 60
+  },
+  "site.pi.mirror.away": {
+    "text": "<b>A copy kept elsewhere.</b> Now and then, swap one drive for a spare: the one that comes out is a full copy of the device, and Recover this device in the setup brings it back.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section about the two drives: one card. <b> marks its short title in bold. \"Recover this device\" is the setup's button: use its wording in your language. The drive taken out is kept away from home as a copy.",
+    "rich": ["b"]
+  },
+  "site.pi.mirror.copies": {
+    "text": "<b>Every file twice.</b> The drives are a mirror (RAID-1): each holds everything. If one stops working, the device carries on with the other, and an alert names the USB port of the one to replace.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section about the two drives: one card. <b> marks its short title in bold. A mirror (RAID-1): the two drives keep the same files; RAID is never translated.",
+    "rich": ["b"]
+  },
+  "site.pi.mirror.grow": {
+    "text": "<b>More space.</b> Swap the drives for bigger ones, one at a time: once both are bigger, the device grows its storage by itself, without stopping.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section about the two drives: one card. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.pi.mirror.replace": {
+    "text": "<b>Replacing one.</b> Plug in a drive at least as large and the device copies everything onto it by itself, erasing what was on it. Another alert says when both are working again.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section about the two drives: one card. <b> marks its short title in bold. Warns that the new drive is erased. The second alert is the apps' \"Both storage disks are working again\".",
+    "rich": ["b"]
+  },
+  "site.pi.mirror.title": {
+    "text": "Two drives, a full copy on each",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): heading of the section about the two mirrored drives.",
+    "max": 50
+  },
+  "site.pi.need.card": {
+    "text": "<b>A microSD card for the system.</b> 8 GB or more. Your photos, files and settings live on the drives, not on the card.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. The microSD card holds the Pi's system; the files are on the USB drives.",
+    "rich": ["b"]
+  },
+  "site.pi.need.drives": {
+    "text": "<b>Two USB drives for your files.</b> USB sticks, SSDs, hard disks or microSD cards in USB card readers, in the Pi's two blue USB ports. Each keeps a full copy, so the smaller one sets how much space you have.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. Sticks: USB memory sticks (pendrives). The two blue USB ports are the Pi's USB 3 ports. Each drive keeps a full copy, so the space is the smaller drive's.",
+    "rich": ["b"]
+  },
+  "site.pi.need.nothing": {
+    "text": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. The computer prepares the Pi's microSD card; the phone or the Mac app finishes the setup over Bluetooth.",
+    "rich": ["b"]
+  },
+  "site.pi.need.pi": {
+    "text": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. Image Tagging and Face Recognition are the names of two switches in the apps' Settings: use the names the apps use in your language. 8 GB and 4 GB are the Pi's memory (RAM).",
+    "rich": ["b"]
+  },
+  "site.pi.need.power": {
+    "text": "<b>A good power supply and a cooler.</b> The official 27 W USB-C power supply, or a better one, and an active cooler: with a weaker supply the Pi can restart from low voltage while it works through your photos.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. The official 27 W USB-C power supply is Raspberry Pi's own. An active cooler: a heatsink with a fan for the Pi.",
+    "rich": ["b"]
+  },
+  "site.pi.need.title": {
+    "text": "What you need",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): heading of the section listing the hardware.",
+    "max": 50
+  },
+  "site.pi.recover.text": {
+    "text": "Your photos, files and settings are on the drives, so a new Pi takes over: move the card and the drives to it and power it on. If the card is lost too, flash a new one, attach the same drives and choose Recover this device in the setup: the device comes back as it was, with the same password. Start fresh instead would erase both drives.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the paragraph about replacing a Raspberry Pi that stopped working. \"Recover this device\" and \"Start fresh instead\" are the setup's buttons: use their wording in your language. Warns that the second erases both drives."
+  },
+  "site.pi.recover.title": {
+    "text": "If the Pi itself dies",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): heading of the section about replacing a Raspberry Pi that stopped working.",
+    "max": 50
+  },
+  "site.pi.setup.card": {
+    "text": "<b>Make the card.</b> The computer app downloads the image and checks its signature, then writes the card on Windows and Linux, or hands it to Raspberry Pi Imager on a Mac. You can also flash the image with Imager yourself.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the setup's step 1. <b> marks its short title in bold. The computer app is the Mac, Windows or Linux app; the image is the Pi's system image; Raspberry Pi Imager is a product name: keep it.",
+    "rich": ["b"]
+  },
+  "site.pi.setup.finish": {
+    "text": "<b>Finish over Bluetooth.</b> Tap Set up a new device in the iPhone or Android app, or choose On this Mac in the Mac app. It asks for your Wi-Fi, a name and a password for the device and how to use the drives, then installs the software.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the setup's step 3. <b> marks its short title in bold. \"Set up a new device\" is the button on the phone app's welcome screen and \"On this Mac\" a choice in the Mac app's setup window: use the apps' wording in your language.",
+    "rich": ["b"]
+  },
+  "site.pi.setup.plug": {
+    "text": "<b>Plug it in.</b> The two drives go in the blue USB ports and the card in the Pi; then power it on. After a minute it shows up over Bluetooth.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the setup's step 2. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.pi.setup.signin": {
+    "text": "<b>Sign in.</b> The app connects to the new device with the password you chose, and any browser opens it at its address.",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): the setup's step 4. <b> marks its short title in bold. Its address: the device's own address, such as casa.off-the.cloud.",
+    "rich": ["b"]
+  },
+  "site.pi.setup.title": {
+    "text": "Set it up in about 20 minutes",
+    "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): heading of the section with the setup's four steps.",
+    "max": 50
+  }
+}

@@ -34,9 +34,9 @@ import (
 //	/<code>/anything  404: the only other localized pages are
 //	/account          the account page: English, or 302 to /<code>/account as / does
 //	/<code>/account   the account page in that language; /en/account is English without the redirect
-//	/private-social-network, /google-photos-alternative, /google-drive-alternative
-//	and the same under /<code>/
-//	                  the comparison pages, the same way
+//	/private-social-network, /google-photos-alternative, /google-drive-alternative,
+//	/raspberry-pi-home-server, and the same under /<code>/
+//	                  the comparison pages and the Raspberry Pi page, the same way
 //	/xx/account       404 for a language this build doesn't carry (and the comparison pages under /xx/)
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
@@ -44,8 +44,8 @@ import (
 //	                  301 to /privacy and /terms, their one address each
 //	/account/, /<slug>/, /<code>/<slug>/, /privacy/, /terms/
 //	                  301 to the same address without its last slash, query kept
-//	/robots.txt, /sitemap.xml, /llms.txt
-//	                  what crawlers read (package site, crawl.go)
+//	/robots.txt, /sitemap.xml, /llms.txt, /llms-full.txt
+//	                  what crawlers read (package site, crawl.go, llmsfull.go)
 //
 // Every 404 on the bridge's host is the site's own page (site.NotFound)
 // for a browser asking for a page (Accept: text/html), in the path's
@@ -100,6 +100,8 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Alternative) }
 	case "/" + site.DriveSlug:
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Drive) }
+	case "/" + site.PiSlug:
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Pi) }
 	case "/landing", "/landing.html":
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
 	case "/account.html":
@@ -117,6 +119,16 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { writeCompressed(w, r, "text/plain; charset=utf-8", http.StatusOK, site.Robots(base)) }
 	case "/llms.txt":
 		answer = func() { writeCompressed(w, r, "text/plain; charset=utf-8", http.StatusOK, site.LLMs(base)) }
+	case "/llms-full.txt":
+		answer = func() {
+			body, err := site.LLMsFull(base)
+			if err != nil {
+				log.Error("site: could not write llms-full.txt:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			writeCompressed(w, r, "text/plain; charset=utf-8", http.StatusOK, body)
+		}
 	case "/sitemap.xml":
 		answer = func() {
 			body, err := site.Sitemap(base)

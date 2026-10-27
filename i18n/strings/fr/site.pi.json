@@ -1,0 +1,138 @@
+{
+  "site.pi.faq.away.a": {
+    "text": "Oui : la passerelle donne à votre appareil une adresse comme casa.off-the.cloud, que les apps utilisent dès que vous êtes dehors, et c’est là que les appareils de vos amis le joignent. À la maison, les apps se connectent directement à l’appareil, à la vitesse de votre propre réseau.",
+    "en": "Yes: the bridge gives your device an address like casa.off-the.cloud, which the apps use whenever you're out, and your friends' devices reach it there. At home the apps connect straight to the device, at the speed of your own network."
+  },
+  "site.pi.faq.away.q": {
+    "text": "Puis-je y accéder quand je ne suis pas chez moi ?",
+    "en": "Can I reach it when I'm away from home?"
+  },
+  "site.pi.faq.cost.a": {
+    "text": "Le logiciel est gratuit et open source : vous achetez une seule fois le Pi, sa carte, deux disques, une alimentation et un ventilateur, et à la maison il ne lui faut rien d’autre. Pour y accéder hors de chez vous, la passerelle est gratuite pendant ses deux premières années, puis coûte 9,99 € + TVA par an avec jusqu’à cinq adresses.",
+    "en": "The software is free and open source: you buy the Pi, its card, two drives, a power supply and a cooler once, and at home it needs nothing else. To reach it from outside your home, the bridge is free for its first two years, then €9.99 + VAT a year with up to five addresses."
+  },
+  "site.pi.faq.cost.q": {
+    "text": "Combien ça coûte ?",
+    "en": "What does it cost?"
+  },
+  "site.pi.faq.other.a": {
+    "text": "Oui. Le script d’installation fonctionne sur toute machine 64 bits sous Ubuntu, Debian ou un autre Linux basé sur Debian, Intel/AMD ou ARM, d’un vieux PC à un mini PC, avec 8 Go de mémoire, et vous donne la même app. L’image prête à l’emploi, la configuration par Bluetooth, les voyants d’état et les alertes qui indiquent un port USB sont propres au Raspberry Pi 5.",
+    "en": "Yes. The install script runs on any 64-bit machine with Ubuntu, Debian or another Debian-based Linux, Intel/AMD or ARM, from an old PC to a mini PC, with 8 GB of memory, and gives you the same app. The ready-made image, the setup over Bluetooth, the status lights and the alerts that name a USB port are the Raspberry Pi 5's."
+  },
+  "site.pi.faq.other.q": {
+    "text": "Puis-je utiliser un autre ordinateur qu’un Raspberry Pi 5 ?",
+    "en": "Can I use another computer instead of a Raspberry Pi 5?"
+  },
+  "site.pi.faq.updates.a": {
+    "text": "Quand une nouvelle version sort, l’appareil le signale dans ses alertes, et Mettre à jour, dans les Paramètres, l’installe : l’appareil vérifie la version avec la signature du projet, la compile et redémarre. Vos photos et vos fichiers restent où ils sont.",
+    "en": "When a new release is out, the device says so in its alerts, and Update in Settings installs it: the device checks the release against the project's signature, builds it and restarts. Your photos and files stay where they are."
+  },
+  "site.pi.faq.updates.q": {
+    "text": "Comment reste-t-il à jour ?",
+    "en": "How does it stay up to date?"
+  },
+  "site.pi.footer": {
+    "text": "Serveur sur Raspberry Pi 5",
+    "en": "Raspberry Pi 5 home server"
+  },
+  "site.pi.hero.lead": {
+    "text": "Off The Cloud est un logiciel gratuit et open source qui transforme un Raspberry Pi 5 et deux disques USB en serveur maison pour votre famille : un réseau social privé pour votre famille et vos amis, une sauvegarde des photos et vidéos de chacun, et un NAS pour vos fichiers. L’app pour ordinateur prépare sa carte, votre téléphone ou votre Mac termine la configuration en 20 minutes environ, et chaque disque garde une copie complète de tout.",
+    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two USB drives into your family's home server: a private social network for your family and friends, a backup of everyone's photos and videos, and a NAS for your files. The computer app prepares its card, your phone or Mac finishes the setup in about 20 minutes, and each drive keeps a full copy of everything."
+  },
+  "site.pi.hero.title": {
+    "text": "Un serveur maison sur Raspberry Pi 5 pour votre famille",
+    "en": "A Raspberry Pi 5 home server for your family"
+  },
+  "site.pi.lights.text": {
+    "text": "Deux voyants facultatifs, un par disque, montrent d’un coup d’œil l’état du miroir. Chacun est une LED rouge et une LED verte reliées aux broches du Pi par une résistance, et l’appareil les allume de lui-même :",
+    "en": "Two optional lights, one per drive, show at a glance how the mirror is doing. Each is a red and a green LED wired to the Pi's pins through a resistor, and the device lights them by itself:"
+  },
+  "site.pi.lights.title": {
+    "text": "Des voyants d’état, si vous voulez",
+    "en": "Status lights, if you want them"
+  },
+  "site.pi.link": {
+    "text": "Le serveur maison sur Raspberry Pi 5, étape par étape",
+    "en": "The Raspberry Pi 5 home server, step by step"
+  },
+  "site.pi.meta.description": {
+    "text": "Un Raspberry Pi 5 et deux disques USB deviennent le serveur de la famille : réseau social privé, sauvegarde photo et NAS, configurés depuis un téléphone.",
+    "en": "Turn a Raspberry Pi 5 and two USB drives into your family's home server: a private social network, photo backup and NAS, set up from your phone."
+  },
+  "site.pi.meta.title": {
+    "text": "Serveur maison et NAS sur Raspberry Pi 5 pour la famille",
+    "en": "Raspberry Pi 5 home server and NAS for your family"
+  },
+  "site.pi.mirror.away": {
+    "text": "<b>Une copie gardée ailleurs.</b> De temps en temps, remplacez un disque par un disque de rechange : celui qui sort est une copie complète de l’appareil, et Récupérer cet appareil, dans la configuration, le restaure.",
+    "en": "<b>A copy kept elsewhere.</b> Now and then, swap one drive for a spare: the one that comes out is a full copy of the device, and Recover this device in the setup brings it back."
+  },
+  "site.pi.mirror.copies": {
+    "text": "<b>Chaque fichier en double.</b> Les disques sont en miroir (RAID-1) : chacun contient tout. Si l’un cesse de fonctionner, l’appareil continue avec l’autre, et une alerte indique le port USB de celui à remplacer.",
+    "en": "<b>Every file twice.</b> The drives are a mirror (RAID-1): each holds everything. If one stops working, the device carries on with the other, and an alert names the USB port of the one to replace."
+  },
+  "site.pi.mirror.grow": {
+    "text": "<b>Plus d’espace.</b> Remplacez les disques par des plus grands, l’un après l’autre : une fois les deux plus grands, l’appareil agrandit son stockage de lui-même, sans s’arrêter.",
+    "en": "<b>More space.</b> Swap the drives for bigger ones, one at a time: once both are bigger, the device grows its storage by itself, without stopping."
+  },
+  "site.pi.mirror.replace": {
+    "text": "<b>En remplacer un.</b> Branchez un disque au moins aussi grand et l’appareil y copie tout de lui-même, en effaçant ce qu’il contenait. Une autre alerte indique quand les deux fonctionnent de nouveau.",
+    "en": "<b>Replacing one.</b> Plug in a drive at least as large and the device copies everything onto it by itself, erasing what was on it. Another alert says when both are working again."
+  },
+  "site.pi.mirror.title": {
+    "text": "Deux disques, une copie complète sur chacun",
+    "en": "Two drives, a full copy on each"
+  },
+  "site.pi.need.card": {
+    "text": "<b>Une carte microSD pour le système.</b> De 8 Go ou plus. Vos photos, vos fichiers et vos réglages sont sur les disques, pas sur la carte.",
+    "en": "<b>A microSD card for the system.</b> 8 GB or more. Your photos, files and settings live on the drives, not on the card."
+  },
+  "site.pi.need.drives": {
+    "text": "<b>Deux disques USB pour vos fichiers.</b> Clés USB, SSD, disques durs ou cartes microSD dans des lecteurs USB, sur les deux ports USB bleus du Pi. Chacun garde une copie complète : le plus petit fixe donc l’espace dont vous disposez.",
+    "en": "<b>Two USB drives for your files.</b> USB sticks, SSDs, hard disks or microSD cards in USB card readers, in the Pi's two blue USB ports. Each keeps a full copy, so the smaller one sets how much space you have."
+  },
+  "site.pi.need.nothing": {
+    "text": "<b>Ni clavier, ni écran, ni connaissances Linux.</b> Un ordinateur Mac, Windows ou Linux prépare la carte, et votre téléphone ou votre Mac termine la configuration par Bluetooth.",
+    "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
+  },
+  "site.pi.need.pi": {
+    "text": "<b>Un Raspberry Pi 5 avec 8 Go de mémoire.</b> Un modèle de 4 Go fonctionne aussi, avec l’Étiquetage des images et la Reconnaissance faciale désactivés avant de sauvegarder vos photos : ils demandent plus de mémoire.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory."
+  },
+  "site.pi.need.power": {
+    "text": "<b>Une bonne alimentation et un ventilateur.</b> L’alimentation USB-C officielle de 27 W, ou une meilleure, et un ventilateur actif : avec une alimentation plus faible, le Pi peut redémarrer à cause d’une tension trop basse pendant qu’il traite vos photos.",
+    "en": "<b>A good power supply and a cooler.</b> The official 27 W USB-C power supply, or a better one, and an active cooler: with a weaker supply the Pi can restart from low voltage while it works through your photos."
+  },
+  "site.pi.need.title": {
+    "text": "Ce qu’il vous faut",
+    "en": "What you need"
+  },
+  "site.pi.recover.text": {
+    "text": "Vos photos, vos fichiers et vos réglages sont sur les disques : un nouveau Pi prend donc le relais. Déplacez-y la carte et les disques, puis allumez-le. Si la carte est perdue aussi, flashez-en une nouvelle, branchez les mêmes disques et choisissez Récupérer cet appareil dans la configuration : l’appareil revient tel qu’il était, avec le même mot de passe. Repartir de zéro effacerait les deux disques.",
+    "en": "Your photos, files and settings are on the drives, so a new Pi takes over: move the card and the drives to it and power it on. If the card is lost too, flash a new one, attach the same drives and choose Recover this device in the setup: the device comes back as it was, with the same password. Start fresh instead would erase both drives."
+  },
+  "site.pi.recover.title": {
+    "text": "Si le Pi lui-même tombe en panne",
+    "en": "If the Pi itself dies"
+  },
+  "site.pi.setup.card": {
+    "text": "<b>Préparez la carte.</b> L’app pour ordinateur télécharge l’image et vérifie sa signature, puis écrit la carte sous Windows et Linux, ou la confie à Raspberry Pi Imager sur un Mac. Vous pouvez aussi flasher l’image vous-même avec Imager.",
+    "en": "<b>Make the card.</b> The computer app downloads the image and checks its signature, then writes the card on Windows and Linux, or hands it to Raspberry Pi Imager on a Mac. You can also flash the image with Imager yourself."
+  },
+  "site.pi.setup.finish": {
+    "text": "<b>Terminez par Bluetooth.</b> Touchez Configurer un nouvel appareil dans l’app iPhone ou Android, ou choisissez Sur ce Mac dans l’app Mac. Elle vous demande votre Wi-Fi, un nom et un mot de passe pour l’appareil et la façon d’utiliser les disques, puis installe le logiciel.",
+    "en": "<b>Finish over Bluetooth.</b> Tap Set up a new device in the iPhone or Android app, or choose On this Mac in the Mac app. It asks for your Wi-Fi, a name and a password for the device and how to use the drives, then installs the software."
+  },
+  "site.pi.setup.plug": {
+    "text": "<b>Branchez-le.</b> Les deux disques vont sur les ports USB bleus et la carte dans le Pi ; allumez-le ensuite. Au bout d’une minute, il apparaît en Bluetooth.",
+    "en": "<b>Plug it in.</b> The two drives go in the blue USB ports and the card in the Pi; then power it on. After a minute it shows up over Bluetooth."
+  },
+  "site.pi.setup.signin": {
+    "text": "<b>Connectez-vous.</b> L’app se connecte au nouvel appareil avec le mot de passe que vous avez choisi, et n’importe quel navigateur l’ouvre à son adresse.",
+    "en": "<b>Sign in.</b> The app connects to the new device with the password you chose, and any browser opens it at its address."
+  },
+  "site.pi.setup.title": {
+    "text": "Configuré en 20 minutes environ",
+    "en": "Set it up in about 20 minutes"
+  }
+}
