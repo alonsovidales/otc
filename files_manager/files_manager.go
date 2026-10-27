@@ -59,7 +59,10 @@ import (
 )
 
 const (
-	CDownloadAttr = "?download="
+	// CDownloadAttr leads a share link's archive id and secret: in the
+	// fragment, which no request carries (the web app still takes the
+	// ?download= of older links).
+	CDownloadAttr = "#download="
 	cToeknsTTL    = 5 * time.Minute
 
 	// cDefaultSharedLinkTTL is used when [otc] shared-link-ttl-hours is

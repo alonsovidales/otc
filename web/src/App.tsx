@@ -10,6 +10,7 @@ import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
 import SettingsForm from "./components/SettingsForm";
 import ProfileCard from "./components/ProfileCard";
+import { useDownloadLink } from "./components/downloadLink";
 import FriendshipsManager from "./components/FriendshipsManager";
 import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
@@ -408,7 +409,7 @@ function App() {
     }, []);
   }
 
-  // Issue #104: a shared link (?download=<uuid>_<secret>) fetches the zip
+  // Issue #104: a shared link (/#download=<uuid>_<secret>, ?download= before) fetches the zip
   // and saves it. This used to run as a bare async IIFE in the render body
   // - so every re-render of App while that parameter was in the URL kicked
   // off *another* download, and App re-renders several times on any normal
@@ -419,7 +420,7 @@ function App() {
   // An effect keyed on the link runs it once per link instead, and the ref
   // makes that hold even when React deliberately double-invokes effects
   // (StrictMode in development), where a dependency array alone wouldn't.
-  const downloadLink = sp.get("download");
+  const downloadLink = useDownloadLink(sp);
   const startedDownloadRef = useRef<string | null>(null);
   const [downloadError, setDownloadError] = useState<UiText | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
