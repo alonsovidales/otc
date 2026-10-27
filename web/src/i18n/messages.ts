@@ -1002,19 +1002,32 @@ export type MessageKey =
   | "web.social.viewer.video_by_position"
   | "web.social.viewer.video_loading"
   | "web.tour.alerts.title"
-  | "web.tour.done.title"
-  | "web.tour.files.text"
-  | "web.tour.friends.own"
-  | "web.tour.images.text"
-  | "web.tour.menu.text"
-  | "web.tour.menu.title"
+  | "web.tour.art.caption"
+  | "web.tour.art.collection"
+  | "web.tour.art.comment"
+  | "web.tour.art.friend"
+  | "web.tour.art.person"
+  | "web.tour.art.thing"
+  | "web.tour.collections.title"
+  | "web.tour.dates.text"
+  | "web.tour.dates.title"
+  | "web.tour.files.title"
+  | "web.tour.friends.title"
+  | "web.tour.people.title"
   | "web.tour.post.title"
   | "web.tour.progress"
+  | "web.tour.search.text"
+  | "web.tour.search.text_faces"
+  | "web.tour.search.title"
+  | "web.tour.select.title"
   | "web.tour.settings.hint"
   | "web.tour.settings.title"
   | "web.tour.show"
   | "web.tour.skip"
   | "web.tour.social.text"
+  | "web.tour.social.title"
+  | "web.tour.upload.title"
+  | "web.tour.viewer.title"
   | "web.tour.welcome.text"
   | "web.tour.welcome.title";
 
@@ -1051,14 +1064,13 @@ export type RichKey =
   | "web.social.alerts.liked_post"
   | "web.tour.alerts.text"
   | "web.tour.collections.text"
-  | "web.tour.done.text"
-  | "web.tour.friends.accept"
-  | "web.tour.friends.add"
+  | "web.tour.files.text"
+  | "web.tour.friends.text"
   | "web.tour.people.text"
-  | "web.tour.post.also"
-  | "web.tour.post.step1"
-  | "web.tour.post.step2"
-  | "web.tour.post.step3";
+  | "web.tour.post.text"
+  | "web.tour.select.text"
+  | "web.tour.upload.text"
+  | "web.tour.viewer.text";
 
 /** Each key's arguments by name; undefined when it takes none. */
 export interface MessageArgs {
@@ -2032,30 +2044,42 @@ export interface MessageArgs {
   "web.social.viewer.video_by": { name: string };
   "web.social.viewer.video_by_position": { name: string; index: number; total: number };
   "web.social.viewer.video_loading": undefined;
-  "web.tour.alerts.text": { alerts: string; settings: string };
+  "web.tour.alerts.text": { alerts: string; settings: string; show: string };
   "web.tour.alerts.title": undefined;
+  "web.tour.art.caption": undefined;
+  "web.tour.art.collection": undefined;
+  "web.tour.art.comment": undefined;
+  "web.tour.art.friend": undefined;
+  "web.tour.art.person": undefined;
+  "web.tour.art.thing": undefined;
   "web.tour.collections.text": { add: string };
-  "web.tour.done.text": { show: string };
-  "web.tour.done.title": undefined;
-  "web.tour.files.text": undefined;
-  "web.tour.friends.accept": { waiting: string; accept: string };
-  "web.tour.friends.add": { suffix: string; heading: string; send: string };
-  "web.tour.friends.own": undefined;
-  "web.tour.images.text": undefined;
-  "web.tour.menu.text": undefined;
-  "web.tour.menu.title": undefined;
-  "web.tour.people.text": { name: string };
-  "web.tour.post.also": { post: string };
-  "web.tour.post.step1": { newPost: string };
-  "web.tour.post.step2": { library: string; computer: string };
-  "web.tour.post.step3": { publish: string };
+  "web.tour.collections.title": undefined;
+  "web.tour.dates.text": undefined;
+  "web.tour.dates.title": undefined;
+  "web.tour.files.text": { list: string; grid: string; storage: string; sort: string };
+  "web.tour.files.title": undefined;
+  "web.tour.friends.text": { address: string; add: string; send: string; waiting: string; accept: string };
+  "web.tour.friends.title": undefined;
+  "web.tour.people.text": { name: string; merge: string };
+  "web.tour.people.title": undefined;
+  "web.tour.post.text": { newPost: string; library: string; computer: string; publish: string };
   "web.tour.post.title": undefined;
   "web.tour.progress": { step: number; total: number };
+  "web.tour.search.text": undefined;
+  "web.tour.search.text_faces": undefined;
+  "web.tour.search.title": undefined;
+  "web.tour.select.text": { post: string; collect: string; share: string; remove: string };
+  "web.tour.select.title": undefined;
   "web.tour.settings.hint": undefined;
   "web.tour.settings.title": undefined;
   "web.tour.show": undefined;
   "web.tour.skip": undefined;
   "web.tour.social.text": undefined;
+  "web.tour.social.title": undefined;
+  "web.tour.upload.text": { share: string; zip: string };
+  "web.tour.upload.title": undefined;
+  "web.tour.viewer.text": { info: string };
+  "web.tour.viewer.title": undefined;
   "web.tour.welcome.text": undefined;
   "web.tour.welcome.title": undefined;
 }
@@ -2093,14 +2117,13 @@ export interface RichTags {
   "web.social.alerts.liked_post": "b";
   "web.tour.alerts.text": "b";
   "web.tour.collections.text": "b";
-  "web.tour.done.text": "b";
-  "web.tour.friends.accept": "b";
-  "web.tour.friends.add": "b";
+  "web.tour.files.text": "b";
+  "web.tour.friends.text": "b";
   "web.tour.people.text": "b";
-  "web.tour.post.also": "b";
-  "web.tour.post.step1": "b";
-  "web.tour.post.step2": "b";
-  "web.tour.post.step3": "b";
+  "web.tour.post.text": "b";
+  "web.tour.select.text": "b";
+  "web.tour.upload.text": "b";
+  "web.tour.viewer.text": "b";
 }
 
 /**

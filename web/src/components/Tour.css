@@ -2,9 +2,11 @@
 
 /* The first-run tour (Tour.tsx): a native modal dialog as big as the
    window. It dims the page itself - an SVG under the card, with a hole and
-   an ember ring around the step's control - so its ::backdrop stays clear.
-   The card is centred from 600px; below that it is a sheet at the foot of
-   the window. */
+   an ember ring around each of the step's controls - so its ::backdrop
+   stays clear. From 600px the card goes beside the holes (placed: Tour.tsx
+   sets its left and top, tourSteps.placeCard), in the middle when there
+   are none; below that it is a sheet at the foot of the window. Its
+   drawing is TourArt.css. */
 .tour {
   position: fixed;
   inset: 0;
@@ -51,8 +53,8 @@
   display: flex;
   flex-direction: column;
   width: min(420px, calc(100% - 32px));
-  max-height: min(80vh, 640px);
-  max-height: min(80dvh, 640px);
+  max-height: min(calc(100vh - 32px), 680px);
+  max-height: min(calc(100dvh - 32px), 680px);
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--ink-2);
@@ -61,8 +63,17 @@
   animation: tour-in .2s cubic-bezier(.2, .8, .2, 1);
 }
 
+/* Beside the step's controls: moved there, and from one step's place to
+   the next. */
+.tour-card.placed {
+  position: absolute;
+  margin: 0;
+  transition: left .25s cubic-bezier(.2, .8, .2, 1), top .25s cubic-bezier(.2, .8, .2, 1);
+}
+
 /* A phone: a sheet over the foot of the window, clear of the top bar's
-   menu button, "+" and account picture. */
+   menu button, search, "+" and account picture (and of the control the
+   page was scrolled to, above it). */
 @media (max-width: 599px) {
   .tour[open] {
     align-items: end;
@@ -70,9 +81,21 @@
   }
   .tour-card {
     width: 100%;
+    max-height: min(calc(100vh - 96px), 600px);
+    max-height: min(calc(100dvh - 96px), 600px);
     animation-name: tour-up;
   }
 }
+
+/* Room at the page's foot as tall as a phone's sheet (Tour.tsx), so the
+   step's control can be scrolled up above it on a short page. Padding,
+   never an overflow (CLAUDE.md: sticky bars measure from the window). */
+html[data-tour-room] body { padding-bottom: var(--tour-room, 0px); }
+
+/* The step's photo shows its circle, as under the mouse (data-tour-lit:
+   Tour.tsx marks the step's controls). */
+.pg-tile[data-tour-lit] .pg-tile-check,
+.pg-tile[data-tour-lit]::before { opacity: 1; }
 
 .tour-head {
   flex: none;
@@ -116,25 +139,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
   animation: tour-fade .2s ease-out;
 }
-.tour-art {
-  flex: none;
-  display: grid;
-  grid-auto-flow: column;
-  place-items: center;
-  gap: 8px;
-  width: 72px;
-  height: 72px;
-  box-sizing: border-box;
-  border-radius: 36px;
-  background: color-mix(in srgb, var(--ember) 15%, transparent);
-  color: var(--ember);
-}
-/* Alerts and Settings: both icons in one pill. */
-.tour-art.wide { width: auto; padding: 0 16px; }
-.tour-logo { display: block; height: 56px; width: auto; max-width: 100%; }
 .tour-title {
   margin: 4px 0 0;
   font-size: 20px;
@@ -150,15 +157,6 @@
   overflow-wrap: break-word;
 }
 .tour-text p { margin: 0; }
-.tour-text p + p,
-.tour-text ol + p { margin-top: 10px; }
-.tour-text ol {
-  margin: 0;
-  padding-left: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 .tour-text strong { color: var(--mist); font-weight: 600; }
 
 .tour-foot {
@@ -167,7 +165,7 @@
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 20px 24px 20px;
+  padding: 16px 24px 20px;
 }
 .tour-back,
 .tour-next {
@@ -212,4 +210,5 @@
   .tour-ring,
   .tour-card,
   .tour-step { animation: none; }
+  .tour-card.placed { transition: none; }
 }

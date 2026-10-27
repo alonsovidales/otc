@@ -245,6 +245,15 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
       const cur = backEntryOf(win.history.state);
       write(false, { i: at, tab, layer: cur?.layer });
     },
+    /** The section shown gets an entry of its own though it didn't change:
+     *  a layer that moved the page to it (the tour) closed, and the page
+     *  stays there - the layer's entry becomes the section's, over the one
+     *  the layer opened on. */
+    keep() {
+      start();
+      pushTab = true;
+      schedule();
+    },
     /** fn shows the section Back went to and returns the one it shows. */
     follow(fn: (tab: string) => string): () => void {
       onSection = fn;
@@ -266,6 +275,11 @@ const pageStack: BackStack | null =
 /** App: the section shown - push for a move to it, else a correction. */
 export function backSection(tab: string, push: boolean) {
   pageStack?.section(tab, push);
+}
+
+/** App: the section shown stays as a layer over it closes, an entry of its own (the tour's click on a control). */
+export function keepSection() {
+  pageStack?.keep();
 }
 
 /** App: fn shows the section Back went to and returns the one it shows. */

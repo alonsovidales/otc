@@ -37,9 +37,9 @@ import AccountMenu from "./components/AccountMenu";
 import TopSignIn, { type Interrupted } from "./components/TopSignIn";
 import LanguagePicker from "./components/LanguagePicker";
 import { pageEndpoint } from "./net/endpoint";
-import Tour from "./components/Tour";
-import { claimAutoTour, type TourStepId } from "./components/tourSteps";
-import { backSection, followBackSection } from "./components/backStack";
+import { claimAutoTour } from "./components/tourSeen";
+import type { TourStepId } from "./components/tourSteps";
+import { backSection, followBackSection, keepSection } from "./components/backStack";
 import { restoreSession } from "./net/sessionRestore";
 import ReconnectingBanner from "./components/ReconnectingBanner";
 import BigFileDialog from "./components/BigFileDialog";
@@ -51,6 +51,8 @@ import Part from "./components/Part";
 const FilesExplorer = lazyPart(() => import("./components/FilesExplorer"));
 const SettingsForm = lazyPart(() => import("./components/SettingsForm"));
 const PeopleView = lazyPart(() => import("./components/PeopleView"));
+// The first-run tour and its drawings, only when it opens.
+const Tour = lazyPart(() => import("./components/Tour"));
 // main.tsx gives /shared its own entry (sharedEntry.tsx): this one is never
 // needed by the app's.
 const SharedGalleryView = lazyPart(() => import("./components/SharedGalleryView"));
@@ -261,21 +263,34 @@ function App() {
     setTab((current) => (cAuthOnlyTabs.includes(current) ? cLandingTab : current));
   };
 
-  // The first-run tour (Tour.tsx, rules in tourSteps.ts): its step is kept
-  // here, so it comes back where it was after the unreachable screen. It
-  // opens by itself the first time this browser shows the signed-in app -
-  // however it signed in, people signed in before the tour existed too -
-  // never over a new device's setup, inside the phone apps' web view, on a
-  // shared gallery or a download (claimAutoTour marks it seen as it opens);
-  // and again, from its first step, with Show the tour in the account menu
-  // or Settings. autoTour says at once (before React renders) that the open
-  // one came by itself.
+  // The first-run tour (Tour.tsx, rules in tourSteps.ts; whether it opens
+  // by itself, tourSeen.ts): its step is kept here, so it comes back where
+  // it was after the unreachable screen. It opens by itself the first time
+  // this browser shows the signed-in app - however it signed in, people
+  // signed in before the tour existed too - never over a new device's
+  // setup, inside the phone apps' web view, on a shared gallery or a
+  // download (claimAutoTour marks it seen as it opens); and again, from
+  // its first step, with Show the tour in the account menu or Settings.
+  // autoTour says at once (before React renders) that the open one came by
+  // itself. Each step shows its section (tourShow), as a correction of the
+  // tour's own history entry rather than one of its own (backStack.ts), so
+  // Back is the tour's Skip; tourFrom is the section it opened over, shown
+  // again when it ends.
   const [tour, setTour] = useState<{ step: TourStepId; auto: boolean } | null>(null);
   const autoTour = useRef(false);
+  const tourFrom = useRef<TabKey | null>(null);
   const openTour = useCallback((auto: boolean) => {
     setDrawerOpen(false);
     autoTour.current = auto;
+    tourFrom.current = null;
     setTour({ step: "welcome", auto });
+  }, []);
+  // The step's section (null: the one the tour opened over), noted the
+  // first time a step asks - by then a sign-in has landed on its section.
+  const tourShow = useCallback((next: TabKey | null) => {
+    tourFrom.current ??= shownTab.current;
+    const want = next ?? tourFrom.current;
+    if (want !== shownTab.current) setTab(want);
   }, []);
   // Whether the tour is open by itself now: already, or just opened.
   const startAutoTour = useCallback((): boolean => {
@@ -285,16 +300,24 @@ function App() {
     return true;
   }, [mobile, openTour]);
   const moveTour = useCallback((step: TourStepId) => setTour((cur) => (cur ? { ...cur, step } : cur)), []);
-  // Skip, Done, Esc, Back or a click.
-  const closeTour = useCallback(() => {
+  // Skip, Done, Esc, Back or the dimmed layer: back to the section the
+  // tour opened over. A click passed on to a control in a hole (stay):
+  // the section shown stays, an entry of its own above that one.
+  const closeTour = useCallback((stay: boolean) => {
+    const from = tourFrom.current;
     setTour(null);
     autoTour.current = false;
+    tourFrom.current = null;
+    if (from === null || from === shownTab.current) return;
+    if (stay) keepSection();
+    else setTab(from);
   }, []);
   // The session ended: the tour goes with it.
   useEffect(() => {
     if (authenticated) return;
     setTour(null);
     autoTour.current = false;
+    tourFrom.current = null;
   }, [authenticated]);
 
   // A sign-in lands on the feed, with the tour the first time. Browser
@@ -756,7 +779,11 @@ function App() {
         ) : signedOutPlaceholder)}
       </main>
       </div>
-      {tour && authenticated && !inSetup && <Tour step={tour.step} faces={faces} onStep={moveTour} onClose={closeTour} />}
+      {tour && authenticated && !inSetup && (
+        <Part kind="layer" onClose={() => closeTour(false)}>
+          <Tour step={tour.step} faces={faces} onStep={moveTour} onSection={tourShow} onClose={closeTour} />
+        </Part>
+      )}
     </>
   )
 }

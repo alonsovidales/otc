@@ -1,71 +1,75 @@
 {
   "web.tour.alerts.text": {
-    "text": "<b>{alerts}</b> te avisa de los Me gusta, los comentarios, las solicitudes de amistad y lo que pasa en tu dispositivo. En <b>{settings}</b> cambias tu perfil, tu contraseña y el idioma.",
-    "en": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and language."
+    "text": "<b>{alerts}</b> cuenta lo nuevo: Me gusta, comentarios, solicitudes de amistad y avisos de tu dispositivo. <b>{settings}</b> tiene tu perfil, tu contraseña y el idioma, y <b>{show}</b> para volver a ver esto.",
+    "en": "<b>{alerts}</b> counts what's new: likes, comments, friend requests and news from your device. <b>{settings}</b> has your profile, password and language, and <b>{show}</b> to see this again."
   },
   "web.tour.alerts.title": {
     "text": "Alertas y Ajustes",
     "en": "Alerts and Settings"
   },
+  "web.tour.art.caption": {
+    "text": "Domingo en el lago",
+    "en": "Sunday at the lake"
+  },
+  "web.tour.art.collection": {
+    "text": "Verano",
+    "en": "Summer"
+  },
+  "web.tour.art.comment": {
+    "text": "¡Qué bonito!",
+    "en": "Lovely!"
+  },
+  "web.tour.art.friend": {
+    "text": "Pablo",
+    "en": "Alex"
+  },
+  "web.tour.art.person": {
+    "text": "Lucía",
+    "en": "Sam"
+  },
   "web.tour.collections.text": {
-    "text": "Reúne en un solo sitio las fotos que van juntas, como las de un viaje o un cumpleaños. En Imágenes, selecciona fotos con el círculo de cada una (o mantenlas pulsadas) y luego elige <b>{add}</b>.",
-    "en": "Keep photos that belong together in one place, like a trip or a birthday. In Images, select photos with the circle on each one (or press and hold), then choose <b>{add}</b>."
+    "text": "Selecciona fotos en Imágenes y elige <b>{add}</b> para tenerlas juntas, como las de un viaje. Abre aquí una colección para cambiarle el nombre, compartirla como galería o eliminarla.",
+    "en": "Select photos in Images and choose <b>{add}</b> to keep them together, like a trip. Open a collection here to rename it, share it as a gallery or delete it."
   },
-  "web.tour.done.text": {
-    "text": "Vuelve a ver este recorrido cuando quieras: elige <b>{show}</b> en el menú de la cuenta, arriba a la derecha, o en Ajustes.",
-    "en": "See this tour again any time: choose <b>{show}</b> in the account menu, at the top right, or in Settings."
+  "web.tour.collections.title": {
+    "text": "Crea una colección",
+    "en": "Make a collection"
   },
-  "web.tour.done.title": {
-    "text": "Ya está todo listo",
-    "en": "You're all set"
+  "web.tour.dates.text": {
+    "text": "Las fotos se agrupan por meses, de la más reciente a la más antigua. Arrastra las fechas de la derecha para saltar a cualquier mes; en una pantalla táctil, arrastra el control que aparece al desplazarte.",
+    "en": "Photos are grouped by month, newest first. Drag the dates on the right to jump to any month; on a touch screen, drag the handle that shows as you scroll."
+  },
+  "web.tour.dates.title": {
+    "text": "Salta a una fecha",
+    "en": "Jump to a date"
   },
   "web.tour.files.text": {
-    "text": "Tus documentos y carpetas, guardados en tu dispositivo. Arrastra archivos a la página Archivos para subirlos y haz clic en un archivo para abrirlo.",
-    "en": "Your documents and folders, kept on your device. Drag files onto the Files page to upload them, and click a file to open it."
+    "text": "Cambia entre <b>{list}</b>, <b>{grid}</b> y <b>{storage}</b>, que muestra lo que ocupa espacio. Haz clic en el encabezado de una columna para ordenar por ella, y otra vez para invertir el orden, o usa <b>{sort}</b>.",
+    "en": "Switch between <b>{list}</b>, <b>{grid}</b> and <b>{storage}</b>, which shows what takes up space. Click a column's heading to sort by it, and again to reverse it, or use <b>{sort}</b>."
   },
-  "web.tour.friends.accept": {
-    "text": "Las solicitudes que te envían esperan en <b>{waiting}</b>: elige <b>{accept}</b>.",
-    "en": "A request sent to you waits under <b>{waiting}</b>: choose <b>{accept}</b>."
+  "web.tour.files.title": {
+    "text": "Vistas y orden",
+    "en": "Views and sorting"
   },
-  "web.tour.friends.add": {
-    "text": "Para añadir amigos, escribe el nombre de su dispositivo, la parte antes de .{suffix}, en el apartado <b>{heading}</b> y elige <b>{send}</b>.",
-    "en": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and choose <b>{send}</b>."
+  "web.tour.friends.text": {
+    "text": "Copia <b>{address}</b> para que tus amigos te añadan, o escribe el nombre de su dispositivo en <b>{add}</b> y elige <b>{send}</b>. Las solicitudes que te envían esperan en <b>{waiting}</b>: elige <b>{accept}</b>.",
+    "en": "Copy <b>{address}</b> for friends to add you, or type their device's name under <b>{add}</b> and choose <b>{send}</b>. Requests to you wait under <b>{waiting}</b>: choose <b>{accept}</b>."
   },
-  "web.tour.friends.own": {
-    "text": "Tu propia dirección está en el menú de la cuenta, debajo de tu nombre.",
-    "en": "Your own address is in the account menu, under your name."
-  },
-  "web.tour.images.text": {
-    "text": "Todas tus fotos y vídeos, de los más recientes a los más antiguos. Busca arriba lugares y cosas que aparecen en tus fotos.",
-    "en": "All your photos and videos, newest first. Search at the top for places and things in your photos."
-  },
-  "web.tour.menu.text": {
-    "text": "Todo está en el menú de la izquierda. En una pantalla pequeña, ábrelo con el botón de menú, arriba a la izquierda.",
-    "en": "Everything is in the menu on the left. On a small screen, open it with the menu button at the top left."
-  },
-  "web.tour.menu.title": {
-    "text": "Dónde está cada cosa",
-    "en": "Find your way"
+  "web.tour.friends.title": {
+    "text": "Añade amigos",
+    "en": "Add friends"
   },
   "web.tour.people.text": {
-    "text": "Las caras que aparecen en tus fotos, una por persona. Elige <b>{name}</b> para ponerle nombre a alguien y haz clic en una cara para ver todas sus fotos.",
-    "en": "The faces found in your photos, one person each. Choose <b>{name}</b> to name someone, and click a face to see all their photos."
+    "text": "Haz clic en una cara para ver todas las fotos de esa persona y elige <b>{name}</b> para ponerle nombre. ¿Dos caras de la misma persona? Selecciona ambas con su círculo y elige <b>{merge}</b>.",
+    "en": "Click a face to see every photo of that person, and choose <b>{name}</b> to name them. Two faces of the same person? Select both with their circles and choose <b>{merge}</b>."
   },
-  "web.tour.post.also": {
-    "text": "O selecciona fotos en Imágenes y elige <b>{post}</b>.",
-    "en": "Or select photos in Images and choose <b>{post}</b>."
+  "web.tour.people.title": {
+    "text": "Caras y nombres",
+    "en": "Faces and names"
   },
-  "web.tour.post.step1": {
-    "text": "En Social, elige <b>+ {new_post}</b> arriba.",
-    "en": "In Social, choose <b>+ {new_post}</b> at the top."
-  },
-  "web.tour.post.step2": {
-    "text": "Elige fotos o vídeos de <b>{library}</b> (ya están en tu dispositivo) o de <b>{computer}</b>.",
-    "en": "Pick photos or videos from <b>{library}</b> (already on your device) or <b>{computer}</b>."
-  },
-  "web.tour.post.step3": {
-    "text": "Escribe un pie de foto y luego elige <b>{publish}</b>.",
-    "en": "Write a caption, then choose <b>{publish}</b>."
+  "web.tour.post.text": {
+    "text": "Elige <b>+ {new_post}</b>, escoge fotos o vídeos de <b>{library}</b> o <b>{computer}</b>, escribe un pie de foto y elige <b>{publish}</b>. Va de tu dispositivo a los dispositivos de tus amigos.",
+    "en": "Choose <b>+ {new_post}</b>, pick photos or videos from <b>{library}</b> or <b>{computer}</b>, write a caption and choose <b>{publish}</b>. It goes from your device to your friends' devices."
   },
   "web.tour.post.title": {
     "text": "Haz una publicación",
@@ -75,9 +79,29 @@
     "text": "Paso {step} de {total}",
     "en": "Step {step} of {total}"
   },
+  "web.tour.search.text": {
+    "text": "Escribe una cosa o un lugar para encontrar fotos, o parte del nombre de un archivo para encontrarlo en Archivos. Lo que eliges para las fotos queda en el campo; añade más para afinar el resultado.",
+    "en": "Type a thing or a place to find photos, or part of a file's name to find it in Files. A pick for photos becomes a chip in the field; add more chips to narrow them down."
+  },
+  "web.tour.search.text_faces": {
+    "text": "Escribe una cosa, un lugar o el nombre de alguien para encontrar fotos, o parte del nombre de un archivo para encontrarlo en Archivos. Lo que eliges para las fotos queda en el campo; añade más para afinar el resultado.",
+    "en": "Type a thing, a place or someone's name to find photos, or part of a file's name to find it in Files. A pick for photos becomes a chip in the field; add more chips to narrow them down."
+  },
+  "web.tour.search.title": {
+    "text": "Busca fotos y archivos",
+    "en": "Search photos and files"
+  },
+  "web.tour.select.text": {
+    "text": "Haz clic en el círculo de una foto o arrastra sobre varias; en una pantalla táctil, mantén pulsada una. Luego elige <b>{post}</b>, <b>{collect}</b>, <b>{share}</b> o <b>{remove}</b> en la barra de arriba.",
+    "en": "Click the circle on a photo, or drag across several; on a touch screen, press and hold. Then choose <b>{post}</b>, <b>{collect}</b>, <b>{share}</b> or <b>{remove}</b> in the bar at the top."
+  },
+  "web.tour.select.title": {
+    "text": "Selecciona fotos",
+    "en": "Select photos"
+  },
   "web.tour.settings.hint": {
-    "text": "Un breve recorrido por Off The Cloud: tus fotos, cómo publicar en Social, los amigos y dónde está cada cosa.",
-    "en": "A short tour of Off The Cloud: your photos, posting to Social, friends and where everything is."
+    "text": "Un breve recorrido sobre cómo buscar, ordenar y compartir tus fotos y archivos, publicar en Social y añadir amigos.",
+    "en": "A short tour of how to search, sort and share your photos and files, post to Social and add friends."
   },
   "web.tour.settings.title": {
     "text": "Primeros pasos",
@@ -92,12 +116,32 @@
     "en": "Skip"
   },
   "web.tour.social.text": {
-    "text": "Tu feed privado con tu familia y tus amigos: dale Me gusta a las publicaciones con el corazón y coméntalas. Tus publicaciones van de tu dispositivo a los dispositivos de tus amigos, y solo ellos las ven.",
-    "en": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them."
+    "text": "Aquí aparecen tus publicaciones y las de tus amigos, de la más reciente a la más antigua. Haz clic en el corazón para darle Me gusta, escribe debajo para comentar y haz clic en el número de Me gusta para ver quién lo dio.",
+    "en": "Your posts and your friends' show here, newest first. Click the heart to like one, write under it to comment, and click the number of likes to see who liked it."
+  },
+  "web.tour.social.title": {
+    "text": "Me gusta y comentarios",
+    "en": "Like and comment"
+  },
+  "web.tour.upload.text": {
+    "text": "Arrastra archivos desde tu ordenador a la página para subirlos y selecciona algunos para <b>{share}</b> un enlace o <b>{zip}</b>. El candado deja una carpeta en solo subida: no se puede eliminar nada y se guardan las versiones anteriores.",
+    "en": "Drag files from your computer onto the page to upload them, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
+  },
+  "web.tour.upload.title": {
+    "text": "Sube y comparte",
+    "en": "Upload and share"
+  },
+  "web.tour.viewer.text": {
+    "text": "Haz clic en una foto para abrirla y pasa de una a otra con las flechas, las teclas de flecha o deslizando el dedo. <b>{info}</b> muestra cuándo y dónde se hizo, la cámara y un mapa.",
+    "en": "Click a photo to open it, then use the arrows, the arrow keys or a swipe to go through them. <b>{info}</b> shows when and where it was taken, the camera and a map."
+  },
+  "web.tour.viewer.title": {
+    "text": "Abre una foto",
+    "en": "Open a photo"
   },
   "web.tour.welcome.text": {
-    "text": "Tus fotos y archivos están en tu propio dispositivo, en casa. Compártelos con tu familia y tus amigos en una red privada solo tuya.",
-    "en": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own."
+    "text": "En un minuto verás cómo encontrar, ordenar y compartir lo que hay en tu dispositivo. Todas las partes de la aplicación están en el menú de la izquierda; en una pantalla pequeña, ábrelo con el botón de arriba a la izquierda.",
+    "en": "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the menu on the left; on a small screen, open it with the button at the top left."
   },
   "web.tour.welcome.title": {
     "text": "Te damos la bienvenida a Off The Cloud",

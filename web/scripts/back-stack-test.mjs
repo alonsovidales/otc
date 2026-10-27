@@ -350,6 +350,74 @@ describe("layers", () => {
   });
 });
 
+// The first-run tour (App's tourShow and closeTour): a layer whose steps
+// show sections as corrections of its own entry.
+describe("the tour", () => {
+  const tourOver = async (b, a) => {
+    const tour = a.open("tour");
+    await settle();
+    // Its steps: Images, then Files, as corrections (no entry of their own).
+    for (const t of ["PhotoGallery", "AdminPannel"]) { a.tab = t; a.stack.section(t, false); }
+    await settle();
+    return tour;
+  };
+  test("its sections write no entries; Back is its Skip and shows where it opened", async () => {
+    const b = new Browser();
+    const a = app(b, "Social");
+    const tour = await tourOver(b, a);
+    assert.equal(b.depth, 2);
+    assert.equal(b.here.tab, "AdminPannel");
+    b.back();
+    await settle();
+    assert.equal(tour.closed, 1);
+    assert.deepEqual(a.shown, ["Social"]);
+    assert.equal(b.depth, 1);
+  });
+  test("Skip or Done: back where it opened, and no entry left", async () => {
+    const b = new Browser();
+    const a = app(b, "Social");
+    const tour = await tourOver(b, a);
+    a.tab = "Social";
+    a.stack.section("Social", false);
+    tour.shut();
+    await settle();
+    assert.equal(b.depth, 1);
+    assert.equal(b.here.tab, "Social");
+    assert.equal(b.here.layer, undefined);
+  });
+  test("a click passed on to a control: the section stays, an entry over the one it opened on", async () => {
+    const b = new Browser();
+    const a = app(b, "Social");
+    const tour = await tourOver(b, a);
+    a.stack.keep();
+    tour.shut();
+    await settle();
+    assert.equal(b.depth, 2);
+    assert.equal(b.here.tab, "AdminPannel");
+    assert.equal(b.here.layer, undefined);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["Social"]);
+  });
+  test("... and a layer that click opened is an entry above it", async () => {
+    const b = new Browser();
+    const a = app(b, "Social");
+    const tour = await tourOver(b, a);
+    a.stack.keep();
+    tour.shut();
+    const composer = a.open("composer");
+    await settle();
+    assert.equal(b.depth, 3);
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 1);
+    assert.equal(b.here.tab, "AdminPannel");
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["Social"]);
+  });
+});
+
 describe("reloads and foreign entries", () => {
   test("a reload with a layer's entry: the entry becomes its section's, and Back over the same section goes on", async () => {
     const b = new Browser();

@@ -383,7 +383,8 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         <section className="sf-section">
           <h3>{t("web.tour.settings.title")}</h3>
           <p className="sf-hint">{t("web.tour.settings.hint")}</p>
-          <button type="button" className="sf-btn" onClick={onShowTour}>{t("web.tour.show")}</button>
+          {/* The tour's last step rings it (tourSteps.ts). */}
+          <button type="button" className="sf-btn" data-tour="show-tour" onClick={onShowTour}>{t("web.tour.show")}</button>
         </section>
       )}
 
