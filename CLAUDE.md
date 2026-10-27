@@ -37,7 +37,10 @@ Without a Pi at hand the image builds in the Lima VM just as well (arm64 Ubuntu 
 chroot): `limactl copy -r scripts otc:/tmp/otcrepo/scripts`, then in the VM `sudo
 WORK=$HOME/image-build SRC_REPO=/tmp/otcrepo bash /tmp/otcrepo/scripts/build_image.sh` - WORK on
 the VM's disk, not under `/tmp`, which is a RAM disk too small for the decompressed image - and
-`limactl copy` the `.img.xz` and its `.sha256` into `dist/` for `make image-publish`.
+`limactl copy` the `.img.xz` and its `.sha256` into `dist/` for `make image-publish`. The base is
+one dated Raspberry Pi OS Lite release pinned with the SHA-256 Raspberry Pi publishes beside it
+(`BASE_URL`/`BASE_SHA256` in build_image.sh, checked before anything is unpacked; a cached base from
+another pin is fetched again): a newer base is a deliberate edit there.
 
 The image (issue #38) is stock Raspberry Pi OS Lite plus `scripts/setup_wizard.py` (a root,
 stdlib-only web wizard on port 80: WiFi, device name reserved on the bridge via its public
@@ -54,8 +57,10 @@ over from an older image on every poll before setup and rechecks once a minute a
 (`any_band` in the join request). network_setup.py makes its join only before setup - never once
 root's `/etc/otc/.install-complete` exists (`setup_done()`'s own marker is in the otc user's
 `/var/lib/otc`) - opens the request with O_NOFOLLOW (a regular file of at most 4 KiB), and
-removes anything else found under that name (a directory too) without reading it. That version
-reaches new images; no release reinstalls the script on devices already set up. After setup the
+removes anything else found under that name (a directory too) without reading it. Release 143 puts
+it on devices imaged before 2026-09-29 (whose copy raised the open hotspot whenever the network was
+lost) and deletes the hotspot's NetworkManager profile (an access point named `OTC-Setup` or with that
+SSID); `update.sh` reinstalls it wherever `/usr/local/bin/network_setup.py` exists. After setup the
 Wi-Fi changes only through Settings › Wi-Fi (`network`, below) or the console. The wizard changes state only through `update_state()` under
 `_state_lock` (never held across bridge calls) and writes files with `atomic_write`. `raid_watch.py`
 runs no mdadm query or repair unless md0 is in `/proc/mdstat`, and backs off failed adds.
@@ -65,7 +70,16 @@ page polls `GET /api/setup-lookup`. Recovery safety: an array assembled without 
 image) comes up as `/dev/md127`, not `md0`; `install.sh` adopts any active array on its disks and
 reassembles it as `md0`, never wipes a disk that still has a RAID superblock, and with
 `OTC_RECOVERY=1` (the wizard's Recover) refuses to build a fresh array at all - the wizard only
-sets `OTC_RAID_CONFIRM_WIPE` on a fresh install. A fourth: the Pi has no battery-backed clock, so an install that starts
+sets `OTC_RAID_CONFIRM_WIPE` on a fresh install. A mirror down to one disk is recovered too: the
+wizard names that disk as both `OTC_DISK1` and `OTC_DISK2`, which only `OTC_RECOVERY=1` accepts,
+and the adopted array is reassembled with `--run` (without it a degraded array is only gathered,
+inactive). The storage's fstab line has `nofail,x-systemd.device-timeout=3min` (install.sh, release
+143 for older devices: only the md0 line's options change) and `otc.service`/`mariadb.service` get
+`RequiresMountsFor=/mnt/storage` drop-ins (`otc-storage.conf`): a disk missing or slow at boot no
+longer stops the boot in emergency mode with no network or SSH. The device comes up without its
+storage; the service and MariaDB don't start (never on the empty directory under the mount point),
+with the disks missing raid_watch shows both LEDs red, and the apps see the device offline until the
+disks are back and it is restarted. A fourth: the Pi has no battery-backed clock, so an install that starts
 before NTP syncs sees every Debian repository as "not live until <date>" and apt fails with
 code 100 - `install.sh`'s `ensure_clock` waits for NTP and falls back to a verified HTTPS
 Date header (forward only). Three Pi 5 pitfalls learnt the hard way: the image strips SSH host keys, so enabling ssh on an older card needs `ssh-keygen -A` first (newer images regenerate them from a ssh.service drop-in); NetworkManager's WiFi
@@ -858,7 +872,21 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   --selftest` tests the script's side. The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
-  replacement. More storage: swap the cards for bigger ones one at a time (each is added and
+  replacement - since release 143 only a blank one (no partition table, no `blkid -p`/`wipefs`
+  signature, first and last MiB all 0x00 or 0xFF, read with O_EXCL|O_DIRECT) or a former member of
+  md0 whose superblock doesn't show it ran without the disk md0 runs on now (`judge_disk`, the same
+  rule as `otc-mirror`; a verdict is kept while the disk stays plugged in, disks are looked at every
+  5 s). Any other disk (a backup drive, a card fresh from the shop, another array's disk, a split
+  copy) is left alone, logged once, and listed in root's `/run/otc-raid-watch/not-added.json`, from
+  which `raidwatch` raises one Alert per plug-in (`dev.alert.raid.not_added_*`,
+  `<storage>/.raid-not-added`); the stopped alerts' details say the replacement must be blank
+  (`dev.alert.raid.replace_detail*`; the old `stopped_detail*` keys stay for old rows). First-sign-in
+  storage setup (`OTC_SKIP_RAID` hand installs) refuses storage that already holds files, a disk with a
+  signature, partitions or an md superblock, and storage fstab already names; it reads its request with
+  O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750) and writes fstab by
+  `UUID=` with nofail and the drop-ins below (MariaDB stays on the SD card there). Tested on
+  `scsi_debug` disks in the Lima VM (`per_host_store=1`, or every disk shares one store). More storage:
+  swap the cards for bigger ones one at a time (each is added and
   rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
   (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
   while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
@@ -2641,7 +2669,9 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 `fetch_pinned` carry `curl --connect-timeout 30 --speed-limit 1 --speed-time 120`, cutting only a
 stalled transfer (no `--max-time`).
 More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
-every update: `scripts/bridge-runner/` (switching the bridge on later, #145),
+every update (one that reads its request's words does so with `dd iflag=nofollow,nonblock`; each
+oneshot has a `TimeoutStartSec`, 2min for the bridge and Tailscale ones): `scripts/bridge-runner/`
+(switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for
 Settings > Restart device and `otc-wifi-restart` for `wifiwatch`; release 115's script installs them
 on older devices from `$OTC_VERIFIED_SRC`; release 140: `otc-wifi-join` for Settings › Wi-Fi, a
@@ -2715,7 +2745,16 @@ source archive and web bundle, and runs the `install.sh` inside that verified so
 (`OTC_VERIFIED_SRC`, `OTC_VERIFIED_WEB`, `OTC_RELEASE_VERSION`); `install.sh` run any other way hands
 over to it. The install copies that source instead of cloning, installs the release's web bundle
 (no Node or npm on devices), pins Go, ONNX Runtime, protoc and the models by SHA-256
-(`fetch_pinned`), and installs Tailscale from its apt repository with the key pinned by hash.
+(`fetch_pinned`: into a mktemp directory beside the destination, then renamed; `/usr/local/models`
+is root's, 0755, read by the service), and installs Tailscale from its apt repository with the key
+pinned by hash. A re-run keeps the config's `[otc]` lines it doesn't write itself (a fork's
+`update-repo`/`update-releases`, `low-memory`, a watchdog switched off) and, without
+`OTC_BRIDGE_ADDR`, the `bridge-addr`/`bridge-default` it finds (empty after a switch-off, #182); the
+config is written temp (0640 root:otc), sync, rename. The device's MariaDB account holds ALL on `otc`
+and, with GRANT OPTION, on `otc_%` (in a GRANT the `_` of `otc_<uuid>` is itself a wildcard: an
+escaped `otc\_%` can't hand ALL on `otc_<uuid>` to that user's account - error 1044), plus CREATE
+USER and RELOAD - nothing on `*.*` (install.sh, the container's entrypoint, release 143's REVOKE;
+tested in the Lima VM by provisioning, measuring and dropping a user through `dao`).
 
 **Checking it worked**: a device shows its version under Settings → Device version. The full
 log of any run is at `/var/log/otc-update/update.log` (Settings › Logs › Updates), and the current
@@ -2728,6 +2767,27 @@ web bundle that can't be downloaded fails the update, and a failed build leaves 
 untouched: update.sh runs migrations, build, then the web bundle's download and check, and only
 then installs anything (`install_atomic`: temp, sync, rename) and writes the version file. The
 staged release is removed on exit.
+Since release 143 the update also checks the new version starts. The binary it replaces stays as
+`/usr/bin/otc.prev` (a hard link), and the web app is unpacked into a directory of its own under
+root's `/var/otc-web/` and switched in by renaming the `/var/www` symlink (the first time, the old
+`/var/www` directory moves there): never written file by file into what is served, the one before
+kept. After `systemctl restart otc` update.sh writes `verifying` and waits up to 3 minutes for the
+service to answer `http://127.0.0.1:<[otc-api] port>/check_healty` and then keep answering for 20 s
+as the same MainPID with no restart (Restart=on-failure alone never gives up on a binary that fails
+at start). Otherwise it puts back the binary, the web app and `/etc/otc/version` (migrations and
+version.migrated stay: they only add), restarts, and fails with `rolled_back`, or `rollback_failed`
+if something couldn't be put back; on success the older web directories go. The legacy sudo path
+runs inside otc.service, so it still reports done and restarts last, unchecked. Tested in the Lima VM
+with a release whose binary exits at start. `/etc/otc/version` and version.migrated are written
+temp, sync, rename (install.sh too, which writes both); a version file that holds no number (a
+write cut short) is recovered from version.migrated by the runner and update.sh (and written back),
+or the update fails with `version_unreadable`; `updater` reads it the same way and reports
+`Info.VersionUnknown` (nothing pending, no alert) - read as 0, every release was announced. Before
+downloading, the runner checks free space (150 MB on `/run/otc-update`, 1 GB on `/`) and update.sh
+again (1 GB on `/`, 300 MB in its temporary directory) - `no_space`. A manifest whose signature
+doesn't match is fetched again every 10 s for a minute (CDN lag right after a release) before
+`manifest_not_signed`, worded "could not verify this release yet - … try again in a few minutes";
+verified-install.sh retries the same way.
 
 **Forks** set `[otc] update-repo` and `[otc] update-releases` so a device updates from its
 own repository rather than silently taking code from upstream.
