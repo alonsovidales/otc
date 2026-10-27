@@ -56,9 +56,9 @@
     "en": "could not fetch the release manifest"
   },
   "dev.update.manifest_not_signed": {
-    "text": "le manifeste des versions n’est pas signé avec la clé de publication de ce projet : rien n’a été installé",
-    "en": "the release manifest is not signed with this project's release key - nothing was installed",
-    "reviewed": "claude-backtranslation 2026-10-11 #eaded909"
+    "text": "impossible de vérifier cette version pour l’instant : rien n’a été installé, réessayez dans quelques minutes",
+    "en": "could not verify this release yet - nothing was installed, try again in a few minutes",
+    "reviewed": "claude-backtranslation 2026-10-27 #8443550c"
   },
   "dev.update.no_release_key": {
     "text": "cet appareil n’a pas de clé de signature des versions ({path}) : réinstallez-le ou mettez-le à jour manuellement",
@@ -77,6 +77,10 @@
   "dev.update.no_source_dir": {
     "text": "aucun dossier source dans {path}",
     "en": "no source directory at {path}"
+  },
+  "dev.update.no_space": {
+    "text": "pas assez d’espace libre pour la mise à jour : {path} a {free} de libre, il lui faut {needed}",
+    "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
   "dev.update.protobuf_version_missing": {
     "text": "impossible de trouver la version de google.golang.org/protobuf dans go.mod",
@@ -115,6 +119,14 @@
   "dev.update.restarting": {
     "text": "Redémarrage",
     "en": "Restarting"
+  },
+  "dev.update.rollback_failed": {
+    "text": "la nouvelle version n’a pas démarré et la précédente n’a pas pu être remise en place : voir {path}",
+    "en": "the new version didn't start, and the previous one couldn't be put back - see {path}"
+  },
+  "dev.update.rolled_back": {
+    "text": "la nouvelle version n’a pas démarré, la précédente a donc été remise en place",
+    "en": "the new version didn't start, so the previous one was put back"
   },
   "dev.update.runner_chmod_failed": {
     "text": "modification des droits d’exécution du programme de mise à jour : {detail}",
@@ -177,6 +189,14 @@
   "dev.update.verified_manifest_missing": {
     "text": "le manifeste vérifié est introuvable",
     "en": "the verified manifest is missing"
+  },
+  "dev.update.verifying": {
+    "text": "Vérification du démarrage de la nouvelle version",
+    "en": "Checking that the new version starts"
+  },
+  "dev.update.version_unreadable": {
+    "text": "le fichier de version de cet appareil ({path}) est illisible : réinstallez-le ou mettez-le à jour manuellement",
+    "en": "this device's version file ({path}) can't be read - reinstall or update by hand"
   },
   "dev.update.web_checksum": {
     "text": "la vérification de la somme de contrôle des ressources web a échoué (attendue : {expected}, obtenue : {actual})",

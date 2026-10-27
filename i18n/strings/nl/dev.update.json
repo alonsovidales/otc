@@ -56,9 +56,9 @@
     "en": "could not fetch the release manifest"
   },
   "dev.update.manifest_not_signed": {
-    "text": "het releasemanifest is niet ondertekend met de releasesleutel van dit project: er is niets geïnstalleerd",
-    "en": "the release manifest is not signed with this project's release key - nothing was installed",
-    "reviewed": "claude-backtranslation 2026-10-11 #d96e091f"
+    "text": "deze release kon nog niet worden gecontroleerd: er is niets geïnstalleerd, probeer het over een paar minuten opnieuw",
+    "en": "could not verify this release yet - nothing was installed, try again in a few minutes",
+    "reviewed": "claude-backtranslation 2026-10-27 #1bef5035"
   },
   "dev.update.no_release_key": {
     "text": "dit apparaat heeft geen sleutel om releases te controleren ({path}): installeer opnieuw of werk handmatig bij",
@@ -77,6 +77,10 @@
   "dev.update.no_source_dir": {
     "text": "geen bronmap in {path}",
     "en": "no source directory at {path}"
+  },
+  "dev.update.no_space": {
+    "text": "niet genoeg vrije ruimte voor de update: {path} heeft {free} vrij en heeft {needed} nodig",
+    "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
   "dev.update.protobuf_version_missing": {
     "text": "kan de versie van google.golang.org/protobuf niet vinden in go.mod",
@@ -115,6 +119,14 @@
   "dev.update.restarting": {
     "text": "Herstarten",
     "en": "Restarting"
+  },
+  "dev.update.rollback_failed": {
+    "text": "de nieuwe versie startte niet en de vorige kon niet worden teruggezet: zie {path}",
+    "en": "the new version didn't start, and the previous one couldn't be put back - see {path}"
+  },
+  "dev.update.rolled_back": {
+    "text": "de nieuwe versie startte niet, dus de vorige is teruggezet",
+    "en": "the new version didn't start, so the previous one was put back"
   },
   "dev.update.runner_chmod_failed": {
     "text": "fout bij het uitvoerbaar maken van het updateprogramma: {detail}",
@@ -177,6 +189,14 @@
   "dev.update.verified_manifest_missing": {
     "text": "het geverifieerde manifest ontbreekt",
     "en": "the verified manifest is missing"
+  },
+  "dev.update.verifying": {
+    "text": "Controleren of de nieuwe versie start",
+    "en": "Checking that the new version starts"
+  },
+  "dev.update.version_unreadable": {
+    "text": "het versiebestand van dit apparaat ({path}) kan niet worden gelezen: installeer opnieuw of werk handmatig bij",
+    "en": "this device's version file ({path}) can't be read - reinstall or update by hand"
   },
   "dev.update.web_checksum": {
     "text": "de bestanden van de webapp hebben de controlesom niet doorstaan (verwacht {expected}, ontvangen {actual})",

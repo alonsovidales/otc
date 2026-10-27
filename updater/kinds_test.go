@@ -114,4 +114,9 @@ func TestNextAlert(t *testing.T) {
 	if a, ok := nextAlert(prev, info, nil); a == nil || !ok || a.Target != 87 || a.Summary != "Urgent" {
 		t.Errorf("verified, a critical pending: %+v, %v", a, ok)
 	}
+	// A version file that can't be read: no alert at all, settled.
+	info.VersionUnknown = true
+	if a, ok := nextAlert(prev, info, nil); a != nil || !ok {
+		t.Errorf("an unknown version: %+v, %v", a, ok)
+	}
 }

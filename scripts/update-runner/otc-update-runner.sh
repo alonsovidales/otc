@@ -23,12 +23,24 @@ set -uo pipefail
 REQUEST=/var/lib/otc/update.request
 RUN_DIR=/run/otc-update
 STATUS_FILE=/var/lib/otc/update-status.json
+VERSION_FILE=/etc/otc/version
+MIGRATED_FILE=/etc/otc/version.migrated
 DEFAULT_RAW=https://raw.githubusercontent.com/alonsovidales/otc/main
 DEFAULT_GH=https://github.com/alonsovidales/otc
 
 # Consumed first: a press that lands while this run is busy leaves a fresh
 # file behind, and the path unit picks that one up once this run is done.
 rm -f "$REQUEST"
+
+# read_number <file>: the release number in a version file, or nothing
+# (status 1) when it is absent, empty or not a number - a write cut short
+# by a power cut leaves such a file.
+read_number() {
+    local v
+    v="$(head -c 32 "$1" 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+    [[ "$v" =~ ^[0-9]{1,9}$ ]] || return 1
+    printf '%s' "$((10#$v))"
+}
 
 # Written to a fresh temp file and moved into place: the directory is the
 # otc user's, and a plain "> $STATUS_FILE" as root followed a symlink it
@@ -47,7 +59,7 @@ status() {
     local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}" code_args="${4:-}"
     [ -n "$code_args" ] || code_args='{}'
     printf '{"state":%s,"message":%s,"code":%s,"args":%s,"version":%s,"updated":%s}\n' \
-        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
+        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(read_number "$VERSION_FILE" || echo unknown)\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
@@ -108,14 +120,38 @@ trap 'rm -rf "$RUN_DIR"' EXIT
 # hangs the unit for good. Under 1 byte/s for two minutes has truly
 # stopped (exit 28, retried); a slow but live link is never cut off.
 fetch() { curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
-fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
-    && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
-    || { status failed "could not download the release manifest" manifest_download_failed; exit 1; }
-base64 -d < "$RUN_DIR/VERSIONS.sig.b64" > "$RUN_DIR/VERSIONS.sig" 2>/dev/null \
-    && openssl pkeyutl -verify -pubin -inkey "$KEY" -rawin -in "$RUN_DIR/VERSIONS" -sigfile "$RUN_DIR/VERSIONS.sig" >/dev/null 2>&1 \
-    || { status failed "the release manifest is not signed with this project's release key - nothing was installed" manifest_not_signed; exit 1; }
+# Right after a release the CDN can serve the new manifest beside the old
+# signature (or the other way round) for a while, which reads exactly like
+# a manifest someone altered: a signature that doesn't match is fetched
+# again for about a minute before the update gives up - saying so in words
+# that don't sound like an attack, since it nearly never is one. Nothing
+# unverified is ever used either way.
+for try in 1 2 3 4 5 6 7; do
+    fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
+        && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
+        || { status failed "could not download the release manifest" manifest_download_failed; exit 1; }
+    base64 -d < "$RUN_DIR/VERSIONS.sig.b64" > "$RUN_DIR/VERSIONS.sig" 2>/dev/null \
+        && openssl pkeyutl -verify -pubin -inkey "$KEY" -rawin -in "$RUN_DIR/VERSIONS" -sigfile "$RUN_DIR/VERSIONS.sig" >/dev/null 2>&1 \
+        && break
+    [ "$try" -lt 7 ] || { status failed "could not verify this release yet - nothing was installed, try again in a few minutes" manifest_not_signed; exit 1; }
+    sleep 10
+done
 
-installed="$(cat /etc/otc/version 2>/dev/null || echo 0)"
+# No version file is a device from before updates existed: release 0, the
+# whole history. One that can't be read (a write cut short) used to read
+# as "up to date" for good: its version comes back from version.migrated,
+# which every update writes before it, and is written again; with neither
+# readable the update stops and says so (update.sh does the same).
+if [ ! -e "$VERSION_FILE" ]; then
+    installed=0
+elif ! installed="$(read_number "$VERSION_FILE")"; then
+    if installed="$(read_number "$MIGRATED_FILE")"; then
+        { printf '%s\n' "$installed" > "$VERSION_FILE.tmp.$$" && { sync "$VERSION_FILE.tmp.$$" 2>/dev/null || sync; } \
+            && mv -Tf "$VERSION_FILE.tmp.$$" "$VERSION_FILE"; } || rm -f "$VERSION_FILE.tmp.$$"
+    else
+        status failed "this device's version file ($VERSION_FILE) can't be read - reinstall or update by hand" version_unreadable "$(args path "$VERSION_FILE")"; exit 1
+    fi
+fi
 target=""; src_sha=""
 while IFS=$'\t' read -r version _script _assets _summary src; do
     case "$version" in ''|\#*) continue ;; esac
@@ -126,6 +162,20 @@ if [ -z "$target" ]; then
     exit 0
 fi
 case "$src_sha" in [0-9a-f]*) ;; *) status failed "release $target has no signed source archive" no_source_archive "$(args release "$target")"; exit 1 ;; esac
+
+# Before anything is downloaded: the release's source archive (about 22
+# MB) and the source unpacked from it (about 50 MB) are staged here in RAM,
+# and the build that follows takes up to about 1 GB of the system disk
+# (update.sh checks that again before it starts). Failing now says why;
+# running out half-way said nothing useful.
+for space in "$RUN_DIR 150" "/ 1024"; do
+    path="${space% *}"; need="${space#* }"
+    kb="$(df -Pk "$path" 2>/dev/null | awk 'NR == 2 {print $4}')"
+    { [[ "$kb" =~ ^[0-9]+$ ]] && [ "$kb" -lt $((need * 1024)) ]; } || continue
+    free_h="$(awk -v k="$kb" 'BEGIN { if (k >= 1048576) printf "%.1f GB", k / 1048576; else printf "%d MB", k / 1024 }')"
+    need_h="$(awk -v m="$need" 'BEGIN { if (m >= 1024) printf "%.1f GB", m / 1024; else printf "%d MB", m }')"
+    status failed "not enough free space for the update: $path has $free_h free, it needs $need_h" no_space "$(args path "$path" free "$free_h" needed "$need_h")"; exit 1
+done
 
 status running "Downloading release $target" downloading "$(args release "$target")"
 fetch "$OTC_REPO_GH/releases/download/v$target/src.tar.gz" "$RUN_DIR/src.tar.gz" \

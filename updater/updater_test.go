@@ -4,6 +4,7 @@ package updater
 
 import (
 	"errors"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -52,6 +53,48 @@ not-a-number	xxx	yyy	ignored
 func TestInstalledVersionIsZeroWithoutAVersionFile(t *testing.T) {
 	if got := InstalledVersion(); got < 0 {
 		t.Errorf("InstalledVersion() = %d, want a non-negative version", got)
+	}
+}
+
+// A version file is a number; none is the beginning (0, known). One that
+// holds no number - a write cut short by a power cut - is not 0: it is
+// version.migrated's release when that one can be read (the root runner
+// writes it back), and otherwise unknown.
+func TestInstalledVersionReadsAndRecovers(t *testing.T) {
+	files := func(version, migrated string) func(string) ([]byte, error) {
+		return func(path string) ([]byte, error) {
+			v := map[string]string{cVersionFile: version, cMigratedFile: migrated}[path]
+			if v == "-" {
+				return nil, fs.ErrNotExist
+			}
+			if v == "denied" {
+				return nil, fs.ErrPermission
+			}
+			return []byte(v), nil
+		}
+	}
+	for _, c := range []struct {
+		version, migrated string
+		want              int
+		known             bool
+	}{
+		{"142\n", "-", 142, true},
+		{"142", "142\n", 142, true},
+		{" 0142 \n", "-", 142, true},
+		{"-", "140\n", 0, true}, // none at all: the beginning, as always
+		{"", "141\n", 141, true},
+		{"\x00\x00", "141\n", 141, true},
+		{"14a\n", "-", 0, false},
+		{"", "", 0, false},
+		{"", "-", 0, false},
+		{"denied", "-", 0, false},
+		{"9999999999\n", "-", 0, false},
+		{"-1\n", "-", 0, false},
+	} {
+		got, known := installedVersion(files(c.version, c.migrated))
+		if got != c.want || known != c.known {
+			t.Errorf("version %q, migrated %q: %d %v, want %d %v", c.version, c.migrated, got, known, c.want, c.known)
+		}
 	}
 }
 

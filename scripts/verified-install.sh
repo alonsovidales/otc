@@ -38,11 +38,20 @@ fi
 fetch() { curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
 
 echo "[otc-install] Checking the release signature"
-fetch "$REPO_RAW/scripts/updates/VERSIONS" "$STAGE/VERSIONS" || die "could not download the release manifest"
-fetch "$REPO_RAW/scripts/updates/VERSIONS.sig" "$STAGE/VERSIONS.sig.b64" || die "could not download the manifest's signature"
-base64 -d < "$STAGE/VERSIONS.sig.b64" > "$STAGE/VERSIONS.sig" 2>/dev/null \
-    && openssl pkeyutl -verify -pubin -inkey "$STAGE/key.pub" -rawin -in "$STAGE/VERSIONS" -sigfile "$STAGE/VERSIONS.sig" >/dev/null 2>&1 \
-    || die "the release manifest is not signed with the project's release key - nothing was installed"
+# Right after a release the CDN can serve the new manifest beside the old
+# signature for a while: a signature that doesn't match is fetched again
+# for about a minute before the install gives up.
+for try in 1 2 3 4 5 6 7; do
+    fetch "$REPO_RAW/scripts/updates/VERSIONS" "$STAGE/VERSIONS" || die "could not download the release manifest"
+    fetch "$REPO_RAW/scripts/updates/VERSIONS.sig" "$STAGE/VERSIONS.sig.b64" || die "could not download the manifest's signature"
+    if base64 -d < "$STAGE/VERSIONS.sig.b64" > "$STAGE/VERSIONS.sig" 2>/dev/null \
+        && openssl pkeyutl -verify -pubin -inkey "$STAGE/key.pub" -rawin -in "$STAGE/VERSIONS" -sigfile "$STAGE/VERSIONS.sig" >/dev/null 2>&1; then
+        break
+    fi
+    [ "$try" -lt 7 ] || die "could not verify the newest release yet - nothing was installed, try again in a few minutes"
+    echo "[otc-install] The release manifest's signature doesn't match (yet): fetching it again in 10 s"
+    sleep 10
+done
 
 version=""; web_sha=""; src_sha=""
 while IFS=$'\t' read -r v _script web _summary src; do

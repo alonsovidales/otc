@@ -59,10 +59,10 @@
     "note": "Why an update failed, after Update failed: in Settings > Device version. The list of releases (the manifest) could not be downloaded."
   },
   "dev.update.manifest_not_signed": {
-    "text": "the release manifest is not signed with this project's release key - nothing was installed",
-    "note": "Why an update failed, after Update failed: in Settings > Device version. The list of releases (the manifest) is not signed by the project, so the device refused it as possibly altered and installed nothing.",
+    "text": "could not verify this release yet - nothing was installed, try again in a few minutes",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device couldn't confirm that the list of releases (the manifest) carries the project's signature, even after trying again for about a minute, so it installed nothing. Right after a new release this happens for a few minutes, while the servers that hand out the files catch up; the words stay calm because it nearly never means the list was altered.",
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #3135e483"
+    "reviewed": "claude-backtranslation 2026-10-27 #4578e002"
   },
   "dev.update.no_release_key": {
     "text": "this device has no release signing key ({path}) - reinstall or update by hand",
@@ -86,6 +86,11 @@
     "text": "no source directory at {path}",
     "args": [["path", "text"]],
     "note": "Why an update failed, after Update failed: in Settings > Device version. The folder the source code is staged in is missing. {path} is that folder, /opt/otc-src."
+  },
+  "dev.update.no_space": {
+    "text": "not enough free space for the update: {path} has {free} free, it needs {needed}",
+    "args": [["path", "text"], ["free", "text"], ["needed", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device checks its free space before it downloads or builds anything, and there wasn't enough, so nothing was changed. {path} is the place checked, such as / (the system disk) or /run/otc-update (part of the memory); {free} and {needed} are sizes already written out, such as 412 MB and 1.0 GB."
   },
   "dev.update.protobuf_version_missing": {
     "text": "couldn't find google.golang.org/protobuf's version in go.mod",
@@ -131,6 +136,15 @@
   "dev.update.restarting": {
     "text": "Restarting",
     "note": "Progress line in Settings > Device version at the end of an update: the device installs its new program and restarts, which drops the connection for a moment."
+  },
+  "dev.update.rollback_failed": {
+    "text": "the new version didn't start, and the previous one couldn't be put back - see {path}",
+    "args": [["path", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The new version's program didn't start, and putting back the version the device had before failed too. {path} is the update log's path (also in Settings > Logs > Updates)."
+  },
+  "dev.update.rolled_back": {
+    "text": "the new version didn't start, so the previous one was put back",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device installed the new version, but its program didn't start within a few minutes, so the device put back the version it had before (its program, web app and version number) and runs that one again. Nothing was lost; Update (the button) tries again."
   },
   "dev.update.runner_chmod_failed": {
     "text": "making the updater executable: {detail}",
@@ -206,6 +220,15 @@
   "dev.update.verified_manifest_missing": {
     "text": "the verified manifest is missing",
     "note": "Why an update failed, after Update failed: in Settings > Device version. The checked list of releases (the manifest) that the update started from has disappeared."
+  },
+  "dev.update.verifying": {
+    "text": "Checking that the new version starts",
+    "note": "Progress line in Settings > Device version at the end of an update: the device has restarted with its new program and waits, a few minutes at most, for it to start and answer before it calls the update done. If it doesn't, the device puts the previous version back (dev.update.rolled_back)."
+  },
+  "dev.update.version_unreadable": {
+    "text": "this device's version file ({path}) can't be read - reinstall or update by hand",
+    "args": [["path", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The file that records which release the device runs is damaged (a power cut while it was being written, say) and nothing else tells which release that is, so the device can't work out what to install. {path} is that file, /etc/otc/version."
   },
   "dev.update.web_checksum": {
     "text": "the web assets failed their checksum (expected {expected}, got {actual})",

@@ -30,10 +30,14 @@ fi
 # final mode, renamed into place. status <state> <message> [<code>]: the
 # code names the English message's text in the device's catalog
 # (dev.update.<code>), for a device that shows it in another language.
+# The version as a number, or "unknown": a version file cut short must
+# not break the JSON.
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}"
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}" version
+    version="$(head -c 32 /etc/otc/version 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+    [[ "$version" =~ ^[0-9]{1,9}$ ]] || version=unknown
     printf '{"state":%s,"message":%s,"code":%s,"args":{},"version":%s,"updated":%s}\n' \
-        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
+        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "\"$version\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"

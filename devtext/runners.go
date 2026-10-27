@@ -30,14 +30,15 @@ var (
 		"applying", "binary_install_failed", "build_failed", "building", "checking",
 		"checking_signature", "downloading", "generating_protobuf", "installing_web", "interrupted",
 		"manifest_download_failed", "manifest_fetch_failed", "manifest_not_signed",
-		"no_release_key", "no_room", "no_source_archive", "no_source_dir",
+		"no_release_key", "no_room", "no_source_archive", "no_source_dir", "no_space",
 		"protobuf_version_missing", "protoc_download_failed", "protoc_failed",
 		"protoc_gen_go_failed", "protoc_hash_mismatch", "protoc_unpack_failed",
-		"repo_not_https", "restarting", "script_checksum", "script_failed", "script_missing",
+		"repo_not_https", "restarting", "rollback_failed", "rolled_back",
+		"script_checksum", "script_failed", "script_missing",
 		"source_download_failed", "source_hash_mismatch", "source_unpack_failed",
 		"stage_failed", "staging", "unsupported_arch", "updated", "uptodate",
-		"verified_manifest_missing", "web_checksum", "web_download_failed",
-		"web_install_failed", "web_unpack_failed")
+		"verified_manifest_missing", "verifying", "version_unreadable", "web_checksum",
+		"web_download_failed", "web_install_failed", "web_unpack_failed")
 	bridgeCodes = codes("dev.status.bridge.",
 		"already_on", "config_missing", "config_update_failed", "no_name", "not_host_name",
 		"on_bridge", "switching_off", "switching_on")

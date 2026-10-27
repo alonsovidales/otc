@@ -56,9 +56,9 @@
     "en": "could not fetch the release manifest"
   },
   "dev.update.manifest_not_signed": {
-    "text": "el manifiesto de versiones no está firmado con la clave de firma de versiones de este proyecto: no se ha instalado nada",
-    "en": "the release manifest is not signed with this project's release key - nothing was installed",
-    "reviewed": "claude-backtranslation 2026-10-11 #ff1ad9fc"
+    "text": "todavía no se ha podido verificar esta versión: no se ha instalado nada, vuelve a intentarlo dentro de unos minutos",
+    "en": "could not verify this release yet - nothing was installed, try again in a few minutes",
+    "reviewed": "claude-backtranslation 2026-10-27 #48e58c0e"
   },
   "dev.update.no_release_key": {
     "text": "este dispositivo no tiene clave de firma de versiones ({path}): reinstálalo o actualízalo a mano",
@@ -77,6 +77,10 @@
   "dev.update.no_source_dir": {
     "text": "no hay ninguna carpeta de código fuente en {path}",
     "en": "no source directory at {path}"
+  },
+  "dev.update.no_space": {
+    "text": "no hay espacio libre suficiente para la actualización: {path} tiene {free} libres y necesita {needed}",
+    "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
   "dev.update.protobuf_version_missing": {
     "text": "no se ha encontrado la versión de google.golang.org/protobuf en go.mod",
@@ -115,6 +119,14 @@
   "dev.update.restarting": {
     "text": "Reiniciando",
     "en": "Restarting"
+  },
+  "dev.update.rollback_failed": {
+    "text": "la nueva versión no se ha iniciado y no se ha podido volver a poner la anterior: consulta {path}",
+    "en": "the new version didn't start, and the previous one couldn't be put back - see {path}"
+  },
+  "dev.update.rolled_back": {
+    "text": "la nueva versión no se ha iniciado, así que se ha vuelto a poner la anterior",
+    "en": "the new version didn't start, so the previous one was put back"
   },
   "dev.update.runner_chmod_failed": {
     "text": "al hacer ejecutable el actualizador: {detail}",
@@ -177,6 +189,14 @@
   "dev.update.verified_manifest_missing": {
     "text": "falta el manifiesto verificado",
     "en": "the verified manifest is missing"
+  },
+  "dev.update.verifying": {
+    "text": "Comprobando que la nueva versión se inicia",
+    "en": "Checking that the new version starts"
+  },
+  "dev.update.version_unreadable": {
+    "text": "no se puede leer el archivo de versión de este dispositivo ({path}): reinstálalo o actualízalo a mano",
+    "en": "this device's version file ({path}) can't be read - reinstall or update by hand"
   },
   "dev.update.web_checksum": {
     "text": "los recursos web no han superado la comprobación de su suma (se esperaba {expected} y se ha obtenido {actual})",

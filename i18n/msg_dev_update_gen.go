@@ -74,7 +74,7 @@ func DevUpdateManifestFetchFailed() Msg {
 	return Msg{Key: "dev.update.manifest_fetch_failed"}
 }
 
-// DevUpdateManifestNotSigned is dev.update.manifest_not_signed: "the release manifest is not signed with this project's release key - nothing was…".
+// DevUpdateManifestNotSigned is dev.update.manifest_not_signed: "could not verify this release yet - nothing was installed, try again in a few mi…".
 func DevUpdateManifestNotSigned() Msg {
 	return Msg{Key: "dev.update.manifest_not_signed"}
 }
@@ -97,6 +97,11 @@ func DevUpdateNoSourceArchive(release string) Msg {
 // DevUpdateNoSourceDir is dev.update.no_source_dir: "no source directory at {path}".
 func DevUpdateNoSourceDir(path string) Msg {
 	return Msg{Key: "dev.update.no_source_dir", Args: map[string]any{"path": path}}
+}
+
+// DevUpdateNoSpace is dev.update.no_space: "not enough free space for the update: {path} has {free} free, it needs {needed}".
+func DevUpdateNoSpace(path string, free string, needed string) Msg {
+	return Msg{Key: "dev.update.no_space", Args: map[string]any{"path": path, "free": free, "needed": needed}}
 }
 
 // DevUpdateProtobufVersionMissing is dev.update.protobuf_version_missing: "couldn't find google.golang.org/protobuf's version in go.mod".
@@ -142,6 +147,16 @@ func DevUpdateRequestFailed(detail string) Msg {
 // DevUpdateRestarting is dev.update.restarting: "Restarting".
 func DevUpdateRestarting() Msg {
 	return Msg{Key: "dev.update.restarting"}
+}
+
+// DevUpdateRollbackFailed is dev.update.rollback_failed: "the new version didn't start, and the previous one couldn't be put back - see {p…".
+func DevUpdateRollbackFailed(path string) Msg {
+	return Msg{Key: "dev.update.rollback_failed", Args: map[string]any{"path": path}}
+}
+
+// DevUpdateRolledBack is dev.update.rolled_back: "the new version didn't start, so the previous one was put back".
+func DevUpdateRolledBack() Msg {
+	return Msg{Key: "dev.update.rolled_back"}
 }
 
 // DevUpdateRunnerChmodFailed is dev.update.runner_chmod_failed: "making the updater executable: {detail}".
@@ -217,6 +232,16 @@ func DevUpdateUptodate() Msg {
 // DevUpdateVerifiedManifestMissing is dev.update.verified_manifest_missing: "the verified manifest is missing".
 func DevUpdateVerifiedManifestMissing() Msg {
 	return Msg{Key: "dev.update.verified_manifest_missing"}
+}
+
+// DevUpdateVerifying is dev.update.verifying: "Checking that the new version starts".
+func DevUpdateVerifying() Msg {
+	return Msg{Key: "dev.update.verifying"}
+}
+
+// DevUpdateVersionUnreadable is dev.update.version_unreadable: "this device's version file ({path}) can't be read - reinstall or update by hand".
+func DevUpdateVersionUnreadable(path string) Msg {
+	return Msg{Key: "dev.update.version_unreadable", Args: map[string]any{"path": path}}
 }
 
 // DevUpdateWebChecksum is dev.update.web_checksum: "the web assets failed their checksum (expected {expected}, got {actual})".

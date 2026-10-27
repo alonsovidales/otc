@@ -238,6 +238,11 @@ func nextAlert(prev *Alert, info *Info, err error) (*Alert, bool) {
 	if err != nil {
 		return prev, false
 	}
+	// A version file that can't be read says nothing about what is
+	// pending: no alert (read as 0, it announced every release ever made).
+	if info.VersionUnknown {
+		return nil, true
+	}
 	if info.ImageCheckFailed {
 		if prev != nil && prev.Target > info.CurrentVersion {
 			return prev, false

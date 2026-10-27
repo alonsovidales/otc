@@ -5,17 +5,20 @@
 #
 # Reads the version this device is on from /etc/otc/version, fetches the
 # release manifest from GitHub, runs every release script after that one in
-# order, then refreshes the binary and restarts the service.
+# order, then refreshes the binary and restarts the service - and, if the
+# new version doesn't start, puts the previous binary, web app and version
+# back.
 #
 # Launched as root by the device itself (see updater/updater.go) when the
 # owner presses Update in Settings. It is deliberately a script rather than
-# Go code: it has to outlive the process that started it, because the last
-# thing it does is restart that very process.
+# Go code: it has to outlive the process that started it, because it
+# restarts that very process (from otc-update.service, a unit of its own,
+# it then watches the new version start).
 #
 # Everything here is safe to run twice. A run that dies halfway leaves
-# /etc/otc/version on the last release that fully applied, so the next run
-# picks up from exactly there - which is also why the version file is
-# written after each script rather than once at the end.
+# /etc/otc/version on the last release that fully applied and
+# /etc/otc/version.migrated on the last release whose script ran, so the
+# next run picks up from exactly there.
 set -uo pipefail
 
 # Overridable so a fork, or a test run against a local checkout, doesn't
@@ -45,8 +48,31 @@ LOG_FILE=/var/log/otc-update/update.log
 # that has truly stopped (exit 28, which --retry retries); a slow but live
 # link is never cut off.
 CURL_STALL=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
+# The web app the service serves (its [otc-api] static): a symlink to one
+# directory under WEB_DIR, root's, one per release installed - the one
+# served and the one before it, which a failed start goes back to.
+WEB_ROOT=/var/www
+WEB_DIR=/var/otc-web
+# The binary the update replaces stays here until the next update: a new
+# one that doesn't start is swapped back for it.
+BIN=/usr/bin/otc
+BIN_PREV=/usr/bin/otc.prev
+# How long the new version has to start and answer, and how long it then
+# has to keep running unchanged, before the update counts as done.
+START_WAIT_S=180
+START_STABLE_S=20
 
 mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")" /etc/otc
+
+# read_number <file>: the release number in a version file, or nothing
+# (status 1) when it is absent, empty or not a number - a write cut short
+# by a power cut leaves such a file.
+read_number() {
+    local v
+    v="$(head -c 32 "$1" 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+    [[ "$v" =~ ^[0-9]{1,9}$ ]] || return 1
+    printf '%s' "$((10#$v))"
+}
 
 # status <state> <message> [<code> [<args>]] - what the Settings screen
 # reads back. Written to a file, not held in memory, because the service is
@@ -64,7 +90,7 @@ status() {
     local state="$1" message="$2" code="${3:-}" code_args="${4:-}" tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
     [ -n "$code_args" ] || code_args='{}'
     printf '{"state":%s,"message":%s,"code":%s,"args":%s,"version":%s,"updated":%s}\n' \
-        "\"$state\"" "\"${message//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(cat "$VERSION_FILE" 2>/dev/null || echo unknown)\"" \
+        "\"$state\"" "\"${message//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(read_number "$VERSION_FILE" || echo unknown)\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
@@ -103,9 +129,75 @@ install_atomic() {
 }
 
 # write_atomic <file> <value>: same, for the version files (an empty one
-# reads as version 0, the whole history again).
+# can't be read: see read_number and the version check below).
 write_atomic() {
-    printf '%s\n' "$2" > "$1.tmp.$$" && mv -Tf "$1.tmp.$$" "$1"
+    printf '%s\n' "$2" > "$1.tmp.$$" && { sync "$1.tmp.$$" 2>/dev/null || sync; } && mv -Tf "$1.tmp.$$" "$1" \
+        || { rm -f "$1.tmp.$$"; return 1; }
+}
+
+# free_space <path> <MB>: whether the filesystem holding path has MB
+# megabytes free; free_h and need_h say how much in words, for a message.
+free_space() {
+    local kb
+    kb="$(df -Pk "$1" 2>/dev/null | awk 'NR == 2 {print $4}')"
+    [[ "$kb" =~ ^[0-9]+$ ]] || return 0 # can't tell: the update finds out
+    free_h="$(awk -v k="$kb" 'BEGIN { if (k >= 1048576) printf "%.1f GB", k / 1048576; else printf "%d MB", k / 1024 }')"
+    need_h="$(awk -v m="$2" 'BEGIN { if (m >= 1024) printf "%.1f GB", m / 1024; else printf "%d MB", m }')"
+    [ "$kb" -ge $(($2 * 1024)) ]
+}
+
+# manifest_verified <manifest> <signature, base64> <key>: the manifest
+# carries the release key's signature.
+manifest_verified() {
+    base64 -d < "$2" > "$2.raw" 2>/dev/null \
+        && openssl pkeyutl -verify -pubin -inkey "$3" -rawin -in "$1" -sigfile "$2.raw" >/dev/null 2>&1
+}
+
+# ini_get <file> <section> <key>: a value from the device's config.
+ini_get() {
+    awk -F= -v section="[$2]" -v key="$3" '
+        /^[[:space:]]*\[/ { s = $0; gsub(/[[:space:]]/, "", s); next }
+        s == section {
+            k = $1; gsub(/[[:space:]]/, "", k)
+            if (k == key) { v = substr($0, index($0, "=") + 1); gsub(/[[:space:]]/, "", v); print v; exit }
+        }' "$1" 2>/dev/null
+}
+
+# otc_answers: the service runs and answers its local health check
+# (api's /check_healty, plain HTTP on [otc-api] port).
+otc_answers() {
+    systemctl is-active --quiet otc.service \
+        && [ "$(curl -fsS --noproxy '*' --max-time 5 "http://127.0.0.1:$health_port/check_healty" 2>/dev/null)" = OK ]
+}
+
+# otc_started <seconds>: within that long the service answers, and then
+# keeps answering for START_STABLE_S as the same process, never restarted
+# in between: a binary that fails at start never answers, and
+# Restart=on-failure would otherwise start it again every few seconds for
+# good. The service's own users (the supervisor's child instances) follow
+# it: they run the same binary, and stop and start with it.
+otc_started() {
+    local deadline=$((SECONDS + $1)) pid restarts
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        if otc_answers; then
+            pid="$(systemctl show -p MainPID --value otc.service 2>/dev/null)"
+            restarts="$(systemctl show -p NRestarts --value otc.service 2>/dev/null)"
+            sleep "$START_STABLE_S"
+            if [ -n "$pid" ] && [ "$pid" != 0 ] && otc_answers \
+                && [ "$(systemctl show -p MainPID --value otc.service 2>/dev/null)" = "$pid" ] \
+                && [ "$(systemctl show -p NRestarts --value otc.service 2>/dev/null)" = "$restarts" ]; then
+                return 0
+            fi
+        fi
+        sleep 3
+    done
+    return 1
+}
+
+# web_link <dir>: /var/www names dir, in one rename - a symlink written
+# beside it and moved over it.
+web_link() {
+    ln -sfn "$1" "$WEB_DIR/.www.$$" && mv -Tf "$WEB_DIR/.www.$$" "$WEB_ROOT" || { rm -f "$WEB_DIR/.www.$$"; return 1; }
 }
 
 exec >>"$LOG_FILE" 2>&1
@@ -140,9 +232,13 @@ cleanup_stage() {
 }
 
 tmp="$(mktemp -d)"
+# The web app's new directory once unpacked, and whether it was switched
+# in: one never switched in is removed with the rest.
+web_new=""
+web_switched=""
 # ${stage:+...}: the bootstrap's own failures before it hands over (its
 # exec drops this trap; the update.sh it hands over to cleans up instead).
-trap 'rm -rf "$tmp" ${stage:+"$stage"}; cleanup_stage' EXIT
+trap 'rm -rf "$tmp" ${stage:+"$stage"}; [ -z "$web_new" ] || [ -n "$web_switched" ] || rm -rf "$web_new"; cleanup_stage' EXIT
 
 # Issue #160: this runs only from a verified release. otc-update-runner
 # checks the manifest's signature and the release's source archive and
@@ -157,14 +253,21 @@ RELEASE_KEY='-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAtVgLIKBzcqMNM2nUnK9xfgpqWrLTuZsk8ylhyI0BK9g=
 -----END PUBLIC KEY-----'
 if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
+    free_space /root 1024 || fail "not enough free space for the update: /root has $free_h free, it needs $need_h" no_space "$(args path "/root" free "$free_h" needed "$need_h")"
     stage="$(mktemp -d /root/otc-update.XXXXXX)" || fail "no room to stage the update" no_room
     printf '%s\n' "$RELEASE_KEY" > "$stage/key.pub"
-    curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
-        && curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
-        || fail "could not fetch the release manifest" manifest_fetch_failed
-    base64 -d < "$stage/VERSIONS.sig.b64" > "$stage/VERSIONS.sig" 2>/dev/null \
-        && openssl pkeyutl -verify -pubin -inkey "$stage/key.pub" -rawin -in "$stage/VERSIONS" -sigfile "$stage/VERSIONS.sig" >/dev/null 2>&1 \
-        || fail "the release manifest is not signed with this project's release key - nothing was installed" manifest_not_signed
+    # Right after a release the CDN can serve the new manifest beside the
+    # old signature for a while: a signature that doesn't match is fetched
+    # again for about a minute before the update gives up.
+    for try in 1 2 3 4 5 6 7; do
+        curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
+            && curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
+            || fail "could not fetch the release manifest" manifest_fetch_failed
+        manifest_verified "$stage/VERSIONS" "$stage/VERSIONS.sig.b64" "$stage/key.pub" && break
+        [ "$try" -lt 7 ] || fail "could not verify this release yet - nothing was installed, try again in a few minutes" manifest_not_signed
+        echo "the release manifest's signature doesn't match (yet): fetching it again in 10 s"
+        sleep 10
+    done
     boot_target=""; boot_src=""
     while IFS=$'\t' read -r version _s _a _d src; do
         case "$version" in ''|\#*) continue ;; esac
@@ -184,9 +287,25 @@ fi
 
 cp "$OTC_VERIFIED_MANIFEST" "$tmp/VERSIONS" || fail "the verified manifest is missing" verified_manifest_missing
 
-installed="$(cat "$VERSION_FILE" 2>/dev/null || echo 0)"
-migrated="$(cat "$MIGRATED_FILE" 2>/dev/null || echo 0)"
-[ "$migrated" -ge "$installed" ] 2>/dev/null || migrated="$installed"
+# No version file is a device from before updates existed: release 0, the
+# whole history (every script is idempotent). One that can't be read - a
+# write cut short - is not 0, nor "up to date" for good, as it used to
+# read: the version comes back from version.migrated, which every update
+# writes before the version file (and install.sh with it), and is written
+# again; with neither readable the update stops and says so.
+migrated="$(read_number "$MIGRATED_FILE" || true)"
+if [ ! -e "$VERSION_FILE" ]; then
+    installed=0
+elif installed="$(read_number "$VERSION_FILE")"; then
+    :
+elif [ -n "$migrated" ]; then
+    installed="$migrated"
+    echo "WARNING: $VERSION_FILE can't be read: release $installed recovered from $MIGRATED_FILE"
+    write_atomic "$VERSION_FILE" "$installed" || echo "WARNING: could not write $VERSION_FILE again"
+else
+    fail "this device's version file ($VERSION_FILE) can't be read - reinstall or update by hand" version_unreadable "$(args path "$VERSION_FILE")"
+fi
+[ -n "$migrated" ] && [ "$migrated" -ge "$installed" ] || migrated="$installed"
 echo "installed version: $installed"
 
 # Releases are listed oldest first; anything numerically after what is
@@ -212,6 +331,15 @@ if [ "${#pending[@]}" -eq 0 ]; then
 fi
 
 echo "pending releases: ${#pending[@]}"
+
+# Before anything is changed: the build (Go's caches under /root, a new
+# toolchain when go.mod asks for one, the source in /opt), the new binary
+# beside the old one and the web app take up to about 1 GB of the system
+# disk; the build's own work and the downloads in the temporary directory
+# (tmpfs on Raspberry Pi OS 13) up to about 300 MB. A full SD card used to
+# fail half-way, in the build.
+free_space / 1024 || fail "not enough free space for the update: / has $free_h free, it needs $need_h" no_space "$(args path "/" free "$free_h" needed "$need_h")"
+free_space "$tmp" 300 || fail "not enough free space for the update: $tmp has $free_h free, it needs $need_h" no_space "$(args path "$tmp" free "$free_h" needed "$need_h")"
 
 for entry in "${pending[@]}"; do
     version="${entry%%$'\t'*}"
@@ -340,10 +468,18 @@ if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
         if [ "$actual" != "$target_assets_sha" ]; then
             fail "the web assets failed their checksum (expected $target_assets_sha, got $actual)" web_checksum "$(args expected "$target_assets_sha" actual "$actual")"
         fi
-        # Unpacked to one side and swapped in, so a half-extracted
-        # archive can never be what the device is serving.
-        rm -rf "$tmp/web-dist" && mkdir -p "$tmp/web-dist"
-        tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets" web_unpack_failed
+        # Unpacked into a directory of its own beside the one served, and
+        # switched in below by renaming the /var/www symlink: a
+        # half-extracted archive is never what the device serves, and root
+        # never writes into a tree the service owns. Not served until then
+        # (the exit trap removes it if the update stops before).
+        mkdir -p "$WEB_DIR" && chown root:root "$WEB_DIR" && chmod 0755 "$WEB_DIR" \
+            && web_new="$(mktemp -d "$WEB_DIR/$target.XXXXXX")" \
+            || fail "could not unpack the web assets" web_unpack_failed
+        tar --no-same-owner -xzf "$tmp/web-dist.tar.gz" -C "$web_new" || fail "could not unpack the web assets" web_unpack_failed
+        # The service's, as before (a development `make web` copies into
+        # it as otc); the directory above it stays root's.
+        chown -R otc:otc "$web_new" && chmod 0755 "$web_new" || fail "could not unpack the web assets" web_unpack_failed
         web_staged=1
     else
         # The release has a web app (its hash is in the signed manifest),
@@ -357,7 +493,15 @@ else
 fi
 
 status running "Restarting" restarting
-install_atomic 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary" binary_install_failed
+# The binary being replaced stays as otc.prev (a hard link: the same file,
+# kept by a second name, renamed into place), so a new one that doesn't
+# start can be swapped back for it. After a rollback the two names already
+# are the same file (and mv refuses to rename one onto the other).
+if [ -f "$BIN" ] && ! [ "$BIN" -ef "$BIN_PREV" ]; then
+    { ln -f "$BIN" "$BIN_PREV.$$" && mv -Tf "$BIN_PREV.$$" "$BIN_PREV"; } \
+        || { rm -f "$BIN_PREV.$$"; fail "could not install the new binary" binary_install_failed; }
+fi
+install_atomic 0755 "$tmp/otc" "$BIN" || fail "could not install the new binary" binary_install_failed
 
 # The other root-side scripts, which only install.sh used to put in place -
 # so fixes to them (the symlink-safe status writes, the disk checks before a
@@ -378,6 +522,14 @@ install_atomic 0644 "$SRC_DIR/scripts/release-signing.pub" /etc/otc/release-sign
 if [ -f "$SRC_DIR/scripts/raid_watch.py" ] && [ -f /usr/local/bin/raid_watch.py ]; then
     install_atomic 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
     systemctl try-restart raid-watch.service >/dev/null 2>&1 || true
+fi
+# The image's network script (root): only on a device made from the image,
+# which has it. Release 143 put the current one on devices imaged before
+# 2026-09-29, whose copy raised the open setup hotspot whenever the
+# network was lost; from then on every update keeps it current.
+if [ -f "$SRC_DIR/scripts/network_setup.py" ] && [ -f /usr/local/bin/network_setup.py ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/network_setup.py" /usr/local/bin/network_setup.py
+    systemctl try-restart network-setup.service >/dev/null 2>&1 || true
 fi
 
 # Issue #145: the root side of switching the bridge on from Settings, for
@@ -426,24 +578,107 @@ if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" ]; then
     systemctl enable --now otc-wifi-join.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-wifi-join.path"
 fi
 
+# The web app: the new directory switched in with one rename of the
+# /var/www symlink. The one it replaces is kept to go back to; the very
+# first time, the directory earlier releases wrote into file by file moves
+# under /var/otc-web and /var/www becomes the symlink.
+web_prev=""
 if [ -n "$web_staged" ]; then
-    rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets" web_install_failed
-    # This runs as root, so the files land root-owned; hand them to the
-    # service user, or a development `make web` (scp as otc) is refused
-    # by the very files the previous release installed.
-    chown -R otc:otc /var/www 2>/dev/null || true
+    if [ -L "$WEB_ROOT" ]; then
+        web_prev="$(readlink -f "$WEB_ROOT" || true)"
+    elif [ -d "$WEB_ROOT" ]; then
+        web_prev="$WEB_DIR/old.$(date -u +%Y%m%d%H%M%S)"
+        mv -T "$WEB_ROOT" "$web_prev" || fail "could not install the web assets" web_install_failed
+        sync
+    fi
+    web_link "$web_new" || {
+        # Never left without one.
+        [ -z "$web_prev" ] || [ -e "$WEB_ROOT" ] || web_link "$web_prev" || true
+        fail "could not install the web assets" web_install_failed
+    }
+    web_switched=1
     echo "web assets installed"
 fi
 
-# Everything worked: only now is this the version the device is on.
-write_atomic "$VERSION_FILE" "$target"
-updated="$(cat "$VERSION_FILE")"
-status done "Updated to version $updated" updated "$(args version "$updated")"
-echo "=== update complete, restarting service ==="
+# Everything is installed: this is the version the device is on, unless it
+# doesn't start (below).
+write_atomic "$VERSION_FILE" "$target" || fail "could not install the new binary" binary_install_failed
+updated="$(read_number "$VERSION_FILE" || echo "$target")"
 # On disk before the restart: the binary, the web app, the units and the
 # version files, so a power cut right after can't undo half of them.
 sync
 
-# Last, and detached: this kills the process tree this script was started
-# from, so nothing may follow it.
+# Run by the legacy sudo path (a device set up by hand before the update
+# unit existed), this script is one of the service's own processes: the
+# restart ends it, so it reports first and restarts last, as it always did,
+# with nothing to check the start with.
+if grep -q '/otc\.service$' /proc/self/cgroup 2>/dev/null; then
+    status done "Updated to version $updated" updated "$(args version "$updated")"
+    echo "=== update complete, restarting service ==="
+    systemctl restart otc
+    exit 0
+fi
+
+# Its own unit (otc-update.service), or a shell: the restart leaves this
+# script running, and it waits for the new version to start and answer
+# before calling the update done.
+health_port="$(ini_get "/etc/otc_$(systemctl show -p ExecStart --value otc.service 2>/dev/null \
+    | sed -n 's/.*argv\[\]=\/usr\/bin\/otc \([^ ;]*\).*/\1/p' | head -1).ini" otc-api port)"
+[[ "$health_port" =~ ^[0-9]{1,5}$ ]] || health_port=8080
+echo "=== restarting the service, waiting for release $target to start ==="
 systemctl restart otc
+status running "Checking that the new version starts" verifying
+if otc_started "$START_WAIT_S"; then
+    status done "Updated to version $updated" updated "$(args version "$updated")"
+    echo "=== update complete: release $target started ==="
+    # The web app served and the one before it stay; older ones go.
+    if [ -n "$web_switched" ]; then
+        for d in "$WEB_DIR"/*; do
+            [ -d "$d" ] && [ ! -L "$d" ] || continue
+            [ "$d" -ef "$web_new" ] && continue
+            [ -n "$web_prev" ] && [ "$d" -ef "$web_prev" ] && continue
+            rm -rf -- "$d"
+        done
+    fi
+    exit 0
+fi
+
+# It didn't start: the binary, the web app and the version it replaced go
+# back, and the service is restarted on them. The migrations stay (they
+# only ever add, so the previous binary runs on them) and so does
+# version.migrated: pressing Update again builds the new version again
+# without re-running them. The runners and units stay too: they work with
+# either version.
+echo "ERROR: release $target did not start within ${START_WAIT_S}s - putting back release $installed"
+systemctl status otc.service --no-pager -n 30 2>&1 || true
+put_back=1
+if [ -f "$BIN_PREV" ] && [ "$BIN" -ef "$BIN_PREV" ]; then
+    : # already the previous one
+elif [ -f "$BIN_PREV" ]; then
+    { ln -f "$BIN_PREV" "$BIN.rollback.$$" && mv -Tf "$BIN.rollback.$$" "$BIN"; } || { rm -f "$BIN.rollback.$$"; put_back=""; }
+else
+    put_back=""
+fi
+if [ -n "$web_switched" ]; then
+    if [ -n "$web_prev" ] && [ -d "$web_prev" ] && web_link "$web_prev"; then
+        rm -rf -- "$web_new"
+    else
+        put_back=""
+    fi
+fi
+if [ "$installed" -gt 0 ]; then
+    write_atomic "$VERSION_FILE" "$installed" || put_back=""
+else
+    rm -f "$VERSION_FILE" || put_back=""
+fi
+sync
+systemctl restart otc
+if [ -z "$put_back" ]; then
+    fail "the new version didn't start, and the previous one couldn't be put back - see $LOG_FILE" rollback_failed "$(args path "$LOG_FILE")"
+fi
+if otc_started "$START_WAIT_S"; then
+    echo "release $installed is running again"
+else
+    echo "WARNING: release $installed was put back but doesn't answer either"
+fi
+fail "the new version didn't start, so the previous one was put back" rolled_back

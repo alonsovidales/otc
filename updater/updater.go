@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -66,8 +67,13 @@ const (
 	// - such a device runs the whole history, which is safe precisely
 	// because every release script is required to be idempotent.
 	cVersionFile = "/etc/otc/version"
-	cStatusFile  = "/var/lib/otc/update-status.json"
-	cRunnerPath  = "/var/lib/otc/update.sh"
+	// cMigratedFile is the last release whose migration script ran
+	// (scripts/update.sh writes it before cVersionFile, install.sh with
+	// it): what a version file that can't be read is recovered from, as
+	// the root runner recovers it.
+	cMigratedFile = "/etc/otc/version.migrated"
+	cStatusFile   = "/var/lib/otc/update-status.json"
+	cRunnerPath   = "/var/lib/otc/update.sh"
 
 	// cRequestPath is the trigger the device writes to ask for an update,
 	// and cRootRunner the root-side script systemd's otc-update.path
@@ -181,22 +187,62 @@ type Info struct {
 	// so what can be installed is not known: nothing is pending, and
 	// nextAlert treats the check as unsettled.
 	ImageCheckFailed bool
+	// VersionUnknown: the version file is there but can't be read, nor
+	// recovered (see installedVersion). CurrentVersion is then 0 only
+	// because it has to be a number: nothing is pending and nextAlert
+	// raises no alert - read as 0, every major and critical release ever
+	// made would have been announced.
+	VersionUnknown bool
 }
 
-// InstalledVersion reads the release this device is on. A missing or
-// unreadable file is version 0: every install predating this feature has
-// no file, and the honest answer for those is "the beginning".
+// InstalledVersion reads the release this device is on: 0 for no version
+// file - every install predating this feature has none, and the honest
+// answer for those is "the beginning" - and for one that can't be read
+// nor recovered (Info.VersionUnknown says which).
 func InstalledVersion() int {
-	raw, err := os.ReadFile(cVersionFile)
-	if err != nil {
-		return 0
-	}
-	version, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-	if err != nil {
-		return 0
-	}
+	version, _ := installedVersion(os.ReadFile)
 
 	return version
+}
+
+// installedVersion is InstalledVersion with known: false when the version
+// file is there but holds no release number (a write cut short) and
+// version.migrated doesn't either. One that holds none but whose
+// version.migrated does is that release, as the root runner reads it
+// (and writes it back).
+func installedVersion(read func(string) ([]byte, error)) (version int, known bool) {
+	raw, err := read(cVersionFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, true
+	}
+	if err == nil {
+		if v, ok := parseVersion(raw); ok {
+			return v, true
+		}
+	}
+	if raw, err := read(cMigratedFile); err == nil {
+		if v, ok := parseVersion(raw); ok {
+			return v, true
+		}
+	}
+
+	return 0, false
+}
+
+// parseVersion reads a version file's release number: its first line,
+// digits only.
+func parseVersion(raw []byte) (int, bool) {
+	line, _, _ := strings.Cut(string(raw), "\n")
+	line = strings.TrimSpace(line)
+	if line == "" || len(line) > 9 || strings.Trim(line, "0123456789") != "" {
+		return 0, false
+	}
+	v, err := strconv.Atoi(line)
+	if err != nil {
+		return 0, false
+	}
+
+	return v, true
 }
 
 // Pending reports whether an update was asked for and hasn't ended: its
@@ -308,8 +354,10 @@ func Check() (*Info, error) {
 		return nil, err
 	}
 
+	current, known := installedVersion(os.ReadFile)
 	info := &Info{
-		CurrentVersion: InstalledVersion(),
+		CurrentVersion: current,
+		VersionUnknown: !known,
 		Status:         CurrentStatus(),
 	}
 	// Issue #183: kinds and labels, when the signed file can be had; without
@@ -328,6 +376,9 @@ func Check() (*Info, error) {
 		if release.Version > info.LatestVersion {
 			info.LatestVersion = release.Version
 			info.LatestLabel = release.Label
+		}
+		if info.VersionUnknown {
+			continue
 		}
 		if release.Version == info.CurrentVersion {
 			info.CurrentLabel = release.Label
