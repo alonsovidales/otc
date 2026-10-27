@@ -532,16 +532,23 @@ load_identity() {
 # ---------------------------------------------------------------------------
 # 6. Database user, schema and migrations
 # ---------------------------------------------------------------------------
-# install.sh's grants (see there for why the device's user holds them on
-# every database), at every start: the password in the config always
-# matches, a recovered database included.
+# install.sh's grants (see there for what provisioning a user's database
+# needs: everything, with GRANT OPTION, on the otc_ databases, plus CREATE
+# USER and RELOAD - never the whole server, which this account used to
+# hold), at every start: the password in the config always matches, a
+# recovered database included, and an older image's global grant goes.
 apply_grants() {
     mysql <<SQL || die "could not set up the database user"
 CREATE DATABASE IF NOT EXISTS otc;
 CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 ALTER USER 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
-GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
+SQL
+    mysql <<'SQL' || die "could not set up the database user"
+GRANT ALL PRIVILEGES ON `otc_%`.* TO 'otc'@'localhost' WITH GRANT OPTION;
+REVOKE ALL PRIVILEGES ON *.* FROM 'otc'@'localhost';
+REVOKE GRANT OPTION ON *.* FROM 'otc'@'localhost';
+GRANT CREATE USER, RELOAD ON *.* TO 'otc'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 }

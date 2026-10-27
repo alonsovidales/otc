@@ -472,19 +472,22 @@ $ sudo mysql -u root
 > create database otc;
 > CREATE USER 'otc'@'localhost' IDENTIFIED BY '<your_pass_here>';
 > GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
-> GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
+> GRANT ALL PRIVILEGES ON `otc_%`.* TO 'otc'@'localhost' WITH GRANT OPTION;
+> GRANT CREATE USER, RELOAD ON *.* TO 'otc'@'localhost';
 > exit
 ```
-The second `GRANT` (issue #82, multiple users on one device) lets the
+The last two `GRANT`s (issue #82, multiple users on one device) let the
 `otc` account provision/drop a whole database + dedicated MySQL user per
 additional user at runtime (see `dao/provisioning.go`) — required even if
 you never add a second user, since `scripts/install.sh`/`Makefile.pi` both
-apply it unconditionally as part of the base setup. Skippable only if
-you're certain you'll never use the Settings → Users panel; without it,
-creating a user fails with `Access denied ... to database 'otc_<uuid>'`
-(a MySQL account can't `GRANT` a privilege it doesn't itself hold — the
-narrower `CREATE, DROP, CREATE USER, GRANT OPTION` set this project used
-before learning that the hard way isn't enough).
+apply them as part of the base setup. A MySQL account can't `GRANT` a
+privilege it doesn't itself hold, so it holds everything, with `GRANT
+OPTION`, on the `otc_<uuid>` databases it creates (`otc_%`: in a `GRANT`
+the `_` of `otc_<uuid>` is itself a wildcard, which the escaped `otc\_%`
+doesn't cover - provisioning then fails with `Access denied ... to database
+'otc_<uuid>'`), plus `CREATE USER` and `RELOAD` (for `FLUSH PRIVILEGES`) -
+and nothing else on the server. Devices installed before release 143 held
+`ALL PRIVILEGES ON *.* WITH GRANT OPTION`; that release narrows it.
 
 9. Create the OTC config file in `/etc/otc_dev.ini` like:
 ```

@@ -234,7 +234,9 @@ raid: packages ## DESTRUCTIVE: wipe DISK1/DISK2 and build+mount a RAID1 array (a
 			sudo mkdir -p $(MOUNT_POINT)/unencrypted
 			sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf >/dev/null
 			sudo update-initramfs -u
-			grep -q "$(RAID_DEV)" /etc/fstab || echo "$(RAID_DEV)   $(MOUNT_POINT)   ext4   defaults   0   0" | sudo tee -a /etc/fstab >/dev/null
+			grep -q "$(RAID_DEV)" /etc/fstab || echo "$(RAID_DEV)   $(MOUNT_POINT)   ext4   defaults,nofail,x-systemd.device-timeout=3min   0   0" | sudo tee -a /etc/fstab >/dev/null
+			for u in otc mariadb; do sudo mkdir -p /etc/systemd/system/$$u.service.d; printf "[Unit]\nRequiresMountsFor=$(MOUNT_POINT)\n" | sudo tee /etc/systemd/system/$$u.service.d/otc-storage.conf >/dev/null; done
+			sudo systemctl daemon-reload
 		' < /dev/null
 		echo "RAID1 built and mounted at $(MOUNT_POINT)."
 	fi
@@ -341,22 +343,20 @@ db-schema: mariadb secrets ## Create the otc DB/user and load db/db.sql (idempot
 	CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
 	ALTER USER 'otc'@'localhost' IDENTIFIED BY '$$OTC_DB_PASS';
 	GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
-	-- Issue #82: multiple users on one device - the primary instance
-	-- provisions/drops a whole database+MySQL user per additional user at
-	-- runtime (dao/provisioning.go). This needs ALL PRIVILEGES (not a
-	-- narrower CREATE/DROP/CREATE USER/GRANT OPTION set), because MySQL
-	-- requires a grantor to already hold whatever privileges it hands off:
-	-- GRANT OPTION only lets you re-delegate privileges you have, not
-	-- grant arbitrary ones. Provisioning a new user's database ends with
-	-- GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost,
-	-- which otc@localhost itself must hold on every database it might
-	-- ever create - i.e. globally - or that grant fails with "Access
-	-- denied ... to database 'otc_<uuid>'" (hit exactly this live during
-	-- testing before widening the grant to what's below). WITH GRANT
-	-- OPTION also covers the SELECT this account needs on every other
-	-- user's database for the Users panel's storage-usage metric
-	-- (dao.UserStorageUsageMB).
-	GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
+	SQL
+	# Issue #82: the primary instance provisions/drops a whole database +
+	# MySQL user per additional user (dao/provisioning.go). A grantor must
+	# hold what it hands off, so the account holds everything, with GRANT
+	# OPTION, on the otc_<uuid> databases (otc_%: in a GRANT the _ of
+	# otc_<uuid> is itself a wildcard, which an escaped otc\_% doesn't
+	# cover), plus CREATE USER and RELOAD - nothing else on the server (the
+	# same as scripts/install.sh; release 143 narrowed the old ALL ON *.*).
+	# Quoted heredoc: the backticks are SQL.
+	$(SSH) 'sudo mysql' <<-'SQL'
+	GRANT ALL PRIVILEGES ON `otc_%`.* TO 'otc'@'localhost' WITH GRANT OPTION;
+	REVOKE ALL PRIVILEGES ON *.* FROM 'otc'@'localhost';
+	REVOKE GRANT OPTION ON *.* FROM 'otc'@'localhost';
+	GRANT CREATE USER, RELOAD ON *.* TO 'otc'@'localhost';
 	FLUSH PRIVILEGES;
 	SQL
 	if $(SSH) 'sudo mysql otc -N -B' <<<'SHOW TABLES LIKE "files"' | grep -q files; then

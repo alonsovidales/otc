@@ -115,22 +115,31 @@ fi
 # fetch_pinned URL DEST SHA256 - downloads to a temporary file and moves it
 # into place only if it matches the pinned hash (issue #160): nothing
 # downloaded here is run or loaded unchecked.
+# The download goes to a directory of its own beside DEST, made by mktemp
+# (0700, root's), and is renamed from there: curl never writes through a
+# name someone else could have put in place first. DEST's directory is
+# root's own (the models' included, see step 6), and the rename stays on
+# one filesystem, so DEST is either the old file or the whole new one.
 fetch_pinned() {
-    local url="$1" dest="$2" want="$3" tmpf="$2.part"
-    # One fixed-name partial per destination, overwritten by the next try:
-    # a run killed mid-download (the wizard's unit restarting, a power
-    # cut) left a random-named one each time - up to ~870MB for the model.
-    # Also drops those mktemp-style leftovers of earlier releases.
-    rm -f -- "$tmpf" "$dest".??????
+    local url="$1" dest="$2" want="$3" dir tmpd
+    dir="$(dirname -- "$dest")"
+    # A run killed mid-download (the wizard's unit restarting, a power
+    # cut) leaves its partial behind - up to ~870MB for the model: the
+    # leftovers of this function's earlier runs go first, and so do the
+    # fixed-name and mktemp-style partials of earlier releases.
+    rm -rf -- "$dir"/.otc-fetch.??????
+    rm -f -- "$dest.part" "$dest".??????
+    tmpd="$(mktemp -d "$dir/.otc-fetch.XXXXXX")" || { wiz_error download url "$url"; die "could not make a download directory in $dir"; }
     # Connect and stall timeouts: a transfer that stopped mid-way hung the
     # install for good. Under 1 byte/s for two minutes has truly stopped
     # (exit 28, retried); a slow but live link is never cut off.
     curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
-        -o "$tmpf" "$url" || { rm -f "$tmpf"; wiz_error download url "$url"; die "could not download $url"; }
-    if [ "$(sha256sum "$tmpf" | awk '{print $1}')" != "$want" ]; then
-        rm -f "$tmpf"; wiz_error pinned_hash url "$url"; die "$url does not match its pinned hash"
+        -o "$tmpd/download" "$url" || { rm -rf "$tmpd"; wiz_error download url "$url"; die "could not download $url"; }
+    if [ "$(sha256sum "$tmpd/download" | awk '{print $1}')" != "$want" ]; then
+        rm -rf "$tmpd"; wiz_error pinned_hash url "$url"; die "$url does not match its pinned hash"
     fi
-    mv -f "$tmpf" "$dest"
+    mv -Tf "$tmpd/download" "$dest"
+    rmdir "$tmpd" 2>/dev/null || rm -rf "$tmpd"
 }
 
 # If a previous run got partway through and then died (a killed `curl | bash`,
@@ -188,16 +197,49 @@ MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
 FACE_DETECTOR_ONNX=$MODEL_DIR/face_detection_yunet_2023mar.onnx
 FACE_RECOGNIZER_ONNX=$MODEL_DIR/face_recognition_sface_2021dec_int8.onnx
 OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
+ENVIRONMENT=dev
+INI_FILE="/etc/otc_${ENVIRONMENT}.ini"
+# otc_ini KEY: the [otc] value of KEY in the config an earlier run wrote,
+# and whether the line is there at all (an empty value is a value: a
+# device whose bridge was switched off, #182).
+otc_ini() {
+    [ -f "$INI_FILE" ] || return 1
+    awk -F= -v key="$1" '
+        /^[[:space:]]*\[/ { section = $0; gsub(/[[:space:]]/, "", section); next }
+        section == "[otc]" && !found {
+            k = $1; gsub(/[[:space:]]/, "", k)
+            if (k == key) { v = substr($0, index($0, "=") + 1); sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v); print v; found = 1 }
+        }
+        END { exit !found }' "$INI_FILE"
+}
+# A bridge name kept from that config, only in the shape install.sh and
+# the bridge runner write: it reaches the settings row's SQL below.
+kept_bridge() {
+    local v
+    v="$(otc_ini "$1")" || return 1
+    [[ "$v" =~ ^([a-z0-9]([a-z0-9.-]*[a-z0-9])?)?$ ]] || return 1
+    printf '%s' "$v"
+}
 # Issue #124: OTC_BRIDGE_ADDR="" installs a local-only device - no bridge,
 # no domain: reachable on the home network only (the setup wizard's
 # "continue without an account"). Any other value is the bridge to use.
-BRIDGE_ADDR="${OTC_BRIDGE_ADDR-off-the.cloud}"
+# Not given, a re-run keeps what the device has: the bridge it is on, or
+# none if its owner switched the bridge off since (#182) - a re-run used
+# to put it back on off-the.cloud.
+if [ -z "${OTC_BRIDGE_ADDR+set}" ] && BRIDGE_ADDR="$(kept_bridge bridge-addr)"; then
+    :
+else
+    BRIDGE_ADDR="${OTC_BRIDGE_ADDR-off-the.cloud}"
+fi
 # Issue #145: the bridge a local-only device joins if its owner switches
-# the bridge on later, from Settings.
-BRIDGE_DEFAULT="${OTC_BRIDGE_DEFAULT:-${BRIDGE_ADDR:-off-the.cloud}}"
+# the bridge on later, from Settings. Kept the same way.
+if [ -z "${OTC_BRIDGE_DEFAULT:-}" ] && BRIDGE_DEFAULT="$(kept_bridge bridge-default)" && [ -n "$BRIDGE_DEFAULT" ]; then
+    :
+else
+    BRIDGE_DEFAULT="${OTC_BRIDGE_DEFAULT:-${BRIDGE_ADDR:-off-the.cloud}}"
+fi
 STORAGE_PATH=/mnt/storage/
 UNENC_PATH=/mnt/storage/unencrypted/
-ENVIRONMENT=dev
 HTTP_PORT=8080
 ENV_FILE=/etc/otc/otc-install.env
 
@@ -423,6 +465,10 @@ done
 # itself. In use means anything on the disk is mounted - a partition, a
 # logical volume (Ubuntu's root), a swap - but not an array built on it: a
 # re-imaged device's members are exactly what recovery assembles.
+# A recovery may have one disk: the wizard's Recover on a mirror that lost
+# a disk names the one left twice (OTC_DISK1 = OTC_DISK2). That mirror is
+# assembled on its own and runs degraded until a second disk is added; a
+# fresh array is never built in that mode (below), so one disk is fine.
 check_storage_disks() {
     local d where
     for d in "$DISK1" "$DISK2"; do
@@ -431,7 +477,7 @@ check_storage_disks() {
             die "$d is not a disk on this machine - set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)"
         fi
     done
-    if [ "$(readlink -f "$DISK1")" = "$(readlink -f "$DISK2")" ]; then
+    if [ "$(readlink -f "$DISK1")" = "$(readlink -f "$DISK2")" ] && [ "$RECOVERY" != "1" ]; then
         wiz_error disk_twice disk "$DISK1"
         die "OTC_DISK1 and OTC_DISK2 are both $DISK1 - the mirror needs two different disks"
     fi
@@ -446,6 +492,43 @@ check_storage_disks() {
     done
 }
 
+# The storage's fstab line. nofail: a disk missing or slow at boot no
+# longer stops the boot in emergency mode, with no network and no SSH;
+# the device comes up without its storage (the service and MariaDB wait
+# for it, below) - and up to 3 minutes are given for the mirror to appear
+# (USB disks, md's own wait for a missing member). nofail also stops
+# ordering the mount before local-fs.target, so what needs the storage
+# says so itself: the RequiresMountsFor drop-ins after this step, without
+# which MariaDB and the service could start on the empty directory under
+# the mount point. storage_fstab_line add|keep: the md0 line gets the two
+# options (any others it has are kept); with add, a device that has none
+# - and nothing else mounted there - gets one.
+STORAGE_MOUNT_OPTS="defaults,nofail,x-systemd.device-timeout=3min"
+storage_fstab_line() {
+    local tmp
+    tmp="$(mktemp /etc/fstab.otc.XXXXXX)"
+    awk -v dev="$RAID_DEV" -v mnt="$MOUNT_POINT" -v opts="$STORAGE_MOUNT_OPTS" -v add="$1" '
+        /^[[:space:]]*#/ || NF < 4 { print; next }
+        $1 == dev || $2 == mnt { taken = 1 }
+        $1 == dev && $2 == mnt {
+            o = $4
+            if (o !~ /(^|,)nofail(,|$)/) o = o ",nofail"
+            if (o !~ /(^|,)x-systemd\.device-timeout=/) o = o ",x-systemd.device-timeout=3min"
+            if (o != $4) { $4 = o }
+        }
+        { print }
+        END { if (!taken && add == "add") print dev "   " mnt "   ext4   " opts "   0   0" }' /etc/fstab > "$tmp" \
+        || { rm -f "$tmp"; die "could not update /etc/fstab"; }
+    if cmp -s "$tmp" /etc/fstab; then
+        rm -f "$tmp"
+        return 0
+    fi
+    chmod 644 "$tmp"
+    sync "$tmp" 2>/dev/null || sync
+    mv -Tf "$tmp" /etc/fstab
+    systemctl daemon-reload
+}
+
 wiz_step storage path "$MOUNT_POINT"
 log "[3/10] RAID1 storage ($MOUNT_POINT)"
 mkdir -p "$MOUNT_POINT"
@@ -453,6 +536,7 @@ if [ "$SKIP_RAID" = "1" ]; then
     log "OTC_SKIP_RAID=1: using $MOUNT_POINT as a plain directory on this filesystem (no RAID)."
 elif mountpoint -q "$MOUNT_POINT"; then
     log "$MOUNT_POINT already mounted, skipping."
+    storage_fstab_line keep
 else
     check_storage_disks
     if [ ! -e "$RAID_DEV" ]; then
@@ -482,8 +566,12 @@ else
             log "Found the existing array as /dev/$md ($(echo $members)) - reassembling it as $RAID_DEV."
             umount "/dev/$md" 2>/dev/null || true
             mdadm --stop "/dev/$md"
+            # --run: it was running, so it runs again - with the disks it
+            # had. Without it a mirror down to one disk (a recovery from
+            # the disk that is left) is only gathered, inactive, and the
+            # mount below fails.
             # shellcheck disable=SC2086
-            mdadm --assemble "$RAID_DEV" $members
+            mdadm --assemble --run "$RAID_DEV" $members
             break
         done
     fi
@@ -516,10 +604,22 @@ else
     mkdir -p /etc/mdadm
     mdadm --detail --scan | tee -a /etc/mdadm/mdadm.conf >/dev/null
     update-initramfs -u
-    grep -q "$RAID_DEV" /etc/fstab || echo "$RAID_DEV   $MOUNT_POINT   ext4   defaults   0   0" >> /etc/fstab
+    storage_fstab_line add
     mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT"
 fi
 mkdir -p "$UNENC_PATH"
+# The service and MariaDB (its datadir is on the mirror, step 10) start
+# only once the storage is mounted, and stop if it goes: never on the
+# empty directory under the mount point, where new files would be written
+# to the SD card and hidden once the disks are back. Where nothing is
+# mounted there (OTC_SKIP_RAID) this asks for nothing but the root
+# filesystem. Before MariaDB is (re)started below.
+for unit in otc mariadb; do
+    mkdir -p "/etc/systemd/system/$unit.service.d"
+    printf '# Off The Cloud: start only with the storage mounted (fstab has nofail).\n[Unit]\nRequiresMountsFor=%s\n' "$MOUNT_POINT" \
+        > "/etc/systemd/system/$unit.service.d/otc-storage.conf"
+done
+systemctl daemon-reload
 
 # ---------------------------------------------------------------------------
 # 3. Toolchain + runtime deps
@@ -548,6 +648,15 @@ fi
 wiz_step tagging_model
 log "[6/10] RAM++ tagging model (~870MB, only downloaded once)"
 mkdir -p "$MODEL_DIR"
+# Root's, read by the service: earlier installs handed the directory to
+# otc, and root then downloaded into a directory another account could
+# put names in. Taken back before anything is fetched into it; a model
+# that is a symlink (none was ever installed as one) is fetched again.
+chown root:root "$MODEL_DIR"
+chmod 0755 "$MODEL_DIR"
+for f in "$MODEL_ONNX" "$MODEL_THRESHOLDS" "$MODEL_TAGS" "$FACE_DETECTOR_ONNX" "$FACE_RECOGNIZER_ONNX"; do
+    if [ -L "$f" ]; then rm -f -- "$f"; fi
+done
 # Each file is checked on its own: fetch_pinned only moves a file into place
 # after its hash matches, so one that is present is already verified, and a
 # failed small download must not cost another ~870MB.
@@ -560,7 +669,10 @@ if [ ! -f "$MODEL_THRESHOLDS" ]; then
 fi
 if [ ! -f "$MODEL_TAGS" ]; then
     # The tag list ships in the verified release itself. Through a
-    # temporary file, so a half-written list is never left in place.
+    # temporary file, so a half-written list is never left in place (and
+    # whatever an older install's otc-owned directory left under that
+    # name goes first: the redirection would follow a symlink).
+    rm -f -- "$MODEL_TAGS.tmp"
     gunzip < "$OTC_VERIFIED_SRC/models/models/tag_list_4585.txt.gz" > "$MODEL_TAGS.tmp" \
         || { rm -f "$MODEL_TAGS.tmp"; wiz_error tag_list; die "could not unpack the tag list"; }
     mv -f "$MODEL_TAGS.tmp" "$MODEL_TAGS"
@@ -574,7 +686,10 @@ fi
 if [ ! -f "$FACE_RECOGNIZER_ONNX" ]; then
     fetch_pinned "$OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx" "$FACE_RECOGNIZER_ONNX" 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a
 fi
-chown -R otc:otc "$MODEL_DIR"
+# Read-only to the service (it only loads them). -R changes a symlink
+# itself, never what it points to, and chmod -R skips symlinks.
+chown -R root:root "$MODEL_DIR"
+chmod -R u=rwX,go=rX "$MODEL_DIR"
 
 # ---------------------------------------------------------------------------
 # 4. Fetch source, build the binary, install the web bundle
@@ -635,12 +750,40 @@ log "[9/10] Web app (release ${OTC_RELEASE_VERSION:-?}, verified)"
 # The release's own prebuilt bundle, checked against the signed manifest
 # by verified-install.sh - the same one updates install. No Node or npm on
 # the device (issue #160: they were fetched with a piped installer).
-mkdir -p /var/www
-rm -rf "$SRC_DIR/.web-dist" && mkdir -p "$SRC_DIR/.web-dist"
-tar -xzf "$OTC_VERIFIED_WEB" -C "$SRC_DIR/.web-dist" || { wiz_error unpack_web; die "could not unpack the web app"; }
-rsync -a --delete "$SRC_DIR/.web-dist/" /var/www/ || { wiz_error install_web; die "could not install the web app"; }
-rm -rf "$SRC_DIR/.web-dist"
-chown -R otc:otc /var/www
+# Unpacked into a directory of its own under /var/otc-web (root's) and
+# switched in by renaming the /var/www symlink over the old one - never
+# written file by file into what the device is serving, and never by root
+# into a tree another account owns. Same as update.sh's web_switch, which
+# also keeps the previous one to roll back to.
+WEB_ROOT=/var/www
+WEB_DIR=/var/otc-web
+web_failed() { [ -z "${web_new:-}" ] || rm -rf -- "$web_new"; wiz_error "$1"; die "$2"; }
+mkdir -p "$WEB_DIR" && chown root:root "$WEB_DIR" && chmod 0755 "$WEB_DIR" || web_failed install_web "could not install the web app"
+web_new="$(mktemp -d "$WEB_DIR/${OTC_RELEASE_VERSION:-web}.XXXXXX")" || web_failed install_web "could not install the web app"
+tar --no-same-owner -xzf "$OTC_VERIFIED_WEB" -C "$web_new" || web_failed unpack_web "could not unpack the web app"
+# The service's (a development `make web` copies into it as otc).
+chown -R otc:otc "$web_new" || web_failed install_web "could not install the web app"
+chmod 0755 "$web_new" || web_failed install_web "could not install the web app"
+web_prev=""
+if [ -L "$WEB_ROOT" ]; then
+    web_prev="$(readlink -f "$WEB_ROOT" || true)"
+elif [ -d "$WEB_ROOT" ]; then
+    # Once per device: the directory earlier installs wrote into moves
+    # beside the new one, and /var/www becomes the symlink.
+    web_prev="$WEB_DIR/old.$(date -u +%Y%m%d%H%M%S)"
+    mv -T "$WEB_ROOT" "$web_prev" || web_failed install_web "could not install the web app"
+fi
+sync
+ln -sfn "$web_new" "$WEB_DIR/.www.$$" || web_failed install_web "could not install the web app"
+mv -Tf "$WEB_DIR/.www.$$" "$WEB_ROOT" || { rm -f "$WEB_DIR/.www.$$"; web_failed install_web "could not install the web app"; }
+sync
+# The one served and the one before it stay; older ones go.
+for d in "$WEB_DIR"/*; do
+    [ -d "$d" ] && [ ! -L "$d" ] || continue
+    [ "$d" -ef "$web_new" ] && continue
+    [ -n "$web_prev" ] && [ "$d" -ef "$web_prev" ] && continue
+    rm -rf -- "$d"
+done
 
 wiz_step directories
 log "[9/10] Runtime directories"
@@ -798,22 +941,28 @@ CREATE DATABASE IF NOT EXISTS otc;
 CREATE USER IF NOT EXISTS 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 ALTER USER 'otc'@'localhost' IDENTIFIED BY '${OTC_DB_PASS}';
 GRANT ALL PRIVILEGES ON otc.* TO 'otc'@'localhost';
--- Issue #82: multiple users on one device - the primary instance
--- provisions/drops a whole database+MySQL user per additional user at
--- runtime (see dao/provisioning.go). This needs ALL PRIVILEGES (not a
--- narrower CREATE/DROP/CREATE USER/GRANT OPTION set), because MySQL
--- requires a grantor to already hold whatever privileges it hands off:
--- GRANT OPTION only lets you re-delegate privileges you have, not grant
--- arbitrary ones. Provisioning a new user's database ends with
--- GRANT ALL PRIVILEGES ON otc_<uuid>.* TO otc_<uuid>@localhost, which
--- otc@localhost itself must hold on every database it might ever create -
--- i.e. globally - or that grant fails with "Access denied ... to database
--- 'otc_<uuid>'" (hit exactly this live during testing before widening the
--- grant to what's below). WITH GRANT OPTION also covers the SELECT this
--- account needs on every other user's database for the Users panel's
--- storage-usage metric (dao.UserStorageUsageMB), rather than separately
--- storing/managing each user's own dedicated DB password just for that.
-GRANT ALL PRIVILEGES ON *.* TO 'otc'@'localhost' WITH GRANT OPTION;
+SQL
+# Issue #82: multiple users on one device - the primary instance
+# provisions/drops a whole database+MySQL user per additional user at
+# runtime (see dao/provisioning.go): CREATE DATABASE otc_<uuid>, CREATE
+# USER otc_<uuid>, GRANT ALL PRIVILEGES ON otc_<uuid>.* to it, FLUSH
+# PRIVILEGES, and later DROP DATABASE / DROP USER; and it reads each one's
+# files table for the Users panel's storage usage (dao.UserStorageUsageMB).
+# A grantor must hold what it hands off, so this account holds everything,
+# with GRANT OPTION, on the databases named otc_<something> (otc_%: in a
+# GRANT the _ of otc_<uuid> is itself a wildcard, which only a pattern with
+# that wildcard covers - the escaped otc\_% was refused, error 1044; otc's
+# own database, three letters, is not one of them), plus CREATE USER
+# (CREATE and DROP USER) and RELOAD (FLUSH) - and nothing on the server as
+# a whole: it used to hold ALL PRIVILEGES ON *.* WITH GRANT OPTION (FILE,
+# SUPER, SHUTDOWN, every other database), revoked here and by release 143.
+# The narrow grants come first, so the running service never goes without
+# what it uses. Quoted: the backticks are SQL, not a command substitution.
+mysql <<'SQL'
+GRANT ALL PRIVILEGES ON `otc_%`.* TO 'otc'@'localhost' WITH GRANT OPTION;
+REVOKE ALL PRIVILEGES ON *.* FROM 'otc'@'localhost';
+REVOKE GRANT OPTION ON *.* FROM 'otc'@'localhost';
+GRANT CREATE USER, RELOAD ON *.* TO 'otc'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; then
@@ -1105,12 +1254,35 @@ SQL
 DEMO_CONFIG=""
 if [ "$DEMO" = "1" ]; then
     DEMO_CONFIG=$'wifi-watchdog=off\nbridge-pool-target=60\n'
-    if [ -f "/etc/otc_${ENVIRONMENT}.ini" ]; then
-        DEMO_KEPT=$(grep -E '^(demo|demo-password)=' "/etc/otc_${ENVIRONMENT}.ini" || true)
+    if [ -f "$INI_FILE" ]; then
+        DEMO_KEPT=$(grep -E '^(demo|demo-password)=' "$INI_FILE" || true)
         [ -z "$DEMO_KEPT" ] || DEMO_CONFIG+="$DEMO_KEPT"$'\n'
     fi
 fi
-cat > "/etc/otc_${ENVIRONMENT}.ini" <<EOF
+# The other [otc] lines the config an earlier run wrote has - a fork's
+# update-repo and update-releases, low-memory, a Wi-Fi watchdog switched
+# off - are kept: this rewrite used to drop them. Never one written above
+# (bridge-addr and bridge-default were read back at the top), nor demo
+# mode's, which only a demo server keeps (DEMO_KEPT).
+OTC_KEPT=""
+if [ -f "$INI_FILE" ]; then
+    kept_skip=" bridge-addr bridge-default storage-path unenc-storage-path max-thumbnail-width-px shared-link-ttl-hours demo demo-password "
+    [ "$DEMO" = "1" ] && kept_skip+="wifi-watchdog bridge-pool-target "
+    OTC_KEPT=$(awk -v skip="$kept_skip" '
+        /^[[:space:]]*\[/ { section = $0; gsub(/[[:space:]]/, "", section); next }
+        section == "[otc]" && /^[[:space:]]*[a-z0-9-]+[[:space:]]*=/ {
+            k = $0; sub(/[[:space:]]*=.*/, "", k); gsub(/[[:space:]]/, "", k)
+            if (index(skip, " " k " ") == 0 && !(k in seen)) { seen[k] = 1; print }
+        }' "$INI_FILE")
+    [ -z "$OTC_KEPT" ] || OTC_KEPT+=$'\n'
+fi
+# Written beside the config, with its final owner and mode, flushed, and
+# renamed over it: the file holds the database password (never readable
+# by other accounts, not even for a moment), and a power cut halfway
+# through a rewrite in place left a device that couldn't start.
+INI_TMP="$INI_FILE.tmp.$$"
+rm -f "$INI_TMP"
+(umask 077 && cat > "$INI_TMP") <<EOF
 [otc]
 bridge-addr=$BRIDGE_ADDR
 bridge-default=$BRIDGE_DEFAULT
@@ -1118,7 +1290,7 @@ storage-path=$STORAGE_PATH
 unenc-storage-path=$UNENC_PATH
 max-thumbnail-width-px=1000
 shared-link-ttl-hours=168
-${DEMO_CONFIG}
+${DEMO_CONFIG}${OTC_KEPT}
 [logger]
 log_file=/var/log/otc/otc.log
 max_log_size_mb=10
@@ -1155,8 +1327,10 @@ recognizer-model-path=$FACE_RECOGNIZER_ONNX
 EOF
 # The database password (and the rest of the device's settings): root
 # and the service only - it used to be left readable by every account.
-chown root:otc "/etc/otc_${ENVIRONMENT}.ini"
-chmod 640 "/etc/otc_${ENVIRONMENT}.ini"
+chown root:otc "$INI_TMP"
+chmod 640 "$INI_TMP"
+sync "$INI_TMP" 2>/dev/null || sync
+mv -Tf "$INI_TMP" "$INI_FILE"
 
 # Issue #97 follow-up: the RAID status LEDs (scripts/raid_watch.py, driven
 # over GPIO) are installed by Makefile.pi's `raid-watch` target and baked
@@ -1356,11 +1530,26 @@ echo "=========================================================="
 # was just downloaded with the rest of the source - and if that can't be
 # read, the file is left absent, which the updater reads as "the
 # beginning" and is safe because every release script is idempotent.
+# Written beside the file, flushed and renamed over it, as update.sh does:
+# a power cut right after `echo >` left an empty file, which the updater
+# read as "already up to date" for good. version.migrated (the last release
+# whose migrations ran, see update.sh) follows: a fresh install has
+# everything they would have done, and the updater recovers the version
+# from it should the version file ever be unreadable.
+write_version_file() {
+    local tmp="$1.tmp.$$"
+    printf '%s\n' "$2" > "$tmp" && { sync "$tmp" 2>/dev/null || sync; } && mv -Tf "$tmp" "$1" || { rm -f "$tmp"; return 1; }
+}
 if [ -n "${OTC_RELEASE_VERSION:-}" ]; then
     # The signed release just installed (verified-install.sh).
     latest_release="$OTC_RELEASE_VERSION"
-    if [ -n "$latest_release" ]; then
-        echo "$latest_release" > /etc/otc/version
+    if [[ "$latest_release" =~ ^[0-9]{1,9}$ ]]; then
+        write_version_file /etc/otc/version "$latest_release" || die "could not record the release in /etc/otc/version"
+        migrated_before="$(head -c 16 /etc/otc/version.migrated 2>/dev/null | head -n 1 || true)"
+        if ! [[ "$migrated_before" =~ ^[0-9]{1,9}$ ]] || [ "$migrated_before" -lt "$latest_release" ]; then
+            write_version_file /etc/otc/version.migrated "$latest_release" || die "could not record the release in /etc/otc/version.migrated"
+        fi
+        sync
         echo "[otc-install] Recorded release $latest_release in /etc/otc/version"
     fi
 fi
