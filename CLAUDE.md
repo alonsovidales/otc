@@ -190,7 +190,7 @@ slow reader dials with gorilla's default buffers: with 16 KiB at both ends Linux
 about 150 KB/s and a 64 KiB piece can miss the shortened `cReplyStall`, which no real peer would
 see.
 
-**Web app** (`web/`, Vite + React 19 + TypeScript + react-router). To *see* it on a device from a
+**Web app** (`web/`, Vite + React 19 + TypeScript). To *see* it on a device from a
 terminal session, `scripts/dev/webshot.mjs` drives a headless Chrome over the DevTools protocol
 (sign in, open a tab, hover/click one element, PNG per step) - through an SSH tunnel to loopback,
 because macOS's local-network permission blocks a terminal-launched Chrome from LAN addresses and
@@ -1520,8 +1520,9 @@ rest under `(other)`. `bridge/downloads` polls the releases every 6 h into `down
 
 ### Frontend (`web/`)
 
-React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like
-(App.tsx, index.css). A fixed top bar holds the menu button, the logo and the search (`TopSearch.tsx`: chips
+React 19 + TypeScript + Vite, with no router (one address; App's `tab` is the section). The
+signed-in shell is Google Photos-like (App.tsx, index.css). A fixed top bar holds the menu
+button, the logo and the search (`TopSearch.tsx`: chips
 for the open collection, people and tags inside the field; no panel until something is typed, then the
 matching things (5 tags), named people (the 5 with the most photos) and files and folders by path
 (`SearchFiles`, debounced, stale answers dropped), plus "Search documents for x" - every match (`SearchFiles`
@@ -1702,6 +1703,34 @@ whether to post the rest or try again, and never sends a file twice. `/shared` f
 thumbnails of the tiles in view, four at a time. The viewer's map loads on Show on map, with no
 Referer and sandboxed.
 
+The second pass. Back (`components/backStack.ts`, `node web/scripts/back-stack-test.mjs`; the only
+file that writes the history - `replaceAddress` for a changed query): a section moved to (App's
+`goTo`: the menu, the top bar, a link in a page) is an entry, one App sets by itself (a sign-in,
+a failed restore, People without faces, Images back to Collections) rewrites the entry it is on;
+every layer calls `useBackLayer(open, close)` - the viewers (MediaViewer, the feed's, Files' and
+/shared's), `Modal` (so every ConfirmDialog and LinkDialog), the composer, the trimmer, the
+drawer, the tour, People's and Settings' dialogs - and Back closes the top one (`close` returning
+false keeps a dialog at work, which gets its entry again), else shows the entry's section
+(`sectionFor`: signed out, the landing page). A layer closed by its own button leaves its entry
+to the next one written at that moment (a pick in the drawer is one entry) or steps back off it;
+a Back that changes nothing goes on back. Entries keep the address (`#download`, `/shared#…`) and
+say `{otc: {doc, i, tab, layer}}`; none in `__OTC_CONFIG`. Lazy parts (`lazyPart.ts`, `Part.tsx`):
+Settings, People, Files, the composer, the viewer (and the app's unused /shared view) are chunks
+of their own, behind a spinner, and a chunk that didn't come is "This part of the app couldn't
+load" with Reload (a layer's with Close too): a first load of the app is 777 KB of script (193 KB
+gzipped) instead of 979 KB (249 KB). A restore that got no answer keeps "Signing in…" and tries
+again (`net/sessionRestore.ts`, `node web/scripts/session-restore-test.mjs`: 1 s doubling to 30 s,
+at once on `online` or the unreachable screen clearing); only the device's refusal lands signed
+out. While the socket is down (`wsClient.isDown`) a "Reconnecting…" pill shows under the top bar
+after 1.5 s (`ReconnectingBanner`), not over the unreachable screen. Notifications are asked for
+only from a click: the feed's `PushCard` ("Get notified when family posts", Not now remembered in
+`otc_push_card_dismissed`) while `pushUndecided()`, and Settings' switch. Above 500 MB
+(`bigFile.ts`) a download put together in memory (a ZIP link, a non-media file Files saves or
+opens, a shared gallery's originals) asks first (`BigFileDialog`: "This is 1.2 GB; …"). Leave the
+bridge asks in a ConfirmDialog. The composer's trimmer streams a library video (GetMediaURL),
+else reads it in ReadFile pieces, as the viewer reads a clip the device won't stream: the web
+never asks for a whole video with GetFile.
+
 "Your device was updated" (`components/DeviceUpdatedNotice.tsx`, rules in `deviceBuild.ts`,
 `node web/scripts/device-build-test.mjs`): a single-page app never reloads itself, so a tab open
 across a device update kept the old web app. A build is the web app's own entry script
@@ -1731,12 +1760,12 @@ again) before it shows, storage that throws means no tour by itself, and Sign ou
 Show the tour (account menu, between Settings and Sign out; Settings › Getting started, after
 Language) replays it from step 1 and leaves the flag alone. App keeps `tour` (`{step, auto}`), so it
 comes back at its step after the unreachable screen, and drops it when the session ends;
-`handleSignedIn` holds `promptForPushIfNeverAsked` until a tour that opened by itself closes (the
-prompt then runs inside that click). Where a step's control is on screen (`data-tour` on the docked
-menu and its items - looked up under `.sb-dock` only -, `.tb-menu`, `.tb-action` and `.am-btn`) the
-dimmed layer, an SVG path with an evenodd hole, leaves a hole and an ember ring around it: a click
-in the hole ends the tour and is passed to the control under it (`elementFromPoint` once the dialog
-is closed); a click elsewhere on the layer, Esc or a close the browser makes itself is Skip. Its
+nothing else opens with it (notifications are asked for from the feed's card). Where a step's
+control is on screen (`data-tour` on the docked menu and its items - looked up under `.sb-dock`
+only -, `.tb-menu`, `.tb-action` and `.am-btn`) the dimmed layer, an SVG path with an evenodd
+hole, leaves a hole and an ember ring around it: a click in the hole ends the tour and is passed
+to the control under it (`elementFromPoint` once the dialog is closed); a click elsewhere on the
+layer, Esc, Back or a close the browser makes itself is Skip. Its
 keydown listener stops every key (arrows step, Tab stays in the card; the explicit `role="dialog"`
 is for Files' capture-phase Escape), wheel and one-finger touch moves are cancelled unless the
 card's text scrolls, the focus goes back to the opener if it had keyboard focus, else the account
@@ -1812,7 +1841,8 @@ browser's scroll anchoring; mid-drag `useDragSelect`'s own measure); at the list
 pushes them down by the bar's height, as before the bar stuck.
 
 Full-size photos on the web (`components/fullSizeCache.ts`, `node web/scripts/full-size-cache-test.mjs`):
-`MediaViewer` keeps every `GetFile` answer it fetched whole (photos, clips the device won't stream)
+`MediaViewer` keeps every file it fetched whole (photos by `GetFile`, clips the device won't stream
+in `ReadFile` pieces)
 for the tab's session, so stepping back to a photo or reopening it shows full size at once with no
 request - every step back and forth used to show the low-res tile while it fetched again. By content
 hash (the answer's `File.hash`, else the item's; no hash, not kept), least recently used out first,
