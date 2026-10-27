@@ -1,0 +1,10 @@
+@html.lang=en
+Sign-in problem — Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+The sign-in didn't go through
+that return address is not allowed
+@a.href=/account
+Back to your account

@@ -289,6 +289,10 @@
     "text": "questo provider di accesso non è configurato su questo bridge",
     "en": "that sign-in provider is not configured on this bridge"
   },
+  "api.page.setup_expired": {
+    "text": "questo passaggio è scaduto: ricomincia l’accesso dalla pagina del tuo dispositivo",
+    "en": "this step has expired - start the sign-in again from your device's page"
+  },
   "api.page.start_unavailable": {
     "text": "impossibile avviare l’accesso",
     "en": "could not start the sign-in"

@@ -289,6 +289,10 @@
     "text": "dieser Anmeldeanbieter ist auf dieser Bridge nicht eingerichtet",
     "en": "that sign-in provider is not configured on this bridge"
   },
+  "api.page.setup_expired": {
+    "text": "dieser Schritt ist abgelaufen – starte die Anmeldung erneut über die Seite deines Geräts",
+    "en": "this step has expired - start the sign-in again from your device's page"
+  },
   "api.page.start_unavailable": {
     "text": "die Anmeldung konnte nicht gestartet werden",
     "en": "could not start the sign-in"

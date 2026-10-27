@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "une connexion démarre depuis un lien, pas depuis l’intérieur d’une autre page"},
   "api.page.open_from_account": {"text": "ouvrez ceci depuis la page de votre compte"},
   "api.page.provider_unknown": {"text": "ce fournisseur de connexion n’est pas configuré sur cette passerelle"},
+  "api.page.setup_expired": {"text": "cette étape a expiré : recommencez la connexion depuis la page de votre appareil"},
   "api.page.start_unavailable": {"text": "impossible de démarrer la connexion"},
   "api.page.too_many_starts": {"text": "trop de tentatives de connexion depuis cette adresse, réessayez dans une minute"},
   "api.relay.account_disabled": {"text": "Ce compte a été désactivé."},

@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Continuar"},
+  "site.signin.continue.cancel": {"text": "Cancelar"},
+  "site.signin.continue.heading": {"text": "Continuar a configurar o dispositivo em <b>{host}</b>?"},
+  "site.signin.continue.text": {"text": "Se continuares, {host} recebe um código de configuração da tua conta. Fá-lo apenas se foste tu que começaste a configurar um dispositivo nesse endereço: durante 15 minutos, quem tiver o código pode adicionar dispositivos à tua conta ou passar um dos nomes dos teus dispositivos para um dispositivo seu."},
+  "site.signin.continue.title": {"text": "Continuar a configuração — Off The Cloud"},
+  "site.signin.error.back": {"text": "Voltar à tua conta"},
+  "site.signin.error.heading": {"text": "O início de sessão não foi concluído"},
+  "site.signin.error.title": {"text": "Problema no início de sessão — Off The Cloud"}
+}

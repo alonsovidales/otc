@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Continua"},
+  "site.signin.continue.cancel": {"text": "Annulla"},
+  "site.signin.continue.heading": {"text": "Continuare la configurazione del dispositivo all’indirizzo <b>{host}</b>?"},
+  "site.signin.continue.text": {"text": "Se continui, {host} riceverà un codice di configurazione del tuo account. Fallo solo se hai iniziato tu a configurare un dispositivo a quell’indirizzo: per 15 minuti, chiunque abbia il codice può aggiungere dispositivi al tuo account o spostare uno dei nomi dei tuoi dispositivi su un dispositivo suo."},
+  "site.signin.continue.title": {"text": "Continua la configurazione — Off The Cloud"},
+  "site.signin.error.back": {"text": "Torna al tuo account"},
+  "site.signin.error.heading": {"text": "L’accesso non è andato a buon fine"},
+  "site.signin.error.title": {"text": "Problema di accesso — Off The Cloud"}
+}

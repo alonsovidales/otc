@@ -1,0 +1,11 @@
+@html.lang=en
+Continue the setup — Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+Continue setting up the device at 192.168.1.20:8080?
+Continue sends a setup code for your account to 192.168.1.20:8080. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.
+@a.href=/account/auth/continue?id=0123456789abcdef0123456789abcdef
+@a.href=/account
+Continue Cancel

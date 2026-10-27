@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "inloggen begint via een link, niet vanuit een andere pagina"},
   "api.page.open_from_account": {"text": "open dit vanaf je accountpagina"},
   "api.page.provider_unknown": {"text": "die inlogprovider is niet ingesteld op deze bridge"},
+  "api.page.setup_expired": {"text": "deze stap is verlopen – begin opnieuw met inloggen vanaf de pagina van je apparaat"},
   "api.page.start_unavailable": {"text": "kan het inloggen niet starten"},
   "api.page.too_many_starts": {"text": "te veel inlogpogingen vanaf dit adres, probeer het over een minuut opnieuw"},
   "api.relay.account_disabled": {"text": "Dit account is uitgeschakeld."},

@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "o início de sessão começa a partir de uma ligação, não de dentro de outra página"},
   "api.page.open_from_account": {"text": "abre isto a partir da página da tua conta"},
   "api.page.provider_unknown": {"text": "esse fornecedor de início de sessão não está configurado nesta ponte"},
+  "api.page.setup_expired": {"text": "este passo expirou: recomeça o início de sessão a partir da página do teu dispositivo"},
   "api.page.start_unavailable": {"text": "não foi possível começar o início de sessão"},
   "api.page.too_many_starts": {"text": "demasiadas tentativas de início de sessão a partir deste endereço; tenta novamente daqui a um minuto"},
   "api.relay.account_disabled": {"text": "Esta conta foi desativada."},

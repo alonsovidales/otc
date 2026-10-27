@@ -289,6 +289,10 @@
     "text": "ce fournisseur de connexion n’est pas configuré sur cette passerelle",
     "en": "that sign-in provider is not configured on this bridge"
   },
+  "api.page.setup_expired": {
+    "text": "cette étape a expiré : recommencez la connexion depuis la page de votre appareil",
+    "en": "this step has expired - start the sign-in again from your device's page"
+  },
   "api.page.start_unavailable": {
     "text": "impossible de démarrer la connexion",
     "en": "could not start the sign-in"

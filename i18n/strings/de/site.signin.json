@@ -1,0 +1,36 @@
+{
+  "site.signin.continue.button": {
+    "text": "Weiter",
+    "en": "Continue"
+  },
+  "site.signin.continue.cancel": {
+    "text": "Abbrechen",
+    "en": "Cancel"
+  },
+  "site.signin.continue.heading": {
+    "text": "Einrichtung des Geräts unter <b>{host}</b> fortsetzen?",
+    "en": "Continue setting up the device at <b>{host}</b>?",
+    "reviewed": "claude-backtranslation 2026-10-27 #718078fb"
+  },
+  "site.signin.continue.text": {
+    "text": "Mit „Weiter“ bekommt {host} einen Einrichtungscode für dein Konto. Tu das nur, wenn du dort selbst begonnen hast, ein Gerät einzurichten: 15 Minuten lang kann jeder mit diesem Code Geräte zu deinem Konto hinzufügen oder einen deiner Gerätenamen auf ein eigenes Gerät übertragen.",
+    "en": "Continue sends a setup code for your account to {host}. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.",
+    "reviewed": "claude-backtranslation 2026-10-27 #5570c436"
+  },
+  "site.signin.continue.title": {
+    "text": "Einrichtung fortsetzen — Off The Cloud",
+    "en": "Continue the setup — Off The Cloud"
+  },
+  "site.signin.error.back": {
+    "text": "Zurück zu deinem Konto",
+    "en": "Back to your account"
+  },
+  "site.signin.error.heading": {
+    "text": "Die Anmeldung hat nicht geklappt",
+    "en": "The sign-in didn't go through"
+  },
+  "site.signin.error.title": {
+    "text": "Anmeldeproblem — Off The Cloud",
+    "en": "Sign-in problem — Off The Cloud"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "site.signin.continue.button": {
+    "text": "Doorgaan",
+    "en": "Continue"
+  },
+  "site.signin.continue.cancel": {
+    "text": "Annuleren",
+    "en": "Cancel"
+  },
+  "site.signin.continue.heading": {
+    "text": "Doorgaan met het instellen van het apparaat op <b>{host}</b>?",
+    "en": "Continue setting up the device at <b>{host}</b>?",
+    "reviewed": "claude-backtranslation 2026-10-27 #08679de5"
+  },
+  "site.signin.continue.text": {
+    "text": "Als je doorgaat, krijgt {host} een configuratiecode voor je account. Doe dit alleen als je daar zelf bent begonnen met het instellen van een apparaat: 15 minuten lang kan iedereen met de code apparaten aan je account toevoegen of een van je apparaatnamen naar een eigen apparaat verplaatsen.",
+    "en": "Continue sends a setup code for your account to {host}. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.",
+    "reviewed": "claude-backtranslation 2026-10-27 #f48d39ef"
+  },
+  "site.signin.continue.title": {
+    "text": "Doorgaan met instellen — Off The Cloud",
+    "en": "Continue the setup — Off The Cloud"
+  },
+  "site.signin.error.back": {
+    "text": "Terug naar je account",
+    "en": "Back to your account"
+  },
+  "site.signin.error.heading": {
+    "text": "Het inloggen is niet gelukt",
+    "en": "The sign-in didn't go through"
+  },
+  "site.signin.error.title": {
+    "text": "Probleem met inloggen — Off The Cloud",
+    "en": "Sign-in problem — Off The Cloud"
+  }
+}

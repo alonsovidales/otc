@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/bridge/accounts"
+	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/site"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/i18n"
@@ -333,5 +336,45 @@ func TestSiteNotFoundPage(t *testing.T) {
 		if rec.Code != http.StatusNotFound || strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") {
 			t.Errorf("/img/missing.jpg for %q: %d %q", accept, rec.Code, rec.Header().Get("Content-Type"))
 		}
+	}
+}
+
+// The Google and Apple sign-in's own pages, through the bridge's routes: a
+// provider this bridge doesn't have, and the setup's Continue opened from
+// another site, are the site's sign-in page in the browser's language,
+// under the site's policy, with the way back to the account page in it.
+func TestSignInPagesThroughTheRoutes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	api := siteAPI(t)
+	api.dao = dao.NewWithDB(db)
+	api.accounts = accounts.Init(api.dao, []byte("test session secret"), "bridge.test")
+	api.registerAPIs()
+	for _, c := range []struct {
+		target string
+		status int
+	}{
+		{"/account/auth/nope/start", http.StatusNotFound},
+		{accounts.ContinuePath + "?id=" + strings.Repeat("ab", 16), http.StatusForbidden},
+	} {
+		for _, l := range i18n.Languages() {
+			req := httptest.NewRequest(http.MethodGet, c.target, nil)
+			req.Host = "bridge.test"
+			req.Header.Set("Accept", "text/html")
+			req.Header.Set("Accept-Language", l.Tag)
+			req.Header.Set("Sec-Fetch-Site", "cross-site")
+			rec := httptest.NewRecorder()
+			api.handler().ServeHTTP(rec, req)
+			checkPage(t, c.target+" in "+l.Code, rec, c.status, l.Code)
+			if !strings.Contains(rec.Body.String(), `<a class="btn" href="`+site.AccountPath(l.Code)+`">`) || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+				t.Errorf("%s in %s: not the sign-in's page", c.target, l.Code)
+			}
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

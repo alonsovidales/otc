@@ -350,7 +350,8 @@ func (s *scanner) scanHTML(rel string, src []byte, lineOf func(int) int) {
 // privacy.html and terms.html stay English (legal text), index.html is a
 // stale copy of the web app's shell. The landing, comparison (social,
 // alternative, drive), Raspberry Pi, account, not-found,
-// disabled and unavailable pages are html/template files the bridge embeds
+// disabled and unavailable pages, and the sign-in's own two (signin,
+// continue), are html/template files the bridge embeds
 // (bridge/site/pages), as is common.html, the head, header and footer the
 // public pages share: their text comes from site.* keys through template
 // actions.
@@ -365,6 +366,8 @@ var bridgePages = []string{
 	"bridge/site/pages/notfound.html",
 	"bridge/site/pages/disabled.html",
 	"bridge/site/pages/unavailable.html",
+	"bridge/site/pages/signin.html",
+	"bridge/site/pages/continue.html",
 }
 
 // templatePages hold Go template actions.

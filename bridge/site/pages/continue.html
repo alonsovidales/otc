@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{t "site.signin.continue.title"}}</title>
+  <meta name="robots" content="noindex">
+  {{- template "icons"}}
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style nonce="{{.Nonce}}">
+    {{- template "signin-style"}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="{{.Home}}">
+        <img src="/logo.png" alt="" width="32" height="32">
+        Off The Cloud
+      </a>
+    </div>
+  </header>
+  <main>
+    <!-- After a Google or Apple sign-in that started on a device's page on
+         the home network (bridge/accounts' confirmSetup): only Continue
+         sends that page a setup code; Cancel opens the account page. -->
+    <div class="card">
+      <h1>{{template "spans" (rich "site.signin.continue.heading" "host" .SetupHost)}}</h1>
+      <p>{{t "site.signin.continue.text" "host" .SetupHost}}</p>
+      <div class="actions">
+        <a class="btn" href="{{.SetupContinue}}">{{t "site.signin.continue.button"}}</a>
+        <a class="btn ghost" href="{{.Account}}">{{t "site.signin.continue.cancel"}}</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

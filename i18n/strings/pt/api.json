@@ -289,6 +289,10 @@
     "text": "esse fornecedor de início de sessão não está configurado nesta ponte",
     "en": "that sign-in provider is not configured on this bridge"
   },
+  "api.page.setup_expired": {
+    "text": "este passo expirou: recomeça o início de sessão a partir da página do teu dispositivo",
+    "en": "this step has expired - start the sign-in again from your device's page"
+  },
   "api.page.start_unavailable": {
     "text": "não foi possível começar o início de sessão",
     "en": "could not start the sign-in"

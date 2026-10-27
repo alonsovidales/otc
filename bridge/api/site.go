@@ -5,8 +5,6 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/rand"
-	"encoding/base64"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -260,12 +258,13 @@ func (api *API) writeLocalizedPage(w http.ResponseWriter, r *http.Request, page 
 }
 
 // writeSitePage renders page in lang (a carried code) and writes it with
-// status, under a Content-Security-Policy whose nonce only this response's
-// inline <style> and <script> elements carry. A page that can't be
-// rendered gets the bare status (500 for a page that should have been a
-// 200), and a log line naming the page - never the host or the language.
+// status, under the site's Content-Security-Policy (site.Policy), whose
+// nonce only this response's inline <style> and <script> elements carry.
+// A page that can't be rendered gets the bare status (500 for a page that
+// should have been a 200), and a log line naming the page - never the host
+// or the language.
 func (api *API) writeSitePage(w http.ResponseWriter, r *http.Request, page, lang string, status int) {
-	nonce, err := newNonce()
+	nonce, err := site.NewNonce()
 	var body []byte
 	if err == nil {
 		body, err = site.Render(page, lang, site.Options{Base: "https://" + api.tld, Nonce: nonce, Now: time.Now()})
@@ -282,7 +281,7 @@ func (api *API) writeSitePage(w http.ResponseWriter, r *http.Request, page, lang
 	if l, ok := site.Language(lang); ok {
 		h.Set("Content-Language", l.Tag)
 	}
-	h.Set("Content-Security-Policy", sitePolicy(nonce))
+	h.Set("Content-Security-Policy", site.Policy(nonce))
 	writeCompressed(w, r, "text/html; charset=utf-8", status, body)
 }
 
@@ -333,24 +332,4 @@ func acceptsGzip(header string) bool {
 		}
 	}
 	return star
-}
-
-// sitePolicy is the pages' Content-Security-Policy: their inline style and
-// scripts by nonce, and nothing from anywhere but the bridge itself (the
-// self-hosted fonts and their stylesheet, the logo and screenshots, the
-// contact form's POST, the account page's calls to /api/account). The JSON
-// blocks holding the scripts' text are data, never run.
-func sitePolicy(nonce string) string {
-	return strings.ReplaceAll(cSitePolicy, "NONCE", "'nonce-"+nonce+"'")
-}
-
-const cSitePolicy = "default-src 'none'; script-src NONCE; style-src 'self' NONCE; font-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" // i18n-ignore: a Content-Security-Policy header, not text
-
-// newNonce returns 128 random bits for one response's policy.
-func newNonce() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }

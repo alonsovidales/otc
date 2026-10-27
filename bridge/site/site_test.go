@@ -25,7 +25,7 @@ import (
 )
 
 // pages are every page the site renders.
-var pages = []string{Landing, Social, Alternative, Drive, Pi, Disabled, Unavailable, Account, NotFound}
+var pages = []string{Landing, Social, Alternative, Drive, Pi, Disabled, Unavailable, Account, NotFound, SignInProblem, ContinueSetup}
 
 // publicPages are the pages in the sitemap, in its order (localized's):
 // the landing page, the comparison pages, the Raspberry Pi page.
@@ -38,6 +38,12 @@ var testOptions = Options{
 	Base:  "https://off-the.cloud",
 	Nonce: "bm9uY2Utbm9uY2Utbm9uY2U=",
 	Now:   time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC),
+	// What the sign-in's own pages show (the others ignore them): a
+	// problem as bridge/accounts' pageError words it, and the question
+	// before a setup code goes to a device's page on the home network.
+	Problem:       "that return address is not allowed",
+	SetupHost:     "192.168.1.20:8080",
+	SetupContinue: "/account/auth/continue?id=0123456789abcdef0123456789abcdef",
 }
 
 // englishEntry is what the tests read of an English site.* entry.
@@ -485,8 +491,10 @@ var updateGoldens = flag.Bool("update", false, "rewrite testdata/*.golden from t
 // Android and iPhone cards link to their stores instead of "Coming soon",
 // and the landing page has gained the comparison page's links, its at a
 // glance list and more questions). The comparison page had no static page
-// before it: its golden is what it said when it was written. The account
-// page writes the rest of its text from its script:
+// before it: its golden is what it said when it was written, as the
+// sign-in's two pages' are (signin, continue: the first was plain text
+// before, the second is new), shown with testOptions' problem and address.
+// The account page writes the rest of its text from its script:
 // TestAccountScriptTextsUnchanged.
 func TestEnglishUnchanged(t *testing.T) {
 	for _, page := range pages {

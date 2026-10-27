@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "a sign-in starts from a link, not from within another page"},
   "api.page.open_from_account": {"text": "open this from your account page"},
   "api.page.provider_unknown": {"text": "that sign-in provider is not configured on this bridge"},
+  "api.page.setup_expired": {"text": "this step has expired - start the sign-in again from your device's page"},
   "api.page.start_unavailable": {"text": "could not start the sign-in"},
   "api.page.too_many_starts": {"text": "too many sign-in attempts from this address, try again in a minute"},
   "api.relay.account_disabled": {"text": "This account has been disabled."},

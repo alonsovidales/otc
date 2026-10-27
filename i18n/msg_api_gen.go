@@ -354,6 +354,11 @@ func ApiPageProviderUnknown() Msg {
 	return Msg{Key: "api.page.provider_unknown"}
 }
 
+// ApiPageSetupExpired is api.page.setup_expired: "this step has expired - start the sign-in again from your device's page".
+func ApiPageSetupExpired() Msg {
+	return Msg{Key: "api.page.setup_expired"}
+}
+
 // ApiPageStartUnavailable is api.page.start_unavailable: "could not start the sign-in".
 func ApiPageStartUnavailable() Msg {
 	return Msg{Key: "api.page.start_unavailable"}

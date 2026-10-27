@@ -165,31 +165,39 @@ func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 }
 
 // /api/account/continue hands out a setup token (or an app code), so only
-// the account page's own navigation may reach it - not another site's link.
+// the account page's own navigation may reach it - not another site's
+// link. For a device's page it is the question before the token (audit
+// F4), and only for the grant the provider's callback gave this browser
+// for that address and account: a link to the account page naming another
+// address (/account?complete=1&return=...) leads nowhere.
 func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 	sum := sha256.Sum256([]byte("verifier-verifier-verifier-verifier-verifier"))
 	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
-	continueReq := func(ret string, headers map[string]string) *http.Request {
+	continueReq := func(ret string, headers map[string]string, cookies ...*http.Cookie) *http.Request {
 		r := httptest.NewRequest("GET", "/api/account/continue?return="+url.QueryEscape(ret), nil)
 		for k, v := range headers {
 			r.Header.Set(k, v)
 		}
+		for _, c := range cookies {
+			r.AddCookie(c)
+		}
 		return r
 	}
 
-	// Allowed: the token goes to the wizard, the app gets a code.
+	// Allowed: the device's page gets the question, with nothing sent yet;
+	// the app gets a code.
 	for _, h := range []map[string]string{
 		{"Sec-Fetch-Site": "same-origin"},
 		{"Referer": "https://off-the.cloud/account?complete=1"},
 	} {
 		a, mock := testAccounts(t)
 		a.tld = "off-the.cloud"
-		verifiedRow(mock, "acc1", true)
-		mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+		_, grant := grantCookie(t, a, "acc1", "http://10.0.0.5/", time.Now())
 		w := httptest.NewRecorder()
-		a.ContinueSetup(w, continueReq("http://10.0.0.5/", h), "acc1")
-		if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.HasPrefix(loc, "http://10.0.0.5/?setup_token=") {
-			t.Errorf("%v: %d %q, want a redirect with a setup token", h, w.Code, loc)
+		a.ContinueSetup(w, continueReq("http://10.0.0.5/", h, grant), "acc1")
+		if body := w.Body.String(); w.Code != http.StatusOK || w.Header().Get("Location") != "" ||
+			!strings.Contains(body, "<strong>10.0.0.5</strong>") || !strings.Contains(body, ContinuePath+"?id=") {
+			t.Errorf("%v: %d %q, want the question for 10.0.0.5", h, w.Code, w.Header().Get("Location"))
 		}
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Error(err)
@@ -205,6 +213,34 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 		t.Errorf("app return: %d %q", w.Code, loc)
 	}
 
+	// No grant for that address and account: nothing asked, nothing sent.
+	for _, grant := range []func(a *Accounts) *http.Cookie{
+		func(*Accounts) *http.Cookie { return nil },
+		func(a *Accounts) *http.Cookie {
+			_, c := grantCookie(t, a, "acc1", "http://10.0.0.6/", time.Now())
+			return c
+		},
+		func(a *Accounts) *http.Cookie {
+			_, c := grantCookie(t, a, "acc2", "http://10.0.0.5/", time.Now())
+			return c
+		},
+	} {
+		a, mock := testAccounts(t)
+		a.tld = "off-the.cloud"
+		cookies := []*http.Cookie{}
+		if c := grant(a); c != nil {
+			cookies = append(cookies, c)
+		}
+		w := httptest.NewRecorder()
+		a.ContinueSetup(w, continueReq("http://10.0.0.5/", map[string]string{"Sec-Fetch-Site": "same-origin"}, cookies...), "acc1")
+		if w.Code != http.StatusBadRequest || strings.Contains(w.Body.String(), ContinuePath) {
+			t.Errorf("without this browser's grant: %d %s", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
+	}
+
 	// Refused, with nothing issued or stored (no database call at all).
 	for _, h := range []map[string]string{
 		{"Sec-Fetch-Site": "cross-site"},
@@ -218,8 +254,9 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 		for _, ret := range []string{"http://10.0.0.5/", AppReturn + "?challenge=" + challenge} {
 			a, mock := testAccounts(t)
 			a.tld = "off-the.cloud"
+			_, grant := grantCookie(t, a, "acc1", "http://10.0.0.5/", time.Now())
 			w := httptest.NewRecorder()
-			a.ContinueSetup(w, continueReq(ret, h), "acc1")
+			a.ContinueSetup(w, continueReq(ret, h, grant), "acc1")
 			if w.Code != http.StatusForbidden {
 				t.Errorf("%v to %s: %d %q, want 403", h, ret, w.Code, w.Header().Get("Location"))
 			}

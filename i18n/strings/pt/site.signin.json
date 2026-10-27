@@ -1,0 +1,36 @@
+{
+  "site.signin.continue.button": {
+    "text": "Continuar",
+    "en": "Continue"
+  },
+  "site.signin.continue.cancel": {
+    "text": "Cancelar",
+    "en": "Cancel"
+  },
+  "site.signin.continue.heading": {
+    "text": "Continuar a configurar o dispositivo em <b>{host}</b>?",
+    "en": "Continue setting up the device at <b>{host}</b>?",
+    "reviewed": "claude-backtranslation 2026-10-27 #2b58d418"
+  },
+  "site.signin.continue.text": {
+    "text": "Se continuares, {host} recebe um código de configuração da tua conta. Fá-lo apenas se foste tu que começaste a configurar um dispositivo nesse endereço: durante 15 minutos, quem tiver o código pode adicionar dispositivos à tua conta ou passar um dos nomes dos teus dispositivos para um dispositivo seu.",
+    "en": "Continue sends a setup code for your account to {host}. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.",
+    "reviewed": "claude-backtranslation 2026-10-27 #63a53ec9"
+  },
+  "site.signin.continue.title": {
+    "text": "Continuar a configuração — Off The Cloud",
+    "en": "Continue the setup — Off The Cloud"
+  },
+  "site.signin.error.back": {
+    "text": "Voltar à tua conta",
+    "en": "Back to your account"
+  },
+  "site.signin.error.heading": {
+    "text": "O início de sessão não foi concluído",
+    "en": "The sign-in didn't go through"
+  },
+  "site.signin.error.title": {
+    "text": "Problema no início de sessão — Off The Cloud",
+    "en": "Sign-in problem — Off The Cloud"
+  }
+}

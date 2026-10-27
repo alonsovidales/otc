@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "eine Anmeldung beginnt über einen Link, nicht innerhalb einer anderen Seite"},
   "api.page.open_from_account": {"text": "öffne dies über deine Kontoseite"},
   "api.page.provider_unknown": {"text": "dieser Anmeldeanbieter ist auf dieser Bridge nicht eingerichtet"},
+  "api.page.setup_expired": {"text": "dieser Schritt ist abgelaufen – starte die Anmeldung erneut über die Seite deines Geräts"},
   "api.page.start_unavailable": {"text": "die Anmeldung konnte nicht gestartet werden"},
   "api.page.too_many_starts": {"text": "zu viele Anmeldeversuche von dieser Adresse, versuche es in einer Minute erneut"},
   "api.relay.account_disabled": {"text": "Dieses Konto wurde deaktiviert."},

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{t "site.signin.error.title"}}</title>
+  <meta name="robots" content="noindex">
+  {{- template "icons"}}
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style nonce="{{.Nonce}}">
+    {{- template "signin-style"}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="{{.Home}}">
+        <img src="/logo.png" alt="" width="32" height="32">
+        Off The Cloud
+      </a>
+    </div>
+  </header>
+  <main>
+    <!-- A Google or Apple sign-in step that can't go on (bridge/accounts'
+         pageError): what went wrong, in the visitor's language, and the
+         way back to the account page in it. -->
+    <div class="card">
+      <h1>{{t "site.signin.error.heading"}}</h1>
+      <p class="problem">{{.Problem}}</p>
+      <div class="actions">
+        <a class="btn" href="{{.Account}}">{{t "site.signin.error.back"}}</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

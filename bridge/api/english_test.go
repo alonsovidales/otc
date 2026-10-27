@@ -85,6 +85,9 @@ var legacyErrors = map[string]string{
 	"api.page.provider_unknown":   "that sign-in provider is not configured on this bridge",
 	"api.page.start_unavailable":  "could not start the sign-in",
 	"api.page.too_many_starts":    "too many sign-in attempts from this address, try again in a minute",
+	// New with the question before a setup code goes to a device's page
+	// (audit F4, 2026-10-27): no text before it.
+	"api.page.setup_expired": "this step has expired - start the sign-in again from your device's page",
 	// Websocket replies (bridge/websocket checks them as relayText too).
 	"api.relay.account_disabled":    "This account has been disabled.",
 	"api.relay.device_unreachable":  "This device isn't reachable right now. It may be switched off or offline - please try again later.",

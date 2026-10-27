@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Continue"},
+  "site.signin.continue.cancel": {"text": "Cancel"},
+  "site.signin.continue.heading": {"text": "Continue setting up the device at <b>{host}</b>?", "args": [["host", "text"]]},
+  "site.signin.continue.text": {"text": "Continue sends a setup code for your account to {host}. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.", "args": [["host", "text"]]},
+  "site.signin.continue.title": {"text": "Continue the setup — Off The Cloud"},
+  "site.signin.error.back": {"text": "Back to your account"},
+  "site.signin.error.heading": {"text": "The sign-in didn't go through"},
+  "site.signin.error.title": {"text": "Sign-in problem — Off The Cloud"}
+}

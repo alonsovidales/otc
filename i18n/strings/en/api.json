@@ -302,6 +302,10 @@
     "text": "that sign-in provider is not configured on this bridge",
     "note": "Plain error page the browser shows when a sign-in with Google or Apple is asked for and this bridge has not been set up for that provider."
   },
+  "api.page.setup_expired": {
+    "text": "this step has expired - start the sign-in again from your device's page",
+    "note": "Error page the browser shows when the step that sends a setup code back to a device's page on the home network, after a sign-in with Google or Apple, is opened too late (after 15 minutes), a second time, signed out, or from another site. The person starts again from the device's page (its Settings › Bridge)."
+  },
   "api.page.start_unavailable": {
     "text": "could not start the sign-in",
     "note": "Plain error page the browser shows when the bridge could not start a Google or Apple sign-in (its database failed). Worth trying again."

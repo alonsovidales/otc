@@ -289,6 +289,10 @@
     "text": "die inlogprovider is niet ingesteld op deze bridge",
     "en": "that sign-in provider is not configured on this bridge"
   },
+  "api.page.setup_expired": {
+    "text": "deze stap is verlopen – begin opnieuw met inloggen vanaf de pagina van je apparaat",
+    "en": "this step has expired - start the sign-in again from your device's page"
+  },
   "api.page.start_unavailable": {
     "text": "kan het inloggen niet starten",
     "en": "could not start the sign-in"

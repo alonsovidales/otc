@@ -310,6 +310,9 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("GET /account/auth/{provider}/start", acc.OAuthStart)
 		api.muxHTTPServer.HandleFunc("GET /account/auth/{provider}/callback", acc.OAuthCallback)
 		api.muxHTTPServer.HandleFunc("POST /account/auth/{provider}/callback", acc.OAuthCallback)
+		// Audit F4: the question page's Continue, which alone sends a
+		// device's page on the home network its setup token.
+		api.muxHTTPServer.HandleFunc("GET "+accounts.ContinuePath, acc.ConfirmSetup)
 	}
 	api.muxHTTPServer.HandleFunc("GET /api/device-online", api.deviceOnline)
 	api.muxHTTPServer.HandleFunc("POST /api/setup-beacon", api.setupBeacon)

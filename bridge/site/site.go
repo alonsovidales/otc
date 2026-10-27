@@ -7,11 +7,14 @@
 // /private-social-network, /google-photos-alternative and
 // /google-drive-alternative, the Raspberry Pi home server page, at
 // /raspberry-pi-home-server (each also under /<code>/), the page for an
-// address the site doesn't have (notfound, answered with a 404), and the
+// address the site doesn't have (notfound, answered with a 404), the
 // two pages a device's own address shows when the bridge answers for it
-// (disabled, unavailable). It also writes what crawlers read about the
-// site (crawl.go: robots.txt, sitemap.xml, llms.txt; llmsfull.go:
-// llms-full.txt).
+// (disabled, unavailable), and the Google and Apple sign-in's own two,
+// which bridge/accounts serves (signin: what went wrong; continue: the
+// question before a setup code goes to a device's page on the home
+// network). It also writes what crawlers read about the site (crawl.go:
+// robots.txt, sitemap.xml, llms.txt; llmsfull.go: llms-full.txt) and the
+// policy every page goes out under (policy.go).
 //
 // The pages are html/template files embedded in the binary (pages/), so a
 // deploy never serves a stale copy left in the static directory, and their
@@ -19,7 +22,8 @@
 // The landing and comparison pages share their head, header and footer -
 // the {{define}} blocks of pages/common.html; head.go builds what the head
 // says about the page (Open Graph, JSON-LD) - and their style's first part,
-// pages/site.css (the comparison pages add pages/compare.css).
+// pages/site.css (the comparison pages add pages/compare.css; the sign-in's
+// two pages share pages/signin.css).
 // The rendering contract holds throughout: every text is a plain string
 // that html/template escapes for wherever it stands, and a rich key's
 // spans become elements through the fixed tags table below, whose links
@@ -68,6 +72,13 @@ const (
 	Unavailable = "unavailable.html"
 	Account     = "account.html"
 	NotFound    = "notfound.html"
+	// SignInProblem is the page a Google or Apple sign-in step that can't
+	// go on answers with (Options.Problem says why); ContinueSetup the one
+	// that asks before a setup code goes to a device's page on the home
+	// network (Options.SetupHost, Options.SetupContinue). bridge/accounts
+	// serves both, at the sign-in's own addresses.
+	SignInProblem = "signin.html"
+	ContinueSetup = "continue.html"
 )
 
 // The comparison pages' addresses after / (English) or /<code>/: one
@@ -121,7 +132,7 @@ func slugOf(page string) string {
 	return ""
 }
 
-//go:embed pages/*.html pages/site.css pages/compare.css
+//go:embed pages/*.html pages/site.css pages/compare.css pages/signin.css
 var pagesFS embed.FS
 
 // Options are what a page needs besides its language.
@@ -134,6 +145,14 @@ type Options struct {
 	Nonce string
 	// Now is when the page is shown (the footer's year).
 	Now time.Time
+	// Problem is what SignInProblem says went wrong, already in the page's
+	// language (an api.page.* or api.error.* text): plain text, escaped
+	// like any other.
+	Problem string
+	// SetupHost and SetupContinue are what ContinueSetup asks about: the
+	// address of the device's page on the home network (host[:port]), and
+	// the link that sends it the setup code.
+	SetupHost, SetupContinue string
 }
 
 // Language returns the language of code when this build carries it:
@@ -252,6 +271,9 @@ type data struct {
 	// Switcher links to the page in every carried language, this one
 	// marked as current; empty while English is the only one.
 	Switcher []choice
+	// Problem, SetupHost and SetupContinue are Options' (the sign-in's
+	// own pages).
+	Problem, SetupHost, SetupContinue string
 }
 
 type alternate struct{ Lang, Href string }
@@ -281,9 +303,12 @@ func pageData(page string, l i18n.Language, o Options) data {
 			Photos: PagePath(Alternative, l.Code),
 			Drive:  PagePath(Drive, l.Code),
 		},
-		Pi:         PagePath(Pi, l.Code),
-		Canonical:  o.Base + PagePath(page, l.Code),
-		Alternates: alternates(page, o.Base),
+		Pi:            PagePath(Pi, l.Code),
+		Canonical:     o.Base + PagePath(page, l.Code),
+		Alternates:    alternates(page, o.Base),
+		Problem:       o.Problem,
+		SetupHost:     o.SetupHost,
+		SetupContinue: o.SetupContinue,
 	}
 	if page != Landing {
 		d.Sections = d.Home
@@ -335,6 +360,14 @@ func parsePages(code string) (*template.Template, error) {
 		return nil, err
 	}
 	if _, err := t.New("compare-style").Parse(string(compare)); err != nil {
+		return nil, err
+	}
+	// What the sign-in's two pages share (signin.html, continue.html).
+	signin, err := pagesFS.ReadFile("pages/signin.css")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.New("signin-style").Parse(string(signin)); err != nil {
 		return nil, err
 	}
 	return t.ParseFS(pagesFS, "pages/*.html")

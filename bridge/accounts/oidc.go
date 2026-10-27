@@ -118,41 +118,44 @@ func (p *provider) appleClientSecret() (string, error) {
 func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
-		pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
+		a.pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok {
-		pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
+		a.pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
 	// An app's sign-in (appsignin.go): its address, always with a PKCE
 	// challenge.
 	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
 		if returnURL, ok = appReturnWithChallenge(r.URL.Query().Get("challenge")); !ok {
-			pageError(w, r, i18n.ApiPageChallengeRequired(), http.StatusBadRequest)
+			a.pageError(w, r, i18n.ApiPageChallengeRequired(), http.StatusBadRequest)
 			return
 		}
 	}
 	if !pageNavigation(r) {
-		pageError(w, r, i18n.ApiPageNotNavigation(), http.StatusBadRequest)
+		a.pageError(w, r, i18n.ApiPageNotNavigation(), http.StatusBadRequest)
 		return
 	}
 	// Counted only for a start that writes a state: a bad provider or
 	// return address costs nothing.
-	if a.oauthStarts != nil && !a.oauthStarts.Allow(clientIP(r)) {
-		pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
-		return
+	if a.oauthStarts != nil {
+		if ok, wait := a.oauthStarts.Take(clientIP(r)); !ok {
+			limits.RetryAfter(w, wait)
+			a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
+			return
+		}
 	}
 	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {
-		pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
+		a.pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	state := hex.EncodeToString(buf)
 	if err := a.dao.SaveOAuthState(state, returnURL); err != nil {
 		log.Error("error saving an oauth state:", err)
-		pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
+		a.pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	setOAuthCookies(w, state, int(cOAuthStateTTL.Seconds()))
@@ -267,14 +270,6 @@ const (
 	cSignInNoEmail   = "no_email"  // no subject, or no email the provider verified
 )
 
-// pageError answers a sign-in step that went wrong with a plain-text page.
-// Only the browser shows it (or an app's sign-in sheet), and nothing reads
-// it, so unlike the API's JSON errors it is written in the browser's
-// language: the first in Accept-Language this build carries, else English.
-func pageError(w http.ResponseWriter, r *http.Request, m i18n.Msg, status int) {
-	http.Error(w, m.Render(acceptLanguage(r.Header.Get("Accept-Language"))), status)
-}
-
 // cCallbackMaxBody bounds a sign-in callback's form post (Apple's: a
 // code, a state and, the first time, the person's name).
 const cCallbackMaxBody = 64 << 10
@@ -286,18 +281,21 @@ func signInError(w http.ResponseWriter, r *http.Request, code string) {
 
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
 // id_token, finds or creates the account, sets the session, and sends the
-// browser on: to the wizard with a setup token when the sign-in started
-// there, to /account otherwise (or to complete the profile first).
+// browser on: to /account (or to complete the profile first); to the app
+// with its one-time code when the sign-in started there; and when it
+// started on a device's page on the home network, to the question before
+// that page gets a setup token (askBeforeSetup, setupconfirm.go) - this
+// page itself, or ContinueSetup's after the profile.
 func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
-		pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
+		a.pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
 		return
 	}
 	// Apple's form post arrives within limits.BodyReadTimeout, as a JSON
 	// body does: the servers set no ReadTimeout.
 	if err := limits.ParseForm(w, r, cCallbackMaxBody); err != nil {
-		pageError(w, r, i18n.ApiPageBadCallback(), http.StatusBadRequest)
+		a.pageError(w, r, i18n.ApiPageBadCallback(), http.StatusBadRequest)
 		return
 	}
 	state, code := r.Form.Get("state"), r.Form.Get("code")
@@ -360,7 +358,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	acc, err := a.dao.GetAccountByLogin(p.name, subject)
 	if err != nil {
-		pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
+		a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	if acc == nil {
@@ -368,7 +366,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// provider) earlier: same person, link rather than duplicate.
 		acc, err = a.dao.GetAccountByEmail(email)
 		if err != nil {
-			pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
+			a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 			return
 		}
 		if acc != nil && acc.PasswordHash != "" {
@@ -381,7 +379,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// the user can simply try again.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
-				pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
+				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
 			acc.PasswordHash = ""
@@ -395,7 +393,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 				Lang: requestLanguage("", r)}
 			if err := a.dao.CreateAccount(&created); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
-				pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
+				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
 			acc = &created
@@ -423,6 +421,19 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	a.setSession(w, r, acc.ID)
 	_ = a.dao.TouchAccount(acc.ID)
 
+	// Audit F4: a device's page gets its setup token only once the person
+	// says so, in this browser (setupconfirm.go).
+	var grant setupGrant
+	if needsConfirm(returnURL) {
+		id, err := a.grantSetup(w, acc.ID, returnURL, time.Now())
+		if err != nil {
+			log.Error("could not make a setup grant:", err)
+			a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
+			return
+		}
+		grant = setupGrant{id: id, accountID: acc.ID, returnURL: returnURL}
+	}
+
 	// Issue #175: a new Google/Apple account accepts the terms on the
 	// same page where it completes its profile.
 	complete := acc.Name != "" && acc.Surname != "" && acc.Country != "" && TermsAccepted(acc)
@@ -434,11 +445,17 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/account?"+q.Encode(), http.StatusFound)
 		return
 	}
+	if grant.id != "" {
+		a.askBeforeSetup(w, r, grant)
+		return
+	}
 	http.Redirect(w, r, a.afterSignIn(acc.ID, returnURL), http.StatusFound)
 }
 
-// afterSignIn is where a finished sign-in lands: back in the wizard with a
-// setup token when it started there, else the account page.
+// afterSignIn is where a finished sign-in lands: back on the device's page
+// with a setup token when it started there (only ever once the person said
+// so: ConfirmSetup), in the app with its one-time code, else the account
+// page.
 func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	if returnURL == "" {
 		return "/account"
@@ -459,9 +476,12 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	return returnURL + sep + "setup_token=" + url.QueryEscape(tok)
 }
 
-// ContinueSetup sends a signed-in browser back to the wizard with a fresh
-// setup token: the last step of "complete your profile" after a provider
-// sign-in that started in the wizard. GET /api/account/continue?return=.
+// ContinueSetup is the last step of "complete your profile" after a
+// provider sign-in that started on a device's page or in an app: GET
+// /api/account/continue?return=. The app gets its one-time code; a device's
+// page the question before its setup token (askBeforeSetup), for the grant
+// the provider's callback gave this browser for that address - none, and
+// nothing goes there.
 //
 // Only the account page itself may send the browser here: the Lax cookie
 // rides on any site's link, and that site would pick where the token goes
@@ -469,12 +489,22 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !a.sameOriginNavigation(r) {
 		log.Info("refused a cross-site /api/account/continue")
-		pageError(w, r, i18n.ApiPageOpenFromAccount(), http.StatusForbidden)
+		a.pageError(w, r, i18n.ApiPageOpenFromAccount(), http.StatusForbidden)
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok || returnURL == "" {
-		pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
+		a.pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
+		return
+	}
+	if needsConfirm(returnURL) {
+		g, ok := a.setupGrantFor(r, accountID, returnURL, time.Now())
+		if !ok {
+			log.Info("refused a setup's continue without this browser's sign-in for it")
+			a.pageError(w, r, i18n.ApiPageSetupExpired(), http.StatusBadRequest)
+			return
+		}
+		a.askBeforeSetup(w, r, g)
 		return
 	}
 	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)

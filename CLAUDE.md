@@ -1410,7 +1410,8 @@ username). The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetu
 sessionStorage (never passwords or the terms checkbox); the Mac's setup window has its own
 language menu (`LanguageMenu` in `LanguagePicker.swift`). It words install.sh's steps from its
 `[otc-install] @step|@error <token>` marks, only when the key's English equals the line that
-follows. The bridge's landing, comparison, account, not-found, disabled and unavailable pages are templates in
+follows. The bridge's landing, comparison, account, not-found, disabled and unavailable pages, and
+the Google/Apple sign-in's own two (`signin.html`, `continue.html`, `site.signin.*`), are templates in
 `bridge/site` (Frontend below); its emails follow `accounts.lang` (their links go to
 `/<code>/account` for a carried non-English language; `mail.date.long`'s `{day}` is a count only so
 French can write "1er janvier"), while its JSON `error` texts and websocket replies stay English (a
@@ -2070,7 +2071,18 @@ sign-in's state is tied to the browser by `__Host-otc_oauth_<state[:16]>` (SameS
 `_l` twin without SameSite (Safari 12); a 48-hex state from an older build (`isPreCookieState`)
 passes without. `GET /account/auth/{provider}/start` answers 400 unless it is a top-level
 navigation: open it as a page, never fetch or frame it. `GET /api/account/continue` needs
-`Sec-Fetch-Site: same-origin` (or an https Referer on the bridge's host). The bridge DSN has
+`Sec-Fetch-Site: same-origin` (or an https Referer on the bridge's host). Audit F4
+(`setupconfirm.go`): a sign-in that comes back to a device's page on the home network (BridgePanel;
+not the apps' `otcsetup://`) never redirects there with the token straight away: the callback answers
+with the question page itself ("Continue setting up the device at <host>?", `site.ContinueSetup`,
+site CSP, `X-Frame-Options: DENY`, `no-store`), or `/api/account/continue` does after the profile,
+and only its Continue (`GET /account/auth/continue?id=`: a same-origin page navigation, not a
+prefetch, signed in to the grant's account) mints the token. The grant is the callback's signed
+`__Host-otc_setup_<id>` cookie (account, address, 15 min, used once), so a link to
+`/account?complete=1&return=<another address>` leads nowhere; Cancel opens the account page.
+`pageError` answers a browser with the site's `signin.html` in its Accept-Language (the
+`api.page.*` text under a heading, a link to the account page), and plain text to anything that
+doesn't ask for HTML; the starts' 429 carries Retry-After. The bridge DSN has
 `timeout=5s` and read/write timeouts of 60 s (above InnoDB's 50 s lock wait); relay-path queries run under a 5 s
 context (`cRelayDBTimeout`) - follow that for anything new there. A `device_metrics` write that
 timed out is dropped, not retried.

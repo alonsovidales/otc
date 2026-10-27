@@ -1,0 +1,48 @@
+{
+  "site.signin.continue.button": {
+    "text": "Continue",
+    "note": "Button of the page the bridge shows before it sends a setup code to a device's page on the home network: it sends the code and goes back to that page.",
+    "max": 30
+  },
+  "site.signin.continue.cancel": {
+    "text": "Cancel",
+    "note": "Button of the page the bridge shows before it sends a setup code to a device's page on the home network: it sends nothing and opens the account page instead.",
+    "max": 30
+  },
+  "site.signin.continue.heading": {
+    "text": "Continue setting up the device at <b>{host}</b>?",
+    "args": [["host", "text"]],
+    "note": "Heading of the page the bridge shows after a sign-in with Google or Apple that started on a device's own page on the home network, before it sends that page a setup code. {host} is that page's address on the home network (192.168.1.20:8080, otc.local:8080), in bold (<b>): it stays as it is.",
+    "max": 100,
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #ad658af1"
+  },
+  "site.signin.continue.text": {
+    "text": "Continue sends a setup code for your account to {host}. Only do this if you started setting up a device there yourself: for 15 minutes, whoever has the code can add devices to your account, or move one of your device names to a device of theirs.",
+    "args": [["host", "text"]],
+    "note": "Text under site.signin.continue.heading, above the Continue (site.signin.continue.button) and Cancel (site.signin.continue.cancel) buttons. {host} is the address of the device's page on the home network (192.168.1.20:8080): it stays as it is. A setup code is what links a new device to an account; a device name is a device's address on the bridge (name.off-the.cloud). It warns that someone who tricked the person into this page could take over their devices.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #67dec12b"
+  },
+  "site.signin.continue.title": {
+    "text": "Continue the setup — Off The Cloud",
+    "note": "Page the bridge shows after a sign-in with Google or Apple that started on a device's own page on the home network (its Settings › Bridge), before it sends that page a setup code: the page title, in the browser tab. Off The Cloud is the product name.",
+    "max": 60
+  },
+  "site.signin.error.back": {
+    "text": "Back to your account",
+    "note": "Page the bridge shows when a sign-in with Google or Apple can't go on: the button under what went wrong, which opens the account page.",
+    "max": 40
+  },
+  "site.signin.error.heading": {
+    "text": "The sign-in didn't go through",
+    "note": "Page the bridge shows when a sign-in with Google or Apple can't go on: the heading, above the sentence saying what went wrong (one of the api.page.* texts).",
+    "max": 60
+  },
+  "site.signin.error.title": {
+    "text": "Sign-in problem — Off The Cloud",
+    "note": "Page the bridge shows when a sign-in with Google or Apple can't go on (a link that isn't valid, a step that expired, the bridge failing): the page title, in the browser tab. Off The Cloud is the product name.",
+    "max": 60
+  }
+}

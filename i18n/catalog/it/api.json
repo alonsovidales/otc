@@ -69,6 +69,7 @@
   "api.page.not_navigation": {"text": "un accesso parte da un link, non dall’interno di un’altra pagina"},
   "api.page.open_from_account": {"text": "aprilo dalla pagina del tuo account"},
   "api.page.provider_unknown": {"text": "questo provider di accesso non è configurato su questo bridge"},
+  "api.page.setup_expired": {"text": "questo passaggio è scaduto: ricomincia l’accesso dalla pagina del tuo dispositivo"},
   "api.page.start_unavailable": {"text": "impossibile avviare l’accesso"},
   "api.page.too_many_starts": {"text": "troppi tentativi di accesso da questo indirizzo, riprova tra un minuto"},
   "api.relay.account_disabled": {"text": "Questo account è stato disattivato."},

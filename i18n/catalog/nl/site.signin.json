@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Doorgaan"},
+  "site.signin.continue.cancel": {"text": "Annuleren"},
+  "site.signin.continue.heading": {"text": "Doorgaan met het instellen van het apparaat op <b>{host}</b>?"},
+  "site.signin.continue.text": {"text": "Als je doorgaat, krijgt {host} een configuratiecode voor je account. Doe dit alleen als je daar zelf bent begonnen met het instellen van een apparaat: 15 minuten lang kan iedereen met de code apparaten aan je account toevoegen of een van je apparaatnamen naar een eigen apparaat verplaatsen."},
+  "site.signin.continue.title": {"text": "Doorgaan met instellen — Off The Cloud"},
+  "site.signin.error.back": {"text": "Terug naar je account"},
+  "site.signin.error.heading": {"text": "Het inloggen is niet gelukt"},
+  "site.signin.error.title": {"text": "Probleem met inloggen — Off The Cloud"}
+}

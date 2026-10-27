@@ -1,0 +1,32 @@
+/* The Google and Apple sign-in's own pages (signin.html: what went wrong;
+   continue.html: the question before a setup code goes to a device's page
+   on the home network), in the account page's colours: its header, and one
+   card. site.go parses this file as the template "signin-style". */
+:root{
+  --ink:#10231f; --ink-2:#0b1815; --ember:#ff6b4a; --gold:#ffc857; --mist:#eaf2ef; --mist-dim:#b9c9c4;
+  --line:rgba(234,242,239,.12); --panel:rgba(234,242,239,.05);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font:16px/1.55 'Manrope',system-ui,-apple-system,sans-serif;color:var(--mist);background:var(--ink)}
+a{color:var(--gold)}
+header{border-bottom:1px solid var(--line);background:var(--ink-2)}
+.nav{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+.brand img{width:32px;height:32px;border-radius:8px}
+main{max-width:600px;margin:0 auto;padding:48px 20px 60px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+h1{font-family:'Unbounded',sans-serif;font-size:1.3rem;line-height:1.35;margin:0 0 14px;letter-spacing:-.01em;overflow-wrap:anywhere}
+/* The device's address, in the monospace font: l and 1, or O and 0,
+   can't be taken for each other. */
+h1 strong{color:var(--gold);font-family:'JetBrains Mono',monospace;letter-spacing:0}
+p{margin:0 0 12px;color:var(--mist-dim);overflow-wrap:anywhere}
+/* api.page.* texts are written to follow other words; on a page of their
+   own they start a sentence. */
+p.problem{color:var(--mist)}
+p.problem::first-letter{text-transform:uppercase}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn{display:inline-block;font:inherit;font-weight:700;padding:10px 18px;border-radius:10px;border:1px solid transparent;background:var(--ember);color:var(--ink-2);text-decoration:none;text-align:center;text-wrap:balance}
+.btn.ghost{background:transparent;color:var(--mist);border-color:var(--line)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (max-width:480px){.actions .btn{flex:1 1 100%}}

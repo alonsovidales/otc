@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Weiter"},
+  "site.signin.continue.cancel": {"text": "Abbrechen"},
+  "site.signin.continue.heading": {"text": "Einrichtung des Geräts unter <b>{host}</b> fortsetzen?"},
+  "site.signin.continue.text": {"text": "Mit „Weiter“ bekommt {host} einen Einrichtungscode für dein Konto. Tu das nur, wenn du dort selbst begonnen hast, ein Gerät einzurichten: 15 Minuten lang kann jeder mit diesem Code Geräte zu deinem Konto hinzufügen oder einen deiner Gerätenamen auf ein eigenes Gerät übertragen."},
+  "site.signin.continue.title": {"text": "Einrichtung fortsetzen — Off The Cloud"},
+  "site.signin.error.back": {"text": "Zurück zu deinem Konto"},
+  "site.signin.error.heading": {"text": "Die Anmeldung hat nicht geklappt"},
+  "site.signin.error.title": {"text": "Anmeldeproblem — Off The Cloud"}
+}

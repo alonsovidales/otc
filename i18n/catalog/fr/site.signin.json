@@ -1,0 +1,10 @@
+{
+  "site.signin.continue.button": {"text": "Continuer"},
+  "site.signin.continue.cancel": {"text": "Annuler"},
+  "site.signin.continue.heading": {"text": "Poursuivre la configuration de l’appareil à l’adresse <b>{host}</b> ?"},
+  "site.signin.continue.text": {"text": "En continuant, vous envoyez à {host} un code de configuration de votre compte. Ne le faites que si vous avez vous-même commencé à configurer un appareil à cette adresse : pendant 15 minutes, quiconque détient ce code peut ajouter des appareils à votre compte ou attribuer l’un des noms de vos appareils à un appareil qui lui appartient."},
+  "site.signin.continue.title": {"text": "Poursuivre la configuration — Off The Cloud"},
+  "site.signin.error.back": {"text": "Retour à votre compte"},
+  "site.signin.error.heading": {"text": "La connexion n’a pas abouti"},
+  "site.signin.error.title": {"text": "Problème de connexion — Off The Cloud"}
+}
