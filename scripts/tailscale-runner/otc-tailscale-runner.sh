@@ -20,7 +20,10 @@ set -uo pipefail
 REQUEST=/var/lib/otc/tailscale.request
 STATUS_FILE=/var/lib/otc/tailscale-status.json
 
-want="$(head -c 8 "$REQUEST" 2>/dev/null | tr -dc 'a-z')"
+# The directory is the otc user's: read without following a symlink and
+# without blocking on a FIFO put in the file's place (as
+# otc-update-stopped.sh reads its status), 8 bytes at most.
+want="$(dd if="$REQUEST" iflag=nofollow,nonblock bs=8 count=1 status=none 2>/dev/null | tr -dc 'a-z')"
 rm -f "$REQUEST"
 
 # Temp file moved into place: the directory is the otc user's, and a plain

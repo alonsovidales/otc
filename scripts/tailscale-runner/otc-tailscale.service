@@ -8,4 +8,8 @@ Description=Off The Cloud Tailscale switch
 [Service]
 Type=oneshot
 User=root
+# A oneshot has no start timeout by default: a hung tailscaled or
+# tailscale call kept the unit "activating" for good. Far beyond a run:
+# the daemon's start and at most 20 s waiting for it to answer.
+TimeoutStartSec=2min
 ExecStart=/usr/local/bin/otc-tailscale-runner

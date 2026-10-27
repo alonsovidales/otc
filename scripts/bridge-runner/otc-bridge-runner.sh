@@ -25,8 +25,11 @@ ENV_FILE=/etc/otc/otc-install.env
 DEFAULT_BRIDGE=off-the.cloud
 
 # Only "off left" / "off released" mean anything; any other content is
-# the switch-on request it always was.
-request="$(head -c 64 "$REQUEST" 2>/dev/null | head -1)"
+# the switch-on request it always was. The directory is the otc user's:
+# read without following a symlink and without blocking on a FIFO put in
+# the file's place (as otc-update-stopped.sh reads its status), 64 bytes
+# at most.
+request="$(dd if="$REQUEST" iflag=nofollow,nonblock bs=64 count=1 status=none 2>/dev/null | head -1)"
 rm -f "$REQUEST"
 
 # Written to a fresh temp file and moved into place: the directory is the

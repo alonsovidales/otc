@@ -8,6 +8,10 @@ Description=Off The Cloud bridge switch-on
 [Service]
 Type=oneshot
 User=root
+# A oneshot has no start timeout by default: a hung step (mysql, the
+# restart below) kept the unit "activating" for good. Far beyond a run:
+# a few queries and the service's restart.
+TimeoutStartSec=2min
 ExecStart=/usr/local/bin/otc-bridge-runner
 # It ends by restarting otc.service; a unit of its own so that restart
 # doesn't take this script down with it.
