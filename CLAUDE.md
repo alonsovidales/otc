@@ -1486,6 +1486,33 @@ where the device served the page (not `localhost` dev, not `__OTC_CONFIG`); it w
 account and needs nothing from the internet (an earlier draft compared `CheckUpdate`'s version,
 which only the primary instance answers and which fetches the release list from GitHub).
 
+The first-run tour on the web (`components/Tour.tsx`, rules in `tourSteps.ts`, `node
+web/scripts/tour-test.mjs`; the phones have their own `TourView` with the same rules and their own
+steps): a card in a native modal `<dialog>` (centred from 600px, a sheet at the foot below that),
+one step at a time - welcome, menu, images, people (only while face recognition is on: steps are
+kept by id, so People can come or go mid-tour), collections, files, social, post, friends, alerts,
+done - with Skip on every step. What a step says never depends on the page, and every label it
+quotes is an argument from that label's own key (`web.tour.*`; section titles reuse
+`web.shell.menu.*`), so it follows their wording in every language. It opens by itself once per
+browser origin, the first time the signed-in shell shows, however the sign-in came (a restored
+session too, so people signed in before the tour get it once) - never over a new device's setup,
+in the phone apps' web view (`__OTC_CONFIG`), on `/shared` or with `?download`: `claimAutoTour`
+writes `localStorage.otc_tour_seen` = `cTourVersion` (1; raise it only to show a rewritten tour
+again) before it shows, storage that throws means no tour by itself, and Sign out keeps the flag.
+Show the tour (account menu, between Settings and Sign out; Settings › Getting started, after
+Language) replays it from step 1 and leaves the flag alone. App keeps `tour` (`{step, auto}`), so it
+comes back at its step after the unreachable screen, and drops it when the session ends;
+`handleSignedIn` holds `promptForPushIfNeverAsked` until a tour that opened by itself closes (the
+prompt then runs inside that click). Where a step's control is on screen (`data-tour` on the docked
+menu and its items - looked up under `.sb-dock` only -, `.tb-menu`, `.tb-action` and `.am-btn`) the
+dimmed layer, an SVG path with an evenodd hole, leaves a hole and an ember ring around it: a click
+in the hole ends the tour and is passed to the control under it (`elementFromPoint` once the dialog
+is closed); a click elsewhere on the layer, Esc or a close the browser makes itself is Skip. Its
+keydown listener stops every key (arrows step, Tab stays in the card; the explicit `role="dialog"`
+is for Files' capture-phase Escape), wheel and one-finger touch moves are cancelled unless the
+card's text scrolls, the focus goes back to the opener if it had keyboard focus, else the account
+button, and a polite live region reads each new step. It sends nothing, so the demo needs nothing.
+
 Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in main.tsx: shown at
 once on hover and on keyboard focus, in a portal), not `title`, whose tip waits about a second. An
 icon-only control also gets an `aria-label` (`data-tip` isn't read out); a text button whose tip

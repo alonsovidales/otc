@@ -38,7 +38,8 @@ function reprocessPercent(s: { total: number; processed: number }): number {
 // toFixed the exact value), so Intl only lays out the final digits.
 const usedGB = (t: TFunction, bytes: number) => unitText(t, Number((bytes / 1024 ** 3).toFixed(2)), "gigabyte", 2);
 
-export default function SettingsForm() {
+// onShowTour: Getting started's button, the first-run tour again (Tour.tsx).
+export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }) {
   const t = useT();
   const demo = useDemo();
   // Loaded settings
@@ -354,6 +355,14 @@ export default function SettingsForm() {
       </section>
 
       <LanguagePanel />
+
+      {onShowTour && (
+        <section className="sf-section">
+          <h3>{t("web.tour.settings.title")}</h3>
+          <p className="sf-hint">{t("web.tour.settings.hint")}</p>
+          <button type="button" className="sf-btn" onClick={onShowTour}>{t("web.tour.show")}</button>
+        </section>
+      )}
 
       <UsersPanel />
 

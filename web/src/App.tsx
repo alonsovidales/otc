@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
 import { useWS } from "./net/useWS";
@@ -42,6 +42,8 @@ import AccountMenu from "./components/AccountMenu";
 import TopSignIn, { type Interrupted } from "./components/TopSignIn";
 import LanguagePicker from "./components/LanguagePicker";
 import { pageEndpoint } from "./net/endpoint";
+import Tour from "./components/Tour";
+import { claimAutoTour, type TourStepId } from "./components/tourSteps";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -229,16 +231,66 @@ function App() {
     setTab((current) => (cAuthOnlyTabs.includes(current) ? cLandingTab : current));
   };
 
+  // The first-run tour (Tour.tsx, rules in tourSteps.ts): its step is kept
+  // here, so it comes back where it was after the unreachable screen. It
+  // opens by itself the first time this browser shows the signed-in app -
+  // however it signed in, people signed in before the tour existed too -
+  // never over a new device's setup, inside the phone apps' web view, on a
+  // shared gallery or a download (claimAutoTour marks it seen as it opens);
+  // and again, from its first step, with Show the tour in the account menu
+  // or Settings. autoTour says at once (before React renders) that the open
+  // one came by itself; pushAfterTour holds the notification prompt
+  // (handleSignedIn) until it closes.
+  const [tour, setTour] = useState<{ step: TourStepId; auto: boolean } | null>(null);
+  const autoTour = useRef(false);
+  const pushAfterTour = useRef(false);
+  const openTour = useCallback((auto: boolean) => {
+    setDrawerOpen(false);
+    autoTour.current = auto;
+    setTour({ step: "welcome", auto });
+  }, []);
+  // Whether the tour is open by itself now: already, or just opened.
+  const startAutoTour = useCallback((): boolean => {
+    if (autoTour.current) return true;
+    if (mobile || !claimAutoTour(() => window.localStorage)) return false;
+    openTour(true);
+    return true;
+  }, [mobile, openTour]);
+  const moveTour = useCallback((step: TourStepId) => setTour((cur) => (cur ? { ...cur, step } : cur)), []);
+  // Skip, Done, Esc or a click: the prompt it held back is asked now,
+  // inside that event.
+  const closeTour = useCallback(() => {
+    setTour(null);
+    autoTour.current = false;
+    if (pushAfterTour.current) {
+      pushAfterTour.current = false;
+      promptForPushIfNeverAsked();
+    }
+  }, []);
+  // The session ended: the tour goes with it (and its held prompt).
+  useEffect(() => {
+    if (authenticated) return;
+    setTour(null);
+    autoTour.current = false;
+    pushAfterTour.current = false;
+  }, [authenticated]);
+
   // Issue #43: nudge for browser push permission right after sign-in,
   // rather than requiring the user to go find "Enable Notifications" in
   // Settings — only for the plain browser (mobile already registers for
   // APNs natively, see OffTheCloudApp.swift's AppDelegate; this path has
   // no bearing on that one). promptForPushIfNeverAsked no-ops after the
-  // first time it's ever asked, whichever way it went.
+  // first time it's ever asked, whichever way it went. When the tour
+  // opens by itself it waits for the tour to close, so the two never show
+  // together.
   const handleSignedIn = () => {
     setTab("Social");
+    const touring = startAutoTour();
     // Not for a demo device: its pushes aren't anyone's.
-    if (!mobile && !isDemo()) promptForPushIfNeverAsked();
+    if (!mobile && !isDemo()) {
+      if (touring) pushAfterTour.current = true;
+      else promptForPushIfNeverAsked();
+    }
   };
 
   // The device writes this browser's pushes in the language the page shows
@@ -444,6 +496,13 @@ function App() {
     })();
   }, [downloadLink]);
 
+  // The tour by itself, the first time the signed-in app shows here: after
+  // a restored session too (after a sign-in handleSignedIn opens it first,
+  // to hold the notification prompt).
+  const inSetup = setupShown && tab === "SignIn";
+  const shellShown = authenticated && !inSetup && !deviceStatus && !downloadLink && window.location.pathname !== "/shared";
+  useEffect(() => { if (shellShown) startAutoTour(); }, [shellShown, startAutoTour]);
+
   // If this is a download, that's the whole page. The wait here is the
   // longest of the lot - the device builds the archive and sends it over
   // the relay before the browser sees a byte - so it gets a spinner
@@ -500,7 +559,7 @@ function App() {
     <>
       <header className="topbar">
         {authenticated && (
-          <button className="tb-menu" onClick={toggleMenu} aria-label={menuShown ? t("web.shell.top.hide_menu") : t("web.shell.top.show_menu")} aria-expanded={menuShown}>
+          <button className="tb-menu" data-tour="menu-button" onClick={toggleMenu} aria-label={menuShown ? t("web.shell.top.hide_menu") : t("web.shell.top.show_menu")} aria-expanded={menuShown}>
             <MenuIcon size={24} />
           </button>
         )}
@@ -520,6 +579,7 @@ function App() {
         {authenticated && tab === "Social" && openComposer && (
           <button
             className="tb-action"
+            data-tour="new-post"
             onClick={() => openComposer()}
             aria-label={t("web.shell.top.new_post")}
             data-tip={actionIconOnly && canHover ? t("web.shell.top.new_post") : undefined}
@@ -532,7 +592,12 @@ function App() {
             Fetched again as Settings, where the profile is edited, opens
             and closes. */}
         {authenticated && (
-          <AccountMenu onOpenSettings={() => setTab("Settings")} refreshKey={tab === "Settings"} tip={canHover} />
+          <AccountMenu
+            onOpenSettings={() => setTab("Settings")}
+            onShowTour={inSetup ? undefined : () => openTour(false)}
+            refreshKey={tab === "Settings"}
+            tip={canHover}
+          />
         )}
         {/* The language, before signing in: Settings, where it lives, needs
             a session. Below 700px only its globe shows, as the page action
@@ -606,7 +671,7 @@ function App() {
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
         {tab === "People" && (authenticated ? faces && <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
-        {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
+        {tab === "Settings" && (authenticated ? <SettingsForm onShowTour={() => openTour(false)} /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage
             onOpenPost={(pubUuid, commentUuid) => {
@@ -621,6 +686,7 @@ function App() {
         ) : signedOutPlaceholder)}
       </main>
       </div>
+      {tour && authenticated && !inSetup && <Tour step={tour.step} faces={faces} onStep={moveTour} onClose={closeTour} />}
     </>
   )
 }

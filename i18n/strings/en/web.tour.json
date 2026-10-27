@@ -1,0 +1,153 @@
+{
+  "web.tour.alerts.text": {
+    "text": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and language.",
+    "args": [["alerts", "text"], ["settings", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about Alerts and Settings. {alerts} and {settings} are the menu's items (web.shell.menu.alerts, web.shell.menu.settings), in bold. Alerts also says when the device needs attention (an update, a disk).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.alerts.title": {
+    "text": "Alerts and Settings",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Title of the step about the menu's Alerts and Settings sections.",
+    "max": 48
+  },
+  "web.tour.collections.text": {
+    "text": "Keep photos that belong together in one place, like a trip or a birthday. In Images, select photos with the circle on each one (or press and hold), then choose <b>{add}</b>.",
+    "args": [["add", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about Collections (its title is the menu's Collections; our word for groups of photos, never albums). The circle shows on a photo under the mouse; on a touch screen a photo is selected by pressing and holding it. {add} is the selection bar's button (web.images.select.collect), in bold.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.done.text": {
+    "text": "See this tour again any time: choose <b>{show}</b> in the account menu, at the top right, or in Settings.",
+    "args": [["show", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the last step. {show} is the item of the account menu (the picture at the right end of the top bar) that shows the tour again (web.tour.show); Settings has the same button.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.done.title": {
+    "text": "You're all set",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Title of the last step.",
+    "max": 48
+  },
+  "web.tour.files.text": {
+    "text": "Your documents and folders, kept on your device. Drag files onto the Files page to upload them, and click a file to open it.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about Files (its title is the menu's Files). Files are uploaded by dragging them from the computer onto the page.",
+    "max": 220
+  },
+  "web.tour.friends.accept": {
+    "text": "A request sent to you waits under <b>{waiting}</b>: choose <b>{accept}</b>.",
+    "args": [["waiting", "text"], ["accept", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about Friends, second paragraph: a friend request someone else sent. {waiting} is the title of the list of requests waiting for an answer (web.social.friends.waiting_title) and {accept} its button (common.accept).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.friends.add": {
+    "text": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and choose <b>{send}</b>.",
+    "args": [["suffix", "text"], ["heading", "text"], ["send", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about Friends (its title is the menu's Friends), first paragraph. {suffix} is the end of every device's address (off-the.cloud); friends are added by their device's name alone. {heading} is the title of the box with the field (web.social.friends.add_title) and {send} its button (web.social.friends.send).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.friends.own": {
+    "text": "Your own address is in the account menu, under your name.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about Friends, last paragraph: where to find the address to give friends. The account menu opens from the picture at the right end of the top bar; it shows the profile's name with this device's address under it.",
+    "max": 220
+  },
+  "web.tour.images.text": {
+    "text": "All your photos and videos, newest first. Search at the top for places and things in your photos.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about Images (its title is the menu's Images). The search field in the top bar finds the places and the things (a beach, a dog) the device recognised in the photos.",
+    "max": 220
+  },
+  "web.tour.menu.text": {
+    "text": "Everything is in the menu on the left. On a small screen, open it with the menu button at the top left.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about the left menu. On a phone the menu is hidden and opens with the three-line button at the top left of the top bar.",
+    "max": 220
+  },
+  "web.tour.menu.title": {
+    "text": "Find your way",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Title of the step about the left menu.",
+    "max": 48
+  },
+  "web.tour.people.text": {
+    "text": "The faces found in your photos, one person each. Choose <b>{name}</b> to name someone, and click a face to see all their photos.",
+    "args": [["name", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about People (its title is the menu's People; shown only while face recognition is on). {name} is the button under a face without a name (web.images.people.add_name), in bold.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.post.also": {
+    "text": "Or select photos in Images and choose <b>{post}</b>.",
+    "args": [["post", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about publishing a post, the line under the numbered list: the other way to post. {post} is the button of the selection bar in Images (web.images.select.post).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.post.step1": {
+    "text": "In Social, choose <b>+ {new_post}</b> at the top.",
+    "args": [["new_post", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about publishing a post, first item of a numbered list. {new_post} is the top bar's button on the Social page (web.shell.top.new_post), which has a plus sign before it; keep the plus.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.post.step2": {
+    "text": "Pick photos or videos from <b>{library}</b> (already on your device) or <b>{computer}</b>.",
+    "args": [["library", "text"], ["computer", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about publishing a post, second item of the numbered list. {library} and {computer} are the composer's two tabs (web.social.composer.library and web.social.composer.this_computer): photos already on the device, or files from this computer.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.post.step3": {
+    "text": "Write a caption, then choose <b>{publish}</b>.",
+    "args": [["publish", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Step about publishing a post, third item of the numbered list. Every post needs a caption. {publish} is the composer's button (web.social.composer.publish).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "web.tour.post.title": {
+    "text": "Publish a post",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Title of the step that explains how to publish a post in Social.",
+    "max": 48
+  },
+  "web.tour.progress": {
+    "text": "Step {step} of {total}",
+    "args": [["step", "int"], ["total", "int"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Line at the top left of the card. {step} is the step shown, {total} how many there are (10 or 11).",
+    "max": 32
+  },
+  "web.tour.settings.hint": {
+    "text": "A short tour of Off The Cloud: your photos, posting to Social, friends and where everything is.",
+    "note": "Settings › Getting started: the line under its title, above the Show the tour button. Social is the section with friends' posts.",
+    "max": 220
+  },
+  "web.tour.settings.title": {
+    "text": "Getting started",
+    "note": "Title of the section of Settings (after Language) with the button that shows the first-run tour again.",
+    "max": 48
+  },
+  "web.tour.show": {
+    "text": "Show the tour",
+    "note": "Item of the account menu (top bar, right; between Settings and Sign out) and button in Settings › Getting started that shows the first-run tour again from its first step. Quoted in web.tour.done.text.",
+    "max": 32
+  },
+  "web.tour.skip": {
+    "text": "Skip",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Button at the top right of the card that ends the tour at once (it can be shown again from the account menu or Settings).",
+    "max": 32
+  },
+  "web.tour.social.text": {
+    "text": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the step about Social (its title is the menu's Social): the posts of the user and their friends. The heart under a post likes it. Posts travel straight from one device to the others, with no cloud in between.",
+    "max": 220
+  },
+  "web.tour.welcome.text": {
+    "text": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own.",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Text of the first step, under the logo. The device is the Off The Cloud box at home that keeps everything.",
+    "max": 220
+  },
+  "web.tour.welcome.title": {
+    "text": "Welcome to Off The Cloud",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, shown once by itself after signing in and again from Show the tour. Title of the first step.",
+    "max": 48
+  }
+}

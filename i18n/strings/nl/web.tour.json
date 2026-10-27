@@ -1,0 +1,106 @@
+{
+  "web.tour.alerts.text": {
+    "text": "<b>{alerts}</b> houdt je op de hoogte van likes, reacties, vriendschapsverzoeken en je apparaat. In <b>{settings}</b> wijzig je je profiel, je wachtwoord en de taal.",
+    "en": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and language."
+  },
+  "web.tour.alerts.title": {
+    "text": "Meldingen en Instellingen",
+    "en": "Alerts and Settings"
+  },
+  "web.tour.collections.text": {
+    "text": "Bewaar foto’s die bij elkaar horen op één plek, zoals van een reis of een verjaardag. Selecteer in Afbeeldingen foto’s met het rondje op elke foto (of houd ze ingedrukt) en kies <b>{add}</b>.",
+    "en": "Keep photos that belong together in one place, like a trip or a birthday. In Images, select photos with the circle on each one (or press and hold), then choose <b>{add}</b>."
+  },
+  "web.tour.done.text": {
+    "text": "Bekijk deze rondleiding opnieuw wanneer je wilt: kies <b>{show}</b> in het accountmenu rechtsboven of in Instellingen.",
+    "en": "See this tour again any time: choose <b>{show}</b> in the account menu, at the top right, or in Settings."
+  },
+  "web.tour.done.title": {
+    "text": "Alles staat klaar",
+    "en": "You're all set"
+  },
+  "web.tour.files.text": {
+    "text": "Je documenten en mappen, bewaard op je apparaat. Sleep bestanden naar de pagina Bestanden om ze te uploaden, en klik op een bestand om het te openen.",
+    "en": "Your documents and folders, kept on your device. Drag files onto the Files page to upload them, and click a file to open it."
+  },
+  "web.tour.friends.accept": {
+    "text": "Een verzoek aan jou wacht onder <b>{waiting}</b>: kies <b>{accept}</b>.",
+    "en": "A request sent to you waits under <b>{waiting}</b>: choose <b>{accept}</b>."
+  },
+  "web.tour.friends.add": {
+    "text": "Om vrienden toe te voegen, typ je de naam van hun apparaat, het deel vóór .{suffix}, onder <b>{heading}</b> en kies je <b>{send}</b>.",
+    "en": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and choose <b>{send}</b>."
+  },
+  "web.tour.friends.own": {
+    "text": "Je eigen adres staat in het accountmenu, onder je naam.",
+    "en": "Your own address is in the account menu, under your name."
+  },
+  "web.tour.images.text": {
+    "text": "Al je foto’s en video’s, de nieuwste eerst. Zoek bovenaan naar plaatsen en dingen op je foto’s.",
+    "en": "All your photos and videos, newest first. Search at the top for places and things in your photos."
+  },
+  "web.tour.menu.text": {
+    "text": "Alles staat in het menu aan de linkerkant. Op een klein scherm open je het met de menuknop linksboven.",
+    "en": "Everything is in the menu on the left. On a small screen, open it with the menu button at the top left."
+  },
+  "web.tour.menu.title": {
+    "text": "Zo vind je je weg",
+    "en": "Find your way"
+  },
+  "web.tour.people.text": {
+    "text": "De gezichten op je foto’s, één per persoon. Kies <b>{name}</b> om iemand een naam te geven, en klik op een gezicht om alle foto’s van die persoon te zien.",
+    "en": "The faces found in your photos, one person each. Choose <b>{name}</b> to name someone, and click a face to see all their photos."
+  },
+  "web.tour.post.also": {
+    "text": "Of selecteer foto’s in Afbeeldingen en kies <b>{post}</b>.",
+    "en": "Or select photos in Images and choose <b>{post}</b>."
+  },
+  "web.tour.post.step1": {
+    "text": "Kies in Social bovenaan <b>+ {new_post}</b>.",
+    "en": "In Social, choose <b>+ {new_post}</b> at the top."
+  },
+  "web.tour.post.step2": {
+    "text": "Kies foto’s of video’s uit <b>{library}</b> (al op je apparaat) of <b>{computer}</b>.",
+    "en": "Pick photos or videos from <b>{library}</b> (already on your device) or <b>{computer}</b>."
+  },
+  "web.tour.post.step3": {
+    "text": "Schrijf een bijschrift en kies dan <b>{publish}</b>.",
+    "en": "Write a caption, then choose <b>{publish}</b>."
+  },
+  "web.tour.post.title": {
+    "text": "Een bericht plaatsen",
+    "en": "Publish a post"
+  },
+  "web.tour.progress": {
+    "text": "Stap {step} van {total}",
+    "en": "Step {step} of {total}"
+  },
+  "web.tour.settings.hint": {
+    "text": "Een korte rondleiding door Off The Cloud: je foto’s, berichten plaatsen in Social, vrienden en waar je alles vindt.",
+    "en": "A short tour of Off The Cloud: your photos, posting to Social, friends and where everything is."
+  },
+  "web.tour.settings.title": {
+    "text": "Aan de slag",
+    "en": "Getting started"
+  },
+  "web.tour.show": {
+    "text": "Rondleiding bekijken",
+    "en": "Show the tour"
+  },
+  "web.tour.skip": {
+    "text": "Overslaan",
+    "en": "Skip"
+  },
+  "web.tour.social.text": {
+    "text": "Je privéfeed met familie en vrienden: geef berichten een hartje en reageer erop. Je berichten gaan van jouw apparaat naar de apparaten van je vrienden, en alleen je vrienden zien ze.",
+    "en": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them."
+  },
+  "web.tour.welcome.text": {
+    "text": "Je foto’s en bestanden staan op je eigen apparaat, bij je thuis. Deel ze met familie en vrienden in een privénetwerk dat helemaal van jou is.",
+    "en": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own."
+  },
+  "web.tour.welcome.title": {
+    "text": "Welkom bij Off The Cloud",
+    "en": "Welcome to Off The Cloud"
+  }
+}

@@ -3,8 +3,8 @@
 // The account button at the right end of the top bar, as in Google Photos:
 // the owner's profile picture (the profile this device keeps, as Settings
 // shows it), which opens a small menu under it - the profile's name and
-// this device's address, then Settings and Sign out (net/signOut.ts, the
-// same as Settings' button).
+// this device's address, then Settings, Show the tour (the first-run tour,
+// Tour.tsx) and Sign out (net/signOut.ts, the same as Settings' button).
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -18,6 +18,9 @@ import "./AccountMenu.css";
 
 type Props = {
   onOpenSettings: () => void;
+  // Shows the first-run tour again; no item while a new device's setup
+  // shows.
+  onShowTour?: () => void;
   // Fetched again whenever this changes: App passes whether Settings,
   // where the profile is edited, is open.
   refreshKey?: unknown;
@@ -108,6 +111,16 @@ const PersonGlyph = ({ size }: { size: number }) => (
   </svg>
 );
 
+// A question mark in a circle: the tour.
+const TourIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M9.75 9.6a2.3 2.3 0 1 1 3.15 2.14c-.52.21-.9.7-.9 1.26v.35" />
+    <path d="M12 16.3h.01" />
+  </svg>
+);
+
 const SignOutIcon = ({ size = 22 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -129,7 +142,7 @@ function Avatar({ profile, big = false }: { profile: Profile; big?: boolean }) {
   return <span className={`${cls} is-glyph`} aria-hidden="true"><PersonGlyph size={big ? 26 : 22} /></span>;
 }
 
-export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) {
+export default function AccountMenu({ onOpenSettings, onShowTour, refreshKey, tip }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -226,6 +239,13 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
     onOpenSettings();
   };
 
+  // The menu closes first: the tour takes the focus from the button.
+  const onTour = () => {
+    if (busy) return;
+    close();
+    onShowTour?.();
+  };
+
   const onSignOut = () => {
     if (busy) return;
     busyRef.current = true;
@@ -240,6 +260,7 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
         ref={btnRef}
         type="button"
         className="am-btn"
+        data-tour="account"
         aria-label={t("web.shell.account.label")}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -292,6 +313,18 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
               >
                 <SettingsIcon size={22} />{t("common.settings")}
               </button>
+              {onShowTour && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  className="am-item"
+                  aria-disabled={busy || undefined}
+                  onClick={onTour}
+                >
+                  <TourIcon />{t("web.tour.show")}
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"

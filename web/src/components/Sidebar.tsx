@@ -197,7 +197,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   return (
     <>
       {layout !== "none" && (
-        <nav ref={dockRef} className={`sidebar sb-dock sb-${layout}`} aria-label={t("web.shell.menu.sections")} inert={drawerOpen}>
+        <nav ref={dockRef} className={`sidebar sb-dock sb-${layout}`} data-tour="menu" aria-label={t("web.shell.menu.sections")} inert={drawerOpen}>
           {layout === "rail" ? (
             <div className="sb-inner sb-inner-rail">
               <RailMenu
@@ -335,6 +335,8 @@ function NavItem({ item: { key, label: labelKey, Icon }, active, unread, rail = 
     <button
       type="button"
       className={`sb-item${active ? " active" : ""}`}
+      // The tour's ring finds the item by its section (tourSteps.ts).
+      data-tour={key}
       onClick={() => onPick(key)}
       aria-current={active ? "page" : undefined}
       aria-label={count > 0 ? t("web.shell.menu.unread", { label, count }) : label}
