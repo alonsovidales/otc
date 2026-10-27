@@ -547,9 +547,12 @@ object PhotoSync {
     }
 
     suspend fun runForeground() {
-        if (!syncUnlessRunning()) return
         // Free up space, once this run has synced what it could - after the
-        // sync's own flag is down. Only in front, at most once a day.
+        // sync's own flag is down. Only in front, at most once a day; not
+        // after a run that didn't go (no choice yet, no permission, Wi-Fi
+        // only on mobile data).
+        val end = syncUnlessRunning() ?: return
+        if (end == PassEnd.Skipped || end == PassEnd.WaitingForWifi) return
         FreeUpSpace.afterSync()
     }
 
@@ -574,18 +577,19 @@ object PhotoSync {
         data class Full(val words: String) : Sent
     }
 
-    /** The sync itself: false when it didn't run (the choice not made yet,
-     * or another run already going, which then goes through once more). */
-    private suspend fun syncUnlessRunning(): Boolean {
+    /** The sync itself: how its last pass ended, or null when it didn't
+     * run (the choice not made yet, or another run already going, which
+     * then goes through once more). */
+    private suspend fun syncUnlessRunning(): PassEnd? {
         // First, as it may ask the question below again.
         checkAccess()
         // Signed in but not yet told what to sync (SyncChoice): nothing, the
         // WorkManager runs included, until the screen is answered.
-        if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return false }
+        if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return null }
         if (!syncing.compareAndSet(false, true)) {
             rerunWanted = true
             Log.i(tag, "sync already running: it goes through once more at its end")
-            return false
+            return null
         }
         val job = currentCoroutineContext()[Job]
         currentSync = job
@@ -595,15 +599,12 @@ object PhotoSync {
         // chunks (IOS-10, transferBreak).
         OTCConnection.transferStarted()
         try {
-            var ran = false
             while (true) {
                 val end = onePass(gen)
-                if (end != PassEnd.Skipped) ran = true
-                if (end != PassEnd.Done || !currentCoroutineContext().isActive || !rerunWanted) break
+                if (end != PassEnd.Done || !currentCoroutineContext().isActive || !rerunWanted) return end
                 rerunWanted = false
                 Log.i(tag, "sync once more: asked for while it ran")
             }
-            return ran
         } finally {
             // Before releasing the flag, so the next run's handle isn't wiped.
             if (currentSync === job) currentSync = null

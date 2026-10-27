@@ -91,7 +91,7 @@ final class PhotoSync: NSObject {
     /// the end of a BG task's or the app's background time (`stopRun()`)
     /// stop it, and a BG task waits for it (runInBackground). Under
     /// syncLock.
-    private var running: Task<Void, Error>?
+    private var running: Task<PassEnd, Error>?
     /// IOS-12: a trigger that came while a run was going - a new photo, the
     /// app back in front, Sync All - used to be dropped. The run goes
     /// through once more at its end instead (as Android's runs do).
@@ -127,7 +127,7 @@ final class PhotoSync: NSObject {
     /// one is going: that one then goes through once more, and a BG task
     /// (`join`) gets it to wait for. Created under the lock, so no caller
     /// finds a run going with no task to wait for.
-    private func startRun(join: Bool, _ body: @escaping @Sendable (Int) async throws -> Void) -> (task: Task<Void, Error>, started: Bool)? {
+    private func startRun(join: Bool, _ body: @escaping @Sendable (Int) async throws -> PassEnd) -> (task: Task<PassEnd, Error>, started: Bool)? {
         syncLock.lock()
         defer { syncLock.unlock() }
         if isSyncing {
@@ -686,10 +686,12 @@ final class PhotoSync: NSObject {
     func runForeground() async throws {
         let time = await BackgroundTime.begin { [weak self] in self?.stopRun() }
         defer { time.end() }
-        guard try await syncUnlessRunning(join: false) else { return }
         // Free up space, once this run has synced what it could - after the
         // sync's own flag is down, so photos taken while iOS asks about the
-        // deletion still sync. Only in front, and not more than once a day.
+        // deletion still sync. Only in front, and not more than once a day;
+        // not after a run that didn't go (no choice yet, no access, Wi-Fi
+        // only on mobile data).
+        guard let end = try await syncUnlessRunning(join: false), end != .skipped, end != .waitingForWifi else { return }
         await FreeUpSpace.shared.afterSync()
     }
 
@@ -703,30 +705,31 @@ final class PhotoSync: NSObject {
         _ = try await syncUnlessRunning(join: true)
     }
 
-    /// The run: true when it started here, false when one was going (which
-    /// goes through once more at its end, and was waited for with `join`).
-    private func syncUnlessRunning(join: Bool) async throws -> Bool {
-        guard let run = startRun(join: join, { [weak self] gen in try await self?.runPasses(gen: gen) }) else {
+    /// The run: how its last pass ended when it started here, nil when one
+    /// was going (which goes through once more at its end, and was waited
+    /// for with `join`).
+    private func syncUnlessRunning(join: Bool) async throws -> PassEnd? {
+        guard let run = startRun(join: join, { [weak self] gen in try await self?.runPasses(gen: gen) ?? .skipped }) else {
             print("Sync already running: it goes through once more at its end")
-            return false
+            return nil
         }
-        try await withTaskCancellationHandler {
+        let end = try await withTaskCancellationHandler {
             try await run.task.value
         } onCancel: {
             run.task.cancel()
         }
-        return run.started
+        return run.started ? end : nil
     }
 
     /// A run's passes: one, then another for each trigger that came while
     /// one went (rerunWanted), as long as each went through. The flag is
     /// down before the run's Task ends, so whoever waits on it finds the
     /// sync idle.
-    private func runPasses(gen: Int) async throws {
+    private func runPasses(gen: Int) async throws -> PassEnd {
         defer { endSync() }
         while true {
             let end = try await onePass(gen: gen)
-            guard end == .done, !Task.isCancelled, takeRerun() else { return }
+            guard end == .done, !Task.isCancelled, takeRerun() else { return end }
             print("Sync once more: asked for while it ran")
         }
     }
