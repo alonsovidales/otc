@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1247,10 +1248,11 @@ func (dao *Dao) GetCommentLikerDomains(commentUuid string) (domains []string, er
 }
 
 // GetSocialPublicationComments lists a post's comments, newest first, each
-// with whether viewerDomain liked it.
-func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comments []*pb.Comment, err error) {
+// with whether viewerDomain liked it and its author's name (queryComments;
+// ownerName is the device owner's, for their own).
+func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain, ownerName string) (comments []*pb.Comment, err error) {
 	log.Debug("Get SocialPublication Comments")
-	comments, err = dao.queryComments("c.`pub_uuid` = ?", viewerDomain, pubUuid)
+	comments, err = dao.queryComments("c.`pub_uuid` = ?", viewerDomain, ownerName, pubUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -1265,13 +1267,13 @@ func (dao *Dao) GetSocialPublicationComments(pubUuid, viewerDomain string) (comm
 // whole feed page in one query: the feed ran one query per post. Comments
 // come back grouped by publication uuid, each group newest first; a
 // publication with no comments has no entry.
-func (dao *Dao) GetSocialPublicationsComments(pubUuids []string, viewerDomain string) (comments map[string][]*pb.Comment, err error) {
+func (dao *Dao) GetSocialPublicationsComments(pubUuids []string, viewerDomain, ownerName string) (comments map[string][]*pb.Comment, err error) {
 	comments = map[string][]*pb.Comment{}
 	if len(pubUuids) == 0 {
 		return comments, nil
 	}
 	ph, args := inPlaceholders(pubUuids)
-	all, err := dao.queryComments("c.`pub_uuid` in ("+ph+")", viewerDomain, args...)
+	all, err := dao.queryComments("c.`pub_uuid` in ("+ph+")", viewerDomain, ownerName, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1287,9 +1289,17 @@ func (dao *Dao) GetSocialPublicationsComments(pubUuids []string, viewerDomain st
 // the comments were still open - two pooled connections per request, and
 // enough concurrent feed requests each held one while waiting for a second
 // that none was ever freed and every query on the device hung.
-func (dao *Dao) queryComments(where, viewerDomain string, args ...any) (comments []*pb.Comment, err error) {
+//
+// The author's name is never the one the comment came with: a friend's
+// device wrote that into its event, and could sign "Mum", or the owner's
+// own name. It is the name this device knows the friend by, for the device
+// the comment came from (author_domain: commentAuthor), the owner's own
+// (ownerName) for theirs, and publisher_name only for a row from before
+// author_domain (release 51). The friends' names are one more query, once
+// the comments are read, by domain - no join across the two tables.
+func (dao *Dao) queryComments(where, viewerDomain, ownerName string, args ...any) (comments []*pb.Comment, err error) {
 	rows, err := dao.db.Query(
-		"select c.`pub_uuid`, c.`uuid`, c.`dt`, c.`comment`, c.`publisher_name`, c.`likes`, c.`own_comment`, "+
+		"select c.`pub_uuid`, c.`uuid`, c.`dt`, c.`comment`, c.`publisher_name`, c.`author_domain`, c.`likes`, c.`own_comment`, "+
 			"exists(select 1 from `social_publication_comment_likes` l where l.`comment_uuid` = c.`uuid` and l.`friend_domain` = ?) "+
 			"from `social_publications_comments` c where "+where+" order by c.`dt` desc",
 		append([]any{viewerDomain}, args...)...)
@@ -1298,22 +1308,87 @@ func (dao *Dao) queryComments(where, viewerDomain string, args ...any) (comments
 	}
 	defer rows.Close()
 	comments = []*pb.Comment{}
+	var authors []string
+	friends := map[string]bool{}
 	for rows.Next() {
 		comment := new(pb.Comment)
 		var dt time.Time
 		var liked int
-		if err := rows.Scan(&comment.PubUuid, &comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &comment.Likes, &comment.Own, &liked); err != nil {
+		var author string
+		if err := rows.Scan(&comment.PubUuid, &comment.CommentUuid, &dt, &comment.Comment, &comment.Publisher, &author, &comment.Likes, &comment.Own, &liked); err != nil {
 			return nil, err
 		}
 		comment.DateTime = timestamppb.New(dt)
 		comment.Liked = liked != 0
 		comments = append(comments, comment)
+		authors = append(authors, author)
+		if !comment.Own && author != "" {
+			friends[author] = true
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	rows.Close()
 
+	names, err := dao.friendNames(friends)
+	if err != nil {
+		return nil, err
+	}
+	for i, c := range comments {
+		c.Publisher = commentAuthor(c.Own, authors[i], c.Publisher, ownerName, names)
+	}
 	return comments, nil
+}
+
+// commentAuthor is the name a comment is shown with (queryComments): the
+// owner's for the owner's own (what it was stored with while they have
+// none); for a friend's, the name this device knows the device it came
+// from by (names, by domain), else that domain - a friend removed since,
+// or one without a name; stored, the name the comment came with, only for
+// a row that doesn't say where it came from.
+func commentAuthor(own bool, authorDomain, stored, ownerName string, names map[string]string) string {
+	switch {
+	case own:
+		if ownerName != "" {
+			return ownerName
+		}
+		return stored
+	case authorDomain == "":
+		return stored
+	case names[authorDomain] != "":
+		return names[authorDomain]
+	}
+	return authorDomain
+}
+
+// friendNames is the name of each of domains' friendships, by domain; a
+// domain with no friendship, or a friendship with no name, has none.
+func (dao *Dao) friendNames(domains map[string]bool) (map[string]string, error) {
+	names := map[string]string{}
+	if len(domains) == 0 {
+		return names, nil
+	}
+	list := make([]string, 0, len(domains))
+	for d := range domains {
+		list = append(list, d)
+	}
+	sort.Strings(list)
+	ph, args := inPlaceholders(list)
+	rows, err := dao.db.Query("select `domain`, `name` from `social_friendship` where `domain` in ("+ph+")", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var domain string
+		var name sql.NullString
+		if err := rows.Scan(&domain, &name); err != nil {
+			return nil, err
+		}
+		names[domain] = name.String
+	}
+	return names, rows.Err()
 }
 
 // PublicationFileMime looks up one file of a publication by hash,

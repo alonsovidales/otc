@@ -1498,7 +1498,7 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			Kind:    mediastream.KindPublicationMedia,
 			PubUuid: req.PubUuid,
 			Hash:    req.Hash,
-			Mime:    pubMime,
+			Mime:    mediastream.SafeType(pubMime),
 			Size:    info.Size(),
 		}
 		// The same unencrypted bytes for the owner and every friend.
@@ -1563,6 +1563,18 @@ func (ch *connHandler) streamURL(reuseKey string, res mediastream.Resource) (url
 	// having to know which one it's talking to. The native apps resolve
 	// it against the address they're already connected to.
 	return "/media/" + token, res.Size, res.Mime, expiresAt.UnixMilli(), nil
+}
+
+// safePostFiles hands out a post's files with a type that can't run script
+// in this device's origin (mediastream.SafeType): a friend's device chose
+// the type of its posts' files, the friend sync keeps only safe ones since
+// the 2026-10 review, and rows stored before are made safe here. Returns
+// files.
+func safePostFiles(files []*pb.File) []*pb.File {
+	for _, f := range files {
+		f.Mime = mediastream.SafeType(f.Mime)
+	}
+	return files
 }
 
 // ownPublication reports whether pubUuid is one of the device owner's own
@@ -2207,7 +2219,9 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevSocialMediaNotAvailable().Render(lang)
 		} else {
-			media := &pb.File{Hash: req.Hash, Mime: mime, Content: content}
+			// Rows stored before friends' types were checked too
+			// (safePostFiles).
+			media := &pb.File{Hash: req.Hash, Mime: mediastream.SafeType(mime), Content: content}
 			dao.SetFileSize(media, int64(len(content)))
 			resp.Payload = &pb.RespEnvelope_RespFile{RespFile: media}
 		}
@@ -2226,7 +2240,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSocialPublicationFiles{
 				RespSocialPublicationFiles: &pb.SocialPublicationFiles{
-					Files: files,
+					Files: safePostFiles(files),
 				},
 			}
 		}
@@ -2238,6 +2252,9 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevSocialPostsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
+			for _, pub := range publications.Publications {
+				safePostFiles(pub.Files)
+			}
 			resp.Payload = &pb.RespEnvelope_RespSocialPublications{
 				RespSocialPublications: publications,
 			}
@@ -2919,6 +2936,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
+			safePostFiles(pub.Files)
 			resp.Payload = &pb.RespEnvelope_RespPublication{
 				RespPublication: &pb.RespPublication{Publication: pub},
 			}

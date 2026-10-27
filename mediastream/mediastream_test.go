@@ -336,3 +336,34 @@ func TestRangeAnswersTheServedType(t *testing.T) {
 		}
 	}
 }
+
+// A post's file is kept and handed out with SafeType: a friend's device
+// names the type, and only what can't run script in the device's origin is
+// kept as named.
+func TestSafeTypeKeepsOnlyMedia(t *testing.T) {
+	for stored, want := range map[string]string{
+		"image/jpeg":                 "image/jpeg",
+		"image/heic":                 "image/heic",
+		"video/mp4":                  "video/mp4",
+		"video/quicktime":            "video/quicktime",
+		"audio/mpeg":                 "audio/mpeg",
+		"image/svg+xml":              "application/octet-stream",
+		"text/html":                  "application/octet-stream",
+		"text/html; charset=utf-8":   "application/octet-stream",
+		"application/xhtml+xml":      "application/octet-stream",
+		"application/pdf":            "application/octet-stream",
+		"video/mp4,text/html":        "application/octet-stream",
+		"":                           "application/octet-stream",
+		"image/jpeg\r\nX-Evil: 1":    "application/octet-stream",
+		"application/octet-stream":   "application/octet-stream",
+		"multipart/x-mixed-replace":  "application/octet-stream",
+		"application/javascript":     "application/octet-stream",
+		"text/xml":                   "application/octet-stream",
+		"image/jpeg; q=1":            "image/jpeg; q=1",
+		"application/x-shockwave-fl": "application/octet-stream",
+	} {
+		if got := SafeType(stored); got != want {
+			t.Errorf("SafeType(%q) = %q, want %q", stored, got, want)
+		}
+	}
+}

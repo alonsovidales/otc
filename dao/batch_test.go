@@ -239,16 +239,19 @@ func TestGetSocialPublicationsCommentsOneQueryPerPage(t *testing.T) {
 	defer db.Close()
 
 	now := time.Now()
-	mock.ExpectQuery("select c\\.`pub_uuid`, c\\.`uuid`, c\\.`dt`, c\\.`comment`, c\\.`publisher_name`, c\\.`likes`, c\\.`own_comment`, "+
+	mock.ExpectQuery("select c\\.`pub_uuid`, c\\.`uuid`, c\\.`dt`, c\\.`comment`, c\\.`publisher_name`, c\\.`author_domain`, c\\.`likes`, c\\.`own_comment`, "+
 		"exists\\(select 1 from `social_publication_comment_likes` l where l\\.`comment_uuid` = c\\.`uuid` and l\\.`friend_domain` = \\?\\) "+
 		"from `social_publications_comments` c where c\\.`pub_uuid` in \\(\\?,\\?,\\?\\) order by c\\.`dt` desc").
 		WithArgs("me.off-the.cloud", "p1", "p2", "p3").
-		WillReturnRows(sqlmock.NewRows([]string{"pub_uuid", "uuid", "dt", "comment", "publisher_name", "likes", "own_comment", "liked"}).
-			AddRow("p3", "c3b", now, "newest on p3", "A", 2, false, 1).
-			AddRow("p1", "c1a", now.Add(-time.Minute), "on p1", "Me", 0, true, 0).
-			AddRow("p3", "c3a", now.Add(-2*time.Minute), "older on p3", "B", 0, false, 0))
+		WillReturnRows(sqlmock.NewRows(commentColumns).
+			AddRow("p3", "c3b", now, "newest on p3", "A", "a.off-the.cloud", 2, false, 1).
+			AddRow("p1", "c1a", now.Add(-time.Minute), "on p1", "Me", "me.off-the.cloud", 0, true, 0).
+			AddRow("p3", "c3a", now.Add(-2*time.Minute), "older on p3", "B", "b.off-the.cloud", 0, false, 0))
+	mock.ExpectQuery("select `domain`, `name` from `social_friendship` where `domain` in \\(\\?,\\?\\)").
+		WithArgs("a.off-the.cloud", "b.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"domain", "name"}).AddRow("a.off-the.cloud", "A").AddRow("b.off-the.cloud", "B"))
 
-	comments, err := NewWithDB(db).GetSocialPublicationsComments([]string{"p1", "p2", "p3"}, "me.off-the.cloud")
+	comments, err := NewWithDB(db).GetSocialPublicationsComments([]string{"p1", "p2", "p3"}, "me.off-the.cloud", "Me")
 	if err != nil {
 		t.Fatalf("GetSocialPublicationsComments: %v", err)
 	}
@@ -267,7 +270,7 @@ func TestGetSocialPublicationsCommentsOneQueryPerPage(t *testing.T) {
 	}
 
 	// An empty page asks nothing.
-	if got, err := NewWithDB(db).GetSocialPublicationsComments(nil, "me"); err != nil || len(got) != 0 {
+	if got, err := NewWithDB(db).GetSocialPublicationsComments(nil, "me", "Me"); err != nil || len(got) != 0 {
 		t.Fatalf("empty page: %v, %v", got, err)
 	}
 }
@@ -283,8 +286,8 @@ func TestGetSocialPublicationCommentsSinglePost(t *testing.T) {
 
 	mock.ExpectQuery("from `social_publications_comments` c where c\\.`pub_uuid` = \\? order by c\\.`dt` desc").
 		WithArgs("me", "p1").
-		WillReturnRows(sqlmock.NewRows([]string{"pub_uuid", "uuid", "dt", "comment", "publisher_name", "likes", "own_comment", "liked"}))
-	comments, err := NewWithDB(db).GetSocialPublicationComments("p1", "me")
+		WillReturnRows(sqlmock.NewRows(commentColumns))
+	comments, err := NewWithDB(db).GetSocialPublicationComments("p1", "me", "Me")
 	if err != nil || comments == nil || len(comments) != 0 {
 		t.Fatalf("got %v, %v; want an empty list", comments, err)
 	}

@@ -177,6 +177,17 @@ func ServedType(stored string) (ctype string, inline bool) {
 	return "application/octet-stream", false
 }
 
+// SafeType is ServedType's type alone: what a post's file is stored and
+// handed out as. A friend's device names the type of its posts' files, and
+// the web app shows them from blob: URLs in the device's own origin - an
+// image/svg+xml or text/html "photo" opened in a tab ran script there. The
+// apps' viewers only tell video from the rest by the type, which this
+// keeps.
+func SafeType(stored string) string {
+	ctype, _ := ServedType(stored)
+	return ctype
+}
+
 // Range reads up to length bytes from offset, clamped to MaxRangeBytes
 // and to the end of the file. It returns what it read plus the total
 // size, which is what a client needs to build a Content-Range header, and

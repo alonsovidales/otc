@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
@@ -23,6 +25,7 @@ import (
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/mediastream"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
@@ -539,7 +542,7 @@ func (sc *Social) GetPublications(pr *profile.Profile, since time.Time, total in
 	for _, pub := range publications.Publications {
 		uuids = append(uuids, pub.Uuid)
 	}
-	comments, err := sc.dao.GetSocialPublicationsComments(uuids, pr.Domain())
+	comments, err := sc.dao.GetSocialPublicationsComments(uuids, pr.Domain(), pr.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +601,7 @@ func (sc *Social) GetPublication(pr *profile.Profile, pubUuid string) (pub *pb.S
 	}
 	pub.Files = goodFiles
 
-	pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain())
+	pub.Comments, err = sc.dao.GetSocialPublicationComments(pub.Uuid, pr.Domain(), pr.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -943,14 +946,14 @@ func (fr *friendship) refreshProfile() (err error) {
 
 // getPublicationMedia fetches the full bytes of one file in a friend's
 // publication (issue #107), using the same RPC this device serves to its
-// own friends.
+// own friends, in an answer of at most limit bytes (friendMediaLimit).
 //
 // Pulled at sync time rather than when someone presses play, per the
 // owner's call: a friend's device is frequently asleep, behind a dropped
 // bridge connection, or simply off - fetching on demand would mean a
 // video that plays only when its author happens to be online, which is
 // not what a timeline should do.
-func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte, err error) {
+func (fr *friendship) getPublicationMedia(pubUuid, hash string, limit int64) (content []byte, err error) {
 	msg := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetPublicationMedia{
@@ -966,7 +969,7 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 		return nil, err
 	}
 
-	_, data, err := fr.conn.ReadMedia()
+	_, data, err := fr.conn.ReadMessageUpTo(limit, wsframe.MediaTimeout)
 	if err != nil {
 		log.Error("read error trying to get publication media from friend:", fr.data.OriginProfile.Domain, err)
 		return nil, err
@@ -1068,6 +1071,11 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 		log.Error("ignoring a file with an invalid hash in publication", pubUuid, "from", fr.data.OriginProfile.Domain)
 		return false, false, nil
 	}
+	// The type too is the friend's word, and the web app shows the file
+	// from a blob: URL in this device's own origin: only what can't run
+	// script there (video, audio, raster images) is kept as said, anything
+	// else is stored as bytes to save (mediastream.SafeType).
+	file.Mime = mediastream.SafeType(file.Mime)
 
 	unencPathThumb := filepath.Join(dir, file.Hash+"_thumbnail")
 	// A thumbnail a post here already uses stays as it is: naming the hash
@@ -1094,10 +1102,23 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 		dao.SetFileSize(file, stored+info.Size())
 		return true, wrote, nil // already have it (a re-sync, or shared with another post)
 	}
-	// Held until the file is written: it is read whole, then copied. A
-	// friend before release 93 sends only the int32 size.
-	release := fr.sc.filesmanager.ReserveFriendMedia(dao.FileSize(file))
-	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash)
+	// The friend says how big the file is (a friend before release 93
+	// sends only the int32 size): the answer may be no larger than that
+	// says (friendMediaLimit), and the budget is held for the largest it
+	// may be until the file is written - it is read whole, then copied. It
+	// was read up to 1000 MiB whatever the friend said, and a size of 0
+	// reserved nothing: one post could take the device's memory, at every
+	// start, until the friendship was removed. Without a size the media is
+	// left out; the thumbnail is kept.
+	declared := dao.FileSize(file)
+	if declared <= 0 {
+		log.Info("no size for media", file.Hash, "of publication", pubUuid, "from", fr.data.OriginProfile.Domain, "- keeping its thumbnail only")
+		dao.SetFileSize(file, stored)
+		return true, wrote, nil
+	}
+	limit := friendMediaLimit(declared, file.Mime)
+	release := fr.sc.filesmanager.ReserveFriendMedia(limit)
+	media, mediaErr := fr.getPublicationMedia(pubUuid, file.Hash, limit)
 	if mediaErr != nil {
 		log.Error("could not fetch media", file.Hash, "for publication", pubUuid, "from",
 			fr.data.OriginProfile.Domain, ":", mediaErr)
@@ -1110,6 +1131,27 @@ func (fr *friendship) storeFriendFile(pubUuid string, file *pb.File, dir string)
 	release()
 	dao.SetFileSize(file, stored)
 	return true, wrote, nil
+}
+
+const (
+	// cMediaAnswerSlack is what an answer carrying a file holds besides
+	// its bytes: the envelope, the hash, the type.
+	cMediaAnswerSlack = 64 << 10
+	// A friend's device serves a HEIC photo it posts as the JPEG it
+	// converts it to (GetFile), under the HEIC's size: such a JPEG may come
+	// at up to cJPEGGrowth times its declared size, plus cJPEGSlack.
+	cJPEGGrowth = 6
+	cJPEGSlack  = 4 << 20
+)
+
+// friendMediaLimit is the largest answer a friend's post file declared at
+// declared bytes may come in, never past wsframe.MediaLimit.
+func friendMediaLimit(declared int64, fileType string) int64 {
+	limit := declared + cMediaAnswerSlack
+	if mt, _, err := mime.ParseMediaType(fileType); err == nil && mt == "image/jpeg" {
+		limit = declared*cJPEGGrowth + cJPEGSlack
+	}
+	return min(limit, int64(wsframe.MediaLimit))
 }
 
 // socialHashInUse is whether a post here has a file with hash; when that
@@ -1370,8 +1412,11 @@ event_loop:
 			// false: this is a friend's comment, synced in - see
 			// NewSocialComment for the device owner's own-comment path.
 			// Issue #174: the author is the device this came from, never
-			// who the event says wrote it.
-			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, fr.data.OriginProfile.Domain, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
+			// who the event says wrote it - nor the name it signs with
+			// (any, "Mum" or the owner's own): the one this device knows
+			// that friend by (commenterName; the feed shows the friendship's
+			// current one, dao.queryComments).
+			if err := fr.dao.NewComment(comment.Uuid, fr.commenterName(), comment.PubUUID, comment.Comment, fr.data.OriginProfile.Domain, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
 				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, i18n.PushPostCommented(), pb.NotificationType_NotificationNewComment)
 			}
 
@@ -1427,6 +1472,24 @@ event_loop:
 
 	fr.stopPage(newPosts)
 	return
+}
+
+// cMaxPublisherName is social_publications_comments.publisher_name's
+// size, in characters.
+const cMaxPublisherName = 64
+
+// commenterName is the name this friend's comments are stored with: the
+// one this device knows the friend by (their profile, as the last sync
+// read it), else their domain - never the name their events sign with.
+func (fr *friendship) commenterName() string {
+	name := strings.TrimSpace(fr.data.OriginProfile.Name)
+	if name == "" {
+		name = fr.data.OriginProfile.Domain
+	}
+	if utf8.RuneCountInString(name) > cMaxPublisherName {
+		name = string([]rune(name)[:cMaxPublisherName])
+	}
+	return name
 }
 
 // stopPage is what ends a page of a friend's events, however it ends: if
