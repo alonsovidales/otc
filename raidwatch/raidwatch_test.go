@@ -212,7 +212,7 @@ func TestFailureTextAndPorts(t *testing.T) {
 	n.Alert = func(title, detail string) { during = MissingPorts(); alert(title, detail) }
 	check(store, n)
 	top := bluePort["xhci-hcd.1"]
-	wantAlert := "The disk in the " + top + " blue USB port stopped working | Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. (sdb BBB xhci-hcd.1 usb4 4-1)"
+	wantAlert := "The disk in the " + top + " blue USB port stopped working | Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. (sdb BBB xhci-hcd.1 usb4 4-1)"
 	wantPush := "Storage disk stopped working | The disk in the " + top + " blue USB port failed. Your files are safe on the other one: replace it soon."
 	if len(r.alerts) != 1 || r.alerts[0] != wantAlert {
 		t.Errorf("alert:\n got %q\nwant %q", r.alerts, wantAlert)
@@ -321,7 +321,7 @@ func TestStillWorking(t *testing.T) {
 	r := &recorder{}
 	check(store, r.notify())
 	bottom := bluePort["xhci-hcd.0"]
-	wantAlert := "One of the two storage disks stopped working | The disk in the " + bottom + " blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+	wantAlert := "One of the two storage disks stopped working | The disk in the " + bottom + " blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased."
 	wantPush := "Storage disk stopped working | One of the two storage disks failed. Your files are safe on the one in the " + bottom + " blue USB port: replace the other one soon."
 	if len(r.alerts) != 1 || r.alerts[0] != wantAlert {
 		t.Errorf("alert:\n got %q\nwant %q", r.alerts, wantAlert)

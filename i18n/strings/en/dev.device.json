@@ -52,6 +52,18 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #0fa2cee7"
   },
+  "dev.device.mirror_busy": {
+    "text": "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again.",
+    "note": "Error in Settings › Storage after choosing to erase a disk and use it for the mirror: another such request was made a moment ago and the device hasn't taken it up yet. Nothing was erased."
+  },
+  "dev.device.mirror_not_candidate": {
+    "text": "That disk is no longer offered for the mirror: it was unplugged, or it was added already.",
+    "note": "Error in Settings › Storage after choosing to erase a disk and use it for the mirror (two disks that each hold a copy of every file): the device no longer lists that disk - it was unplugged, or it is already in the mirror. Nothing was erased."
+  },
+  "dev.device.mirror_not_degraded": {
+    "text": "The mirror has both of its disks, so it doesn't need this one.",
+    "note": "Error in Settings › Storage after choosing to erase a disk and use it for the mirror (two disks that each hold a copy of every file): the mirror has its two disks already, or a new one is being filled. Nothing was erased."
+  },
   "dev.device.not_on_bridge": {
     "text": "this device is not on the bridge",
     "note": "Error in Settings > Bridge when leaving the bridge while the device isn't on it. The bridge is off-the.cloud, the relay that makes the device reachable from outside the home."

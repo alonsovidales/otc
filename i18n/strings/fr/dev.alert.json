@@ -190,31 +190,38 @@
     "en": "Sep"
   },
   "dev.alert.raid.not_added_detail": {
-    "text": "L’appareil n’ajoute de lui-même un disque au miroir que s’il ne contient absolument rien. Celui-ci contient quelque chose (une table de partitions, un système de fichiers ou d’autres données) ou ne peut pas être lu : il a donc été laissé tel quel. Vos fichiers ne sont toujours que sur un seul disque : pour utiliser celui-ci dans le miroir, effacez-le entièrement sur un ordinateur et rebranchez-le, ou branchez un disque vierge au moins aussi grand. ({disk})",
-    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #baf2c87c"
+    "text": "L’appareil n’ajoute de lui-même un disque au miroir que s’il ne contient absolument rien. Celui-ci contient quelque chose (une table de partitions, un système de fichiers ou d’autres données) ou ne peut pas être lu : il a donc été laissé tel quel. Vos fichiers ne sont toujours que sur un seul disque. Ouvrez les Paramètres pour utiliser ce disque dans le miroir (tout ce qu’il contient sera effacé), ou branchez un disque vierge au moins aussi grand. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #5ea0d96a"
+  },
+  "dev.alert.raid.not_added_detail_in_use": {
+    "text": "L’appareil n’ajoute de lui-même un disque au miroir que s’il ne contient absolument rien. Celui-ci est en cours d’utilisation (monté, ou membre d’une autre grappe de disques en fonctionnement) : il a donc été laissé tel quel. Vos fichiers ne sont toujours que sur un seul disque : pour utiliser celui-ci dans le miroir, effacez-le entièrement sur un ordinateur et rebranchez-le, ou branchez un disque vierge au moins aussi grand. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #a1fcf649"
   },
   "dev.alert.raid.not_added_title": {
     "text": "Un disque a été branché mais n’a pas été ajouté au miroir",
     "en": "A disk was plugged in but not added to the mirror"
   },
   "dev.alert.raid.replace_detail": {
-    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "reviewed": "claude-backtranslation 2026-10-27 #1aeca1f8"
+    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même – si la carte n’est pas vierge, une fois que vous avez confirmé dans les Paramètres qu’elle peut être effacée.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #0ecca03f"
   },
   "dev.alert.raid.replace_detail_disk": {
-    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même. ({disk})",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #8925dadb"
+    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même – si la carte n’est pas vierge, une fois que vous avez confirmé dans les Paramètres qu’elle peut être effacée. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #38a451b4"
   },
   "dev.alert.raid.replace_detail_working_bottom": {
-    "text": "Le disque du port USB bleu du bas fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
-    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "Le disque du port USB bleu du bas fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même – si la carte n’est pas vierge, une fois que vous avez confirmé dans les Paramètres qu’elle peut être effacée.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #0bf17cec"
   },
   "dev.alert.raid.replace_detail_working_top": {
-    "text": "Le disque du port USB bleu du haut fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
-    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "Le disque du port USB bleu du haut fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte au moins aussi grande : l’appareil l’ajoute et y copie tout de lui-même – si la carte n’est pas vierge, une fois que vous avez confirmé dans les Paramètres qu’elle peut être effacée.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #f04b9d7c"
   },
   "dev.alert.raid.stopped_bottom": {
     "text": "Le disque du port USB bleu du bas ne fonctionne plus",
@@ -257,6 +264,35 @@
   "dev.alert.raid.stopped_unknown": {
     "text": "L’un des deux disques de stockage ne fonctionne plus",
     "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.use_failed_detail": {
+    "text": "L’effacement ou l’ajout au miroir a échoué : une partie de son contenu est peut-être déjà effacée. Vos fichiers ne sont toujours que sur un seul disque : réessayez depuis les Paramètres, ou branchez un autre disque. Paramètres › Journaux en dit plus. ({disk})",
+    "en": "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #04deb4f1"
+  },
+  "dev.alert.raid.use_gone_detail": {
+    "text": "Il a été débranché, ou un autre disque a pris sa place, avant de pouvoir être effacé : rien de ce qu’il contient n’a été touché. ({disk})",
+    "en": "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #ef423393"
+  },
+  "dev.alert.raid.use_in_use_detail": {
+    "text": "Il était en cours d’utilisation (monté, ou membre d’une autre grappe de disques) ou trop petit pour le miroir : rien de ce qu’il contient n’a été effacé. ({disk})",
+    "en": "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #7560d723"
+  },
+  "dev.alert.raid.use_no_answer_detail": {
+    "text": "La partie de l’appareil qui efface et ajoute les disques n’a pas pris en charge la demande : rien de ce qu’il contient n’a été effacé. Redémarrez l’appareil depuis les Paramètres et réessayez. ({disk})",
+    "en": "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #5cd2f096"
+  },
+  "dev.alert.raid.use_not_needed_detail": {
+    "text": "Le miroir n’en avait alors plus besoin : rien de ce qu’il contient n’a été effacé. ({disk})",
+    "en": "By then the mirror no longer needed it, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #c9f12c86"
+  },
+  "dev.alert.raid.use_title": {
+    "text": "Le disque n’a pas été ajouté au miroir",
+    "en": "The disk wasn't added to the mirror"
   },
   "dev.alert.raid.working_detail": {
     "text": "Le miroir est complet : chaque fichier est de nouveau sur les deux disques.",

@@ -24,7 +24,10 @@ import (
 // plugged in. Each one gets an Alert saying why and what to do, once per
 // time it is plugged in: the ones alerted are kept in <storage>/
 // .raid-not-added, and one no longer listed is forgotten, so plugging it
-// in again (after erasing it on a computer, say) says so again.
+// in again says so again. Settings offers such a disk to be erased and
+// added (mirrordisk.go), which the Alert points to - but not one something
+// holds (mounted, part of another array that runs), which raid_watch.py
+// marks held.
 var notAddedPath = "/run/otc-raid-watch/not-added.json"
 
 const (
@@ -39,6 +42,18 @@ const (
 type notAddedDisk struct {
 	ID   string `json:"id"`
 	Disk string `json:"disk"`
+	// For Settings (mirrordisk.go): what the disk calls itself, its size in
+	// bytes, whether something holds it (a mount, an array: never offered),
+	// and the id Settings may offer it by - absent when it may not.
+	Model string `json:"model"`
+	Size  int64  `json:"size"`
+	Held  bool   `json:"held"`
+	Offer string `json:"offer"`
+}
+
+// offered: Settings may offer the disk, to be erased and added.
+func (d notAddedDisk) offered() bool {
+	return reOfferID.MatchString(d.Offer) && !d.Held && d.Size > 0
 }
 
 // readNotAdded is the disks raid_watch.py left alone; ok is false when the
@@ -61,7 +76,7 @@ func readNotAdded(path string) (disks []notAddedDisk, ok bool) {
 		return nil, false
 	}
 	for _, d := range file.Disks {
-		d.ID, d.Disk = cleanField(d.ID), cleanField(d.Disk)
+		d.ID, d.Disk, d.Model = cleanField(d.ID), cleanField(d.Disk), cleanField(d.Model)
 		if d.ID == "" || len(disks) == notAddedMaxDisks {
 			continue
 		}
@@ -107,7 +122,13 @@ func checkNotAdded(storagePath string, n Notify) {
 	}
 	for _, d := range fresh {
 		log.Info("raid: a disk was plugged in and left alone, not added to the mirror:", d.Disk)
-		n.alert(alerttext.New(i18n.DevAlertRaidNotAddedTitle(), i18n.DevAlertRaidNotAddedDetail(d.Disk)))
+		// Settings offers it, to be erased and added - unless something
+		// holds it, when it isn't offered either.
+		detail := i18n.DevAlertRaidNotAddedDetail(d.Disk)
+		if d.Held {
+			detail = i18n.DevAlertRaidNotAddedDetailInUse(d.Disk)
+		}
+		n.alert(alerttext.New(i18n.DevAlertRaidNotAddedTitle(), detail))
 	}
 }
 

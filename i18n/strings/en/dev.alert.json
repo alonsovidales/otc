@@ -251,12 +251,20 @@
     "stored": true
   },
   "dev.alert.raid.not_added_detail": {
-    "text": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "text": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large. ({disk})",
     "args": [["disk", "text"]],
-    "note": "Detail of the alert dev.alert.raid.not_added_title. The device never erases a disk that may hold someone's files (a backup drive plugged in by mistake, say): it only adds one with nothing at all on it, not even a partition table, which most new cards and disks have, so they need a full erase first. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "note": "Detail of the alert dev.alert.raid.not_added_title. The device never erases a disk that may hold someone's files (a backup drive plugged in by mistake, say) by itself: it adds by itself only one with nothing at all on it, not even a partition table, which most new cards and disks have. Settings shows this disk with a button that erases it and adds it to the mirror, after a confirmation. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
     "stored": true,
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-10-27 #6366db11"
+    "reviewed": "claude-backtranslation 2026-10-27 #1656211e"
+  },
+  "dev.alert.raid.not_added_detail_in_use": {
+    "text": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.not_added_title when the disk plugged in is in use on the device: one of its partitions is mounted, or it belongs to another disk array (RAID) the system started. The device never erases a disk in use, and Settings doesn't offer it. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #08ad4e48"
   },
   "dev.alert.raid.not_added_title": {
     "text": "A disk was plugged in but not added to the mirror",
@@ -264,29 +272,33 @@
     "stored": true
   },
   "dev.alert.raid.replace_detail": {
-    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "note": "Detail of the alert saying one of the device's two storage disks stopped working (dev.alert.raid.stopped_top, _bottom, _unknown). A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have; any other is left alone (dev.alert.raid.not_added_title).",
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working (dev.alert.raid.stopped_top, _bottom, _unknown). A card is the storage card (an SD card in a USB reader) the disk is. The device adds a blank replacement by itself. When a replacement isn't blank (most new cards and disks come formatted, with a partition table or a filesystem), Settings offers it to the owner, and the device erases it and adds it only once the owner confirms there.",
     "stored": true,
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-10-27 #5405e54d"
+    "reviewed": "claude-backtranslation 2026-10-27 #ea1af081"
   },
   "dev.alert.raid.replace_detail_disk": {
-    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. ({disk})",
     "args": [["disk", "text"]],
-    "note": "Detail of the alert saying one of the device's two storage disks stopped working, when the device knows which disk it was. A card is the storage card (an SD card in a USB reader) the disk is; the device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have. {disk} identifies the disk for a technician: its system name, serial number and USB port, such as \"sdb 0123456789 xhci-hcd.1 usb4 4-1\".",
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working, when the device knows which disk it was. A card is the storage card (an SD card in a USB reader) the disk is; the device adds a blank replacement by itself. When a replacement isn't blank (most new cards and disks come formatted, with a partition table or a filesystem), Settings offers it to the owner, and the device erases it and adds it only once the owner confirms there. {disk} identifies the disk for a technician: its system name, serial number and USB port, such as \"sdb 0123456789 xhci-hcd.1 usb4 4-1\".",
     "stored": true,
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-10-27 #bb5cea98"
+    "reviewed": "claude-backtranslation 2026-10-27 #6b066fba"
   },
   "dev.alert.raid.replace_detail_working_bottom": {
-    "text": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the bottom of its two blue USB ports, one above the other. The owner replaces the other disk, in the top port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have.",
-    "stored": true
+    "text": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the bottom of its two blue USB ports, one above the other. The owner replaces the other disk, in the top port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a blank replacement by itself. When a replacement isn't blank (most new cards and disks come formatted, with a partition table or a filesystem), Settings offers it to the owner, and the device erases it and adds it only once the owner confirms there.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #31b0bf65"
   },
   "dev.alert.raid.replace_detail_working_top": {
-    "text": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the top of its two blue USB ports, one above the other. The owner replaces the other disk, in the bottom port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have.",
-    "stored": true
+    "text": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the top of its two blue USB ports, one above the other. The owner replaces the other disk, in the bottom port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a blank replacement by itself. When a replacement isn't blank (most new cards and disks come formatted, with a partition table or a filesystem), Settings offers it to the owner, and the device erases it and adds it only once the owner confirms there.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #7112d020"
   },
   "dev.alert.raid.stopped_bottom": {
     "text": "The disk in the bottom blue USB port stopped working",
@@ -343,6 +355,51 @@
   "dev.alert.raid.stopped_unknown": {
     "text": "One of the two storage disks stopped working",
     "note": "Title of an alert in Alerts: one of the device's two storage disks (a mirror: each holds a copy of every file) stopped working, and the device can't tell which USB port it is in.",
+    "stored": true
+  },
+  "dev.alert.raid.use_failed_detail": {
+    "text": "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.use_title (the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it): erasing the disk, or adding it to the mirror once erased, failed (a disk that can't be written, say), so part of what was on it may already be gone. Settings › Logs is the Logs section of Settings, whose Device log has the details. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #40f0672b"
+  },
+  "dev.alert.raid.use_gone_detail": {
+    "text": "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.use_title (the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it): the disk chosen was no longer there when the device went to erase it - unplugged, or replaced by another disk in the same port - so the device erased nothing. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #83f2a679"
+  },
+  "dev.alert.raid.use_in_use_detail": {
+    "text": "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.use_title (the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it): when the device went to erase it, the disk was in use on the device (one of its partitions mounted, or part of another disk array, RAID) or smaller than the disk the mirror runs on, so it erased nothing. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #1b91fab3"
+  },
+  "dev.alert.raid.use_no_answer_detail": {
+    "text": "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.use_title (the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it): the device's storage watcher (the part of the system that looks after the disks) didn't pick the request up within a minute, so the request was withdrawn and nothing was erased. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #f775b6f8"
+  },
+  "dev.alert.raid.use_not_needed_detail": {
+    "text": "By then the mirror no longer needed it, so nothing on it was erased. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.use_title (the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it): when the device went to erase it, the mirror had both its disks again (another disk was added meanwhile, say), so it erased nothing. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #36e8772e"
+  },
+  "dev.alert.raid.use_title": {
+    "text": "The disk wasn't added to the mirror",
+    "note": "Title of an alert in Alerts: the owner chose in Settings to have a disk that wasn't blank erased and added to the mirror (two disks that each hold a copy of every file), and the device didn't add it. Its detail (dev.alert.raid.use_gone_detail, use_not_needed_detail, use_in_use_detail, use_failed_detail, use_no_answer_detail) says why.",
     "stored": true
   },
   "dev.alert.raid.working_detail": {

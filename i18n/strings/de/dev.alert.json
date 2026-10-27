@@ -190,31 +190,38 @@
     "en": "Sep"
   },
   "dev.alert.raid.not_added_detail": {
-    "text": "Das Gerät fügt ein Laufwerk nur dann von selbst zur Spiegelung hinzu, wenn sich gar nichts darauf befindet. Dieses enthält etwas (eine Partitionstabelle, ein Dateisystem oder andere Daten) oder kann nicht gelesen werden, deshalb wurde es so gelassen, wie es ist. Deine Dateien liegen weiterhin nur auf einem Laufwerk: Um dieses für die Spiegelung zu verwenden, lösche es an einem Computer vollständig und schließe es wieder an, oder schließe ein leeres, mindestens gleich großes Laufwerk an. ({disk})",
-    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #90cf6ae9"
+    "text": "Das Gerät fügt ein Laufwerk nur dann von selbst zur Spiegelung hinzu, wenn sich gar nichts darauf befindet. Dieses enthält etwas (eine Partitionstabelle, ein Dateisystem oder andere Daten) oder kann nicht gelesen werden, deshalb wurde es so gelassen, wie es ist. Deine Dateien liegen weiterhin nur auf einem Laufwerk. Öffne die Einstellungen, um dieses Laufwerk für die Spiegelung zu verwenden (alles darauf wird gelöscht), oder schließe ein leeres, mindestens gleich großes Laufwerk an. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #e66eb180"
+  },
+  "dev.alert.raid.not_added_detail_in_use": {
+    "text": "Das Gerät fügt ein Laufwerk nur dann von selbst zur Spiegelung hinzu, wenn sich gar nichts darauf befindet. Dieses wird gerade verwendet (es ist eingehängt oder gehört zu einem anderen laufenden Laufwerksverbund), deshalb wurde es so gelassen, wie es ist. Deine Dateien liegen weiterhin nur auf einem Laufwerk: Um dieses für die Spiegelung zu verwenden, lösche es an einem Computer vollständig und schließe es wieder an, oder schließe ein leeres, mindestens gleich großes Laufwerk an. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #a7ac1d2f"
   },
   "dev.alert.raid.not_added_title": {
     "text": "Ein Laufwerk wurde angeschlossen, aber nicht zur Spiegelung hinzugefügt",
     "en": "A disk was plugged in but not added to the mirror"
   },
   "dev.alert.raid.replace_detail": {
-    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "reviewed": "claude-backtranslation 2026-10-27 #d0374291"
+    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf – ist die Karte nicht leer, erst nachdem du in den Einstellungen bestätigt hast, dass sie gelöscht werden darf.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #858e622a"
   },
   "dev.alert.raid.replace_detail_disk": {
-    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf. ({disk})",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #ea94a1e8"
+    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf – ist die Karte nicht leer, erst nachdem du in den Einstellungen bestätigt hast, dass sie gelöscht werden darf. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #7fbfb154"
   },
   "dev.alert.raid.replace_detail_working_bottom": {
-    "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
-    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf – ist die Karte nicht leer, erst nachdem du in den Einstellungen bestätigt hast, dass sie gelöscht werden darf.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #0f8c6fef"
   },
   "dev.alert.raid.replace_detail_working_top": {
-    "text": "Das Laufwerk im oberen blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
-    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "Das Laufwerk im oberen blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine mindestens gleich große Karte: Das Gerät fügt sie hinzu und kopiert alles von selbst darauf – ist die Karte nicht leer, erst nachdem du in den Einstellungen bestätigt hast, dass sie gelöscht werden darf.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #974f3e35"
   },
   "dev.alert.raid.stopped_bottom": {
     "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert nicht mehr",
@@ -257,6 +264,35 @@
   "dev.alert.raid.stopped_unknown": {
     "text": "Eines der beiden Speicherlaufwerke funktioniert nicht mehr",
     "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.use_failed_detail": {
+    "text": "Das Löschen oder das Hinzufügen zur Spiegelung ist fehlgeschlagen, daher ist ein Teil davon vielleicht schon gelöscht. Deine Dateien liegen weiterhin nur auf einem Laufwerk: Versuche es in den Einstellungen erneut oder schließe ein anderes Laufwerk an. Mehr dazu unter Einstellungen › Protokolle. ({disk})",
+    "en": "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #43b1fe8e"
+  },
+  "dev.alert.raid.use_gone_detail": {
+    "text": "Es wurde abgezogen oder ein anderes Laufwerk wurde an seiner Stelle angeschlossen, bevor es gelöscht werden konnte, deshalb wurde nichts darauf angetastet. ({disk})",
+    "en": "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #35d850e1"
+  },
+  "dev.alert.raid.use_in_use_detail": {
+    "text": "Es wurde gerade verwendet (es war eingehängt oder gehörte zu einem anderen Laufwerksverbund) oder war zu klein für die Spiegelung, deshalb wurde nichts darauf gelöscht. ({disk})",
+    "en": "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #b503ee97"
+  },
+  "dev.alert.raid.use_no_answer_detail": {
+    "text": "Der Teil des Geräts, der Laufwerke löscht und hinzufügt, hat die Anfrage nicht angenommen, deshalb wurde nichts darauf gelöscht. Starte das Gerät in den Einstellungen neu und versuche es erneut. ({disk})",
+    "en": "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #bdbe2fb4"
+  },
+  "dev.alert.raid.use_not_needed_detail": {
+    "text": "Die Spiegelung brauchte es da nicht mehr, deshalb wurde nichts darauf gelöscht. ({disk})",
+    "en": "By then the mirror no longer needed it, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #4f0e67ca"
+  },
+  "dev.alert.raid.use_title": {
+    "text": "Das Laufwerk wurde nicht zur Spiegelung hinzugefügt",
+    "en": "The disk wasn't added to the mirror"
   },
   "dev.alert.raid.working_detail": {
     "text": "Die Spiegelung ist vollständig: Jede Datei ist wieder auf beiden Laufwerken.",

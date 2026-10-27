@@ -189,6 +189,35 @@ export interface Status {
    * would change something and never upload this phone's photos to it.
    */
   demo: boolean;
+  /**
+   * Settings › Storage: disks plugged in while the mirror is missing one
+   * that the device didn't add by itself because something is on them
+   * (it adds only a blank disk or a former member of the mirror). The
+   * owner may have one erased and added with UseMirrorDisk. Only for the
+   * owner of the primary instance of a Raspberry Pi (none in a container,
+   * on a demo device or on a user's instance), and only while the mirror
+   * has a slot with no working disk - none while a replacement is being
+   * copied onto. Empty on devices before it.
+   */
+  mirrorCandidates: MirrorDiskCandidate[];
+}
+
+/** A disk Settings offers for the mirror (Status.mirror_candidates). */
+export interface MirrorDiskCandidate {
+  /**
+   * Names this disk while it stays plugged in: opaque, 20 lowercase hex
+   * digits. Any other disk - this one too, once unplugged and plugged in
+   * again, or after a restart - gets another. UseMirrorDisk.disk.
+   */
+  id: string;
+  /**
+   * What the disk calls itself, its vendor and model as it reports them
+   * ("Generic Card Reader", "Samsung PSSD T7"); may be empty. Shown as
+   * it is.
+   */
+  model: string;
+  /** Its size in bytes. */
+  size: bigint;
 }
 
 /**
@@ -1370,6 +1399,28 @@ export interface RestartDevice {
 export interface RestartingDevice {
   /** About how long the device is expected to be unreachable, in seconds. */
   expectedSeconds: number;
+}
+
+/**
+ * Settings › Storage: erase a disk Status.mirror_candidates lists and add
+ * it to the mirror as its second disk; the mirror then copies every file
+ * onto it. The owner of the primary instance only: a user's instance gets
+ * an error without a code, a container dev.err.not_in_container, a demo
+ * device error_code "demo", devices before it "unknown_payload".
+ * Answers the generic Ack at once: ok once the request is handed to the
+ * root watcher (scripts/raid_watch.py), which checks everything again
+ * before it erases anything; the copy then shows in Status (raid_state
+ * RaidSyncing, raid_sync_percent), and an Alert says why when the watcher
+ * didn't use the disk. Refused before anything is asked - Ack ok false
+ * with code and error_msg, both also on the envelope (error_code,
+ * error_message): "not_candidate" (no such disk is offered now: unplugged,
+ * or already added), "not_degraded" (the mirror has both its disks, or a
+ * replacement is being copied onto), "busy" (another disk was just asked
+ * for and the watcher hasn't taken it yet).
+ */
+export interface UseMirrorDisk {
+  /** MirrorDiskCandidate.id. */
+  disk: string;
 }
 
 /**
@@ -3019,6 +3070,13 @@ export interface ReqEnvelope {
     { $case: "reqGetWifiStatus"; reqGetWifiStatus: GetWifiStatus }
     | { $case: "reqJoinWifi"; reqJoinWifi: JoinWifi }
     | //
+    /**
+     * Settings › Storage: erase a disk that isn't blank and add it to the
+     * mirror. Answers with the generic Ack; devices before it with
+     * error_code "unknown_payload".
+     */
+    { $case: "reqUseMirrorDisk"; reqUseMirrorDisk: UseMirrorDisk }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3283,6 +3341,7 @@ function createBaseStatus(): Status {
     updateAlert: undefined,
     language: undefined,
     demo: false,
+    mirrorCandidates: [],
   };
 }
 
@@ -3338,6 +3397,9 @@ export const Status: MessageFns<Status> = {
     }
     if (message.demo !== false) {
       writer.uint32(144).bool(message.demo);
+    }
+    for (const v of message.mirrorCandidates) {
+      MirrorDiskCandidate.encode(v!, writer.uint32(154).fork()).join();
     }
     return writer;
   },
@@ -3485,6 +3547,14 @@ export const Status: MessageFns<Status> = {
           message.demo = reader.bool();
           continue;
         }
+        case 19: {
+          if (tag !== 154) {
+            break;
+          }
+
+          message.mirrorCandidates.push(MirrorDiskCandidate.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3518,6 +3588,80 @@ export const Status: MessageFns<Status> = {
       : undefined;
     message.language = object.language ?? undefined;
     message.demo = object.demo ?? false;
+    message.mirrorCandidates = object.mirrorCandidates?.map((e) => MirrorDiskCandidate.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMirrorDiskCandidate(): MirrorDiskCandidate {
+  return { id: "", model: "", size: 0n };
+}
+
+export const MirrorDiskCandidate: MessageFns<MirrorDiskCandidate> = {
+  encode(message: MirrorDiskCandidate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.model !== "") {
+      writer.uint32(18).string(message.model);
+    }
+    if (message.size !== 0n) {
+      if (BigInt.asIntN(64, message.size) !== message.size) {
+        throw new globalThis.Error("value provided for field message.size of type int64 too large");
+      }
+      writer.uint32(24).int64(message.size);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MirrorDiskCandidate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMirrorDiskCandidate();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.model = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.size = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<MirrorDiskCandidate>, I>>(base?: I): MirrorDiskCandidate {
+    return MirrorDiskCandidate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<MirrorDiskCandidate>, I>>(object: I): MirrorDiskCandidate {
+    const message = createBaseMirrorDiskCandidate();
+    message.id = object.id ?? "";
+    message.model = object.model ?? "";
+    message.size = object.size ?? 0n;
     return message;
   },
 };
@@ -9077,6 +9221,52 @@ export const RestartingDevice: MessageFns<RestartingDevice> = {
   fromPartial<I extends Exact<DeepPartial<RestartingDevice>, I>>(object: I): RestartingDevice {
     const message = createBaseRestartingDevice();
     message.expectedSeconds = object.expectedSeconds ?? 0;
+    return message;
+  },
+};
+
+function createBaseUseMirrorDisk(): UseMirrorDisk {
+  return { disk: "" };
+}
+
+export const UseMirrorDisk: MessageFns<UseMirrorDisk> = {
+  encode(message: UseMirrorDisk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.disk !== "") {
+      writer.uint32(10).string(message.disk);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UseMirrorDisk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUseMirrorDisk();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.disk = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<UseMirrorDisk>, I>>(base?: I): UseMirrorDisk {
+    return UseMirrorDisk.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UseMirrorDisk>, I>>(object: I): UseMirrorDisk {
+    const message = createBaseUseMirrorDisk();
+    message.disk = object.disk ?? "";
     return message;
   },
 };
@@ -17873,6 +18063,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqJoinWifi":
         JoinWifi.encode(message.payload.reqJoinWifi, writer.uint32(1154).fork()).join();
         break;
+      case "reqUseMirrorDisk":
+        UseMirrorDisk.encode(message.payload.reqUseMirrorDisk, writer.uint32(1162).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19164,6 +19357,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.decode(reader, reader.uint32()) };
           continue;
         }
+        case 145: {
+          if (tag !== 1162) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqUseMirrorDisk",
+            reqUseMirrorDisk: UseMirrorDisk.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20361,6 +20565,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqJoinWifi": {
         if (object.payload?.reqJoinWifi !== undefined && object.payload?.reqJoinWifi !== null) {
           message.payload = { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.fromPartial(object.payload.reqJoinWifi) };
+        }
+        break;
+      }
+      case "reqUseMirrorDisk": {
+        if (object.payload?.reqUseMirrorDisk !== undefined && object.payload?.reqUseMirrorDisk !== null) {
+          message.payload = {
+            $case: "reqUseMirrorDisk",
+            reqUseMirrorDisk: UseMirrorDisk.fromPartial(object.payload.reqUseMirrorDisk),
+          };
         }
         break;
       }

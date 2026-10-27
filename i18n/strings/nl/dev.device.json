@@ -48,6 +48,18 @@
     "en": "this device isn't on the bridge, so it can't send its logs - use Copy instead",
     "reviewed": "claude-backtranslation 2026-10-11 #192793d7"
   },
+  "dev.device.mirror_busy": {
+    "text": "Er is net een schijf voor de spiegel gekozen. Wacht een paar seconden en kijk dan opnieuw.",
+    "en": "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again."
+  },
+  "dev.device.mirror_not_candidate": {
+    "text": "Die schijf wordt niet meer aangeboden voor de spiegel: hij is losgekoppeld, of hij is al toegevoegd.",
+    "en": "That disk is no longer offered for the mirror: it was unplugged, or it was added already."
+  },
+  "dev.device.mirror_not_degraded": {
+    "text": "De spiegel heeft beide schijven, dus hij heeft deze niet nodig.",
+    "en": "The mirror has both of its disks, so it doesn't need this one."
+  },
   "dev.device.not_on_bridge": {
     "text": "dit apparaat is niet verbonden met de bridge",
     "en": "this device is not on the bridge"

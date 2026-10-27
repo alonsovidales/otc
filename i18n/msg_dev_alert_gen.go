@@ -204,6 +204,11 @@ func DevAlertRaidNotAddedDetail(disk string) Msg {
 	return Msg{Key: "dev.alert.raid.not_added_detail", Args: map[string]any{"disk": disk}}
 }
 
+// DevAlertRaidNotAddedDetailInUse is dev.alert.raid.not_added_detail_in_use: "The device adds a disk to the mirror by itself only when nothing at all is on it…".
+func DevAlertRaidNotAddedDetailInUse(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.not_added_detail_in_use", Args: map[string]any{"disk": disk}}
+}
+
 // DevAlertRaidNotAddedTitle is dev.alert.raid.not_added_title: "A disk was plugged in but not added to the mirror".
 func DevAlertRaidNotAddedTitle() Msg {
 	return Msg{Key: "dev.alert.raid.not_added_title"}
@@ -277,6 +282,36 @@ func DevAlertRaidStoppedTop() Msg {
 // DevAlertRaidStoppedUnknown is dev.alert.raid.stopped_unknown: "One of the two storage disks stopped working".
 func DevAlertRaidStoppedUnknown() Msg {
 	return Msg{Key: "dev.alert.raid.stopped_unknown"}
+}
+
+// DevAlertRaidUseFailedDetail is dev.alert.raid.use_failed_detail: "Erasing it or adding it to the mirror failed, so some of it may be erased alread…".
+func DevAlertRaidUseFailedDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.use_failed_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidUseGoneDetail is dev.alert.raid.use_gone_detail: "It was unplugged, or another disk took its place, before it could be erased, so …".
+func DevAlertRaidUseGoneDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.use_gone_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidUseInUseDetail is dev.alert.raid.use_in_use_detail: "It was in use (mounted, or part of another disk array) or too small for the mirr…".
+func DevAlertRaidUseInUseDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.use_in_use_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidUseNoAnswerDetail is dev.alert.raid.use_no_answer_detail: "The part of the device that erases and adds disks didn't take the request, so no…".
+func DevAlertRaidUseNoAnswerDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.use_no_answer_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidUseNotNeededDetail is dev.alert.raid.use_not_needed_detail: "By then the mirror no longer needed it, so nothing on it was erased. ({disk})".
+func DevAlertRaidUseNotNeededDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.use_not_needed_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidUseTitle is dev.alert.raid.use_title: "The disk wasn't added to the mirror".
+func DevAlertRaidUseTitle() Msg {
+	return Msg{Key: "dev.alert.raid.use_title"}
 }
 
 // DevAlertRaidWorkingDetail is dev.alert.raid.working_detail: "The mirror is complete: every file is on both disks again.".

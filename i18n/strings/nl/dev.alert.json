@@ -190,31 +190,38 @@
     "en": "Sep"
   },
   "dev.alert.raid.not_added_detail": {
-    "text": "Het apparaat voegt een schijf alleen zelf aan de spiegel toe als er helemaal niets op staat, en op deze staat iets (een partitietabel, een bestandssysteem of andere gegevens) of hij kan niet worden gelezen, dus hij is gelaten zoals hij is. Je bestanden staan nog steeds op maar één schijf: wil je deze voor de spiegel gebruiken, wis hem dan volledig op een computer en sluit hem opnieuw aan, of sluit een lege schijf aan die minstens even groot is. ({disk})",
-    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #be77620a"
+    "text": "Het apparaat voegt een schijf alleen zelf aan de spiegel toe als er helemaal niets op staat, en op deze staat iets (een partitietabel, een bestandssysteem of andere gegevens) of hij kan niet worden gelezen, dus hij is gelaten zoals hij is. Je bestanden staan nog steeds op maar één schijf. Open Instellingen om deze schijf voor de spiegel te gebruiken (alles wat erop staat wordt gewist), of sluit een lege schijf aan die minstens even groot is. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #c345610c"
+  },
+  "dev.alert.raid.not_added_detail_in_use": {
+    "text": "Het apparaat voegt een schijf alleen zelf aan de spiegel toe als er helemaal niets op staat, en deze is in gebruik (gekoppeld, of deel van een andere schijvenset die draait), dus hij is gelaten zoals hij is. Je bestanden staan nog steeds op maar één schijf: wil je deze voor de spiegel gebruiken, wis hem dan volledig op een computer en sluit hem opnieuw aan, of sluit een lege schijf aan die minstens even groot is. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #75ba8dfd"
   },
   "dev.alert.raid.not_added_title": {
     "text": "Er is een schijf aangesloten, maar die is niet aan de spiegel toegevoegd",
     "en": "A disk was plugged in but not added to the mirror"
   },
   "dev.alert.raid.replace_detail": {
-    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "reviewed": "claude-backtranslation 2026-10-27 #95841173"
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe – is de kaart niet leeg, dan pas nadat je in Instellingen hebt bevestigd dat hij gewist mag worden.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #0b1ebff6"
   },
   "dev.alert.raid.replace_detail_disk": {
-    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe. ({disk})",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #c7d17cd6"
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe – is de kaart niet leeg, dan pas nadat je in Instellingen hebt bevestigd dat hij gewist mag worden. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #d5d5f637"
   },
   "dev.alert.raid.replace_detail_working_bottom": {
-    "text": "De schijf in de onderste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
-    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "De schijf in de onderste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe – is de kaart niet leeg, dan pas nadat je in Instellingen hebt bevestigd dat hij gewist mag worden.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #5e1023b7"
   },
   "dev.alert.raid.replace_detail_working_top": {
-    "text": "De schijf in de bovenste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
-    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "De schijf in de bovenste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe – is de kaart niet leeg, dan pas nadat je in Instellingen hebt bevestigd dat hij gewist mag worden.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #2681a2a1"
   },
   "dev.alert.raid.stopped_bottom": {
     "text": "De schijf in de onderste blauwe USB-poort werkt niet meer",
@@ -257,6 +264,35 @@
   "dev.alert.raid.stopped_unknown": {
     "text": "Een van de twee opslagschijven werkt niet meer",
     "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.use_failed_detail": {
+    "text": "Het wissen of het toevoegen aan de spiegel is mislukt, dus een deel ervan is misschien al gewist. Je bestanden staan nog steeds op maar één schijf: probeer het opnieuw via Instellingen, of sluit een andere schijf aan. Instellingen › Logboeken vertelt meer. ({disk})",
+    "en": "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #e46df084"
+  },
+  "dev.alert.raid.use_gone_detail": {
+    "text": "Hij is losgekoppeld, of een andere schijf heeft zijn plaats ingenomen, voordat hij kon worden gewist, dus er is niets van aangeraakt. ({disk})",
+    "en": "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #b8a3ade8"
+  },
+  "dev.alert.raid.use_in_use_detail": {
+    "text": "Hij was in gebruik (gekoppeld, of deel van een andere schijvenset) of te klein voor de spiegel, dus er is niets van gewist. ({disk})",
+    "en": "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #ffbc7acc"
+  },
+  "dev.alert.raid.use_no_answer_detail": {
+    "text": "Het deel van het apparaat dat schijven wist en toevoegt heeft het verzoek niet opgepakt, dus er is niets van gewist. Herstart het apparaat via Instellingen en probeer het opnieuw. ({disk})",
+    "en": "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #99440d17"
+  },
+  "dev.alert.raid.use_not_needed_detail": {
+    "text": "Tegen die tijd had de spiegel hem niet meer nodig, dus er is niets van gewist. ({disk})",
+    "en": "By then the mirror no longer needed it, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #561a7144"
+  },
+  "dev.alert.raid.use_title": {
+    "text": "De schijf is niet aan de spiegel toegevoegd",
+    "en": "The disk wasn't added to the mirror"
   },
   "dev.alert.raid.working_detail": {
     "text": "De spiegel is compleet: elk bestand staat weer op beide schijven.",

@@ -33,7 +33,7 @@ func TestAlertsAndPushesCarryTheirKeys(t *testing.T) {
 		t.Fatalf("alerts %+v, pushes %d", alerts, len(pushes))
 	}
 	a := alerts[0]
-	wantDetail := "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. (sdb BBB xhci-hcd.1 usb4 4-1)"
+	wantDetail := "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. (sdb BBB xhci-hcd.1 usb4 4-1)"
 	if a.Title != "The disk in the "+top+" blue USB port stopped working" || a.Detail != wantDetail {
 		t.Errorf("English %q | %q", a.Title, a.Detail)
 	}
@@ -64,7 +64,7 @@ func TestAlertsAndPushesCarryTheirKeys(t *testing.T) {
 // with or without what is known of it, keyed; several disks only in
 // English, from their labels, as before.
 func TestStoppedAlert(t *testing.T) {
-	const mirror = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+	const mirror = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased."
 	topDisk := Member{Slot: 1, Dev: "sdb", Serial: "BBB", Port: "xhci-hcd.1 usb4 4-1", Position: "top"}
 	bottomDisk := Member{Slot: 0, Dev: "sda", Serial: "AAA", Port: "xhci-hcd.0 usb2 2-1", Position: "bottom"}
 	for _, c := range []struct {

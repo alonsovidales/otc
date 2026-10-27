@@ -33,10 +33,13 @@ func everyAlertKey() map[string]struct {
 		upload  = ". Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
 		logs    = " If this keeps happening, send the logs from Settings > Logs."
 		mirror  = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
-		// Since release 143 a replacement is added only when blank.
-		blank    = "a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+		// Since release 143 a replacement is added by itself only when
+		// blank, and one that isn't once the owner confirms in Settings.
+		blank    = "a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased."
 		replace  = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with " + blank
-		notAdded = "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large."
+		notAdded = "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large."
+		inUse    = "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large."
+		what     = "sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)"
 		restart  = " Restart the device from Settings, or connect it to your router with an Ethernet cable."
 		disk     = "ata-WDC_WD40EFRX-68N32N0_WD-WCC7K2222222"
 	)
@@ -92,8 +95,16 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.raid.replace_detail_working_bottom": {i18n.DevAlertRaidReplaceDetailWorkingBottom(), "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with " + blank},
 		"dev.alert.raid.not_added_title":               {i18n.DevAlertRaidNotAddedTitle(), "A disk was plugged in but not added to the mirror"},
 		"dev.alert.raid.not_added_detail":              {i18n.DevAlertRaidNotAddedDetail("sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)"), notAdded + " (sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1))"},
-		"dev.alert.raid.working_title":                 {i18n.DevAlertRaidWorkingTitle(), "Both storage disks are working again"},
-		"dev.alert.raid.working_detail":                {i18n.DevAlertRaidWorkingDetail(), "The mirror is complete: every file is on both disks again."},
+		"dev.alert.raid.not_added_detail_in_use":       {i18n.DevAlertRaidNotAddedDetailInUse(what), inUse + " (" + what + ")"},
+		// New with Settings' Use it for the mirror (no older English).
+		"dev.alert.raid.use_title":             {i18n.DevAlertRaidUseTitle(), "The disk wasn't added to the mirror"},
+		"dev.alert.raid.use_gone_detail":       {i18n.DevAlertRaidUseGoneDetail(what), "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. (" + what + ")"},
+		"dev.alert.raid.use_not_needed_detail": {i18n.DevAlertRaidUseNotNeededDetail(what), "By then the mirror no longer needed it, so nothing on it was erased. (" + what + ")"},
+		"dev.alert.raid.use_in_use_detail":     {i18n.DevAlertRaidUseInUseDetail(what), "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. (" + what + ")"},
+		"dev.alert.raid.use_failed_detail":     {i18n.DevAlertRaidUseFailedDetail(what), "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. (" + what + ")"},
+		"dev.alert.raid.use_no_answer_detail":  {i18n.DevAlertRaidUseNoAnswerDetail(what), "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. (" + what + ")"},
+		"dev.alert.raid.working_title":         {i18n.DevAlertRaidWorkingTitle(), "Both storage disks are working again"},
+		"dev.alert.raid.working_detail":        {i18n.DevAlertRaidWorkingDetail(), "The mirror is complete: every file is on both disks again."},
 		// New with the container's mirror (no older English).
 		"dev.alert.raid.stopped_named":                {i18n.DevAlertRaidStoppedNamed(disk), "The disk " + disk + " stopped working"},
 		"dev.alert.raid.stopped_detail_named":         {i18n.DevAlertRaidStoppedDetailNamed(), "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it."},

@@ -409,6 +409,7 @@ func StillWorkingDisk() string {
 
 // Watch checks the array every minute, from 30 s after start. Blocks.
 func Watch(storagePath string, n Notify) {
+	setAlertTarget(storagePath, n)
 	time.Sleep(firstCheck)
 	for {
 		check(storagePath, n)
@@ -498,10 +499,12 @@ func soleFaultyNamed(a array) (Member, bool) {
 func check(storagePath string, n Notify) {
 	t := watched()
 	// A Raspberry Pi's disks that raid_watch.py left out of the mirror
-	// (notadded.go). In a container otc-mirror adds a disk only when .env
+	// (notadded.go), and its answer when the owner chose one in Settings
+	// (mirrordisk.go). In a container otc-mirror adds a disk only when .env
 	// names it, and says why not in the start-up log.
 	if !t.named() {
 		checkNotAdded(storagePath, n)
+		checkUse(storagePath, n)
 	}
 	a, ok := readArray(t)
 	if !ok {

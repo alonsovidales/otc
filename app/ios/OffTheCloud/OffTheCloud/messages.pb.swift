@@ -453,11 +453,48 @@ public nonisolated struct Msg_Status: @unchecked Sendable {
     set {_uniqueStorage()._demo = newValue}
   }
 
+  /// Settings › Storage: disks plugged in while the mirror is missing one
+  /// that the device didn't add by itself because something is on them
+  /// (it adds only a blank disk or a former member of the mirror). The
+  /// owner may have one erased and added with UseMirrorDisk. Only for the
+  /// owner of the primary instance of a Raspberry Pi (none in a container,
+  /// on a demo device or on a user's instance), and only while the mirror
+  /// has a slot with no working disk - none while a replacement is being
+  /// copied onto. Empty on devices before it.
+  public var mirrorCandidates: [Msg_MirrorDiskCandidate] {
+    get {_storage._mirrorCandidates}
+    set {_uniqueStorage()._mirrorCandidates = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// A disk Settings offers for the mirror (Status.mirror_candidates).
+public nonisolated struct Msg_MirrorDiskCandidate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Names this disk while it stays plugged in: opaque, 20 lowercase hex
+  /// digits. Any other disk - this one too, once unplugged and plugged in
+  /// again, or after a restart - gets another. UseMirrorDisk.disk.
+  public var id: String = String()
+
+  /// What the disk calls itself, its vendor and model as it reports them
+  /// ("Generic Card Reader", "Samsung PSSD T7"); may be empty. Shown as
+  /// it is.
+  public var model: String = String()
+
+  /// Its size in bytes.
+  public var size: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Issue #183: releases are minor, major (security, stability or durability)
@@ -2453,6 +2490,34 @@ public nonisolated struct Msg_RestartingDevice: Sendable {
 
   /// About how long the device is expected to be unreachable, in seconds.
   public var expectedSeconds: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Settings › Storage: erase a disk Status.mirror_candidates lists and add
+/// it to the mirror as its second disk; the mirror then copies every file
+/// onto it. The owner of the primary instance only: a user's instance gets
+/// an error without a code, a container dev.err.not_in_container, a demo
+/// device error_code "demo", devices before it "unknown_payload".
+/// Answers the generic Ack at once: ok once the request is handed to the
+/// root watcher (scripts/raid_watch.py), which checks everything again
+/// before it erases anything; the copy then shows in Status (raid_state
+/// RaidSyncing, raid_sync_percent), and an Alert says why when the watcher
+/// didn't use the disk. Refused before anything is asked - Ack ok false
+/// with code and error_msg, both also on the envelope (error_code,
+/// error_message): "not_candidate" (no such disk is offered now: unplugged,
+/// or already added), "not_degraded" (the mirror has both its disks, or a
+/// replacement is being copied onto), "busy" (another disk was just asked
+/// for and the watcher hasn't taken it yet).
+public nonisolated struct Msg_UseMirrorDisk: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// MirrorDiskCandidate.id.
+  public var disk: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -6183,6 +6248,17 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqJoinWifi(newValue)}
   }
 
+  /// Settings › Storage: erase a disk that isn't blank and add it to the
+  /// mirror. Answers with the generic Ack; devices before it with
+  /// error_code "unknown_payload".
+  public var reqUseMirrorDisk: Msg_UseMirrorDisk {
+    get {
+      if case .reqUseMirrorDisk(let v)? = payload {return v}
+      return Msg_UseMirrorDisk()
+    }
+    set {payload = .reqUseMirrorDisk(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -6415,6 +6491,10 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// devices before it with error_code "unknown_payload".
     case reqGetWifiStatus(Msg_GetWifiStatus)
     case reqJoinWifi(Msg_JoinWifi)
+    /// Settings › Storage: erase a disk that isn't blank and add it to the
+    /// mirror. Answers with the generic Ack; devices before it with
+    /// error_code "unknown_payload".
+    case reqUseMirrorDisk(Msg_UseMirrorDisk)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -7174,7 +7254,7 @@ nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{1}demo\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{1}demo\0\u{3}mirror_candidates\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
   fileprivate class _StorageClass {
     var _online: Bool = false
@@ -7194,6 +7274,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     var _updateAlert: Msg_UpdateAlert? = nil
     var _language: String? = nil
     var _demo: Bool = false
+    var _mirrorCandidates: [Msg_MirrorDiskCandidate] = []
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -7221,6 +7302,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       _updateAlert = source._updateAlert
       _language = source._language
       _demo = source._demo
+      _mirrorCandidates = source._mirrorCandidates
     }
   }
 
@@ -7256,6 +7338,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._updateAlert) }()
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._language) }()
         case 18: try { try decoder.decodeSingularBoolField(value: &_storage._demo) }()
+        case 19: try { try decoder.decodeRepeatedMessageField(value: &_storage._mirrorCandidates) }()
         default: break
         }
       }
@@ -7319,6 +7402,9 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       if _storage._demo != false {
         try visitor.visitSingularBoolField(value: _storage._demo, fieldNumber: 18)
       }
+      if !_storage._mirrorCandidates.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._mirrorCandidates, fieldNumber: 19)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -7345,10 +7431,51 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         if _storage._updateAlert != rhs_storage._updateAlert {return false}
         if _storage._language != rhs_storage._language {return false}
         if _storage._demo != rhs_storage._demo {return false}
+        if _storage._mirrorCandidates != rhs_storage._mirrorCandidates {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_MirrorDiskCandidate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MirrorDiskCandidate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}model\0\u{1}size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.model) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.size) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.model.isEmpty {
+      try visitor.visitSingularStringField(value: self.model, fieldNumber: 2)
+    }
+    if self.size != 0 {
+      try visitor.visitSingularInt64Field(value: self.size, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_MirrorDiskCandidate, rhs: Msg_MirrorDiskCandidate) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.model != rhs.model {return false}
+    if lhs.size != rhs.size {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10462,6 +10589,36 @@ nonisolated extension Msg_RestartingDevice: SwiftProtobuf.Message, SwiftProtobuf
 
   public static func ==(lhs: Msg_RestartingDevice, rhs: Msg_RestartingDevice) -> Bool {
     if lhs.expectedSeconds != rhs.expectedSeconds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_UseMirrorDisk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UseMirrorDisk"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}disk\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.disk) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.disk.isEmpty {
+      try visitor.visitSingularStringField(value: self.disk, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_UseMirrorDisk, rhs: Msg_UseMirrorDisk) -> Bool {
+    if lhs.disk != rhs.disk {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -15330,7 +15487,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -17056,6 +17213,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqJoinWifi(v)
         }
       }()
+      case 145: try {
+        var v: Msg_UseMirrorDisk?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqUseMirrorDisk(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqUseMirrorDisk(v)
+        }
+      }()
       default: break
       }
     }
@@ -17600,6 +17770,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqJoinWifi?: try {
       guard case .reqJoinWifi(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 144)
+    }()
+    case .reqUseMirrorDisk?: try {
+      guard case .reqUseMirrorDisk(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 145)
     }()
     case nil: break
     }

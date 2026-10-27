@@ -64,6 +64,21 @@ func DevDeviceLogsNeedBridge() Msg {
 	return Msg{Key: "dev.device.logs_need_bridge"}
 }
 
+// DevDeviceMirrorBusy is dev.device.mirror_busy: "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again…".
+func DevDeviceMirrorBusy() Msg {
+	return Msg{Key: "dev.device.mirror_busy"}
+}
+
+// DevDeviceMirrorNotCandidate is dev.device.mirror_not_candidate: "That disk is no longer offered for the mirror: it was unplugged, or it was added…".
+func DevDeviceMirrorNotCandidate() Msg {
+	return Msg{Key: "dev.device.mirror_not_candidate"}
+}
+
+// DevDeviceMirrorNotDegraded is dev.device.mirror_not_degraded: "The mirror has both of its disks, so it doesn't need this one.".
+func DevDeviceMirrorNotDegraded() Msg {
+	return Msg{Key: "dev.device.mirror_not_degraded"}
+}
+
 // DevDeviceNotOnBridge is dev.device.not_on_bridge: "this device is not on the bridge".
 func DevDeviceNotOnBridge() Msg {
 	return Msg{Key: "dev.device.not_on_bridge"}

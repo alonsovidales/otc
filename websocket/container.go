@@ -80,6 +80,9 @@ func (ch *connHandler) containerGate(env *pb.ReqEnvelope, lang string) (resp *pb
 		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespWifiStatus{RespWifiStatus: &pb.WifiStatus{}}}, true
 	case *pb.ReqEnvelope_ReqJoinWifi:
 		return notInContainer(env.Id, lang), true
+	case *pb.ReqEnvelope_ReqUseMirrorDisk:
+		// otc-mirror adds what .env names; Status offers no disk here.
+		return notInContainer(env.Id, lang), true
 	}
 	return nil, false
 }

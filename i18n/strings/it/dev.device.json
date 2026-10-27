@@ -48,6 +48,18 @@
     "en": "this device isn't on the bridge, so it can't send its logs - use Copy instead",
     "reviewed": "claude-backtranslation 2026-10-11 #e77fc439"
   },
+  "dev.device.mirror_busy": {
+    "text": "Un disco è stato scelto per il mirror un momento fa. Attendi qualche secondo e controlla di nuovo.",
+    "en": "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again."
+  },
+  "dev.device.mirror_not_candidate": {
+    "text": "Quel disco non è più proposto per il mirror: è stato scollegato, oppure è già stato aggiunto.",
+    "en": "That disk is no longer offered for the mirror: it was unplugged, or it was added already."
+  },
+  "dev.device.mirror_not_degraded": {
+    "text": "Il mirror ha entrambi i dischi, quindi non ha bisogno di questo.",
+    "en": "The mirror has both of its disks, so it doesn't need this one."
+  },
   "dev.device.not_on_bridge": {
     "text": "questo dispositivo non è sul bridge",
     "en": "this device is not on the bridge"

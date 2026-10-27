@@ -3084,6 +3084,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if demoMode {
 				demoPiStatus(st, time.Now())
 			}
+			// Settings › Storage: the disks the mirror could take, to be
+			// erased at the owner's word - the machine's, so the primary
+			// instance's owner only (none in a container: raidwatch).
+			if ch.mg.sup != nil && !demoMode {
+				st.MirrorCandidates = mirrorCandidatesProto()
+			}
 
 			resp.Payload = &pb.RespEnvelope_RespStatus{
 				RespStatus: st,
@@ -3770,6 +3776,17 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		resp.Payload = &pb.RespEnvelope_RespRestartingDevice{RespRestartingDevice: &pb.RestartingDevice{
 			ExpectedSeconds: int32(devicerestart.ExpectedDowntime / time.Second),
 		}}
+
+	// Settings › Storage: erase a disk that isn't blank and add it to the
+	// mirror. The machine's disks, so the owner of the main instance only,
+	// as ReqSetupStorage below.
+	case *pb.ReqEnvelope_ReqUseMirrorDisk:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = notAvailableHere(lang)
+			break
+		}
+		useMirrorDisk(p.ReqUseMirrorDisk, resp, lang)
 
 	case *pb.ReqEnvelope_ReqSetupStorage:
 		// Issue #85: machine-level, so primary-only. An additional user

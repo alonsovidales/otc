@@ -190,31 +190,38 @@
     "en": "Sep"
   },
   "dev.alert.raid.not_added_detail": {
-    "text": "El dispositivo solo añade por su cuenta un disco al espejo cuando no tiene absolutamente nada, y este contiene algo (una tabla de particiones, un sistema de archivos u otros datos) o no se puede leer, así que se ha dejado tal como está. Tus archivos siguen en un solo disco: para usar este en el espejo, bórralo por completo en un ordenador y vuelve a conectarlo, o conecta un disco vacío al menos igual de grande. ({disk})",
-    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #18336b6a"
+    "text": "El dispositivo solo añade por su cuenta un disco al espejo cuando no tiene absolutamente nada, y este contiene algo (una tabla de particiones, un sistema de archivos u otros datos) o no se puede leer, así que se ha dejado tal como está. Tus archivos siguen en un solo disco. Abre Ajustes para usar este disco en el espejo (se borrará todo lo que contiene), o conecta un disco vacío al menos igual de grande. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only. Open Settings to use this disk for the mirror (everything on it will be erased), or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #00ad3ef2"
+  },
+  "dev.alert.raid.not_added_detail_in_use": {
+    "text": "El dispositivo solo añade por su cuenta un disco al espejo cuando no tiene absolutamente nada, y este está en uso (montado, o forma parte de otro conjunto de discos que está en marcha), así que se ha dejado tal como está. Tus archivos siguen en un solo disco: para usar este en el espejo, bórralo por completo en un ordenador y vuelve a conectarlo, o conecta un disco vacío al menos igual de grande. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one is in use (mounted, or part of another disk array that is running), so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #fe2a7296"
   },
   "dev.alert.raid.not_added_title": {
     "text": "Se ha conectado un disco, pero no se ha añadido al espejo",
     "en": "A disk was plugged in but not added to the mirror"
   },
   "dev.alert.raid.replace_detail": {
-    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
-    "reviewed": "claude-backtranslation 2026-10-27 #3845c12a"
+    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente; si la tarjeta no está vacía, después de que confirmes en Ajustes que se puede borrar.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #40748b80"
   },
   "dev.alert.raid.replace_detail_disk": {
-    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente. ({disk})",
-    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
-    "reviewed": "claude-backtranslation 2026-10-27 #3200d266"
+    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente; si la tarjeta no está vacía, después de que confirmes en Ajustes que se puede borrar. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #069a2efa"
   },
   "dev.alert.raid.replace_detail_working_bottom": {
-    "text": "El disco del puerto USB azul inferior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
-    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "El disco del puerto USB azul inferior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente; si la tarjeta no está vacía, después de que confirmes en Ajustes que se puede borrar.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #b1d2fee5"
   },
   "dev.alert.raid.replace_detail_working_top": {
-    "text": "El disco del puerto USB azul superior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
-    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+    "text": "El disco del puerto USB azul superior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta al menos igual de grande: el dispositivo la añade y lo copia todo en ella automáticamente; si la tarjeta no está vacía, después de que confirmes en Ajustes que se puede borrar.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself - when the card isn't blank, once you confirm in Settings that it may be erased.",
+    "reviewed": "claude-backtranslation 2026-10-27 #5ccd5976"
   },
   "dev.alert.raid.stopped_bottom": {
     "text": "El disco del puerto USB azul inferior ha dejado de funcionar",
@@ -257,6 +264,35 @@
   "dev.alert.raid.stopped_unknown": {
     "text": "Uno de los dos discos de almacenamiento ha dejado de funcionar",
     "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.use_failed_detail": {
+    "text": "No se pudo borrar o añadir al espejo, así que puede que parte de su contenido ya esté borrado. Tus archivos siguen en un solo disco: vuelve a intentarlo desde Ajustes o conecta otro disco. En Ajustes › Registros encontrarás más detalles. ({disk})",
+    "en": "Erasing it or adding it to the mirror failed, so some of it may be erased already. Your files are still on one disk only: try again from Settings, or plug in another disk. Settings › Logs says more. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #64d6c793"
+  },
+  "dev.alert.raid.use_gone_detail": {
+    "text": "Se desconectó, u otro disco ocupó su lugar, antes de que se pudiera borrar, así que no se ha tocado nada de lo que contiene. ({disk})",
+    "en": "It was unplugged, or another disk took its place, before it could be erased, so nothing on it was touched. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #5c18f726"
+  },
+  "dev.alert.raid.use_in_use_detail": {
+    "text": "Estaba en uso (montado, o formaba parte de otro conjunto de discos) o era demasiado pequeño para el espejo, así que no se ha borrado nada de lo que contiene. ({disk})",
+    "en": "It was in use (mounted, or part of another disk array) or too small for the mirror, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #9f491591"
+  },
+  "dev.alert.raid.use_no_answer_detail": {
+    "text": "La parte del dispositivo que borra y añade discos no ha recogido la petición, así que no se ha borrado nada de lo que contiene. Reinicia el dispositivo desde Ajustes y vuelve a intentarlo. ({disk})",
+    "en": "The part of the device that erases and adds disks didn't take the request, so nothing on it was erased. Restart the device from Settings and try again. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #1804d0cd"
+  },
+  "dev.alert.raid.use_not_needed_detail": {
+    "text": "Para entonces el espejo ya no lo necesitaba, así que no se ha borrado nada de lo que contiene. ({disk})",
+    "en": "By then the mirror no longer needed it, so nothing on it was erased. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #7c796a68"
+  },
+  "dev.alert.raid.use_title": {
+    "text": "El disco no se ha añadido al espejo",
+    "en": "The disk wasn't added to the mirror"
   },
   "dev.alert.raid.working_detail": {
     "text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos.",

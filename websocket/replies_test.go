@@ -208,6 +208,11 @@ var headEnglish = []struct {
 	{"dev.device.wifi_not_managed", i18n.DevDeviceWifiNotManaged(), "This device's Wi-Fi can't be changed from Settings."},
 	{"dev.device.wifi_bad_name", i18n.DevDeviceWifiBadName(), "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks."},
 	{"dev.device.wifi_bad_password", i18n.DevDeviceWifiBadPassword(), "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."},
+	// Settings › Storage's Use it for the mirror: new, so their English is
+	// the catalog's from the start.
+	{"dev.device.mirror_not_candidate", i18n.DevDeviceMirrorNotCandidate(), "That disk is no longer offered for the mirror: it was unplugged, or it was added already."},
+	{"dev.device.mirror_not_degraded", i18n.DevDeviceMirrorNotDegraded(), "The mirror has both of its disks, so it doesn't need this one."},
+	{"dev.device.mirror_busy", i18n.DevDeviceMirrorBusy(), "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again."},
 }
 
 // The catalog's English is the device's English as it was.

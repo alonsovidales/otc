@@ -73,6 +73,29 @@ message Status {
   // (RespEnvelope.error_code "demo"). The apps show a banner, hide what
   // would change something and never upload this phone's photos to it.
   bool demo = 18;
+  // Settings › Storage: disks plugged in while the mirror is missing one
+  // that the device didn't add by itself because something is on them
+  // (it adds only a blank disk or a former member of the mirror). The
+  // owner may have one erased and added with UseMirrorDisk. Only for the
+  // owner of the primary instance of a Raspberry Pi (none in a container,
+  // on a demo device or on a user's instance), and only while the mirror
+  // has a slot with no working disk - none while a replacement is being
+  // copied onto. Empty on devices before it.
+  repeated MirrorDiskCandidate mirror_candidates = 19;
+}
+
+// A disk Settings offers for the mirror (Status.mirror_candidates).
+message MirrorDiskCandidate {
+  // Names this disk while it stays plugged in: opaque, 20 lowercase hex
+  // digits. Any other disk - this one too, once unplugged and plugged in
+  // again, or after a restart - gets another. UseMirrorDisk.disk.
+  string id = 1;
+  // What the disk calls itself, its vendor and model as it reports them
+  // ("Generic Card Reader", "Samsung PSSD T7"); may be empty. Shown as
+  // it is.
+  string model = 2;
+  // Its size in bytes.
+  int64 size = 3;
 }
 
 // Issue #183: releases are minor, major (security, stability or durability)
@@ -1044,6 +1067,26 @@ message RestartDevice {}
 message RestartingDevice {
   // About how long the device is expected to be unreachable, in seconds.
   int32 expected_seconds = 1;
+}
+
+// Settings › Storage: erase a disk Status.mirror_candidates lists and add
+// it to the mirror as its second disk; the mirror then copies every file
+// onto it. The owner of the primary instance only: a user's instance gets
+// an error without a code, a container dev.err.not_in_container, a demo
+// device error_code "demo", devices before it "unknown_payload".
+// Answers the generic Ack at once: ok once the request is handed to the
+// root watcher (scripts/raid_watch.py), which checks everything again
+// before it erases anything; the copy then shows in Status (raid_state
+// RaidSyncing, raid_sync_percent), and an Alert says why when the watcher
+// didn't use the disk. Refused before anything is asked - Ack ok false
+// with code and error_msg, both also on the envelope (error_code,
+// error_message): "not_candidate" (no such disk is offered now: unplugged,
+// or already added), "not_degraded" (the mirror has both its disks, or a
+// replacement is being copied onto), "busy" (another disk was just asked
+// for and the watcher hasn't taken it yet).
+message UseMirrorDisk {
+  // MirrorDiskCandidate.id.
+  string disk = 1;
 }
 
 // Issue #80: reaching the device over Tailscale Funnel instead of the
@@ -2454,6 +2497,10 @@ message ReqEnvelope {
     // devices before it with error_code "unknown_payload".
     GetWifiStatus req_get_wifi_status = 143;
     JoinWifi req_join_wifi = 144;
+    // Settings › Storage: erase a disk that isn't blank and add it to the
+    // mirror. Answers with the generic Ack; devices before it with
+    // error_code "unknown_payload".
+    UseMirrorDisk req_use_mirror_disk = 145;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
