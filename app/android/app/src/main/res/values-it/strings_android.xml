@@ -110,7 +110,6 @@
     <string name="android_settings_profile_description">Descrizione</string>
     <string name="android_settings_profile_from_phone">Da questo telefono</string>
     <string name="android_settings_sharing_footer">Gallerie e link di download che hai condiviso, finché non scadono. Se ne elimini uno, le copie condivise vengono rimosse e il link smette di funzionare.</string>
-    <string name="android_settings_sync_cloud">Sincronizza dal cloud</string>
     <string name="android_settings_sync_title">Sincronizzazione</string>
     <string name="android_settings_thumbs_change_size">Cambia la dimensione</string>
     <string name="android_settings_thumbs_max_size_a11y">Dimensione massima, %1$s</string>

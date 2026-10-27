@@ -612,6 +612,53 @@
         }
       }
     },
+    "app.shell.cleartext_refused" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// ist nicht verschlüsselt und deshalb nur für Adressen in deinem Heimnetz gedacht. Verwende wss:// für diese Adresse."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// no está cifrado, así que solo sirve para direcciones de tu red doméstica. Usa wss:// para esta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// n’est pas chiffré : il ne sert qu’aux adresses de votre réseau domestique. Utilisez wss:// pour celle-ci."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// non è crittografato, quindi si usa solo per gli indirizzi della tua rete domestica. Usa wss:// per questo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// is niet versleuteld en is daarom alleen voor adressen op je thuisnetwerk. Gebruik wss:// voor dit adres."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ws:// não é encriptado, por isso só serve para endereços da tua rede doméstica. Usa wss:// para este."
+          }
+        }
+      }
+    },
     "app.shell.close_and_leave" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3035,6 +3082,194 @@
         }
       }
     },
+    "app.shell.notifications_continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doorgaan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar"
+          }
+        }
+      }
+    },
+    "app.shell.notifications_later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht jetzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora no"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus tard"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non ora"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet nu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agora não"
+          }
+        }
+      }
+    },
+    "app.shell.notifications_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud informiert dich über Freundschaftsanfragen, neue Beiträge, „Gefällt mir“-Angaben und Kommentare und darüber, wann dein Gerät dich braucht: ein Laufwerk, das ausgefallen ist, knapper Speicherplatz oder ein wichtiges Update."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud te avisa de las solicitudes de amistad, las publicaciones nuevas, los Me gusta y los comentarios, y de cuándo te necesita tu dispositivo: un disco que ha dejado de funcionar, poco espacio libre o una actualización importante."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud vous prévient des demandes d’ami, des nouvelles publications, des J’aime et des commentaires, et quand votre appareil a besoin de vous : un disque qui s’est arrêté, l’espace qui vient à manquer ou une mise à jour importante."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud ti avvisa di richieste di amicizia, nuovi post, Mi piace e commenti, e di quando il tuo dispositivo ha bisogno di te: un disco che ha smesso di funzionare, lo spazio che sta finendo o un aggiornamento importante."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud laat je weten wanneer er vriendschapsverzoeken, nieuwe berichten, vind-ik-leuks en reacties zijn, en wanneer je apparaat je nodig heeft: een schijf die gestopt is, ruimte die opraakt of een belangrijke update."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Off The Cloud avisa-te de pedidos de amizade, novas publicações, gostos e comentários, e de quando o teu dispositivo precisa de ti: um disco que deixou de funcionar, pouco espaço livre ou uma atualização importante."
+          }
+        }
+      }
+    },
+    "app.shell.notifications_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benachrichtigungen einschalten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on notifications?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Activar las notificaciones?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer les notifications ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attivare le notifiche?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pushmeldingen inschakelen?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ativar as notificações?"
+          }
+        }
+      }
+    },
     "app.shell.offline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3219,6 +3454,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Para um dispositivo acabado de sair da caixa: faz a configuração por Bluetooth e esta app passa a ser a app dele. Se estiveres a mudar de outro dispositivo, termina primeiro a sessão."
+          }
+        }
+      }
+    },
+    "app.shell.password_hide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort ausblenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer le mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nascondi password"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord verbergen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar palavra-passe"
+          }
+        }
+      }
+    },
+    "app.shell.password_show" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra password"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord tonen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar palavra-passe"
           }
         }
       }
@@ -5783,6 +6112,53 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "app.shell.sent_no_answer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesendet, aber es kam keine Antwort zurück. Prüfe, ob es geklappt hat, bevor du es erneut versuchst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent, but no answer came back. Check whether it went through before trying again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se envió, pero no llegó ninguna respuesta. Comprueba si se hizo antes de volver a intentarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyé, mais aucune réponse n’est revenue. Vérifiez si l’opération a abouti avant de réessayer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inviato, ma non è arrivata nessuna risposta. Controlla se è andato a buon fine prima di riprovare."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verzonden, maar er kwam geen antwoord terug. Controleer of het gelukt is voordat je het opnieuw probeert."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviado, mas não chegou nenhuma resposta. Verifica se ficou feito antes de tentares novamente."
           }
         }
       }

@@ -21,6 +21,8 @@ struct ConnectionEndpointFields: View {
     /// The endpoint as stored - always the full address, whichever way it
     /// was entered.
     @Binding var endpoint: String
+    /// Return on the address field: Next, to the password after it.
+    var onSubmit: () -> Void = {}
 
     @State private var deviceName = ""
     @State private var customAddress = false
@@ -34,12 +36,16 @@ struct ConnectionEndpointFields: View {
                     .disableAutocorrection(true)
                     .textContentType(.URL)
                     .keyboardType(.URL)
+                    .submitLabel(.next)
+                    .onSubmit(onSubmit)
             } else {
                 HStack(spacing: 0) {
                     TextField(S.appShellEndpointDeviceName, text: $deviceName)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .keyboardType(.asciiCapable)
+                        .submitLabel(.next)
+                        .onSubmit(onSubmit)
                         .onChange(of: deviceName) { _, name in
                             endpoint = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 ? "" : SecretsStore.bridgeEndpoint(forName: name)

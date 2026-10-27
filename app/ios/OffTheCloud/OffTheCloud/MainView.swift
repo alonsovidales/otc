@@ -586,8 +586,8 @@ private struct MainChrome: ViewModifier {
                 // Everything else that stops the app connecting - a wrong
                 // address or password, an unreachable host - with the
                 // settings to fix it. See ConnectionProblemView.
-                ConnectionProblemView {
-                    AppLogOut.run(secrets: secrets, unregisterPush: false, keepDevice: true)
+                ConnectionProblemView { endpoint, password in
+                    AppLogOut.run(secrets: secrets, unregisterPush: false, keepDevice: true, lastDevice: (endpoint, password))
                 }
                     .transition(.opacity)
             }

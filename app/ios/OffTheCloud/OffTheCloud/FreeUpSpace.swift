@@ -168,8 +168,11 @@ final class FreeUpSpace: @unchecked Sendable {
         let includeVideos = secrets.includeVideos
         let cutoff = Date().addingTimeInterval(-Double(Self.days(defaults.object(forKey: Self.daysKey))) * 24 * 3600)
 
+        // A4: what the app saved here from the device is left alone too: a
+        // copy with the photo's old date, which the device of course holds.
+        let saved = SavedToPhone.shared.ids()
         let assets = candidates(cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos,
-                                skipped: PhotoSources.skippedAssetIDs(secrets.skippedAlbums))
+                                skipped: PhotoSources.skippedAssetIDs(secrets.skippedAlbums).union(saved))
         print("[free-up] \(assets.count) assets old enough")
         guard !assets.isEmpty else { return 0 }
 
@@ -187,7 +190,7 @@ final class FreeUpSpace: @unchecked Sendable {
         let skippedAlbums = SecretsStore.loadOrCreate().skippedAlbums
         guard Self.albumsKnown(fullAccess: PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized,
                                skippedAlbums: skippedAlbums) else { return 0 }
-        let skippedNow = PhotoSources.skippedAssetIDs(skippedAlbums)
+        let skippedNow = PhotoSources.skippedAssetIDs(skippedAlbums).union(SavedToPhone.shared.ids())
         var toDelete: [PHAsset] = []
         PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
             var traits = Self.traits(of: asset)

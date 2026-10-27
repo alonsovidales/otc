@@ -396,10 +396,6 @@
     "text": "Galerías y enlaces de descarga que has compartido, hasta que caducan. Al eliminar uno, se eliminan las copias compartidas y el enlace deja de funcionar.",
     "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
   },
-  "android.settings.sync_cloud": {
-    "text": "Sincronizar desde la nube",
-    "en": "Sync from cloud"
-  },
   "android.settings.sync_title": {
     "text": "Sincronización",
     "en": "Sync"

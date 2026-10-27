@@ -396,10 +396,6 @@
     "text": "Galerijen en downloadlinks die je hebt gedeeld, tot ze verlopen. Als je er een verwijdert, worden de gedeelde kopieën verwijderd en werkt de link niet meer.",
     "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
   },
-  "android.settings.sync_cloud": {
-    "text": "Synchroniseren vanuit de cloud",
-    "en": "Sync from cloud"
-  },
   "android.settings.sync_title": {
     "text": "Synchronisatie",
     "en": "Sync"

@@ -16,12 +16,18 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.data.SecretsStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 // Port of SyncScheduler.swift: the background sync, via WorkManager (the
 // BGProcessingTask counterpart) - every 15 minutes (WorkManager's shortest
-// period) while there is a network, re-armed on every backgrounding.
+// period) while there is a network (an unmetered one with "Wi-Fi only"
+// on), re-armed on every backgrounding.
 //
 // Periodic, not a one-time request the worker re-enqueues: the worker used
 // to call scheduleNext() - enqueueUniqueWork(REPLACE) under its own name -
@@ -42,17 +48,49 @@ object SyncScheduler {
     private const val watchName = "otc-photo-sync-media"
     private const val soonName = "otc-photo-sync-soon"
     private const val tag = "OTC/SyncScheduler"
+    // WorkManager's lookups block: off the main thread, where the switch is.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * A1: what network a background run needs - UNMETERED while "Wi-Fi
+     * only" is on (WorkManager waits for Wi-Fi itself), else any.
+     */
+    fun networkType(wifiOnly: Boolean): NetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
+
+    private fun network(): NetworkType = networkType(SecretsStore.loadOrCreate().wifiOnly.value)
 
     fun scheduleNext(context: Context = OTCApp.instance) {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(oldName)
         val req = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
             .setInitialDelay(15, TimeUnit.MINUTES)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(network()).build())
             .build()
         wm.enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.UPDATE, req)
         watchMedia(context)
     }
+
+    /**
+     * "Wi-Fi only" changed: the periodic run and a sync still waiting to
+     * start take the new constraint (UPDATE never stops one that runs; the
+     * run itself checks the network between its chunks).
+     */
+    fun wifiOnlyChanged(context: Context = OTCApp.instance) = scope.launch {
+        val wm = WorkManager.getInstance(context)
+        try {
+            if (wm.getWorkInfosForUniqueWork(name).get().any { !it.state.isFinished }) scheduleNext(context)
+            for (info in wm.getWorkInfosForUniqueWork(soonName).get()) {
+                if (info.state != WorkInfo.State.ENQUEUED && info.state != WorkInfo.State.BLOCKED) continue
+                wm.updateWork(soonRequest().setId(info.id).build())
+            }
+        } catch (e: Exception) {
+            Log.w(tag, "background sync not updated for Wi-Fi only: $e")
+        }
+    }
+
+    private fun soonRequest() = OneTimeWorkRequestBuilder<SoonWorker>()
+        .setConstraints(Constraints.Builder().setRequiredNetworkType(network()).build())
+        .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
 
     /** Log Out: nothing to sync until someone signs in again. */
     fun cancel(context: Context = OTCApp.instance) {
@@ -92,11 +130,7 @@ object SyncScheduler {
         val waiting = wm.getWorkInfosForUniqueWork(soonName).get()
             .any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED }
         if (waiting) return
-        val req = OneTimeWorkRequestBuilder<SoonWorker>()
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
-            .build()
-        wm.enqueueUniqueWork(soonName, ExistingWorkPolicy.APPEND_OR_REPLACE, req)
+        wm.enqueueUniqueWork(soonName, ExistingWorkPolicy.APPEND_OR_REPLACE, soonRequest().build())
     }
 
     class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {

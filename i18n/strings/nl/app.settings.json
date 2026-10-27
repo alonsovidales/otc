@@ -675,6 +675,10 @@
     "text": "Met een sleutel uit je Tailscale-beheerconsole gaat dit vanzelf. Zonder sleutel word je naar Tailscale gestuurd om dit apparaat te autoriseren.",
     "en": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device."
   },
+  "app.settings.tailscale.key_ignored": {
+    "text": "Je apparaat heeft een update nodig om de authenticatiesleutel te accepteren. Autoriseer het in plaats daarvan op de pagina die net is geopend.",
+    "en": "Your device needs an update to take the auth key. Authorise it in the page that just opened instead."
+  },
   "app.settings.tailscale.limit_account": {
     "text": "<b>Je hebt een Tailscale-account nodig,</b> met Funnel ingeschakeld voor je tailnet.",
     "en": "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet."
@@ -848,9 +852,17 @@
     "text": "Bijwerken naar build {build}",
     "en": "Update to build {build}"
   },
+  "app.settings.uploads.device_full": {
+    "text": "Je apparaat is vol",
+    "en": "Your device is full"
+  },
   "app.settings.uploads.title": {
     "text": "Uploads",
     "en": "Uploads"
+  },
+  "app.settings.uploads.waiting_wifi": {
+    "text": "Wachten op wifi",
+    "en": "Waiting for Wi-Fi"
   },
   "app.settings.users.confirm_delete": {
     "text": "Verwijderen bevestigen",

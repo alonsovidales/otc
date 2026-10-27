@@ -240,8 +240,10 @@ object FreeUpSpace {
         )
         val types = if (includeVideos) "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})" else "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
         val out = mutableListOf<Row>()
+        // A4: never what the viewer's Save wrote - a copy with the photo's
+        // old date, which the device of course holds.
         OTCApp.instance.contentResolver.query(
-            MediaStore.Files.getContentUri("external"), proj, "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types", null, null,
+            MediaStore.Files.getContentUri("external"), proj, "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types AND ${PhotoFolders.savedClause}", null, null,
         )?.use { cur ->
             while (cur.moveToNext()) {
                 val taken = cur.getLong(2).takeIf { it > 0 } ?: (cur.getLong(3) * 1000)

@@ -110,7 +110,10 @@ enum MediaStream {
         }
         components.path = path
 
-        return components.url
+        // http:// only to the home network, as the socket's ws:// (A6,
+        // CleartextRule): none otherwise, and the file comes over the socket.
+        guard let url = components.url, CleartextRule.allows(url) else { return nil }
+        return url
     }
 
     /// The asset a player of a URL from here is built from: AVPlayer can

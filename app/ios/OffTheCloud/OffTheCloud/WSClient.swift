@@ -121,6 +121,17 @@ actor WSClient {
         var errorDescription: String? { S.iosWsUnresponsive }
     }
 
+    /// A request that left the phone - the socket took it whole - whose
+    /// answer never came because the connection went first: the device may
+    /// have acted on it (a like toggled, a comment posted), so OTCConnection
+    /// doesn't send it again by itself, as Android's WSClient.SentNoAnswer.
+    /// A request that never left fails with what stopped it instead, and is
+    /// sent again on a new connection.
+    struct SentNoAnswer: LocalizedError {
+        let underlying: Error
+        var errorDescription: String? { S.appShellSentNoAnswer }
+    }
+
     /// A request with no socket to go on (domain "ws", code -1, as the
     /// NSError it replaces).
     struct NotConnected: LocalizedError, CustomNSError {
@@ -176,6 +187,12 @@ actor WSClient {
     private var task: URLSessionWebSocketTask?
     private let session: URLSession
     private let opens = OpenWatch()
+    /// The requests whose send completed, noted in the send's own callback:
+    /// a socket that breaks right after is reported by the receive loop,
+    /// whose hop onto this actor can come before the send's own (`sent`).
+    /// The session's callbacks run on one serial queue, so a send that
+    /// completed before the break is always noted by then.
+    private let sends = SendLog()
     private let timing: Timing
     private(set) var connected = false
     /// The socket came from adopt(): the home network's, never reused to
@@ -332,7 +349,15 @@ actor WSClient {
         }
         let pending = waiters
         waiters.removeAll()
-        for (_, w) in pending { w.resume(.failure(URLError(.cancelled))) }
+        for (id, w) in pending { w.resume(.failure(failure(URLError(.cancelled), id: id, waiter: w))) }
+    }
+
+    /// What a waiter cut off by a broken or closed socket fails with: the
+    /// error itself while the request was still on the phone, else
+    /// SentNoAnswer (see there).
+    private func failure(_ error: Error, id: Int32, waiter w: Waiter) -> Error {
+        let left = sends.take(id) || w.sentAt != nil
+        return left ? SentNoAnswer(underlying: error) : error
     }
 
     /// Tied to one socket: a callback from a socket that has since been
@@ -372,6 +397,7 @@ actor WSClient {
                 // timed out, or the socket it went on was replaced -
                 // is dropped here: ids are never reused.
                 if let w = waiters.removeValue(forKey: env.id) {
+                    _ = sends.take(env.id)
                     w.resume(.success(Answer(resp: env, waited: w.sentAt.map { now.timeIntervalSince($0) } ?? 0)))
                 }
                 // If you expect server push, also post a Notification here.
@@ -394,7 +420,7 @@ actor WSClient {
         }
         let pending = waiters
         waiters.removeAll()
-        for (_, w) in pending { w.resume(.failure(error)) }
+        for (id, w) in pending { w.resume(.failure(failure(error, id: id, waiter: w))) }
         task?.cancel(with: .abnormalClosure, reason: nil)
         // Its late receive failure is ignored from here on (handleReceive):
         // a socket the watchdog gave up on would otherwise report twice.
@@ -454,7 +480,9 @@ actor WSClient {
         return try await withCheckedThrowingContinuation { cont in
             self.waiters[id] = Waiter(resume: { result in cont.resume(with: result) }, limit: limit, sentAt: nil)
             self.ensureWatch()
+            let sends = self.sends
             t.send(.data(data)) { error in
+                if error == nil { sends.note(id) }
                 Task { await self.sent(id, on: t, error: error) }
             }
         }
@@ -470,8 +498,10 @@ actor WSClient {
         waiters[id]?.sentAt = Date()
     }
 
+    /// The send itself failed: the request never left the phone whole.
     private func failWaiter(id: Int32, error: Error) {
         if let w = waiters.removeValue(forKey: id) {
+            _ = sends.take(id)
             w.resume(.failure(error))
         }
     }
@@ -496,6 +526,7 @@ actor WSClient {
         var expired = false
         for (id, w) in waiters where w.sentAt.map({ now >= $0 + w.limit }) ?? false {
             waiters.removeValue(forKey: id)
+            _ = sends.take(id)
             expired = true
             print("[ws] request \(id) got no answer in time")
             w.resume(.failure(TimedOut()))
@@ -554,6 +585,18 @@ private final class OpenWatch: NSObject, URLSessionWebSocketDelegate, @unchecked
         // Never opened (refused, cancelled): its receive loop reports it.
         lock.withLock { _ = waiting.removeValue(forKey: task.taskIdentifier) }
     }
+}
+
+/// The ids whose send completed (WSClient.sends): written from the session's
+/// callback queue, read on the actor.
+private final class SendLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var ids = Set<Int32>()
+
+    func note(_ id: Int32) { _ = lock.withLock { ids.insert(id) } }
+
+    /// Whether `id`'s send completed; forgotten either way.
+    func take(_ id: Int32) -> Bool { lock.withLock { ids.remove(id) != nil } }
 }
 
 /// Resumes a ping's wait once: with the pong, or false at the deadline.

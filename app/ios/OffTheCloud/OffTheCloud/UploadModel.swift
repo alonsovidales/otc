@@ -11,6 +11,27 @@
 import Foundation
 import SwiftUI
 
+/// Why the photo sync isn't sending now, for Settings' Uploads (as
+/// Android's SyncHalt): "Wi-Fi only" on mobile data, or the device full
+/// (storage_full, with its words).
+enum SyncHalt: Equatable {
+    case waitingForWifi
+    case deviceFull(String)
+
+    var title: String {
+        switch self {
+        case .waitingForWifi: return S.appSettingsUploadsWaitingWifi
+        case .deviceFull: return S.appSettingsUploadsDeviceFull
+        }
+    }
+
+    /// The device's own words under the line, when it gave some.
+    var detail: String? {
+        if case .deviceFull(let words) = self, !words.isEmpty { return words }
+        return nil
+    }
+}
+
 final class UploadModel: ObservableObject {
     static let shared = UploadModel()
     @Published var totalPending: Int = 0
@@ -23,6 +44,10 @@ final class UploadModel: ObservableObject {
     // flight, just stops starting new ones until resumed.
     @Published var isPaused: Bool = false
 
+    /// Why the last run stopped short of the library, until a run goes
+    /// through (PhotoSync's finish).
+    @Published var halt: SyncHalt?
+
     /// Log Out.
     func reset() {
         DispatchQueue.main.async {
@@ -31,6 +56,13 @@ final class UploadModel: ObservableObject {
             self.progress = 0
             self.isUploading = false
             self.isPaused = false
+            self.halt = nil
+        }
+    }
+
+    func halted(_ halt: SyncHalt?) {
+        DispatchQueue.main.async {
+            self.halt = halt
         }
     }
 
@@ -79,6 +111,19 @@ struct UploadDetail: View {
     @ObservedObject var upload: UploadModel
 
     var body: some View {
+        if let halt = upload.halt, !upload.isUploading {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(halt.title).font(.subheadline).bold()
+                if let detail = halt.detail {
+                    Text(detail).font(.caption).foregroundColor(.secondary)
+                }
+            }
+        } else {
+            progress
+        }
+    }
+
+    private var progress: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(upload.isPaused ? S.appShellUploadPaused : (upload.isUploading ? S.appShellUploadUploading : S.appShellUploadQueue))

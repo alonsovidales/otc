@@ -8189,6 +8189,53 @@
         }
       }
     },
+    "app.settings.tailscale.key_ignored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät braucht ein Update, um den Auth-Schlüssel anzunehmen. Autorisiere es stattdessen auf der gerade geöffneten Seite."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device needs an update to take the auth key. Authorise it in the page that just opened instead."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo necesita una actualización para aceptar la clave de autenticación. Autorízalo en la página que se acaba de abrir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil a besoin d’une mise à jour pour accepter la clé d’authentification. Autorisez-le plutôt dans la page qui vient de s’ouvrir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo ha bisogno di un aggiornamento per accettare la chiave di autenticazione. Autorizzalo invece nella pagina che si è appena aperta."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat heeft een update nodig om de authenticatiesleutel te accepteren. Autoriseer het in plaats daarvan op de pagina die net is geopend."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo precisa de uma atualização para aceitar a chave de autenticação. Autoriza-o antes na página que acabou de abrir."
+          }
+        }
+      }
+    },
     "app.settings.tailscale.limit_account" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10163,6 +10210,53 @@
         }
       }
     },
+    "app.settings.uploads.device_full" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät ist voll"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device is full"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo está lleno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil est plein"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo è pieno"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat is vol"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo está cheio"
+          }
+        }
+      }
+    },
     "app.settings.uploads.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10206,6 +10300,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Carregamentos"
+          }
+        }
+      }
+    },
+    "app.settings.uploads.waiting_wifi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartet auf WLAN"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Wi-Fi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando a una red Wi-Fi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente du Wi-Fi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa del Wi-Fi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachten op wifi"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À espera de Wi-Fi"
           }
         }
       }

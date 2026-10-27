@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.common
 
+import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidCacheBytes
@@ -57,11 +58,12 @@ class ThumbCacheLimit(private val file: File) {
  * it: decimal units as the sizes offered (1 GB is 10^9 bytes), "bytes"
  * below a kilobyte ("Using 0 bytes of 1 GB" for an empty cache, not "0 B"),
  * one decimal below 10 of a unit ("4.5 MB", "1.5 GB") and whole numbers from
- * there, with [locale]'s decimal separator ("1,5 GB"). Text, resolved where
- * it is shown: "bytes" is the language's word (android.cache_bytes), the
- * unit symbols stay KB, MB, GB, TB.
+ * there, with [locale]'s decimal separator ("1,5 GB"): the app's language,
+ * never the phone's region (A20, LanguageSettings.numberLocale, as every
+ * number written by hand). Text, resolved where it is shown: "bytes" is the
+ * language's word (android.cache_bytes), the unit symbols stay KB, MB, GB, TB.
  */
-fun formatCacheBytes(bytes: Long, locale: Locale = Locale.getDefault()): UiText {
+fun formatCacheBytes(bytes: Long, locale: Locale = LanguageSettings.numberLocale): UiText {
     val b = maxOf(bytes, 0L)
     if (b < 1_000L) return S.androidCacheBytes(b.toInt())
     val units = arrayOf("KB", "MB", "GB", "TB")

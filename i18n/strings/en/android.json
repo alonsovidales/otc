@@ -432,11 +432,6 @@
     "text": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.",
     "note": "Under the Shared Links row in Settings > Sharing."
   },
-  "android.settings.sync_cloud": {
-    "text": "Sync from cloud",
-    "note": "Switch in Settings > Sync Options: also upload photos kept only in the cloud (the phone downloads them first).",
-    "max": 30
-  },
   "android.settings.sync_title": {
     "text": "Sync",
     "note": "Heading of the section of Settings holding the Sync All and Sync From Now buttons.",

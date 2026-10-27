@@ -118,9 +118,10 @@ object HomeNetwork {
      * The network a home connection goes out on: [socketFactory] binds its
      * sockets to one (the home Wi-Fi even when Android sends everything
      * else over mobile data, as it does when the home internet is down);
-     * null leaves them on the default network. [key] names it.
+     * null leaves them on the default network. [key] names it; [network] is
+     * the one bound to, whose cost the photo sync's "Wi-Fi only" reads.
      */
-    class Via(val key: String, val socketFactory: SocketFactory?) {
+    class Via(val key: String, val socketFactory: SocketFactory?, val network: android.net.Network? = null) {
         companion object {
             val DEFAULT = Via("default", null)
         }

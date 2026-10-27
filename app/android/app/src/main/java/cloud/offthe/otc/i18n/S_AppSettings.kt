@@ -598,6 +598,10 @@ fun S.appSettingsTailscaleIntro(): UiText =
 fun S.appSettingsTailscaleKeyHint(): UiText =
     UiText.Res(R.string.app_settings_tailscale_key_hint)
 
+/** "Your device needs an update to take the auth key. Authorise it in the page that just opened instead.": Settings > Tailscale Funnel after Enable with a key: the device is too old to take the key, which the app sends encrypted, so it asked for Tailscale's sign-in page instead, which was opened in the browser. Auth key: what the field above is called (app.settings.tailscale.auth_key). */
+fun S.appSettingsTailscaleKeyIgnored(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_key_ignored)
+
 /** "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet.": Settings > Tailscale Funnel: the last item of the list of limitations, after a bullet. <b>…</b> is the item's lead (shown in bold on the iPhone); the sentence goes on after it. Tags: b. */
 fun S.appSettingsTailscaleLimitAccount(): RichText =
     RichText.Res(R.string.app_settings_tailscale_limit_account)
@@ -766,9 +770,17 @@ fun S.appSettingsUpdateUpdateTo(version: String): UiText =
 fun S.appSettingsUpdateUpdateToBuild(build: String): UiText =
     UiText.Res(R.string.app_settings_update_update_to_build, listOf(build))
 
+/** "Your device is full": Line in Settings > Uploads when the device said it has no room for what the photo sync sent: the sync stops and tries again later. The device's own words may follow on the next line. */
+fun S.appSettingsUploadsDeviceFull(): UiText =
+    UiText.Res(R.string.app_settings_uploads_device_full)
+
 /** "Uploads": Heading of the section of Settings that shows the photos and videos this phone is uploading to the device; shown only while there are some. */
 fun S.appSettingsUploadsTitle(): UiText =
     UiText.Res(R.string.app_settings_uploads_title)
+
+/** "Waiting for Wi-Fi": Line in Settings > Uploads while the photo sync waits: Wi-Fi only is on and the phone is on mobile data (or a hotspot), so nothing is sent until it is on Wi-Fi again. */
+fun S.appSettingsUploadsWaitingWifi(): UiText =
+    UiText.Res(R.string.app_settings_uploads_waiting_wifi)
 
 /** "Confirm Delete": Button (in red) in Settings > Users that deletes the user once the name was typed. Nothing can be recovered. */
 fun S.appSettingsUsersConfirmDelete(): UiText =

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!--
+  A6: where the app may talk without TLS. It needs cleartext for one thing:
+  a device on the home network reached at ws:// (an address the owner typed,
+  or the one leaving the bridge gives, ws://192.168.1.20:8080/ws), and the
+  http:// media URLs that come with it. This file can't name an address
+  range (private, link-local, Tailscale's 100.64/10) or "any single-label
+  name", so the base keeps cleartext allowed, and the rule is in code:
+  net/CleartextRule.kt, which OTCConnection, WSClient and MediaStream apply
+  before a byte goes out (anything else refused with
+  app.shell.cleartext_refused). The Bluetooth setup's page loads from
+  https://device/ (served by the app itself) and needs none.
+  Never in the clear, whatever the code does: the bridge's names.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">off-the.cloud</domain>
+    </domain-config>
+</network-security-config>

@@ -72,6 +72,9 @@ struct RootView: View {
         // The first-run tour (Tour.swift), over MainView once the sync
         // question is answered; sheets and dialogs open above it.
         .modifier(TourOverlay(configured: secrets.isConfigured, syncChoicePending: syncChoicePending))
+        // Notifications, asked once after the first sign-in
+        // (NotificationsAsk.swift), never at launch.
+        .modifier(NotificationsAskOverlay(configured: secrets.isConfigured, syncChoicePending: syncChoicePending))
         .onChange(of: scenePhase) { _, newPhase in
             // Automatic follows a system language changed while away.
             if newPhase == .active { LanguageSettings.shared.cameToForeground() }

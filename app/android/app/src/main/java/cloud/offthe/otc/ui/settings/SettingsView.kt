@@ -90,6 +90,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
@@ -131,7 +135,6 @@ import cloud.offthe.otc.i18n.androidSettingsLogsFooter
 import cloud.offthe.otc.i18n.androidSettingsProfileDescription
 import cloud.offthe.otc.i18n.androidSettingsProfileFromPhone
 import cloud.offthe.otc.i18n.androidSettingsSharingFooter
-import cloud.offthe.otc.i18n.androidSettingsSyncCloud
 import cloud.offthe.otc.i18n.androidSettingsSyncTitle
 import cloud.offthe.otc.i18n.androidSettingsThumbsChangeSize
 import cloud.offthe.otc.i18n.androidSettingsThumbsMaxSizeA11y
@@ -371,7 +374,6 @@ fun SettingsView(secrets: SecretsStore) {
     val deviceId by secrets.deviceId.collectAsState()
     val wifiOnly by secrets.wifiOnly.collectAsState()
     val includeVideos by secrets.includeVideos.collectAsState()
-    val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
     val signedIn by OTCConnection.authenticated.collectAsState()
     val route by OTCConnection.route.collectAsState()
     // Authorize Photos Access shows only while the app can't read the
@@ -428,9 +430,16 @@ fun SettingsView(secrets: SecretsStore) {
 
     LaunchedEffect(Unit) {
         device.loadSettings()
-        status.start()
         device.loadReprocessStatus()
         if (device.state.value.reprocessStatus == "running") device.pollReprocessStatusWhileRunning()
+    }
+    // A8: the status poll only while the app is in front (STARTED), as the
+    // wide layout's menu: it used to ask every 5 s with the Activity stopped.
+    LaunchedEffect(lifecycle) {
+        lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            status.start()
+            try { awaitCancellation() } finally { status.stop() }
+        }
     }
     LaunchedEffect(Unit) { isPrimary = isPrimaryInstance() }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
@@ -463,7 +472,14 @@ fun SettingsView(secrets: SecretsStore) {
             // The device's accounts, right under its status.
             UsersManagementSection()
 
-            if (upload.totalPending > 0 || upload.isUploading) {
+            // Also while a run waits: for Wi-Fi, or room on the device.
+            val halt = upload.halt
+            if (halt != null && !upload.isUploading) {
+                Section(S.appSettingsUploadsTitle().resolve()) {
+                    Text(halt.title.resolve(), style = MaterialTheme.typography.bodyMedium)
+                    halt.detail?.let { Caption(it) }
+                }
+            } else if (upload.totalPending > 0 || upload.isUploading) {
                 Section(S.appSettingsUploadsTitle().resolve()) {
                     Text((if (upload.isUploading) S.androidSettingsUploading(upload.currentName) else S.androidSettingsUploadWaiting()).resolve(), style = MaterialTheme.typography.bodyMedium)
                     LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
@@ -482,16 +498,19 @@ fun SettingsView(secrets: SecretsStore) {
             UpdateSection()
 
             Section(S.appSettingsPasswordTitle().resolve()) {
-                PasswordField(dst.oldKey, S.appSettingsPasswordCurrent().resolve(), device::setOldKey)
-                PasswordField(dst.newKey, S.appSettingsPasswordNew().resolve(), device::setNewKey)
-                PasswordField(dst.confirmKey, S.appSettingsPasswordConfirm().resolve(), device::setConfirmKey)
-                RowButton((if (dst.savingKey) S.appSettingsPasswordChanging() else S.appSettingsPasswordChange()).resolve(), enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
+                val canChange = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()
+                val change = { if (canChange) scope.launch { device.changePassword(secrets) } }
+                val newFocus = remember { FocusRequester() }
+                val confirmFocus = remember { FocusRequester() }
+                SettingsPasswordField(dst.oldKey, S.appSettingsPasswordCurrent().resolve(), device::setOldKey, ImeAction.Next, { newFocus.requestFocus() })
+                SettingsPasswordField(dst.newKey, S.appSettingsPasswordNew().resolve(), device::setNewKey, ImeAction.Next, { confirmFocus.requestFocus() }, Modifier.focusRequester(newFocus))
+                SettingsPasswordField(dst.confirmKey, S.appSettingsPasswordConfirm().resolve(), device::setConfirmKey, ImeAction.Go, { change() }, Modifier.focusRequester(confirmFocus))
+                RowButton((if (dst.savingKey) S.appSettingsPasswordChanging() else S.appSettingsPasswordChange()).resolve(), enabled = canChange) { change() }
             }
 
             Section(S.appSettingsSyncTitle().resolve()) {
                 ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
                 ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
-                ToggleRow(S.androidSettingsSyncCloud().resolve(), downloadFromCloud, secrets::setDownloadFromCloud)
                 if (photosAllowed) {
                     Row(
                         Modifier.fillMaxWidth().clickable(role = Role.Button) { showFolders = true }.padding(vertical = 6.dp),
@@ -513,8 +532,10 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section(S.androidSettingsSyncTitle().resolve(), S.appSettingsSyncFooter().resolve()) {
-                RowButton(S.appSettingsSyncAll().resolve()) { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
-                RowButton(S.appSettingsSyncFromNow().resolve()) { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
+                // A run going goes through once more from the new starting
+                // point (setWatermark), as on iOS.
+                RowButton(S.appSettingsSyncAll().resolve()) { PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
+                RowButton(S.appSettingsSyncFromNow().resolve()) { PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
 
             // Android 11 and later: MediaStore's trash request.
@@ -546,14 +567,24 @@ fun SettingsView(secrets: SecretsStore) {
                 // password never goes into saved state.
                 val editEntry = rememberSaveable(endpoint, saver = EndpointEntry.Saver) { EndpointEntry(endpoint) }
                 var editPassword by remember(password) { mutableStateOf(password) }
-                ConnectionEndpointFields(editEntry)
-                PasswordField(editPassword, S.commonPassword().resolve()) { editPassword = it }
+                val passwordFocus = remember { FocusRequester() }
+                // Never an empty address or password: that would be Log Out
+                // without the wipe.
+                val canSave = editEntry.endpoint.trim().isNotEmpty() && editPassword.isNotEmpty()
+                val save = {
+                    if (canSave) {
+                        secrets.saveCredentials(editEntry.endpoint.trim(), editPassword)
+                        OTCConnection.invalidate()
+                    }
+                }
+                ConnectionEndpointFields(editEntry, onNext = { passwordFocus.requestFocus() })
+                cloud.offthe.otc.ui.common.PasswordField(
+                    value = editPassword, onValueChange = { editPassword = it }, hint = S.commonPassword().resolve(), onAction = save,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).focusRequester(passwordFocus),
+                )
                 routeLine(signedIn, route, endpoint)?.let { Caption(it.resolve()) }
                 Caption(S.appSettingsConnectionDeviceId(deviceId).resolve())
-                RowButton(S.appSettingsConnectionSave().resolve()) {
-                    secrets.setEndpoint(editEntry.endpoint); secrets.setPassword(editPassword)
-                    secrets.persist(); OTCConnection.invalidate()
-                }
+                RowButton(S.appSettingsConnectionSave().resolve(), enabled = canSave) { save() }
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
 
@@ -641,12 +672,12 @@ private fun routeLine(signedIn: Boolean, route: OTCConnection.Route?, endpoint: 
     return S.appShellRouteThrough(if (h == bridge || h.endsWith(".$bridge")) bridge else host)
 }
 
+/** Change Password's fields: the app's PasswordField, Next to the following one and Go to change it. */
 @Composable
-private fun PasswordField(value: String, placeholder: String, onChange: (String) -> Unit) {
-    OTCTextField(
-        value = value, onValueChange = onChange, placeholder = { Text(placeholder) }, singleLine = true,
-        visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+private fun SettingsPasswordField(value: String, placeholder: String, onChange: (String) -> Unit, ime: ImeAction, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    cloud.offthe.otc.ui.common.PasswordField(
+        value = value, onValueChange = onChange, hint = placeholder, imeAction = ime, onAction = onDone,
+        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 }
 

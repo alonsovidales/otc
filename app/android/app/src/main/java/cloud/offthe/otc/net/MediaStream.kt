@@ -61,6 +61,12 @@ object MediaStream {
             synchronized(lock) { pinned[h.origin] = h }
             return URI(h.origin + "/").resolve(path).toString()
         }
+        // http:// only to the home network, as the socket's ws:// (A6): none
+        // otherwise, and the file comes over the socket instead.
+        return absoluteFromEndpoint(path)?.takeIf { CleartextRule.allows(it) }
+    }
+
+    private fun absoluteFromEndpoint(path: String): String? {
         val base = cachedBase ?: run {
             val gen = synchronized(lock) { generation }
             val ep = try { URI(SecretsStore.loadOrCreate().endpointURLString) } catch (e: Exception) { return null }

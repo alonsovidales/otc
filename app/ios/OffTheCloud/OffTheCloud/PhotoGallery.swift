@@ -2303,7 +2303,10 @@ final class PhotoGalleryVM: ObservableObject {
                 if !video, let img = await fallback() {
                     do {
                         try await PHPhotoLibrary.shared().performChanges {
-                            PHAssetChangeRequest.creationRequestForAsset(from: img)
+                            let request = PHAssetChangeRequest.creationRequestForAsset(from: img)
+                            // A4: a copy of the device's photo, not one for
+                            // the sync to send back (SavedToPhone).
+                            SavedToPhone.shared.remember(request.placeholderForCreatedAsset?.localIdentifier ?? "")
                         }
                         notice = .saved
                     } catch {
@@ -2344,6 +2347,9 @@ final class PhotoGalleryVM: ObservableObject {
             options.originalFilename = name
             request.addResource(with: video ? .video : .photo, fileURL: url, options: options)
             if let created { request.creationDate = created }
+            // A4: noted before the change lands, so the sync it starts
+            // already leaves it out (SavedToPhone).
+            SavedToPhone.shared.remember(request.placeholderForCreatedAsset?.localIdentifier ?? "")
         }
     }
 

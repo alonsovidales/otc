@@ -262,8 +262,7 @@ final class DeviceSettingsViewModel: ObservableObject {
             req.newKey = encNew
             let resp = try await ws.request { $0.payload = .reqChangeKey(req) }
             if case .respAck(let ack) = resp.payload, ack.ok {
-                secrets.password = newKey
-                secrets.persist()
+                secrets.saveCredentials(endpoint: secrets.endpoint, password: newKey)
                 oldKey = ""; newKey = ""; confirmKey = ""
                 showToast(.say { S.appSettingsPasswordChanged })
             } else if case .respAck(let ack) = resp.payload {
@@ -350,6 +349,9 @@ struct SettingsView: View {
     @State private var albumIDs: [String]?
     // Bumped on coming back to the app, so the Albums row counts again.
     @State private var resumed = 0
+    // The password change's fields, for Next on the keyboard.
+    @FocusState private var newKeyFocused: Bool
+    @FocusState private var confirmKeyFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -390,7 +392,8 @@ struct SettingsView: View {
                 // Issue #122: the only place upload progress is shown. There
                 // used to be a hairline over every tab as well (issue #14);
                 // a background sync isn't worth announcing everywhere.
-                if upload.totalPending > 0 || upload.isUploading {
+                // Also while a run waits: for Wi-Fi, or room on the device.
+                if upload.totalPending > 0 || upload.isUploading || upload.halt != nil {
                     Section(header: Text(S.appSettingsUploadsTitle)) {
                         UploadDetail(upload: upload)
                     }
@@ -409,12 +412,13 @@ struct SettingsView: View {
                     .id(Self.updateSectionID)
 
                 Section(header: Text(S.appSettingsPasswordTitle)) {
-                    SecureField(S.appSettingsPasswordCurrent, text: $device.oldKey)
-                    SecureField(S.appSettingsPasswordNew, text: $device.newKey)
-                    SecureField(S.appSettingsPasswordConfirm, text: $device.confirmKey)
-                    Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange) {
-                        Task { await device.changePassword(secrets: secrets) }
-                    }
+                    PasswordField(title: S.appSettingsPasswordCurrent, text: $device.oldKey, submitLabel: .next,
+                                  onSubmit: { newKeyFocused = true })
+                    PasswordField(title: S.appSettingsPasswordNew, text: $device.newKey, contentType: .newPassword, submitLabel: .next,
+                                  onSubmit: { confirmKeyFocused = true }, focus: $newKeyFocused)
+                    PasswordField(title: S.appSettingsPasswordConfirm, text: $device.confirmKey, contentType: .newPassword,
+                                  onSubmit: changePassword, focus: $confirmKeyFocused)
+                    Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange, action: changePassword)
                     .buttonStyle(.bordered)
                     .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
                 }
@@ -445,18 +449,17 @@ struct SettingsView: View {
                 Section(footer: Text(S.appSettingsSyncFooter)) {
                     Button(S.appSettingsSyncAll) {
                         Task {
-                            secrets.persist()
                             // The watermark PhotoSync syncs from - cleared,
                             // so the run below starts at the beginning
                             // (it used to be set to now here, which made
-                            // this button sync nothing at all).
+                            // this button sync nothing at all). A run going
+                            // goes through once more from there (IOS-05).
                             PhotoSync.shared.syncAll()
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
                     .buttonStyle(.bordered)
                     Button(S.appSettingsSyncFromNow) {
-                        secrets.persist()
                         PhotoSync.shared.syncFromNow()
                     }
                     .buttonStyle(.bordered)
@@ -496,29 +499,7 @@ struct SettingsView: View {
                     .disabled(device.savingFaceRecognition)
                 }
 
-                Section(header: Text(S.appSettingsConnectionTitle)) {
-                    // Issue #121: name for the bridge, or a custom address.
-                    ConnectionEndpointFields(endpoint: $secrets.endpoint)
-                    SecureField(S.commonPassword, text: $secrets.password)
-                    // Issue #190: which way the app reaches the device now.
-                    if let route = connection.route {
-                        Label(route.description, systemImage: route == .home ? "house" : "cloud")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(S.appSettingsConnectionDeviceId(id: secrets.deviceId))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Button(S.appSettingsConnectionSave) {
-                        secrets.persist()
-                        OTCConnection.shared.invalidate()
-                    }
-                    .buttonStyle(.bordered)
-                    Button(S.appSettingsConnectionLogOut, role: .destructive) {
-                        confirmLogout = true
-                    }
-                    .buttonStyle(.bordered)
-                }
+                ConnectionSettingsSection(secrets: secrets) { confirmLogout = true }
 
                 // Settings › Wi-Fi (release 140): the network the device
                 // uses. Primary-only, where the device manages its own
@@ -671,6 +652,12 @@ struct SettingsView: View {
 extension SettingsView {
     fileprivate static let updateSectionID = "updates"
 
+    /// Change Password, and Go on the confirmation's keyboard.
+    fileprivate func changePassword() {
+        guard !device.savingKey, !device.oldKey.isEmpty, !device.newKey.isEmpty else { return }
+        Task { await device.changePassword(secrets: secrets) }
+    }
+
     /// Full or limited access to the photo library: either lets the sync run.
     fileprivate static func photosAuthorizedNow() -> Bool {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -716,6 +703,71 @@ extension SettingsView {
     }
 }
 
+/// Settings › Connection (IOS-03): the fields edit drafts, seeded from what
+/// is saved, and only Save Connection writes them, as on Android - every
+/// reconnect dials what is saved, emptying the device name used to send the
+/// app back to Welcome at once, and turning a sync switch saved a half-typed
+/// address and password with it. What is saved changing underneath (a
+/// password changed above, the bridge left) shows in the fields.
+private struct ConnectionSettingsSection: View {
+    @ObservedObject var secrets: SecretsStore
+    @ObservedObject private var connection = OTCConnection.shared
+    var onLogOut: () -> Void
+    @State private var endpoint: String
+    @State private var password: String
+    /// Bumped when the saved address changes: the fields are made again
+    /// from the new draft, their name and mode with it.
+    @State private var fieldsID = 0
+    @FocusState private var passwordFocused: Bool
+
+    init(secrets: SecretsStore, onLogOut: @escaping () -> Void) {
+        self.secrets = secrets
+        self.onLogOut = onLogOut
+        _endpoint = State(initialValue: secrets.endpoint)
+        _password = State(initialValue: secrets.password)
+    }
+
+    var body: some View {
+        Section(header: Text(S.appSettingsConnectionTitle)) {
+            // Issue #121: name for the bridge, or a custom address.
+            ConnectionEndpointFields(endpoint: $endpoint, onSubmit: { passwordFocused = true })
+                .id(fieldsID)
+            PasswordField(title: S.commonPassword, text: $password, onSubmit: save, focus: $passwordFocused)
+            // Issue #190: which way the app reaches the device now.
+            if let route = connection.route {
+                Label(route.description, systemImage: route == .home ? "house" : "cloud")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Text(S.appSettingsConnectionDeviceId(id: secrets.deviceId))
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Button(S.appSettingsConnectionSave, action: save)
+                .buttonStyle(.bordered)
+                .disabled(!canSave)
+            Button(S.appSettingsConnectionLogOut, role: .destructive, action: onLogOut)
+                .buttonStyle(.bordered)
+        }
+        .onChange(of: secrets.endpoint) { _, saved in
+            endpoint = saved
+            fieldsID &+= 1
+        }
+        .onChange(of: secrets.password) { _, saved in password = saved }
+    }
+
+    private var trimmed: String { endpoint.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Never an empty address or password: that would be Log Out without
+    /// the wipe.
+    private var canSave: Bool { !trimmed.isEmpty && !password.isEmpty }
+
+    private func save() {
+        guard canSave else { return }
+        secrets.saveCredentials(endpoint: trimmed, password: password)
+        OTCConnection.shared.invalidate()
+    }
+}
+
 /// Log Out, shared by Settings and the "device isn't available" card
 /// (whose close button is how a phone leaves a device that died, to set a
 /// new one up): stop everything that talks to the device, forget what it
@@ -726,9 +778,12 @@ enum AppLogOut {
     /// `keepDevice`: leaving from the "isn't available"/"can't connect"
     /// screens - everything is wiped as for Log Out, but the device's
     /// address and password are kept for the connection screen to fill in
-    /// (SecretsStore.lastDevice). Settings' Log Out forgets them too.
-    static func run(secrets: SecretsStore, unregisterPush: Bool = true, keepDevice: Bool = false) {
-        let last = (secrets.endpoint, secrets.password)
+    /// (SecretsStore.lastDevice): `lastDevice` when the card's form has
+    /// them (it edits drafts, IOS-03), else the saved ones, as Android's
+    /// logOut(lastDevice =). Settings' Log Out forgets them too.
+    static func run(secrets: SecretsStore, unregisterPush: Bool = true, keepDevice: Bool = false,
+                    lastDevice: (String, String)? = nil) {
+        let last = lastDevice ?? (secrets.endpoint, secrets.password)
         Task {
             // A photo sync in progress owns the connection: stop it first,
             // or the request below queues behind its uploads and Log Out

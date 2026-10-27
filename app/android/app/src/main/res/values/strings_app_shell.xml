@@ -14,6 +14,7 @@
     <string name="app_shell_bluetooth_off">Bluetooth is off</string>
     <string name="app_shell_cant_connect">Can\'t connect to your device</string>
     <string name="app_shell_clear_selection">Clear selection</string>
+    <string name="app_shell_cleartext_refused">ws:// isn\'t encrypted, so it\'s only for addresses on your home network. Use wss:// for this one.</string>
     <string name="app_shell_close_and_leave">Close and leave this device</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s item</item>
@@ -65,10 +66,16 @@
     <string name="app_shell_no_public_key">Unable to fetch the connection\'s public key</string>
     <string name="app_shell_not_connected">Not connected</string>
     <string name="app_shell_not_otc">The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.</string>
+    <string name="app_shell_notifications_continue">Continue</string>
+    <string name="app_shell_notifications_later">Not Now</string>
+    <string name="app_shell_notifications_text">Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.</string>
+    <string name="app_shell_notifications_title">Turn on notifications?</string>
     <string name="app_shell_offline">This phone is offline. Connect to Wi-Fi or mobile data.</string>
     <string name="app_shell_onboarding_last_device">Filled in from the device you left. Tap Save &amp; Continue to connect to it again, or change it to use another one.</string>
     <string name="app_shell_onboarding_pending">Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save &amp; Continue.</string>
     <string name="app_shell_onboarding_setup_footer">For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.</string>
+    <string name="app_shell_password_hide">Hide password</string>
+    <string name="app_shell_password_show">Show password</string>
     <string name="app_shell_percent">%1$s%%</string>
     <string name="app_shell_privacy">Privacy</string>
     <string name="app_shell_problem_alerts_failed">Your notifications will appear as soon as your device answers.</string>
@@ -123,6 +130,7 @@
         <item quantity="one">%1$s selected</item>
         <item quantity="other">%1$s selected</item>
     </plurals>
+    <string name="app_shell_sent_no_answer">Sent, but no answer came back. Check whether it went through before trying again.</string>
     <string name="app_shell_setup_device">Device %1$s</string>
     <string name="app_shell_setup_device_older">Device (older image)</string>
     <string name="app_shell_setup_enter_password">Enter the device\'s password</string>

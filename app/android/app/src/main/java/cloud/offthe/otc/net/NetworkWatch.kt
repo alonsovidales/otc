@@ -23,6 +23,10 @@ object NetworkWatch {
     @Volatile private var last: Network? = null
     @Volatile private var pending: Job? = null
     @Volatile private var started = false
+    // Whether the default network was metered when last told (null: not
+    // told yet), and who wants to know when that changes (watchCost).
+    @Volatile private var metered: Boolean? = null
+    private val costWatchers = java.util.concurrent.CopyOnWriteArrayList<(Boolean) -> Unit>()
 
     fun start(ctx: Context) {
         if (started) return
@@ -52,6 +56,15 @@ object NetworkWatch {
                 // news too, and wakes what failed meanwhile.
                 override fun onLost(network: Network) {
                     if (network == last) last = null
+                }
+
+                // Mobile data or a hotspot to Wi-Fi, or back: the photo
+                // sync's "Wi-Fi only" (watchCost).
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    val now = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                    val before = metered
+                    metered = now
+                    if (before != null && before != now) costWatchers.forEach { it(now) }
                 }
             })
         } catch (e: Exception) {
@@ -86,13 +99,35 @@ object NetworkWatch {
                 cellular = caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true,
                 vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true,
             )
-            lan.map { HomeNetwork.Via("net:$it", it.socketFactory) } + if (tryDefault) listOf(HomeNetwork.Via.DEFAULT) else emptyList()
+            lan.map { HomeNetwork.Via("net:$it", it.socketFactory, it) } + if (tryDefault) listOf(HomeNetwork.Via.DEFAULT) else emptyList()
         } catch (e: Exception) {
             listOf(HomeNetwork.Via.DEFAULT)
         }
     }
 
     fun tryDefault(cellular: Boolean, vpn: Boolean) = !cellular || vpn
+
+    /** [onChange] (metered) runs each time the default network becomes metered or not. */
+    fun watchCost(onChange: (Boolean) -> Unit) {
+        costWatchers += onChange
+    }
+
+    /**
+     * Whether what the photo sync sends goes over a metered network - mobile
+     * data, a hotspot - which "Wi-Fi only" keeps it off (A1). A home socket
+     * bound to the home Wi-Fi goes by that network, whatever the default is
+     * (with the home internet down, Android makes mobile data the default).
+     * False with no network, or when it can't be told: the sync then goes
+     * as it always did.
+     */
+    fun syncMetered(): Boolean = try {
+        val cm = OTCApp.instance.getSystemService(ConnectivityManager::class.java)
+        val bound = OTCConnection.home?.via?.network
+        val caps = cm?.let { c -> (bound ?: c.activeNetwork)?.let { c.getNetworkCapabilities(it) } }
+        caps != null && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    } catch (e: Exception) {
+        false
+    }
 
     /**
      * Whether the phone is on a network that leads anywhere at all: false

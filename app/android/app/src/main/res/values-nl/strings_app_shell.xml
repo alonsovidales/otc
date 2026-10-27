@@ -15,6 +15,7 @@
     <string name="app_shell_bluetooth_off">Bluetooth staat uit</string>
     <string name="app_shell_cant_connect">Kan geen verbinding maken met je apparaat</string>
     <string name="app_shell_clear_selection">Selectie wissen</string>
+    <string name="app_shell_cleartext_refused">ws:// is niet versleuteld en is daarom alleen voor adressen op je thuisnetwerk. Gebruik wss:// voor dit adres.</string>
     <string name="app_shell_close_and_leave">Sluiten en dit apparaat verlaten</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s item</item>
@@ -66,10 +67,16 @@
     <string name="app_shell_no_public_key">Kan de openbare sleutel van de verbinding niet ophalen</string>
     <string name="app_shell_not_connected">Niet verbonden</string>
     <string name="app_shell_not_otc">Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.</string>
+    <string name="app_shell_notifications_continue">Doorgaan</string>
+    <string name="app_shell_notifications_later">Niet nu</string>
+    <string name="app_shell_notifications_text">Off The Cloud laat je weten wanneer er vriendschapsverzoeken, nieuwe berichten, vind-ik-leuks en reacties zijn, en wanneer je apparaat je nodig heeft: een schijf die gestopt is, ruimte die opraakt of een belangrijke update.</string>
+    <string name="app_shell_notifications_title">Pushmeldingen inschakelen?</string>
     <string name="app_shell_offline">Deze telefoon is offline. Maak verbinding met wifi of mobiele data.</string>
     <string name="app_shell_onboarding_last_device">Ingevuld vanuit het apparaat dat je hebt verlaten. Tik op “Opslaan en doorgaan” om er opnieuw verbinding mee te maken, of wijzig de gegevens om een ander apparaat te gebruiken.</string>
     <string name="app_shell_onboarding_pending">Ingevuld vanuit het apparaat dat je met deze telefoon hebt ingesteld. Tik op “Opslaan en doorgaan” zodra de installatie klaar is (na ongeveer 20 minuten).</string>
     <string name="app_shell_onboarding_setup_footer">Voor een apparaat dat net uit de doos komt: de configuratie loopt via Bluetooth, en deze app wordt de app van het apparaat. Log eerst uit als je overstapt van een ander apparaat.</string>
+    <string name="app_shell_password_hide">Wachtwoord verbergen</string>
+    <string name="app_shell_password_show">Wachtwoord tonen</string>
     <string name="app_shell_percent">%1$s%%</string>
     <string name="app_shell_privacy">Privacy</string>
     <string name="app_shell_problem_alerts_failed">Je meldingen verschijnen zodra je apparaat antwoordt.</string>
@@ -124,6 +131,7 @@
         <item quantity="one">%1$s geselecteerd</item>
         <item quantity="other">%1$s geselecteerd</item>
     </plurals>
+    <string name="app_shell_sent_no_answer">Verzonden, maar er kwam geen antwoord terug. Controleer of het gelukt is voordat je het opnieuw probeert.</string>
     <string name="app_shell_setup_device">Apparaat %1$s</string>
     <string name="app_shell_setup_device_older">Apparaat (oudere image)</string>
     <string name="app_shell_setup_enter_password">Voer het wachtwoord van het apparaat in</string>

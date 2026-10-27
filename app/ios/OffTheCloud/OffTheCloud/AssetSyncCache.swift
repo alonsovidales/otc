@@ -74,6 +74,13 @@ final class AssetSyncCache {
         queue.sync { cache[localIdentifier] }
     }
 
+    /// Nothing synced from this phone yet (a first sync, or after Log
+    /// Out): the photo sync lists the device's folder first then
+    /// (PhotoSync.needsListing).
+    var isEmpty: Bool {
+        queue.sync { cache.isEmpty }
+    }
+
     func record(localIdentifier: String, hash: String) {
         queue.sync {
             guard cache[localIdentifier] != hash else { return }

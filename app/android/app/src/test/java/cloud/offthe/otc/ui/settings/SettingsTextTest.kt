@@ -32,7 +32,6 @@ import cloud.offthe.otc.i18n.androidSettingsPickerOpenFailed
 import cloud.offthe.otc.i18n.androidSettingsProfileDescription
 import cloud.offthe.otc.i18n.androidSettingsProfileFromPhone
 import cloud.offthe.otc.i18n.androidSettingsSharingFooter
-import cloud.offthe.otc.i18n.androidSettingsSyncCloud
 import cloud.offthe.otc.i18n.androidSettingsSyncTitle
 import cloud.offthe.otc.i18n.androidSettingsThumbsChangeSize
 import cloud.offthe.otc.i18n.androidSettingsThumbsMaxSizeA11y
@@ -268,7 +267,6 @@ class SettingsTextTest {
         assertEquals("Description", S.androidSettingsProfileDescription().english())
         assertEquals("From this phone", S.androidSettingsProfileFromPhone().english())
         assertEquals("Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.", S.androidSettingsSharingFooter().english())
-        assertEquals("Sync from cloud", S.androidSettingsSyncCloud().english())
         assertEquals("Sync", S.androidSettingsSyncTitle().english())
         assertEquals("Change the size", S.androidSettingsThumbsChangeSize().english())
         assertEquals("Maximum size, 4.2 MB", S.androidSettingsThumbsMaxSizeA11y("4.2 MB").english())

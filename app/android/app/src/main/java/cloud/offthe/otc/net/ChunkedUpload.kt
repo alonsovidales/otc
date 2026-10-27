@@ -87,7 +87,8 @@ object ChunkedUpload {
                     n += r
                 }
                 if (n == 0) break
-                if (offset + n > size) throw IOException("$path grew past $size bytes while uploading") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
+                // No path in these: they end up in the log (A19).
+                if (offset + n > size) throw IOException("the file grew past $size bytes while uploading") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
                 md?.update(buf, 0, n)
                 val at = offset
                 val data = UnsafeByteOperations.unsafeWrap(buf, 0, n)
@@ -104,7 +105,7 @@ object ChunkedUpload {
                 if (n < chunkSize) break
             }
         }
-        if (offset != size) throw IOException("$path is $offset bytes, expected $size") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
+        if (offset != size) throw IOException("the file is $offset bytes, expected $size") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
 
         val hash = sha256 ?: hex(md!!.digest())
         val resp = OTCConnection.request { it.setReqFinishUpload(FinishUpload.newBuilder().setUploadId(uploadId).setSha256(hash)) }

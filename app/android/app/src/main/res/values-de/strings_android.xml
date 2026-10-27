@@ -105,7 +105,6 @@
     <string name="android_settings_profile_description">Beschreibung</string>
     <string name="android_settings_profile_from_phone">Von diesem Handy</string>
     <string name="android_settings_sharing_footer">Galerien und Download-Links, die du geteilt hast, bis sie ablaufen. Wenn du einen löschst, werden die geteilten Kopien entfernt, und der Link funktioniert nicht mehr.</string>
-    <string name="android_settings_sync_cloud">Aus der Cloud synchronisieren</string>
     <string name="android_settings_sync_title">Synchronisierung</string>
     <string name="android_settings_thumbs_change_size">Größe ändern</string>
     <string name="android_settings_thumbs_max_size_a11y">Maximale Größe, %1$s</string>

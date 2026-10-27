@@ -182,6 +182,7 @@
     <string name="app_settings_tailscale_enable">Activer Tailscale Funnel</string>
     <string name="app_settings_tailscale_intro">Tailscale Funnel est une alternative à la passerelle Off The Cloud : il publie cet appareil à votre propre adresse ts.net, mais avec les limites suivantes :</string>
     <string name="app_settings_tailscale_key_hint">Avec une clé générée dans la console d’administration Tailscale, l’opération se termine d’elle-même. Sans clé, Tailscale s’ouvrira pour que vous autorisiez cet appareil.</string>
+    <string name="app_settings_tailscale_key_ignored">Votre appareil a besoin d’une mise à jour pour accepter la clé d’authentification. Autorisez-le plutôt dans la page qui vient de s’ouvrir.</string>
     <string name="app_settings_tailscale_limit_account">&lt;b&gt;Il vous faut un compte Tailscale,&lt;/b&gt; avec Funnel activé pour votre tailnet.</string>
     <string name="app_settings_tailscale_limit_bandwidth">&lt;b&gt;Bande passante plafonnée.&lt;/b&gt; Tailscale limite ce qui peut transiter par Funnel et ne publie pas ce plafond.</string>
     <string name="app_settings_tailscale_limit_one_user">&lt;b&gt;Un seul utilisateur.&lt;/b&gt; Les utilisateurs supplémentaires ont chacun besoin d’une adresse web, et Funnel n’en attribue qu’une à cette machine.</string>
@@ -224,7 +225,9 @@
     <string name="app_settings_update_up_to_date">À jour</string>
     <string name="app_settings_update_update_to">Mettre à jour vers %1$s</string>
     <string name="app_settings_update_update_to_build">Installer le build %1$s</string>
+    <string name="app_settings_uploads_device_full">Votre appareil est plein</string>
     <string name="app_settings_uploads_title">Envois</string>
+    <string name="app_settings_uploads_waiting_wifi">En attente du Wi-Fi</string>
     <string name="app_settings_users_confirm_delete">Confirmer la suppression</string>
     <string name="app_settings_users_confirm_hint">Saisissez « %1$s » pour confirmer la suppression.</string>
     <string name="app_settings_users_create">Créer</string>

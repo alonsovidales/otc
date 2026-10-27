@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.i18n.S
@@ -24,7 +23,7 @@ import cloud.offthe.otc.i18n.appShellSaveContinue
 import cloud.offthe.otc.i18n.appShellSetupNewDevice
 import cloud.offthe.otc.i18n.appShellWelcome
 import cloud.offthe.otc.i18n.commonPassword
-import cloud.offthe.otc.ui.common.OTCTextField
+import cloud.offthe.otc.ui.common.PasswordField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -35,8 +34,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
@@ -72,9 +71,7 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 // Straight in, as iOS: save both and open the app - what to
                 // sync is asked first, so no sync starts before it (SyncChoice).
                 SyncChoice.ask()
-                secrets.setEndpoint(newEndpoint)
-                secrets.setPassword(newPassword)
-                secrets.persist()
+                secrets.saveCredentials(newEndpoint, newPassword)
                 OTCConnection.invalidate()
                 setupOpen = false
                 onSaved()
@@ -82,6 +79,19 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             onClose = { setupOpen = false },
         )
         return
+    }
+
+    val passwordFocus = remember { FocusRequester() }
+    // Save & Continue, and Go on the password's keyboard.
+    fun saveAndContinue() {
+        if (endpoint.isEmpty() || password.isEmpty()) return
+        // Asked first, so no sync starts before it (SyncChoice).
+        SyncChoice.ask()
+        secrets.saveCredentials(endpoint.trim(), password)
+        // A socket still signed in to the device logged out of
+        // (a request retried during Log Out) must not carry over.
+        OTCConnection.invalidate()
+        onSaved()
     }
 
     Scaffold(topBar = {
@@ -98,13 +108,11 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
         Column(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text(S.appShellConnectTitle().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            ConnectionEndpointFields(form.entry)
+            ConnectionEndpointFields(form.entry, onNext = { passwordFocus.requestFocus() })
             Spacer(Modifier.height(8.dp))
-            OTCTextField(
-                value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },
-                singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
+            PasswordField(
+                value = password, onValueChange = { password = it }, hint = S.commonPassword().resolve(),
+                onAction = ::saveAndContinue, modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus),
             )
             if (last != null) {
                 Spacer(Modifier.height(6.dp))
@@ -122,17 +130,7 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             }
             Spacer(Modifier.height(20.dp))
             Button(
-                onClick = {
-                    // Asked first, so no sync starts before it (SyncChoice).
-                    SyncChoice.ask()
-                    secrets.setEndpoint(endpoint.trim())
-                    secrets.setPassword(password)
-                    secrets.persist()
-                    // A socket still signed in to the device logged out of
-                    // (a request retried during Log Out) must not carry over.
-                    OTCConnection.invalidate()
-                    onSaved()
-                },
+                onClick = ::saveAndContinue,
                 enabled = endpoint.isNotEmpty() && password.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(S.appShellSaveContinue().resolve()) }

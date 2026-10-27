@@ -174,6 +174,7 @@
     <string name="app_settings_tailscale_enable">Tailscale Funnel einschalten</string>
     <string name="app_settings_tailscale_intro">Tailscale Funnel ist eine Alternative zur Bridge von Off The Cloud: Es veröffentlicht dieses Gerät unter deiner eigenen Adresse auf ts.net, allerdings mit folgenden Einschränkungen:</string>
     <string name="app_settings_tailscale_key_hint">Mit einem Schlüssel aus deiner Tailscale-Admin-Konsole läuft das von selbst durch. Ohne Schlüssel wirst du zu Tailscale weitergeleitet, um dieses Gerät zu autorisieren.</string>
+    <string name="app_settings_tailscale_key_ignored">Dein Gerät braucht ein Update, um den Auth-Schlüssel anzunehmen. Autorisiere es stattdessen auf der gerade geöffneten Seite.</string>
     <string name="app_settings_tailscale_limit_account">&lt;b&gt;Du brauchst ein Tailscale-Konto,&lt;/b&gt; bei dem Funnel für dein tailnet aktiviert ist.</string>
     <string name="app_settings_tailscale_limit_bandwidth">&lt;b&gt;Die Bandbreite ist begrenzt.&lt;/b&gt; Tailscale begrenzt, was durch Funnel gehen kann, und veröffentlicht das Limit nicht.</string>
     <string name="app_settings_tailscale_limit_one_user">&lt;b&gt;Nur ein Benutzer.&lt;/b&gt; Weitere Benutzer brauchen jeweils eine eigene Webadresse, und Funnel gibt diesem Rechner nur eine.</string>
@@ -216,7 +217,9 @@
     <string name="app_settings_update_up_to_date">Aktuell</string>
     <string name="app_settings_update_update_to">Aktualisieren auf %1$s</string>
     <string name="app_settings_update_update_to_build">Aktualisieren (Build %1$s)</string>
+    <string name="app_settings_uploads_device_full">Dein Gerät ist voll</string>
     <string name="app_settings_uploads_title">Uploads</string>
+    <string name="app_settings_uploads_waiting_wifi">Wartet auf WLAN</string>
     <string name="app_settings_users_confirm_delete">Löschen bestätigen</string>
     <string name="app_settings_users_confirm_hint">Gib „%1$s“ ein, um das Löschen zu bestätigen.</string>
     <string name="app_settings_users_create">Anlegen</string>

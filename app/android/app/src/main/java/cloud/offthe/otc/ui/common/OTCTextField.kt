@@ -38,6 +38,8 @@ fun OTCTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    // At the field's end, inside its border (PasswordField's eye).
+    trailingIcon: @Composable (() -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface)
@@ -66,6 +68,7 @@ fun OTCTextField(
                 placeholder = hint?.let { h ->
                     { androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) { h() } }
                 },
+                trailingIcon = trailingIcon,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
                 container = {
                     OutlinedTextFieldDefaults.Container(

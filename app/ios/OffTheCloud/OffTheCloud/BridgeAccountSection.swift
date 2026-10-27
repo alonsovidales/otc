@@ -77,8 +77,7 @@ final class BridgeAccountViewModel: ObservableObject {
                 return false
             }
             apply(a)
-            secrets.endpoint = localEndpoint(localAddress)
-            secrets.persist()
+            secrets.saveCredentials(endpoint: localEndpoint(localAddress), password: secrets.password)
             OTCConnection.shared.invalidate()
             let address = localAddress.isEmpty ? "otc.local" : localAddress
             note = .say { S.appSettingsBridgeLeft(address: address) }

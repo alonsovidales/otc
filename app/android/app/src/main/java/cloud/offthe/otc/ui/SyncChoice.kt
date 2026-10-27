@@ -39,7 +39,6 @@ import androidx.compose.ui.window.DialogProperties
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
-import cloud.offthe.otc.i18n.androidSettingsSyncCloud
 import cloud.offthe.otc.i18n.appSettingsSyncChoiceAll
 import cloud.offthe.otc.i18n.appSettingsSyncChoiceAllDetail
 import cloud.offthe.otc.i18n.appSettingsSyncChoiceFooter
@@ -99,7 +98,6 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
     var all by rememberSaveable { mutableStateOf(true) }
     val wifiOnly by secrets.wifiOnly.collectAsState()
     val includeVideos by secrets.includeVideos.collectAsState()
-    val fromCloud by secrets.downloadFromCloud.collectAsState()
 
     Dialog(
         onDismissRequest = {},
@@ -132,7 +130,9 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     SwitchRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
                     SwitchRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
-                    SwitchRow(S.androidSettingsSyncCloud().resolve(), fromCloud, secrets::setDownloadFromCloud)
+                    // No "Sync from cloud" here (A15): the MediaStore holds no
+                    // cloud-only items, so it changed nothing. iOS has Sync from
+                    // iCloud.
                     Spacer(Modifier.height(4.dp))
                     Text(
                         S.appSettingsSyncChoiceFooter().resolve(),
@@ -157,7 +157,7 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
                     Spacer(Modifier.height(24.dp))
                     Button(
                         onClick = {
-                            secrets.persist()
+                            secrets.persistOptions()
                             SyncChoice.answer(all)
                             onDone()
                         },

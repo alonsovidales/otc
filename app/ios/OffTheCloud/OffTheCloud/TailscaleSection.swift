@@ -66,9 +66,24 @@ final class TailscaleViewModel: ObservableObject {
         error = nil
         defer { busy = false }
         do {
-            let resp = try await ws.request { [self] e in
+            let key = enable ? authKey.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            // The key sealed for this connection, as a password is
+            // (PwCrypto, GetPubKey): the bridge relays this request, and the
+            // key signs a machine in to the owner's tailnet. Never in the
+            // clear: a device before release 143 ignores the sealed field and
+            // takes this as no key at all (keyIgnored below).
+            var sealed = Data()
+            if !key.isEmpty {
+                let pk = try await ws.request { $0.payload = .reqGetPubKey(Msg_GetPubKey()) }
+                guard case .respPubKey(let pubKey) = pk.payload else {
+                    error = .asIs(pk.errorMessage, or: { S.appShellNoPublicKey })
+                    return
+                }
+                sealed = try PwCrypto.encryptPassword(key, pubKeyDER: pubKey.publicKey)
+            }
+            let resp = try await ws.request { e in
                 var m = Msg_ReqSetupTailscale()
-                m.authKey = authKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                m.authKeySealed = sealed
                 m.enable = enable
                 e.payload = .reqSetupTailscale(m)
             }
@@ -81,7 +96,10 @@ final class TailscaleViewModel: ObservableObject {
             } else if !installed {
                 error = .say { S.appSettingsTailscaleNotInstalledOn }
             } else if !loginURL.isEmpty {
-                note = .say { S.appSettingsTailscaleAuthorise }
+                // With a key the device signs in by itself; asking for the
+                // sign-in page anyway means it read no key: one too old for
+                // the sealed field.
+                note = key.isEmpty ? .say { S.appSettingsTailscaleAuthorise } : .say { S.appSettingsTailscaleKeyIgnored }
             } else if funnelOn {
                 let url = publicURL
                 note = .say { S.appSettingsTailscaleDone(url: url) }

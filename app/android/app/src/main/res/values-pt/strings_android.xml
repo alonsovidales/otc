@@ -110,7 +110,6 @@
     <string name="android_settings_profile_description">Descrição</string>
     <string name="android_settings_profile_from_phone">Deste telemóvel</string>
     <string name="android_settings_sharing_footer">As galerias e ligações de transferência que partilhaste, até expirarem. Eliminar uma remove as cópias partilhadas e a ligação deixa de funcionar.</string>
-    <string name="android_settings_sync_cloud">Sincronizar a partir da nuvem</string>
     <string name="android_settings_sync_title">Sincronização</string>
     <string name="android_settings_thumbs_change_size">Alterar o tamanho</string>
     <string name="android_settings_thumbs_max_size_a11y">Tamanho máximo, %1$s</string>

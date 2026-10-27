@@ -396,10 +396,6 @@
     "text": "Galerien und Download-Links, die du geteilt hast, bis sie ablaufen. Wenn du einen löschst, werden die geteilten Kopien entfernt, und der Link funktioniert nicht mehr.",
     "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
   },
-  "android.settings.sync_cloud": {
-    "text": "Aus der Cloud synchronisieren",
-    "en": "Sync from cloud"
-  },
   "android.settings.sync_title": {
     "text": "Synchronisierung",
     "en": "Sync"

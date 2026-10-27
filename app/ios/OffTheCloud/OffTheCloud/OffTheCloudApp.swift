@@ -22,9 +22,10 @@ struct OTCApp: App {
             guard let task = task as? BGProcessingTask else { return }
             SyncScheduler.handle(task: task)
         }
-        Task.detached {
-            try await PhotoSync.shared.runForeground()
-        }
+        // No sync from here (IOS-02, IOS-07): at a launch in the background
+        // the BG task's handler runs it (and waits for it), and in front
+        // MainView's appearance and the scene becoming active do - only once
+        // a device is set up, so a fresh install asks nothing over Welcome.
 
         // Make the Swift runtime instantiate the generated protobuf
         // conformances here, off the main thread, rather than wherever the
@@ -97,12 +98,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Set before launch finishes, so a tap that launched the app is
         // delivered here too.
         UNUserNotificationCenter.current().delegate = self
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error {
-                print("Notification authorization request failed:", error)
-                return
-            }
-            guard granted else { return }
+        // IOS-07: never asked at launch, before there is a device to send
+        // anything: NotificationsAsk asks once, after the first sign-in.
+        // Allowed already (by that, or an older build): the token, as before.
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard NotificationsAsk.allowed(settings.authorizationStatus) else { return }
             DispatchQueue.main.async {
                 application.registerForRemoteNotifications()
             }

@@ -17,41 +17,49 @@ final class SecretsStore: ObservableObject {
     @Published var deviceId: String
 
     // Settings
-    // These auto-persist on every change (unlike endpoint/password/
-    // deviceId above, which stay explicit-Save-button-only to avoid a
-    // Keychain write per keystroke) — a toggle here used to only survive
-    // an app relaunch if the user happened to also tap "Save Connection"/
-    // "Sync Now"/"Sync All" afterward, since nothing else ever called
-    // persist() for these.
+    // These auto-persist on every change (persistOptions: UserDefaults
+    // only), unlike endpoint/password, which only Save writes
+    // (saveCredentials): the connection forms edit drafts of their own, and
+    // a toggle here used to write a half-typed address and password to the
+    // Keychain with it (IOS-03).
     @Published var wifiOnly: Bool {
-        didSet { persist() }
+        didSet {
+            persistOptions()
+            // A run waiting for Wi-Fi goes now (PhotoSync.wifiOnlyOff).
+            if !wifiOnly && oldValue { PhotoSync.shared.wifiOnlyOff() }
+        }
     }
     @Published var includeVideos: Bool {
-        didSet { persist() }
+        didSet { persistOptions() }
     }
     @Published var downloadFromiCloud: Bool {
-        didSet { persist() }
+        didSet { persistOptions() }
     }
     /// Free up space (FreeUpSpace), off unless turned on here or on the
     /// sheet after a sign-in. Turning it on, or changing what it deletes,
     /// makes it due at once rather than a day after its last run.
     @Published var freeUpSpace: Bool {
-        didSet { persist(); if freeUpSpace && !oldValue { FreeUpSpace.makeDue() } }
+        didSet { persistOptions(); if freeUpSpace && !oldValue { FreeUpSpace.makeDue() } }
     }
     @Published var freeUpDays: Int {
-        didSet { persist(); if freeUpDays != oldValue { FreeUpSpace.makeDue() } }
+        didSet { persistOptions(); if freeUpDays != oldValue { FreeUpSpace.makeDue() } }
     }
     @Published var freeUpLivePhotos: Bool {
-        didSet { persist(); if freeUpLivePhotos && !oldValue { FreeUpSpace.makeDue() } }
+        didSet { persistOptions(); if freeUpLivePhotos && !oldValue { FreeUpSpace.makeDue() } }
     }
     /// The albums turned off in Settings > Sync Options > Albums, by
     /// PHAssetCollection.localIdentifier: their photos aren't backed up.
     /// A list of what to skip, never of what to include, so an album that
     /// appears later is backed up (PhotoSync.setAlbum changes it).
     @Published var skippedAlbums: [String] {
-        didSet { persist() }
+        didSet { persistOptions() }
     }
     static let skippedAlbumsKey = "skippedAlbums"
+    static let wifiOnlyKey = "wifiOnly"
+
+    /// "Wi-Fi only" as stored now, for a sync run between its chunks: a
+    /// switch turned while it runs counts at once.
+    static var wifiOnlyNow: Bool { UserDefaults.standard.bool(forKey: wifiOnlyKey) }
     
     var isConfigured: Bool { !endpoint.isEmpty && !password.isEmpty }
 
@@ -149,7 +157,7 @@ final class SecretsStore: ObservableObject {
         let endpoint = Keychain.loadString(key: "endpoint") ?? ""
         let password = Keychain.loadString(key: "password") ?? ""
 
-        let wifiOnly = UserDefaults.standard.bool(forKey: "wifiOnly")
+        let wifiOnly = UserDefaults.standard.bool(forKey: wifiOnlyKey)
         let includeVideos = UserDefaults.standard.object(forKey: "includeVideos") as? Bool ?? true
         let downloadFromiCloud = UserDefaults.standard.object(forKey: "downloadFromiCloud") as? Bool ?? true
 
@@ -241,7 +249,14 @@ final class SecretsStore: ObservableObject {
         Keychain.delete(key: "last_password")
     }
 
-    func persist() {
+    /// Save, Save & Retry, Save & Continue and the Bluetooth setup's "Use
+    /// this device": the address and password they were given become the
+    /// ones every connection dials, in the Keychain. Nothing else writes
+    /// them (IOS-03): the forms edit drafts until then. As Android's
+    /// SecretsStore.saveCredentials.
+    func saveCredentials(endpoint: String, password: String) {
+        self.endpoint = endpoint
+        self.password = password
         if isConfigured {
             Self.clearPendingSetup()
             Self.clearLastDevice()
@@ -254,7 +269,12 @@ final class SecretsStore: ObservableObject {
         // Not device_id: only loadOrCreate and logOut set it, and both save
         // it. A store built while the Keychain was locked holds a
         // throwaway id that must not replace the real one here.
-        UserDefaults.standard.set(wifiOnly, forKey: "wifiOnly")
+    }
+
+    /// The options, each time one changes: UserDefaults only, never the
+    /// Keychain.
+    func persistOptions() {
+        UserDefaults.standard.set(wifiOnly, forKey: Self.wifiOnlyKey)
         UserDefaults.standard.set(includeVideos, forKey: "includeVideos")
         UserDefaults.standard.set(downloadFromiCloud, forKey: "downloadFromiCloud")
         UserDefaults.standard.set(freeUpSpace, forKey: FreeUpSpace.enabledKey)

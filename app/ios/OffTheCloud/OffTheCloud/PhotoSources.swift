@@ -173,24 +173,25 @@ enum PhotoSources {
         }
     }
 
-    /// A run's list of local identifiers, in the order it goes: the retry
-    /// list's, then the one-off passes', then the date fetch's new ones -
-    /// each once, none of them in a skipped album. `exempt`: those that
-    /// never move the watermark (all but the new ones). `droppedFresh`:
-    /// whether new ones were left out as skipped.
+    /// A run's list of local identifiers, in the order it goes: the date
+    /// fetch's new ones, then the retry list's, then the one-off passes' -
+    /// each once, none of them in a skipped album. New first, as on Android:
+    /// one large video the device keeps refusing, or that never finishes
+    /// in a background run's time, no longer holds up every newer photo.
+    /// `exempt`: those that never move the watermark (all but the new
+    /// ones). `droppedFresh`: whether new ones were left out as skipped.
     static func runList(retried: [String], oneOff: [String], fresh: [String], skipped: Set<String>) -> (ids: [String], exempt: Set<String>, droppedFresh: Bool) {
         var seen = Set<String>()
         var ids: [String] = []
         var exempt = Set<String>()
-        let freshIDs = Set(fresh)
-        for id in retried + oneOff where !freshIDs.contains(id) && seen.insert(id).inserted && !skipped.contains(id) {
-            ids.append(id)
-            exempt.insert(id)
-        }
         var droppedFresh = false
         for id in fresh where seen.insert(id).inserted {
             if skipped.contains(id) { droppedFresh = true; continue }
             ids.append(id)
+        }
+        for id in retried + oneOff where seen.insert(id).inserted && !skipped.contains(id) {
+            ids.append(id)
+            exempt.insert(id)
         }
         return (ids, exempt, droppedFresh)
     }

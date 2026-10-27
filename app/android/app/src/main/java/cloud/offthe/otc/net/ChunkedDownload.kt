@@ -77,9 +77,13 @@ object ChunkedDownload {
         var fileHash: String? = null
         while (size < 0 || offset < size) {
             val at = offset
-            val resp = OTCConnection.request {
+            suspend fun piece() = OTCConnection.request {
                 it.setReqReadFile(ReadFile.newBuilder().setPath(path).setHash(hash).setOffset(at).setLength(ChunkedUpload.chunkSize))
             }
+            // A read: asked once more, on the next connection - the
+            // connection sends again by itself only what never left the
+            // phone (OTCConnection.retriesAfter).
+            val resp = try { piece() } catch (e: WSClient.SentNoAnswer) { piece() }
             if (resp.error) {
                 // A device from before ReadFile (v40): the whole file at once,
                 // as before. Builds before v9 answer with no error code, only

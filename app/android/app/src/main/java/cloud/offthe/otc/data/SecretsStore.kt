@@ -11,6 +11,8 @@ import cloud.offthe.otc.net.HomeEndpoint
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoFolders
+import cloud.offthe.otc.sync.PhotoSync
+import cloud.offthe.otc.sync.SyncScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
@@ -19,13 +21,14 @@ import java.util.UUID
 
 // Port of SecretsStore.swift. The endpoint, password and device id live in
 // EncryptedSharedPreferences (the Keychain's counterpart: encrypted with a
-// key in the Android Keystore); the three sync toggles and the folders
-// left out of the sync in plain preferences, auto-persisted on change like
-// on iOS. endpoint/password/deviceId only persist on an explicit
-// persist(), so the connection form doesn't write a secret per keystroke.
+// key in the Android Keystore); the sync toggles and the folders left out
+// of the sync in plain preferences, auto-persisted on change like on iOS
+// (persistOptions). endpoint/password only persist on an explicit Save
+// (saveCredentials), so the connection form doesn't write a secret per
+// keystroke.
 class SecretsStore private constructor(
     endpoint: String, password: String, deviceId: String,
-    wifiOnly: Boolean, includeVideos: Boolean, downloadFromCloud: Boolean,
+    wifiOnly: Boolean, includeVideos: Boolean,
     home: Pair<String, HomeEndpoint>?, skippedFolders: Set<String>,
 ) {
     private val _endpoint = MutableStateFlow(endpoint)
@@ -33,7 +36,6 @@ class SecretsStore private constructor(
     private val _deviceId = MutableStateFlow(deviceId)
     private val _wifiOnly = MutableStateFlow(wifiOnly)
     private val _includeVideos = MutableStateFlow(includeVideos)
-    private val _downloadFromCloud = MutableStateFlow(downloadFromCloud)
     private val _skippedFolders = MutableStateFlow(skippedFolders)
 
     val endpoint: StateFlow<String> = _endpoint
@@ -41,7 +43,6 @@ class SecretsStore private constructor(
     val deviceId: StateFlow<String> = _deviceId
     val wifiOnly: StateFlow<Boolean> = _wifiOnly
     val includeVideos: StateFlow<Boolean> = _includeVideos
-    val downloadFromCloud: StateFlow<Boolean> = _downloadFromCloud
     /**
      * Settings > Sync Options > Folders: the MediaStore buckets (BUCKET_ID,
      * as text) the owner turned off. A list of what to leave out, never of
@@ -49,14 +50,20 @@ class SecretsStore private constructor(
      */
     val skippedFolders: StateFlow<Set<String>> = _skippedFolders
 
-    fun setEndpoint(v: String) { _endpoint.value = v }
-    fun setPassword(v: String) { _password.value = v }
-    fun setWifiOnly(v: Boolean) { _wifiOnly.value = v; persist() }
-    fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persist() }
-    fun setDownloadFromCloud(v: Boolean) { _downloadFromCloud.value = v; persist() }
+    fun setWifiOnly(v: Boolean) {
+        val was = _wifiOnly.value
+        _wifiOnly.value = v
+        persistOptions()
+        if (v == was) return
+        // A1: the background runs' network follows, and a run that waited
+        // for Wi-Fi goes now that it doesn't have to.
+        SyncScheduler.wifiOnlyChanged()
+        if (!v) PhotoSync.wifiOnlyOff()
+    }
+    fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persistOptions() }
     fun setFolderSkipped(id: String, skipped: Boolean) {
         _skippedFolders.value = if (skipped) _skippedFolders.value + id else _skippedFolders.value - id
-        persist()
+        persistOptions()
     }
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
@@ -96,7 +103,6 @@ class SecretsStore private constructor(
         _password.value = ""
         _wifiOnly.value = false
         _includeVideos.value = true
-        _downloadFromCloud.value = true
         _skippedFolders.value = emptySet()
         _deviceId.value = UUID.randomUUID().toString().also { secure().edit().putString("device_id", it).apply() }
     }
@@ -104,7 +110,16 @@ class SecretsStore private constructor(
     /** endpoint, normalized - what every connection should dial. */
     val endpointURLString: String get() = normalizedEndpoint(_endpoint.value)
 
-    fun persist() {
+    /**
+     * Save, Save & Retry, Save & Continue and the Bluetooth setup's "Use
+     * this device": the address and password they were given become the
+     * ones every connection dials. Nothing else writes them: the forms edit
+     * drafts until then (IOS-03 on iOS; ConnectionFormModel here). As iOS's
+     * saveCredentials.
+     */
+    fun saveCredentials(endpoint: String, password: String) {
+        _endpoint.value = endpoint
+        _password.value = password
         if (isConfigured) {
             clearPendingSetup()
             clearLastDevice()
@@ -117,10 +132,15 @@ class SecretsStore private constructor(
             .putString("password", _password.value)
             .putString("device_id", _deviceId.value)
             .apply()
+    }
+
+    /** The options, each time one changes: plain preferences only, never the secrets. */
+    fun persistOptions() {
         val p = plain().edit()
             .putBoolean("wifiOnly", _wifiOnly.value)
             .putBoolean("includeVideos", _includeVideos.value)
-            .putBoolean("downloadFromCloud", _downloadFromCloud.value)
+            // A15: the old "Sync from cloud" switch, never read.
+            .remove("downloadFromCloud")
         PhotoFolders.storeSet(p, "skippedFolders", _skippedFolders.value)
         p.apply()
     }
@@ -193,7 +213,6 @@ class SecretsStore private constructor(
                 deviceId = deviceId,
                 wifiOnly = p.getBoolean("wifiOnly", false),
                 includeVideos = p.getBoolean("includeVideos", true),
-                downloadFromCloud = p.getBoolean("downloadFromCloud", true),
                 home = s.getString("home_for", null)?.let { f -> HomeEndpoint.decode(s.getString("home_endpoint", null))?.let { f to it } },
                 skippedFolders = PhotoFolders.storedSet(p, "skippedFolders"),
             )

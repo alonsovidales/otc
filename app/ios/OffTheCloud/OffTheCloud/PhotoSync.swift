@@ -12,6 +12,7 @@ import Foundation
 import Photos
 import SwiftProtobuf
 import CryptoKit
+import UIKit
 
 final class PhotoSync: NSObject {
     static let shared = PhotoSync()
@@ -25,8 +26,16 @@ final class PhotoSync: NSObject {
         // unregister anywhere: `shared` living for the app's whole process
         // lifetime is what actually keeps it alive. NSObject (rather than
         // a plain class) is required here: PHPhotoLibraryChangeObserver is
-        // an @objc protocol.
-        PHPhotoLibrary.shared().register(self)
+        // an @objc protocol. Only once the app may read the library
+        // (observeLibraryIfAllowed).
+        observeLibraryIfAllowed()
+        // "Wi-Fi only" waits on mobile data; back on Wi-Fi, the sync that
+        // waited goes (IOS-01).
+        NetworkWatch.shared.watchCost { [weak self] expensive in
+            guard !expensive, let self, self.takeWaitingForWifi() else { return }
+            print("On Wi-Fi again: the sync that waited for it starts")
+            Task { try? await self.runForeground() }
+        }
     }
 
     // Issue #70: guards against two runForeground() calls actually
@@ -47,6 +56,22 @@ final class PhotoSync: NSObject {
     // even today, and becomes an outright error under Swift 6.
     private let syncLock = NSLock()
     private var isSyncing = false
+    /// The library's change observer is registered.
+    private var observing = false
+
+    /// Issue #70's change observer, once the app may read the library:
+    /// registered before that, it made iOS ask for access then and there -
+    /// over Welcome at the first launch, or as the app opened on a device
+    /// just signed in to - instead of at the sync choice's Start Sync
+    /// (IOS-07). Registered at most once; each pass asks again.
+    private func observeLibraryIfAllowed() {
+        guard Self.libraryReadable else { return }
+        let first: Bool = syncLock.withLock {
+            defer { observing = true }
+            return !observing
+        }
+        if first { PHPhotoLibrary.shared().register(self) }
+    }
     /// Bumped by cancel() (Log Out). A run only writes state - the
     /// watermark, the asset cache, the upload bar - and only sends
     /// requests while the generation it started with is current: Log Out
@@ -54,57 +79,156 @@ final class PhotoSync: NSObject {
     /// after the wipe used to write lastSyncDate=now into the fresh
     /// defaults, so the next device never got the existing library.
     private var generation = 0
-    /// Bumped by syncFromNow(). A run's watermark and retry-list writes
-    /// land only while the value it started with is current: after the
-    /// press, its per-chunk watermark is older than the press and its
-    /// failures are what Sync From Now skips. Its uploads carry on.
-    private var fromNowEpoch = 0
-    /// The sync in progress, so Log Out can stop it (`cancel()`). Under
-    /// syncLock: written from the cooperative pool, read on main.
-    private var currentSync: Task<Void, Error>?
+    /// Bumped by syncFromNow() and syncAll(), as Android's watermarkGen. A
+    /// pass's watermark and retry-list writes land only while the value it
+    /// started with is current: after Sync From Now its per-chunk watermark
+    /// is older than the press and its failures are what the press skips;
+    /// after Sync All it would write a watermark back over the "from the
+    /// start" just chosen. Its uploads carry on, and the run goes through
+    /// once more (rerunWanted) from the new starting point.
+    private var watermarkEpoch = 0
+    /// The run in progress, its passes included: Log Out (`cancel()`) and
+    /// the end of a BG task's or the app's background time (`stopRun()`)
+    /// stop it, and a BG task waits for it (runInBackground). Under
+    /// syncLock.
+    private var running: Task<Void, Error>?
+    /// IOS-12: a trigger that came while a run was going - a new photo, the
+    /// app back in front, Sync All - used to be dropped. The run goes
+    /// through once more at its end instead (as Android's runs do).
+    private var rerunWanted = false
+    /// The last run stopped because the phone was on mobile data with
+    /// "Wi-Fi only" on: the next cheap path starts one (watchCost).
+    private var waitingForWifi = false
+    /// When a run last stopped on the device's storage_full: automatic runs
+    /// wait `fullPause` after it rather than reading photos only to have
+    /// them refused. Sync All and Sync From Now try again at once.
+    private var fullSince: Date?
+    /// The device's words then, for Settings' line while the runs wait.
+    private var fullWords = ""
+    static let fullPause: TimeInterval = 30 * 60
 
-    /// The generation this run belongs to, or nil if one is running.
-    private func beginSyncIfNotAlreadyRunning() -> Int? {
+    /// What one pass of the sync came to, besides throwing when it was
+    /// cancelled.
+    enum PassEnd: Equatable {
+        /// Through every chunk (failures on the retry list).
+        case done
+        /// Nothing to do: no device yet, the sync choice not made, no
+        /// access to the library.
+        case skipped
+        /// Stopped: the device can't be reached.
+        case cutShort
+        /// Stopped, or never started: "Wi-Fi only" on mobile data.
+        case waitingForWifi
+        /// Stopped on the device's storage_full, with its words.
+        case deviceFull(String)
+    }
+
+    /// Starts the run, as `body` given the generation it belongs to, unless
+    /// one is going: that one then goes through once more, and a BG task
+    /// (`join`) gets it to wait for. Created under the lock, so no caller
+    /// finds a run going with no task to wait for.
+    private func startRun(join: Bool, _ body: @escaping @Sendable (Int) async throws -> Void) -> (task: Task<Void, Error>, started: Bool)? {
         syncLock.lock()
         defer { syncLock.unlock() }
-        if isSyncing { return nil }
+        if isSyncing {
+            rerunWanted = true
+            guard join, let running else { return nil }
+            return (running, false)
+        }
         isSyncing = true
-        return generation
+        rerunWanted = false
+        let gen = generation
+        let task = Task { try await body(gen) }
+        running = task
+        return (task, true)
     }
 
     private func endSync() {
         syncLock.lock()
         defer { syncLock.unlock() }
         isSyncing = false
+        running = nil
+        rerunWanted = false
     }
 
-    private func setCurrentSync(_ task: Task<Void, Error>?, gen: Int) {
+    /// Whether the run goes through once more; asking takes the wish.
+    private func takeRerun() -> Bool {
         syncLock.lock()
         defer { syncLock.unlock() }
-        currentSync = task
-        // Log Out landed between begin and here.
-        if let task, generation != gen { task.cancel() }
+        defer { rerunWanted = false }
+        return rerunWanted
+    }
+
+    private func takeWaitingForWifi() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        defer { waitingForWifi = false }
+        return waitingForWifi
+    }
+
+    private func setWaitingForWifi(_ waiting: Bool) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        waitingForWifi = waiting
+    }
+
+    /// The device's words when it was full a short while ago (fullSince,
+    /// fullPause), else nil.
+    private func fullWordsIfStillFull(now: Date = Date()) -> String? {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        guard let fullSince, Self.waitsAfterFull(since: fullSince, now: now) else { return nil }
+        return fullWords
+    }
+
+    private func setFull(_ since: Date?, words: String) {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        fullSince = since
+        fullWords = words
+    }
+
+    /// Pure: whether an automatic run still waits after the device said it
+    /// was full at `since`. A clock set back doesn't hold it for ever.
+    static func waitsAfterFull(since: Date, now: Date) -> Bool {
+        now >= since && now.timeIntervalSince(since) < fullPause
+    }
+
+    /// "Wi-Fi only" turned off (SecretsStore): a run that waited for Wi-Fi
+    /// goes now.
+    func wifiOnlyOff() {
+        guard takeWaitingForWifi() else { return }
+        Task { try? await runForeground() }
+    }
+
+    /// The end of a BG task's or of the app's background time: the run
+    /// stops at its next step, the watermark before what it didn't finish,
+    /// without the Log Out generation bump (nothing is wiped).
+    func stopRun() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        running?.cancel()
     }
 
     /// Runs `body` only if the run's generation is still current, under
     /// the same lock cancel() takes: a write lands before Log Out (whose
     /// wipe then erases it) or not at all. With `epoch`, likewise only
-    /// before a Sync From Now press (see `fromNowEpoch`).
+    /// before Sync From Now or Sync All (see `watermarkEpoch`).
     @discardableResult
     private func ifLive(_ gen: Int, epoch: Int? = nil, _ body: () -> Void = {}) -> Bool {
         syncLock.lock()
         defer { syncLock.unlock() }
-        guard generation == gen, epoch == nil || epoch == fromNowEpoch else { return false }
+        guard generation == gen, epoch == nil || epoch == watermarkEpoch else { return false }
         body()
         return true
     }
 
-    /// Where a run starts: the watermark, and the Sync From Now epoch its
-    /// writes belong to, read together.
+    /// Where a pass starts: the watermark, and the epoch its writes belong
+    /// to, read together.
     private func startingPoint() -> (last: Date?, epoch: Int) {
         syncLock.lock()
         defer { syncLock.unlock() }
-        return (UserDefaults.standard.object(forKey: "lastSyncDate") as? Date, fromNowEpoch)
+        return (UserDefaults.standard.object(forKey: "lastSyncDate") as? Date, watermarkEpoch)
     }
 
     /// Sync From Now: skip everything already in the library, what earlier
@@ -120,7 +244,11 @@ final class PhotoSync: NSObject {
         let visible = PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited ? visibleIDs() : nil
         syncLock.lock()
         defer { syncLock.unlock() }
-        fromNowEpoch &+= 1
+        watermarkEpoch &+= 1
+        // Asked for now: a run going goes through once more from here, and
+        // a device that was full is tried again at once.
+        if isSyncing { rerunWanted = true }
+        fullSince = nil
         let now = Date()
         UserDefaults.standard.set(now, forKey: "lastSyncDate")
         state.floor = now
@@ -131,10 +259,16 @@ final class PhotoSync: NSObject {
     }
 
     /// Sync All: the whole library again, from the start. Its point to
-    /// sync from is "everything" (State.floor).
+    /// sync from is "everything" (State.floor). A run going keeps its
+    /// uploads but writes no watermark back over this (watermarkEpoch),
+    /// and goes through once more from the start. The caller starts a run
+    /// (runForeground) for when none is going.
     func syncAll() {
         syncLock.lock()
         defer { syncLock.unlock() }
+        watermarkEpoch &+= 1
+        if isSyncing { rerunWanted = true }
+        fullSince = nil
         UserDefaults.standard.removeObject(forKey: "lastSyncDate")
         state.floor = .distantPast
     }
@@ -166,6 +300,24 @@ final class PhotoSync: NSObject {
         return s == .authorized || s == .limited
     }
 
+    /// IOS-09: a run with fewer new assets than this, on a phone that has
+    /// synced before (AssetSyncCache), doesn't download the listing of
+    /// /ios/<deviceId>/ - every photo this phone ever synced, megabytes
+    /// through the bridge for a big library - to check them against: each
+    /// goes by its hash (HasFile, LinkFile), and a name another file holds
+    /// is found by the device's duplicated_file. As Android's.
+    static let listingFrom = 100
+
+    /// Pure: whether a run of `assets` lists the folder first.
+    static func needsListing(assets: Int, cacheEmpty: Bool) -> Bool {
+        assets > 0 && (cacheEmpty || assets >= listingFrom)
+    }
+
+    /// Pure, IOS-01: whether "Wi-Fi only" holds the sync on this path.
+    static func waitsForWifi(wifiOnly: Bool, expensive: Bool) -> Bool {
+        wifiOnly && expensive
+    }
+
     // How many assets to read from disk + upload at the same time (issue
     // #10). A fixed pool rather than a single sequential stream: each
     // upload's network round-trip is mostly dead time on the client side,
@@ -179,16 +331,6 @@ final class PhotoSync: NSObject {
     // this same connection, like the Social feed) crawl instead of actually
     // finishing the sync faster.
     private static let cMaxConcurrentUploads = 3
-
-    private func ensureAuth() async throws {
-        print("Ensure Auth photos")
-        let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        if s == .authorized || s == .limited { return }
-        let r = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-        guard r == .authorized || r == .limited else {
-            throw NSError(domain: "photos", code: 1, userInfo: [NSLocalizedDescriptionKey: "Photos access denied"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-        }
-    }
 
     /// Each asset's PHCloudIdentifier as a string, by local identifier
     /// (release 7). The cloud identifier is what stays the same for an
@@ -300,30 +442,86 @@ final class PhotoSync: NSObject {
             throw err
         }
 
-        // Guess MIME
-        let filename = res.originalFilename
-        let mime: String = {
-            if #available(iOS 14.0, *) {
-                if let ut = UTType(filenameExtension: ext) {
-                    switch ut {
-                    case .png: return "image/png"
-                    case .jpeg: return "image/jpeg"
-                    case .heic: return "image/heic"
-                    case .quickTimeMovie: return "video/quicktime"
-                    default:
-                        return ut.preferredMIMEType ?? "application/octet-stream"
-                    }
-                }
-            }
-            let lower = filename.lowercased()
-            if lower.hasSuffix(".png")           { return "image/png" }
-            if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return "image/jpeg" }
-            if lower.hasSuffix(".heic")          { return "image/heic" }
-            if lower.hasSuffix(".mov")           { return "video/quicktime" }
-            return "application/octet-stream"
-        }()
+        return (tmpURL, res.originalFilename, Self.mime(of: res.originalFilename))
+    }
 
-        return (tmpURL, filename, mime)
+    /// The MIME type a resource's file name says.
+    private static func mime(of filename: String) -> String {
+        let ext = (filename as NSString).pathExtension
+        if let ut = UTType(filenameExtension: ext) {
+            switch ut {
+            case .png: return "image/png"
+            case .jpeg: return "image/jpeg"
+            case .heic: return "image/heic"
+            case .quickTimeMovie: return "video/quicktime"
+            default:
+                return ut.preferredMIMEType ?? "application/octet-stream"
+            }
+        }
+        let lower = filename.lowercased()
+        if lower.hasSuffix(".png")           { return "image/png" }
+        if lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return "image/jpeg" }
+        if lower.hasSuffix(".heic")          { return "image/heic" }
+        if lower.hasSuffix(".mov")           { return "video/quicktime" }
+        return "application/octet-stream"
+    }
+
+    /// exportAssetToTempFile for the sync (IOS-04): waits without holding a
+    /// thread while PhotoKit reads - an iCloud download can take minutes,
+    /// and three of those blocked three of the pool's few threads - and a
+    /// run that is stopped (a BG task's end, the app's background time,
+    /// Log Out) cancels the request at once instead of after the download.
+    func exportAssetToTempFileCancellable(_ asset: PHAsset, allowNetwork: Bool) async throws -> (url: URL, filename: String, mime: String) {
+        let resources = PHAssetResource.assetResources(for: asset)
+        guard let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
+        else {
+            throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+        }
+        let ext = (res.originalFilename as NSString).pathExtension
+        let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
+        guard let out = OutputStream(url: tmpURL, append: false) else {
+            throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+        }
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = allowNetwork
+        // The stream is the request's: PhotoKit may still hand over a piece
+        // after a cancelled export returned, and it is written, or dropped
+        // once closed, under the request's lock.
+        let request = ExportRequest(out)
+        defer { request.close() }
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    request.start(cont)
+                    let id = PHAssetResourceManager.default().requestData(
+                        for: res,
+                        options: opts,
+                        dataReceivedHandler: { chunk in request.write(chunk) },
+                        completionHandler: { err in request.finish(err) }
+                    )
+                    request.started(id)
+                }
+            } onCancel: {
+                request.cancel()
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: tmpURL)
+            throw error
+        }
+        return (tmpURL, res.originalFilename, Self.mime(of: res.originalFilename))
+    }
+
+    /// readData for the sync: the export above, cancellable.
+    func readDataCancellable(for asset: PHAsset, allowNetwork: Bool,
+                             maxBytes: Int64 = 1024 * 1024 * 1024) async throws -> (data: Data, filename: String, mime: String) {
+        let (url, filename, mime) = try await exportAssetToTempFileCancellable(asset, allowNetwork: allowNetwork)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        guard size <= maxBytes else {
+            throw NSError(domain: "PhotoExport", code: -20, userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+        }
+        return (try Data(contentsOf: url, options: .mappedIfSafe), filename, mime)
     }
     
     private func fetchNewAssets(includeVideos: Bool, since: Date?) -> [PHAsset] {
@@ -394,6 +592,9 @@ final class PhotoSync: NSObject {
         /// Can never work (no resource, over the 1 GB ceiling): given up
         /// on, as before. Retrying would export the whole file each run.
         case skip(String)
+        /// The device has no room (storage_full), with its words: on the
+        /// retry list, and the run stops.
+        case full(String, String)
     }
 
     /// Reading the asset from Photos failed, as opposed to talking to the
@@ -471,48 +672,136 @@ final class PhotoSync: NSObject {
         syncLock.lock()
         defer { syncLock.unlock() }
         generation &+= 1
-        currentSync?.cancel()
+        running?.cancel()
+        waitingForWifi = false
+        fullSince = nil
     }
 
-    /// The sync runs in its own Task so Log Out can cancel it. Awaiting a
+    /// A sync run, from in front: it starts here unless one is going - that
+    /// one then goes through once more for whatever this was asked for
+    /// (IOS-12). The run is a Task of its own so Log Out (cancel()) and the
+    /// end of the app's background time (stopRun()) can stop it; awaiting a
     /// Task's value doesn't pass the caller's cancellation on, so the
-    /// handler below does: that is how a BGProcessingTask's expiration
-    /// (SyncScheduler cancels the Task calling this) reaches the loop.
+    /// handler in syncUnlessRunning does.
     func runForeground() async throws {
-        guard try await syncUnlessRunning() else { return }
+        let time = await BackgroundTime.begin { [weak self] in self?.stopRun() }
+        defer { time.end() }
+        guard try await syncUnlessRunning(join: false) else { return }
         // Free up space, once this run has synced what it could - after the
         // sync's own flag is down, so photos taken while iOS asks about the
         // deletion still sync. Only in front, and not more than once a day.
         await FreeUpSpace.shared.afterSync()
     }
 
-    /// The sync itself: false when it didn't run (the choice not made yet,
-    /// or another run already going, which then ends with its own).
-    private func syncUnlessRunning() async throws -> Bool {
-        guard let gen = beginSyncIfNotAlreadyRunning() else {
-            print("Sync already running, skipping overlapping request")
+    /// IOS-02: a BGProcessingTask's run. One going already (a photo taken,
+    /// the app just in front) is waited for rather than reported finished at
+    /// once - iOS then suspended the app with that run barely started - and
+    /// goes through once more for whatever the task came for; with none
+    /// going, one starts. The task's expiration cancels this, and the run
+    /// with it.
+    func runInBackground() async throws {
+        _ = try await syncUnlessRunning(join: true)
+    }
+
+    /// The run: true when it started here, false when one was going (which
+    /// goes through once more at its end, and was waited for with `join`).
+    private func syncUnlessRunning(join: Bool) async throws -> Bool {
+        guard let run = startRun(join: join, { [weak self] gen in try await self?.runPasses(gen: gen) }) else {
+            print("Sync already running: it goes through once more at its end")
             return false
         }
+        try await withTaskCancellationHandler {
+            try await run.task.value
+        } onCancel: {
+            run.task.cancel()
+        }
+        return run.started
+    }
+
+    /// A run's passes: one, then another for each trigger that came while
+    /// one went (rerunWanted), as long as each went through. The flag is
+    /// down before the run's Task ends, so whoever waits on it finds the
+    /// sync idle.
+    private func runPasses(gen: Int) async throws {
         defer { endSync() }
+        while true {
+            let end = try await onePass(gen: gen)
+            guard end == .done, !Task.isCancelled, takeRerun() else { return }
+            print("Sync once more: asked for while it ran")
+        }
+    }
+
+    /// One pass: what holds it up first, then the sync itself (syncOnce).
+    private func onePass(gen: Int) async throws -> PassEnd {
+        let secrets = SecretsStore.loadOrCreate()
+        // IOS-07: no device yet (Welcome): nothing, and no question about
+        // Photos over it.
+        guard secrets.isConfigured else { return .skipped }
         await accessChanged(gen: gen)
-        // Signed in but not yet told what to sync (SyncChoice): nothing,
-        // the background task's runs included, until the sheet is answered.
+        // Signed in but not yet told what to sync (SyncChoice): nothing, the
+        // background task's runs included, until the sheet is answered.
         guard !SyncChoice.pending else {
             print("Sync waits for the sync choice")
-            return false
+            return .skipped
         }
-        // Issue #190: no route switch while a sync runs.
+        // Never asked here: the sync choice's Start Sync asks for access, and
+        // Settings has the button, so no run - in the background, over
+        // Welcome - brings the question up.
+        guard Self.libraryReadable else {
+            print("Sync skipped: no access to the photo library")
+            return .skipped
+        }
+        observeLibraryIfAllowed()
+        // IOS-01: "Wi-Fi only" on mobile data: nothing until the phone is on
+        // Wi-Fi again (watchCost starts a run then).
+        if await Self.holdsForWifi(secrets.wifiOnly) {
+            print("Sync waits for Wi-Fi")
+            finish(.waitingForWifi, gen: gen)
+            return .waitingForWifi
+        }
+        // The device said it was full a short while ago: not read and sent
+        // to be refused again (Sync All or Sync From Now try at once).
+        if let words = fullWordsIfStillFull() {
+            print("Sync waits: the device was full a short while ago")
+            return .deviceFull(words)
+        }
+        // Issue #190: no route switch while a sync runs - except between its
+        // chunks (IOS-10, syncOnce).
         TransferActivity.shared.begin()
         defer { TransferActivity.shared.end() }
-        let sync = Task { try await self.syncOnce(gen: gen) }
-        setCurrentSync(sync, gen: gen)
-        defer { setCurrentSync(nil, gen: gen) }
-        try await withTaskCancellationHandler {
-            try await sync.value
-        } onCancel: {
-            sync.cancel()
+        let end = try await syncOnce(gen: gen, secrets: secrets)
+        finish(end, gen: gen)
+        return end
+    }
+
+    /// What a pass that ended leaves: the line in Settings' Uploads, and
+    /// what starts or holds the next run.
+    private func finish(_ end: PassEnd, gen: Int) {
+        switch end {
+        case .waitingForWifi:
+            setWaitingForWifi(true)
+            ifLive(gen) { UploadModel.shared.halted(.waitingForWifi) }
+        case .deviceFull(let words):
+            setFull(Date(), words: words)
+            ifLive(gen) { UploadModel.shared.halted(.deviceFull(words)) }
+        case .done:
+            setFull(nil, words: "")
+            ifLive(gen) { UploadModel.shared.halted(nil) }
+        case .cutShort:
+            ifLive(gen) { UploadModel.shared.halted(nil) }
+        case .skipped:
+            break
         }
-        return true
+    }
+
+    /// "Wi-Fi only" with the phone on mobile data or a hotspot. The network
+    /// watch starts with the connection, and its first path comes right
+    /// after.
+    private static func holdsForWifi(_ wifiOnly: Bool) async -> Bool {
+        guard wifiOnly else { return false }
+        await MainActor.run { _ = OTCConnection.shared }
+        await NetworkWatch.shared.waitForPath()
+        return waitsForWifi(wifiOnly: true, expensive: NetworkWatch.shared.isExpensive)
     }
 
     /// What turning access to the library from limited to full needs.
@@ -558,9 +847,7 @@ final class PhotoSync: NSObject {
         }
     }
 
-    private func syncOnce(gen: Int) async throws {
-        try await ensureAuth()
-        let secrets = SecretsStore.loadOrCreate()
+    private func syncOnce(gen: Int, secrets: SecretsStore) async throws -> PassEnd {
         let ws = OTCConnection.shared
         try await ws.ensureConnected()
 
@@ -594,6 +881,10 @@ final class PhotoSync: NSObject {
         print("Sync photos from: \(String(describing: last))")
         let fresh = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
         let freshIDs = Set(fresh.map(\.localIdentifier))
+        // A4: what this app saved into the library (the viewer's Save):
+        // copies of what the device already holds, never sent back to it as
+        // this phone's photos (nor deleted by Free Up Space).
+        let saved = SavedToPhone.shared.ids()
 
         // The photos in the albums turned off (Settings > Sync Options >
         // Albums): read once, and only when there is something to leave
@@ -615,7 +906,7 @@ final class PhotoSync: NSObject {
         let plan = Self.readHistory(history, token: state.changeToken, watermark: last, skipped: skippedIDs,
                                     floorKnown: floor != nil && !limited)
         ifLive(gen, epoch: epoch) {
-            AssetSyncCache.shared.markPending(plan.markPending, iCloud: false)
+            AssetSyncCache.shared.markPending(plan.markPending.filter { !saved.contains($0) }, iCloud: false)
             if plan.catchUp { state.queueBackfill(PhotoSources.catchUp) }
             state.changeToken = nextToken
         }
@@ -629,7 +920,7 @@ final class PhotoSync: NSObject {
         if limited {
             let visible = visibleIDs()
             let seen = state.limitedSeen()
-            let picked = PhotoSources.newlyVisible(seen: seen, visible: visible).subtracting(freshIDs)
+            let picked = PhotoSources.newlyVisible(seen: seen, visible: visible).subtracting(freshIDs).subtracting(saved)
             ifLive(gen, epoch: epoch) {
                 AssetSyncCache.shared.markPending(picked.sorted(), iCloud: false)
                 if seen != visible { state.setLimitedSeen(visible) }
@@ -644,10 +935,12 @@ final class PhotoSync: NSObject {
         if !pendingIDs.isEmpty {
             let found = fetchAssets(localIdentifiers: pendingIDs)
             let foundIDs = Set(found.map(\.localIdentifier))
-            let gone = pendingIDs.filter { !foundIDs.contains($0) }
+            // Gone from the library, or saved here from the device: off the
+            // list.
+            let gone = pendingIDs.filter { !foundIDs.contains($0) || saved.contains($0) }
             ifLive(gen) { AssetSyncCache.shared.resolve(gone) }
             retried = found.filter {
-                !freshIDs.contains($0.localIdentifier) && (secrets.includeVideos || $0.mediaType == .image)
+                !saved.contains($0.localIdentifier) && !freshIDs.contains($0.localIdentifier) && (secrets.includeVideos || $0.mediaType == .image)
             }
             print("Retrying \(retried.count) assets from earlier runs")
         }
@@ -658,34 +951,38 @@ final class PhotoSync: NSObject {
         let taken = state.backfill
         var oneOff: [PHAsset] = []
         for pass in PhotoSources.oneOffs(taken, floor: floor) {
-            oneOff += fetchOneOff(pass, includeVideos: secrets.includeVideos)
+            oneOff += fetchOneOff(pass, includeVideos: secrets.includeVideos).filter { !saved.contains($0.localIdentifier) }
         }
         if !taken.isEmpty { print("One-off passes over \(taken.count) sources: \(oneOff.count) assets") }
 
-        // Retried, one-off, then new; none in an album turned off. A retry
-        // list entry left out stays on the list: it goes once its album is
-        // on again or it is taken out of it. Only the new ones move the
+        // New, retried, then one-off (PhotoSources.runList); none in an album
+        // turned off, and none the app saved here (`saved`, left out as
+        // skipped: a new one doesn't hold the watermark back). A retry list
+        // entry left out stays on the list: it goes once its album is on
+        // again or it is taken out of it. Only the new ones move the
         // watermark.
         var byID: [String: PHAsset] = [:]
         for asset in retried + oneOff + fresh { byID[asset.localIdentifier] = asset }
-        let skipped = secrets.skippedAlbums.isEmpty || byID.isEmpty ? [] : skippedIDs()
+        let skipped = (secrets.skippedAlbums.isEmpty || byID.isEmpty ? [] : skippedIDs()).union(saved.intersection(freshIDs))
         let list = PhotoSources.runList(retried: retried.map(\.localIdentifier), oneOff: oneOff.map(\.localIdentifier),
                                         fresh: fresh.map(\.localIdentifier), skipped: skipped)
         let assets = list.ids.compactMap { byID[$0] }
         let retriedIDs = list.exempt
-        if !skipped.isEmpty { print("Leaving out \(byID.count - assets.count) assets in albums turned off") }
+        if !skipped.isEmpty { print("Leaving out \(byID.count - assets.count) assets in albums turned off or saved from the device") }
         ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
 
         let targetPath = "/ios/\(secrets.deviceId)/"
-        // Get a list of all the files for the target path - only when
-        // there is something to check against it. Every library change and
-        // every return to the foreground starts a run, almost always with
-        // nothing new, and the listing holds every photo this phone ever
-        // synced (tens of MB through the bridge for a big library).
+        // Get a list of all the files for the target path - only for a big
+        // run, or a phone that has synced nothing yet (IOS-09,
+        // needsListing). Every library change and every return to the
+        // foreground starts a run, almost always with a photo or two, and
+        // the listing holds every photo this phone ever synced (tens of MB
+        // through the bridge for a big library); a small run goes by each
+        // asset's hash and the device's duplicated_file instead.
         // With each file's hash and creation time: a path alone can't tell
         // this asset from another one that had the same name.
         var knownFiles: [String: (hash: String, created: Date?)] = [:]
-        if !assets.isEmpty {
+        if Self.needsListing(assets: assets.count, cacheEmpty: AssetSyncCache.shared.isEmpty) {
             let resp = try await ws.request { env in
                 var list = Msg_ListFiles()
                 list.path = targetPath
@@ -730,6 +1027,8 @@ final class PhotoSync: NSObject {
         var stopped = false
         // Stopped because the device is gone.
         var cutShort = false
+        // Stopped for Wi-Fi only on mobile data, or the device full.
+        var halt: PassEnd?
         let chunks = assets.chunked(into: Self.cMaxConcurrentUploads)
         for (ci, chunk) in chunks.enumerated() {
             // Issue #70: a BGProcessingTask's expiration and Log Out cancel
@@ -737,6 +1036,24 @@ final class PhotoSync: NSObject {
             // stop at their next 4 MiB chunk (uploadChunked's
             // checkCancellation).
             if Task.isCancelled { stopped = true; break }
+
+            // IOS-10: the run lets go of its hold on the route for a moment,
+            // so a route check put off while it ran (the phone came home) is
+            // made now: the rest goes over the home network rather than out
+            // to the bridge and back. Nothing in flight here - the last
+            // chunk's uploads are all done.
+            TransferActivity.shared.end()
+            await OTCConnection.shared.routeBreak()
+            TransferActivity.shared.begin()
+
+            // IOS-01: Wi-Fi only, and the phone is on mobile data now:
+            // stopped here, the watermark before what wasn't sent; back on
+            // Wi-Fi, a run goes on from it.
+            if Self.waitsForWifi(wifiOnly: SecretsStore.wifiOnlyNow, expensive: NetworkWatch.shared.isExpensive) {
+                print("Off Wi-Fi with Wi-Fi only on: the sync stops here")
+                halt = .waitingForWifi
+                break
+            }
 
             // Issue #30: pause/resume from the upload bar. Checked between
             // chunks rather than cancelling in-flight requests — whatever's
@@ -754,9 +1071,10 @@ final class PhotoSync: NSObject {
                     let position = idx
                     group.addTask {
                         let id = asset.localIdentifier
-                        // Reads the asset's bytes, failures marked as such.
-                        func read() throws -> Data {
-                            do { return try self.readData(for: asset, allowNetwork: allowICloudDownloads).data }
+                        // Reads the asset's bytes, failures marked as such;
+                        // a run that is stopped stops the read too.
+                        func read() async throws -> Data {
+                            do { return try await self.readDataCancellable(for: asset, allowNetwork: allowICloudDownloads).data }
                             catch { throw ReadFailure(underlying: error) }
                         }
                         do {
@@ -819,7 +1137,7 @@ final class PhotoSync: NSObject {
                                 // between [dedup] lines is this or
                                 // something else.
                                 let readStart = Date()
-                                let readBytes = try read()
+                                let readBytes = try await read()
                                 print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
                                 data = readBytes
 
@@ -889,7 +1207,7 @@ final class PhotoSync: NSObject {
                             if !alreadyOnDevice && data == nil {
                                 print("[dedup] \(cleanName): cached hash not confirmed on device, downloading now")
                                 let readStart = Date()
-                                let readBytes = try read()
+                                let readBytes = try await read()
                                 print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
                                 data = readBytes
 
@@ -963,6 +1281,7 @@ final class PhotoSync: NSObject {
                                 self.ifLive(gen) { AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash) }
                                 return .done(id)
                             }
+                            if ErrorCodes.isStorageFull(code: resp.errorCode) { return .full(id, resp.errorMessage) }
                             print("Upload failed:", resp.errorMessage)
                             return .retry(id)
                         } catch {
@@ -971,6 +1290,12 @@ final class PhotoSync: NSObject {
                             if ns.domain == "PhotoExport" && (ns.code == -10 || ns.code == -20) {
                                 print("Skipping:", cause)
                                 return .skip(id)
+                            }
+                            // The device has no room (storage_full): the run
+                            // stops on it rather than reading asset after
+                            // asset to have each refused.
+                            if ErrorCodes.isStorageFull(code: ErrorCodes.code(of: cause)) {
+                                return .full(id, cause.localizedDescription)
                             }
                             if error is ReadFailure && !allowICloudDownloads {
                                 // The likely cause when "Sync from iCloud"
@@ -996,11 +1321,15 @@ final class PhotoSync: NSObject {
             }
 
             var finished: [String] = [], failed: [String] = [], failedICloud: [String] = []
+            var fullWords: String?
             for outcome in outcomes {
                 switch outcome {
                 case .done(let id), .skip(let id): finished.append(id)
                 case .retry(let id): failed.append(id)
                 case .retryWhenICloud(let id): failedICloud.append(id)
+                case .full(let id, let words):
+                    failed.append(id)
+                    fullWords = words
                 }
             }
             // The retry list before the watermark: no asset is ever behind
@@ -1035,6 +1364,14 @@ final class PhotoSync: NSObject {
                 print("Latest date:", mark)
             }
 
+            // The device is full: nothing more until there is room. What it
+            // refused is on the retry list.
+            if let fullWords {
+                print("The device is full: the sync stops here")
+                halt = .deviceFull(fullWords)
+                break
+            }
+
             // A failure may mean the device is gone (restarting, the
             // bridge answering device_unreachable). Then every later asset
             // fails too, most after a full iCloud download; the next
@@ -1056,7 +1393,7 @@ final class PhotoSync: NSObject {
         // the skip list - and new photos left out as skipped no longer hold
         // the watermark back, or every run would fetch them again. A Sync
         // From Now pressed meanwhile wins.
-        if !stopped && !cutShort {
+        if !stopped && !cutShort && halt == nil {
             let newestFresh = list.droppedFresh ? fresh.compactMap(\.creationDate).max() : nil
             ifLive(gen, epoch: epoch) {
                 if !taken.isEmpty {
@@ -1083,6 +1420,8 @@ final class PhotoSync: NSObject {
         // No final "lastSyncDate = now" any more: the per-chunk watermark
         // already stands at the newest asset handled, and now would skip
         // whatever arrived during the run with an older date.
+        if cutShort { return .cutShort }
+        return halt ?? .done
     }
 }
 
@@ -1187,6 +1526,123 @@ extension PhotoSync: PHPhotoLibraryChangeObserver {
         Task {
             try? await runForeground()
         }
+    }
+}
+
+/// One PhotoKit read of the sync's export (exportAssetToTempFileCancellable):
+/// resumes its caller exactly once - with PhotoKit's completion, or at once
+/// when cancelled, whether that comes before or after PhotoKit gave the
+/// request its id.
+private final class ExportRequest: @unchecked Sendable {
+    private let lock = NSLock()
+    private let out: OutputStream
+    private var closed = false
+    private var cont: CheckedContinuation<Void, Error>?
+    private var id: PHAssetResourceDataRequestID?
+    private var cancelled = false
+    private var writeError: Error?
+
+    init(_ out: OutputStream) {
+        self.out = out
+        out.open()
+    }
+
+    /// A piece PhotoKit read, written whole; after a failure, or once the
+    /// export is over, dropped.
+    func write(_ chunk: Data) {
+        lock.withLock {
+            guard !closed, writeError == nil else { return }
+            chunk.withUnsafeBytes { rawPtr in
+                guard let base = rawPtr.bindMemory(to: UInt8.self).baseAddress else { return }
+                var left = chunk.count
+                var offset = 0
+                while left > 0 {
+                    let w = out.write(base.advanced(by: offset), maxLength: left)
+                    if w <= 0 {
+                        writeError = out.streamError ?? NSError(domain: "PhotoExport", code: -12, userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+                        return
+                    }
+                    left -= w
+                    offset += w
+                }
+            }
+        }
+    }
+
+    func close() {
+        lock.withLock {
+            guard !closed else { return }
+            closed = true
+            out.close()
+        }
+    }
+
+    func start(_ c: CheckedContinuation<Void, Error>) {
+        lock.withLock { cont = c }
+    }
+
+    func started(_ requestID: PHAssetResourceDataRequestID) {
+        let cancelNow = lock.withLock { () -> Bool in
+            id = requestID
+            return cancelled
+        }
+        if cancelNow {
+            PHAssetResourceManager.default().cancelDataRequest(requestID)
+            finish(CancellationError())
+        }
+    }
+
+    func cancel() {
+        let requestID = lock.withLock { () -> PHAssetResourceDataRequestID? in
+            cancelled = true
+            return id
+        }
+        if let requestID { PHAssetResourceManager.default().cancelDataRequest(requestID) }
+        finish(CancellationError())
+    }
+
+    func finish(_ error: Error?) {
+        let (c, outcome): (CheckedContinuation<Void, Error>?, Error?) = lock.withLock {
+            defer { cont = nil }
+            return (cont, writeError ?? error)
+        }
+        guard let c else { return }
+        if let outcome { c.resume(throwing: outcome) } else { c.resume() }
+    }
+}
+
+/// The time iOS gives an app to finish what it was doing once it leaves the
+/// screen (beginBackgroundTask, about half a minute), taken by a sync run
+/// started in front (IOS-04): a run in its last chunk then finishes it
+/// rather than being frozen half way, and when the time runs out the run
+/// stops as at a BG task's end - the watermark before what it didn't finish.
+private final class BackgroundTime: @unchecked Sendable {
+    private let lock = NSLock()
+    private var id = UIBackgroundTaskIdentifier.invalid
+
+    @MainActor
+    static func begin(onExpiry: @escaping @Sendable () -> Void) -> BackgroundTime {
+        let time = BackgroundTime()
+        let id = UIApplication.shared.beginBackgroundTask(withName: "photo-sync") {
+            onExpiry()
+            // Within the handler: iOS ends an app that lets it run out.
+            if let id = time.take() { UIApplication.shared.endBackgroundTask(id) }
+        }
+        time.lock.withLock { time.id = id }
+        return time
+    }
+
+    /// The task's id, once: whoever ends it first.
+    private func take() -> UIBackgroundTaskIdentifier? {
+        lock.withLock {
+            defer { id = .invalid }
+            return id == .invalid ? nil : id
+        }
+    }
+
+    func end() {
+        guard let id = take() else { return }
+        Task { @MainActor in UIApplication.shared.endBackgroundTask(id) }
     }
 }
 

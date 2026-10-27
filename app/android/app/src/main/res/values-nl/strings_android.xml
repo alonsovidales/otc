@@ -105,7 +105,6 @@
     <string name="android_settings_profile_description">Beschrijving</string>
     <string name="android_settings_profile_from_phone">Van deze telefoon</string>
     <string name="android_settings_sharing_footer">Galerijen en downloadlinks die je hebt gedeeld, tot ze verlopen. Als je er een verwijdert, worden de gedeelde kopieën verwijderd en werkt de link niet meer.</string>
-    <string name="android_settings_sync_cloud">Synchroniseren vanuit de cloud</string>
     <string name="android_settings_sync_title">Synchronisatie</string>
     <string name="android_settings_thumbs_change_size">Grootte wijzigen</string>
     <string name="android_settings_thumbs_max_size_a11y">Maximale grootte, %1$s</string>

@@ -396,10 +396,6 @@
     "text": "As galerias e ligações de transferência que partilhaste, até expirarem. Eliminar uma remove as cópias partilhadas e a ligação deixa de funcionar.",
     "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
   },
-  "android.settings.sync_cloud": {
-    "text": "Sincronizar a partir da nuvem",
-    "en": "Sync from cloud"
-  },
   "android.settings.sync_title": {
     "text": "Sincronização",
     "en": "Sync"

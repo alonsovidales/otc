@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
@@ -167,6 +168,34 @@ class WSClientTest {
         assertEquals(listOf("es", "es"), got.map { it.lang })
         assertEquals(listOf(1, 2), got.map { it.id })
         assertTrue(got[0].hasReqGetTags())
+    }
+
+    /** A7: the device took the request and the connection went: not sent again by itself. */
+    @Test fun aRequestThatLeftAndLostItsConnectionIsNotSentAgain() = runBlocking {
+        // Takes the request and drops the connection, unanswered.
+        val server = Device { _, _ -> throw IllegalStateException("dropped") }.also { closeables += it }
+        val c = WSClient().also { closeables += AutoCloseable { it.close() } }
+        c.connect(server.url)
+        val failure = runCatching { c.request(timeoutMs = 10_000) { it.setReqGetTags(cloud.offthe.otc.proto.GetTags.getDefaultInstance()) } }.exceptionOrNull()
+        assertTrue("failed with $failure", failure is WSClient.SentNoAnswer)
+        assertFalse(OTCConnection.retriesAfter(failure!!))
+    }
+
+    /** One that never left (no socket) goes again on a new connection. */
+    @Test fun aRequestWithNoSocketNeverLeftAndGoesAgain() = runBlocking {
+        val failure = runCatching { WSClient().request { it.setReqGetTags(cloud.offthe.otc.proto.GetTags.getDefaultInstance()) } }.exceptionOrNull()
+        assertTrue("failed with $failure", failure is cloud.offthe.otc.ui.common.TextIOException)
+        assertTrue(OTCConnection.retriesAfter(failure!!))
+    }
+
+    /** A6: no ws:// socket off the home network, whoever asks for one. */
+    @Test fun noUnencryptedSocketOffTheHomeNetwork() = runBlocking {
+        val failure = runCatching { WSClient().connect("ws://example.com/ws") }.exceptionOrNull()
+        assertTrue("failed with $failure", failure is cloud.offthe.otc.ui.common.TextIOException)
+        assertEquals(
+            "ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one.",
+            (failure as cloud.offthe.otc.ui.common.TextIOException).text.english(),
+        )
     }
 
     /**

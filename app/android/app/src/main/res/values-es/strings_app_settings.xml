@@ -182,6 +182,7 @@
     <string name="app_settings_tailscale_enable">Activar Tailscale Funnel</string>
     <string name="app_settings_tailscale_intro">Tailscale Funnel es una alternativa al puente de Off The Cloud: publica este dispositivo en tu propia dirección ts.net, pero con las siguientes limitaciones:</string>
     <string name="app_settings_tailscale_key_hint">Con una clave de tu consola de administración de Tailscale, esto termina por sí solo. Sin ella, se abrirá Tailscale para que autorices este dispositivo.</string>
+    <string name="app_settings_tailscale_key_ignored">Tu dispositivo necesita una actualización para aceptar la clave de autenticación. Autorízalo en la página que se acaba de abrir.</string>
     <string name="app_settings_tailscale_limit_account">&lt;b&gt;Necesitarás una cuenta de Tailscale,&lt;/b&gt; con Funnel activado para tu tailnet.</string>
     <string name="app_settings_tailscale_limit_bandwidth">&lt;b&gt;El ancho de banda está limitado.&lt;/b&gt; Tailscale limita lo que puede pasar por Funnel y no publica ese límite.</string>
     <string name="app_settings_tailscale_limit_one_user">&lt;b&gt;Solo un usuario.&lt;/b&gt; Los usuarios adicionales necesitan cada uno su propia dirección web, y Funnel solo da una a esta máquina.</string>
@@ -224,7 +225,9 @@
     <string name="app_settings_update_up_to_date">Actualizado</string>
     <string name="app_settings_update_update_to">Actualizar a %1$s</string>
     <string name="app_settings_update_update_to_build">Instalar compilación %1$s</string>
+    <string name="app_settings_uploads_device_full">Tu dispositivo está lleno</string>
     <string name="app_settings_uploads_title">Subidas</string>
+    <string name="app_settings_uploads_waiting_wifi">Esperando a una red Wi-Fi</string>
     <string name="app_settings_users_confirm_delete">Confirmar eliminación</string>
     <string name="app_settings_users_confirm_hint">Escribe “%1$s” para confirmar la eliminación.</string>
     <string name="app_settings_users_create">Crear</string>

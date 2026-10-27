@@ -814,6 +814,11 @@ extension S {
     /// Settings > Tailscale Funnel, under the Enable button.
     static var appSettingsTailscaleKeyHint: String { L("app.settings.tailscale.key_hint", table: "AppSettings") }
 
+    /// Your device needs an update to take the auth key. Authorise it in the page that just opened instead.
+    ///
+    /// Settings > Tailscale Funnel after Enable with a key: the device is too old to take the key, which the app sends encrypted, so it asked for Tailscale's sign-in page instead, which was opened in the browser. Auth key: what the field above is called (app.settings.tailscale.auth_key).
+    static var appSettingsTailscaleKeyIgnored: String { L("app.settings.tailscale.key_ignored", table: "AppSettings") }
+
     /// <b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet.
     ///
     /// Settings > Tailscale Funnel: the last item of the list of limitations, after a bullet. <b>…</b> is the item's lead (shown in bold on the iPhone); the sentence goes on after it.
@@ -1046,10 +1051,20 @@ extension S {
         L("app.settings.update.update_to_build", table: "AppSettings", build)
     }
 
+    /// Your device is full
+    ///
+    /// Line in Settings > Uploads when the device said it has no room for what the photo sync sent: the sync stops and tries again later. The device's own words may follow on the next line.
+    static var appSettingsUploadsDeviceFull: String { L("app.settings.uploads.device_full", table: "AppSettings") }
+
     /// Uploads
     ///
     /// Heading of the section of Settings that shows the photos and videos this phone is uploading to the device; shown only while there are some.
     static var appSettingsUploadsTitle: String { L("app.settings.uploads.title", table: "AppSettings") }
+
+    /// Waiting for Wi-Fi
+    ///
+    /// Line in Settings > Uploads while the photo sync waits: Wi-Fi only is on and the phone is on mobile data (or a hotspot), so nothing is sent until it is on Wi-Fi again.
+    static var appSettingsUploadsWaitingWifi: String { L("app.settings.uploads.waiting_wifi", table: "AppSettings") }
 
     /// Confirm Delete
     ///

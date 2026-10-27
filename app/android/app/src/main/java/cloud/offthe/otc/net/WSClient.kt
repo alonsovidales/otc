@@ -7,7 +7,9 @@ import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidWsConnectTimeout
 import cloud.offthe.otc.i18n.androidWsStillConnecting
 import cloud.offthe.otc.i18n.androidWsTimedOut
+import cloud.offthe.otc.i18n.appShellCleartextRefused
 import cloud.offthe.otc.i18n.appShellNotConnected
+import cloud.offthe.otc.i18n.appShellSentNoAnswer
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.common.TextIOException
@@ -78,6 +80,23 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         override fun toString(): String = "RequestTimeout(answerTimedOut=$answerTimedOut)"
     }
 
+    /**
+     * A request that left the phone - OkHttp wrote it whole to the socket -
+     * whose answer never came because the connection went first: the device
+     * may have acted on it (a like toggled, a comment posted), so
+     * OTCConnection doesn't send it again by itself, as iOS's
+     * WSClient.SentNoAnswer. One that never left fails with what stopped it
+     * instead, and is sent again on a new connection.
+     */
+    class SentNoAnswer(cause: Throwable) : IOException(null, cause) {
+        /** What it says, worded where it is shown. */
+        val text: UiText get() = S.appShellSentNoAnswer()
+
+        override val message: String get() = text.now()
+
+        override fun toString(): String = "SentNoAnswer($cause)"
+    }
+
     /** The WebSocket upgrade wasn't answered within [CONNECT_TIMEOUT_MS]. */
     class ConnectTimeout : SocketTimeoutException() {
         override val message: String get() = S.androidWsConnectTimeout().now()
@@ -125,6 +144,9 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
     /** Opens the socket: within [timeoutMs], else [ConnectTimeout] - a failed connect like any other (onDisconnect fires). */
     suspend fun connect(url: String, timeoutMs: Long = CONNECT_TIMEOUT_MS) {
         if (connected) return
+        // A6: never a ws:// socket off the home network, whoever asks
+        // (OTCConnection refuses it first, with the card's words).
+        if (!CleartextRule.allows(url)) throw TextIOException(S.appShellCleartextRefused())
         val opened = CompletableDeferred<Unit>()
         val req = Request.Builder().url(url).build()
         val myGen = synchronized(waiters) { ++gen }
@@ -215,6 +237,9 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         s to p
     }
 
+    /** Whether everything up to [end] of this socket's queue has been written. */
+    private fun left(s: WebSocket, end: Long): Boolean = synchronized(sendLock) { sentBytes - s.queueSize() >= end }
+
     /** Sends a request and waits [timeoutMs] for its answer, else throws [RequestTimeout]. */
     suspend fun request(timeoutMs: Long = DEFAULT_TIMEOUT_MS, build: (ReqEnvelope.Builder) -> Unit): RespEnvelope =
         exchange(timeoutMs, build).resp
@@ -257,19 +282,31 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
                 val cb = synchronized(waiters) { waiters.remove(id) }
                 cb?.invoke(Result.failure(IOException("send failed")))
             }
-            // Usually written within a few ms: looked at often at first,
-            // then every QUEUE_POLL_MS behind a long queue.
-            var poll = 2L
-            while (!answer.isCompleted && synchronized(sendLock) { sentBytes - s!!.queueSize() } < end) {
-                // Its answer (or the socket's failure) ends this at once.
-                withTimeoutOrNull(poll) { answer.await() }
-                poll = minOf(poll * 2, QUEUE_POLL_MS)
+            try {
+                // Usually written within a few ms: looked at often at first,
+                // then every QUEUE_POLL_MS behind a long queue.
+                var poll = 2L
+                while (!answer.isCompleted && synchronized(sendLock) { sentBytes - s!!.queueSize() } < end) {
+                    // Its answer (or the socket's failure) ends this at once.
+                    withTimeoutOrNull(poll) { answer.await() }
+                    poll = minOf(poll * 2, QUEUE_POLL_MS)
+                }
+                val started = System.nanoTime()
+                // Timed out, the waiter goes (finally): a late answer finds no
+                // one in onMessage and is dropped.
+                val resp = withTimeoutOrNull(timeoutMs) { answer.await() } ?: throw RequestTimeout()
+                return Answer(resp, (System.nanoTime() - started) / 1_000_000)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RequestTimeout) {
+                throw e
+            } catch (e: Exception) {
+                // The socket went before the answer. Whether the request had
+                // left decides whether it is sent again (A7): OkHttp counts
+                // a message out of queueSize only once it has written all of
+                // it, and keeps the count when the socket fails.
+                throw if (end >= 0 && left(s!!, end)) SentNoAnswer(e) else e
             }
-            val started = System.nanoTime()
-            // Timed out, the waiter goes (finally): a late answer finds no
-            // one in onMessage and is dropped.
-            val resp = withTimeoutOrNull(timeoutMs) { answer.await() } ?: throw RequestTimeout()
-            return Answer(resp, (System.nanoTime() - started) / 1_000_000)
         } finally {
             synchronized(waiters) { waiters.remove(id) }
         }

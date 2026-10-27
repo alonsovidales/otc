@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import Photos
 import SwiftUI
 
 /// What the photo sync sends from this phone, asked after every sign-in
@@ -39,6 +40,8 @@ struct SyncChoiceView: View {
     /// Called once answered.
     var onDone: () -> Void
     @State private var all = true
+    /// iOS's question about Photos is up.
+    @State private var asking = false
 
     var body: some View {
         NavigationStack {
@@ -63,13 +66,27 @@ struct SyncChoiceView: View {
                 FreeUpSpaceSection()
                 Section {
                     Button {
-                        secrets.persist()
-                        SyncChoice.answer(all: all)
-                        onDone()
+                        asking = true
+                        Task {
+                            // IOS-07: access to Photos is asked here, as the
+                            // owner starts the sync - the sync itself never
+                            // asks, so nothing pops up over Welcome or from a
+                            // run in the background. Answered either way, the
+                            // choice is made; without access, Settings has
+                            // the button.
+                            if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined {
+                                _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+                            }
+                            secrets.persistOptions()
+                            SyncChoice.answer(all: all)
+                            asking = false
+                            onDone()
+                        }
                     } label: {
                         Text(S.appSettingsSyncChoiceStart).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(asking)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }

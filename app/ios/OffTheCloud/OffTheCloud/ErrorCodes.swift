@@ -26,6 +26,15 @@ enum ErrorCodes {
         code == "duplicated_file" || (code.isEmpty && message.hasSuffix("Duplicated file"))
     }
 
+    /// The device has no room for what was sent (release 143: an upload
+    /// refused before it started, or one the disk filled under). The photo
+    /// sync stops on it instead of trying file after file.
+    static let storageFull = "storage_full"
+
+    static func isStorageFull(code: String) -> Bool {
+        code == storageFull
+    }
+
     /// The device is older than the request. Builds before v9 send only the
     /// message, "unknown payload".
     static func isUnknownPayload(code: String, message: String) -> Bool {

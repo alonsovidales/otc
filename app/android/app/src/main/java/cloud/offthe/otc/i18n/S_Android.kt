@@ -358,10 +358,6 @@ fun S.androidSettingsProfileFromPhone(): UiText =
 fun S.androidSettingsSharingFooter(): UiText =
     UiText.Res(R.string.android_settings_sharing_footer)
 
-/** "Sync from cloud": Switch in Settings > Sync Options: also upload photos kept only in the cloud (the phone downloads them first). */
-fun S.androidSettingsSyncCloud(): UiText =
-    UiText.Res(R.string.android_settings_sync_cloud)
-
 /** "Sync": Heading of the section of Settings holding the Sync All and Sync From Now buttons. */
 fun S.androidSettingsSyncTitle(): UiText =
     UiText.Res(R.string.android_settings_sync_title)

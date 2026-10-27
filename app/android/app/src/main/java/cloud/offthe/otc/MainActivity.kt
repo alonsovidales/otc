@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.os.ConfigurationCompat
 import androidx.core.os.LocaleListCompat
 import cloud.offthe.otc.data.NotificationsModel
@@ -28,10 +24,6 @@ import cloud.offthe.otc.ui.theme.OTCTheme
 // locale changes handled only so that the one screen that can't be
 // recreated keeps them in place (onConfigurationChanged).
 class MainActivity : AppCompatActivity() {
-    // Issue #125: Android 13+ asks before an app may show notifications -
-    // at launch, like the iOS app. Declining only means pushes aren't shown.
-    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-
     // The languages the screen was drawn in.
     private var shownLocales: LocaleListCompat? = null
 
@@ -39,13 +31,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         shownLocales = ConfigurationCompat.getLocales(resources.configuration)
         enableEdgeToEdge()
-        // Only at a real launch: a change of language recreates the
-        // Activity, and someone who declined must not be asked again then.
-        if (savedInstanceState == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && FCMPush.available(this) &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        // Issue #125: notifications are no longer asked for here, at launch
+        // and over the welcome screen (UX 1): RootView asks once, after the
+        // first sign-in, saying what they bring (NotificationsAsk.kt).
         if (savedInstanceState == null) openFromPush(intent)
         setContent {
             OTCTheme {

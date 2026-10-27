@@ -52,6 +52,11 @@
     "text": "Cancella selezione",
     "en": "Clear selection"
   },
+  "app.shell.cleartext_refused": {
+    "text": "ws:// non è crittografato, quindi si usa solo per gli indirizzi della tua rete domestica. Usa wss:// per questo.",
+    "en": "ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one.",
+    "reviewed": "claude-backtranslation 2026-10-27 #de69df47"
+  },
   "app.shell.close_and_leave": {
     "text": "Chiudi e lascia questo dispositivo",
     "en": "Close and leave this device"
@@ -253,6 +258,24 @@
     "text": "L’indirizzo ha risposto, ma non come un dispositivo Off The Cloud. Controlla che termini con /ws e che punti al tuo dispositivo o al suo nome sul bridge.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
   },
+  "app.shell.notifications_continue": {
+    "text": "Continua",
+    "en": "Continue"
+  },
+  "app.shell.notifications_later": {
+    "text": "Non ora",
+    "en": "Not Now"
+  },
+  "app.shell.notifications_text": {
+    "text": "Off The Cloud ti avvisa di richieste di amicizia, nuovi post, Mi piace e commenti, e di quando il tuo dispositivo ha bisogno di te: un disco che ha smesso di funzionare, lo spazio che sta finendo o un aggiornamento importante.",
+    "en": "Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.",
+    "reviewed": "claude-backtranslation 2026-10-27 #da073a58"
+  },
+  "app.shell.notifications_title": {
+    "text": "Attivare le notifiche?",
+    "en": "Turn on notifications?",
+    "reviewed": "claude-backtranslation 2026-10-27 #4dd862d8"
+  },
   "app.shell.offline": {
     "text": "Questo telefono è offline. Connettiti al Wi-Fi o ai dati mobili.",
     "en": "This phone is offline. Connect to Wi-Fi or mobile data."
@@ -268,6 +291,16 @@
   "app.shell.onboarding_setup_footer": {
     "text": "Per un dispositivo appena uscito dalla scatola: esegue la configurazione tramite Bluetooth e questa app diventa la sua app. Se stai passando da un altro dispositivo, esci prima da quello.",
     "en": "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device."
+  },
+  "app.shell.password_hide": {
+    "text": "Nascondi password",
+    "en": "Hide password",
+    "reviewed": "claude-backtranslation 2026-10-27 #137f3f8f"
+  },
+  "app.shell.password_show": {
+    "text": "Mostra password",
+    "en": "Show password",
+    "reviewed": "claude-backtranslation 2026-10-27 #e7c1678c"
   },
   "app.shell.percent": {
     "text": "{percent}%",
@@ -473,6 +506,10 @@
       "one": "{count} selected",
       "other": "{count} selected"
     }
+  },
+  "app.shell.sent_no_answer": {
+    "text": "Inviato, ma non è arrivata nessuna risposta. Controlla se è andato a buon fine prima di riprovare.",
+    "en": "Sent, but no answer came back. Check whether it went through before trying again."
   },
   "app.shell.setup_device": {
     "text": "Dispositivo {id}",

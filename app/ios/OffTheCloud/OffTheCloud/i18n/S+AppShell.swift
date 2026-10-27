@@ -73,6 +73,11 @@ extension S {
     /// Screen-reader name of the × at the start of the "N selected" pill above the selection bar in Images and Files on the phones: it unpicks everything and leaves selection mode.
     static var appShellClearSelection: String { L("app.shell.clear_selection", table: "AppShell") }
 
+    /// ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one.
+    ///
+    /// Why the app can't connect, on the card shown over the app: the address typed starts with ws:// (no encryption) but isn't on the home network (a .local name, a single word, a private or Tailscale address), so the app won't send the password over it. ws:// and wss:// are the start of an address: keep them as they are.
+    static var appShellCleartextRefused: String { L("app.shell.cleartext_refused", table: "AppShell") }
+
     /// Close and leave this device
     ///
     /// Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title).
@@ -312,6 +317,26 @@ extension S {
     /// Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is.
     static var appShellNotOtc: String { L("app.shell.not_otc", table: "AppShell") }
 
+    /// Continue
+    ///
+    /// Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): goes on to the phone's own question, where notifications are allowed or not.
+    static var appShellNotificationsContinue: String { L("app.shell.notifications_continue", table: "AppShell") }
+
+    /// Not Now
+    ///
+    /// Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): closes it, and the app doesn't ask again (notifications can still be turned on in the phone's settings).
+    static var appShellNotificationsLater: String { L("app.shell.notifications_later", table: "AppShell") }
+
+    /// Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.
+    ///
+    /// Message of the question about notifications asked once after the first sign-in (app.shell.notifications_title): what the notifications are about. Off The Cloud is the product name.
+    static var appShellNotificationsText: String { L("app.shell.notifications_text", table: "AppShell") }
+
+    /// Turn on notifications?
+    ///
+    /// Title of the question asked once, after the first sign-in to a device, right before the phone's own question about notifications.
+    static var appShellNotificationsTitle: String { L("app.shell.notifications_title", table: "AppShell") }
+
     /// This phone is offline. Connect to Wi-Fi or mobile data.
     ///
     /// Why the app can't connect, on the card shown over the app: the phone has no network at all.
@@ -331,6 +356,16 @@ extension S {
     ///
     /// Small print under the Set up a new device button on the first screen.
     static var appShellOnboardingSetupFooter: String { L("app.shell.onboarding_setup_footer", table: "AppShell") }
+
+    /// Hide password
+    ///
+    /// Accessibility label of the eye button next to a password field once the password is shown: hides it again.
+    static var appShellPasswordHide: String { L("app.shell.password_hide", table: "AppShell") }
+
+    /// Show password
+    ///
+    /// Accessibility label of the eye button next to a password field (the welcome screen, the can't connect card, Settings): shows the password as typed.
+    static var appShellPasswordShow: String { L("app.shell.password_show", table: "AppShell") }
 
     /// {percent}%
     ///
@@ -585,6 +620,11 @@ extension S {
     static func appShellSelected(count: Int) -> String {
         L("app.shell.selected", table: "AppShell", count)
     }
+
+    /// Sent, but no answer came back. Check whether it went through before trying again.
+    ///
+    /// Why something asked of the device didn't finish (a like, a comment, a post, a setting): the request went out, but the connection broke before the device answered, so the app can't tell whether it was done and doesn't send it again by itself. Shown in toasts and after a screen's own sentence.
+    static var appShellSentNoAnswer: String { L("app.shell.sent_no_answer", table: "AppShell") }
 
     /// Device {id}
     ///

@@ -190,24 +190,26 @@ struct PhotoSourcesTests {
     }
 
     @Test func theRunsList() {
-        // Retried first, then one-off passes, then the new ones; each once.
+        // The new ones first, then the retry list, then one-off passes;
+        // each once (A5: a large retried video no longer holds the newer
+        // photos up).
         let plain = PhotoSources.runList(retried: ["r1", "n2"], oneOff: ["o1", "r1", "n1"], fresh: ["n1", "n2"], skipped: [])
-        #expect(plain.ids == ["r1", "o1", "n1", "n2"])
+        #expect(plain.ids == ["n1", "n2", "r1", "o1"])
         #expect(plain.exempt == ["r1", "o1"])
         #expect(!plain.droppedFresh)
 
         // Skipped wins over any path: retried, one-off and new.
         let skipping = PhotoSources.runList(retried: ["r1", "r2"], oneOff: ["o1", "o2"], fresh: ["n1", "n2"], skipped: ["r2", "o1", "n2"])
-        #expect(skipping.ids == ["r1", "o2", "n1"])
+        #expect(skipping.ids == ["n1", "r1", "o2"])
         #expect(skipping.exempt == ["r1", "o2"])
         #expect(skipping.droppedFresh)
     }
 
-    /// Nothing turned off and nothing queued: the run is what it always
-    /// was - the retry list, then the date fetch.
-    @Test func withNothingOffTheRunIsAsBefore() {
+    /// Nothing turned off and nothing queued: the date fetch, then the retry
+    /// list.
+    @Test func withNothingOffTheNewOnesGoFirst() {
         let list = PhotoSources.runList(retried: ["r1"], oneOff: [], fresh: ["n1", "n2"], skipped: [])
-        #expect(list.ids == ["r1", "n1", "n2"])
+        #expect(list.ids == ["n1", "n2", "r1"])
         #expect(list.exempt == ["r1"])
     }
 

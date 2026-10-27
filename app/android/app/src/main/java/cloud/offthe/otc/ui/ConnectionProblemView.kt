@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
@@ -42,7 +41,7 @@ import cloud.offthe.otc.i18n.appShellUnreachableWifiHint
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonPassword
-import cloud.offthe.otc.ui.common.OTCTextField
+import cloud.offthe.otc.ui.common.PasswordField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -58,8 +57,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
@@ -85,6 +84,19 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
     var password by form::password
     var retrying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val passwordFocus = remember { FocusRequester() }
+    val canSave = !retrying && endpoint.isNotEmpty() && password.isNotEmpty()
+    // Save & Retry, and Go on the password's keyboard.
+    fun saveAndRetry() {
+        if (!canSave) return
+        retrying = true
+        secrets.saveCredentials(endpoint, password)
+        OTCConnection.invalidate()
+        scope.launch {
+            try { OTCConnection.ensureConnected() } catch (_: Exception) {}
+            retrying = false
+        }
+    }
     // Leaving this device for the start screen - how a phone moves on to
     // set up a new device, or another one, when this one can't be reached
     // or signed in to (a device being re-imaged, say).
@@ -113,29 +125,17 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
                 Spacer(Modifier.height(18.dp))
                 Column(Modifier.fillMaxWidth()) {
                     Text(S.appShellConnectionHeading().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ConnectionEndpointFields(form.entry)
+                    ConnectionEndpointFields(form.entry, onNext = { passwordFocus.requestFocus() })
                     Spacer(Modifier.height(8.dp))
-                    OTCTextField(
-                        value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },
-                        singleLine = true, visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.fillMaxWidth(),
+                    PasswordField(
+                        value = password, onValueChange = { password = it }, hint = S.commonPassword().resolve(),
+                        onAction = ::saveAndRetry, modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus),
                     )
                 }
                 Spacer(Modifier.height(18.dp))
                 Button(
-                    onClick = {
-                        retrying = true
-                        secrets.setEndpoint(endpoint)
-                        secrets.setPassword(password)
-                        secrets.persist()
-                        OTCConnection.invalidate()
-                        scope.launch {
-                            try { OTCConnection.ensureConnected() } catch (_: Exception) {}
-                            retrying = false
-                        }
-                    },
-                    enabled = !retrying && endpoint.isNotEmpty() && password.isNotEmpty(),
+                    onClick = ::saveAndRetry,
+                    enabled = canSave,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

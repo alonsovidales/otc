@@ -49,8 +49,9 @@ object PhotoFolders {
             MediaStore.MediaColumns.BUCKET_ID, MediaStore.MediaColumns.BUCKET_DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.VOLUME_NAME, MediaStore.Files.FileColumns.MEDIA_TYPE,
         )
-        // The rows fetchNewAssets reads, with no date: grouped as they come.
-        val sel = PhotoSync.selection(includeVideos, 0) ?: return emptyList()
+        // The rows the sync reads, with no date: grouped as they come. Not
+        // the folders the viewer's Save writes to (A4): never backed up.
+        val sel = PhotoSync.selection(includeVideos, 0, leaveOutSaved = true) ?: return emptyList()
         return OTCApp.instance.contentResolver.query(MediaStore.Files.getContentUri("external"), proj, sel, null, null)?.use { c ->
             group(generateSequence {
                 if (!c.moveToNext()) null
@@ -94,6 +95,26 @@ object PhotoFolders {
     fun skipClause(skipped: Set<String>): String? = numbers(skipped)?.let {
         "(${MediaStore.MediaColumns.BUCKET_ID} IS NULL OR ${MediaStore.MediaColumns.BUCKET_ID} NOT IN ($it))" // i18n-ignore: a MediaStore selection, SQL
     }
+
+    /**
+     * A4: where the viewer's Save puts what it downloads from the device
+     * (PhotoGalleryViewModel's saveFolder), as MediaStore keeps RELATIVE_PATH,
+     * with its trailing slash. Copies of what the device holds, dated as the
+     * photo is: the sync used to send them back as this phone's (a second
+     * path for the same photo) and Free Up Space then moved them to the
+     * trash as backed up long ago. iOS remembers the assets its Save made
+     * (SavedToPhone.swift).
+     */
+    val savedFolders = listOf("Pictures/Off The Cloud/", "Movies/Off The Cloud/")
+
+    /** The selection that leaves [savedFolders] out (a row with no RELATIVE_PATH stays). */
+    val savedClause: String = savedFolders.joinToString(" AND ", prefix = "(${MediaStore.MediaColumns.RELATIVE_PATH} IS NULL OR (", postfix = "))") { // i18n-ignore: a MediaStore selection, SQL
+        "${MediaStore.MediaColumns.RELATIVE_PATH} NOT LIKE '${it.replace("'", "''")}%'" // i18n-ignore: a MediaStore selection, SQL
+    }
+
+    /** Whether a row's RELATIVE_PATH is in one of [savedFolders] (or below), the case aside as MediaStore matches. */
+    fun isSaved(relativePath: String?): Boolean =
+        relativePath != null && savedFolders.any { relativePath.startsWith(it, ignoreCase = true) }
 
     /** The selection of [buckets] alone, or null when it names none. */
     fun onlyClause(buckets: Set<String>): String? = numbers(buckets)?.let { "${MediaStore.MediaColumns.BUCKET_ID} IN ($it)" }

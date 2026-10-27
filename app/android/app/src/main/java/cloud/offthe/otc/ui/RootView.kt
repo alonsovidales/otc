@@ -2,9 +2,7 @@
 package cloud.offthe.otc.ui
 
 import cloud.offthe.otc.ui.common.ThumbStore
-import android.Manifest
 import android.app.Activity
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,9 +46,11 @@ fun RootView() {
     val choicePending by SyncChoice.pending.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // iOS asks for Photos access the first time the sync runs; Android
-    // needs the runtime prompt, so it is asked once here, right after the
-    // tabs first appear, and the first sync starts the moment it is granted.
+    // Media access is asked right after the sync question is answered (its
+    // Start Sync, as iOS asks for Photos there), never before a device is
+    // set up, and the first sync starts the moment it is granted.
+    // Notifications are no longer asked with it (UX 1): NotificationsAsk,
+    // below, asks once after the first sign-in.
     val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (PhotoSync.hasPermission()) PhotoSync.runForegroundAsync()
     }
@@ -60,9 +60,7 @@ fun RootView() {
     LaunchedEffect(configured, choicePending) {
         if (!configured || choicePending || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
         askedPermissions = true
-        val perms = mediaPermissions().toMutableList()
-        if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
-        askPermissions.launch(perms.toTypedArray())
+        askPermissions.launch(mediaPermissions())
     }
 
     // Free up space: Android's question before photos go to the trash,
@@ -82,9 +80,10 @@ fun RootView() {
 
     DisposableEffect(lifecycleOwner, configured) {
         val observer = LifecycleEventObserver { _, event ->
-            // Free up space asks only while the app is in front.
-            if (event == Lifecycle.Event.ON_RESUME) FreeUpSpace.inFront = true
-            if (event == Lifecycle.Event.ON_STOP) FreeUpSpace.inFront = false
+            // Free up space asks only while the app is in front, and a sync
+            // that waited for Wi-Fi starts from the network watch only then.
+            if (event == Lifecycle.Event.ON_RESUME) { FreeUpSpace.inFront = true; PhotoSync.inFront = true }
+            if (event == Lifecycle.Event.ON_STOP) { FreeUpSpace.inFront = false; PhotoSync.inFront = false }
             if (!configured) return@LifecycleEventObserver
             when (event) {
                 // Issue #190: the route first - back home, the sync goes over
@@ -134,6 +133,9 @@ fun RootView() {
             }
             if (tourShown) TourView()
         }
+        // Notifications, asked once after the first sign-in
+        // (NotificationsAsk.kt), never at launch.
+        NotificationsAskDialog(signedIn, choicePending, tourShown, mainVisible)
         // The first sync then starts from the effects above, now that the
         // choice is no longer pending. Its dialog, as every dialog, opens
         // above the tour.

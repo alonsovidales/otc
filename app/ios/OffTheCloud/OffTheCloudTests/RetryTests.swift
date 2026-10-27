@@ -706,9 +706,16 @@ struct WSClientTimeoutTests {
         #expect(drops.value == 0)
         // Then the socket is checked at once (nothing else waits): the
         // screen's retry, sent meanwhile, fails with it rather than wait
-        // its own time on a socket that is gone.
+        // its own time on a socket that is gone - as sent with no answer
+        // (it had left the phone), which the connection doesn't send again
+        // by itself (IOS-06).
         let retry = Task { try await ws.request(timeout: 10) { $0.payload = .reqSearchPhotos(.init()) } }
-        await #expect(throws: WSClient.Unresponsive.self) { _ = try await retry.value }
+        await #expect(throws: WSClient.SentNoAnswer.self) { _ = try await retry.value }
+        do {
+            _ = try await retry.value
+        } catch let e as WSClient.SentNoAnswer {
+            #expect(e.underlying is WSClient.Unresponsive)
+        }
         #expect(Date().timeIntervalSince(started) < 2)
         #expect(drops.value == 1)
         let stillConnected = await ws.connected
@@ -1992,16 +1999,12 @@ struct StalledSignInTests {
         defer { device.stop() }
         let c = OTCConnection.shared
         let s = SecretsStore.loadOrCreate()
-        s.endpoint = url.absoluteString
-        s.password = "test-dummy"
-        s.persist()
+        s.saveCredentials(endpoint: url.absoluteString, password: "test-dummy")
         c.reset()
         c.signInTimeout = 1.5
         defer {
             let s = SecretsStore.loadOrCreate()
-            s.endpoint = ""
-            s.password = ""
-            s.persist()
+            s.saveCredentials(endpoint: "", password: "")
             c.signInTimeout = 120
             c.reset()
         }

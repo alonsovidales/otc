@@ -58,6 +58,10 @@ fun S.appShellCantConnect(): UiText =
 fun S.appShellClearSelection(): UiText =
     UiText.Res(R.string.app_shell_clear_selection)
 
+/** "ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one.": Why the app can't connect, on the card shown over the app: the address typed starts with ws:// (no encryption) but isn't on the home network (a .local name, a single word, a private or Tailscale address), so the app won't send the password over it. ws:// and wss:// are the start of an address: keep them as they are. */
+fun S.appShellCleartextRefused(): UiText =
+    UiText.Res(R.string.app_shell_cleartext_refused)
+
 /** "Close and leave this device": Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title). */
 fun S.appShellCloseAndLeave(): UiText =
     UiText.Res(R.string.app_shell_close_and_leave)
@@ -238,6 +242,22 @@ fun S.appShellNotConnected(): UiText =
 fun S.appShellNotOtc(): UiText =
     UiText.Res(R.string.app_shell_not_otc)
 
+/** "Continue": Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): goes on to the phone's own question, where notifications are allowed or not. */
+fun S.appShellNotificationsContinue(): UiText =
+    UiText.Res(R.string.app_shell_notifications_continue)
+
+/** "Not Now": Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): closes it, and the app doesn't ask again (notifications can still be turned on in the phone's settings). */
+fun S.appShellNotificationsLater(): UiText =
+    UiText.Res(R.string.app_shell_notifications_later)
+
+/** "Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.": Message of the question about notifications asked once after the first sign-in (app.shell.notifications_title): what the notifications are about. Off The Cloud is the product name. */
+fun S.appShellNotificationsText(): UiText =
+    UiText.Res(R.string.app_shell_notifications_text)
+
+/** "Turn on notifications?": Title of the question asked once, after the first sign-in to a device, right before the phone's own question about notifications. */
+fun S.appShellNotificationsTitle(): UiText =
+    UiText.Res(R.string.app_shell_notifications_title)
+
 /** "This phone is offline. Connect to Wi-Fi or mobile data.": Why the app can't connect, on the card shown over the app: the phone has no network at all. */
 fun S.appShellOffline(): UiText =
     UiText.Res(R.string.app_shell_offline)
@@ -253,6 +273,14 @@ fun S.appShellOnboardingPending(): UiText =
 /** "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.": Small print under the Set up a new device button on the first screen. */
 fun S.appShellOnboardingSetupFooter(): UiText =
     UiText.Res(R.string.app_shell_onboarding_setup_footer)
+
+/** "Hide password": Accessibility label of the eye button next to a password field once the password is shown: hides it again. */
+fun S.appShellPasswordHide(): UiText =
+    UiText.Res(R.string.app_shell_password_hide)
+
+/** "Show password": Accessibility label of the eye button next to a password field (the welcome screen, the can't connect card, Settings): shows the password as typed. */
+fun S.appShellPasswordShow(): UiText =
+    UiText.Res(R.string.app_shell_password_show)
 
 /** "{percent}%": A percentage in the left menu (on a wide screen): how full the device's storage is (under the storage ring of the icon rail) and the processor's load (CPU in the storage details). {percent} is the number, already formatted (45 or 45.68). Write the percent sign as your language does. */
 fun S.appShellPercent(percent: String): UiText =
@@ -445,6 +473,10 @@ fun S.appShellSectionUnread(section: String, count: Int): UiText =
 /** "{count} selected" (one: "{count} selected"): Small pill above the bar shown over Images and Files while something is selected: how many photos, files or folders are selected. */
 fun S.appShellSelected(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_selected, count, listOf(count))
+
+/** "Sent, but no answer came back. Check whether it went through before trying again.": Why something asked of the device didn't finish (a like, a comment, a post, a setting): the request went out, but the connection broke before the device answered, so the app can't tell whether it was done and doesn't send it again by itself. Shown in toasts and after a screen's own sentence. */
+fun S.appShellSentNoAnswer(): UiText =
+    UiText.Res(R.string.app_shell_sent_no_answer)
 
 /** "Device {id}": Set up a new device (over Bluetooth): a row of the list of devices waiting to be set up. {id} is the device's short ID (four letters and digits, shown on its setup page). */
 fun S.appShellSetupDevice(id: String): UiText =

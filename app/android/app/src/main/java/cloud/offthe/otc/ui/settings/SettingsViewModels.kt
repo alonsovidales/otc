@@ -62,6 +62,8 @@ import cloud.offthe.otc.i18n.appSettingsReprocessStartFailed
 import cloud.offthe.otc.i18n.appSettingsReprocessStopError
 import cloud.offthe.otc.i18n.appSettingsReprocessStopFailed
 import cloud.offthe.otc.i18n.appSettingsTailscaleAuthorise
+import cloud.offthe.otc.i18n.appSettingsTailscaleKeyIgnored
+import cloud.offthe.otc.i18n.appShellNoPublicKey
 import cloud.offthe.otc.i18n.appSettingsTailscaleChangeFailed
 import cloud.offthe.otc.i18n.appSettingsTailscaleDone
 import cloud.offthe.otc.i18n.appSettingsTailscaleNoFunnel
@@ -122,6 +124,7 @@ internal fun deviceOr(text: String, ours: UiText): UiText = if (text.isEmpty()) 
 internal fun Throwable.shownText(): UiText? = when (this) {
     is TextIOException -> text
     is WSClient.RequestTimeout -> text
+    is WSClient.SentNoAnswer -> text
     else -> message?.let { UiText.Raw(it) }
 }
 
@@ -267,7 +270,7 @@ class DeviceSettingsViewModel : ViewModel() {
             val encNew = PwCrypto.encryptPassword(s.newKey, der)
             val resp = OTCConnection.request { it.setReqChangeKey(ChangeKey.newBuilder().setOldKey(ByteString.copyFrom(encOld)).setNewKey(ByteString.copyFrom(encNew))) }
             if (resp.ackOk()) {
-                secrets.setPassword(s.newKey); secrets.persist()
+                secrets.saveCredentials(secrets.endpoint.value, s.newKey)
                 state.update { it.copy(oldKey = "", newKey = "", confirmKey = "") }
                 toast(S.appSettingsPasswordChanged())
             } else toast(resp.ackError(S.appSettingsPasswordFailed()))
@@ -470,13 +473,31 @@ class TailscaleViewModel : ViewModel() {
     suspend fun configure(enable: Boolean) {
         state.update { it.copy(busy = true, note = null, error = null) }
         try {
-            val resp = OTCConnection.request { it.setReqSetupTailscale(ReqSetupTailscale.newBuilder().setAuthKey(state.value.authKey.trim()).setEnable(enable)) }
+            val key = if (enable) state.value.authKey.trim() else ""
+            // The key sealed for this connection, as a password is (PwCrypto,
+            // GetPubKey): the bridge relays this request, and the key signs a
+            // machine in to the owner's tailnet. Never in the clear: a device
+            // before release 143 ignores the sealed field and takes this as
+            // no key at all (keyIgnored below).
+            var sealed = ByteString.EMPTY
+            if (key.isNotEmpty()) {
+                val pk = OTCConnection.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+                if (pk.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
+                    state.update { it.copy(error = deviceOr(pk.errorMessage, S.appShellNoPublicKey())) }
+                    return
+                }
+                sealed = ByteString.copyFrom(PwCrypto.encryptPassword(key, pk.respPubKey.publicKey.toByteArray()))
+            }
+            val resp = OTCConnection.request { it.setReqSetupTailscale(ReqSetupTailscale.newBuilder().setAuthKeySealed(sealed).setEnable(enable)) }
             if (!apply(resp)) { state.update { it.copy(error = if (resp.error) UiText.Raw(resp.errorMessage) else S.appSettingsTailscaleChangeFailed()) }; return }
             val s = state.value
             val note = when {
                 !enable -> S.appSettingsTailscaleOff()
                 !s.installed -> null
-                s.loginUrl.isNotEmpty() -> S.appSettingsTailscaleAuthorise()
+                // With a key the device signs in by itself; asking for the
+                // sign-in page anyway means it read no key: one too old for
+                // the sealed field.
+                s.loginUrl.isNotEmpty() -> if (key.isEmpty()) S.appSettingsTailscaleAuthorise() else S.appSettingsTailscaleKeyIgnored()
                 s.funnelOn -> S.appSettingsTailscaleDone(s.publicUrl)
                 else -> S.appSettingsTailscaleNoFunnel()
             }
@@ -918,8 +939,7 @@ class BridgeAccountViewModel : ViewModel() {
                 return false
             }
             apply(resp.respBridgeAccess)
-            secrets.setEndpoint(localEndpoint(state.value.localAddress))
-            secrets.persist()
+            secrets.saveCredentials(localEndpoint(state.value.localAddress), secrets.password.value)
             OTCConnection.invalidate()
             state.update { it.copy(note = S.appSettingsBridgeLeft(it.localAddress.ifEmpty { "otc.local" })) }
             return true

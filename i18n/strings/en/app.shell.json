@@ -55,6 +55,12 @@
     "text": "Clear selection",
     "note": "Screen-reader name of the × at the start of the \"N selected\" pill above the selection bar in Images and Files on the phones: it unpicks everything and leaves selection mode."
   },
+  "app.shell.cleartext_refused": {
+    "text": "ws:// isn't encrypted, so it's only for addresses on your home network. Use wss:// for this one.",
+    "note": "Why the app can't connect, on the card shown over the app: the address typed starts with ws:// (no encryption) but isn't on the home network (a .local name, a single word, a private or Tailscale address), so the app won't send the password over it. ws:// and wss:// are the start of an address: keep them as they are.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #df868165"
+  },
   "app.shell.close_and_leave": {
     "text": "Close and leave this device",
     "note": "Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title)."
@@ -278,6 +284,29 @@
     "text": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.",
     "note": "Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is."
   },
+  "app.shell.notifications_continue": {
+    "text": "Continue",
+    "note": "Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): goes on to the phone's own question, where notifications are allowed or not.",
+    "max": 30
+  },
+  "app.shell.notifications_later": {
+    "text": "Not Now",
+    "note": "Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): closes it, and the app doesn't ask again (notifications can still be turned on in the phone's settings).",
+    "max": 30
+  },
+  "app.shell.notifications_text": {
+    "text": "Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.",
+    "note": "Message of the question about notifications asked once after the first sign-in (app.shell.notifications_title): what the notifications are about. Off The Cloud is the product name.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #90db3e9a"
+  },
+  "app.shell.notifications_title": {
+    "text": "Turn on notifications?",
+    "note": "Title of the question asked once, after the first sign-in to a device, right before the phone's own question about notifications.",
+    "max": 50,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #3db36b8e"
+  },
   "app.shell.offline": {
     "text": "This phone is offline. Connect to Wi-Fi or mobile data.",
     "note": "Why the app can't connect, on the card shown over the app: the phone has no network at all."
@@ -293,6 +322,20 @@
   "app.shell.onboarding_setup_footer": {
     "text": "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.",
     "note": "Small print under the Set up a new device button on the first screen."
+  },
+  "app.shell.password_hide": {
+    "text": "Hide password",
+    "note": "Accessibility label of the eye button next to a password field once the password is shown: hides it again.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #75028057"
+  },
+  "app.shell.password_show": {
+    "text": "Show password",
+    "note": "Accessibility label of the eye button next to a password field (the welcome screen, the can't connect card, Settings): shows the password as typed.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #176ab729"
   },
   "app.shell.percent": {
     "text": "{percent}%",
@@ -517,6 +560,10 @@
     "args": [["count", "count"]],
     "note": "Small pill above the bar shown over Images and Files while something is selected: how many photos, files or folders are selected.",
     "max": 24
+  },
+  "app.shell.sent_no_answer": {
+    "text": "Sent, but no answer came back. Check whether it went through before trying again.",
+    "note": "Why something asked of the device didn't finish (a like, a comment, a post, a setting): the request went out, but the connection broke before the device answered, so the app can't tell whether it was done and doesn't send it again by itself. Shown in toasts and after a screen's own sentence."
   },
   "app.shell.setup_device": {
     "text": "Device {id}",

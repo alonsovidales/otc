@@ -104,7 +104,6 @@
     <string name="android_settings_profile_description">Description</string>
     <string name="android_settings_profile_from_phone">From this phone</string>
     <string name="android_settings_sharing_footer">Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.</string>
-    <string name="android_settings_sync_cloud">Sync from cloud</string>
     <string name="android_settings_sync_title">Sync</string>
     <string name="android_settings_thumbs_change_size">Change the size</string>
     <string name="android_settings_thumbs_max_size_a11y">Maximum size, %1$s</string>

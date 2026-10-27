@@ -376,6 +376,9 @@ final class NetworkWatch: @unchecked Sendable {
     private let lock = NSLock()
     private var path: NWPath?
     private var started = false
+    /// Told whenever the path goes from expensive to cheap or back
+    /// (isExpensive): the photo sync's "Wi-Fi only".
+    private var costWatchers: [@Sendable (_ expensive: Bool) -> Void] = []
 
     /// `onChange` runs on every change after the first path (the network
     /// at start, which is no change).
@@ -387,13 +390,44 @@ final class NetworkWatch: @unchecked Sendable {
         guard first else { return }
         monitor.pathUpdateHandler = { [weak self] p in
             guard let self else { return }
-            let hadOne = self.lock.withLock { () -> Bool in
+            let (hadOne, wasExpensive, watchers) = self.lock.withLock { () -> (Bool, Bool?, [@Sendable (Bool) -> Void]) in
                 defer { self.path = p }
-                return self.path != nil
+                return (self.path != nil, self.path.map(Self.expensive), self.costWatchers)
             }
             if hadOne { onChange() }
+            let nowExpensive = Self.expensive(p)
+            if let wasExpensive, wasExpensive != nowExpensive {
+                for w in watchers { w(nowExpensive) }
+            }
         }
         monitor.start(queue: DispatchQueue(label: "cloud.off-the.OffTheCloud.network-watch"))
+    }
+
+    /// Waits, `seconds` at most, for the first path, which the monitor
+    /// reports right after it starts.
+    func waitForPath(upTo seconds: TimeInterval = 1) async {
+        let end = Date() + seconds
+        while lock.withLock({ path == nil }), Date() < end {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    /// `onChange` runs, on the watcher's queue, each time the path becomes
+    /// expensive or cheap.
+    func watchCost(_ onChange: @escaping @Sendable (_ expensive: Bool) -> Void) {
+        lock.withLock { costWatchers.append(onChange) }
+    }
+
+    /// Mobile data, or a personal hotspot (which iOS marks expensive): what
+    /// "Wi-Fi only" keeps the photo sync off. False while the path isn't
+    /// known: the sync then goes, as it always did.
+    var isExpensive: Bool {
+        guard let p = lock.withLock({ path }) else { return false }
+        return Self.expensive(p)
+    }
+
+    private static func expensive(_ p: NWPath) -> Bool {
+        p.status == .satisfied && (p.isExpensive || p.usesInterfaceType(.cellular))
     }
 
     /// True when the phone has no network at all (airplane mode, Wi-Fi and

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.i18n.S
@@ -30,6 +31,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -41,15 +43,18 @@ import cloud.offthe.otc.data.SecretsStore
 // show lives in [entry], next to the address it stands for, so whatever
 // keeps one through the Activity's recreation (a change of language with
 // the screen's language menu) keeps the other: the name shown is always
-// the address Save sends.
+// the address Save sends. [onNext]: the keyboard's Next, to the password
+// after it.
 @Composable
-fun ConnectionEndpointFields(entry: EndpointEntry) {
+fun ConnectionEndpointFields(entry: EndpointEntry, onNext: () -> Unit = {}) {
+    val next = KeyboardActions(onNext = { onNext() })
     Column {
         if (entry.customAddress) {
             OTCTextField(
                 value = entry.endpoint, onValueChange = { entry.typeAddress(it) },
                 label = { Text(S.appShellEndpointAddress().resolve()) }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Next),
+                keyboardActions = next,
                 modifier = Modifier.fillMaxWidth(),
             )
         } else {
@@ -57,7 +62,8 @@ fun ConnectionEndpointFields(entry: EndpointEntry) {
                 OTCTextField(
                     value = entry.deviceName, onValueChange = { entry.typeName(it) },
                     label = { Text(S.appShellEndpointDeviceName().resolve()) }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Next),
+                    keyboardActions = next,
                     modifier = Modifier.weight(1f),
                 )
                 Text(".${SecretsStore.bridgeDomain}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp))

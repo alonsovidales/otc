@@ -13,9 +13,11 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.data.SyncHalt
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.ErrorCodes
+import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.sizeMatches
 import cloud.offthe.otc.proto.HasFile
@@ -36,6 +38,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import java.io.File
@@ -48,7 +51,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 // Port of PhotoSync.swift: uploads new camera-roll photos/videos to
 // /android/<deviceId>/<filename> on the device, hash-first (issue #58),
 // three at a time (issue #10), pausable (issue #30), watermarked by the
-// newest DATE_ADDED synced so far.
+// newest DATE_ADDED synced so far, with what failed on a retry list
+// (AssetSyncCache.pending) rather than holding the watermark (A5).
 //
 // DATE_ADDED is when the MediaStore first listed the file, not when the
 // photo was taken: a years-old photo saved, received or copied here today
@@ -60,7 +64,8 @@ object PhotoSync {
     // dateAddedMs is DATE_TAKEN when there is one (the upload's created
     // time); addedSec is DATE_ADDED, the column the watermark is compared to.
     // size is MediaStore's SIZE, 0 when unknown; bucketId its folder's.
-    data class Asset(val id: Long, val uri: Uri, val name: String, val mime: String, val dateAddedMs: Long, val isVideo: Boolean, val addedSec: Long = 0, val size: Long = 0, val bucketId: Long? = null)
+    // saved: in a folder the viewer's Save writes to (PhotoFolders.isSaved).
+    data class Asset(val id: Long, val uri: Uri, val name: String, val mime: String, val dateAddedMs: Long, val isVideo: Boolean, val addedSec: Long = 0, val size: Long = 0, val bucketId: Long? = null, val saved: Boolean = false)
 
     private const val maxConcurrentUploads = 3
     // The otc_sync keys of the one-off passes (wiped at Log Out, not backed up).
@@ -112,6 +117,60 @@ object PhotoSync {
     // Sync All or Sync From Now doesn't write over that choice.
     @Volatile private var watermarkGen = 0
     private val watermarkLock = Any()
+    // IOS-12, as iOS: a trigger that came while a run went (a new photo, the
+    // app back in front, Sync All) used to be dropped here; the run goes
+    // through once more at its end instead.
+    @Volatile private var rerunWanted = false
+    // The last run stopped on a metered network with "Wi-Fi only" on: the
+    // next unmetered one starts a run (watchCost), while the app is in front
+    // (in the background WorkManager's UNMETERED runs do).
+    @Volatile private var waitingForWifi = false
+    // When a run last stopped on the device's storage_full, and its words:
+    // automatic runs wait FULL_PAUSE_MS after it rather than reading photos
+    // only to have them refused. Sync All and Sync From Now try at once.
+    @Volatile private var fullSinceMs = 0L
+    @Volatile private var fullWords = ""
+    const val FULL_PAUSE_MS = 30 * 60_000L
+
+    /** RootView: the activity is in front (between ON_RESUME and ON_STOP). */
+    @Volatile var inFront = false
+
+    init {
+        // A1: back on an unmetered network, a run that waited for it goes.
+        NetworkWatch.watchCost { metered ->
+            if (!metered && waitingForWifi && inFront) {
+                waitingForWifi = false
+                Log.i(tag, "on Wi-Fi again: the sync that waited for it starts")
+                runForegroundAsync()
+            }
+        }
+    }
+
+    /**
+     * IOS-09 / A9: a run with fewer new assets than this, on a phone that
+     * has synced before (AssetSyncCache), doesn't download the listing of
+     * /android/<deviceId>/ - every photo this phone ever synced, megabytes
+     * through the bridge for a big library - to check them against: each
+     * goes by its hash (HasFile, LinkFile), and a name another file holds
+     * is found by the device's duplicated_file (sendUnlessTaken). As iOS's.
+     */
+    const val LISTING_FROM = 100
+
+    /** Pure: whether a run of [assets] lists the folder first. */
+    fun needsListing(assets: Int, cacheEmpty: Boolean): Boolean = assets > 0 && (cacheEmpty || assets >= LISTING_FROM)
+
+    /** Pure, A1: whether "Wi-Fi only" holds the sync on this network. */
+    fun waitsForWifi(wifiOnly: Boolean, metered: Boolean): Boolean = wifiOnly && metered
+
+    /** Pure: whether an automatic run still waits after the device said it was full at [sinceMs]; a clock set back doesn't hold it for ever. */
+    fun waitsAfterFull(sinceMs: Long, nowMs: Long): Boolean = sinceMs > 0 && nowMs >= sinceMs && nowMs - sinceMs < FULL_PAUSE_MS
+
+    /** "Wi-Fi only" turned off (SecretsStore): a run that waited for Wi-Fi goes now. */
+    fun wifiOnlyOff() {
+        if (!waitingForWifi) return
+        waitingForWifi = false
+        runForegroundAsync()
+    }
 
     /**
      * Settings > Sync All (0) and Sync From Now (now), and SyncChoice's
@@ -127,6 +186,13 @@ object PhotoSync {
             if (ms > 0) e.remove(BACKFILL)
             e.apply()
             if (ms > 0) limitedSeen.delete()
+            // Sync From Now skips what earlier runs couldn't finish too, as
+            // on iOS.
+            if (ms > 0) AssetSyncCache.pending.clear()
+            // Asked for now: a run going goes through once more from here,
+            // and a device that was full is tried again at once.
+            if (syncing.get()) rerunWanted = true
+            fullSinceMs = 0L
         }
     }
 
@@ -231,7 +297,12 @@ object PhotoSync {
     /** Log Out: stop the sync in progress. */
     // Under the watermark lock: once it returns, no run is between its
     // generation check and its watermark write.
-    fun cancel() { synchronized(watermarkLock) { generation++ }; currentSync?.cancel() }
+    fun cancel() {
+        synchronized(watermarkLock) { generation++ }
+        currentSync?.cancel()
+        waitingForWifi = false
+        fullSinceMs = 0L
+    }
 
     /**
      * The photos (and videos) added after [sinceMs], oldest first. [skipped]:
@@ -240,14 +311,32 @@ object PhotoSync {
      */
     fun fetchNewAssets(
         includeVideos: Boolean, sinceMs: Long, limit: Int = 0, newestFirst: Boolean = false,
-        skipped: Set<String> = emptySet(), only: Set<String>? = null,
+        skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false,
     ): List<Asset> {
+        val sel = selection(includeVideos, sinceMs, skipped, only, leaveOutSaved) ?: return emptyList()
+        val order = "${MediaStore.Files.FileColumns.DATE_ADDED} ${if (newestFirst) "DESC" else "ASC"}" + if (limit > 0) " LIMIT $limit" else ""
+        return query(sel, order)
+    }
+
+    /**
+     * The retry list's assets still on the phone, by MediaStore id, whatever
+     * their type or folder (a video kept for later while Include videos is
+     * off stays on the list, as on iOS), oldest first.
+     */
+    private fun fetchByIds(ids: Collection<Long>): List<Asset> {
+        if (ids.isEmpty()) return emptyList()
+        val types = "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})"
+        return ids.chunked(500).flatMap { batch ->
+            query("${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types AND ${MediaStore.Files.FileColumns._ID} IN (${batch.joinToString(",")})", // i18n-ignore: a MediaStore selection, SQL
+                "${MediaStore.Files.FileColumns.DATE_ADDED} ASC")
+        }
+    }
+
+    private fun query(sel: String, order: String): List<Asset> {
         val cr = OTCApp.instance.contentResolver
         val proj = arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DISPLAY_NAME, MediaStore.Files.FileColumns.MIME_TYPE,
             MediaStore.Files.FileColumns.DATE_ADDED, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_TAKEN,
-            MediaStore.Files.FileColumns.SIZE, MediaStore.MediaColumns.BUCKET_ID)
-        val sel = selection(includeVideos, sinceMs, skipped, only) ?: return emptyList()
-        val order = "${MediaStore.Files.FileColumns.DATE_ADDED} ${if (newestFirst) "DESC" else "ASC"}" + if (limit > 0) " LIMIT $limit" else ""
+            MediaStore.Files.FileColumns.SIZE, MediaStore.MediaColumns.BUCKET_ID, MediaStore.MediaColumns.RELATIVE_PATH)
         val out = mutableListOf<Asset>()
         cr.query(MediaStore.Files.getContentUri("external"), proj, sel, null, order)?.use { c ->
             while (c.moveToNext()) {
@@ -256,17 +345,23 @@ object PhotoSync {
                 val base = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                 val taken = c.getLong(5).takeIf { it > 0 } ?: c.getLong(3) * 1000
                 out += Asset(id, ContentUris.withAppendedId(base, id), c.getString(1) ?: "file", c.getString(2) ?: "application/octet-stream", taken, isVideo, addedSec = c.getLong(3), size = c.getLong(6),
-                    bucketId = if (c.isNull(7)) null else c.getLong(7))
+                    bucketId = if (c.isNull(7)) null else c.getLong(7), saved = PhotoFolders.isSaved(c.getString(8)))
             }
         }
         return out
     }
 
-    /** fetchNewAssets' selection; null when [only] names no folder, so nothing is fetched. */
-    fun selection(includeVideos: Boolean, sinceMs: Long, skipped: Set<String> = emptySet(), only: Set<String>? = null): String? {
+    /**
+     * fetchNewAssets' selection; null when [only] names no folder, so
+     * nothing is fetched. [leaveOutSaved]: the sync's - what the viewer's
+     * Save wrote stays out (A4, PhotoFolders.savedClause); the composer
+     * shows it.
+     */
+    fun selection(includeVideos: Boolean, sinceMs: Long, skipped: Set<String> = emptySet(), only: Set<String>? = null, leaveOutSaved: Boolean = false): String? {
         val types = if (includeVideos) "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})" else "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
         var sel = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN $types" + if (sinceMs > 0) " AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ${sinceMs / 1000}" else ""
         PhotoFolders.skipClause(skipped)?.let { sel += " AND $it" }
+        if (leaveOutSaved) sel += " AND ${PhotoFolders.savedClause}"
         if (only != null) sel += " AND " + (PhotoFolders.onlyClause(only) ?: return null)
         return sel
     }
@@ -382,10 +477,19 @@ object PhotoSync {
             send(alt)
         }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash, cacheEpoch); return target }
-        throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" }) // i18n-ignore: logged by the sync, never shown
+        // With its code, which the sync reads (storage_full).
+        throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "Upload failed" }, resp.errorCode) // i18n-ignore: logged by the sync, never shown
     }
 
     private const val tag = "OTC/PhotoSync"
+
+    /**
+     * A19: what a failure goes into the log as - ids and kinds, never a
+     * photo's name or a path, which a file's own exception can carry in its
+     * message (release builds log at WARN too). The device's refusals say
+     * their code only (RequestError.toString).
+     */
+    internal fun logged(e: Throwable): String = if (e is OTCConnection.RequestError) e.toString() else e.javaClass.simpleName
 
     /**
      * A run's one-off list; [visible]: what limited access shows, noted once
@@ -405,7 +509,7 @@ object PhotoSync {
         if (limited) {
             // Only what was picked, so a short list. Every type and folder:
             // a setting changed later doesn't make an old pick look new.
-            val now = fetchNewAssets(true, 0).mapTo(HashSet()) { it.id }
+            val now = fetchNewAssets(true, 0, leaveOutSaved = true).mapTo(HashSet()) { it.id }
             val seen = readSeen()
             if (seen == null) {
                 // The first time, only noted: what is visible now is what the
@@ -419,7 +523,7 @@ object PhotoSync {
             }
         }
         val assets = oneOffList(taken, floorMs, picked, fresh.mapTo(HashSet()) { it.id }, { it.id }) { since, only ->
-            fetchNewAssets(includeVideos, since, skipped = skipped, only = only)
+            fetchNewAssets(includeVideos, since, skipped = skipped, only = only, leaveOutSaved = true)
         }
         return OneOff(assets, visible, limited)
     }
@@ -449,154 +553,285 @@ object PhotoSync {
         FreeUpSpace.afterSync()
     }
 
+    /** How one pass of the sync ended. */
+    private sealed interface PassEnd {
+        /** Through every chunk (failures on the retry list). */
+        data object Done : PassEnd
+        /** Nothing to do: the choice not made, no media permission, no device. */
+        data object Skipped : PassEnd
+        /** Stopped: the device can't be reached. */
+        data object CutShort : PassEnd
+        /** Stopped, or never started: "Wi-Fi only" on a metered network. */
+        data object WaitingForWifi : PassEnd
+        /** Stopped on the device's storage_full, with its words. */
+        data class DeviceFull(val words: String) : PassEnd
+    }
+
+    /** What became of one asset of a chunk. */
+    private sealed interface Sent {
+        data object Done : Sent
+        data object Retry : Sent
+        data class Full(val words: String) : Sent
+    }
+
     /** The sync itself: false when it didn't run (the choice not made yet,
-     * no media permission, or another run already going, which then ends
-     * with its own). */
+     * or another run already going, which then goes through once more). */
     private suspend fun syncUnlessRunning(): Boolean {
         // First, as it may ask the question below again.
         checkAccess()
         // Signed in but not yet told what to sync (SyncChoice): nothing, the
         // WorkManager runs included, until the screen is answered.
         if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return false }
-        if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return false }
+        if (!syncing.compareAndSet(false, true)) {
+            rerunWanted = true
+            Log.i(tag, "sync already running: it goes through once more at its end")
+            return false
+        }
         val job = currentCoroutineContext()[Job]
         currentSync = job
         val gen = generation
-        val wgen = watermarkGen
-        val cacheEpoch = AssetSyncCache.epoch()
-        // Issue #190: no route switch while a sync runs.
+        rerunWanted = false
+        // Issue #190: no route switch while a sync runs - except between its
+        // chunks (IOS-10, transferBreak).
         OTCConnection.transferStarted()
         try {
-            if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return false }
-            val secrets = SecretsStore.loadOrCreate()
-            OTCConnection.ensureConnected()
-            // The watermark never passes the second the query ran in: media
-            // added while the run goes on (or in that same second) is the
-            // next run's. Writing "now" at the end used to skip it for good.
-            val startedSec = System.currentTimeMillis() / 1000
-            // A watermark ahead of the clock (set while it was wrong) would
-            // hide everything taken until then; the old "now" undid that too.
-            if (lastSyncMs / 1000 > startedSec) runWatermark((startedSec - 1) * 1000, gen, wgen)
-            val includeVideos = secrets.includeVideos.value
-            // Settings > Sync Options > Folders: a folder turned off never
-            // comes back from a query.
-            val skipped = secrets.skippedFolders.value
-            val assets = fetchNewAssets(includeVideos, lastSyncMs, skipped = skipped)
-            // Before the progress starts, so its total covers both.
-            val taken = backfill()
-            val pass = oneOffPass(taken, includeVideos, skipped, assets, gen, wgen)
-            val oneOff = pass.assets
-            Log.i(tag, "sync start: ${assets.size} new asset(s) since $lastSyncMs" + if (oneOff.isEmpty()) "" else ", ${oneOff.size} from a one-off pass")
-            val total = assets.size + oneOff.size
-            UploadModel.begin(total)
-            val targetDir = "/android/${secrets.deviceId.value}/"
-            // Nothing new (most resumes and background runs): no listing of a
-            // folder that holds every photo this phone ever synced.
-            val known: Map<String, PbFile> = if (total == 0) emptyMap() else try {
-                val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(targetDir)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) resp.respListOfFiles.filesList.associateBy { it.path } else emptyMap()
-            } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+            var ran = false
+            while (true) {
+                val end = onePass(gen)
+                if (end != PassEnd.Skipped) ran = true
+                if (end != PassEnd.Done || !currentCoroutineContext().isActive || !rerunWanted) break
+                rerunWanted = false
+                Log.i(tag, "sync once more: asked for while it ran")
+            }
+            return ran
+        } finally {
+            // Before releasing the flag, so the next run's handle isn't wiped.
+            if (currentSync === job) currentSync = null
+            OTCConnection.transferEnded()
+            rerunWanted = false
+            syncing.set(false)
+        }
+    }
 
-            var idx = 0
-            // Folders turned off while this run went: what of theirs it let
-            // go wasn't sent, so a pass queued again for them (turned back
-            // on) stays.
-            val cutShort = ConcurrentHashMap.newKeySet<String>()
-            // A chunk, all at once: for each asset whether it is done with.
-            suspend fun send(chunk: List<Asset>): List<Boolean> = coroutineScope {
-                chunk.map { asset ->
-                    idx += 1; val position = idx
-                    async {
-                        try {
-                            // Its folder turned off since the run began: left
-                            // alone from now on, as from the next run.
-                            val bucket = asset.bucketId?.toString()
-                            if (bucket != null && bucket in secrets.skippedFolders.value) { cutShort += bucket; return@async true }
-                            UploadModel.step(asset.name, position - 1, total)
-                            uploadIfNeeded(asset, targetDir, known, cacheEpoch)
-                            true
-                        } catch (e: CancellationException) {
-                            throw e // Log Out: no watermark past what was cut short
-                        } catch (e: UnreadableAsset) {
-                            Log.w(tag, "skipped ${asset.name}, it can't be read: $e")
-                            true
-                        } catch (e: Exception) {
-                            Log.w(tag, "upload failed for ${asset.name}: $e")
-                            false
-                        }
-                    }
-                }.awaitAll()
-            }
-            // Set by the first failed upload: the watermark stays just before
-            // it, so the next run tries it again (what synced after it is
-            // then skipped as known). The run itself carries on.
-            var held = false
-            var stopped = false
-            for (start in assets.indices step maxConcurrentUploads) {
-                val chunk = assets.subList(start, minOf(start + maxConcurrentUploads, assets.size))
-                coroutineScope { ensureActive() }
-                while (UploadModel.isPaused) delay(500)
-                val ok = send(chunk)
-                val failed = chunk.filterIndexed { i, _ -> !ok[i] }
-                if (!held && gen == generation) {
-                    // Assets come in DATE_ADDED order: everything up to doneSec
-                    // is on the device. A second the next asset shares isn't
-                    // done yet (an interrupted run resumes inside it).
-                    val doneSec = if (failed.isEmpty()) {
-                        val last = chunk.last().addedSec
-                        if (assets.getOrNull(start + chunk.size)?.addedSec == last) last - 1 else last
-                    } else failed.minOf { it.addedSec } - 1
-                    runWatermark(minOf(doneSec, startedSec - 1) * 1000, gen, wgen)
-                    held = failed.isNotEmpty()
-                }
-                if (failed.isNotEmpty()) {
-                    // The device gone: the rest would only be read and hashed
-                    // to fail the same way.
-                    try { OTCConnection.ensureConnected() } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                        Log.w(tag, "sync stopped, the device can't be reached: $e")
-                        stopped = true
-                        break
-                    }
-                }
-            }
-            // The one-off passes, after what is new: no watermark. Only once
-            // all of them went are they done; otherwise the next run goes
-            // through them again, and what already went is found at once.
-            if (!stopped) {
-                var done = true
-                for (start in oneOff.indices step maxConcurrentUploads) {
-                    val chunk = oneOff.subList(start, minOf(start + maxConcurrentUploads, oneOff.size))
-                    coroutineScope { ensureActive() }
-                    while (UploadModel.isPaused) delay(500)
-                    if (send(chunk).all { it }) continue
-                    done = false
-                    try { OTCConnection.ensureConnected() } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                        Log.w(tag, "sync stopped, the device can't be reached: $e")
-                        break
-                    }
-                }
-                if (done) synchronized(watermarkLock) {
-                    // Not into the store Log Out just wiped.
-                    if (gen == generation) {
-                        if (taken.isNotEmpty()) setBackfill(afterPass(backfill(), taken, finished = true, cutShort = cutShort, limited = pass.limited))
-                        // Nor over Sync All or Sync From Now pressed since
-                        // the run began: what was picked before that is
-                        // behind the owner's choice, not new.
-                        if (wgen == watermarkGen) pass.visible?.let(::writeSeen)
-                    }
-                }
-            }
-            UploadModel.complete()
-            Log.i(tag, "sync done")
-            return true
+    /** One pass: what holds it up first, then the sync. */
+    private suspend fun onePass(gen: Int): PassEnd {
+        if (SyncChoice.pending.value) return PassEnd.Skipped
+        if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return PassEnd.Skipped }
+        val secrets = SecretsStore.loadOrCreate()
+        // No device yet (the welcome screen): nothing.
+        if (!secrets.isConfigured) return PassEnd.Skipped
+        // A1: "Wi-Fi only" on mobile data or a hotspot: nothing until the
+        // phone is on Wi-Fi again (watchCost, or WorkManager's UNMETERED run).
+        if (waitsForWifi(secrets.wifiOnly.value, NetworkWatch.syncMetered())) {
+            Log.i(tag, "sync waits for Wi-Fi")
+            return finish(PassEnd.WaitingForWifi, gen)
+        }
+        // The device said it was full a short while ago: not read and sent
+        // to be refused again (Sync All or Sync From Now try at once).
+        if (waitsAfterFull(fullSinceMs, System.currentTimeMillis())) {
+            Log.i(tag, "sync waits: the device was full a short while ago")
+            return PassEnd.DeviceFull(fullWords)
+        }
+        val wgen = watermarkGen
+        val cacheEpoch = AssetSyncCache.epoch()
+        try {
+            return finish(syncOnce(secrets, gen, wgen, cacheEpoch), gen)
         } finally {
             // Also when stopped (WorkManager, a dropped device): what was
             // hashed isn't hashed again. Not after Log Out wiped it.
             if (gen == generation) AssetSyncCache.flush(cacheEpoch)
-            // Before releasing the flag, so the next run's handle isn't wiped.
-            if (currentSync === job) currentSync = null
-            OTCConnection.transferEnded()
-            syncing.set(false)
         }
+    }
+
+    /** What a pass that ended leaves: Settings' Uploads line, and what starts or holds the next run. */
+    private fun finish(end: PassEnd, gen: Int): PassEnd {
+        if (gen != generation) return end
+        when (end) {
+            PassEnd.WaitingForWifi -> { waitingForWifi = true; UploadModel.halted(SyncHalt.WaitingForWifi) }
+            is PassEnd.DeviceFull -> { fullSinceMs = System.currentTimeMillis(); fullWords = end.words; UploadModel.halted(SyncHalt.DeviceFull(end.words)) }
+            PassEnd.Done -> { waitingForWifi = false; fullSinceMs = 0L; UploadModel.halted(null) }
+            PassEnd.CutShort -> UploadModel.halted(null)
+            PassEnd.Skipped -> {}
+        }
+        return end
+    }
+
+    private suspend fun syncOnce(secrets: SecretsStore, gen: Int, wgen: Int, cacheEpoch: Int): PassEnd {
+        OTCConnection.ensureConnected()
+        // The watermark never passes the second the query ran in: media
+        // added while the run goes on (or in that same second) is the
+        // next run's. Writing "now" at the end used to skip it for good.
+        val startedSec = System.currentTimeMillis() / 1000
+        // A watermark ahead of the clock (set while it was wrong) would
+        // hide everything taken until then; the old "now" undid that too.
+        if (lastSyncMs / 1000 > startedSec) runWatermark((startedSec - 1) * 1000, gen, wgen)
+        val includeVideos = secrets.includeVideos.value
+        // Settings > Sync Options > Folders: a folder turned off never
+        // comes back from a query; nor does what the viewer's Save wrote (A4).
+        val skipped = secrets.skippedFolders.value
+        val assets = fetchNewAssets(includeVideos, lastSyncMs, skipped = skipped, leaveOutSaved = true)
+        val freshIds = assets.mapTo(HashSet()) { it.id }
+        // A5: what earlier runs couldn't finish, which the watermark has
+        // moved past: after the new ones, so one that keeps failing (a large
+        // video) no longer holds them up. Gone from the phone, or saved here
+        // from the device: off the list. In a folder turned off, or a video
+        // while Include videos is off: left on it for later.
+        val pendingIds = AssetSyncCache.pending.all()
+        val found = fetchByIds(pendingIds)
+        val foundIds = found.filterNot { it.saved }.mapTo(HashSet()) { it.id }
+        val skippedBuckets = PhotoFolders.bucketIds(skipped)
+        synchronized(watermarkLock) { if (gen == generation) AssetSyncCache.pending.resolve(pendingIds - foundIds) }
+        val retried = found.filter {
+            it.id in foundIds && it.id !in freshIds && (includeVideos || !it.isVideo) && (it.bucketId == null || it.bucketId !in skippedBuckets)
+        }
+        // Before the progress starts, so its total covers both.
+        val taken = backfill()
+        val pass = oneOffPass(taken, includeVideos, skipped, assets, gen, wgen)
+        val retriedIds = retried.mapTo(HashSet()) { it.id }
+        val oneOff = pass.assets.filter { it.id !in retriedIds }
+        Log.i(tag, "sync start: ${assets.size} new asset(s) since $lastSyncMs, ${retried.size} to retry, ${oneOff.size} from a one-off pass")
+        val total = assets.size + retried.size + oneOff.size
+        UploadModel.begin(total)
+        val targetDir = "/android/${secrets.deviceId.value}/"
+        // A9: only for a big run, or a phone that has synced nothing yet
+        // (needsListing) - every resume and new photo starts a run, almost
+        // always with a photo or two, and the listing holds every photo this
+        // phone ever synced. A small run goes by each asset's hash instead.
+        val known: Map<String, PbFile> = if (!needsListing(total, AssetSyncCache.isEmpty())) emptyMap() else try {
+            val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(targetDir)) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) resp.respListOfFiles.filesList.associateBy { it.path } else emptyMap()
+        } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+
+        var idx = 0
+        // Folders turned off while this run went: what of theirs it let
+        // go wasn't sent, so a pass queued again for them (turned back
+        // on) stays.
+        val cutShort = ConcurrentHashMap.newKeySet<String>()
+        // A chunk, all at once: what became of each asset.
+        suspend fun send(chunk: List<Asset>): List<Sent> = coroutineScope {
+            chunk.map { asset ->
+                idx += 1; val position = idx
+                async {
+                    try {
+                        // Its folder turned off since the run began: left
+                        // alone from now on, as from the next run.
+                        val bucket = asset.bucketId?.toString()
+                        if (bucket != null && bucket in secrets.skippedFolders.value) { cutShort += bucket; return@async Sent.Done }
+                        UploadModel.step(asset.name, position - 1, total)
+                        uploadIfNeeded(asset, targetDir, known, cacheEpoch)
+                        Sent.Done
+                    } catch (e: CancellationException) {
+                        throw e // Log Out: no watermark past what was cut short
+                    } catch (e: UnreadableAsset) {
+                        Log.w(tag, "skipped ${asset.id}, it can't be read: ${logged(e.cause ?: e)}")
+                        Sent.Done
+                    } catch (e: OTCConnection.RequestError) {
+                        // The device has no room (storage_full): the run
+                        // stops on it rather than reading asset after asset
+                        // to have each refused.
+                        if (ErrorCodes.isStorageFull(e.code)) return@async Sent.Full(e.message.orEmpty())
+                        Log.w(tag, "upload failed for ${asset.id}: ${logged(e)}")
+                        Sent.Retry
+                    } catch (e: Exception) {
+                        Log.w(tag, "upload failed for ${asset.id}: ${logged(e)}")
+                        Sent.Retry
+                    }
+                }
+            }.awaitAll()
+        }
+
+        // Between two chunks (IOS-10): the route check put off while the run
+        // went is made now - back home, the rest goes over the home network -
+        // and "Wi-Fi only" is looked at again (A1).
+        suspend fun beforeChunk(): PassEnd? {
+            coroutineScope { ensureActive() }
+            OTCConnection.transferBreak()
+            if (waitsForWifi(secrets.wifiOnly.value, NetworkWatch.syncMetered())) {
+                Log.i(tag, "off Wi-Fi with Wi-Fi only on: the sync stops here")
+                return PassEnd.WaitingForWifi
+            }
+            while (UploadModel.isPaused) delay(500)
+            return null
+        }
+
+        // The device gone after a failure: the rest would only be read and
+        // hashed to fail the same way.
+        suspend fun deviceGone(): Boolean = try {
+            OTCConnection.ensureConnected(); false
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            Log.w(tag, "sync stopped, the device can't be reached: $e")
+            true
+        }
+
+        // A5: the retry list before the watermark - no asset is ever behind
+        // the watermark without being on the device or on the list - and
+        // not into the store Log Out wiped, nor over Sync From Now pressed
+        // since the run began (what it skips).
+        fun noteOutcomes(chunk: List<Asset>, sent: List<Sent>) = synchronized(watermarkLock) {
+            if (gen != generation || wgen != watermarkGen) return@synchronized
+            AssetSyncCache.pending.resolve(chunk.filterIndexed { i, _ -> sent[i] == Sent.Done }.map { it.id })
+            AssetSyncCache.pending.mark(chunk.filterIndexed { i, _ -> sent[i] != Sent.Done }.map { it.id })
+        }
+
+        var end: PassEnd = PassEnd.Done
+        // The new ones, moving the watermark.
+        for (start in assets.indices step maxConcurrentUploads) {
+            val chunk = assets.subList(start, minOf(start + maxConcurrentUploads, assets.size))
+            beforeChunk()?.let { end = it }
+            if (end != PassEnd.Done) break
+            val sent = send(chunk)
+            noteOutcomes(chunk, sent)
+            // Assets come in DATE_ADDED order: everything up to doneSec is
+            // on the device or on the retry list. A second the next asset
+            // shares isn't done yet (an interrupted run resumes inside it).
+            val last = chunk.last().addedSec
+            val doneSec = if (assets.getOrNull(start + chunk.size)?.addedSec == last) last - 1 else last
+            runWatermark(minOf(doneSec, startedSec - 1) * 1000, gen, wgen)
+            (sent.firstOrNull { it is Sent.Full } as Sent.Full?)?.let { Log.i(tag, "the device is full: the sync stops here"); end = PassEnd.DeviceFull(it.words) }
+            if (end != PassEnd.Done) break
+            if (sent.any { it != Sent.Done } && deviceGone()) { end = PassEnd.CutShort; break }
+        }
+        // The retry list, then the one-off passes: no watermark. A one-off
+        // pass is done only once all of it went; otherwise the next run goes
+        // through it again, and what already went is found at once.
+        if (end == PassEnd.Done) {
+            for (start in retried.indices step maxConcurrentUploads) {
+                val chunk = retried.subList(start, minOf(start + maxConcurrentUploads, retried.size))
+                beforeChunk()?.let { end = it }
+                if (end != PassEnd.Done) break
+                val sent = send(chunk)
+                noteOutcomes(chunk, sent)
+                (sent.firstOrNull { it is Sent.Full } as Sent.Full?)?.let { end = PassEnd.DeviceFull(it.words) }
+                if (end != PassEnd.Done) break
+                if (sent.any { it != Sent.Done } && deviceGone()) { end = PassEnd.CutShort; break }
+            }
+        }
+        if (end == PassEnd.Done) {
+            var done = true
+            for (start in oneOff.indices step maxConcurrentUploads) {
+                val chunk = oneOff.subList(start, minOf(start + maxConcurrentUploads, oneOff.size))
+                beforeChunk()?.let { end = it }
+                if (end != PassEnd.Done) { done = false; break }
+                val sent = send(chunk)
+                (sent.firstOrNull { it is Sent.Full } as Sent.Full?)?.let { end = PassEnd.DeviceFull(it.words) }
+                if (sent.all { it == Sent.Done }) continue
+                done = false
+                if (end != PassEnd.Done) break
+                if (deviceGone()) { end = PassEnd.CutShort; break }
+            }
+            if (done) synchronized(watermarkLock) {
+                // Not into the store Log Out just wiped.
+                if (gen == generation) {
+                    if (taken.isNotEmpty()) setBackfill(afterPass(backfill(), taken, finished = true, cutShort = cutShort, limited = pass.limited))
+                    // Nor over Sync All or Sync From Now pressed since
+                    // the run began: what was picked before that is
+                    // behind the owner's choice, not new.
+                    if (wgen == watermarkGen) pass.visible?.let(::writeSeen)
+                }
+            }
+        }
+        UploadModel.complete()
+        Log.i(tag, "sync done: $end")
+        return end
     }
 }

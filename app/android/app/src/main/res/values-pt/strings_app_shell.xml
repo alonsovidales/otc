@@ -15,6 +15,7 @@
     <string name="app_shell_bluetooth_off">O Bluetooth está desligado</string>
     <string name="app_shell_cant_connect">Não é possível ligar ao teu dispositivo</string>
     <string name="app_shell_clear_selection">Limpar seleção</string>
+    <string name="app_shell_cleartext_refused">ws:// não é encriptado, por isso só serve para endereços da tua rede doméstica. Usa wss:// para este.</string>
     <string name="app_shell_close_and_leave">Fechar e sair deste dispositivo</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s item</item>
@@ -68,10 +69,16 @@
     <string name="app_shell_no_public_key">Não foi possível obter a chave pública da ligação</string>
     <string name="app_shell_not_connected">Sem ligação</string>
     <string name="app_shell_not_otc">O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.</string>
+    <string name="app_shell_notifications_continue">Continuar</string>
+    <string name="app_shell_notifications_later">Agora não</string>
+    <string name="app_shell_notifications_text">O Off The Cloud avisa-te de pedidos de amizade, novas publicações, gostos e comentários, e de quando o teu dispositivo precisa de ti: um disco que deixou de funcionar, pouco espaço livre ou uma atualização importante.</string>
+    <string name="app_shell_notifications_title">Ativar as notificações?</string>
     <string name="app_shell_offline">Este telemóvel está sem ligação. Liga-te a uma rede Wi-Fi ou aos dados móveis.</string>
     <string name="app_shell_onboarding_last_device">Preenchido a partir do dispositivo de onde saíste. Toca em «Guardar e continuar» para voltares a ligar-te a ele ou altera-o para usares outro.</string>
     <string name="app_shell_onboarding_pending">Preenchido a partir do dispositivo que configuraste com este telemóvel. Quando a instalação terminar (cerca de 20 minutos), toca em «Guardar e continuar».</string>
     <string name="app_shell_onboarding_setup_footer">Para um dispositivo acabado de sair da caixa: faz a configuração por Bluetooth e esta app passa a ser a app dele. Se estiveres a mudar de outro dispositivo, termina primeiro a sessão.</string>
+    <string name="app_shell_password_hide">Ocultar palavra-passe</string>
+    <string name="app_shell_password_show">Mostrar palavra-passe</string>
     <string name="app_shell_percent">%1$s%%</string>
     <string name="app_shell_privacy">Privacidade</string>
     <string name="app_shell_problem_alerts_failed">As tuas notificações vão aparecer assim que o teu dispositivo responder.</string>
@@ -128,6 +135,7 @@
         <item quantity="many">%1$s selecionados</item>
         <item quantity="other">%1$s selecionados</item>
     </plurals>
+    <string name="app_shell_sent_no_answer">Enviado, mas não chegou nenhuma resposta. Verifica se ficou feito antes de tentares novamente.</string>
     <string name="app_shell_setup_device">Dispositivo %1$s</string>
     <string name="app_shell_setup_device_older">Dispositivo (imagem antiga)</string>
     <string name="app_shell_setup_enter_password">Introduz a palavra-passe do dispositivo</string>

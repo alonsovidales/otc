@@ -675,6 +675,10 @@
     "text": "Com uma chave da consola de administração do Tailscale, isto conclui-se sozinho. Sem chave, abrimos o Tailscale para autorizares este dispositivo.",
     "en": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device."
   },
+  "app.settings.tailscale.key_ignored": {
+    "text": "O teu dispositivo precisa de uma atualização para aceitar a chave de autenticação. Autoriza-o antes na página que acabou de abrir.",
+    "en": "Your device needs an update to take the auth key. Authorise it in the page that just opened instead."
+  },
   "app.settings.tailscale.limit_account": {
     "text": "<b>Vais precisar de uma conta Tailscale,</b> com o Funnel ativado para a tua tailnet.",
     "en": "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet."
@@ -848,9 +852,17 @@
     "text": "Instalar a compilação {build}",
     "en": "Update to build {build}"
   },
+  "app.settings.uploads.device_full": {
+    "text": "O teu dispositivo está cheio",
+    "en": "Your device is full"
+  },
   "app.settings.uploads.title": {
     "text": "Carregamentos",
     "en": "Uploads"
+  },
+  "app.settings.uploads.waiting_wifi": {
+    "text": "À espera de Wi-Fi",
+    "en": "Waiting for Wi-Fi"
   },
   "app.settings.users.confirm_delete": {
     "text": "Confirmar eliminação",

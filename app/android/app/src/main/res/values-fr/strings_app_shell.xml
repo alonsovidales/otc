@@ -15,6 +15,7 @@
     <string name="app_shell_bluetooth_off">Le Bluetooth est désactivé</string>
     <string name="app_shell_cant_connect">Impossible de se connecter à votre appareil</string>
     <string name="app_shell_clear_selection">Effacer la sélection</string>
+    <string name="app_shell_cleartext_refused">ws:// n’est pas chiffré : il ne sert qu’aux adresses de votre réseau domestique. Utilisez wss:// pour celle-ci.</string>
     <string name="app_shell_close_and_leave">Fermer et quitter cet appareil</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s élément</item>
@@ -68,10 +69,16 @@
     <string name="app_shell_no_public_key">Impossible d’obtenir la clé publique de la connexion</string>
     <string name="app_shell_not_connected">Non connecté</string>
     <string name="app_shell_not_otc">L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.</string>
+    <string name="app_shell_notifications_continue">Continuer</string>
+    <string name="app_shell_notifications_later">Plus tard</string>
+    <string name="app_shell_notifications_text">Off The Cloud vous prévient des demandes d’ami, des nouvelles publications, des J’aime et des commentaires, et quand votre appareil a besoin de vous : un disque qui s’est arrêté, l’espace qui vient à manquer ou une mise à jour importante.</string>
+    <string name="app_shell_notifications_title">Activer les notifications ?</string>
     <string name="app_shell_offline">Ce téléphone est hors ligne. Connectez-vous au Wi-Fi ou aux données mobiles.</string>
     <string name="app_shell_onboarding_last_device">Champs renseignés à partir de l’appareil que vous avez quitté. Touchez « Enregistrer et continuer » pour vous y reconnecter, ou modifiez-les pour en utiliser un autre.</string>
     <string name="app_shell_onboarding_pending">Champs renseignés à partir de l’appareil que vous avez configuré avec ce téléphone. Une fois son installation terminée (environ 20 minutes), touchez « Enregistrer et continuer ».</string>
     <string name="app_shell_onboarding_setup_footer">Pour un appareil tout juste sorti de sa boîte : la configuration se fait par Bluetooth, et cette app devient son app. Déconnectez-vous d’abord si vous changez d’appareil.</string>
+    <string name="app_shell_password_hide">Masquer le mot de passe</string>
+    <string name="app_shell_password_show">Afficher le mot de passe</string>
     <string name="app_shell_percent">%1$s %%</string>
     <string name="app_shell_privacy">Confidentialité</string>
     <string name="app_shell_problem_alerts_failed">Vos notifications apparaîtront dès que votre appareil répondra.</string>
@@ -128,6 +135,7 @@
         <item quantity="many">%1$s sélectionnés</item>
         <item quantity="other">%1$s sélectionnés</item>
     </plurals>
+    <string name="app_shell_sent_no_answer">Envoyé, mais aucune réponse n’est revenue. Vérifiez si l’opération a abouti avant de réessayer.</string>
     <string name="app_shell_setup_device">Appareil %1$s</string>
     <string name="app_shell_setup_device_older">Appareil (image plus ancienne)</string>
     <string name="app_shell_setup_enter_password">Saisissez le mot de passe de l’appareil</string>

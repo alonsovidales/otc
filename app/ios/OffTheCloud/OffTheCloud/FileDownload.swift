@@ -75,15 +75,26 @@ enum FileDownload {
 
         var offset: Int64 = 0
         var first: Msg_FileChunk?
-        repeat {
-            let at = offset
-            let resp = try await OTCConnection.shared.request { e in
+        func piece(at: Int64) async throws -> Msg_RespEnvelope {
+            try await OTCConnection.shared.request { e in
                 var rf = Msg_ReadFile()
                 rf.path = path
                 rf.hash = hash
                 rf.offset = at
                 rf.length = Int32(chunkSize)
                 e.payload = .reqReadFile(rf)
+            }
+        }
+        repeat {
+            let at = offset
+            let resp: Msg_RespEnvelope
+            do {
+                resp = try await piece(at: at)
+            } catch is WSClient.SentNoAnswer {
+                // A read: asked once more, on the next connection - the
+                // connection sends again by itself only what never left the
+                // phone (OTCConnection.retriesAfter).
+                resp = try await piece(at: at)
             }
             if resp.error && resp.errorCode == "unknown_payload" {
                 // A device from before ReadFile: the old single message.

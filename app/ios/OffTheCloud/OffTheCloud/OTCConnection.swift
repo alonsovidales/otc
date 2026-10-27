@@ -8,7 +8,8 @@
 //  analogue of the web app's `useWS` singleton (web/src/net/useWS.ts): every
 //  screen issues requests through OTCConnection.shared.request(...), which
 //  transparently connects and authenticates on first use, re-authenticates
-//  after a drop, and retries a request once if the socket died mid-flight.
+//  after a drop, and sends a request again once if it never left the phone
+//  (one that did and got no answer fails as WSClient.SentNoAnswer).
 
 import Foundation
 import CryptoKit
@@ -191,13 +192,16 @@ final class OTCConnection: ObservableObject {
     /// Sends a request, connecting/authenticating first if needed, and
     /// waits `timeout` seconds at most for its answer (nil: the socket's
     /// WSClient.defaultTimeout) - connecting included, which gets the same
-    /// time on its own. Retries once end-to-end (a fresh connect+auth, then
-    /// the request again) if anything in that path fails — including the
-    /// connect/auth handshake itself, not just the request after it
-    /// succeeded. Without covering the handshake too, a transient failure
-    /// right as the device restarts (the common case: a deploy) surfaced as
-    /// a hard error instead of quietly reconnecting, since
-    /// ensureConnected() throwing used to bypass the retry entirely.
+    /// time on its own. Tries once more end-to-end (a fresh connect+auth,
+    /// then the request again) when the request provably never left the
+    /// phone - the connect/auth handshake failed, or the socket broke while
+    /// the request was still queued (retriesAfter). Without covering the
+    /// handshake, a transient failure right as the device restarts (the
+    /// common case: a deploy) surfaced as a hard error instead of quietly
+    /// reconnecting. A request that did leave and got no answer is never
+    /// sent again here: the device may have done it already (a like toggled
+    /// back, a comment posted twice), so it fails as WSClient.SentNoAnswer,
+    /// and a caller whose request is only a read asks again itself.
     func request(timeout: TimeInterval? = nil, _ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> Msg_RespEnvelope {
         try await exchange(timeout: timeout ?? WSClient.defaultTimeout, build).resp
     }
@@ -222,12 +226,28 @@ final class OTCConnection: ObservableObject {
         }
     }
 
+    /// Whether a request that failed with `error` goes again, once, on a new
+    /// connection: only when it never left the phone. Not after its time ran
+    /// out (the socket may be fine, the device slow: see below), nor after
+    /// it left and the connection went before its answer (SentNoAnswer).
+    /// Android's OTCConnection.retriesAfter is the same.
+    nonisolated static func retriesAfter(_ error: Error) -> Bool {
+        !(error is WSClient.TimedOut) && !(error is WSClient.SentNoAnswer)
+    }
+
     private func exchange(timeout: TimeInterval, _ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> WSClient.Answer {
         var epoch: Int?
         do {
             try await connectWithin(timeout)
             epoch = connectionEpoch
             return try await ws.exchange(timeout: timeout, build: build)
+        } catch let sent as WSClient.SentNoAnswer {
+            // It left, and the connection went before its answer: not sent
+            // again (see request). The next request connects again.
+            if epoch == nil || epoch == connectionEpoch {
+                authenticated = false
+            }
+            throw sent
         } catch let timedOut as WSClient.TimedOut {
             // No answer in its time on a socket that is still up (WSClient
             // checks it then, and one that is gone fails what it has in
@@ -239,9 +259,11 @@ final class OTCConnection: ObservableObject {
             // screen can say so.
             throw timedOut
         } catch {
-            // Issue #190: a request cut off by a route switch failed on a
-            // socket already replaced. Its successor is up, or on its way
-            // (connectTask), and marking it down would connect yet again.
+            // It never left the phone (retriesAfter): once more, on a new
+            // connection. Issue #190: a request cut off by a route switch
+            // failed on a socket already replaced. Its successor is up, or
+            // on its way (connectTask), and marking it down would connect yet
+            // again.
             if epoch == nil || epoch == connectionEpoch {
                 authenticated = false
             }
@@ -371,6 +393,15 @@ final class OTCConnection: ObservableObject {
             lastProblem = problem
             connectionFailed = true
             throw ConnectionError(errorCode: 1, problem: problem)
+        }
+        // ws:// only on the home network (CleartextRule): anywhere else the
+        // sign-in would cross the internet unencrypted. Refused before a
+        // byte goes out.
+        guard CleartextRule.allows(url) else {
+            raced?.task.cancel()
+            lastProblem = .cleartext
+            connectionFailed = true
+            throw ConnectionError(errorCode: 6, problem: .cleartext)
         }
         let credKey = Self.credentialsKey(secrets)
         if let r = authRejection, r.credKey == credKey, Date() < r.notBefore {
@@ -558,7 +589,12 @@ final class OTCConnection: ObservableObject {
             var rejectedFor: TimeInterval?
             if case .respAck(let ack) = resp.payload {
                 problem = .said(ack.errorMsg)
-                statusCode = ack.code.isEmpty ? nil : ack.code
+                // too_many_attempts is the device's own verdict on the
+                // password, as an empty code is: the connection card shows
+                // its words with the fields to fix it, never "isn't
+                // available" with the cable hint (statusCode is the bridge's
+                // device_unreachable and account_disabled).
+                statusCode = ack.code.isEmpty || ack.code == "too_many_attempts" ? nil : ack.code
                 // The device's own verdict on the password; the
                 // bridge's (device_unreachable, account_disabled)
                 // keeps today's retries.
@@ -676,30 +712,52 @@ final class OTCConnection: ObservableObject {
     /// The check is then made once the connect or the last transfer is
     /// over.
     func reconsiderRoute() async {
-        if let routeCheck {
-            await routeCheck.value
-            return
-        }
+        await startRouteCheck()?.value
+    }
+
+    /// The route check: the one running, one started now, or nil when it
+    /// is put off (a connect or a transfer: recheckPending) or not needed.
+    /// Started with no await before it, so whoever asks right after (the
+    /// photo sync's routeBreak) finds it.
+    @discardableResult
+    private func startRouteCheck() -> Task<Void, Never>? {
+        if let routeCheck { return routeCheck }
         if connectTask != nil || TransferActivity.shared.busy {
             recheckPending = true
-            return
+            return nil
         }
         recheckPending = false
         // Not signed in and not connecting: the next connect tries the
         // home network first anyway.
-        guard authenticated else { return }
-        let check = Task { await self.checkRoute() }
+        guard authenticated else { return nil }
+        let check = Task {
+            await self.checkRoute()
+            self.routeCheck = nil
+        }
         routeCheck = check
-        await check.value
-        routeCheck = nil
+        return check
     }
 
     /// The route check put off for a connect or a transfer, now that it
     /// is over.
     private func recheckIfPending() {
         guard recheckPending else { return }
-        recheckPending = false
-        Task { await reconsiderRoute() }
+        startRouteCheck()
+    }
+
+    /// Between two chunks of the photo sync, which lets go of its
+    /// TransferActivity first: a route check put off while it ran (a
+    /// network change, the home retry) is made now and waited for, so a
+    /// phone that came home moves to the home network instead of sending
+    /// the rest of the run through the bridge and back (IOS-10). Nothing
+    /// pending, nothing done.
+    func routeBreak() async {
+        if let routeCheck {
+            await routeCheck.value
+            return
+        }
+        guard recheckPending else { return }
+        await startRouteCheck()?.value
     }
 
     private func checkRoute() async {
@@ -844,6 +902,10 @@ final class OTCConnection: ObservableObject {
                 return .offline
             case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate:
                 return .insecure
+            case NSURLErrorAppTransportSecurityRequiresSecureConnection:
+                // ws:// that App Transport Security refuses (a *.ts.net
+                // name): the same words as CleartextRule's refusal.
+                return .cleartext
             default:
                 break
             }
@@ -903,6 +965,8 @@ enum ConnectionProblem {
     case notOTC
     case hostNotFound
     case insecure
+    /// A ws:// address off the home network (CleartextRule).
+    case cleartext
     /// New connection settings (or a Log Out) overtook the attempt.
     case superseded
     /// Anything else: its own description, read when shown.
@@ -920,6 +984,7 @@ enum ConnectionProblem {
         case .notOTC: return S.appShellNotOtc
         case .hostNotFound: return S.appShellHostNotFound
         case .insecure: return S.appShellInsecure
+        case .cleartext: return S.appShellCleartextRefused
         case .superseded: return S.iosConnectionSuperseded
         case .failure(let error): return error.localizedDescription
         }
@@ -928,8 +993,8 @@ enum ConnectionProblem {
 
 /// What a failed connect throws: domain "OTCConnection" as before, with
 /// code 1 a bad address, 2 no public key, 3 the device's verdict on the
-/// password, 4 superseded, 5 a sign-in nobody answered. Its description is
-/// worded when read.
+/// password, 4 superseded, 5 a sign-in nobody answered, 6 a ws:// address
+/// off the home network. Its description is worded when read.
 struct ConnectionError: LocalizedError, CustomNSError {
     static var errorDomain: String { "OTCConnection" }
     let errorCode: Int

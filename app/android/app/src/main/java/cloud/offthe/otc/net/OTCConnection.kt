@@ -8,6 +8,7 @@ import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appShellAddressInvalid
 import cloud.offthe.otc.i18n.appShellAuthFailed
+import cloud.offthe.otc.i18n.appShellCleartextRefused
 import cloud.offthe.otc.i18n.appShellHostNotFound
 import cloud.offthe.otc.i18n.appShellInsecure
 import cloud.offthe.otc.i18n.appShellNoAnswerAddress
@@ -47,8 +48,9 @@ import javax.net.ssl.SSLException
 
 // Port of OTCConnection.swift: the app-wide connection + auth state. Every
 // screen goes through OTCConnection.request(...), which connects and
-// authenticates on first use, re-authenticates after a drop, and retries
-// a request once end-to-end if anything in that path fails.
+// authenticates on first use, re-authenticates after a drop, and sends a
+// request again once end-to-end when it never left the phone (one that did
+// and got no answer fails as WSClient.SentNoAnswer: retriesAfter).
 //
 // Issue #190: when the device gave its home-network endpoint (GetLocalEndpoint,
 // asked after every sign-in through the configured endpoint), every connect
@@ -192,6 +194,19 @@ object OTCConnection {
     suspend fun ask(kind: String, baseMs: Long, build: (ReqEnvelope.Builder) -> Unit): RespEnvelope =
         patience.run("$kind/${_route.value ?: Route.BRIDGE}", baseMs) { exchange(it, build) }
 
+    /**
+     * Whether a request that failed with [e] goes again, once, on a new
+     * connection: only when it never left the phone - connecting or signing
+     * in failed, or the socket broke while it was still queued (A7). Not
+     * after its time ran out (the socket may be fine, the device slow), nor
+     * after it left and the connection went before its answer: the device
+     * may have done it already (a like toggled back, a comment posted
+     * twice), so it fails as WSClient.SentNoAnswer, and a caller whose
+     * request is only a read asks again itself. As iOS's.
+     */
+    fun retriesAfter(e: Throwable): Boolean =
+        e !is CancellationException && e !is WSClient.RequestTimeout && e !is WSClient.SentNoAnswer
+
     private suspend fun exchange(
         timeoutMs: Long,
         build: (ReqEnvelope.Builder) -> Unit,
@@ -213,9 +228,15 @@ object OTCConnection {
             // to a device that is already slow, and asking again here would
             // double the wait before the screen can say so.
             throw e
+        } catch (e: WSClient.SentNoAnswer) {
+            // It left, and the connection went before its answer: not sent
+            // again (retriesAfter). The next request connects again.
+            if (used == null || used === ws) _authenticated.value = false
+            throw e
         } catch (e: Exception) {
-            // Not when a route switch retired the socket under it: the one
-            // in use is fine, and the retry goes there.
+            // It never left the phone (retriesAfter): once more, on a new
+            // connection. Not when a route switch retired the socket under
+            // it: the one in use is fine, and the retry goes there.
             if (used == null || used === ws) _authenticated.value = false
             connectWithin(timeoutMs)
             ws.exchange(timeoutMs, build)
@@ -251,6 +272,26 @@ object OTCConnection {
             return block()
         } finally {
             transferEnded()
+        }
+    }
+
+    /**
+     * Between two chunks of the photo sync, which holds a transfer for its
+     * whole run: the hold is let go for a moment, so a route check put off
+     * while it ran (a network change, the home retry) is made now and waited
+     * for - a phone that came home moves to the home network instead of
+     * sending the rest of the run through the bridge and back (IOS-10, as
+     * iOS's routeBreak). Nothing pending, nothing done.
+     */
+    suspend fun transferBreak() {
+        val recheck = synchronized(connectLock) {
+            transfers--
+            (transfers == 0 && recheckPending).also { if (it) recheckPending = false }
+        }
+        try {
+            if (recheck) reconsiderRoute()?.join()
+        } finally {
+            synchronized(connectLock) { transfers++ }
         }
     }
 
@@ -338,6 +379,15 @@ object OTCConnection {
             _lastError.value = text
             _connectionFailed.value = true
             throw RequestError(text.now())
+        }
+        // A6: ws:// only on the home network (CleartextRule): anywhere else
+        // the sign-in would cross the internet unencrypted. Refused before a
+        // byte goes out.
+        if (!CleartextRule.allows(url)) {
+            val text = S.appShellCleartextRefused()
+            _lastError.value = text
+            _connectionFailed.value = true
+            throw TextIOException(text)
         }
         val credKey = credentialsKey(url, deviceId, password)
         authRejection?.let { r ->
@@ -511,7 +561,11 @@ object OTCConnection {
     }
 
     private fun record(r: Refusal, credKey: String) {
-        r.ack?.let { _statusCode.value = it.code.ifEmpty { null } }
+        // too_many_attempts is the device's own verdict on the password, as
+        // an empty code is: the connection card shows its words with the
+        // fields to fix it, never "isn't available" with the cable hint
+        // (statusCode is the bridge's device_unreachable and account_disabled).
+        r.ack?.let { _statusCode.value = it.code.takeUnless { c -> c.isEmpty() || c == "too_many_attempts" } }
         _lastError.value = r.text
         val ack = r.ack ?: return
         if (!r.auth) return
