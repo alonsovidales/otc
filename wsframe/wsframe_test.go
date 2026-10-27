@@ -129,3 +129,97 @@ func TestReadRoundTripsLargeMessagesExactly(t *testing.T) {
 		t.Errorf("budget left at %d after release", used)
 	}
 }
+
+// held is a message ReadFree returned, with what the budget held for it
+// before it was released.
+type held struct {
+	size, cap int
+	used      int64
+}
+
+// serveFree reads every message with ReadFree(free), reports it with the
+// budget held for it, then releases it.
+func serveFree(t *testing.T, free int64, b *Budget) (*httptest.Server, chan held) {
+	t.Helper()
+	got := make(chan held, 16)
+	up := gorilla.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			_, msg, release, err := ReadFree(conn, 16<<20, free, b)
+			if err != nil {
+				return
+			}
+			b.mu.Lock()
+			used := b.used
+			b.mu.Unlock()
+			got <- held{len(msg), cap(msg), used}
+			release()
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, got
+}
+
+// A connection that hasn't signed in has 64 KiB of a message outside the
+// budget: everything past it is reserved, by what its buffers take (whole
+// chunks) - not only what they hold.
+func TestReadFreeBudgetsEverythingPastItsFreePart(t *testing.T) {
+	const free = 64 << 10
+	b := NewBudget(64 << 20)
+	srv, got := serveFree(t, free, b)
+	c := dial(t, srv)
+	defer c.Close()
+
+	for _, c2 := range []struct {
+		size    int
+		minUsed int64 // held while the message is
+		maxUsed int64
+	}{
+		{100, 0, 0},
+		{free - 1, 0, 0},
+		{free, 0, 0},
+		{free + 1, free, free},                 // one byte past: a whole chunk
+		{3<<20 + 7, 3<<20 + 7 - free, 3 << 20}, // past free, in chunks of free
+	} {
+		if err := c.WriteMessage(gorilla.BinaryMessage, make([]byte, c2.size)); err != nil {
+			t.Fatal(err)
+		}
+		h := <-got
+		if h.size != c2.size {
+			t.Fatalf("%d bytes: got %d", c2.size, h.size)
+		}
+		if h.used < c2.minUsed || h.used > c2.maxUsed {
+			t.Errorf("%d bytes: the budget held %d, want %d to %d", c2.size, h.used, c2.minUsed, c2.maxUsed)
+		}
+	}
+	b.mu.Lock()
+	used := b.used
+	b.mu.Unlock()
+	if used != 0 {
+		t.Errorf("budget left at %d after release", used)
+	}
+}
+
+// A message within its free part is read into a buffer no larger than the
+// free part: bytes.Buffer used to double a 3 MiB request to an 8 MiB
+// array, none of it budgeted.
+func TestReadFreeNeverGrowsAMessagePastItsFreePart(t *testing.T) {
+	b := NewBudget(64 << 20)
+	srv, got := serveFree(t, DefaultFree, b)
+	c := dial(t, srv)
+	defer c.Close()
+	for _, size := range []int{0, 1, cFirstHead, cFirstHead + 1, 3 << 20, DefaultFree} {
+		if err := c.WriteMessage(gorilla.BinaryMessage, make([]byte, size)); err != nil {
+			t.Fatal(err)
+		}
+		h := <-got
+		if h.size != size || h.cap > DefaultFree || h.used != 0 {
+			t.Errorf("%d bytes: got %d in a buffer of %d, %d budgeted; want at most %d and none", size, h.size, h.cap, h.used, DefaultFree)
+		}
+	}
+}

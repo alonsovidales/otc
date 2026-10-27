@@ -296,8 +296,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			cfg.GetStr("otc", "unenc-storage-path"),
 		),
 		upgrader: gorilla.Upgrader{
-			// In production, set a proper origin check!
-			CheckOrigin: func(r *http.Request) bool { return true },
+			// No other site's page (origin.go); Listen checks first.
+			CheckOrigin: originAllowed,
 		},
 		settings: st,
 		profile:  pr,
@@ -950,11 +950,21 @@ func (mg *Manager) pushRegistrations() (regs *pb.UpdatePushRegistrations, ok boo
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
+	// Before the upgrader's own check, so a refusal is counted, not logged
+	// as an error each time (anonlog.go).
+	if !originAllowed(r) {
+		log.Debug("socket refused from another site's page:", r.Header.Get("Origin"))
+		anonLog.note(cAnonOrigin)
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	conn, err := mg.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Error("error trying to upgrade the websocket:", err)
+		// Anyone's plain request to /ws (the upgrader has answered it).
+		log.Debug("error trying to upgrade the websocket:", err)
+		anonLog.note(cAnonNotUpgraded)
 		return
 	}
 
@@ -979,6 +989,18 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 const (
 	// cMaxInFlight caps one connection's requests handled at once.
 	cMaxInFlight = 32
+	// cMaxInFlightAnon is cMaxInFlight before the connection signs in or
+	// authenticates as a friend. Nothing sent before that comes more than
+	// a few at a time (GetPubKey, Auth or AuthWithToken, GetProfile, the
+	// bridge's BridgeClientInfo, the /shared page's items, a friend's
+	// handshake); the rest wait to be read, none is refused.
+	cMaxInFlightAnon = 4
+	// cAnonFrameFree is how much of a message from such a connection is
+	// read outside anonFrameBudget: every request it sends but a friend
+	// request with a picture.
+	cAnonFrameFree = 64 << 10
+	// cAnonFrameBudget bounds what all of them hold above that at once.
+	cAnonFrameBudget = 64 << 20
 	// cPreAuthReadLimit is the largest message accepted before a
 	// connection signs in (or authenticates as a friend) - enough for
 	// every pre-auth request, a friend request's profile picture included.
@@ -1008,6 +1030,11 @@ var frameBudget = func() *wsframe.Budget {
 	return wsframe.NewBudget(total / 5)
 }()
 
+// anonFrameBudget is frameBudget for the connections that haven't signed in
+// or authenticated as a friend (frameRules): of their part, strangers can
+// only ever hold a little, and never the owner's.
+var anonFrameBudget = wsframe.NewBudget(cAnonFrameBudget)
+
 // readLimit is the largest message this connection may send next.
 func (ch *connHandler) readLimit() int64 {
 	ch.mu.RLock()
@@ -1016,6 +1043,26 @@ func (ch *connHandler) readLimit() int64 {
 		return cOwnerReadLimit
 	}
 	return cPreAuthReadLimit
+}
+
+// anonymous: nobody has signed in on this connection nor authenticated as a
+// friend on it (yet - neither is ever undone).
+func (ch *connHandler) anonymous() bool {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.session == nil && ch.friendProfile == nil
+}
+
+// frameRules is how the next message of this connection is read: its
+// largest size, how much of it is read outside the budget, and which
+// budget holds the rest (wsframe.ReadFree). A stranger's message is
+// budgeted past cAnonFrameFree, in anonFrameBudget: it used to be read
+// whole into an 8 MiB buffer below 4 MiB, 32 at a time per socket.
+func (ch *connHandler) frameRules() (limit, free int64, budget *wsframe.Budget) {
+	if ch.anonymous() {
+		return cPreAuthReadLimit, cAnonFrameFree, anonFrameBudget
+	}
+	return ch.readLimit(), wsframe.DefaultFree, frameBudget
 }
 
 // A feed page reserves cFeedPostBytes a post (a few big thumbnails, their
@@ -1094,8 +1141,49 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope, owner, friend bool) fu
 			n = filesmanager.MaxChunk
 		}
 		return fm.ReserveBytes(n * 2)
+	case *pb.ReqEnvelope_ReqGetMediaRange:
+		if n := ch.mediaRangeNeed(p.ReqGetMediaRange); n > 0 {
+			return fm.ReserveBytes(n)
+		}
+	case *pb.ReqEnvelope_ReqGetStaticAsset:
+		if n := ch.staticAssetNeed(p.ReqGetStaticAsset); n > 0 {
+			return fm.ReserveBytes(n)
+		}
 	}
 	return none
+}
+
+// mediaRangeNeed is what a span of a stream holds while it is answered:
+// the span read (at most mediastream.MaxRangeBytes) and the reply packed
+// around it. Nothing for a token that names nothing: the bridge asks for
+// spans on behalf of anyone with a link.
+func (ch *connHandler) mediaRangeNeed(req *pb.ReqGetMediaRange) int64 {
+	if ch.mg.media == nil {
+		return 0
+	}
+	if _, ok := ch.mg.media.Store().Resolve(req.Token); !ok {
+		return 0
+	}
+	n := req.Length
+	if n <= 0 || n > mediastream.MaxRangeBytes {
+		n = mediastream.MaxRangeBytes
+	}
+	return 2 * n
+}
+
+// staticAssetNeed is what a static file holds while it is answered: read
+// whole, then packed into the reply (the web app's script is ~1.3 MB). For
+// anyone, through the bridge; nothing for a path that names no file.
+func (ch *connHandler) staticAssetNeed(req *pb.ReqGetStaticAsset) int64 {
+	path, err := staticassets.Resolve(ch.mg.staticPath, req.Path)
+	if err != nil {
+		return 0
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return 0
+	}
+	return 2 * info.Size()
 }
 
 // pureDownload: a request that only reads content (and reserves the
@@ -1105,7 +1193,8 @@ func (ch *connHandler) reserveMemory(env *pb.ReqEnvelope, owner, friend bool) fu
 func pureDownload(env *pb.ReqEnvelope) bool {
 	switch env.Payload.(type) {
 	case *pb.ReqEnvelope_ReqGetFile, *pb.ReqEnvelope_ReqGetPublicationMedia,
-		*pb.ReqEnvelope_ReqGetThumbnails, *pb.ReqEnvelope_ReqGetSharedGalleryItem:
+		*pb.ReqEnvelope_ReqGetThumbnails, *pb.ReqEnvelope_ReqGetSharedGalleryItem,
+		*pb.ReqEnvelope_ReqGetMediaRange:
 		return true
 	}
 	return false
@@ -1121,6 +1210,14 @@ func tooManyAttemptsAck(secs int32, lang string) *pb.Ack {
 			i18n.DevAuthTooManyAttempts(int(secs))),
 		RetryAfterSeconds: secs,
 	}
+}
+
+// lockedOutAttempt notes a password refused unread because addr is locked
+// out: counted (anonlog.go), the address at Debug only - a stranger
+// retrying at once wrote a line each.
+func lockedOutAttempt(addr string, retry time.Duration) {
+	log.Debug("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+	anonLog.note(cAnonLockedOut)
 }
 
 // addr is the address the password-attempt limit is kept for.
@@ -1563,9 +1660,11 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			}
 			break
 		}
-		log.Info("Getting friendship status", p.ReqGetFriendshipStatus.Domain)
+		// Debug, as every request anyone can make before signing in
+		// (anonlog.go): a friend's device asks every sync.
+		log.Debug("Getting friendship status", p.ReqGetFriendshipStatus.Domain)
 		fr, err := ch.mg.social.GetFriendship(p.ReqGetFriendshipStatus.Domain, p.ReqGetFriendshipStatus.Secret)
-		log.Info("Getting friendship status err:", err)
+		log.Debug("Getting friendship status err:", err)
 		if errors.Is(err, sql.ErrNoRows) {
 			// Issue #25: "we hold nothing for you" is an answer, not a
 			// failure - see FriendshipStatus.not_found.
@@ -1625,7 +1724,8 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			}
 			return resp, true
 		}
-		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
+		// Its secret checked, ExternalFriendshipDelete logs the deletion.
+		log.Debug("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
 		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret, p.ReqFriendshipInterDelete.ForgetMe); err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang)},
@@ -1720,7 +1820,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// Issue #117: refused outright while this address is locked out,
 		// before the password is even looked at.
 		if retry, blocked := session.Attempts.Blocked(addr); blocked {
-			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			lockedOutAttempt(addr, retry)
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds()+0.999), lang)}
 			return resp, true
 		}
@@ -1742,7 +1842,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			return nil
 		})
 		if blocked {
-			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
+			lockedOutAttempt(addr, retry)
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds()+0.999), lang)}
 			return resp, true
 		}
@@ -1794,14 +1894,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		if ch.fromBridge {
 			ch.mu.Lock()
 			if ch.clientInfoSet {
-				log.Info("ignoring a repeated BridgeClientInfo on a bridge connection")
+				log.Debug("ignoring a repeated BridgeClientInfo on a bridge connection")
 			} else {
 				ch.remoteAddr = p.ReqBridgeClientInfo.RemoteAddr
 				ch.clientInfoSet = true
 			}
 			ch.mu.Unlock()
 		} else {
-			log.Info("ignoring BridgeClientInfo on a direct connection from", ch.addr())
+			log.Debug("ignoring BridgeClientInfo on a direct connection from", ch.addr())
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 
@@ -1845,7 +1945,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 	// Issue #180: a shared gallery, for anyone with its link. Every
 	// failure is the same answer, so a guess learns nothing.
 	case *pb.ReqEnvelope_ReqOpenSharedGallery:
-		log.Info("Open shared gallery")
+		log.Debug("Open shared gallery")
 		g, err := ch.mg.filesManager.OpenSharedGallery(p.ReqOpenSharedGallery.Uuid, p.ReqOpenSharedGallery.Secret)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, devtext.Text(lang, filesmanager.ErrNoSuchGallery)
@@ -1878,7 +1978,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		resp.Payload = &pb.RespEnvelope_RespMediaUrl{RespMediaUrl: &pb.RespMediaURL{Url: url, TotalSize: size, Mime: mime, ExpiresAtUnixMs: exp}}
 
 	case *pb.ReqEnvelope_ReqDownloadSharedLink:
-		log.Info("Download link")
+		log.Debug("Download link")
 
 		if r := p.ReqDownloadSharedLink; r.Length > 0 {
 			data, size, err := ch.mg.filesManager.OpenSharedLinkRange(r.Uuid, r.Secret, r.Offset, int(r.Length))
@@ -1911,7 +2011,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		}
 
 	case *pb.ReqEnvelope_ReqGetProfile:
-		log.Info("Get profile")
+		log.Debug("Get profile")
 
 		resp.Payload = &pb.RespEnvelope_RespProfile{
 			RespProfile: &pb.Profile{
@@ -4174,6 +4274,10 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	mg.serveConnection(conn, r, nil)
 }
 
+// handleRequest is how serveConnection answers one request: processMessage.
+// A var for tests.
+var handleRequest = (*connHandler).processMessage
+
 // serveConnection serves conn until it closes; onFirst (if any) runs once,
 // in this goroutine, when the first message arrives.
 func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst func()) {
@@ -4216,22 +4320,42 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 
 	// At most cMaxInFlight requests of this connection are handled at once;
 	// reading waits past that (it used to start a goroutine per message,
-	// without limit).
+	// without limit). Until it signs in or authenticates as a friend, at
+	// most cMaxInFlightAnon, and the next message isn't read before one of
+	// them is done: a stranger's socket holds that many messages at most.
 	inFlight := make(chan struct{}, cMaxInFlight)
+	anonInFlight := make(chan struct{}, cMaxInFlightAnon)
 
 	for {
 		log.Debug("Waiting for messages")
-		_, frame, releaseFrame, err := wsframe.Read(conn, ch.readLimit(), frameBudget)
+		anon := ch.anonymous()
+		if anon {
+			anonInFlight <- struct{}{}
+		}
+		doneAnon := func() {
+			if anon {
+				<-anonInFlight
+			}
+		}
+		limit, free, budget := ch.frameRules()
+		_, frame, releaseFrame, err := wsframe.ReadFree(conn, limit, free, budget)
 		if err != nil {
+			doneAnon()
 			// A peer that just goes away - a friend's device closing its
 			// socket after a sync, an app sent to the background - ends the
 			// connection without a close frame (1006). That is how
 			// connections end, not an error, and it filled Settings > Logs
 			// with one "error" every two minutes per friend.
-			if peerGone(err) {
+			switch {
+			case peerGone(err):
 				log.Debug("connection closed:", err)
 				markGone()
-			} else {
+			case anon:
+				// Anyone can send a message too large or with no room: one
+				// line a minute (anonLog), not one each.
+				log.Debug("error reading a message before sign-in:", err)
+				anonLog.note(cAnonUnreadable)
+			default:
 				log.Error("error processing message:", err)
 			}
 			return
@@ -4244,9 +4368,15 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 
 		var env pb.ReqEnvelope
 		if err := proto.Unmarshal(frame, &env); err != nil {
-			log.Error("bad proto:", err)
+			if anon {
+				log.Debug("bad proto before sign-in:", err)
+				anonLog.note(cAnonUnreadable)
+			} else {
+				log.Error("bad proto:", err)
+			}
 			releaseFrame()
 			<-inFlight
+			doneAnon()
 			return
 		}
 
@@ -4259,6 +4389,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		// hand off - no aliasing with the next iteration's env.
 		go func(env *pb.ReqEnvelope) {
 			defer wg.Done()
+			defer doneAnon()
 			defer func() { <-inFlight }()
 			defer releaseFrame()
 
@@ -4282,7 +4413,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 				}
 			}
 
-			resp, doClose := ch.processMessage(env)
+			resp, doClose := handleRequest(ch, env)
 
 			// A request needing a session this connection doesn't have (not
 			// authenticated, or authenticated as the wrong kind of session

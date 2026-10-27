@@ -868,6 +868,7 @@ func TestPureDownloadExcludesRequestsWithEffects(t *testing.T) {
 		{Payload: &pb.ReqEnvelope_ReqGetThumbnails{ReqGetThumbnails: &pb.GetThumbnails{}}},
 		{Payload: &pb.ReqEnvelope_ReqGetPublicationMedia{ReqGetPublicationMedia: &pb.GetPublicationMedia{}}},
 		{Payload: &pb.ReqEnvelope_ReqGetSharedGalleryItem{ReqGetSharedGalleryItem: &pb.GetSharedGalleryItem{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetMediaRange{ReqGetMediaRange: &pb.ReqGetMediaRange{}}},
 	} {
 		if !pureDownload(env) {
 			t.Errorf("%T should be droppable", env.Payload)
