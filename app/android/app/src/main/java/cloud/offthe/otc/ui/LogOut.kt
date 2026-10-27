@@ -50,6 +50,9 @@ fun logOut(
         // phone first, best effort and within seconds - not when it can't be
         // reached anyway - and retire the push token either way.
         FCMPush.unregister(context.applicationContext, tellDevice = unregisterPush)
+        // The tour closes; that it was seen stays (Tour.kt: otc_tour isn't
+        // wiped), so the next sign-in doesn't show it again.
+        TourModel.reset()
         NotificationsModel.reset()
         FaceRecognition.reset()
         FilesNav.reset()

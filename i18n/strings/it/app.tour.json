@@ -1,0 +1,122 @@
+{
+  "app.tour.alerts.text": {
+    "text": "<b>{alerts}</b> ti informa su Mi piace, commenti, richieste di amicizia e sul tuo dispositivo. In <b>{settings}</b> cambi il profilo, la password e il backup delle foto.",
+    "en": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and photo backup."
+  },
+  "app.tour.alerts.title": {
+    "text": "Avvisi e Impostazioni",
+    "en": "Alerts and Settings"
+  },
+  "app.tour.backup.text": {
+    "text": "Questo telefono può copiare da solo le sue foto e i suoi video sul tuo dispositivo. Scegli cosa invia in <b>{settings}</b> › <b>{sync}</b>.",
+    "en": "This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>{settings}</b> › <b>{sync}</b>."
+  },
+  "app.tour.backup.title": {
+    "text": "Le foto del tuo telefono",
+    "en": "Your phone's photos"
+  },
+  "app.tour.collections.text": {
+    "text": "Riunisci in un unico posto le foto che vanno insieme, come quelle di un viaggio o di un compleanno. Tieni premute delle foto in Immagini per selezionarle, poi tocca <b>{add}</b>.",
+    "en": "Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>{add}</b>."
+  },
+  "app.tour.collections.where": {
+    "text": "Le tue raccolte si aprono con questo pulsante, accanto alla ricerca in Immagini.",
+    "en": "Your collections open with this button, next to the search in Images."
+  },
+  "app.tour.collections.where_wide": {
+    "text": "Le tue raccolte si trovano nel menu.",
+    "en": "Your collections are in the menu."
+  },
+  "app.tour.done.text": {
+    "text": "Puoi rivedere questo tour quando vuoi: tocca <b>{show}</b> in <b>{settings}</b>.",
+    "en": "See this tour again any time: tap <b>{show}</b> in <b>{settings}</b>."
+  },
+  "app.tour.done.title": {
+    "text": "Tutto pronto",
+    "en": "You're all set"
+  },
+  "app.tour.files.text": {
+    "text": "I tuoi documenti e le tue cartelle, conservati sul tuo dispositivo. Tocca <b>{upload}</b> in basso per aggiungere file da questo telefono e tocca un file per aprirlo.",
+    "en": "Your documents and folders, kept on your device. Tap <b>{upload}</b> at the bottom to add files from this phone, and tap a file to open it."
+  },
+  "app.tour.friends.accept": {
+    "text": "Le richieste che ricevi ti aspettano sotto <b>{waiting}</b>: tocca <b>{accept}</b>.",
+    "en": "A request sent to you waits under <b>{waiting}</b>: tap <b>{accept}</b>."
+  },
+  "app.tour.friends.add": {
+    "text": "Per aggiungere amici, digita il nome del loro dispositivo, la parte prima di .{suffix}, sotto <b>{heading}</b> e tocca <b>{send}</b>.",
+    "en": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and tap <b>{send}</b>."
+  },
+  "app.tour.friends.where": {
+    "text": "Amici si apre con il pulsante con due persone, in alto in Social.",
+    "en": "Friends opens with the two-people button at the top of Social."
+  },
+  "app.tour.friends.where_wide": {
+    "text": "Amici si trova nel menu.",
+    "en": "Friends is in the menu."
+  },
+  "app.tour.images.text": {
+    "text": "Tutte le tue foto e i tuoi video, dai più recenti. Cerca in alto luoghi e cose presenti nelle tue foto.",
+    "en": "All your photos and videos, newest first. Search at the top for places and things in your photos."
+  },
+  "app.tour.people.text": {
+    "text": "I volti trovati nelle tue foto, uno per persona. Tocca <b>{name}</b> per dare un nome a qualcuno e tocca un volto per vedere tutte le sue foto.",
+    "en": "The faces found in your photos, one person each. Tap <b>{name}</b> to name someone, and tap a face to see all their photos."
+  },
+  "app.tour.people.where": {
+    "text": "Apri Persone con questo pulsante, accanto alla ricerca in Immagini.",
+    "en": "Open People with this button, next to the search in Images."
+  },
+  "app.tour.people.where_wide": {
+    "text": "Persone si trova nel menu.",
+    "en": "People is in the menu."
+  },
+  "app.tour.post.step1": {
+    "text": "In Social, tocca <b>+</b> in alto.",
+    "en": "In Social, tap <b>+</b> at the top."
+  },
+  "app.tour.post.step2": {
+    "text": "Scegli foto o video da <b>{phone}</b> (questo telefono) o da <b>{synced}</b> (già sul tuo dispositivo).",
+    "en": "Pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device)."
+  },
+  "app.tour.post.step3": {
+    "text": "Scrivi una didascalia, poi tocca <b>{publish}</b>.",
+    "en": "Write a caption, then tap <b>{publish}</b>."
+  },
+  "app.tour.post.title": {
+    "text": "Pubblica un post",
+    "en": "Publish a post"
+  },
+  "app.tour.progress": {
+    "text": "Passo {step} di {total}",
+    "en": "Step {step} of {total}"
+  },
+  "app.tour.settings.footer": {
+    "text": "Un breve tour dell’app: le tue foto, come pubblicare in Social, gli amici e dove trovare tutto.",
+    "en": "A short tour of the app: your photos, posting to Social, friends and where everything is."
+  },
+  "app.tour.settings.title": {
+    "text": "Primi passi",
+    "en": "Getting started"
+  },
+  "app.tour.show": {
+    "text": "Mostra il tour",
+    "en": "Show the tour"
+  },
+  "app.tour.skip": {
+    "text": "Salta",
+    "en": "Skip"
+  },
+  "app.tour.social.text": {
+    "text": "Il tuo feed privato con familiari e amici: metti Mi piace ai post con il cuore e commentali. I tuoi post vanno dal tuo dispositivo ai dispositivi dei tuoi amici, e solo i tuoi amici li vedono.",
+    "en": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them."
+  },
+  "app.tour.welcome.text": {
+    "text": "Le tue foto e i tuoi file si trovano sul tuo dispositivo, a casa tua. Condividili con familiari e amici in una rete privata tutta tua.",
+    "en": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own."
+  },
+  "app.tour.welcome.title": {
+    "text": "Ti diamo il benvenuto in Off The Cloud",
+    "en": "Welcome to Off The Cloud"
+  }
+}

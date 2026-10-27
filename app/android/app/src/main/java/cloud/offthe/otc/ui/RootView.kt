@@ -8,6 +8,8 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -17,7 +19,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import cloud.offthe.otc.data.NotificationsModel
@@ -113,10 +117,26 @@ fun RootView() {
     // it), the restart after Log Out + sign in.
     LaunchedEffect(configured) { if (configured) SocialFeedViewModel.startAutoLoad() }
 
+    // The first-run tour (Tour.kt): opens by itself once signed in, with
+    // MainView up and no card over it, after the sync question.
+    val signedIn by OTCConnection.authenticated.collectAsState()
+    val statusCode by OTCConnection.statusCode.collectAsState()
+    val connectionFailed by OTCConnection.connectionFailed.collectAsState()
+    val mainVisible = configured && statusCode == null && !connectionFailed
+    LaunchedEffect(choicePending, signedIn, mainVisible) { TourModel.evaluate(choicePending, signedIn, mainVisible) }
+    val tourShown by TourModel.shown.collectAsState()
+
     if (configured) {
-        MainView(secrets = secrets)
+        Box(Modifier.fillMaxSize()) {
+            // Out of TalkBack's reach while the tour lies over it.
+            Box(Modifier.fillMaxSize().then(if (tourShown) Modifier.clearAndSetSemantics {} else Modifier)) {
+                MainView(secrets = secrets)
+            }
+            if (tourShown) TourView()
+        }
         // The first sync then starts from the effects above, now that the
-        // choice is no longer pending.
+        // choice is no longer pending. Its dialog, as every dialog, opens
+        // above the tour.
         if (choicePending) SyncChoiceView(secrets) {}
     } else {
         OnboardingView(secrets = secrets, onSaved = { configured = secrets.isConfigured })

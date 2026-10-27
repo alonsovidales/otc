@@ -1,0 +1,174 @@
+{
+  "app.tour.alerts.text": {
+    "text": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and photo backup.",
+    "args": [["alerts", "text"], ["settings", "text"]],
+    "note": "Text of the tour's page about the Alerts and Settings sections. {alerts} is the Alerts section's name (app.shell.section_alerts) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.alerts.title": {
+    "text": "Alerts and Settings",
+    "note": "Title of the tour's page about the Alerts and Settings sections: use the same words as their names (app.shell.section_alerts, app.shell.section_settings).",
+    "max": 48
+  },
+  "app.tour.backup.text": {
+    "text": "This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>{settings}</b> › <b>{sync}</b>.",
+    "args": [["settings", "text"], ["sync", "text"]],
+    "note": "Text of the tour's page about the photo backup. {settings} is the Settings section's name (app.shell.section_settings) and {sync} the heading of its section with the photo sync's options (app.settings.sync.title), both in bold (<b>…</b>); › joins them as a path, Settings first.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.backup.title": {
+    "text": "Your phone's photos",
+    "note": "Title of the tour's page about this phone copying its own photos and videos to the device (the photo backup).",
+    "max": 48
+  },
+  "app.tour.collections.text": {
+    "text": "Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>{add}</b>.",
+    "args": [["add", "text"]],
+    "note": "Text of the tour's Collections page (its title is app.shell.section_collections): collections are our word for named groups of photos - never say album. Images is the photo section (app.shell.section_images). {add} is the selection bar's item that puts the selected photos in a collection (app.shell.add_to_collection), in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.collections.where": {
+    "text": "Your collections open with this button, next to the search in Images.",
+    "note": "Under the text of the tour's Collections page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens the collections.",
+    "max": 220
+  },
+  "app.tour.collections.where_wide": {
+    "text": "Your collections are in the menu.",
+    "note": "Under the text of the tour's Collections page on a wide screen (a phone on its side, a tablet), where Collections is an item of the left menu.",
+    "max": 220
+  },
+  "app.tour.done.text": {
+    "text": "See this tour again any time: tap <b>{show}</b> in <b>{settings}</b>.",
+    "args": [["show", "text"], ["settings", "text"]],
+    "note": "Text of the tour's last page. {show} is the button in Settings that shows the tour again (app.tour.show) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.done.title": {
+    "text": "You're all set",
+    "note": "Title of the tour's last page.",
+    "max": 48
+  },
+  "app.tour.files.text": {
+    "text": "Your documents and folders, kept on your device. Tap <b>{upload}</b> at the bottom to add files from this phone, and tap a file to open it.",
+    "args": [["upload", "text"]],
+    "note": "Text of the tour's Files page (its title is app.shell.section_files). {upload} is the Upload button in the bar at the bottom of Files (common.upload), in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.friends.accept": {
+    "text": "A request sent to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.",
+    "args": [["waiting", "text"], ["accept", "text"]],
+    "note": "Second line of the tour's Friends page: answering a friend request. {waiting} is the heading of the Friends screen's section with the requests you received (app.social.friends.waiting_answer) and {accept} the button that accepts one (common.accept), both in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.friends.add": {
+    "text": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and tap <b>{send}</b>.",
+    "args": [["suffix", "text"], ["heading", "text"], ["send", "text"]],
+    "note": "First line of the tour's Friends page (its title is app.shell.section_friends): sending a friend request. {suffix} is the fixed end of every device's address, off-the.cloud, written after the dot. {heading} is the heading of the Friends screen's section for it (app.social.friends.add_heading) and {send} its button (common.send), both in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.friends.where": {
+    "text": "Friends opens with the two-people button at the top of Social.",
+    "note": "Under the lines of the tour's Friends page on a phone held upright: Friends (app.shell.section_friends) opens with the button showing two people at the top of the Social feed (app.shell.section_social).",
+    "max": 220
+  },
+  "app.tour.friends.where_wide": {
+    "text": "Friends is in the menu.",
+    "note": "Under the lines of the tour's Friends page on a wide screen (a phone on its side, a tablet), where Friends is an item of the left menu.",
+    "max": 220
+  },
+  "app.tour.images.text": {
+    "text": "All your photos and videos, newest first. Search at the top for places and things in your photos.",
+    "note": "Text of the tour's page about Images, the library of photos and videos (its title is app.shell.section_images). The search field is at the top of the screen: it finds places (from where the photos were taken) and things seen in them.",
+    "max": 220
+  },
+  "app.tour.people.text": {
+    "text": "The faces found in your photos, one person each. Tap <b>{name}</b> to name someone, and tap a face to see all their photos.",
+    "args": [["name", "text"]],
+    "note": "Text of the tour's People page (its title is app.shell.section_people): the people face recognition found, one face per person. {name} is the tappable line under a face that has no name (app.photos.people.add_name), in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.people.where": {
+    "text": "Open People with this button, next to the search in Images.",
+    "note": "Under the text of the tour's People page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens People.",
+    "max": 220
+  },
+  "app.tour.people.where_wide": {
+    "text": "People is in the menu.",
+    "note": "Under the text of the tour's People page on a wide screen (a phone on its side, a tablet), where People is an item of the left menu.",
+    "max": 220
+  },
+  "app.tour.post.step1": {
+    "text": "In Social, tap <b>+</b> at the top.",
+    "note": "First numbered step of the tour's page about publishing a post: the plus button at the top of the Social section (app.shell.section_social), in bold (<b>…</b>). Keep the + as it is.",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.post.step2": {
+    "text": "Pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device).",
+    "args": [["phone", "text"], ["synced", "text"]],
+    "note": "Second numbered step of the tour's page about publishing a post: the switch at the top of the New Post composer. {phone} and {synced} are its two halves (app.social.compose.source_phone, app.social.compose.source_synced), in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.post.step3": {
+    "text": "Write a caption, then tap <b>{publish}</b>.",
+    "args": [["publish", "text"]],
+    "note": "Third numbered step of the tour's page about publishing a post: a post needs a caption (the box at the foot of the composer). {publish} is the composer's button (app.social.compose.publish), in bold (<b>…</b>).",
+    "max": 220,
+    "rich": ["b"]
+  },
+  "app.tour.post.title": {
+    "text": "Publish a post",
+    "note": "Title of the tour's page about publishing a post on Social; numbered steps follow (app.tour.post.step1 to step3).",
+    "max": 48
+  },
+  "app.tour.progress": {
+    "text": "Step {step} of {total}",
+    "args": [["step", "int"], ["total", "int"]],
+    "note": "At the top of each page of the tour: {step} is the page's number and {total} how many pages the tour has (10 or 11). Also read out by screen readers.",
+    "max": 32
+  },
+  "app.tour.settings.footer": {
+    "text": "A short tour of the app: your photos, posting to Social, friends and where everything is.",
+    "note": "Under the Show the tour button (app.tour.show) in Settings: what the tour covers. Social is the feed section (app.shell.section_social).",
+    "max": 220
+  },
+  "app.tour.settings.title": {
+    "text": "Getting started",
+    "note": "Heading of the section of Settings with the button that shows the app's tour again (app.tour.show).",
+    "max": 48
+  },
+  "app.tour.show": {
+    "text": "Show the tour",
+    "note": "Button in Settings, in the section app.tour.settings.title: shows the app's tour again from its first page.",
+    "max": 32
+  },
+  "app.tour.skip": {
+    "text": "Skip",
+    "note": "Button at the top of every page of the tour: closes it. The tour can be shown again from Settings.",
+    "max": 32
+  },
+  "app.tour.social.text": {
+    "text": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them.",
+    "note": "Text of the tour's Social page (its title is app.shell.section_social): the feed of posts shared with friends. The heart is the like button under each post; the comment box is under it too.",
+    "max": 220
+  },
+  "app.tour.welcome.text": {
+    "text": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own.",
+    "note": "Text of the tour's first page: what Off The Cloud is. The device is the small computer at home that keeps everything.",
+    "max": 220
+  },
+  "app.tour.welcome.title": {
+    "text": "Welcome to Off The Cloud",
+    "note": "Title of the tour's first page. The tour is shown once after signing in to a device, and again from Settings.",
+    "max": 48
+  }
+}

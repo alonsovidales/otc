@@ -304,6 +304,10 @@ import cloud.offthe.otc.i18n.appShellRouteConfigured
 import cloud.offthe.otc.i18n.appShellRouteHome
 import cloud.offthe.otc.i18n.appShellRouteThrough
 import cloud.offthe.otc.i18n.appShellThumbCacheUsage
+import cloud.offthe.otc.i18n.appTourSettingsFooter
+import cloud.offthe.otc.i18n.appTourSettingsTitle
+import cloud.offthe.otc.i18n.appTourShow
+import cloud.offthe.otc.ui.TourModel
 import cloud.offthe.otc.i18n.commonAdd
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonConnect
@@ -447,6 +451,11 @@ fun SettingsView(secrets: SecretsStore) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+            }
+
+            // The first-run tour again, from its first page (Tour.kt).
+            Section(S.appTourSettingsTitle().resolve(), S.appTourSettingsFooter().resolve()) {
+                RowLink(S.appTourShow().resolve()) { TourModel.replay() }
             }
 
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }

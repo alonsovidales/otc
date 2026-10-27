@@ -374,6 +374,11 @@ struct SettingsView: View {
                     }
                 }
 
+                // The first-run tour again, from its first page (Tour.swift).
+                Section(header: Text(S.appTourSettingsTitle), footer: Text(S.appTourSettingsFooter)) {
+                    Button(S.appTourShow) { TourModel.shared.replay() }
+                }
+
                 Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
@@ -753,6 +758,9 @@ enum AppLogOut {
             // signed-in secrets, and would write its watermark and asset
             // cache after it.
             PhotoSync.shared.cancel()
+            // The tour closes; that it was seen stays (Tour.swift), so the
+            // next sign-in doesn't show it again.
+            TourModel.shared.reset()
             NotificationsModel.shared.reset()
             UpdateAlertModel.shared.reset()
             UploadModel.shared.reset()

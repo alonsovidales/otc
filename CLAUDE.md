@@ -2450,6 +2450,28 @@ view model while the Settings tab lives; Android stops looking in the background
 is left and picks the wait up again on return, reopening the picker on the network tried after a
 wrong password. `DeviceUnreachableView` shows the cable hint (`app.shell.unreachable_wifi_hint`)
 under the device's words and before "still trying", except for a disabled account.
+**The first-run tour** (iOS `Tour.swift` <-> Android `ui/Tour.kt`: `TourStep`, `TourRules`,
+`TourModel`, `TourView`; tests `TourTests.swift` <-> `TourTest.kt`, cases T1-T14; the web's is under
+Frontend): a full-screen pager RootView draws over MainView (iOS `TourOverlay`, Android a `Box` with
+MainView's semantics cleared) rather than a sheet or Dialog, so SyncChoice and every sheet and dialog
+open above it. Pages welcome, images, backup, people (only while `FaceRecognition` is on; pages go by
+id, `TourRules.place` moves one that went to the next, Android's pager is keyed by step),
+collections, files, social, post, friends, alerts, done, texts `app.tour.*` with section titles
+`app.shell.section_*` and every quoted label an argument from its own key; the `where`/`where_wide`
+line follows MainView's layout rule live (`WideLayout.menu`, `menuLayout`). Skip on every page,
+Back from page 2, Next/Done in ember with --ember-ink text; Android Back is Skip; iPad Escape/Return
+are Skip/Next; Reduce Motion (animator scale 0) turns pages without sliding; a page under 440 pt/dp
+shrinks its picture. It opens by itself once: signed in (`OTCConnection.authenticated`), MainView up
+with no card (`statusCode` nil, not `connectionFailed`), SyncChoice answered and the stored version
+below `TourRules.version` (1; raise it only for a rewritten tour) - installs signed in before it came
+included. `evaluate` writes the mark before showing it; a store it can't read or write opens nothing.
+The mark is the phone's alone: iOS defaults suite `cloud.off-the.OffTheCloud.tour` key `seenVersion`
+(outside the domain Log Out removes), Android prefs `otc_tour` key `seen_version` (`commit`; not
+wiped at Log Out, not in the backup rules). Settings › Getting started (after Language, before
+Status) replays it from page 1 and leaves the mark; Log Out only closes it (`reset`). The texts were
+checked against both apps: a post needs a caption, Upload sits in Files' bottom bar, the composer's
+switch is Phone/Synced. Android's welcome logo is `drawable-nodpi/otc_logo_large.webp` (the iOS
+asset at 900 px): `otc_logo` is drawn for the feed's 28dp and blurs at 84dp.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
