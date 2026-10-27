@@ -270,7 +270,12 @@ func switchDaemon(want string) error {
 func joinTailnet(authKey string) (string, error) {
 	args := []string{"up", "--timeout=" + cLoginTimeout.String()}
 	if authKey != "" {
-		args = append(args, "--auth-key="+authKey)
+		arg, done, err := authKeyArg(authKey, ramDir())
+		if err != nil {
+			return "", devtext.Wrap(i18n.DevStatusTailscaleJoinFailed(err.Error()), err)
+		}
+		defer done()
+		args = append(args, arg)
 	}
 
 	out, err := run("tailscale", args...)
@@ -293,6 +298,32 @@ func joinTailnet(authKey string) (string, error) {
 	}
 
 	return "", nil
+}
+
+// authKeyArg is how `tailscale up` is given authKey: as a file it reads
+// itself (--auth-key=file:<path>, which every tailscale that knows
+// --auth-key reads), written 0600 to dir, a RAM filesystem, and removed by
+// done once the command is over - never in its argv, which every account
+// on the machine can read in /proc. With no such dir ("": not Linux, no
+// tmpfs), in argv as before.
+func authKeyArg(authKey, dir string) (arg string, done func(), err error) {
+	if dir == "" {
+		return "--auth-key=" + authKey, func() {}, nil
+	}
+	f, err := os.CreateTemp(dir, ".tailscale-auth-*")
+	if err != nil {
+		return "", nil, err
+	}
+	done = func() { os.Remove(f.Name()) }
+	_, err = f.WriteString(authKey)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		done()
+		return "", nil, err
+	}
+	return "--auth-key=file:" + f.Name(), done, nil
 }
 
 func run(name string, args ...string) (string, error) {

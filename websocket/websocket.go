@@ -1445,6 +1445,17 @@ func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
 	return string(plain), nil
 }
 
+// sealedOr is a secret a client sends sealed (RSA-OAEP under this
+// connection's key, like Auth's): sealed opened when there is one, else
+// plain - what clients sent in the clear before the sealed field existed
+// (ReqBridgeSignIn.password, ReqSetupTailscale.auth_key).
+func (ch *connHandler) sealedOr(sealed []byte, plain string) (string, error) {
+	if len(sealed) == 0 {
+		return plain, nil
+	}
+	return ch.decryptSecret(sealed)
+}
+
 // decryptSecretBytes is decryptSecret as bytes, for a secret the caller
 // zeroes once it is done with it (JoinWifi's Wi-Fi password).
 func (ch *connHandler) decryptSecretBytes(ciphertext []byte) ([]byte, error) {
@@ -3508,7 +3519,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		var state tailscalefunnel.State
 		var err error
 		if p.ReqSetupTailscale.Enable {
-			state, err = tailscalefunnel.Enable(p.ReqSetupTailscale.AuthKey)
+			var authKey string
+			if authKey, err = ch.sealedOr(p.ReqSetupTailscale.AuthKeySealed, p.ReqSetupTailscale.AuthKey); err != nil {
+				resp.Error = true
+				resp.ErrorMessage = devtext.Text(lang, err)
+				break
+			}
+			state, err = tailscalefunnel.Enable(authKey)
 		} else {
 			err = tailscalefunnel.Disable()
 			state = tailscalefunnel.Status()
@@ -3550,7 +3567,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			token = code
 			email, err = bridgeaccess.CodeOwner(code)
 		} else {
-			token, email, err = bridgeaccess.SignIn(strings.TrimSpace(in.Email), in.Password)
+			var password string
+			if password, err = ch.sealedOr(in.PasswordSealed, in.Password); err == nil {
+				token, email, err = bridgeaccess.SignIn(strings.TrimSpace(in.Email), password)
+			}
 		}
 		if err != nil {
 			resp.Error = true

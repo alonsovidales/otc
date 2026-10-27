@@ -1051,12 +1051,18 @@ message RestartingDevice {
 message ReqSetupTailscale {
   // Optional. With a pre-shared auth key the whole setup is
   // non-interactive; without one, Tailscale needs a human to authorise
-  // the node and the answer carries the URL to do that on.
+  // the node and the answer carries the URL to do that on. In the clear:
+  // what clients sent before auth_key_sealed (still read when that is
+  // empty).
   string auth_key = 1;
   // False turns Funnel back off. The node stays in the tailnet - leaving
   // that is the owner's business, not something this switch should
   // decide for them.
   bool enable = 2;
+  // auth_key sealed with RSA-OAEP-SHA-256 under this connection's
+  // GetPubKey key, as ChangeKey's keys are (issue #2): the bridge relays
+  // this request. When set, auth_key is ignored.
+  bytes auth_key_sealed = 3;
 }
 
 message ReqGetTailscaleStatus {}
@@ -1104,8 +1110,14 @@ message ReqDisableBridge {}
 // RespBridgeSignedIn.
 message ReqBridgeSignIn {
   string email = 1;
+  // In the clear: what clients sent before password_sealed (still read
+  // when that is empty).
   string password = 2;
   string setup_code = 3;
+  // The account password sealed with RSA-OAEP-SHA-256 under this
+  // connection's GetPubKey key, as ChangeKey's keys are (issue #2): the
+  // bridge relays this request. When set, password is ignored.
+  bytes password_sealed = 4;
 }
 
 message RespBridgeSignedIn {

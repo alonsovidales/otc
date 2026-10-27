@@ -2468,13 +2468,20 @@ public nonisolated struct Msg_ReqSetupTailscale: Sendable {
 
   /// Optional. With a pre-shared auth key the whole setup is
   /// non-interactive; without one, Tailscale needs a human to authorise
-  /// the node and the answer carries the URL to do that on.
+  /// the node and the answer carries the URL to do that on. In the clear:
+  /// what clients sent before auth_key_sealed (still read when that is
+  /// empty).
   public var authKey: String = String()
 
   /// False turns Funnel back off. The node stays in the tailnet - leaving
   /// that is the owner's business, not something this switch should
   /// decide for them.
   public var enable: Bool = false
+
+  /// auth_key sealed with RSA-OAEP-SHA-256 under this connection's
+  /// GetPubKey key, as ChangeKey's keys are (issue #2): the bridge relays
+  /// this request. When set, auth_key is ignored.
+  public var authKeySealed: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2570,9 +2577,16 @@ public nonisolated struct Msg_ReqBridgeSignIn: Sendable {
 
   public var email: String = String()
 
+  /// In the clear: what clients sent before password_sealed (still read
+  /// when that is empty).
   public var password: String = String()
 
   public var setupCode: String = String()
+
+  /// The account password sealed with RSA-OAEP-SHA-256 under this
+  /// connection's GetPubKey key, as ChangeKey's keys are (issue #2): the
+  /// bridge relays this request. When set, password is ignored.
+  public var passwordSealed: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -10455,7 +10469,7 @@ nonisolated extension Msg_RestartingDevice: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqSetupTailscale"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}auth_key\0\u{1}enable\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}auth_key\0\u{1}enable\0\u{3}auth_key_sealed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10465,6 +10479,7 @@ nonisolated extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobu
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.authKey) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.enable) }()
+      case 3: try { try decoder.decodeSingularBytesField(value: &self.authKeySealed) }()
       default: break
       }
     }
@@ -10477,12 +10492,16 @@ nonisolated extension Msg_ReqSetupTailscale: SwiftProtobuf.Message, SwiftProtobu
     if self.enable != false {
       try visitor.visitSingularBoolField(value: self.enable, fieldNumber: 2)
     }
+    if !self.authKeySealed.isEmpty {
+      try visitor.visitSingularBytesField(value: self.authKeySealed, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ReqSetupTailscale, rhs: Msg_ReqSetupTailscale) -> Bool {
     if lhs.authKey != rhs.authKey {return false}
     if lhs.enable != rhs.enable {return false}
+    if lhs.authKeySealed != rhs.authKeySealed {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10612,7 +10631,7 @@ nonisolated extension Msg_ReqDisableBridge: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Msg_ReqBridgeSignIn: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqBridgeSignIn"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}email\0\u{1}password\0\u{3}setup_code\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}email\0\u{1}password\0\u{3}setup_code\0\u{3}password_sealed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10623,6 +10642,7 @@ nonisolated extension Msg_ReqBridgeSignIn: SwiftProtobuf.Message, SwiftProtobuf.
       case 1: try { try decoder.decodeSingularStringField(value: &self.email) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.password) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.setupCode) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.passwordSealed) }()
       default: break
       }
     }
@@ -10638,6 +10658,9 @@ nonisolated extension Msg_ReqBridgeSignIn: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.setupCode.isEmpty {
       try visitor.visitSingularStringField(value: self.setupCode, fieldNumber: 3)
     }
+    if !self.passwordSealed.isEmpty {
+      try visitor.visitSingularBytesField(value: self.passwordSealed, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -10645,6 +10668,7 @@ nonisolated extension Msg_ReqBridgeSignIn: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.email != rhs.email {return false}
     if lhs.password != rhs.password {return false}
     if lhs.setupCode != rhs.setupCode {return false}
+    if lhs.passwordSealed != rhs.passwordSealed {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

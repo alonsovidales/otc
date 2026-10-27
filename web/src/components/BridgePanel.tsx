@@ -14,6 +14,7 @@
 // whole machine is reached.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { encryptForConnection } from "../net/pwCrypto";
 import type { RespEnvelope } from "../proto/messages";
 import { Trans, useT } from "../i18n";
 import { asIs, say, type PlainKey, type UiText } from "./uiText";
@@ -144,8 +145,12 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
     setBusy(true);
     setError(null);
     try {
+      // Sealed for this connection's key, as a sign-in's password is: the
+      // bridge relays the request. The device serving this page reads it
+      // (only an older one's own, older page sends the plain field).
+      const passwordSealed = await encryptForConnection(useWS.request, password);
       const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqBridgeSignIn", reqBridgeSignIn: { email: email.trim(), password, setupCode: "" } };
+        (e as any).payload = { $case: "reqBridgeSignIn", reqBridgeSignIn: { email: email.trim(), password: "", setupCode: "", passwordSealed } };
       });
       if (resp.payload?.$case !== "respBridgeSignedIn") {
         setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.sign_in_failed")));

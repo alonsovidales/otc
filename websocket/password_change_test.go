@@ -17,6 +17,7 @@ import (
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
+	"github.com/alonsovidales/otc/supervisor"
 )
 
 // keep records an argument of a statement, to answer a later query with it.
@@ -234,5 +235,31 @@ func TestLibraryStreamsReuseTheirToken(t *testing.T) {
 	row(strings.Repeat("b", 64)) // the path holds other content now
 	if other := url(); other == first {
 		t.Error("other content at the same path kept the old token")
+	}
+}
+
+// The bridge account's password and the Tailscale auth key come sealed for
+// this connection, as a sign-in's password does (the bridge relays them);
+// an older client's plain field is still read when no sealed one comes.
+func TestSealedSecretsAreOpenedWithTheConnectionsKey(t *testing.T) {
+	priv, seal := sealer(t)
+	ch := &connHandler{mg: &Manager{}, privKey: priv}
+	if got, err := ch.sealedOr(seal("account-password"), "ignored"); err != nil || got != "account-password" {
+		t.Errorf("sealed: %q, %v", got, err)
+	}
+	if got, err := ch.sealedOr(nil, "an older web app's"); err != nil || got != "an older web app's" {
+		t.Errorf("plain: %q, %v", got, err)
+	}
+	if _, err := ch.sealedOr([]byte("not sealed for this connection"), "plain"); err == nil {
+		t.Error("a value this connection's key can't open was taken")
+	}
+
+	// One it can't open is refused before anything runs with it.
+	primary := &connHandler{mg: &Manager{sup: &supervisor.Supervisor{}}, privKey: priv}
+	primary.setSession(&session.Session{})
+	resp, _ := primary.processAuthRequest(&pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqSetupTailscale{
+		ReqSetupTailscale: &pb.ReqSetupTailscale{Enable: true, AuthKeySealed: []byte("garbage")}}}, "")
+	if !resp.Error || resp.GetRespTailscaleStatus() != nil {
+		t.Errorf("an auth key that can't be opened: %v", resp)
 	}
 }

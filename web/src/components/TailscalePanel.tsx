@@ -14,6 +14,7 @@
 // also why it can only ever serve one user: one machine, one public name.
 import { useCallback, useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
+import { encryptForConnection } from "../net/pwCrypto";
 import type { RespEnvelope } from "../proto/messages";
 import { Trans, useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
@@ -105,10 +106,15 @@ export default function TailscalePanel() {
     if (authWindow) authWindow.opener = null;
     let navigated = false;
     try {
+      // Sealed for this connection's key, as a sign-in's password is: the
+      // bridge relays the request. The device serving this page reads it
+      // (only an older one's own, older page sends the plain field).
+      const key = enable ? authKey.trim() : "";
+      const authKeySealed = key ? await encryptForConnection(useWS.request, key) : new Uint8Array(0);
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = {
           $case: "reqSetupTailscale",
-          reqSetupTailscale: { authKey: authKey.trim(), enable },
+          reqSetupTailscale: { authKey: "", enable, authKeySealed },
         };
       });
       const next = read(resp);

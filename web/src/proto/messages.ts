@@ -1654,7 +1654,9 @@ export interface ReqSetupTailscale {
   /**
    * Optional. With a pre-shared auth key the whole setup is
    * non-interactive; without one, Tailscale needs a human to authorise
-   * the node and the answer carries the URL to do that on.
+   * the node and the answer carries the URL to do that on. In the clear:
+   * what clients sent before auth_key_sealed (still read when that is
+   * empty).
    */
   authKey: string;
   /**
@@ -1663,6 +1665,12 @@ export interface ReqSetupTailscale {
    * decide for them.
    */
   enable: boolean;
+  /**
+   * auth_key sealed with RSA-OAEP-SHA-256 under this connection's
+   * GetPubKey key, as ChangeKey's keys are (issue #2): the bridge relays
+   * this request. When set, auth_key is ignored.
+   */
+  authKeySealed: Uint8Array;
 }
 
 export interface ReqGetTailscaleStatus {
@@ -1725,8 +1733,18 @@ export interface ReqDisableBridge {
  */
 export interface ReqBridgeSignIn {
   email: string;
+  /**
+   * In the clear: what clients sent before password_sealed (still read
+   * when that is empty).
+   */
   password: string;
   setupCode: string;
+  /**
+   * The account password sealed with RSA-OAEP-SHA-256 under this
+   * connection's GetPubKey key, as ChangeKey's keys are (issue #2): the
+   * bridge relays this request. When set, password is ignored.
+   */
+  passwordSealed: Uint8Array;
 }
 
 export interface RespBridgeSignedIn {
@@ -11120,7 +11138,7 @@ export const RestartingDevice: MessageFns<RestartingDevice> = {
 };
 
 function createBaseReqSetupTailscale(): ReqSetupTailscale {
-  return { authKey: "", enable: false };
+  return { authKey: "", enable: false, authKeySealed: new Uint8Array(0) };
 }
 
 export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
@@ -11130,6 +11148,9 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
     }
     if (message.enable !== false) {
       writer.uint32(16).bool(message.enable);
+    }
+    if (message.authKeySealed.length !== 0) {
+      writer.uint32(26).bytes(message.authKeySealed);
     }
     return writer;
   },
@@ -11157,6 +11178,14 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
           message.enable = reader.bool();
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.authKeySealed = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11170,6 +11199,7 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
     return {
       authKey: isSet(object.authKey) ? globalThis.String(object.authKey) : "",
       enable: isSet(object.enable) ? globalThis.Boolean(object.enable) : false,
+      authKeySealed: isSet(object.authKeySealed) ? bytesFromBase64(object.authKeySealed) : new Uint8Array(0),
     };
   },
 
@@ -11181,6 +11211,9 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
     if (message.enable !== false) {
       obj.enable = message.enable;
     }
+    if (message.authKeySealed.length !== 0) {
+      obj.authKeySealed = base64FromBytes(message.authKeySealed);
+    }
     return obj;
   },
 
@@ -11191,6 +11224,7 @@ export const ReqSetupTailscale: MessageFns<ReqSetupTailscale> = {
     const message = createBaseReqSetupTailscale();
     message.authKey = object.authKey ?? "";
     message.enable = object.enable ?? false;
+    message.authKeySealed = object.authKeySealed ?? new Uint8Array(0);
     return message;
   },
 };
@@ -11508,7 +11542,7 @@ export const ReqDisableBridge: MessageFns<ReqDisableBridge> = {
 };
 
 function createBaseReqBridgeSignIn(): ReqBridgeSignIn {
-  return { email: "", password: "", setupCode: "" };
+  return { email: "", password: "", setupCode: "", passwordSealed: new Uint8Array(0) };
 }
 
 export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
@@ -11521,6 +11555,9 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
     }
     if (message.setupCode !== "") {
       writer.uint32(26).string(message.setupCode);
+    }
+    if (message.passwordSealed.length !== 0) {
+      writer.uint32(34).bytes(message.passwordSealed);
     }
     return writer;
   },
@@ -11556,6 +11593,14 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
           message.setupCode = reader.string();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.passwordSealed = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11570,6 +11615,7 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
       email: isSet(object.email) ? globalThis.String(object.email) : "",
       password: isSet(object.password) ? globalThis.String(object.password) : "",
       setupCode: isSet(object.setupCode) ? globalThis.String(object.setupCode) : "",
+      passwordSealed: isSet(object.passwordSealed) ? bytesFromBase64(object.passwordSealed) : new Uint8Array(0),
     };
   },
 
@@ -11584,6 +11630,9 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
     if (message.setupCode !== "") {
       obj.setupCode = message.setupCode;
     }
+    if (message.passwordSealed.length !== 0) {
+      obj.passwordSealed = base64FromBytes(message.passwordSealed);
+    }
     return obj;
   },
 
@@ -11595,6 +11644,7 @@ export const ReqBridgeSignIn: MessageFns<ReqBridgeSignIn> = {
     message.email = object.email ?? "";
     message.password = object.password ?? "";
     message.setupCode = object.setupCode ?? "";
+    message.passwordSealed = object.passwordSealed ?? new Uint8Array(0);
     return message;
   },
 };
