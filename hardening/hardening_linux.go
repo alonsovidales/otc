@@ -3,10 +3,8 @@
 package hardening
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -53,16 +51,17 @@ func SecureTempDir() {
 		return
 	}
 	sweepTempDirs(base)
-	dir := filepath.Join(base, fmt.Sprintf("otc-%d", os.Getpid()))
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		log.Error("could not create the temporary directory", dir, ":", err)
+	dir, err := ownTempDir(base)
+	if err != nil {
+		log.Error("could not create a temporary directory in", base, ":", err)
 		return
 	}
 	os.Setenv("TMPDIR", dir)
 }
 
-// sweepTempDirs removes the otc-<pid> directories of processes that are
-// gone, and loose otc-* files from before these directories existed.
+// sweepTempDirs removes the temporary directories (otc-<pid>, or
+// otc-<pid>-<random>) of processes that are gone, and loose otc-* files
+// from before these directories existed.
 func sweepTempDirs(base string) {
 	entries, err := os.ReadDir(base)
 	if err != nil {
@@ -74,8 +73,8 @@ func sweepTempDirs(base string) {
 			continue
 		}
 		if e.IsDir() {
-			pid, err := strconv.Atoi(strings.TrimPrefix(name, "otc-"))
-			if err != nil || pid == os.Getpid() || syscall.Kill(pid, 0) != syscall.ESRCH {
+			pid, ok := tempDirPid(name)
+			if !ok || pid == os.Getpid() || syscall.Kill(pid, 0) != syscall.ESRCH {
 				continue
 			}
 		}
