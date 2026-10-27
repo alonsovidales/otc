@@ -17,6 +17,10 @@
     "text": "Voltar a {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "não é possível ler {name}",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "Desativar apenas carregamento",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Este item está numa pasta em apenas carregamento: não pode ser eliminado, e carregá-lo novamente mantém a versão anterior. O cadeado da pasta altera isto.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "A carregar {done} de {total}…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Nada nesta pasta ocupa espaço.",

@@ -278,6 +278,22 @@
     "en": "Privacy",
     "reviewed": "claude-backtranslation 2026-10-11 #e710294a"
   },
+  "app.shell.problem_alerts_failed": {
+    "text": "Deine Benachrichtigungen erscheinen, sobald dein Gerät antwortet.",
+    "en": "Your notifications will appear as soon as your device answers."
+  },
+  "app.shell.problem_alerts_offline": {
+    "text": "Dieses Handy ist offline. Deine Benachrichtigungen erscheinen, sobald es wieder online ist.",
+    "en": "This phone is offline. Your notifications will appear once it's back online."
+  },
+  "app.shell.problem_alerts_slow": {
+    "text": "Dein Gerät hat zu lange für die Antwort gebraucht. Deine Benachrichtigungen erscheinen, sobald es antwortet.",
+    "en": "Your device took too long to answer. Your notifications will appear as soon as it does."
+  },
+  "app.shell.problem_alerts_unreachable": {
+    "text": "Dein Gerät ist gerade nicht erreichbar. Deine Benachrichtigungen erscheinen, sobald es antwortet.",
+    "en": "Your device isn't reachable right now. Your notifications will appear as soon as it answers."
+  },
   "app.shell.problem_files_failed": {
     "text": "Die Dateien erscheinen, sobald dein Gerät antwortet.",
     "en": "The files will appear as soon as your device answers."
@@ -470,6 +486,18 @@
     "text": "Gib das Passwort des Geräts ein",
     "en": "Enter the device's password"
   },
+  "app.shell.setup_leave": {
+    "text": "Verlassen",
+    "en": "Leave"
+  },
+  "app.shell.setup_leave_text": {
+    "text": "Das Gerät wird weiter installiert. Öffne die Einrichtung erneut, um sie zu verfolgen, oder melde dich an, sobald sie fertig ist.",
+    "en": "The device goes on installing. Open the setup again to follow it, or sign in once it's done."
+  },
+  "app.shell.setup_leave_title": {
+    "text": "Einrichtung verlassen?",
+    "en": "Leave the setup?"
+  },
   "app.shell.setup_looking": {
     "text": "Suche nach einem Gerät zum Einrichten…",
     "en": "Looking for a device to set up…"
@@ -477,6 +505,10 @@
   "app.shell.setup_new_device": {
     "text": "Neues Gerät einrichten",
     "en": "Set up a new device"
+  },
+  "app.shell.setup_not_found": {
+    "text": "Noch kein Gerät gefunden. Prüfe, ob es eingeschaltet ist und seine Laufwerke angeschlossen sind, und halte das Handy in seiner Nähe.",
+    "en": "No device found yet. Check that it's on, with its disks connected, and keep the phone next to it."
   },
   "app.shell.setup_open_device": {
     "text": "Mein Gerät öffnen",

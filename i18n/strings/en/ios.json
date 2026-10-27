@@ -208,6 +208,10 @@
     "text": "The device isn't answering. It may be off, or the connection may be too slow.",
     "note": "Why the app can't connect, on the card shown over the app: the connection to the device stopped answering while signing in."
   },
+  "ios.open_settings": {
+    "text": "Open Settings",
+    "note": "Button in Set up a new device (over Bluetooth) under ios.bluetooth_needed_hint: opens the iPhone's Settings at this app's page, where Bluetooth can be allowed. Settings is the iPhone's own app: use its name in this language."
+  },
   "ios.photos_access_denied": {
     "text": "Photos access denied",
     "note": "Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library."

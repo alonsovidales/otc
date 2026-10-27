@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">¿Volver a permitir eliminaciones en la carpeta “\u2068%1$s\u2069”?</string>
     <string name="app_files_back_to_files">Volver a Archivos</string>
     <string name="app_files_back_to_folder">Volver a \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">no se puede leer \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Desactivar solo subida</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">¿Eliminar %1$s elemento?</item>
@@ -89,6 +90,7 @@
     <string name="app_files_upload_failed">No se ha podido subir: %1$s</string>
     <string name="app_files_upload_only">Solo subida</string>
     <string name="app_files_upload_only_file_info">Está en una carpeta de solo subida: no se puede eliminar, y al volver a subirlo se conserva su versión anterior. El candado de la carpeta lo cambia.</string>
+    <string name="app_files_uploading">Subiendo %1$s de %2$s…</string>
     <string name="app_files_usage_empty">Nada de esta carpeta ocupa espacio.</string>
     <string name="app_files_usage_failed">No se ha podido calcular cuánto espacio ocupa esta carpeta.</string>
     <string name="app_files_usage_needs_update">Tu dispositivo necesita una actualización para mostrar cuánto espacio ocupan las carpetas.</string>

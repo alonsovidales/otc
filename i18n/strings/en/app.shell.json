@@ -307,6 +307,22 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #f22e10da"
   },
+  "app.shell.problem_alerts_failed": {
+    "text": "Your notifications will appear as soon as your device answers.",
+    "note": "Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded for any other reason (an error answer, a dropped connection). They are asked for again by themselves."
+  },
+  "app.shell.problem_alerts_offline": {
+    "text": "This phone is offline. Your notifications will appear once it's back online.",
+    "note": "Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded because the phone has no network. They are asked for again by themselves."
+  },
+  "app.shell.problem_alerts_slow": {
+    "text": "Your device took too long to answer. Your notifications will appear as soon as it does.",
+    "note": "Alerts: under app.social.alerts.load_failed when the device didn't answer in time. The notifications are asked for again by themselves."
+  },
+  "app.shell.problem_alerts_unreachable": {
+    "text": "Your device isn't reachable right now. Your notifications will appear as soon as it answers.",
+    "note": "Alerts: under app.social.alerts.load_failed when the bridge says the device isn't connected to it. The notifications are asked for again by themselves."
+  },
   "app.shell.problem_files_failed": {
     "text": "The files will appear as soon as your device answers.",
     "note": "Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection)."
@@ -515,6 +531,18 @@
     "text": "Enter the device's password",
     "note": "Set up a new device (over Bluetooth): heading above the password field once the device is installed, for a recovered device that keeps the password it had."
   },
+  "app.shell.setup_leave": {
+    "text": "Leave",
+    "note": "Button (in red) of the question app.shell.setup_leave_title: leaves the Bluetooth setup while the device goes on installing."
+  },
+  "app.shell.setup_leave_text": {
+    "text": "The device goes on installing. Open the setup again to follow it, or sign in once it's done.",
+    "note": "Under app.shell.setup_leave_title: leaving doesn't stop the install; the address and password stay filled in on the connection screen for signing in once it's done."
+  },
+  "app.shell.setup_leave_title": {
+    "text": "Leave the setup?",
+    "note": "Question asked when Back is tapped in Set up a new device (over Bluetooth) while the device is installing (about 20 minutes)."
+  },
   "app.shell.setup_looking": {
     "text": "Looking for a device to set up…",
     "note": "Set up a new device (over Bluetooth): heading while the phone looks for a device announcing its setup over Bluetooth."
@@ -523,6 +551,10 @@
     "text": "Set up a new device",
     "note": "Button on the first screen of the app that sets up a device fresh out of the box over Bluetooth, and the title of that setup screen.",
     "max": 30
+  },
+  "app.shell.setup_not_found": {
+    "text": "No device found yet. Check that it's on, with its disks connected, and keep the phone next to it.",
+    "note": "Set up a new device (over Bluetooth): under the heading Looking for a device to set up… once the phone has looked for half a minute without finding one, in place of app.shell.setup_power_on. It goes on looking."
   },
   "app.shell.setup_open_device": {
     "text": "Open my device",

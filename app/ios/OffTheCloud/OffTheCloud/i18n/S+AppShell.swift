@@ -344,6 +344,26 @@ extension S {
     /// Link that opens the privacy notice (in English), on the first screen and at the foot of the left menu (on a wide screen).
     static var appShellPrivacy: String { L("app.shell.privacy", table: "AppShell") }
 
+    /// Your notifications will appear as soon as your device answers.
+    ///
+    /// Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded for any other reason (an error answer, a dropped connection). They are asked for again by themselves.
+    static var appShellProblemAlertsFailed: String { L("app.shell.problem_alerts_failed", table: "AppShell") }
+
+    /// This phone is offline. Your notifications will appear once it's back online.
+    ///
+    /// Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded because the phone has no network. They are asked for again by themselves.
+    static var appShellProblemAlertsOffline: String { L("app.shell.problem_alerts_offline", table: "AppShell") }
+
+    /// Your device took too long to answer. Your notifications will appear as soon as it does.
+    ///
+    /// Alerts: under app.social.alerts.load_failed when the device didn't answer in time. The notifications are asked for again by themselves.
+    static var appShellProblemAlertsSlow: String { L("app.shell.problem_alerts_slow", table: "AppShell") }
+
+    /// Your device isn't reachable right now. Your notifications will appear as soon as it answers.
+    ///
+    /// Alerts: under app.social.alerts.load_failed when the bridge says the device isn't connected to it. The notifications are asked for again by themselves.
+    static var appShellProblemAlertsUnreachable: String { L("app.shell.problem_alerts_unreachable", table: "AppShell") }
+
     /// The files will appear as soon as your device answers.
     ///
     /// Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection).
@@ -583,6 +603,21 @@ extension S {
     /// Set up a new device (over Bluetooth): heading above the password field once the device is installed, for a recovered device that keeps the password it had.
     static var appShellSetupEnterPassword: String { L("app.shell.setup_enter_password", table: "AppShell") }
 
+    /// Leave
+    ///
+    /// Button (in red) of the question app.shell.setup_leave_title: leaves the Bluetooth setup while the device goes on installing.
+    static var appShellSetupLeave: String { L("app.shell.setup_leave", table: "AppShell") }
+
+    /// The device goes on installing. Open the setup again to follow it, or sign in once it's done.
+    ///
+    /// Under app.shell.setup_leave_title: leaving doesn't stop the install; the address and password stay filled in on the connection screen for signing in once it's done.
+    static var appShellSetupLeaveText: String { L("app.shell.setup_leave_text", table: "AppShell") }
+
+    /// Leave the setup?
+    ///
+    /// Question asked when Back is tapped in Set up a new device (over Bluetooth) while the device is installing (about 20 minutes).
+    static var appShellSetupLeaveTitle: String { L("app.shell.setup_leave_title", table: "AppShell") }
+
     /// Looking for a device to set up…
     ///
     /// Set up a new device (over Bluetooth): heading while the phone looks for a device announcing its setup over Bluetooth.
@@ -592,6 +627,11 @@ extension S {
     ///
     /// Button on the first screen of the app that sets up a device fresh out of the box over Bluetooth, and the title of that setup screen.
     static var appShellSetupNewDevice: String { L("app.shell.setup_new_device", table: "AppShell") }
+
+    /// No device found yet. Check that it's on, with its disks connected, and keep the phone next to it.
+    ///
+    /// Set up a new device (over Bluetooth): under the heading Looking for a device to set up… once the phone has looked for half a minute without finding one, in place of app.shell.setup_power_on. It goes on looking.
+    static var appShellSetupNotFound: String { L("app.shell.setup_not_found", table: "AppShell") }
 
     /// Open my device
     ///

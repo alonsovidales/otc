@@ -36,7 +36,8 @@ import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidFilesAllowDeletions
-import cloud.offthe.otc.i18n.androidFilesCannotRead
+import cloud.offthe.otc.i18n.appFilesCannotRead
+import cloud.offthe.otc.i18n.appFilesUploading
 import cloud.offthe.otc.i18n.androidFilesFolderUpdateFailedDetail
 import cloud.offthe.otc.i18n.androidFilesInsideKeptOut
 import cloud.offthe.otc.i18n.androidFilesInsideKeptOutBanner
@@ -141,6 +142,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.R
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
@@ -185,8 +187,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
@@ -529,6 +529,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // Issue #192: said to TalkBack once a change is done ("Trips kept
         // out of Images"); the screen shows it by the mark and the banner.
         val outOfImagesSaid: UiText? = null,
+        // The files picked to upload, while they go: "Uploading N of M"
+        // over the bar, with Cancel (UploadQueue); null: none.
+        val uploads: UploadProgress? = null,
     ) {
         val grid: Boolean get() = view == FilesView.GRID
         /** The selection when it is one folder: what "Share as gallery" (issue #180) acts on. */
@@ -566,8 +569,14 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     private fun sortLocale() = LanguageSettings.numberLocale
 
     // Picked files upload two at a time: each one hashes and holds a chunk
-    // while it waits for ChunkedUpload's send permits.
-    private val uploadSlots = Semaphore(2)
+    // while it waits for ChunkedUpload's send permits. In the view model's
+    // scope, not the screen's: leaving Files used to cancel them, each
+    // reported as failed ("was cancelled").
+    private val uploads = UploadQueue<UploadPick>(
+        viewModelScope, slots = 2,
+        send = { pick -> uploadTo(pick) },
+        onChange = { p -> _state.update { it.copy(uploads = p) } },
+    )
 
     // Thumbnails decoded at 512 px (up to ~1 MB each), bounded by bytes to
     // several screens of tiles; it used to keep every one of a folder for the
@@ -1106,29 +1115,40 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     /** Issue #132: the selection touches an upload-only folder - the device refuses those deletes. */
     val selectionUploadOnly: Boolean get() = _state.value.rows.any { it.path in _state.value.selected && it.uploadOnly }
 
-    suspend fun deleteSelected() {
+    /**
+     * The selection, one after another, then the folder again. The view
+     * model's own work, not the screen's: leaving Files used to cut it
+     * short, the rest of the selection silently left.
+     */
+    fun deleteSelected() {
         val rows = _state.value.rows
-        for (p in _state.value.selected) {
-            try {
-                val full = if (p.contains("/")) p else joinPath(path, p)
-                val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
-                if (resp.error && resp.errorCode == "upload_only") {
-                    showToast(S.appFilesDeleteRefused(leafName(full)))
-                    break
-                }
-                // Issue #201: the file holds other content than the row
-                // showed: nothing was deleted - the device says so, and the
-                // folder is listed again below.
-                if (resp.error && resp.errorCode == "changed") {
-                    showToast(deviceSays(resp.errorMessage) { S.appPhotosNoticeDeleteFailed(resp.errorCode) })
-                    continue
-                }
-                // A file gone from the device: its thumbnail goes from the
-                // phone's cache too (a folder's contents aren't followed).
-                if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.hash?.takeIf { it.isNotEmpty() }?.let { ThumbStore.discard(it) }
-            } catch (_: Exception) {}
+        val selected = _state.value.selected.toList()
+        val folder = path
+        viewModelScope.launch {
+            for (p in selected) {
+                try {
+                    val full = if (p.contains("/")) p else joinPath(folder, p)
+                    val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
+                    if (resp.error && resp.errorCode == "upload_only") {
+                        showToast(S.appFilesDeleteRefused(leafName(full)))
+                        break
+                    }
+                    // Issue #201: the file holds other content than the row
+                    // showed: nothing was deleted - the device says so, and the
+                    // folder is listed again below.
+                    if (resp.error && resp.errorCode == "changed") {
+                        showToast(deviceSays(resp.errorMessage) { S.appPhotosNoticeDeleteFailed(resp.errorCode) })
+                        continue
+                    }
+                    // A file gone from the device: its thumbnail goes from the
+                    // phone's cache too (a folder's contents aren't followed).
+                    if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.hash?.takeIf { it.isNotEmpty() }?.let { ThumbStore.discard(it) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {}
+            }
+            load()
         }
-        load()
     }
 
     /** Issue #132: the lock on a folder - flag it upload only, or clear it. */
@@ -1242,30 +1262,46 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     }
 
     /**
-     * Issue #58: hash first; content the device already has is linked, not re-sent.
-     * Issue #165: [open] is read twice as a stream (hash, then chunked upload),
-     * never loaded whole.
+     * Files picked to upload into the folder shown now (read before they
+     * wait their turn: the owner may open another folder meanwhile), two at
+     * a time, "Uploading N of M" meanwhile (UploadQueue).
      */
-    suspend fun upload(open: () -> InputStream, filename: String) {
-        // The folder it was picked into, read before waiting for a slot:
-        // the owner may have opened another one by then.
-        val target = joinPath(path, filename)
-        uploadSlots.withPermit { uploadTo(target, open) }
+    fun upload(picks: List<Pair<String, () -> InputStream>>) {
+        val folder = path
+        uploads.add(picks.map { (name, open) -> UploadPick(joinPath(folder, name), name, open) })
     }
 
-    private suspend fun uploadTo(target: String, open: () -> InputStream) {
+    /** The progress line's Cancel: what waits never goes, what goes stops; none of it is reported as failed. */
+    fun cancelUploads() = uploads.cancel()
+
+    /**
+     * Issue #58: hash first; content the device already has is linked, not re-sent.
+     * Issue #165: the file is read twice as a stream (hash, then chunked upload),
+     * never loaded whole. A file the phone can't read says so (it was the
+     * system's words, or nothing); a cancel stops it without a word.
+     */
+    private suspend fun uploadTo(pick: UploadPick) {
         try {
-            val digest = ChunkedUpload.digest(open)
+            val digest = try {
+                withContext(Dispatchers.IO) { ChunkedUpload.digest(pick.open) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showToast(UiText.Res(R.string.app_files_upload_failed, listOf(S.appFilesCannotRead(pick.name))))
+                return
+            }
             val hash = digest.sha256
             val has = OTCConnection.request { it.setReqHasFile(HasFile.newBuilder().setHash(hash)) }
             val exists = has.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_EXISTS && has.respFileExists.exists
             val resp = if (exists) {
-                OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(target).setForceOverride(false)) }
+                OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(pick.target).setForceOverride(false)) }
             } else {
-                ChunkedUpload.upload(target, digest.size, open, forceOverride = false, sha256 = hash)
+                withContext(Dispatchers.IO) { ChunkedUpload.upload(pick.target, digest.size, pick.open, forceOverride = false, sha256 = hash) }
             }
             // The device's words, in the app's language, as the detail.
             if (resp.error) showToast(S.appFilesUploadFailed(resp.errorMessage))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             showToast(S.appFilesUploadFailed(e.message.toString()))
         }
@@ -1442,12 +1478,17 @@ fun FilesExplorerView(initialPath: String) {
     }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
-        for (uri in uris) {
-            scope.launch(Dispatchers.IO) {
-                val name = queryDisplayName(context, uri) ?: "file"
-                // Its message is the detail of Upload failed: worded when read.
-                vm.upload({ context.contentResolver.openInputStream(uri) ?: throw TextIOException(S.androidFilesCannotRead(uri.toString())) }, name)
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        val resolver = context.applicationContext.contentResolver
+        scope.launch {
+            val picks = withContext(Dispatchers.IO) {
+                uris.map { uri ->
+                    val name = queryDisplayName(context, uri) ?: "file"
+                    name to { resolver.openInputStream(uri) ?: throw TextIOException(S.appFilesCannotRead(name)) }
+                }
             }
+            // The view model's from here on: leaving Files doesn't stop them.
+            vm.upload(picks)
         }
     }
 
@@ -1636,6 +1677,8 @@ fun FilesExplorerView(initialPath: String) {
                         }
                     }
 
+                    // The files picked, while they go: how far along, and Cancel.
+                    st.uploads?.let { u -> UploadProgressRow(u) { vm.cancelUploads() } }
                     SelectionActionBar(
                         count = st.selected.size,
                         busy = st.preparing,
@@ -1751,13 +1794,30 @@ fun FilesExplorerView(initialPath: String) {
         AlertDialog(
             onDismissRequest = { vm.setConfirmDelete(false) },
             title = { Text(S.appFilesDeleteConfirm(n).resolve()) },
-            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); scope.launch { vm.deleteSelected() } }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); vm.deleteSelected() }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
             dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text(S.commonCancel().resolve()) } },
         )
     }
     if (vst.openIndex != null) ImageModal(viewer, vst)
     vst.alert?.let {
         AlertDialog(onDismissRequest = { viewer.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { viewer.dismissAlert() }) { Text(S.commonOk().resolve()) } })
+    }
+}
+
+/** "Uploading 2 of 5…" with a spinner, and Cancel - over the bar while picked files go. */
+@Composable
+private fun UploadProgressRow(progress: UploadProgress, onCancel: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            S.appFilesUploading(progress.done, progress.total).resolve(), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        TextButton(onClick = onCancel) { Text(S.commonCancel().resolve()) }
     }
 }
 

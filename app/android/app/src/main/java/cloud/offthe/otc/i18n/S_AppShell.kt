@@ -262,6 +262,22 @@ fun S.appShellPercent(percent: String): UiText =
 fun S.appShellPrivacy(): UiText =
     UiText.Res(R.string.app_shell_privacy)
 
+/** "Your notifications will appear as soon as your device answers.": Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded for any other reason (an error answer, a dropped connection). They are asked for again by themselves. */
+fun S.appShellProblemAlertsFailed(): UiText =
+    UiText.Res(R.string.app_shell_problem_alerts_failed)
+
+/** "This phone is offline. Your notifications will appear once it's back online.": Alerts: under app.social.alerts.load_failed when the notifications couldn't be loaded because the phone has no network. They are asked for again by themselves. */
+fun S.appShellProblemAlertsOffline(): UiText =
+    UiText.Res(R.string.app_shell_problem_alerts_offline)
+
+/** "Your device took too long to answer. Your notifications will appear as soon as it does.": Alerts: under app.social.alerts.load_failed when the device didn't answer in time. The notifications are asked for again by themselves. */
+fun S.appShellProblemAlertsSlow(): UiText =
+    UiText.Res(R.string.app_shell_problem_alerts_slow)
+
+/** "Your device isn't reachable right now. Your notifications will appear as soon as it answers.": Alerts: under app.social.alerts.load_failed when the bridge says the device isn't connected to it. The notifications are asked for again by themselves. */
+fun S.appShellProblemAlertsUnreachable(): UiText =
+    UiText.Res(R.string.app_shell_problem_alerts_unreachable)
+
 /** "The files will appear as soon as your device answers.": Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection). */
 fun S.appShellProblemFilesFailed(): UiText =
     UiText.Res(R.string.app_shell_problem_files_failed)
@@ -442,6 +458,18 @@ fun S.appShellSetupDeviceOlder(): UiText =
 fun S.appShellSetupEnterPassword(): UiText =
     UiText.Res(R.string.app_shell_setup_enter_password)
 
+/** "Leave": Button (in red) of the question app.shell.setup_leave_title: leaves the Bluetooth setup while the device goes on installing. */
+fun S.appShellSetupLeave(): UiText =
+    UiText.Res(R.string.app_shell_setup_leave)
+
+/** "The device goes on installing. Open the setup again to follow it, or sign in once it's done.": Under app.shell.setup_leave_title: leaving doesn't stop the install; the address and password stay filled in on the connection screen for signing in once it's done. */
+fun S.appShellSetupLeaveText(): UiText =
+    UiText.Res(R.string.app_shell_setup_leave_text)
+
+/** "Leave the setup?": Question asked when Back is tapped in Set up a new device (over Bluetooth) while the device is installing (about 20 minutes). */
+fun S.appShellSetupLeaveTitle(): UiText =
+    UiText.Res(R.string.app_shell_setup_leave_title)
+
 /** "Looking for a device to set up…": Set up a new device (over Bluetooth): heading while the phone looks for a device announcing its setup over Bluetooth. */
 fun S.appShellSetupLooking(): UiText =
     UiText.Res(R.string.app_shell_setup_looking)
@@ -449,6 +477,10 @@ fun S.appShellSetupLooking(): UiText =
 /** "Set up a new device": Button on the first screen of the app that sets up a device fresh out of the box over Bluetooth, and the title of that setup screen. */
 fun S.appShellSetupNewDevice(): UiText =
     UiText.Res(R.string.app_shell_setup_new_device)
+
+/** "No device found yet. Check that it's on, with its disks connected, and keep the phone next to it.": Set up a new device (over Bluetooth): under the heading Looking for a device to set up… once the phone has looked for half a minute without finding one, in place of app.shell.setup_power_on. It goes on looking. */
+fun S.appShellSetupNotFound(): UiText =
+    UiText.Res(R.string.app_shell_setup_not_found)
 
 /** "Open my device": Set up a new device (over Bluetooth): button once the device is installed, which signs the app in to it. */
 fun S.appShellSetupOpenDevice(): UiText =

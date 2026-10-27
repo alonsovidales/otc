@@ -14,6 +14,7 @@
 
 import SwiftUI
 import UIKit
+import ImageIO
 
 /// A picked photo waiting to be cropped. Identifiable so it can drive
 /// fullScreenCover(item:).
@@ -21,22 +22,34 @@ struct ProfilePhotoCropItem: Identifiable {
     let id = UUID()
     let image: UIImage
 
-    /// Decodes the picked data, bakes in its EXIF orientation and downscales
-    /// anything with a longest side over 2048 px so the crop view doesn't
-    /// hold a full-resolution camera photo in memory.
-    init?(data: Data) {
-        guard let src = UIImage(data: data) else { return nil }
-        let px = CGSize(width: src.size.width * src.scale, height: src.size.height * src.scale)
-        guard px.width > 0, px.height > 0 else { return nil }
-        let k = min(1, 2048 / max(px.width, px.height))
-        let size = CGSize(width: (px.width * k).rounded(), height: (px.height * k).rounded())
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = true
-        // draw(in:) applies imageOrientation, so the result is always .up.
-        image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            src.draw(in: CGRect(origin: .zero, size: size))
-        }
+    init(image: UIImage) {
+        self.image = image
+    }
+
+    /// The picked data, made a crop item off the main thread (`make`
+    /// below): decoding a full-resolution camera photo there held the
+    /// screen still.
+    static func make(from data: Data) async -> ProfilePhotoCropItem? {
+        let image = await Task.detached(priority: .userInitiated) { downscaled(data) }.value
+        return image.map(ProfilePhotoCropItem.init(image:))
+    }
+
+    /// Decodes the picked data with its EXIF orientation baked in, at most
+    /// 2048 px on its longest side, so the crop view doesn't hold a
+    /// full-resolution camera photo in memory - ImageIO's thumbnail, which
+    /// never decodes the whole photo first.
+    nonisolated static func downscaled(_ data: Data, maxPixels: Int = 2048) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
+              cg.width > 0, cg.height > 0 else { return nil }
+        // Scale 1 and .up, as the crop's arithmetic expects.
+        return UIImage(cgImage: cg, scale: 1, orientation: .up)
     }
 }
 

@@ -9,6 +9,8 @@
     <string name="android_ble_send_failed">Não foi possível enviar para o dispositivo</string>
     <string name="android_bluetooth_needed_hint">Permite «Dispositivos próximos» para o Off The Cloud em Definições para configurares um dispositivo desta forma.</string>
     <string name="android_bluetooth_off_hint">Ativa o Bluetooth para encontrar o dispositivo.</string>
+    <string name="android_bluetooth_scan_failed">Não foi possível começar a procurar dispositivos. Desativa e volta a ativar o Bluetooth.</string>
+    <string name="android_bluetooth_turn_on">Ativar o Bluetooth</string>
     <plurals name="android_cache_bytes">
         <item quantity="one">%1$s byte</item>
         <item quantity="many">%1$s bytes</item>
@@ -22,7 +24,6 @@
     <string name="android_download_empty_piece">o dispositivo enviou uma parte vazia do ficheiro</string>
     <string name="android_download_wrong_piece">o dispositivo enviou a parte errada do ficheiro</string>
     <string name="android_files_allow_deletions">Permitir eliminações</string>
-    <string name="android_files_cannot_read">não é possível ler %1$s</string>
     <string name="android_files_folder_update_failed_detail">Não foi possível atualizar a pasta: %1$s</string>
     <string name="android_files_gallery_clip_label">Ligação da galeria partilhada</string>
     <string name="android_files_gallery_copy_failed">A cópia falhou</string>
@@ -63,9 +64,11 @@
     <string name="android_friends_remove_now">Remover agora</string>
     <string name="android_friends_remove_now_title_unnamed">Remover esta amizade agora?</string>
     <string name="android_friends_remove_title_unnamed">Remover esta amizade?</string>
+    <string name="android_location_off_hint">A localização está desativada. Nesta versão do Android, o telemóvel só encontra dispositivos Bluetooth com a localização ativada.</string>
     <string name="android_menu_sections">Secções</string>
     <string name="android_notification_channel">Amigos e publicações</string>
     <string name="android_notification_channel_description">Pedidos de amizade, novas publicações, gostos e comentários</string>
+    <string name="android_open_settings">Abrir Definições</string>
     <string name="android_photos_open_in_maps">Abrir numa app de mapas (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Voltar às fotos</string>
     <string name="android_photos_people_deleting">%1$s de %2$s</string>
@@ -125,14 +128,6 @@
     <string name="android_signal_good">Sinal bom</string>
     <string name="android_signal_strong">Sinal forte</string>
     <string name="android_signal_weak">Sinal fraco</string>
-    <string name="android_social_delete_comment">Eliminar comentário</string>
-    <string name="android_social_like">Pôr Gosto</string>
-    <string name="android_social_like_comment">Pôr Gosto no comentário</string>
-    <string name="android_social_mute">Desativar som</string>
-    <string name="android_social_play">Reproduzir</string>
-    <string name="android_social_replay">Reproduzir novamente</string>
-    <string name="android_social_unlike">Retirar Gosto</string>
-    <string name="android_social_unlike_comment">Retirar Gosto do comentário</string>
     <string name="android_storage_gauge">Armazenamento. Mostrar detalhes</string>
     <string name="android_storage_gauge_attention">Armazenamento, requer atenção. Mostrar detalhes</string>
     <string name="android_storage_gauge_used">Armazenamento, %1$s em uso. Mostrar detalhes</string>

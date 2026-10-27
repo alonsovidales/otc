@@ -25,6 +25,33 @@ final class FriendshipsViewModel: ObservableObject {
     @Published var loadingFriendships = false
 
     @Published var toast: FriendsToast?
+    /// This device's own address (pit.off-the.cloud), shown at the top to
+    /// hand to friends; nil: not known.
+    @Published private(set) var ownAddress: String?
+
+    /// The address friends type to reach this device: the bridge name the
+    /// phone connects to, at once, then the device's own word for it
+    /// (Settings.domain) - none for a device without the bridge.
+    func loadOwnAddress() async {
+        if ownAddress == nil {
+            // Off the main actor: synchronous Keychain reads.
+            let endpoint = await Task.detached(priority: .userInitiated) { SecretsStore.loadOrCreate().endpoint }.value
+            if ownAddress == nil, let name = SecretsStore.bridgeName(fromEndpoint: endpoint) {
+                ownAddress = name + "." + SecretsStore.bridgeDomain
+            }
+        }
+        if let resp = try? await ws.request({ $0.payload = .reqGetSettings(Msg_GetSettings()) }),
+           case .respSettings(let settings) = resp.payload, !settings.domain.isEmpty {
+            ownAddress = settings.domain
+        }
+    }
+
+    /// Copy, beside the address: put on the clipboard, and said.
+    func copyOwnAddress() {
+        guard let ownAddress else { return }
+        UIPasteboard.general.string = ownAddress
+        showToast(.addressCopied)
+    }
 
     func reloadFriendships() async {
         loadingFriendships = true
@@ -167,6 +194,7 @@ enum FriendsToast: Equatable {
     case statusUpdated, updateFailed, updateError
     case requestCancelled, requestDeleted, deleteFailed, deleteError
     case waitingForTheirDevice, removed, removeFailed, removeError
+    case addressCopied
     /// The device's own words, already in the app's language.
     case device(String)
 
@@ -190,6 +218,7 @@ enum FriendsToast: Equatable {
         case .removed: return S.appSocialFriendsRemoved
         case .removeFailed: return S.appSocialFriendsRemoveFailed
         case .removeError: return S.appSocialFriendsRemoveError
+        case .addressCopied: return S.appSocialFriendsAddressCopied
         case .device(let words): return words
         }
     }
@@ -211,6 +240,25 @@ struct FriendshipsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // What to hand a friend: this device's address, to copy or
+                // share (a message saying to add it).
+                if let address = vm.ownAddress {
+                    Section {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) {
+                                Text(S.appSocialFriendsYourAddress(address: address)).fixedSize()
+                                Spacer(minLength: 0)
+                                ownAddressButtons(address)
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(S.appSocialFriendsYourAddress(address: address))
+                                HStack(spacing: 16) { ownAddressButtons(address) }
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+
                 // Requests waiting for an answer come first: a tapped
                 // friend-request alert lands here to answer it.
                 // Issue #174: a leaving friendship is never waiting for an
@@ -262,6 +310,13 @@ struct FriendshipsView: View {
                             .disableAutocorrection(true)
                             .keyboardType(.URL)
                             .multilineTextAlignment(.trailing)
+                            // The keyboard's Send sends it, as the button
+                            // beside it.
+                            .submitLabel(.send)
+                            .onSubmit {
+                                guard !vm.sendingRequest, !vm.targetDomain.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                                Task { await vm.sendFriendRequest() }
+                            }
                         Text(verbatim: ".\(SecretsStore.bridgeDomain)")
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -329,6 +384,17 @@ struct FriendshipsView: View {
             }
         }
         .task { await vm.reloadFriendships() }
+        .task { await vm.loadOwnAddress() }
+    }
+
+    @ViewBuilder
+    private func ownAddressButtons(_ address: String) -> some View {
+        Button { vm.copyOwnAddress() } label: {
+            Label(S.appSocialFriendsCopyAddress, systemImage: "doc.on.doc")
+        }
+        ShareLink(item: S.appSocialFriendsShareText(address: address)) {
+            Label(S.commonShare, systemImage: "square.and.arrow.up")
+        }
     }
 }
 
@@ -657,17 +723,88 @@ private struct FlowRow: Layout {
 }
 
 /// Shared avatar rendering — used by the profile editor and the friends list.
-@ViewBuilder
 func avatarView(data: Data?, size: CGFloat) -> some View {
-    Group {
-        if let data, let ui = UIImage(data: data) {
-            Image(uiImage: ui).resizable().scaledToFill()
-        } else {
-            Image(systemName: "person.crop.circle.fill")
-                .resizable()
-                .foregroundColor(.secondary)
-        }
+    AvatarImage(data: data, size: size)
+}
+
+/// An avatar, decoded off the main thread and kept (DecodedImages): it used
+/// to be decoded again in every pass of every body that shows it.
+private struct AvatarImage: View {
+    let data: Data?
+    let size: CGFloat
+    @State private var image: UIImage?
+
+    init(data: Data?, size: CGFloat) {
+        self.data = data
+        self.size = size
+        _image = State(initialValue: DecodedImages.cached(data))
     }
-    .frame(width: size, height: size)
-    .clipShape(Circle())
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .task(id: data) { image = await DecodedImages.image(data) }
+    }
+}
+
+/// Small images that come as bytes - avatars, Alerts' thumbnails - decoded
+/// off the main thread, ready to draw, and kept by their bytes (an NSData
+/// key compares by content), so the same avatar down a list is decoded
+/// once.
+@MainActor
+enum DecodedImages {
+    private static let images: NSCache<NSData, UIImage> = {
+        let cache = NSCache<NSData, UIImage>()
+        cache.countLimit = 400
+        cache.totalCostLimit = 32 << 20
+        return cache
+    }()
+
+    /// Already decoded, or nil: never decodes.
+    static func cached(_ data: Data?) -> UIImage? {
+        guard let data, !data.isEmpty else { return nil }
+        return images.object(forKey: data as NSData)
+    }
+
+    static func image(_ data: Data?) async -> UIImage? {
+        guard let data, !data.isEmpty else { return nil }
+        if let hit = cached(data) { return hit }
+        let ui = await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            guard let image = UIImage(data: data) else { return nil }
+            return image.preparingForDisplay() ?? image
+        }.value
+        if let ui {
+            let cost = Int(ui.size.width * ui.scale * ui.size.height * ui.scale) * 4
+            images.setObject(ui, forKey: data as NSData, cost: cost)
+        }
+        return ui
+    }
+}
+
+/// A small image from bytes (Alerts' thumbnail of what it is about), decoded
+/// off the main thread (DecodedImages); nothing while it isn't.
+struct DecodedImage: View {
+    let data: Data
+    @State private var image: UIImage?
+
+    init(data: Data) {
+        self.data = data
+        _image = State(initialValue: DecodedImages.cached(data))
+    }
+
+    var body: some View {
+        Group {
+            if let image { Image(uiImage: image).resizable() } else { Color.clear }
+        }
+        .task(id: data) { image = await DecodedImages.image(data) }
+    }
 }

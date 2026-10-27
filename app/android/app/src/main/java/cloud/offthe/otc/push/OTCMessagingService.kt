@@ -25,6 +25,9 @@ class OTCMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        // Something new on the device: the unread count (and Alerts' list,
+        // while it shows) now, not at the next round of the poll.
+        cloud.offthe.otc.data.NotificationsModel.pushArrived()
         val n = message.notification ?: return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val open = Intent(this, MainActivity::class.java)

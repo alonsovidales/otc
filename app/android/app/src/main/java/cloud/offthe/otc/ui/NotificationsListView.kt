@@ -13,6 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,7 +55,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cloud.offthe.otc.data.AlertsBody
 import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.data.alertsBody
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.RichText
 import cloud.offthe.otc.i18n.S
@@ -58,12 +71,19 @@ import cloud.offthe.otc.i18n.appSocialAlertsFriendAccepted
 import cloud.offthe.otc.i18n.appSocialAlertsFriendRequest
 import cloud.offthe.otc.i18n.appSocialAlertsLikedComment
 import cloud.offthe.otc.i18n.appSocialAlertsLikedPost
+import cloud.offthe.otc.i18n.appSocialAlertsLoadFailed
 import cloud.offthe.otc.i18n.appSocialAlertsTitle
 import cloud.offthe.otc.i18n.commonAccept
 import cloud.offthe.otc.proto.Notification
 import cloud.offthe.otc.proto.NotificationType
 import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.LoadSubject
+import cloud.offthe.otc.ui.common.TRYING
+import cloud.offthe.otc.ui.common.TRY_AGAIN
+import cloud.offthe.otc.ui.common.Toast
+import cloud.offthe.otc.ui.common.loadProblemText
 import cloud.offthe.otc.ui.common.relativeTime
+import cloud.offthe.otc.ui.common.rememberMinuteClock
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
@@ -77,10 +97,19 @@ import androidx.compose.ui.text.font.FontFamily
 fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
     val list by model.notifications.collectAsState()
     val loading by model.loadingList.collectAsState()
+    val problem by model.loadProblem.collectAsState()
+    val notice by model.notice.collectAsState()
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
+    // "3m ago", reckoned again every minute while Alerts shows.
+    val now = rememberMinuteClock()
 
     LaunchedEffect(Unit) { model.openPanel() }
+    // A list that failed is asked for again while Alerts shows, not after.
+    DisposableEffect(Unit) {
+        model.panelShown(true)
+        onDispose { model.panelShown(false) }
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text(S.appSocialAlertsTitle().resolve()) }) }) { pad ->
         PullToRefreshBox(
@@ -88,19 +117,38 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
             onRefresh = { scope.launch { refreshing = true; model.openPanel(); refreshing = false } },
             modifier = Modifier.padding(pad).fillMaxSize(),
         ) {
-            when {
-                loading && list.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                list.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            when (alertsBody(list.isEmpty(), loading, problem)) {
+                AlertsBody.LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                // Why it isn't here, with Try again (it used to read "Nothing yet").
+                AlertsBody.PROBLEM -> Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(S.appSocialAlertsLoadFailed().resolve(), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                    problem?.let { p ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            loadProblemText(p, LoadSubject.ALERTS).resolve(), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                            modifier = Modifier.widthIn(max = 360.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    TextButton(onClick = { model.retryList() }, enabled = !loading) { Text((if (loading) TRYING else TRY_AGAIN).resolve()) }
+                }
+                AlertsBody.EMPTY -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(S.appSocialAlertsEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                else -> LazyColumn(Modifier.fillMaxSize()) {
+                AlertsBody.LIST -> LazyColumn(Modifier.fillMaxSize()) {
                     items(list, key = { it.uuid }) { n ->
-                        if (n.type == NotificationType.NotificationError) ErrorRow(n)
-                        else if (n.type == NotificationType.NotificationUpdate) UpdateRow(n) { model.handleTap(n) }
-                        else NotificationRow(n, model) { model.handleTap(n) }
+                        if (n.type == NotificationType.NotificationError) ErrorRow(n, now)
+                        else if (n.type == NotificationType.NotificationUpdate) UpdateRow(n, now) { model.handleTap(n) }
+                        else NotificationRow(n, model, now) { model.handleTap(n) }
                     }
                 }
             }
+            // An Accept the device didn't take: why, at the top.
+            Toast(notice?.resolve(), Modifier.align(Alignment.TopCenter))
         }
     }
 }
@@ -122,7 +170,7 @@ private fun describe(n: Notification): RichText? {
 }
 
 @Composable
-private fun NotificationRow(n: Notification, model: NotificationsModel, onTap: () -> Unit) {
+private fun NotificationRow(n: Notification, model: NotificationsModel, now: Long, onTap: () -> Unit) {
     val awaiting by model.awaitingAnswer.collectAsState()
     val accepted by model.acceptedHere.collectAsState()
     val scope = rememberCoroutineScope()
@@ -138,7 +186,7 @@ private fun NotificationRow(n: Notification, model: NotificationsModel, onTap: (
             if (line != null) Text(line.resolve(mapOf("b" to boldTag)), style = MaterialTheme.typography.bodyMedium)
             else Text(n.actorName.ifEmpty { n.actorDomain }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             if (n.hasDt()) {
-                Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(relativeTime(n.dt.seconds * 1000, now), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (n.type == NotificationType.NotificationFriendRequest) {
@@ -162,7 +210,7 @@ private fun NotificationRow(n: Notification, model: NotificationsModel, onTap: (
  *  NotificationsBellView.swift). One line (the first error's) plus "+N
  *  more"; a tap shows every error's line, the phone's hover. */
 @Composable
-private fun ErrorRow(n: Notification) {
+private fun ErrorRow(n: Notification, now: Long) {
     var expanded by remember(n.uuid) { mutableStateOf(false) }
     val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
     Row(
@@ -181,7 +229,7 @@ private fun ErrorRow(n: Notification) {
             )
             else Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             if (n.hasDt()) {
-                Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(relativeTime(n.dt.seconds * 1000, now), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (expanded && n.details.isNotEmpty()) {
                 Text(n.details, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -196,7 +244,7 @@ private fun ErrorRow(n: Notification) {
 /** Issue #183: a device update (major or critical) - its title says which,
  *  its details what it changes; a tap opens Settings, where it installs. */
 @Composable
-private fun UpdateRow(n: Notification, onTap: () -> Unit) {
+private fun UpdateRow(n: Notification, now: Long, onTap: () -> Unit) {
     val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
     Row(
         Modifier.fillMaxWidth().background(bg).clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 10.dp),
@@ -212,7 +260,7 @@ private fun UpdateRow(n: Notification, onTap: () -> Unit) {
                 Text(n.details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             }
             if (n.hasDt()) {
-                Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(relativeTime(n.dt.seconds * 1000, now), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

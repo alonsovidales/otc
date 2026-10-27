@@ -192,7 +192,7 @@ final class DevicePhotoPickerVM: ObservableObject {
                     ? .asIs(resp.errorMessage) : .say { S.iosSettingsPickerLoadFailed }
                 return nil
             }
-            guard let crop = ProfilePhotoCropItem(data: f.content) else {
+            guard let crop = await ProfilePhotoCropItem.make(from: f.content) else {
                 errorText = .say { S.iosSettingsPickerOpenFailed }
                 return nil
             }

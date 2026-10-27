@@ -26,17 +26,17 @@ import cloud.offthe.otc.i18n.androidFriendsRemoveFriend
 import cloud.offthe.otc.i18n.androidFriendsRemoveNow
 import cloud.offthe.otc.i18n.androidFriendsRemoveNowTitleUnnamed
 import cloud.offthe.otc.i18n.androidFriendsRemoveTitleUnnamed
-import cloud.offthe.otc.i18n.androidSocialDeleteComment
-import cloud.offthe.otc.i18n.androidSocialLike
-import cloud.offthe.otc.i18n.androidSocialLikeComment
-import cloud.offthe.otc.i18n.androidSocialMute
-import cloud.offthe.otc.i18n.androidSocialPlay
-import cloud.offthe.otc.i18n.androidSocialReplay
-import cloud.offthe.otc.i18n.androidSocialUnlike
-import cloud.offthe.otc.i18n.androidSocialUnlikeComment
 import cloud.offthe.otc.i18n.androidTrimCant
 import cloud.offthe.otc.i18n.androidTrimPlayCut
 import cloud.offthe.otc.i18n.appShellNewPost
+import cloud.offthe.otc.i18n.appSocialPostDeleteCommentLabel
+import cloud.offthe.otc.i18n.appSocialPostLike
+import cloud.offthe.otc.i18n.appSocialPostLikeComment
+import cloud.offthe.otc.i18n.appSocialPostMute
+import cloud.offthe.otc.i18n.appSocialPostPlay
+import cloud.offthe.otc.i18n.appSocialPostReplay
+import cloud.offthe.otc.i18n.appSocialPostUnlike
+import cloud.offthe.otc.i18n.appSocialPostUnlikeComment
 import cloud.offthe.otc.i18n.appShellSectionFriends
 import cloud.offthe.otc.i18n.appSocialAlertsCommented
 import cloud.offthe.otc.i18n.appSocialAlertsEmpty
@@ -260,23 +260,23 @@ class SocialTextTest {
         )
         assertEquals("User", S.appSocialPostUnnamed().english())
         assertEquals("Delete Post", S.appSocialPostDeletePost().english())
-        assertEquals("Unlike", S.androidSocialUnlike().english())
-        assertEquals("Like", S.androidSocialLike().english())
+        assertEquals("Unlike", S.appSocialPostUnlike().english())
+        assertEquals("Like", S.appSocialPostLike().english())
         // "${post.likes} like${if (post.likes == 1) "" else "s"}"
         assertEquals("1 like", S.appSocialPostLikes(1).english())
         assertEquals("2 likes", S.appSocialPostLikes(2).english())
         assertEquals("0 likes", S.appSocialPostLikes(0).english())
-        assertEquals("Unlike comment", S.androidSocialUnlikeComment().english())
-        assertEquals("Like comment", S.androidSocialLikeComment().english())
-        assertEquals("Delete comment", S.androidSocialDeleteComment().english())
+        assertEquals("Unlike comment", S.appSocialPostUnlikeComment().english())
+        assertEquals("Like comment", S.appSocialPostLikeComment().english())
+        assertEquals("Delete comment", S.appSocialPostDeleteCommentLabel().english())
         assertEquals("Add a comment…", S.appSocialPostCommentPlaceholder().english())
         assertEquals("Post", S.appSocialPostSendComment().english())
         assertEquals("Delete this post?", S.appSocialPostDeletePostTitle().english())
         assertEquals("Delete this comment?", S.appSocialPostDeleteCommentTitle().english())
         assertEquals("Delete Comment", S.appSocialPostDeleteComment().english())
-        assertEquals("Play", S.androidSocialPlay().english())
-        assertEquals("Replay", S.androidSocialReplay().english())
-        assertEquals("Mute", S.androidSocialMute().english())
+        assertEquals("Play", S.appSocialPostPlay().english())
+        assertEquals("Replay", S.appSocialPostReplay().english())
+        assertEquals("Mute", S.appSocialPostMute().english())
         assertEquals("Likes", S.appSocialLikesTitle().english())
         assertEquals("No likes yet", S.appSocialLikesEmpty().english())
         // withStyle(bold) { append(publisher) }; append(": " + comment)

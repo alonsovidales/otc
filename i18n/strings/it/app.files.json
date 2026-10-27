@@ -17,6 +17,10 @@
     "text": "Torna a {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "impossibile leggere {name}",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "Disattiva “Solo caricamento”",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Questo file si trova in una cartella in solo caricamento: non può essere eliminato, e caricarlo di nuovo ne conserva la versione precedente. Il lucchetto sulla cartella cambia questa impostazione.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "Caricamento {done} di {total}…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Nulla in questa cartella occupa spazio.",

@@ -159,7 +159,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .list]
+        // Something new on the device: the unread count (and Alerts' list,
+        // while it shows) now, not at the next round of the poll.
+        await MainActor.run { NotificationsModel.shared.pushArrived() }
+        return [.banner, .sound, .list]
     }
 
     func application(

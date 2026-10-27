@@ -1,4 +1,8 @@
 {
+  "app.social.alerts.accept_failed": {
+    "text": "Kan het vriendschapsverzoek niet accepteren",
+    "en": "Couldn't accept the friend request"
+  },
   "app.social.alerts.commented": {
     "text": "<b>{name}</b> heeft gereageerd op je bericht",
     "en": "<b>{name}</b> commented on your post"
@@ -33,6 +37,10 @@
     "text": "<b>{name}</b> vindt je bericht leuk",
     "en": "<b>{name}</b> liked your post"
   },
+  "app.social.alerts.load_failed": {
+    "text": "Kan je meldingen niet laden",
+    "en": "Couldn't load your notifications"
+  },
   "app.social.alerts.title": {
     "text": "Meldingen",
     "en": "Notifications"
@@ -40,6 +48,10 @@
   "app.social.compose.camera": {
     "text": "Foto of video maken",
     "en": "Take a photo or video"
+  },
+  "app.social.compose.caption_needed": {
+    "text": "Voeg een bijschrift toe om te publiceren",
+    "en": "Add a caption to publish"
   },
   "app.social.compose.caption_placeholder": {
     "text": "Schrijf een bijschrift…",
@@ -117,6 +129,10 @@
     "text": "Vrienden toevoegen",
     "en": "Add a friend"
   },
+  "app.social.friends.address_copied": {
+    "text": "Adres gekopieerd",
+    "en": "Address copied"
+  },
   "app.social.friends.ask_theirs": {
     "text": "Het apparaat van {name} vragen om te verwijderen wat ik heb gedeeld",
     "en": "Ask {name}'s device to delete what I shared",
@@ -149,6 +165,10 @@
   "app.social.friends.cancel_request_button": {
     "text": "Verzoek intrekken",
     "en": "Cancel Request"
+  },
+  "app.social.friends.copy_address": {
+    "text": "Kopiëren",
+    "en": "Copy"
   },
   "app.social.friends.delete_confirm_text": {
     "text": "Het verzoek wordt hier en op het apparaat van de afzender verwijderd.",
@@ -270,6 +290,10 @@
     "text": "Fout bij het versturen van het verzoek",
     "en": "Error sending request"
   },
+  "app.social.friends.share_text": {
+    "text": "Voeg me toe als vriend op Off The Cloud: {address}",
+    "en": "Add me as a friend on Off The Cloud: {address}"
+  },
   "app.social.friends.status_accepted": {
     "text": "Geaccepteerd",
     "en": "Accepted"
@@ -326,6 +350,10 @@
     "text": "Wachten op hun apparaat",
     "en": "Waiting for their device"
   },
+  "app.social.friends.your_address": {
+    "text": "Je adres: {address}",
+    "en": "Your address: {address}"
+  },
   "app.social.likes.empty": {
     "text": "Nog geen likes",
     "en": "No likes yet"
@@ -337,6 +365,10 @@
   "app.social.post.comment": {
     "text": "<b>{name}</b>: {comment}",
     "en": "<b>{name}</b>: {comment}"
+  },
+  "app.social.post.comment_failed": {
+    "text": "Kan je reactie niet plaatsen",
+    "en": "Couldn't post your comment"
   },
   "app.social.post.comment_placeholder": {
     "text": "Schrijf een reactie…",
@@ -351,10 +383,22 @@
     "en": "Delete Comment",
     "reviewed": "claude-backtranslation 2026-10-11 #4bc2326f"
   },
+  "app.social.post.delete_comment_failed": {
+    "text": "Kan de reactie niet verwijderen",
+    "en": "Couldn't delete the comment"
+  },
+  "app.social.post.delete_comment_label": {
+    "text": "Reactie verwijderen",
+    "en": "Delete comment"
+  },
   "app.social.post.delete_comment_title": {
     "text": "Deze reactie verwijderen?",
     "en": "Delete this comment?",
     "reviewed": "claude-backtranslation 2026-10-11 #0d359007"
+  },
+  "app.social.post.delete_failed": {
+    "text": "Kan het bericht niet verwijderen",
+    "en": "Couldn't delete the post"
   },
   "app.social.post.delete_post": {
     "text": "Bericht verwijderen",
@@ -366,6 +410,14 @@
     "en": "Delete this post?",
     "reviewed": "claude-backtranslation 2026-10-11 #c6883dff"
   },
+  "app.social.post.like": {
+    "text": "Vind ik leuk",
+    "en": "Like"
+  },
+  "app.social.post.like_comment": {
+    "text": "Reactie leuk vinden",
+    "en": "Like comment"
+  },
   "app.social.post.likes": {
     "text": {
       "one": "{count} like",
@@ -376,9 +428,33 @@
       "other": "{count} likes"
     }
   },
+  "app.social.post.more_options": {
+    "text": "Meer opties voor dit bericht",
+    "en": "More options for this post"
+  },
+  "app.social.post.mute": {
+    "text": "Dempen",
+    "en": "Mute"
+  },
+  "app.social.post.play": {
+    "text": "Afspelen",
+    "en": "Play"
+  },
+  "app.social.post.replay": {
+    "text": "Opnieuw afspelen",
+    "en": "Replay"
+  },
   "app.social.post.send_comment": {
     "text": "Plaatsen",
     "en": "Post"
+  },
+  "app.social.post.unlike": {
+    "text": "Vind ik niet meer leuk",
+    "en": "Unlike"
+  },
+  "app.social.post.unlike_comment": {
+    "text": "Reactie niet meer leuk vinden",
+    "en": "Unlike comment"
   },
   "app.social.post.unnamed": {
     "text": "Gebruiker",

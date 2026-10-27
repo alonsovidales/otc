@@ -27,6 +27,14 @@
     "text": "Activez le Bluetooth pour trouver l’appareil.",
     "en": "Turn Bluetooth on to find the device."
   },
+  "android.bluetooth_scan_failed": {
+    "text": "Impossible de lancer la recherche d’appareils. Désactivez puis réactivez le Bluetooth.",
+    "en": "Couldn't start looking for devices. Turn Bluetooth off and on again."
+  },
+  "android.bluetooth_turn_on": {
+    "text": "Activer le Bluetooth",
+    "en": "Turn on Bluetooth"
+  },
   "android.cache_bytes": {
     "text": {
       "one": "{count} octet",
@@ -69,10 +77,6 @@
     "text": "Autoriser les suppressions",
     "en": "Allow deletions",
     "reviewed": "claude-backtranslation 2026-10-11 #05581ce6"
-  },
-  "android.files.cannot_read": {
-    "text": "impossible de lire {uri}",
-    "en": "cannot read {uri}"
   },
   "android.files.folder_update_failed_detail": {
     "text": "Impossible de mettre à jour le dossier : {detail}",
@@ -224,6 +228,10 @@
     "en": "Remove this friend?",
     "reviewed": "claude-backtranslation 2026-10-11 #a52cb2eb"
   },
+  "android.location_off_hint": {
+    "text": "La localisation est désactivée. Sur cette version d’Android, le téléphone ne trouve les appareils Bluetooth qu’avec la localisation activée.",
+    "en": "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on."
+  },
   "android.menu_sections": {
     "text": "Sections",
     "en": "Sections"
@@ -235,6 +243,10 @@
   "android.notification_channel_description": {
     "text": "Demandes d’ami, nouvelles publications, J’aime et commentaires",
     "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.open_settings": {
+    "text": "Ouvrir les Paramètres",
+    "en": "Open Settings"
   },
   "android.photos_open_in_maps": {
     "text": "Ouvrir dans Maps ({latitude}, {longitude})",
@@ -445,38 +457,6 @@
   "android.signal_weak": {
     "text": "Signal faible",
     "en": "Weak signal"
-  },
-  "android.social_delete_comment": {
-    "text": "Supprimer le commentaire",
-    "en": "Delete comment"
-  },
-  "android.social_like": {
-    "text": "J’aime",
-    "en": "Like"
-  },
-  "android.social_like_comment": {
-    "text": "J’aime le commentaire",
-    "en": "Like comment"
-  },
-  "android.social_mute": {
-    "text": "Couper le son",
-    "en": "Mute"
-  },
-  "android.social_play": {
-    "text": "Lire",
-    "en": "Play"
-  },
-  "android.social_replay": {
-    "text": "Revoir",
-    "en": "Replay"
-  },
-  "android.social_unlike": {
-    "text": "Je n’aime plus",
-    "en": "Unlike"
-  },
-  "android.social_unlike_comment": {
-    "text": "Je n’aime plus le commentaire",
-    "en": "Unlike comment"
   },
   "android.storage_gauge": {
     "text": "Stockage. Afficher les détails",

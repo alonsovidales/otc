@@ -1,4 +1,8 @@
 {
+  "app.social.alerts.accept_failed": {
+    "text": "Die Freundschaftsanfrage konnte nicht angenommen werden",
+    "en": "Couldn't accept the friend request"
+  },
   "app.social.alerts.commented": {
     "text": "<b>{name}</b> hat deinen Beitrag kommentiert",
     "en": "<b>{name}</b> commented on your post"
@@ -33,6 +37,10 @@
     "text": "<b>{name}</b> gefällt dein Beitrag",
     "en": "<b>{name}</b> liked your post"
   },
+  "app.social.alerts.load_failed": {
+    "text": "Deine Benachrichtigungen konnten nicht geladen werden",
+    "en": "Couldn't load your notifications"
+  },
   "app.social.alerts.title": {
     "text": "Benachrichtigungen",
     "en": "Notifications"
@@ -40,6 +48,10 @@
   "app.social.compose.camera": {
     "text": "Foto oder Video aufnehmen",
     "en": "Take a photo or video"
+  },
+  "app.social.compose.caption_needed": {
+    "text": "Füge eine Bildunterschrift hinzu, um zu veröffentlichen",
+    "en": "Add a caption to publish"
   },
   "app.social.compose.caption_placeholder": {
     "text": "Bildunterschrift…",
@@ -117,6 +129,10 @@
     "text": "Freunde hinzufügen",
     "en": "Add a friend"
   },
+  "app.social.friends.address_copied": {
+    "text": "Adresse kopiert",
+    "en": "Address copied"
+  },
   "app.social.friends.ask_theirs": {
     "text": "Das Gerät von {name} bitten, alles zu löschen, was ich geteilt habe",
     "en": "Ask {name}'s device to delete what I shared",
@@ -149,6 +165,10 @@
   "app.social.friends.cancel_request_button": {
     "text": "Anfrage zurückziehen",
     "en": "Cancel Request"
+  },
+  "app.social.friends.copy_address": {
+    "text": "Kopieren",
+    "en": "Copy"
   },
   "app.social.friends.delete_confirm_text": {
     "text": "Die Anfrage wird hier und auf dem Gerät der Person entfernt, die sie gesendet hat.",
@@ -270,6 +290,10 @@
     "text": "Fehler beim Senden der Anfrage",
     "en": "Error sending request"
   },
+  "app.social.friends.share_text": {
+    "text": "Füge mich als Freund auf Off The Cloud hinzu: {address}",
+    "en": "Add me as a friend on Off The Cloud: {address}"
+  },
   "app.social.friends.status_accepted": {
     "text": "Angenommen",
     "en": "Accepted"
@@ -326,6 +350,10 @@
     "text": "Warten auf das Gerät der Person",
     "en": "Waiting for their device"
   },
+  "app.social.friends.your_address": {
+    "text": "Deine Adresse: {address}",
+    "en": "Your address: {address}"
+  },
   "app.social.likes.empty": {
     "text": "Noch keine Likes",
     "en": "No likes yet"
@@ -337,6 +365,10 @@
   "app.social.post.comment": {
     "text": "<b>{name}</b>: {comment}",
     "en": "<b>{name}</b>: {comment}"
+  },
+  "app.social.post.comment_failed": {
+    "text": "Dein Kommentar konnte nicht gepostet werden",
+    "en": "Couldn't post your comment"
   },
   "app.social.post.comment_placeholder": {
     "text": "Kommentar schreiben…",
@@ -351,10 +383,22 @@
     "en": "Delete Comment",
     "reviewed": "claude-backtranslation 2026-10-11 #abdec92d"
   },
+  "app.social.post.delete_comment_failed": {
+    "text": "Der Kommentar konnte nicht gelöscht werden",
+    "en": "Couldn't delete the comment"
+  },
+  "app.social.post.delete_comment_label": {
+    "text": "Kommentar löschen",
+    "en": "Delete comment"
+  },
   "app.social.post.delete_comment_title": {
     "text": "Diesen Kommentar löschen?",
     "en": "Delete this comment?",
     "reviewed": "claude-backtranslation 2026-10-11 #f75460e9"
+  },
+  "app.social.post.delete_failed": {
+    "text": "Der Beitrag konnte nicht gelöscht werden",
+    "en": "Couldn't delete the post"
   },
   "app.social.post.delete_post": {
     "text": "Beitrag löschen",
@@ -366,6 +410,14 @@
     "en": "Delete this post?",
     "reviewed": "claude-backtranslation 2026-10-11 #5821df68"
   },
+  "app.social.post.like": {
+    "text": "Gefällt mir",
+    "en": "Like"
+  },
+  "app.social.post.like_comment": {
+    "text": "Kommentar mit „Gefällt mir“ markieren",
+    "en": "Like comment"
+  },
   "app.social.post.likes": {
     "text": {
       "one": "{count} Like",
@@ -376,9 +428,33 @@
       "other": "{count} likes"
     }
   },
+  "app.social.post.more_options": {
+    "text": "Weitere Optionen für diesen Beitrag",
+    "en": "More options for this post"
+  },
+  "app.social.post.mute": {
+    "text": "Stummschalten",
+    "en": "Mute"
+  },
+  "app.social.post.play": {
+    "text": "Abspielen",
+    "en": "Play"
+  },
+  "app.social.post.replay": {
+    "text": "Erneut abspielen",
+    "en": "Replay"
+  },
   "app.social.post.send_comment": {
     "text": "Posten",
     "en": "Post"
+  },
+  "app.social.post.unlike": {
+    "text": "„Gefällt mir“ entfernen",
+    "en": "Unlike"
+  },
+  "app.social.post.unlike_comment": {
+    "text": "„Gefällt mir“ für Kommentar entfernen",
+    "en": "Unlike comment"
   },
   "app.social.post.unnamed": {
     "text": "Benutzer",

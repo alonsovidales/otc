@@ -192,6 +192,10 @@
     "text": "Il dispositivo non risponde. Potrebbe essere spento, oppure la connessione potrebbe essere troppo lenta.",
     "en": "The device isn't answering. It may be off, or the connection may be too slow."
   },
+  "ios.open_settings": {
+    "text": "Apri Impostazioni",
+    "en": "Open Settings"
+  },
   "ios.photos_access_denied": {
     "text": "Accesso alle foto negato",
     "en": "Photos access denied"

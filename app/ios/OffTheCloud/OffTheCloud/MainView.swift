@@ -72,12 +72,21 @@ struct MainView: View {
         _windowSize = State(initialValue: window?.bounds.size ?? .zero)
     }
 
+    /// The "isn't available" or "can't connect" card lies over everything
+    /// (MainChrome): what is under it is out of VoiceOver's reach as well,
+    /// as Android clears its semantics.
+    private var covered: Bool { connection.statusCode != nil || showConnectionProblem }
+
     private var menu: WideLayout.Menu { WideLayout.menu(width: windowSize.width, open: menuOpen) }
     private var wide: Bool { menu != .none }
     private var fullWidth: Bool { windowSize.width >= WideLayout.fullWidth }
 
     var body: some View {
         layout
+            // Under a connection card: the bars and the menu too (the tabs
+            // are told through tabsCovered, as hiding the TabView leaves
+            // what they show reachable).
+            .accessibilityHidden(covered)
             .environment(\.wideLayout, wide)
             .environment(\.windowWidth, windowSize.width)
             .onGeometryChange(for: CGSize.self) { proxy in
@@ -170,7 +179,7 @@ struct MainView: View {
                         // Said to each tab (LazyTab): hiding the TabView
                         // itself leaves what its tabs show reachable.
                         tabs
-                            .environment(\.tabsCovered, wide && page != nil)
+                            .environment(\.tabsCovered, (wide && page != nil) || covered)
                         if wide, let page {
                             pageView(page)
                                 .background(Color(.systemBackground))

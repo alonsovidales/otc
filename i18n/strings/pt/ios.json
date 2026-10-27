@@ -192,6 +192,10 @@
     "text": "O dispositivo não está a responder. Pode estar desligado, ou a ligação pode estar demasiado lenta.",
     "en": "The device isn't answering. It may be off, or the connection may be too slow."
   },
+  "ios.open_settings": {
+    "text": "Abrir Definições",
+    "en": "Open Settings"
+  },
   "ios.photos_access_denied": {
     "text": "Acesso a Fotografias recusado",
     "en": "Photos access denied"

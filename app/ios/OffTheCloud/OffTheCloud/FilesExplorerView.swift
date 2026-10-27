@@ -140,6 +140,16 @@ final class FilesExplorerViewModel: ObservableObject {
     private var toasts = 0
     @Published var previewURL: URL?
     @Published var shareURL: URL?
+    /// The files picked to upload, while they go: "Uploading N of M" over
+    /// the bar, with Cancel (UploadQueue); nil: none.
+    @Published private(set) var uploadProgress: UploadProgress?
+    /// Picked files upload two at a time (Android's uploadSlots): each one
+    /// is hashed and read chunk by chunk as it goes.
+    private lazy var uploads = UploadQueue<UploadPick>(
+        slots: 2,
+        send: { [weak self] pick in await self?.upload(pick) },
+        onChange: { [weak self] progress in self?.uploadProgress = progress }
+    )
     // Issue #71: the only feedback a tap on a file used to get was however
     // long GetFile's round trip actually took - nothing changed on screen
     // in the meantime, so it looked stuck, and a user tapping again (or on
@@ -1144,19 +1154,51 @@ final class FilesExplorerViewModel: ObservableObject {
         return link.link
     }
 
+    /// One file picked to upload, and the path it goes to: the folder it
+    /// was picked into, read before it waits its turn (the owner may open
+    /// another folder meanwhile).
+    struct UploadPick {
+        let url: URL
+        let target: String
+    }
+
+    /// Files picked in the document picker, into the folder shown now: two
+    /// at a time, "Uploading N of M" meanwhile (UploadQueue).
+    func upload(picked urls: [URL]) {
+        uploads.add(urls.map { UploadPick(url: $0, target: joinPath(path, $0.lastPathComponent)) })
+    }
+
+    /// The progress line's Cancel: what waits never goes, what goes stops at
+    /// its next chunk; none of it is reported as failed. The folder is
+    /// listed again for the ones that made it.
+    func cancelUploads() {
+        uploads.cancel()
+        Task { await load() }
+    }
+
     /// Streams the file: hashed off the main actor in 4 MiB pieces, then
     /// sent chunk by chunk. Reading it whole (and hashing it here) put
     /// every picked file in memory at once and froze the UI - a few large
-    /// videos and iOS killed the app.
-    func upload(fileAt url: URL, filename: String) async {
-        let path = joinPath(path, filename)
-        // Unreadable (or a folder): skipped without a word, as before.
+    /// videos and iOS killed the app. Read through NSFileCoordinator, so a
+    /// file in iCloud Drive that isn't on the phone yet is downloaded
+    /// first; one that can't be read says so (it was skipped without a
+    /// word). A cancel stops it without a word.
+    private func upload(_ pick: UploadPick) async {
+        let url = pick.url
+        let path = pick.target
+        let name = url.lastPathComponent
+        // The picker's access to the file, for as long as it is read.
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let hash: String
         do {
-            hash = try await Task.detached(priority: .userInitiated) { try OTCConnection.sha256Hex(of: url) }.value
+            hash = try await Self.coordinatedHash(of: url)
         } catch {
+            if Task.isCancelled { return }
+            showToast { S.appFilesUploadFailed(detail: S.appFilesCannotRead(name: name)) }
             return
         }
+        if Task.isCancelled { return }
         do {
             // Issue #58: skip re-sending content the device already has
             // under some other path — see PhotoSync.swift's identical
@@ -1187,9 +1229,25 @@ final class FilesExplorerViewModel: ObservableObject {
                 showToast { S.appFilesUploadFailed(detail: words) }
             }
         } catch {
+            // Cancelled from the progress line: no failure to report.
+            if Task.isCancelled || error is CancellationError { return }
             showToast { S.appFilesUploadFailed(detail: error.localizedDescription) }
         }
         await load()
+    }
+
+    /// The file's SHA-256, read through NSFileCoordinator (an iCloud Drive
+    /// file not on the phone is downloaded for it), off the main actor.
+    nonisolated static func coordinatedHash(of url: URL) async throws -> String {
+        try await Task.detached(priority: .userInitiated) { () throws -> String in
+            var coordinatorError: NSError?
+            var result: Result<String, Error> = .failure(CocoaError(.fileReadUnknown))
+            NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: url, options: [.withoutChanges], error: &coordinatorError) { readURL in
+                result = Result { try OTCConnection.sha256Hex(of: readURL) }
+            }
+            if let coordinatorError { throw coordinatorError }
+            return try result.get()
+        }.value
     }
 
     /// Says a toast to VoiceOver, which never moves to it on its own - a
@@ -1458,6 +1516,21 @@ struct FilesExplorerView: View {
                             .refreshable { await vm.load() }
                         }
 
+                        // The files picked, while they go: how far along, and
+                        // Cancel.
+                        if let progress = vm.uploadProgress {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                Text(S.appFilesUploading(done: progress.done, total: progress.total))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
+                                Button(S.commonCancel) { vm.cancelUploads() }
+                                    .font(.footnote.weight(.semibold))
+                            }
+                            .padding(.horizontal)
+                            .padding(.top, 6)
+                        }
                         // Always shown here, unlike Images: Upload acts on the
                         // folder being browsed, not on a selection, so it needs
                         // somewhere to live when nothing is selected - and this is
@@ -1556,15 +1629,8 @@ struct FilesExplorerView: View {
         .onChange(of: vm.path) { _, newValue in pathField = newValue }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
-            for url in urls {
-                guard url.startAccessingSecurityScopedResource() else { continue }
-                // Kept open until this file's upload is done: it is read
-                // as it is sent now.
-                Task {
-                    defer { url.stopAccessingSecurityScopedResource() }
-                    await vm.upload(fileAt: url, filename: url.lastPathComponent)
-                }
-            }
+            // Two at a time, each file's access opened while it is read.
+            vm.upload(picked: urls)
         }
         .sheet(isPresented: Binding(get: { vm.previewURL != nil }, set: { if !$0 { vm.previewURL = nil } })) {
             if let url = vm.previewURL {

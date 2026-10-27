@@ -100,14 +100,15 @@ import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
-import cloud.offthe.otc.i18n.androidSocialDeleteComment
-import cloud.offthe.otc.i18n.androidSocialLike
-import cloud.offthe.otc.i18n.androidSocialLikeComment
-import cloud.offthe.otc.i18n.androidSocialMute
-import cloud.offthe.otc.i18n.androidSocialPlay
-import cloud.offthe.otc.i18n.androidSocialReplay
-import cloud.offthe.otc.i18n.androidSocialUnlike
-import cloud.offthe.otc.i18n.androidSocialUnlikeComment
+import cloud.offthe.otc.i18n.appSocialPostDeleteCommentLabel
+import cloud.offthe.otc.i18n.appSocialPostLike
+import cloud.offthe.otc.i18n.appSocialPostLikeComment
+import cloud.offthe.otc.i18n.appSocialPostMoreOptions
+import cloud.offthe.otc.i18n.appSocialPostMute
+import cloud.offthe.otc.i18n.appSocialPostPlay
+import cloud.offthe.otc.i18n.appSocialPostReplay
+import cloud.offthe.otc.i18n.appSocialPostUnlike
+import cloud.offthe.otc.i18n.appSocialPostUnlikeComment
 import cloud.offthe.otc.i18n.appShellNewPost
 import cloud.offthe.otc.i18n.appShellSectionFriends
 import cloud.offthe.otc.i18n.appSocialFeedEmptyText
@@ -133,7 +134,14 @@ import cloud.offthe.otc.ui.common.MORE_POSTS_PROBLEM
 import cloud.offthe.otc.ui.common.TRY_AGAIN
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import cloud.offthe.otc.net.byteSize
+import cloud.offthe.otc.ui.common.Toast
+import cloud.offthe.otc.ui.common.rememberMinuteClock
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.GetPublicationMedia
 import cloud.offthe.otc.proto.Profile
@@ -147,6 +155,7 @@ import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.compose.NewPostPickerView
 import cloud.offthe.otc.ui.theme.Ember
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -247,7 +256,7 @@ fun SocialFeedView(
     } else Feed(wide, st, listState, barHeight, refreshing, { refreshing = it }, onFriends = { onFriendsOpen(true) }, onNewPost = { showingPicker = true })
 
     if (showingPicker) {
-        NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { scope.launch { vm.loadFeed() } })
+        NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { vm.reload() })
     }
     if (friendsOpen && !wide) {
         // Fully open: half a sheet cut the list off, on the Fold's wide
@@ -279,6 +288,8 @@ private fun Feed(
     // over the post above it.
     val underBar by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
     val solidBar = TopAppBarDefaults.topAppBarColors().scrolledContainerColor
+    // The posts' "3m ago", reckoned again at every minute while the feed shows.
+    val now = rememberMinuteClock()
     Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
         // Issue #81 (as on iOS): the bar itself carries no title - the logo
         // is the feed's first row, so it scrolls away once reading starts.
@@ -338,11 +349,14 @@ private fun Feed(
                                 listState = listState,
                                 index = idx + 1,
                                 cap = postCap,
+                                now = now,
                                 isHighlighted = post.uuid == st.highlightPub,
                                 highlightCommentUuid = if (post.uuid == st.highlightPub) st.highlightComment else null,
                                 onLikePub = { scope.launch { vm.likePublication(post.uuid) } },
                                 onLikeComment = { c -> scope.launch { vm.likeComment(c) } },
-                                onComment = { text -> scope.launch { vm.addComment(post.uuid, text) } },
+                                // The feed's scope, not the card's: a card scrolled away
+                                // doesn't take its comment with it.
+                                onComment = { text, refused -> scope.launch { if (!vm.addComment(post.uuid, text)) refused() } },
                                 fetchPublicationLikers = { vm.fetchPublicationLikers(it) },
                                 fetchCommentLikers = { vm.fetchCommentLikers(it) },
                                 onDeletePub = { scope.launch { vm.deletePublication(post.uuid) } },
@@ -364,6 +378,8 @@ private fun Feed(
                     }
                 }
             }
+            // A comment or a delete the device didn't take: why, at the top.
+            Toast(st.notice?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = barHeight))
         }
     }
 
@@ -435,11 +451,13 @@ private fun PostCard(
     listState: LazyListState,
     index: Int,
     cap: Dp,
+    now: Long,
     isHighlighted: Boolean,
     highlightCommentUuid: String?,
     onLikePub: () -> Unit,
     onLikeComment: (String) -> Unit,
-    onComment: (String) -> Unit,
+    // The text, and what to do should the device not take it: put it back.
+    onComment: (String, () -> Unit) -> Unit,
     fetchPublicationLikers: suspend (String) -> List<Profile>,
     fetchCommentLikers: suspend (String) -> List<Profile>,
     onDeletePub: () -> Unit,
@@ -451,6 +469,14 @@ private fun PostCard(
     var commentPendingDelete by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     val side = 12.dp
+    // The field is cleared as the comment goes out; one the device didn't
+    // take comes back, unless something new was typed meanwhile.
+    fun sendComment() {
+        val text = commentText
+        if (text.isBlank()) return
+        commentText = ""
+        onComment(text) { if (commentText.isEmpty()) commentText = text }
+    }
 
     Column(Modifier.fillMaxWidth().background(if (isHighlighted) Color(0x1FFFEB3B) else Color.Transparent)) {
         // The header and the Spacer under it: HeaderOverMedia measures them
@@ -461,11 +487,11 @@ private fun PostCard(
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(post.publisher.name.ifEmpty { S.appSocialPostUnnamed().resolve() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    if (post.hasDateTime()) Text(relativeTime(post.dateTime.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (post.hasDateTime()) Text(relativeTime(post.dateTime.seconds * 1000, now), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (post.own) {
                     Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, S.appSocialPostMoreOptions().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) }, onClick = { menu = false; confirmDeletePost = true })
                         }
@@ -481,8 +507,9 @@ private fun PostCard(
         } else header()
 
         Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp)) {
-                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (post.liked) S.androidSocialUnlike() else S.androidSocialLike()).resolve(), tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
+            // Liked is said as selected too, as on iOS.
+            IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp).semantics { selected = post.liked }) {
+                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (post.liked) S.appSocialPostUnlike() else S.appSocialPostLike()).resolve(), tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
             }
         }
         if (post.likes > 0) {
@@ -501,18 +528,23 @@ private fun PostCard(
                 Text((if (c.publisher.isEmpty()) S.appSocialPostCommentUnnamed(c.comment) else S.appSocialPostComment(c.publisher, c.comment)).resolve(commentTags), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
-                IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp)) {
-                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.androidSocialUnlikeComment() else S.androidSocialLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp).semantics { selected = c.liked }) {
+                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.appSocialPostUnlikeComment() else S.appSocialPostLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
                 if (post.own || c.own) IconButton(onClick = { commentPendingDelete = c.commentUuid }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Delete, S.androidSocialDeleteComment().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Delete, S.appSocialPostDeleteCommentLabel().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }
 
         Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            OTCTextField(value = commentText, onValueChange = { commentText = it }, placeholder = { Text(S.appSocialPostCommentPlaceholder().resolve()) }, singleLine = true, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onComment(commentText); commentText = "" }, enabled = commentText.isNotBlank()) { Text(S.appSocialPostSendComment().resolve()) }
+            OTCTextField(
+                value = commentText, onValueChange = { commentText = it }, placeholder = { Text(S.appSocialPostCommentPlaceholder().resolve()) }, singleLine = true,
+                // The keyboard's Send posts it, as the button beside it.
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { sendComment() }),
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = ::sendComment, enabled = commentText.isNotBlank()) { Text(S.appSocialPostSendComment().resolve()) }
         }
     }
 
@@ -620,6 +652,17 @@ private fun MediaContent(post: SocialPublication, file: PbFile, playing: Boolean
     }
 }
 
+/**
+ * Without a stream URL (an older device, or the device declining) the
+ * feed asks for the whole video in one message (GetPublicationMedia): held
+ * three or four times over on the heap while it is read, so above this the
+ * poster stays instead - an OutOfMemoryError took the app down.
+ */
+internal const val FEED_FALLBACK_MAX_BYTES = 50L shl 20
+
+/** Whether a feed video of [size] bytes (0: not known) may come whole, as GetPublicationMedia sends it. */
+internal fun fallbackAllowed(size: Long): Boolean = size <= FEED_FALLBACK_MAX_BYTES
+
 /** Issue #60/#107/#110/#114: poster + play, streamed when the device offers a URL, autoplay muted. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -630,6 +673,9 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
     var loading by remember(file.hash) { mutableStateOf(false) }
     var ended by remember(file.hash) { mutableStateOf(false) }
     var firstFrame by remember(file.hash) { mutableStateOf(false) }
+    // The fallback's file, deleted once the video leaves the screen: one
+    // was left in the cache for every play.
+    val tmpFile = remember(file.hash) { arrayOfNulls<File>(1) }
     val muted = FeedAudio.muted
     val poster = rememberOffMain(file.hash, { MediaCache.peek(file.hash) }) { withContext(Dispatchers.Default) { MediaCache.image(file) } }
     val frameAspect = remember(file.hash) { fileAspect(file) }
@@ -639,13 +685,21 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
         loading = true
         scope.launch {
             try {
-                val url = MediaStream.url(post.uuid, file.hash) ?: withContext(Dispatchers.IO) {
-                    val resp = OTCConnection.request { it.setReqGetPublicationMedia(GetPublicationMedia.newBuilder().setPubUuid(post.uuid).setHash(file.hash)) }
-                    if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return@withContext null
-                    val ext = when (resp.respFile.mime.lowercase()) { "video/quicktime" -> "mov"; "video/x-matroska" -> "mkv"; "video/3gpp" -> "3gp"; else -> "mp4" }
-                    val tmp = File(context.cacheDir, "${UUID.randomUUID()}.$ext")
-                    tmp.writeBytes(resp.respFile.content.toByteArray())
-                    tmp.toURI().toString()
+                val url = MediaStream.url(post.uuid, file.hash) ?: run {
+                    if (!fallbackAllowed(file.byteSize)) return@launch
+                    withContext(Dispatchers.IO) {
+                        val resp = OTCConnection.request { it.setReqGetPublicationMedia(GetPublicationMedia.newBuilder().setPubUuid(post.uuid).setHash(file.hash)) }
+                        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return@withContext null
+                        val ext = when (resp.respFile.mime.lowercase()) { "video/quicktime" -> "mov"; "video/x-matroska" -> "mkv"; "video/3gpp" -> "3gp"; else -> "mp4" }
+                        val tmp = File(context.cacheDir, "${UUID.randomUUID()}.$ext")
+                        // Straight from the message, not through a copy of it.
+                        tmp.outputStream().use { resp.respFile.content.writeTo(it) }
+                        // The post left the screen meanwhile: nothing will play it.
+                        if (!isActive) { tmp.delete(); return@withContext null }
+                        tmpFile[0]?.delete()
+                        tmpFile[0] = tmp
+                        tmp.toURI().toString()
+                    }
                 } ?: return@launch
                 val p = MediaStream.player(context, url).apply {
                     setMediaItem(MediaItem.fromUri(url)); volume = if (muted) 0f else 1f; prepare(); playWhenReady = true
@@ -661,13 +715,21 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                 // No answer (offline, the device away): the poster stays and
                 // a tap, or scrolling back to it, tries again. Uncaught, this
                 // took the whole app down while scrolling the feed offline.
+            } catch (e: OutOfMemoryError) {
+                // A video bigger than its size said, too big to hold: the poster stays.
             } finally { loading = false }
         }
     }
 
     LaunchedEffect(playing) { if (playing) { if (player == null) load() else player?.play() } else player?.pause() }
     LaunchedEffect(muted) { player?.volume = if (muted) 0f else 1f }
-    DisposableEffect(file.hash) { onDispose { player?.release(); player = null } }
+    DisposableEffect(file.hash) {
+        onDispose {
+            player?.release(); player = null
+            tmpFile[0]?.let { f -> kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { f.delete() } }
+            tmpFile[0] = null
+        }
+    }
 
     val p = player
     Box(Modifier.fillMaxSize().then(if (p == null) Modifier.clickable { load() } else Modifier), contentAlignment = Alignment.Center) {
@@ -690,14 +752,18 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                 else Box(Modifier.fillMaxSize().background(Color(0x14808080)))
             }
             when {
-                p == null && !loading -> Icon(Icons.Default.PlayCircle, S.androidSocialPlay().resolve(), tint = Color.White, modifier = Modifier.align(Alignment.Center).size(56.dp))
+                p == null && !loading -> Icon(Icons.Default.PlayCircle, S.appSocialPostPlay().resolve(), tint = Color.White, modifier = Modifier.align(Alignment.Center).size(56.dp))
                 p == null || !firstFrame -> CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
                 ended -> IconButton(onClick = { ended = false; p.seekTo(0); p.play() }, modifier = Modifier.align(Alignment.Center).size(72.dp)) {
-                    Icon(Icons.Default.Replay, S.androidSocialReplay().resolve(), tint = Color.White, modifier = Modifier.size(56.dp))
+                    Icon(Icons.Default.Replay, S.appSocialPostReplay().resolve(), tint = Color.White, modifier = Modifier.size(56.dp))
                 }
             }
-            IconButton(onClick = { FeedAudio.muted = !FeedAudio.muted }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(32.dp).background(Color(0x73000000), CircleShape)) {
-                Icon(if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, S.androidSocialMute().resolve(), tint = Color.White, modifier = Modifier.size(16.dp))
+            // "Mute", said as selected while the feed's videos are muted (as iOS).
+            IconButton(
+                onClick = { FeedAudio.muted = !FeedAudio.muted },
+                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(32.dp).background(Color(0x73000000), CircleShape).semantics { selected = muted },
+            ) {
+                Icon(if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, S.appSocialPostMute().resolve(), tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }

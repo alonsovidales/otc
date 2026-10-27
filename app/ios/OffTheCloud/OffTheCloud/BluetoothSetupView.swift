@@ -646,6 +646,26 @@ struct BluetoothSetupView: View {
     @State private var password = ""
     @Environment(\.dismiss) private var dismiss
     @StateObject private var transport = BLESetupTransport()
+    /// Leaving while the device installs asks first (leaveAsks).
+    @State private var confirmLeave = false
+    /// Half a minute of looking with nothing found says what to check.
+    @State private var notFound = false
+
+    /// How long the phone looks without finding a device before the waiting
+    /// screen says what to check (Android's SETUP_NOT_FOUND_MS).
+    nonisolated static let notFoundSeconds: TimeInterval = 30
+
+    /// Leaving the setup asks first while the device installs
+    /// (`installStarted` from its /api/state, not yet online: `readyDomain`
+    /// nil) - the install goes on without the phone, and this screen is
+    /// where it is followed. Android's setupLeaveAsks.
+    nonisolated static func leaveAsks(installStarted: Bool, readyDomain: String?) -> Bool {
+        installStarted && readyDomain == nil
+    }
+
+    private var leaveAsks: Bool {
+        Self.leaveAsks(installStarted: transport.installStarted, readyDomain: transport.readyDomain)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -715,9 +735,25 @@ struct BluetoothSetupView: View {
         }
         .navigationTitle(S.appShellSetupNewDevice)
         .navigationBarTitleDisplayMode(.inline)
+        // While the device installs, Back asks first (the swipe back goes
+        // with the system button).
+        .navigationBarBackButtonHidden(leaveAsks)
+        .confirmationDialog(S.appShellSetupLeaveTitle, isPresented: $confirmLeave, titleVisibility: .visible) {
+            Button(S.appShellSetupLeave, role: .destructive) { dismiss() }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            Text(S.appShellSetupLeaveText)
+        }
         // The wizard's own language list is hidden in the app: this one
         // counts, and the device set up gets it at the first sign-in.
         .toolbar {
+            if leaveAsks {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { confirmLeave = true } label: {
+                        Label(S.commonBack, systemImage: "chevron.backward")
+                    }
+                }
+            }
             // The title on two lines rather than cut short beside the
             // language menu ("Configurar dispositivo nuevo").
             ToolbarItem(placement: .principal) {
@@ -750,7 +786,7 @@ struct BluetoothSetupView: View {
             case .starting, .scanning, .lost:
                 ProgressView()
                 Text(S.appShellSetupLooking).font(.headline)
-                Text(S.appShellSetupPowerOn)
+                Text(notFound ? S.appShellSetupNotFound : S.appShellSetupPowerOn)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             case .choosing:
                 Text(S.appShellSetupWhich).font(.headline)
@@ -783,12 +819,25 @@ struct BluetoothSetupView: View {
                 Image(systemName: "lock").font(.largeTitle)
                 Text(S.appShellBluetoothNeeded).font(.headline)
                 Text(S.iosBluetoothNeededHint).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                // Straight to this app's page in Settings, where it is
+                // allowed (as Android's Open Settings).
+                Button(S.iosOpenSettings) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 4)
             case .ready:
                 EmptyView()
             }
             Spacer()
         }
         .padding(24)
+        .task(id: transport.phase) {
+            notFound = false
+            guard transport.phase == .scanning else { return }
+            try? await Task.sleep(nanoseconds: UInt64(Self.notFoundSeconds * 1_000_000_000))
+            if !Task.isCancelled { notFound = true }
+        }
     }
 
     /// A bridge domain becomes the usual wss endpoint; a device set up

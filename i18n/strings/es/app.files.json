@@ -17,6 +17,10 @@
     "text": "Volver a {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "no se puede leer {name}",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "Desactivar solo subida",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Está en una carpeta de solo subida: no se puede eliminar, y al volver a subirlo se conserva su versión anterior. El candado de la carpeta lo cambia.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "Subiendo {done} de {total}…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Nada de esta carpeta ocupa espacio.",

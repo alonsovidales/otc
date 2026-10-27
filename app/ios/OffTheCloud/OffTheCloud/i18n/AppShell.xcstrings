@@ -3317,6 +3317,194 @@
         }
       }
     },
+    "app.shell.problem_alerts_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Benachrichtigungen erscheinen, sobald dein Gerät antwortet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your notifications will appear as soon as your device answers."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus notificaciones aparecerán en cuanto tu dispositivo responda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos notifications apparaîtront dès que votre appareil répondra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le tue notifiche appariranno non appena il tuo dispositivo risponderà."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je meldingen verschijnen zodra je apparaat antwoordt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tuas notificações vão aparecer assim que o teu dispositivo responder."
+          }
+        }
+      }
+    },
+    "app.shell.problem_alerts_offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Handy ist offline. Deine Benachrichtigungen erscheinen, sobald es wieder online ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone is offline. Your notifications will appear once it's back online."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este teléfono no tiene conexión. Tus notificaciones aparecerán cuando vuelva a estar en línea."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce téléphone est hors ligne. Vos notifications apparaîtront dès qu’il sera de nouveau en ligne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo telefono è offline. Le tue notifiche appariranno quando tornerà online."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze telefoon is offline. Je meldingen verschijnen zodra hij weer online is."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este telemóvel está sem ligação. As tuas notificações vão aparecer quando voltar a estar online."
+          }
+        }
+      }
+    },
+    "app.shell.problem_alerts_slow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät hat zu lange für die Antwort gebraucht. Deine Benachrichtigungen erscheinen, sobald es antwortet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device took too long to answer. Your notifications will appear as soon as it does."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo ha tardado demasiado en responder. Tus notificaciones aparecerán en cuanto lo haga."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil a mis trop de temps à répondre. Vos notifications apparaîtront dès qu’il répondra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo ha impiegato troppo a rispondere. Le tue notifiche appariranno non appena risponderà."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat deed er te lang over om te antwoorden. Je meldingen verschijnen zodra het antwoordt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo demorou demasiado a responder. As tuas notificações vão aparecer assim que responder."
+          }
+        }
+      }
+    },
+    "app.shell.problem_alerts_unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät ist gerade nicht erreichbar. Deine Benachrichtigungen erscheinen, sobald es antwortet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device isn't reachable right now. Your notifications will appear as soon as it answers."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora mismo no se puede contactar con tu dispositivo. Tus notificaciones aparecerán en cuanto responda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil est injoignable pour le moment. Vos notifications apparaîtront dès qu’il répondra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo non è raggiungibile al momento. Le tue notifiche appariranno non appena risponderà."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat is nu niet bereikbaar. Je meldingen verschijnen zodra het antwoordt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo não está acessível de momento. As tuas notificações vão aparecer assim que responder."
+          }
+        }
+      }
+    },
     "app.shell.problem_files_failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5740,6 +5928,147 @@
         }
       }
     },
+    "app.shell.setup_leave" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esci"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlaten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sair"
+          }
+        }
+      }
+    },
+    "app.shell.setup_leave_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät wird weiter installiert. Öffne die Einrichtung erneut, um sie zu verfolgen, oder melde dich an, sobald sie fertig ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device goes on installing. Open the setup again to follow it, or sign in once it's done."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo sigue instalándose. Vuelve a abrir la configuración para seguirla, o inicia sesión cuando termine."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil poursuit son installation. Rouvrez la configuration pour la suivre, ou connectez-vous une fois qu’elle est terminée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo continua a installarsi. Riapri la configurazione per seguirla, oppure accedi quando è terminata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat gaat verder met installeren. Open de configuratie opnieuw om het te volgen, of log in zodra het klaar is."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo continua a instalar-se. Abre novamente a configuração para a acompanhar, ou inicia sessão quando terminar."
+          }
+        }
+      }
+    },
+    "app.shell.setup_leave_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einrichtung verlassen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave the setup?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Salir de la configuración?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter la configuration ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uscire dalla configurazione?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuratie verlaten?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sair da configuração?"
+          }
+        }
+      }
+    },
     "app.shell.setup_looking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5830,6 +6159,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Configurar um novo dispositivo"
+          }
+        }
+      }
+    },
+    "app.shell.setup_not_found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch kein Gerät gefunden. Prüfe, ob es eingeschaltet ist und seine Laufwerke angeschlossen sind, und halte das Handy in seiner Nähe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No device found yet. Check that it's on, with its disks connected, and keep the phone next to it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no se ha encontrado ningún dispositivo. Comprueba que está encendido, con sus discos conectados, y mantén el teléfono a su lado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun appareil trouvé pour l’instant. Vérifiez qu’il est allumé, avec ses disques branchés, et gardez le téléphone près de lui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun dispositivo trovato. Controlla che sia acceso, con i dischi collegati, e tieni il telefono vicino al dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog geen apparaat gevonden. Controleer of het aanstaat met de schijven aangesloten, en houd de telefoon er vlakbij."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não foi encontrado nenhum dispositivo. Verifica se está ligado, com os discos instalados, e mantém o telemóvel perto dele."
           }
         }
       }

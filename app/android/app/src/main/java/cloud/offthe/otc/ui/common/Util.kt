@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import cloud.offthe.otc.i18n.LanguageSettings
@@ -67,14 +70,18 @@ fun gridCellPx(widthPx: Int, density: Density, padding: Dp, spacing: Dp, minSize
     maxOf((avail - s * (n - 1) + n - 1) / n, 1)
 }
 
-/** "3m ago" / "2h ago" / "5d ago", then the date - the feed's own convention - in the language shown. */
+/**
+ * "3m ago" / "2h ago" / "5d ago", then the date - the feed's own convention
+ * - in the language shown, reckoned from [nowMs]: a screen passes its
+ * rememberMinuteClock(), so what it shows moves on while it stays open.
+ */
 @Composable
 @ReadOnlyComposable
-fun relativeTime(epochMs: Long): String = relativeTimeText(epochMs).resolve()
+fun relativeTime(epochMs: Long, nowMs: Long = System.currentTimeMillis()): String = relativeTimeText(epochMs, nowMs).resolve()
 
 /** [relativeTime] as text resolved where it is shown, for a view model; the date in the default locale's own format. */
-fun relativeTimeText(epochMs: Long): UiText {
-    val mins = ((System.currentTimeMillis() - epochMs) / 60_000).toInt()
+fun relativeTimeText(epochMs: Long, nowMs: Long = System.currentTimeMillis()): UiText {
+    val mins = ((nowMs - epochMs) / 60_000).toInt()
     if (mins < 1) return S.appShellTimeJustNow()
     if (mins < 60) return S.appShellTimeMinutesAgo(mins)
     val hours = mins / 60
@@ -83,6 +90,26 @@ fun relativeTimeText(epochMs: Long): UiText {
     if (days < 7) return S.appShellTimeDaysAgo(days)
     return UiText.Raw(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs)))
 }
+
+/**
+ * Now, in ms - and again at every turn of the minute while the screen
+ * shows: what the feed's and Alerts' "3m ago" are reckoned from, so they
+ * move on by themselves (they stood still until something else redrew).
+ * As iOS's TimelineView(.everyMinute).
+ */
+@Composable
+fun rememberMinuteClock(): Long {
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            delay(msToNextMinute(System.currentTimeMillis()))
+            value = System.currentTimeMillis()
+        }
+    }
+    return now
+}
+
+/** From [nowMs] to the next turn of the minute; never under a second, so a clock a hair early doesn't tick twice. */
+fun msToNextMinute(nowMs: Long): Long = (60_000L - Math.floorMod(nowMs, 60_000L)).coerceAtLeast(1_000L)
 
 /** A file's size: "4.6 MB", "820 KB" ("4,6 MB" in Spanish, decimalText). */
 fun formatBytes(bytes: Long): String = when {

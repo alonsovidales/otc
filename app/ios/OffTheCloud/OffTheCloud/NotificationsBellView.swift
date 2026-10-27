@@ -20,11 +20,22 @@ struct NotificationsListView: View {
     /// English keeps its abbreviated style ("7 hr ago"); the other
     /// languages take the short one, because the abbreviated French and
     /// Portuguese read "-5 h" and German "vor 5 m".
-    private static func relativeTime(_ date: Date) -> String {
+    /// `now`: the minute a TimelineView draws, so the time moves on while
+    /// Alerts stays open (timeText).
+    static func relativeTime(_ date: Date, now: Date = Date()) -> String {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = L10n.shared.code == "en" ? .abbreviated : .short
         f.locale = L10n.shared.locale
-        return f.localizedString(for: date, relativeTo: Date())
+        return f.localizedString(for: date, relativeTo: now)
+    }
+
+    /// When it happened, reckoned again every minute while it shows.
+    private func timeText(_ date: Date) -> some View {
+        TimelineView(.everyMinute) { context in
+            Text(Self.relativeTime(date, now: context.date))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// Who did it (in bold) and what, as one sentence per kind; nil for a
@@ -62,11 +73,33 @@ struct NotificationsListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if model.loadingList && model.notifications.isEmpty {
+                switch NotificationsModel.body(listEmpty: model.notifications.isEmpty, loading: model.loadingList, problem: model.loadProblem) {
+                case .loading:
                     ProgressView()
-                } else if model.notifications.isEmpty {
+                case .problem:
+                    // Why it isn't here, with Try again (it used to read
+                    // "Nothing yet").
+                    VStack(spacing: 8) {
+                        Text(S.appSocialAlertsLoadFailed)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                        if let problem = model.loadProblem {
+                            Text(problem.text(.alerts))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 360)
+                                .onAppear { Announce.polite(problem.text(.alerts)) }
+                                .onChange(of: problem) { _, p in Announce.polite(p.text(.alerts)) }
+                        }
+                        Button(model.loadingList ? LoadProblem.trying : LoadProblem.tryAgain) { model.retryList() }
+                            .disabled(model.loadingList)
+                            .padding(.top, 4)
+                    }
+                    .padding(32)
+                case .empty:
                     Text(S.appSocialAlertsEmpty).foregroundStyle(.secondary)
-                } else {
+                case .list:
                     List(model.notifications, id: \.uuid) { n in
                         if n.type == .notificationError {
                             errorRow(n)
@@ -93,18 +126,15 @@ struct NotificationsListView: View {
                                         .foregroundStyle(.primary)
                                         .font(.subheadline)
                                     if n.hasDt {
-                                        Text(Self.relativeTime(n.dt.date))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                                        timeText(n.dt.date)
                                     }
                                 }
                                 Spacer()
                                 // What it's about, at the right - unset for
                                 // FriendRequest/FriendAccepted, which point
-                                // at no post.
-                                if n.hasThumbnail, let ui = UIImage(data: n.thumbnail) {
-                                    Image(uiImage: ui)
-                                        .resizable()
+                                // at no post. Decoded off the main thread.
+                                if n.hasThumbnail, !n.thumbnail.isEmpty {
+                                    DecodedImage(data: n.thumbnail)
                                         .aspectRatio(contentMode: .fill)
                                         .frame(width: 44, height: 44)
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -140,8 +170,24 @@ struct NotificationsListView: View {
             .overlay(alignment: .topLeading) {
                 if wide { HiddenPageHeading(title: S.appShellSectionAlerts) }
             }
+            // An Accept the device didn't take: why, at the top.
+            .overlay(alignment: .top) {
+                if let notice = model.notice {
+                    Text(notice.text)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.default, value: model.notice)
         }
         .task { await model.openPanel() }
+        // A list that failed is asked for again while Alerts shows, not after.
+        .onAppear { model.panelShown(true) }
+        .onDisappear { model.panelShown(false) }
     }
 
     /// Issue #183: a device update worth knowing about - which one in the
@@ -162,9 +208,7 @@ struct NotificationsListView: View {
                         .foregroundStyle(.primary)
                         .font(.subheadline)
                     if n.hasDt {
-                        Text(Self.relativeTime(n.dt.date))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        timeText(n.dt.date)
                     }
                     if !n.details.isEmpty {
                         Text(n.details)
@@ -208,9 +252,7 @@ struct NotificationsListView: View {
                         .foregroundStyle(.primary)
                         .font(.subheadline)
                     if n.hasDt {
-                        Text(Self.relativeTime(n.dt.date))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        timeText(n.dt.date)
                     }
                     if expanded, !n.details.isEmpty {
                         Text(n.details)

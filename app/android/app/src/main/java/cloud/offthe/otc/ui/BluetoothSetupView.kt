@@ -11,9 +11,28 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import cloud.offthe.otc.i18n.androidBluetoothScanFailed
+import cloud.offthe.otc.i18n.androidBluetoothTurnOn
+import cloud.offthe.otc.i18n.androidLocationOffHint
+import cloud.offthe.otc.i18n.androidOpenSettings
+import cloud.offthe.otc.i18n.appShellSetupLeave
+import cloud.offthe.otc.i18n.appShellSetupLeaveText
+import cloud.offthe.otc.i18n.appShellSetupLeaveTitle
+import cloud.offthe.otc.i18n.appShellSetupNotFound
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonTryAgain
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -135,6 +154,61 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     LaunchedEffect(Unit) {
         if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
     }
+    // Bluetooth turned on (here, from the quick settings, or by "Turn on
+    // Bluetooth"): looked for at once - "Bluetooth is off" used to stay.
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: android.content.Intent) {
+                when (intent.getIntExtra(android.bluetooth.BluetoothAdapter.EXTRA_STATE, -1)) {
+                    android.bluetooth.BluetoothAdapter.STATE_ON -> transport.bluetoothChanged(on = true)
+                    android.bluetooth.BluetoothAdapter.STATE_OFF -> transport.bluetoothChanged(on = false)
+                }
+            }
+        }
+        val app = context.applicationContext
+        androidx.core.content.ContextCompat.registerReceiver(
+            app, receiver, android.content.IntentFilter(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { runCatching { app.unregisterReceiver(receiver) } }
+    }
+    // Back from Settings (access allowed, Location on) or anywhere else:
+    // looked for again, and Location read again.
+    var locationOn by remember { mutableStateOf(setupLocationOn(context)) }
+    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                locationOn = setupLocationOn(context)
+                // Not while the access is still being asked for (the
+                // question itself pauses the screen): its answer starts it.
+                when (transport.phase.value) {
+                    is BLESetupTransport.Phase.Off, is BLESetupTransport.Phase.ScanFailed -> transport.start()
+                    is BLESetupTransport.Phase.Unauthorized -> if (BLESetupTransport.hasPermissions(context)) transport.start()
+                    else -> {}
+                }
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    val enableBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { transport.start() }
+    val actions = SetupActions(
+        turnOnBluetooth = {
+            // Android's own "allow to turn on Bluetooth?"; without the
+            // nearby-devices access it may not ask, and its settings open.
+            try {
+                enableBluetooth.launch(android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            } catch (e: Exception) {
+                openSettings(context, android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
+            }
+        },
+        openAppSettings = {
+            openSettings(context, android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", context.packageName, null))
+        },
+        openLocationSettings = { openSettings(context, android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS) },
+        tryAgain = { transport.start() },
+    )
     DisposableEffect(Unit) {
         // A change of language is shown here in place: recreating the
         // Activity would drop the link and the page with what was typed in
@@ -168,6 +242,29 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
         pendingFile[0] = null
     }
 
+    // Leaving while the device installs asks first: the install goes on,
+    // and this screen is where it is followed (as iOS).
+    var confirmLeave by remember { mutableStateOf(false) }
+    fun leave() { if (setupLeaveAsks(installStarted, readyDomain)) confirmLeave = true else onClose() }
+    // The system Back: a step back in the wizard, where its page has a
+    // Back of its own; otherwise out of the setup. It used to leave the app
+    // in the middle of an install.
+    BackHandler {
+        val view = page.view
+        if (everReady && view != null && page.loaded) {
+            view.evaluateJavascript(WIZARD_BACK) { result -> if (result != "true") leave() }
+        } else leave()
+    }
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(S.appShellSetupLeaveTitle().resolve()) },
+            text = { Text(S.appShellSetupLeaveText().resolve()) },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onClose() }) { Text(S.appShellSetupLeave().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
+        )
+    }
+
     Scaffold(topBar = {
         TopAppBar(
             title = {
@@ -182,13 +279,15 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                     modifier = Modifier.semantics { heading() },
                 )
             },
-            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.commonBack().resolve()) } },
+            navigationIcon = { IconButton(onClick = ::leave) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.commonBack().resolve()) } },
             // The wizard's own language list is hidden in the app: this one
             // counts, and the device set up gets it at the first sign-in.
             actions = { LanguageMenu() },
         )
     }) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
+        // Over the keyboard (the window is edge to edge): the password
+        // field and "Open my device" stayed under it.
+        Column(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize().imePadding()) {
             if (everReady) {
                 if (phase !is BLESetupTransport.Phase.Ready) {
                     // The page stays; its 3-second state poll picks up
@@ -218,7 +317,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                     pickImage.launch("image/*")
                 }.apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
             } else {
-                Waiting(phase, transport, Modifier.weight(1f))
+                Waiting(phase, transport, locationOn, actions, Modifier.weight(1f))
             }
             readyDomain?.let { domain ->
                 Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
@@ -260,11 +359,19 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     }
 }
 
+/** What the waiting screen's buttons do. */
+private class SetupActions(
+    val turnOnBluetooth: () -> Unit,
+    val openAppSettings: () -> Unit,
+    val openLocationSettings: () -> Unit,
+    val tryAgain: () -> Unit,
+)
+
 @Composable
-private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport, modifier: Modifier) {
+private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport, locationOn: Boolean, actions: SetupActions, modifier: Modifier) {
     if (phase is BLESetupTransport.Phase.Choosing) {
         val found by transport.found.collectAsState()
-        Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(24.dp))
             Text(S.appShellSetupWhich().resolve(), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
@@ -282,22 +389,76 @@ private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport
         }
         return
     }
-    Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.weight(1f))
+    // Half a minute of looking with nothing found says what to check.
+    var notFound by remember { mutableStateOf(false) }
+    LaunchedEffect(phase) {
+        notFound = false
+        if (phase is BLESetupTransport.Phase.Scanning) {
+            kotlinx.coroutines.delay(SETUP_NOT_FOUND_MS)
+            notFound = true
+        }
+    }
+    val looking = phase is BLESetupTransport.Phase.Scanning || phase is BLESetupTransport.Phase.Starting || phase is BLESetupTransport.Phase.Lost
+    // Android 11 and older find nothing over Bluetooth with Location off.
+    val locationHint = looking && !locationOn && android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S
+    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.height(48.dp))
         val (title, hint) = when (phase) {
             is BLESetupTransport.Phase.Connecting -> S.commonConnecting() to null
             is BLESetupTransport.Phase.Off -> S.appShellBluetoothOff() to S.androidBluetoothOffHint()
             is BLESetupTransport.Phase.Unauthorized -> S.appShellBluetoothNeeded() to S.androidBluetoothNeededHint()
-            else -> S.appShellSetupLooking() to S.appShellSetupPowerOn()
+            is BLESetupTransport.Phase.ScanFailed -> S.androidBluetoothScanFailed() to null
+            else -> S.appShellSetupLooking() to if (locationHint) S.androidLocationOffHint() else if (notFound) S.appShellSetupNotFound() else S.appShellSetupPowerOn()
         }
-        if (phase is BLESetupTransport.Phase.Off || phase is BLESetupTransport.Phase.Unauthorized) Spacer(Modifier.height(8.dp)) else CircularProgressIndicator()
+        val stuck = phase is BLESetupTransport.Phase.Off || phase is BLESetupTransport.Phase.Unauthorized || phase is BLESetupTransport.Phase.ScanFailed
+        if (stuck) Spacer(Modifier.height(8.dp)) else CircularProgressIndicator()
         Spacer(Modifier.height(14.dp))
-        Text(title.resolve(), style = MaterialTheme.typography.titleMedium)
+        Text(title.resolve(), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         if (hint != null) {
             Spacer(Modifier.height(6.dp))
             Text(hint.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
-        Spacer(Modifier.weight(1f))
+        // A way out of each: Bluetooth on, the app's access, Location on, or once more.
+        val action: Pair<UiText, () -> Unit>? = when {
+            phase is BLESetupTransport.Phase.Off -> S.androidBluetoothTurnOn() to actions.turnOnBluetooth
+            phase is BLESetupTransport.Phase.Unauthorized -> S.androidOpenSettings() to actions.openAppSettings
+            phase is BLESetupTransport.Phase.ScanFailed -> S.commonTryAgain() to actions.tryAgain
+            locationHint -> S.androidOpenSettings() to actions.openLocationSettings
+            else -> null
+        }
+        if (action != null) {
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = action.second) { Text(action.first.resolve()) }
+        }
+        Spacer(Modifier.height(48.dp))
+    }
+}
+
+/** How long the phone looks without finding a device before the waiting screen says what to check. */
+internal const val SETUP_NOT_FOUND_MS = 30_000L
+
+/**
+ * Leaving the setup asks first while the device installs ([installStarted]
+ * from its /api/state, not yet online: [readyDomain] null) - the install
+ * goes on without the phone, and this screen is where it is followed.
+ */
+internal fun setupLeaveAsks(installStarted: Boolean, readyDomain: String?): Boolean = installStarted && readyDomain == null
+
+/** The wizard's own Back, where its page shows one: clicked, and true; false when there is none. */
+private const val WIZARD_BACK = "(function(){var b=document.getElementById('back')||document.getElementById('v-back');" +
+    "if(b&&!b.disabled&&b.offsetParent!==null){b.click();return true}return false})()"
+
+/** Location on (below Android 12 a Bluetooth scan needs it), as far as the phone says; on when it can't tell. */
+private fun setupLocationOn(context: Context): Boolean {
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return true
+    return runCatching { androidx.core.location.LocationManagerCompat.isLocationEnabled(lm) }.getOrDefault(true)
+}
+
+private fun openSettings(context: Context, action: String, data: android.net.Uri? = null) {
+    try {
+        context.startActivity(android.content.Intent(action).apply { if (data != null) setData(data) }.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (_: Exception) {
+        try { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
     }
 }
 

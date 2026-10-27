@@ -1,5 +1,8 @@
 <resources>
     <!-- AppCompat, which MainActivity (an AppCompatActivity, for the per-app
-         language) needs; Compose draws everything, so nothing looks different. -->
-    <style name="Theme.OffTheCloud" parent="Theme.AppCompat.Light.NoActionBar" />
+         language) needs; Compose draws everything, so nothing looks different.
+         DayNight: the window behind Compose (the launch, an Activity
+         recreated) follows the system's dark mode - the light one flashed
+         white before the first frame in the dark. -->
+    <style name="Theme.OffTheCloud" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

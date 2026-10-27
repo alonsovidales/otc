@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">Löschen im Ordner „\u2068%1$s\u2069“ wieder erlauben?</string>
     <string name="app_files_back_to_files">Zurück zu Dateien</string>
     <string name="app_files_back_to_folder">Zurück zu \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">\u2068%1$s\u2069 kann nicht gelesen werden</string>
     <string name="app_files_clear_upload_only">„Nur hochladen“ ausschalten</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">%1$s Element löschen?</item>
@@ -84,6 +85,7 @@
     <string name="app_files_upload_failed">Upload fehlgeschlagen: %1$s</string>
     <string name="app_files_upload_only">Nur hochladen</string>
     <string name="app_files_upload_only_file_info">Dies liegt in einem Ordner mit „Nur hochladen“: Es kann nicht gelöscht werden, und beim erneuten Hochladen bleibt die ältere Version erhalten. Das Schloss am Ordner ändert das.</string>
+    <string name="app_files_uploading">Wird hochgeladen (%1$s von %2$s)…</string>
     <string name="app_files_usage_empty">Nichts in diesem Ordner belegt Speicherplatz.</string>
     <string name="app_files_usage_failed">Der belegte Speicherplatz dieses Ordners konnte nicht ermittelt werden.</string>
     <string name="app_files_usage_needs_update">Dein Gerät braucht ein Update, um anzuzeigen, wie viel Speicherplatz Ordner belegen.</string>

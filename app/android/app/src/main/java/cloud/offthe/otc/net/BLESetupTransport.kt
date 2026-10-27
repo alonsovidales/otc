@@ -56,6 +56,8 @@ class BLESetupTransport(private val context: Context) {
         object Starting : Phase()
         object Off : Phase()
         object Unauthorized : Phase()
+        /** The phone wouldn't scan (ScanCallback.onScanFailed): not Bluetooth being off, as it used to say. */
+        object ScanFailed : Phase()
         object Scanning : Phase()
         object Choosing : Phase()
         object Connecting : Phase()
@@ -178,13 +180,39 @@ class BLESetupTransport(private val context: Context) {
             permissions().all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
     }
 
+    /**
+     * Looks for the device - again whenever Bluetooth comes on, the app
+     * comes back from Settings or Try again is tapped (BluetoothSetupView),
+     * so "Bluetooth is off" and "access needed" are no dead ends. A scan or
+     * a link already going is left as it is.
+     */
     @SuppressLint("MissingPermission")
     fun start() {
         stopped = false
         if (!hasPermissions(context)) { _phase.value = Phase.Unauthorized; return }
         val a = adapter
         if (a == null || !a.isEnabled) { _phase.value = Phase.Off; return }
+        if (scanning || gatt != null) return
         scan()
+    }
+
+    /**
+     * Bluetooth went off ([on] false: the scan and any link are gone with
+     * it, which Android doesn't always say) or came on again: looked for
+     * anew.
+     */
+    @SuppressLint("MissingPermission")
+    fun bluetoothChanged(on: Boolean) {
+        if (stopped) return
+        if (on) { start(); return }
+        scanning = false
+        main.removeCallbacks(watchdog)
+        gatt?.let { g -> synchronized(dropLock) { if (gatt === g) gatt = null }; runCatching { g.close() } }
+        requestChrc = null
+        responseChrc = null
+        infoPending = false
+        failAll(SetupException(S.appShellBleNotConnected()))
+        _phase.value = Phase.Off
     }
 
     /** Leaving the setup: a device not yet installing is given back, so another phone can set it up. */
@@ -228,11 +256,18 @@ class BLESetupTransport(private val context: Context) {
         val scanner = adapter?.bluetoothLeScanner ?: run { _phase.value = Phase.Off; return }
         if (chosen == null && _phase.value !is Phase.Choosing) _phase.value = Phase.Scanning
         scanning = true
-        scanner.startScan(
-            listOf(ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE)).build()),
-            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
-            scanCallback,
-        )
+        try {
+            scanner.startScan(
+                listOf(ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE)).build()),
+                ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+                scanCallback,
+            )
+        } catch (e: Exception) {
+            // Bluetooth went off between the check and the scan, or the
+            // permission was taken away: said, with Try again.
+            scanning = false
+            _phase.value = if (!hasPermissions(context)) Phase.Unauthorized else if (adapter?.isEnabled != true) Phase.Off else Phase.ScanFailed
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -260,7 +295,12 @@ class BLESetupTransport(private val context: Context) {
             }
         }
 
-        override fun onScanFailed(errorCode: Int) { _phase.value = Phase.Off }
+        override fun onScanFailed(errorCode: Int) {
+            scanning = false
+            // Bluetooth off says so; anything else is a scan the phone
+            // refused, with Try again (it used to read as Bluetooth off).
+            _phase.value = if (adapter?.isEnabled != true) Phase.Off else Phase.ScanFailed
+        }
     }
 
     /**

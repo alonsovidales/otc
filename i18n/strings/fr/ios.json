@@ -192,6 +192,10 @@
     "text": "L’appareil ne répond pas. Il est peut-être éteint, ou la connexion est peut-être trop lente.",
     "en": "The device isn't answering. It may be off, or the connection may be too slow."
   },
+  "ios.open_settings": {
+    "text": "Ouvrir Réglages",
+    "en": "Open Settings"
+  },
   "ios.photos_access_denied": {
     "text": "Accès aux photos refusé",
     "en": "Photos access denied"

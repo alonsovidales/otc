@@ -17,6 +17,10 @@
     "text": "Retour à {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "impossible de lire {name}",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "Désactiver l’envoi uniquement",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Cet élément se trouve dans un dossier en envoi uniquement : il ne peut pas être supprimé, et l’envoyer de nouveau conserve son ancienne version. Le cadenas sur le dossier permet de changer cela.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "Envoi {done} sur {total}…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Rien dans ce dossier n’occupe d’espace.",

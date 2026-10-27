@@ -1,4 +1,8 @@
 {
+  "app.social.alerts.accept_failed": {
+    "text": "Couldn't accept the friend request",
+    "note": "Short message at the top of Alerts when Accept (on a friend request's alert) failed and the device gave no reason (its own words show instead when it does)."
+  },
   "app.social.alerts.commented": {
     "text": "<b>{name}</b> commented on your post",
     "args": [["name", "user"]],
@@ -42,6 +46,10 @@
     "note": "A row of the Alerts tab (the list of notifications): a friend liked one of your posts. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post.",
     "rich": ["b"]
   },
+  "app.social.alerts.load_failed": {
+    "text": "Couldn't load your notifications",
+    "note": "Title in Alerts, in place of the list, when the notifications couldn't be loaded; why follows under it (app.shell.problem_alerts_*), then Try again."
+  },
   "app.social.alerts.title": {
     "text": "Notifications",
     "note": "Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts).",
@@ -50,6 +58,10 @@
   "app.social.compose.camera": {
     "text": "Take a photo or video",
     "note": "Screen-reader name of the camera button at the left of the caption box in the New Post composer: takes a photo or records a video to add to the post."
+  },
+  "app.social.compose.caption_needed": {
+    "text": "Add a caption to publish",
+    "note": "New Post composer: under the photos picked, while Publish (app.social.compose.publish) is greyed out because the caption is empty - every post needs one."
   },
   "app.social.compose.caption_placeholder": {
     "text": "Write a caption…",
@@ -143,6 +155,10 @@
     "note": "Heading of the section of the Friends screen where you type a friend's device name and send them a friend request.",
     "max": 30
   },
+  "app.social.friends.address_copied": {
+    "text": "Address copied",
+    "note": "Short message at the top of Friends once Copy (app.social.friends.copy_address) put your address on the clipboard."
+  },
   "app.social.friends.ask_theirs": {
     "text": "Ask {name}'s device to delete what I shared",
     "args": [["name", "user"]],
@@ -184,6 +200,10 @@
     "text": "Cancel Request",
     "note": "Button (in red) on the row of a friend request you sent, in the Friends screen: asks to withdraw it (app.social.friends.cancel_confirm_title follows).",
     "max": 24
+  },
+  "app.social.friends.copy_address": {
+    "text": "Copy",
+    "note": "Button beside your address at the top of Friends (app.social.friends.your_address): copies the address."
   },
   "app.social.friends.delete_confirm_text": {
     "text": "The request will be removed here and on the sender's device.",
@@ -320,6 +340,11 @@
     "text": "Error sending request",
     "note": "Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer."
   },
+  "app.social.friends.share_text": {
+    "text": "Add me as a friend on Off The Cloud: {address}",
+    "args": [["address", "text"]],
+    "note": "What Share (beside your address at the top of Friends) sends through the phone's share sheet - in a message to someone. {address} is this device's address, such as pit.off-the.cloud, which they type in their app's Friends (put in as it is, so it can be copied from the message)."
+  },
   "app.social.friends.status_accepted": {
     "text": "Accepted",
     "note": "Status under a friend's address in the Friends screen: the friendship is accepted.",
@@ -385,6 +410,11 @@
     "text": "Waiting for their device",
     "note": "Short message at the top of the Friends screen after removing a friend whose device was offline: it will be asked to delete what you shared the next time it connects."
   },
+  "app.social.friends.your_address": {
+    "text": "Your address: {address}",
+    "args": [["address", "user"]],
+    "note": "Top of the Friends screen: this device's own address, which friends type to send you a friend request. {address} is it, such as pit.off-the.cloud. Copy and Share follow it."
+  },
   "app.social.likes.empty": {
     "text": "No likes yet",
     "note": "In the list of who liked a post or a comment (opened from its like count), when it holds nobody."
@@ -399,6 +429,10 @@
     "args": [["name", "user"], ["comment", "user"]],
     "note": "A comment under a post in the Social feed: {name} is who wrote it (their profile name), in bold (<b>…</b>), {comment} the comment itself.",
     "rich": ["b"]
+  },
+  "app.social.post.comment_failed": {
+    "text": "Couldn't post your comment",
+    "note": "Short message at the top of the Social feed when the device didn't take a comment and gave no reason (its own words show instead when it does). The comment's text is back in its field, to send again."
   },
   "app.social.post.comment_placeholder": {
     "text": "Add a comment…",
@@ -418,11 +452,23 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #666cca87"
   },
+  "app.social.post.delete_comment_failed": {
+    "text": "Couldn't delete the comment",
+    "note": "Short message at the top of the Social feed when deleting a comment failed and the device gave no reason (its own words show instead when it does). The comment stays."
+  },
+  "app.social.post.delete_comment_label": {
+    "text": "Delete comment",
+    "note": "Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it."
+  },
   "app.social.post.delete_comment_title": {
     "text": "Delete this comment?",
     "note": "Title of the confirmation asked before deleting a comment (from the bin beside it, on your own post or on a comment you wrote). Buttons: app.social.post.delete_comment and Cancel.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #22e50516"
+  },
+  "app.social.post.delete_failed": {
+    "text": "Couldn't delete the post",
+    "note": "Short message at the top of the Social feed when deleting one of your posts failed and the device gave no reason (its own words show instead when it does). The post stays."
   },
   "app.social.post.delete_post": {
     "text": "Delete Post",
@@ -437,6 +483,14 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #29841c8c"
   },
+  "app.social.post.like": {
+    "text": "Like",
+    "note": "Screen-reader name of the empty heart under a post in the Social feed: likes the post."
+  },
+  "app.social.post.like_comment": {
+    "text": "Like comment",
+    "note": "Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment."
+  },
   "app.social.post.likes": {
     "text": {
       "one": "{count} like",
@@ -445,10 +499,34 @@
     "args": [["count", "count"]],
     "note": "Under a post's heart in the Social feed: how many people liked it. A tap lists who."
   },
+  "app.social.post.more_options": {
+    "text": "More options for this post",
+    "note": "Screen-reader name of the … button at the top right of one of your own posts in the Social feed: opens a menu with Delete Post (app.social.post.delete_post)."
+  },
+  "app.social.post.mute": {
+    "text": "Mute",
+    "note": "Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on; read as selected while they are muted."
+  },
+  "app.social.post.play": {
+    "text": "Play",
+    "note": "Screen-reader name of the play symbol over a video in the Social feed: plays it."
+  },
+  "app.social.post.replay": {
+    "text": "Replay",
+    "note": "Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start."
+  },
   "app.social.post.send_comment": {
     "text": "Post",
     "note": "Button at the right of the comment box under a post in the Social feed: sends the comment (a verb).",
     "max": 12
+  },
+  "app.social.post.unlike": {
+    "text": "Unlike",
+    "note": "Screen-reader name of the filled heart under a post you liked in the Social feed (read as selected): takes your like back."
+  },
+  "app.social.post.unlike_comment": {
+    "text": "Unlike comment",
+    "note": "Screen-reader name of the filled heart beside a comment you liked in the Social feed (read as selected): takes your like back."
   },
   "app.social.post.unnamed": {
     "text": "User",

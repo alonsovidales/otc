@@ -139,7 +139,7 @@ struct ProfileEditorSection: View {
             guard let newItem else { return }
             Task {
                 if let data = try? await newItem.loadTransferable(type: Data.self),
-                   let item = ProfilePhotoCropItem(data: data) {
+                   let item = await ProfilePhotoCropItem.make(from: data) {
                     cropItem = item
                 }
                 // Clear the selection so picking the same photo again

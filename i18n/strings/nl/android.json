@@ -27,6 +27,14 @@
     "text": "Schakel Bluetooth in om het apparaat te vinden.",
     "en": "Turn Bluetooth on to find the device."
   },
+  "android.bluetooth_scan_failed": {
+    "text": "Kan niet beginnen met zoeken naar apparaten. Zet Bluetooth uit en weer aan.",
+    "en": "Couldn't start looking for devices. Turn Bluetooth off and on again."
+  },
+  "android.bluetooth_turn_on": {
+    "text": "Bluetooth inschakelen",
+    "en": "Turn on Bluetooth"
+  },
   "android.cache_bytes": {
     "text": {
       "one": "{count} byte",
@@ -69,10 +77,6 @@
     "text": "Verwijderen toestaan",
     "en": "Allow deletions",
     "reviewed": "claude-backtranslation 2026-10-11 #ffe4d979"
-  },
-  "android.files.cannot_read": {
-    "text": "kan {uri} niet lezen",
-    "en": "cannot read {uri}"
   },
   "android.files.folder_update_failed_detail": {
     "text": "Kan de map niet bijwerken: {detail}",
@@ -224,6 +228,10 @@
     "en": "Remove this friend?",
     "reviewed": "claude-backtranslation 2026-10-11 #829dec56"
   },
+  "android.location_off_hint": {
+    "text": "Locatie staat uit. Op deze versie van Android vindt de telefoon Bluetooth-apparaten alleen als Locatie aanstaat.",
+    "en": "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on."
+  },
   "android.menu_sections": {
     "text": "Onderdelen",
     "en": "Sections"
@@ -235,6 +243,10 @@
   "android.notification_channel_description": {
     "text": "Vriendschapsverzoeken, nieuwe berichten, likes en reacties",
     "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.open_settings": {
+    "text": "Instellingen openen",
+    "en": "Open Settings"
   },
   "android.photos_open_in_maps": {
     "text": "Openen in Maps ({latitude}, {longitude})",
@@ -445,38 +457,6 @@
   "android.signal_weak": {
     "text": "Zwak signaal",
     "en": "Weak signal"
-  },
-  "android.social_delete_comment": {
-    "text": "Reactie verwijderen",
-    "en": "Delete comment"
-  },
-  "android.social_like": {
-    "text": "Vind ik leuk",
-    "en": "Like"
-  },
-  "android.social_like_comment": {
-    "text": "Reactie leuk vinden",
-    "en": "Like comment"
-  },
-  "android.social_mute": {
-    "text": "Dempen",
-    "en": "Mute"
-  },
-  "android.social_play": {
-    "text": "Afspelen",
-    "en": "Play"
-  },
-  "android.social_replay": {
-    "text": "Opnieuw afspelen",
-    "en": "Replay"
-  },
-  "android.social_unlike": {
-    "text": "Vind ik niet meer leuk",
-    "en": "Unlike"
-  },
-  "android.social_unlike_comment": {
-    "text": "Reactie niet meer leuk vinden",
-    "en": "Unlike comment"
   },
   "android.storage_gauge": {
     "text": "Opslag. Details tonen",

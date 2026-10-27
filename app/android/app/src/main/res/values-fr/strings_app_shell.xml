@@ -74,6 +74,10 @@
     <string name="app_shell_onboarding_setup_footer">Pour un appareil tout juste sorti de sa boîte : la configuration se fait par Bluetooth, et cette app devient son app. Déconnectez-vous d’abord si vous changez d’appareil.</string>
     <string name="app_shell_percent">%1$s %%</string>
     <string name="app_shell_privacy">Confidentialité</string>
+    <string name="app_shell_problem_alerts_failed">Vos notifications apparaîtront dès que votre appareil répondra.</string>
+    <string name="app_shell_problem_alerts_offline">Ce téléphone est hors ligne. Vos notifications apparaîtront dès qu’il sera de nouveau en ligne.</string>
+    <string name="app_shell_problem_alerts_slow">Votre appareil a mis trop de temps à répondre. Vos notifications apparaîtront dès qu’il répondra.</string>
+    <string name="app_shell_problem_alerts_unreachable">Votre appareil est injoignable pour le moment. Vos notifications apparaîtront dès qu’il répondra.</string>
     <string name="app_shell_problem_files_failed">Les fichiers apparaîtront dès que votre appareil répondra.</string>
     <string name="app_shell_problem_files_offline">Ce téléphone est hors ligne. Les fichiers apparaîtront dès qu’il sera de nouveau en ligne.</string>
     <string name="app_shell_problem_files_slow">Votre appareil a mis trop de temps à répondre. Les fichiers apparaîtront dès qu’il répondra.</string>
@@ -127,8 +131,12 @@
     <string name="app_shell_setup_device">Appareil %1$s</string>
     <string name="app_shell_setup_device_older">Appareil (image plus ancienne)</string>
     <string name="app_shell_setup_enter_password">Saisissez le mot de passe de l’appareil</string>
+    <string name="app_shell_setup_leave">Quitter</string>
+    <string name="app_shell_setup_leave_text">L’appareil poursuit son installation. Rouvrez la configuration pour la suivre, ou connectez-vous une fois qu’elle est terminée.</string>
+    <string name="app_shell_setup_leave_title">Quitter la configuration ?</string>
     <string name="app_shell_setup_looking">Recherche d’un appareil à configurer…</string>
     <string name="app_shell_setup_new_device">Configurer un nouvel appareil</string>
+    <string name="app_shell_setup_not_found">Aucun appareil trouvé pour l’instant. Vérifiez qu’il est allumé, avec ses disques branchés, et gardez le téléphone près de lui.</string>
     <string name="app_shell_setup_open_device">Ouvrir mon appareil</string>
     <string name="app_shell_setup_power_on">Allumez l’appareil avec ses disques branchés. Tant qu’il n’est pas configuré, il se signale par Bluetooth ; gardez le téléphone près de lui.</string>
     <string name="app_shell_setup_ready_as">L’appareil est prêt à l’adresse %1$s.</string>

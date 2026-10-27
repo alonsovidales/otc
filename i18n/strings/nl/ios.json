@@ -192,6 +192,10 @@
     "text": "Het apparaat antwoordt niet. Het staat misschien uit, of de verbinding is te traag.",
     "en": "The device isn't answering. It may be off, or the connection may be too slow."
   },
+  "ios.open_settings": {
+    "text": "Instellingen openen",
+    "en": "Open Settings"
+  },
   "ios.photos_access_denied": {
     "text": "Geen toegang tot Foto’s",
     "en": "Photos access denied"

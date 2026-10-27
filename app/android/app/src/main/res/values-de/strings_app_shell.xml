@@ -72,6 +72,10 @@
     <string name="app_shell_onboarding_setup_footer">Für ein Gerät frisch aus der Verpackung: Die Einrichtung läuft über Bluetooth, und diese App wird zu seiner App. Melde dich zuerst ab, wenn du von einem anderen Gerät wechselst.</string>
     <string name="app_shell_percent">%1$s %%</string>
     <string name="app_shell_privacy">Datenschutz</string>
+    <string name="app_shell_problem_alerts_failed">Deine Benachrichtigungen erscheinen, sobald dein Gerät antwortet.</string>
+    <string name="app_shell_problem_alerts_offline">Dieses Handy ist offline. Deine Benachrichtigungen erscheinen, sobald es wieder online ist.</string>
+    <string name="app_shell_problem_alerts_slow">Dein Gerät hat zu lange für die Antwort gebraucht. Deine Benachrichtigungen erscheinen, sobald es antwortet.</string>
+    <string name="app_shell_problem_alerts_unreachable">Dein Gerät ist gerade nicht erreichbar. Deine Benachrichtigungen erscheinen, sobald es antwortet.</string>
     <string name="app_shell_problem_files_failed">Die Dateien erscheinen, sobald dein Gerät antwortet.</string>
     <string name="app_shell_problem_files_offline">Dieses Handy ist offline. Die Dateien erscheinen, sobald es wieder online ist.</string>
     <string name="app_shell_problem_files_slow">Dein Gerät hat zu lange für die Antwort gebraucht. Die Dateien erscheinen, sobald es antwortet.</string>
@@ -123,8 +127,12 @@
     <string name="app_shell_setup_device">Gerät %1$s</string>
     <string name="app_shell_setup_device_older">Gerät (älteres Image)</string>
     <string name="app_shell_setup_enter_password">Gib das Passwort des Geräts ein</string>
+    <string name="app_shell_setup_leave">Verlassen</string>
+    <string name="app_shell_setup_leave_text">Das Gerät wird weiter installiert. Öffne die Einrichtung erneut, um sie zu verfolgen, oder melde dich an, sobald sie fertig ist.</string>
+    <string name="app_shell_setup_leave_title">Einrichtung verlassen?</string>
     <string name="app_shell_setup_looking">Suche nach einem Gerät zum Einrichten…</string>
     <string name="app_shell_setup_new_device">Neues Gerät einrichten</string>
+    <string name="app_shell_setup_not_found">Noch kein Gerät gefunden. Prüfe, ob es eingeschaltet ist und seine Laufwerke angeschlossen sind, und halte das Handy in seiner Nähe.</string>
     <string name="app_shell_setup_open_device">Mein Gerät öffnen</string>
     <string name="app_shell_setup_power_on">Schalte das Gerät mit angeschlossenen Laufwerken ein. Bis es eingerichtet ist, ist es über Bluetooth sichtbar; halte das Handy in seiner Nähe.</string>
     <string name="app_shell_setup_ready_as">Das Gerät ist unter %1$s bereit.</string>

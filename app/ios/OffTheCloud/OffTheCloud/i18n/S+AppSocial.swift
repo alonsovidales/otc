@@ -6,6 +6,11 @@
 import Foundation
 
 extension S {
+    /// Couldn't accept the friend request
+    ///
+    /// Short message at the top of Alerts when Accept (on a friend request's alert) failed and the device gave no reason (its own words show instead when it does).
+    static var appSocialAlertsAcceptFailed: String { L("app.social.alerts.accept_failed", table: "AppSocial") }
+
     /// <b>{name}</b> commented on your post
     ///
     /// A row of the Alerts tab (the list of notifications): a friend commented on one of your posts. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post.
@@ -54,6 +59,11 @@ extension S {
         LRich("app.social.alerts.liked_post", table: "AppSocial", tags: ["b": b], [.text(L10n.isolate(name))])
     }
 
+    /// Couldn't load your notifications
+    ///
+    /// Title in Alerts, in place of the list, when the notifications couldn't be loaded; why follows under it (app.shell.problem_alerts_*), then Try again.
+    static var appSocialAlertsLoadFailed: String { L("app.social.alerts.load_failed", table: "AppSocial") }
+
     /// Notifications
     ///
     /// Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts).
@@ -63,6 +73,11 @@ extension S {
     ///
     /// Screen-reader name of the camera button at the left of the caption box in the New Post composer: takes a photo or records a video to add to the post.
     static var appSocialComposeCamera: String { L("app.social.compose.camera", table: "AppSocial") }
+
+    /// Add a caption to publish
+    ///
+    /// New Post composer: under the photos picked, while Publish (app.social.compose.publish) is greyed out because the caption is empty - every post needs one.
+    static var appSocialComposeCaptionNeeded: String { L("app.social.compose.caption_needed", table: "AppSocial") }
 
     /// Write a caption…
     ///
@@ -167,6 +182,11 @@ extension S {
     /// Heading of the section of the Friends screen where you type a friend's device name and send them a friend request.
     static var appSocialFriendsAddHeading: String { L("app.social.friends.add_heading", table: "AppSocial") }
 
+    /// Address copied
+    ///
+    /// Short message at the top of Friends once Copy (app.social.friends.copy_address) put your address on the clipboard.
+    static var appSocialFriendsAddressCopied: String { L("app.social.friends.address_copied", table: "AppSocial") }
+
     /// Ask {name}'s device to delete what I shared
     ///
     /// Switch (off at first) when removing a friend: also asks the friend's device to delete your posts, comments and likes there. {name} is the friend's profile name (or their device's address when they have none). Explained by app.social.friends.ask_theirs_text.
@@ -203,6 +223,11 @@ extension S {
     ///
     /// Button (in red) on the row of a friend request you sent, in the Friends screen: asks to withdraw it (app.social.friends.cancel_confirm_title follows).
     static var appSocialFriendsCancelRequestButton: String { L("app.social.friends.cancel_request_button", table: "AppSocial") }
+
+    /// Copy
+    ///
+    /// Button beside your address at the top of Friends (app.social.friends.your_address): copies the address.
+    static var appSocialFriendsCopyAddress: String { L("app.social.friends.copy_address", table: "AppSocial") }
 
     /// The request will be removed here and on the sender's device.
     ///
@@ -348,6 +373,13 @@ extension S {
     /// Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer.
     static var appSocialFriendsSendError: String { L("app.social.friends.send_error", table: "AppSocial") }
 
+    /// Add me as a friend on Off The Cloud: {address}
+    ///
+    /// What Share (beside your address at the top of Friends) sends through the phone's share sheet - in a message to someone. {address} is this device's address, such as pit.off-the.cloud, which they type in their app's Friends (put in as it is, so it can be copied from the message).
+    static func appSocialFriendsShareText(address: String) -> String {
+        L("app.social.friends.share_text", table: "AppSocial", address)
+    }
+
     /// Accepted
     ///
     /// Status under a friend's address in the Friends screen: the friendship is accepted.
@@ -418,6 +450,13 @@ extension S {
     /// Short message at the top of the Friends screen after removing a friend whose device was offline: it will be asked to delete what you shared the next time it connects.
     static var appSocialFriendsWaitingTheirDevice: String { L("app.social.friends.waiting_their_device", table: "AppSocial") }
 
+    /// Your address: {address}
+    ///
+    /// Top of the Friends screen: this device's own address, which friends type to send you a friend request. {address} is it, such as pit.off-the.cloud. Copy and Share follow it.
+    static func appSocialFriendsYourAddress(address: String) -> String {
+        L("app.social.friends.your_address", table: "AppSocial", L10n.isolate(address))
+    }
+
     /// No likes yet
     ///
     /// In the list of who liked a post or a comment (opened from its like count), when it holds nobody.
@@ -434,6 +473,11 @@ extension S {
     static func appSocialPostComment(name: String, comment: String, b: AttributeContainer) -> AttributedString {
         LRich("app.social.post.comment", table: "AppSocial", tags: ["b": b], [.text(L10n.isolate(name)), .text(L10n.isolate(comment))])
     }
+
+    /// Couldn't post your comment
+    ///
+    /// Short message at the top of the Social feed when the device didn't take a comment and gave no reason (its own words show instead when it does). The comment's text is back in its field, to send again.
+    static var appSocialPostCommentFailed: String { L("app.social.post.comment_failed", table: "AppSocial") }
 
     /// Add a comment…
     ///
@@ -452,10 +496,25 @@ extension S {
     /// Button (in red) of the confirmation app.social.post.delete_comment_title: deletes the comment.
     static var appSocialPostDeleteComment: String { L("app.social.post.delete_comment", table: "AppSocial") }
 
+    /// Couldn't delete the comment
+    ///
+    /// Short message at the top of the Social feed when deleting a comment failed and the device gave no reason (its own words show instead when it does). The comment stays.
+    static var appSocialPostDeleteCommentFailed: String { L("app.social.post.delete_comment_failed", table: "AppSocial") }
+
+    /// Delete comment
+    ///
+    /// Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it.
+    static var appSocialPostDeleteCommentLabel: String { L("app.social.post.delete_comment_label", table: "AppSocial") }
+
     /// Delete this comment?
     ///
     /// Title of the confirmation asked before deleting a comment (from the bin beside it, on your own post or on a comment you wrote). Buttons: app.social.post.delete_comment and Cancel.
     static var appSocialPostDeleteCommentTitle: String { L("app.social.post.delete_comment_title", table: "AppSocial") }
+
+    /// Couldn't delete the post
+    ///
+    /// Short message at the top of the Social feed when deleting one of your posts failed and the device gave no reason (its own words show instead when it does). The post stays.
+    static var appSocialPostDeleteFailed: String { L("app.social.post.delete_failed", table: "AppSocial") }
 
     /// Delete Post
     ///
@@ -467,6 +526,16 @@ extension S {
     /// Title of the confirmation asked before deleting one of your own posts. Buttons: app.social.post.delete_post and Cancel.
     static var appSocialPostDeletePostTitle: String { L("app.social.post.delete_post_title", table: "AppSocial") }
 
+    /// Like
+    ///
+    /// Screen-reader name of the empty heart under a post in the Social feed: likes the post.
+    static var appSocialPostLike: String { L("app.social.post.like", table: "AppSocial") }
+
+    /// Like comment
+    ///
+    /// Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment.
+    static var appSocialPostLikeComment: String { L("app.social.post.like_comment", table: "AppSocial") }
+
     /// one: {count} like
     /// other: {count} likes
     ///
@@ -475,10 +544,40 @@ extension S {
         L("app.social.post.likes", table: "AppSocial", count)
     }
 
+    /// More options for this post
+    ///
+    /// Screen-reader name of the … button at the top right of one of your own posts in the Social feed: opens a menu with Delete Post (app.social.post.delete_post).
+    static var appSocialPostMoreOptions: String { L("app.social.post.more_options", table: "AppSocial") }
+
+    /// Mute
+    ///
+    /// Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on; read as selected while they are muted.
+    static var appSocialPostMute: String { L("app.social.post.mute", table: "AppSocial") }
+
+    /// Play
+    ///
+    /// Screen-reader name of the play symbol over a video in the Social feed: plays it.
+    static var appSocialPostPlay: String { L("app.social.post.play", table: "AppSocial") }
+
+    /// Replay
+    ///
+    /// Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start.
+    static var appSocialPostReplay: String { L("app.social.post.replay", table: "AppSocial") }
+
     /// Post
     ///
     /// Button at the right of the comment box under a post in the Social feed: sends the comment (a verb).
     static var appSocialPostSendComment: String { L("app.social.post.send_comment", table: "AppSocial") }
+
+    /// Unlike
+    ///
+    /// Screen-reader name of the filled heart under a post you liked in the Social feed (read as selected): takes your like back.
+    static var appSocialPostUnlike: String { L("app.social.post.unlike", table: "AppSocial") }
+
+    /// Unlike comment
+    ///
+    /// Screen-reader name of the filled heart beside a comment you liked in the Social feed (read as selected): takes your like back.
+    static var appSocialPostUnlikeComment: String { L("app.social.post.unlike_comment", table: "AppSocial") }
 
     /// User
     ///

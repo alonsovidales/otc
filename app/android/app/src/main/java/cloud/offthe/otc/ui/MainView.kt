@@ -73,8 +73,13 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.layout.safeDrawingPadding
+import cloud.offthe.otc.i18n.appShellSectionUnread
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -340,7 +345,10 @@ fun MainView(secrets: SecretsStore) {
         var fieldBounds by remember { mutableStateOf(Rect.Zero) }
         var contentTop by remember { mutableStateOf(0f) }
 
-        Scaffold(topBar = {
+        // The "isn't available" and "can't connect" cards lie over all of it,
+        // bars included (as iOS): out of TalkBack's reach meanwhile too.
+        val covered = statusCode != null || showConnectionProblem
+        Scaffold(modifier = if (covered) Modifier.clearAndSetSemantics {} else Modifier, topBar = {
             // Nothing at all when there is nothing to show: an empty bar
             // would take the place of the status bar's inset in the page's
             // padding, and the page would go under the status bar.
@@ -378,7 +386,12 @@ fun MainView(secrets: SecretsStore) {
                 val tabStyle = labelStyle.copy(fontSize = tabLabelSize(labels, slot, labelStyle))
                 NavigationBar {
                     tabs.forEachIndexed { i, t ->
+                        // The item reads its label only (its icon's words are
+                        // cleared): the unread count goes in its name, as the
+                        // menu's (Sidebar.kt) and iOS's badge.
+                        val unreadName = if (t.section == Section.Alerts && unread > 0) S.appShellSectionUnread(labels[i], unread).resolve() else null
                         NavigationBarItem(
+                            modifier = if (unreadName != null) Modifier.semantics { contentDescription = unreadName } else Modifier,
                             selected = section.tab == t.section,
                             onClick = {
                                 // Files picked in the tab bar: whatever search
@@ -461,15 +474,6 @@ fun MainView(secrets: SecretsStore) {
                         revealStorage = revealStorage, onStorageRevealed = { revealStorage = false },
                     )
                 }
-                val code = statusCode
-                val context = androidx.compose.ui.platform.LocalContext.current
-                Box(Modifier.fillMaxSize().imePadding()) {
-                    if (code != null) {
-                        DeviceUnreachableView(message = lastError?.resolve() ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
-                    } else if (showConnectionProblem) {
-                        ConnectionProblemView(secrets = secrets, onLeave = { e, p -> logOut(context, secrets, unregisterPush = false, keepDevice = true, lastDevice = e to p) })
-                    }
-                }
             }
         }
         // The search's panel, hanging from the top bar's field over the
@@ -502,6 +506,28 @@ fun MainView(secrets: SecretsStore) {
                     dropdownWidth = with(density) { fieldBounds.width.toDp() },
                     riseTo = (ceiling - origin.y).roundToInt(),
                 )
+            }
+        }
+        // Issue #56: over the whole Scaffold - the bars too - rather than
+        // in its page, where the dimmed bars still took taps and TalkBack
+        // read what was under the card. Every touch stops here.
+        if (covered) {
+            val code = statusCode
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Box(
+                Modifier.fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f))
+                    .pointerInput(Unit) { awaitEachGesture { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
+            ) {
+                // The card itself keeps clear of the status bar, the
+                // navigation bar and the keyboard.
+                Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    if (code != null) {
+                        DeviceUnreachableView(message = lastError?.resolve() ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
+                    } else {
+                        ConnectionProblemView(secrets = secrets, onLeave = { e, p -> logOut(context, secrets, unregisterPush = false, keepDevice = true, lastDevice = e to p) })
+                    }
+                }
             }
         }
     }

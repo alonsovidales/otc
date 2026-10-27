@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">Autoriser de nouveau les suppressions dans « \u2068%1$s\u2069 » ?</string>
     <string name="app_files_back_to_files">Retour à Fichiers</string>
     <string name="app_files_back_to_folder">Retour à \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">impossible de lire \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Désactiver l’envoi uniquement</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Supprimer %1$s élément ?</item>
@@ -89,6 +90,7 @@
     <string name="app_files_upload_failed">Échec de l’envoi : %1$s</string>
     <string name="app_files_upload_only">Envoi uniquement</string>
     <string name="app_files_upload_only_file_info">Cet élément se trouve dans un dossier en envoi uniquement : il ne peut pas être supprimé, et l’envoyer de nouveau conserve son ancienne version. Le cadenas sur le dossier permet de changer cela.</string>
+    <string name="app_files_uploading">Envoi %1$s sur %2$s…</string>
     <string name="app_files_usage_empty">Rien dans ce dossier n’occupe d’espace.</string>
     <string name="app_files_usage_failed">Impossible de calculer l’espace occupé par ce dossier.</string>
     <string name="app_files_usage_needs_update">Votre appareil doit être mis à jour pour afficher l’espace occupé par les dossiers.</string>

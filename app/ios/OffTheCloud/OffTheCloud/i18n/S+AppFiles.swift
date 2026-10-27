@@ -30,6 +30,13 @@ extension S {
         L("app.files.back_to_folder", table: "AppFiles", L10n.isolate(folder))
     }
 
+    /// cannot read {name}
+    ///
+    /// Why uploading a file picked on the phone failed, after Upload failed: (app.files.upload_failed, hence the lowercase start): the phone couldn't read the picked file. {name} is the file's name.
+    static func appFilesCannotRead(name: String) -> String {
+        L("app.files.cannot_read", table: "AppFiles", L10n.isolate(name))
+    }
+
     /// Clear upload only
     ///
     /// Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
@@ -385,6 +392,13 @@ extension S {
     ///
     /// Explanation shown (title app.files.upload_only) when the lock on a file's row in Files is tapped: the file is inside an upload-only folder.
     static var appFilesUploadOnlyFileInfo: String { L("app.files.upload_only_file_info", table: "AppFiles") }
+
+    /// Uploading {done} of {total}…
+    ///
+    /// Files: the line above the bottom bar while the files picked to upload into the folder are being sent, with Cancel beside it. {done} is the number of the file being sent, {total} how many were picked.
+    static func appFilesUploading(done: Int, total: Int) -> String {
+        L("app.files.uploading", table: "AppFiles", done, total)
+    }
 
     /// Nothing in this folder takes up space.
     ///

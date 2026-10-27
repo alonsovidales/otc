@@ -71,6 +71,10 @@
     <string name="app_shell_onboarding_setup_footer">For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.</string>
     <string name="app_shell_percent">%1$s%%</string>
     <string name="app_shell_privacy">Privacy</string>
+    <string name="app_shell_problem_alerts_failed">Your notifications will appear as soon as your device answers.</string>
+    <string name="app_shell_problem_alerts_offline">This phone is offline. Your notifications will appear once it\'s back online.</string>
+    <string name="app_shell_problem_alerts_slow">Your device took too long to answer. Your notifications will appear as soon as it does.</string>
+    <string name="app_shell_problem_alerts_unreachable">Your device isn\'t reachable right now. Your notifications will appear as soon as it answers.</string>
     <string name="app_shell_problem_files_failed">The files will appear as soon as your device answers.</string>
     <string name="app_shell_problem_files_offline">This phone is offline. The files will appear once it\'s back online.</string>
     <string name="app_shell_problem_files_slow">Your device took too long to answer. The files will appear as soon as it does.</string>
@@ -122,8 +126,12 @@
     <string name="app_shell_setup_device">Device %1$s</string>
     <string name="app_shell_setup_device_older">Device (older image)</string>
     <string name="app_shell_setup_enter_password">Enter the device\'s password</string>
+    <string name="app_shell_setup_leave">Leave</string>
+    <string name="app_shell_setup_leave_text">The device goes on installing. Open the setup again to follow it, or sign in once it\'s done.</string>
+    <string name="app_shell_setup_leave_title">Leave the setup?</string>
     <string name="app_shell_setup_looking">Looking for a device to set up…</string>
     <string name="app_shell_setup_new_device">Set up a new device</string>
+    <string name="app_shell_setup_not_found">No device found yet. Check that it\'s on, with its disks connected, and keep the phone next to it.</string>
     <string name="app_shell_setup_open_device">Open my device</string>
     <string name="app_shell_setup_power_on">Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.</string>
     <string name="app_shell_setup_ready_as">The device is ready as %1$s.</string>

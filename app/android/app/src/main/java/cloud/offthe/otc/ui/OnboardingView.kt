@@ -2,6 +2,10 @@
 package cloud.offthe.otc.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,7 +92,10 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             actions = { LanguageMenu() },
         )
     }) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize().padding(16.dp)) {
+        // Scrolls, above the keyboard (the window is edge to edge): Save &
+        // Continue stayed under the keyboard on a small phone, and at a big
+        // font size the buttons ran off the screen.
+        Column(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text(S.appShellConnectTitle().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             ConnectionEndpointFields(form.entry)

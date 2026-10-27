@@ -6,6 +6,10 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
+/** "Couldn't accept the friend request": Short message at the top of Alerts when Accept (on a friend request's alert) failed and the device gave no reason (its own words show instead when it does). */
+fun S.appSocialAlertsAcceptFailed(): UiText =
+    UiText.Res(R.string.app_social_alerts_accept_failed)
+
 /** "<b>{name}</b> commented on your post": A row of the Alerts tab (the list of notifications): a friend commented on one of your posts. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post. Tags: b. */
 fun S.appSocialAlertsCommented(name: String): RichText =
     RichText.Res(R.string.app_social_alerts_commented, listOf(name))
@@ -34,6 +38,10 @@ fun S.appSocialAlertsLikedComment(name: String): RichText =
 fun S.appSocialAlertsLikedPost(name: String): RichText =
     RichText.Res(R.string.app_social_alerts_liked_post, listOf(name))
 
+/** "Couldn't load your notifications": Title in Alerts, in place of the list, when the notifications couldn't be loaded; why follows under it (app.shell.problem_alerts_*), then Try again. */
+fun S.appSocialAlertsLoadFailed(): UiText =
+    UiText.Res(R.string.app_social_alerts_load_failed)
+
 /** "Notifications": Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts). */
 fun S.appSocialAlertsTitle(): UiText =
     UiText.Res(R.string.app_social_alerts_title)
@@ -41,6 +49,10 @@ fun S.appSocialAlertsTitle(): UiText =
 /** "Take a photo or video": Screen-reader name of the camera button at the left of the caption box in the New Post composer: takes a photo or records a video to add to the post. */
 fun S.appSocialComposeCamera(): UiText =
     UiText.Res(R.string.app_social_compose_camera)
+
+/** "Add a caption to publish": New Post composer: under the photos picked, while Publish (app.social.compose.publish) is greyed out because the caption is empty - every post needs one. */
+fun S.appSocialComposeCaptionNeeded(): UiText =
+    UiText.Res(R.string.app_social_compose_caption_needed)
 
 /** "Write a caption…": Placeholder of the caption box at the foot of the New Post composer (the text that goes with the post's photos). A post needs one. */
 fun S.appSocialComposeCaptionPlaceholder(): UiText =
@@ -118,6 +130,10 @@ fun S.appSocialFeedEmptyTitle(): UiText =
 fun S.appSocialFriendsAddHeading(): UiText =
     UiText.Res(R.string.app_social_friends_add_heading)
 
+/** "Address copied": Short message at the top of Friends once Copy (app.social.friends.copy_address) put your address on the clipboard. */
+fun S.appSocialFriendsAddressCopied(): UiText =
+    UiText.Res(R.string.app_social_friends_address_copied)
+
 /** "Ask {name}'s device to delete what I shared": Switch (off at first) when removing a friend: also asks the friend's device to delete your posts, comments and likes there. {name} is the friend's profile name (or their device's address when they have none). Explained by app.social.friends.ask_theirs_text. */
 fun S.appSocialFriendsAskTheirs(name: String): UiText =
     UiText.Res(R.string.app_social_friends_ask_theirs, listOf(name))
@@ -145,6 +161,10 @@ fun S.appSocialFriendsCancelRequest(): UiText =
 /** "Cancel Request": Button (in red) on the row of a friend request you sent, in the Friends screen: asks to withdraw it (app.social.friends.cancel_confirm_title follows). */
 fun S.appSocialFriendsCancelRequestButton(): UiText =
     UiText.Res(R.string.app_social_friends_cancel_request_button)
+
+/** "Copy": Button beside your address at the top of Friends (app.social.friends.your_address): copies the address. */
+fun S.appSocialFriendsCopyAddress(): UiText =
+    UiText.Res(R.string.app_social_friends_copy_address)
 
 /** "The request will be removed here and on the sender's device.": Message of the confirmation app.social.friends.delete_confirm_title, before declining a friend request you received: it is removed from your device and from the device of the person who sent it. */
 fun S.appSocialFriendsDeleteConfirmText(): UiText =
@@ -258,6 +278,10 @@ fun S.appSocialFriendsRequestSent(): UiText =
 fun S.appSocialFriendsSendError(): UiText =
     UiText.Res(R.string.app_social_friends_send_error)
 
+/** "Add me as a friend on Off The Cloud: {address}": What Share (beside your address at the top of Friends) sends through the phone's share sheet - in a message to someone. {address} is this device's address, such as pit.off-the.cloud, which they type in their app's Friends (put in as it is, so it can be copied from the message). */
+fun S.appSocialFriendsShareText(address: String): UiText =
+    UiText.Res(R.string.app_social_friends_share_text, listOf(address))
+
 /** "Accepted": Status under a friend's address in the Friends screen: the friendship is accepted. */
 fun S.appSocialFriendsStatusAccepted(): UiText =
     UiText.Res(R.string.app_social_friends_status_accepted)
@@ -314,6 +338,10 @@ fun S.appSocialFriendsWaitingAnswer(): UiText =
 fun S.appSocialFriendsWaitingTheirDevice(): UiText =
     UiText.Res(R.string.app_social_friends_waiting_their_device)
 
+/** "Your address: {address}": Top of the Friends screen: this device's own address, which friends type to send you a friend request. {address} is it, such as pit.off-the.cloud. Copy and Share follow it. */
+fun S.appSocialFriendsYourAddress(address: String): UiText =
+    UiText.Res(R.string.app_social_friends_your_address, listOf(address))
+
 /** "No likes yet": In the list of who liked a post or a comment (opened from its like count), when it holds nobody. */
 fun S.appSocialLikesEmpty(): UiText =
     UiText.Res(R.string.app_social_likes_empty)
@@ -325,6 +353,10 @@ fun S.appSocialLikesTitle(): UiText =
 /** "<b>{name}</b>: {comment}": A comment under a post in the Social feed: {name} is who wrote it (their profile name), in bold (<b>…</b>), {comment} the comment itself. Tags: b. */
 fun S.appSocialPostComment(name: String, comment: String): RichText =
     RichText.Res(R.string.app_social_post_comment, listOf(name, comment))
+
+/** "Couldn't post your comment": Short message at the top of the Social feed when the device didn't take a comment and gave no reason (its own words show instead when it does). The comment's text is back in its field, to send again. */
+fun S.appSocialPostCommentFailed(): UiText =
+    UiText.Res(R.string.app_social_post_comment_failed)
 
 /** "Add a comment…": Placeholder of the box under each post in the Social feed where you write a comment (sent with app.social.post.send_comment). */
 fun S.appSocialPostCommentPlaceholder(): UiText =
@@ -338,9 +370,21 @@ fun S.appSocialPostCommentUnnamed(comment: String): RichText =
 fun S.appSocialPostDeleteComment(): UiText =
     UiText.Res(R.string.app_social_post_delete_comment)
 
+/** "Couldn't delete the comment": Short message at the top of the Social feed when deleting a comment failed and the device gave no reason (its own words show instead when it does). The comment stays. */
+fun S.appSocialPostDeleteCommentFailed(): UiText =
+    UiText.Res(R.string.app_social_post_delete_comment_failed)
+
+/** "Delete comment": Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it. */
+fun S.appSocialPostDeleteCommentLabel(): UiText =
+    UiText.Res(R.string.app_social_post_delete_comment_label)
+
 /** "Delete this comment?": Title of the confirmation asked before deleting a comment (from the bin beside it, on your own post or on a comment you wrote). Buttons: app.social.post.delete_comment and Cancel. */
 fun S.appSocialPostDeleteCommentTitle(): UiText =
     UiText.Res(R.string.app_social_post_delete_comment_title)
+
+/** "Couldn't delete the post": Short message at the top of the Social feed when deleting one of your posts failed and the device gave no reason (its own words show instead when it does). The post stays. */
+fun S.appSocialPostDeleteFailed(): UiText =
+    UiText.Res(R.string.app_social_post_delete_failed)
 
 /** "Delete Post": Item (in red) of the menu of your own post in the Social feed, which asks app.social.post.delete_post_title, and the button (in red) of that confirmation, which deletes the post. */
 fun S.appSocialPostDeletePost(): UiText =
@@ -350,13 +394,45 @@ fun S.appSocialPostDeletePost(): UiText =
 fun S.appSocialPostDeletePostTitle(): UiText =
     UiText.Res(R.string.app_social_post_delete_post_title)
 
+/** "Like": Screen-reader name of the empty heart under a post in the Social feed: likes the post. */
+fun S.appSocialPostLike(): UiText =
+    UiText.Res(R.string.app_social_post_like)
+
+/** "Like comment": Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment. */
+fun S.appSocialPostLikeComment(): UiText =
+    UiText.Res(R.string.app_social_post_like_comment)
+
 /** "{count} likes" (one: "{count} like"): Under a post's heart in the Social feed: how many people liked it. A tap lists who. */
 fun S.appSocialPostLikes(count: Int): UiText =
     UiText.Plural(R.plurals.app_social_post_likes, count, listOf(count))
 
+/** "More options for this post": Screen-reader name of the … button at the top right of one of your own posts in the Social feed: opens a menu with Delete Post (app.social.post.delete_post). */
+fun S.appSocialPostMoreOptions(): UiText =
+    UiText.Res(R.string.app_social_post_more_options)
+
+/** "Mute": Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on; read as selected while they are muted. */
+fun S.appSocialPostMute(): UiText =
+    UiText.Res(R.string.app_social_post_mute)
+
+/** "Play": Screen-reader name of the play symbol over a video in the Social feed: plays it. */
+fun S.appSocialPostPlay(): UiText =
+    UiText.Res(R.string.app_social_post_play)
+
+/** "Replay": Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start. */
+fun S.appSocialPostReplay(): UiText =
+    UiText.Res(R.string.app_social_post_replay)
+
 /** "Post": Button at the right of the comment box under a post in the Social feed: sends the comment (a verb). */
 fun S.appSocialPostSendComment(): UiText =
     UiText.Res(R.string.app_social_post_send_comment)
+
+/** "Unlike": Screen-reader name of the filled heart under a post you liked in the Social feed (read as selected): takes your like back. */
+fun S.appSocialPostUnlike(): UiText =
+    UiText.Res(R.string.app_social_post_unlike)
+
+/** "Unlike comment": Screen-reader name of the filled heart beside a comment you liked in the Social feed (read as selected): takes your like back. */
+fun S.appSocialPostUnlikeComment(): UiText =
+    UiText.Res(R.string.app_social_post_unlike_comment)
 
 /** "User": In a post's header in the Social feed, in place of the name of whoever posted it when they have no profile name. */
 fun S.appSocialPostUnnamed(): UiText =

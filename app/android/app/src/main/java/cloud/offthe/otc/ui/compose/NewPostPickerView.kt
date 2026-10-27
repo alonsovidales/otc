@@ -81,6 +81,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -89,6 +92,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
@@ -101,6 +106,7 @@ import cloud.offthe.otc.i18n.androidComposeMoveRight
 import cloud.offthe.otc.i18n.androidComposeRecordVideo
 import cloud.offthe.otc.i18n.androidComposeTakePhoto
 import cloud.offthe.otc.i18n.appSocialComposeCamera
+import cloud.offthe.otc.i18n.appSocialComposeCaptionNeeded
 import cloud.offthe.otc.i18n.appSocialComposeCaptionPlaceholder
 import cloud.offthe.otc.i18n.appSocialComposeEmptyResponse
 import cloud.offthe.otc.i18n.appSocialComposeFilterPlaceholder
@@ -173,7 +179,12 @@ class NewPostPickerViewModel : ViewModel() {
         val items: List<Item> = emptyList(),
         val loading: Boolean = false,
         val endReached: Boolean = false,
-        val selectedOrder: List<String> = emptyList(),
+        // What is picked, in post order, whichever source or tags the grid
+        // shows now (ComposerPicks).
+        val picks: ComposerPicks = ComposerPicks(),
+        // Synced tiles' thumbnails that landed after their page (by path; a
+        // null value: none, or let go), over the key the page brought.
+        val thumbKeys: Map<String, String?> = emptyMap(),
         val trims: Map<String, TrimRange> = emptyMap(),
         val trimming: Pair<String, String>? = null,
         val trimLoadingId: String? = null,
@@ -182,7 +193,26 @@ class NewPostPickerViewModel : ViewModel() {
         /** The line above the composer bar while publishing (issue #49); null: none. */
         val publishStatus: UiText? = null,
         val alert: UiText? = null,
-    )
+    ) {
+        /** Publish is greyed out for want of a caption alone: the composer says so. */
+        val captionNeeded: Boolean get() = captionNeeded(picks.size, caption, publishing)
+
+        /** A synced item's thumbnail in ThumbStore: the one that landed for it, else its page's; null: none yet. */
+        fun thumbKeyOf(item: Item): String? = if (item.path in thumbKeys) thumbKeys[item.path] else item.thumbKey
+
+        /** After a post went out: no caption, picks or trims left for the next one; the grid stays. */
+        fun posted(): State = copy(caption = "", picks = ComposerPicks(), trims = emptyMap(), trimming = null)
+    }
+
+    companion object {
+        /**
+         * Something is picked but the caption is empty: Publish waits for
+         * one (issue #96), and the line above the bar says so - not while
+         * nothing is picked (that is plain to see) or while publishing.
+         */
+        fun captionNeeded(picked: Int, caption: String, publishing: Boolean): Boolean =
+            picked > 0 && caption.isBlank() && !publishing
+    }
 
     private val _state = MutableStateFlow(State())
     val state = _state
@@ -204,7 +234,12 @@ class NewPostPickerViewModel : ViewModel() {
             send = { b -> OTCConnection.ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } },
             pause = { sleepOrWake(it) },
         ) { landed ->
-            _state.update { st -> st.copy(items = st.items.map { i -> if (i.asset == null && landed.containsKey(i.path)) i.copy(thumbKey = landed[i.path]) else i }) }
+            // By path, beside the items: an Item equals another by its id
+            // alone, so a copy with only its key changed was an equal State
+            // the flow dropped, and the tiles stayed grey. Kept for the
+            // picks too: a synced pick shows in the order strip while the
+            // grid shows the phone's photos.
+            _state.update { st -> st.copy(thumbKeys = st.thumbKeys + landed) }
         }
     }
 
@@ -233,17 +268,19 @@ class NewPostPickerViewModel : ViewModel() {
         }
     }
 
-    /** A synced tile is on screen ([Item.thumbKey] null: fetched first). */
-    fun tileShown(item: Item) { if (item.asset == null) tiles.shown(item.path, needsThumb = item.thumbKey == null) }
+    /** A synced tile is on screen (no thumbnail key yet: fetched first). */
+    fun tileShown(item: Item) { if (item.asset == null) tiles.shown(item.path, needsThumb = _state.value.thumbKeyOf(item) == null) }
 
     fun tileGone(item: Item) { if (item.asset == null) tiles.gone(item.path) }
 
     /** A synced tile's thumbnail is no longer kept (the cache was cleared): fetched again. */
     fun thumbLost(item: Item) {
         if (item.asset != null) return
-        _state.update { st -> st.copy(items = st.items.map { if (it.id == item.id) it.copy(thumbKey = null) else it }) }
+        forgetThumb(item)
         tiles.shown(item.path, needsThumb = true)
     }
+
+    private fun forgetThumb(item: Item) = _state.update { st -> st.copy(thumbKeys = st.thumbKeys + (item.path to null)) }
 
     // Synced tiles whose bytes failed to decode this search: a second time, none.
     private val undecodable = HashSet<String>()
@@ -253,7 +290,7 @@ class NewPostPickerViewModel : ViewModel() {
         if (item.asset != null) return
         viewModelScope.launch { ThumbStore.discard(key) }
         if (undecodable.add(item.path)) { thumbLost(item); return }
-        _state.update { st -> st.copy(items = st.items.map { if (it.id == item.id) it.copy(thumbKey = null) else it }) }
+        forgetThumb(item)
         tiles.markNone(item.path)
     }
 
@@ -296,11 +333,17 @@ class NewPostPickerViewModel : ViewModel() {
         } catch (_: Exception) {}
     }
 
+    /**
+     * The grid starts over (a new source, a tag added or removed). What is
+     * picked stays picked (State.picks): it is published from there, not
+     * from the grid, so a photo picked from Phone and one from Synced can
+     * go in the same post.
+     */
     suspend fun resetAndLoadFirstPage() {
         searchGeneration += 1
         tiles.reset()
         undecodable.clear()
-        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selectedOrder = emptyList()) }
+        _state.update { it.copy(loading = false, endReached = false, items = emptyList()) }
         when (_state.value.source) {
             Source.SYNCED -> { token = ""; fetchPage(overrideToken = "") }
             Source.PHONE -> { localAssets = null; localLoadedCount = 0; loadLocalPage() }
@@ -401,12 +444,15 @@ class NewPostPickerViewModel : ViewModel() {
                 phoneThumbnail(asset)?.let { ThumbCache.put("local#${asset.id}", it) }
                 Item("local#${asset.id}", "", asset = asset, isVideo = video)
             }
-            if (_state.value.source != Source.PHONE) switchSource(Source.PHONE)
+            // To the phone's photos first, waited for: a start-over still to
+            // come would empty the grid after the capture went in (it took
+            // the capture out, and its page brought it back a second time).
+            if (_state.value.source != Source.PHONE) {
+                _state.update { it.copy(source = Source.PHONE) }
+                resetAndLoadFirstPage()
+            }
             _state.update { st ->
-                st.copy(
-                    items = listOf(item) + st.items.filter { it.id != item.id },
-                    selectedOrder = if (item.id in st.selectedOrder) st.selectedOrder else st.selectedOrder + item.id,
-                )
+                st.copy(items = listOf(item) + st.items.filter { it.id != item.id }, picks = st.picks.add(item))
             }
         }
     }
@@ -435,17 +481,14 @@ class NewPostPickerViewModel : ViewModel() {
         }
     }
 
-    fun toggleSelect(id: String) = _state.update { st ->
-        st.copy(selectedOrder = if (id in st.selectedOrder) st.selectedOrder - id else st.selectedOrder + id)
-    }
+    /** A tile tapped: picked, last in the post, or no longer picked. */
+    fun toggleSelect(item: Item) = _state.update { st -> st.copy(picks = st.picks.toggle(item)) }
+
+    /** The order strip's ×: no longer picked, whichever source it came from. */
+    fun unpick(id: String) = _state.update { st -> st.copy(picks = st.picks.remove(id)) }
 
     /** Issue #48: explicit reordering from the "Selected" strip. */
-    fun moveSelected(id: String, offset: Int) = _state.update { st ->
-        val idx = st.selectedOrder.indexOf(id)
-        val newIdx = idx + offset
-        if (idx < 0 || newIdx !in st.selectedOrder.indices) st
-        else st.copy(selectedOrder = st.selectedOrder.toMutableList().also { val t = it[idx]; it[idx] = it[newIdx]; it[newIdx] = t })
-    }
+    fun moveSelected(id: String, offset: Int) = _state.update { st -> st.copy(picks = st.picks.move(id, offset)) }
 
     /** Issue #108: trimming needs the real video. */
     fun openTrimmer(item: Item) {
@@ -490,12 +533,15 @@ class NewPostPickerViewModel : ViewModel() {
 
     fun publish(onPosted: () -> Unit) {
         val st = _state.value
-        if (st.selectedOrder.isEmpty() || st.caption.isBlank() || st.publishing) return
+        if (st.picks.isEmpty() || st.caption.isBlank() || st.publishing) return
         _state.update { it.copy(publishing = true) }
-        viewModelScope.launch {
+        // Not the composer's own scope: closing it while the post goes out
+        // doesn't stop the post, as on iOS (its publish task outlives the
+        // sheet), and the feed is told once it is in.
+        ComposerPublish.scope.launch {
             try {
-                val byId = st.items.associateBy { it.id }
-                val selectedItems = st.selectedOrder.mapNotNull { byId[it] }
+                // Issue #48: in the picks' order, from whichever source each came.
+                val selectedItems = st.picks.picked
                 val phoneCount = selectedItems.count { it.asset != null }
                 val secrets = SecretsStore.loadOrCreate()
                 val targetDir = "/android/${secrets.deviceId.value}/"
@@ -516,9 +562,16 @@ class NewPostPickerViewModel : ViewModel() {
                     VideoTrim.newBuilder().setPath(resolved[i]).setStartSecs(r.start).setEndSecs(r.end).build()
                 }
                 val resp = OTCConnection.request { it.setReqNewSocialPublication(NewSocialPublication.newBuilder().setText(st.caption).addAllPaths(resolved).addAllTrims(pbTrims)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_NEW_SOCIAL && !resp.error) onPosted()
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_NEW_SOCIAL && !resp.error) {
+                    // Posted: nothing of it is left for the next post (one
+                    // more tap used to post it twice).
+                    _state.update { it.posted() }
+                    onPosted()
+                }
                 // The device's own words, already in the app's language.
                 else _state.update { it.copy(alert = if (resp.error) S.appSocialComposePublishFailedDetail(resp.errorMessage) else S.appSocialComposePublishFailed()) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(alert = S.appSocialComposePublishFailedDetail("${e.message}")) }
             } finally {
@@ -530,10 +583,72 @@ class NewPostPickerViewModel : ViewModel() {
     fun dismissAlert() = _state.update { it.copy(alert = null) }
 }
 
+/**
+ * What the composer has picked, in post order (issue #48), each with the
+ * item it is: a pick stays picked while the grid shows the other source or
+ * other tags, and publish takes the items from here, never from the grid -
+ * which used to drop every pick at a change of source or tag (it published
+ * only what the grid held). As ComposerPicks in NewPostPicker.swift.
+ */
+data class ComposerPicks(
+    val order: List<String> = emptyList(),
+    private val byId: Map<String, NewPostPickerViewModel.Item> = emptyMap(),
+) {
+    val size: Int get() = order.size
+
+    fun isEmpty(): Boolean = order.isEmpty()
+
+    operator fun contains(id: String): Boolean = id in byId
+
+    /** Its place in the post, from 1; null when it isn't picked. */
+    fun number(id: String): Int? = order.indexOf(id).takeIf { it >= 0 }?.plus(1)
+
+    fun item(id: String): NewPostPickerViewModel.Item? = byId[id]
+
+    /** The picks, in post order. */
+    val picked: List<NewPostPickerViewModel.Item> get() = order.mapNotNull { byId[it] }
+
+    /** A tap on a tile: picked, last in the post - or no longer picked. */
+    fun toggle(item: NewPostPickerViewModel.Item): ComposerPicks = if (item.id in byId) remove(item.id) else add(item)
+
+    /** Picked (last in the post) if it wasn't; one already picked keeps its place. */
+    fun add(item: NewPostPickerViewModel.Item): ComposerPicks =
+        if (item.id in byId) copy(byId = byId + (item.id to item)) else ComposerPicks(order + item.id, byId + (item.id to item))
+
+    fun remove(id: String): ComposerPicks = if (id !in byId) this else ComposerPicks(order - id, byId - id)
+
+    /** Issue #48: one place earlier ([offset] -1) or later (1) in the post. */
+    fun move(id: String, offset: Int): ComposerPicks {
+        val idx = order.indexOf(id)
+        val to = idx + offset
+        if (idx < 0 || to !in order.indices) return this
+        return copy(order = order.toMutableList().also { val t = it[idx]; it[idx] = it[to]; it[to] = t })
+    }
+}
+
+/** Where posts are published: the app's, so closing the composer doesn't stop one on its way. */
+private object ComposerPublish {
+    val scope by lazy { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main.immediate) }
+}
+
+/**
+ * The composer's own view model store: a new view model each time it
+ * opens - nothing of the last opening left (its caption, picks and trims
+ * survived a post, and one more tap posted it twice), and the phone's
+ * photos read again - let go when it closes. As iOS's @StateObject, made
+ * with each sheet.
+ */
+private class ComposerStore : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
-    val vm: NewPostPickerViewModel = viewModel()
+    // Its own view model for this opening (ComposerStore), let go as it closes.
+    val store = remember { ComposerStore() }
+    DisposableEffect(store) { onDispose { store.viewModelStore.clear() } }
+    val vm: NewPostPickerViewModel = viewModel(viewModelStoreOwner = store)
     val st by vm.state.collectAsState()
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
@@ -632,22 +747,28 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                     }
                     LazyVerticalGrid(columns = GridCells.Fixed(3), state = gridState, contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
                         items(st.items, key = { it.id }) { item ->
+                            val thumbKey = st.thumbKeyOf(item)
                             LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
-                            DisposableEffect(item.id, item.thumbKey == null) {
+                            DisposableEffect(item.id, thumbKey == null) {
                                 vm.tileShown(item)
                                 onDispose { vm.tileGone(item) }
                             }
-                            val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
-                            PickTile(item, item.thumbKey, n, tilePx, onLost = { vm.thumbLost(item) }, onUndecodable = { k -> vm.thumbUndecodable(item, k) }) { vm.toggleSelect(item.id) }
+                            PickTile(item, thumbKey, st.picks.number(item.id), tilePx, onLost = { vm.thumbLost(item) }, onUndecodable = { k -> vm.thumbUndecodable(item, k) }) { vm.toggleSelect(item) }
                         }
                         if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                     }
                 }
 
-                if (st.selectedOrder.isNotEmpty()) SelectedOrderStrip(vm, st)
+                if (!st.picks.isEmpty()) SelectedOrderStrip(vm, st)
                 val status = st.publishStatus
                 if (st.publishing && status != null) {
                     Text(status.resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                } else if (st.captionNeeded) {
+                    // Why Publish is greyed out (issue #96: a post needs a caption).
+                    Text(
+                        S.appSocialComposeCaptionNeeded().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                 }
                 HorizontalDivider()
                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -663,12 +784,12 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                     // The placeholder smaller rather than broken beside a long
                     // Publish ("Bildunterschrift…" beside "Veröffentlichen (3)").
                     OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { FitText(S.appSocialComposeCaptionPlaceholder().resolve(), minScale = 0.8f) }, modifier = Modifier.weight(1f))
-                    Button(onClick = { vm.publish { onDismiss(); onPosted() } }, enabled = st.selectedOrder.isNotEmpty() && st.caption.isNotBlank() && !st.publishing) {
+                    Button(onClick = { vm.publish { onDismiss(); onPosted() } }, enabled = !st.picks.isEmpty() && st.caption.isNotBlank() && !st.publishing) {
                         Text(
                             when {
                                 st.publishing -> S.appSocialComposePublishing()
-                                st.selectedOrder.isEmpty() -> S.appSocialComposePublish()
-                                else -> S.appSocialComposePublishCount(st.selectedOrder.size)
+                                st.picks.isEmpty() -> S.appSocialComposePublish()
+                                else -> S.appSocialComposePublishCount(st.picks.size)
                             }.resolve()
                         )
                     }
@@ -743,11 +864,17 @@ private fun SelectedOrderStrip(vm: NewPostPickerViewModel, st: NewPostPickerView
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(vertical = 6.dp)) {
         Text(S.appSocialComposeOrder().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            st.selectedOrder.forEachIndexed { index, id ->
-                val item = st.items.firstOrNull { it.id == id } ?: return@forEachIndexed
+            // Every pick, the ones the grid doesn't show now (the other
+            // source, other tags) included.
+            st.picks.order.forEachIndexed { index, id ->
+                val item = st.picks.item(id) ?: return@forEachIndexed
+                val thumbKey = st.thumbKeyOf(item)
+                // A synced pick without a thumbnail, while the grid shows
+                // something else: asked for all the same.
+                LaunchedEffect(id, thumbKey == null) { if (thumbKey == null) vm.tileShown(item) }
                 SelectedThumb(
-                    item, position = index + 1, canMoveLeft = index > 0, canMoveRight = index < st.selectedOrder.size - 1,
-                    moveLeft = { vm.moveSelected(id, -1) }, moveRight = { vm.moveSelected(id, 1) }, remove = { vm.toggleSelect(id) },
+                    item, thumbKey, position = index + 1, canMoveLeft = index > 0, canMoveRight = index < st.picks.size - 1,
+                    moveLeft = { vm.moveSelected(id, -1) }, moveRight = { vm.moveSelected(id, 1) }, remove = { vm.unpick(id) },
                     trim = if (item.isVideo) ({ vm.openTrimmer(item) }) else null, trimRange = st.trims[id], trimLoading = st.trimLoadingId == id,
                 )
             }
@@ -757,10 +884,10 @@ private fun SelectedOrderStrip(vm: NewPostPickerViewModel, st: NewPostPickerView
 
 @Composable
 private fun SelectedThumb(
-    item: NewPostPickerViewModel.Item, position: Int, canMoveLeft: Boolean, canMoveRight: Boolean,
+    item: NewPostPickerViewModel.Item, thumbKey: String?, position: Int, canMoveLeft: Boolean, canMoveRight: Boolean,
     moveLeft: () -> Unit, moveRight: () -> Unit, remove: () -> Unit, trim: (() -> Unit)?, trimRange: TrimRange?, trimLoading: Boolean,
 ) {
-    val bmp = thumbOf(item, item.thumbKey, with(LocalDensity.current) { 60.dp.roundToPx() })
+    val bmp = thumbOf(item, thumbKey, with(LocalDensity.current) { 60.dp.roundToPx() })
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(64.dp)) {
             Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080)).clickable(enabled = trim != null && !trimLoading) { trim?.invoke() }) {

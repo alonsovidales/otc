@@ -24,7 +24,24 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import cloud.offthe.otc.i18n.appSocialFriendsAddressCopied
+import cloud.offthe.otc.i18n.appSocialFriendsCopyAddress
+import cloud.offthe.otc.i18n.appSocialFriendsShareText
+import cloud.offthe.otc.i18n.appSocialFriendsYourAddress
+import cloud.offthe.otc.i18n.commonShare
+import cloud.offthe.otc.proto.GetSettings
+import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.now
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
@@ -150,11 +167,40 @@ class FriendshipsViewModel : ViewModel() {
         val loading: Boolean = false,
         /** A short message at the top, worded when it shows. */
         val toast: UiText? = null,
+        /** This device's own address (pit.off-the.cloud), shown at the top to hand to friends; null: not known. */
+        val ownAddress: String? = null,
     )
     private val _state = MutableStateFlow(State())
     val state = _state
 
     fun setTarget(v: String) = _state.update { it.copy(targetDomain = v) }
+
+    /**
+     * The address friends type to reach this device: the bridge name the
+     * phone connects to, at once, then the device's own word for it
+     * (Settings.domain) - none for a device without the bridge.
+     */
+    suspend fun loadOwnAddress() {
+        if (_state.value.ownAddress == null) {
+            val name = withContext(Dispatchers.IO) { SecretsStore.bridgeName(SecretsStore.loadOrCreate().endpoint.value) }
+            if (name != null) _state.update { if (it.ownAddress == null) it.copy(ownAddress = "$name.${SecretsStore.bridgeDomain}") else it }
+        }
+        try {
+            val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS && resp.respSettings.domain.isNotEmpty()) {
+                _state.update { it.copy(ownAddress = resp.respSettings.domain) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // The bridge name, when there is one, stands.
+        }
+    }
+
+    /** Copy, beside the address: said here below Android 13, which says it by itself. */
+    fun addressCopied() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) toast(S.appSocialFriendsAddressCopied())
+    }
 
     suspend fun reload() {
         _state.update { it.copy(loading = true) }
@@ -247,7 +293,10 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
     val vm: FriendshipsViewModel = viewModel()
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     LaunchedEffect(Unit) { vm.reload() }
+    LaunchedEffect(Unit) { vm.loadOwnAddress() }
+    fun send() { if (!st.sendingRequest && st.targetDomain.isNotBlank()) scope.launch { vm.sendRequest() } }
 
     // Shown in a sheet, which already sits below the status bar: no insets
     // of its own (they left a status bar's worth of gap under the handle).
@@ -261,6 +310,20 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
+                // What to hand a friend: this device's address, to copy or share.
+                st.ownAddress?.let { address ->
+                    item(key = "own-address") {
+                        OwnAddressRow(
+                            address,
+                            onCopy = {
+                                val clip = context.getSystemService(android.content.ClipboardManager::class.java)
+                                clip?.setPrimaryClip(android.content.ClipData.newPlainText(address, address))
+                                vm.addressCopied()
+                            },
+                            onShare = { Share.link(context, S.appSocialFriendsShareText(address).now(context)) },
+                        )
+                    }
+                }
                 // Requests waiting for an answer come first: a tapped
                 // friend-request alert lands here to answer it.
                 val waiting = st.friendships.filter { it.status == FriendShipStatus.Pending && !it.sent && !it.leaving }
@@ -283,11 +346,13 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                         OTCTextField(
                             value = st.targetDomain, onValueChange = vm::setTarget, singleLine = true,
                             placeholder = { Text(S.appSocialFriendsNamePlaceholder().resolve()) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+                            // The keyboard's Send sends it, as the button beside it.
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { send() }),
                             modifier = Modifier.weight(1f),
                         )
                         Text(".${SecretsStore.bridgeDomain}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
-                        TextButton(onClick = { scope.launch { vm.sendRequest() } }, enabled = !st.sendingRequest && st.targetDomain.isNotBlank()) { Text(S.commonSend().resolve()) }
+                        TextButton(onClick = ::send, enabled = !st.sendingRequest && st.targetDomain.isNotBlank()) { Text(S.commonSend().resolve()) }
                     }
                 }
                 item {
@@ -310,6 +375,33 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                 }
             }
             Toast(st.toast?.resolve(), Modifier.align(Alignment.TopCenter))
+        }
+    }
+}
+
+/**
+ * This device's address at the top of Friends - what a friend types to send
+ * a request - with Copy and Share (a message saying to add it). On two
+ * lines when the buttons don't fit beside it.
+ */
+@Composable
+private fun OwnAddressRow(address: String, onCopy: () -> Unit, onShare: () -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center, itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(S.appSocialFriendsYourAddress(address).resolve(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
+        Row {
+            TextButton(onClick = onCopy) {
+                Icon(Icons.Outlined.ContentCopy, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(S.appSocialFriendsCopyAddress().resolve())
+            }
+            TextButton(onClick = onShare) {
+                Icon(Icons.Outlined.Share, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(S.commonShare().resolve())
+            }
         }
     }
 }

@@ -28,6 +28,14 @@
     "text": "Turn Bluetooth on to find the device.",
     "note": "Set up a new device (over Bluetooth): under the heading Bluetooth is off."
   },
+  "android.bluetooth_scan_failed": {
+    "text": "Couldn't start looking for devices. Turn Bluetooth off and on again.",
+    "note": "Set up a new device (over Bluetooth): heading when the phone refused to look for devices over Bluetooth (a failed scan). Try again (common.try_again) follows."
+  },
+  "android.bluetooth_turn_on": {
+    "text": "Turn on Bluetooth",
+    "note": "Button in Set up a new device (over Bluetooth) under the heading Bluetooth is off: asks the phone to turn Bluetooth on."
+  },
   "android.cache_bytes": {
     "text": {
       "one": "{count} byte",
@@ -72,11 +80,6 @@
     "max": 30,
     "review": "required",
     "reviewed": "shipped 2026-10-11 #c0409da4"
-  },
-  "android.files.cannot_read": {
-    "text": "cannot read {uri}",
-    "args": [["uri", "text"]],
-    "note": "Why uploading a file picked on the phone failed, after Upload failed: (hence the lowercase start): the phone wouldn't open the picked file. {uri} is the file's address on the phone (content://...)."
   },
   "android.files.folder_update_failed_detail": {
     "text": "Could not update the folder: {detail}",
@@ -250,6 +253,10 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #bf12f245"
   },
+  "android.location_off_hint": {
+    "text": "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on.",
+    "note": "Set up a new device (over Bluetooth), on Android 11 and older: under the heading Looking for a device to set up… while the phone's Location is off, with Open Settings (android.open_settings) under it. Location is Android's setting of that name."
+  },
   "android.menu_sections": {
     "text": "Sections",
     "note": "Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown."
@@ -262,6 +269,10 @@
   "android.notification_channel_description": {
     "text": "Friend requests, new posts, likes and comments",
     "note": "Description of that notification channel, shown under its name in Android's notification settings."
+  },
+  "android.open_settings": {
+    "text": "Open Settings",
+    "note": "Button in Set up a new device (over Bluetooth): opens the phone's Settings - at this app's page when it isn't allowed to use Bluetooth (android.bluetooth_needed_hint), at Location when that is off (android.location_off_hint). Settings is Android's own app: use its name in this language."
   },
   "android.photos_open_in_maps": {
     "text": "Open in Maps ({latitude}, {longitude})",
@@ -494,38 +505,6 @@
     "text": "Weak signal",
     "note": "Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak.",
     "max": 20
-  },
-  "android.social_delete_comment": {
-    "text": "Delete comment",
-    "note": "Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it."
-  },
-  "android.social_like": {
-    "text": "Like",
-    "note": "Screen-reader name of the empty heart under a post in the Social feed: likes the post."
-  },
-  "android.social_like_comment": {
-    "text": "Like comment",
-    "note": "Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment."
-  },
-  "android.social_mute": {
-    "text": "Mute",
-    "note": "Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on."
-  },
-  "android.social_play": {
-    "text": "Play",
-    "note": "Screen-reader name of the play symbol over a video in the Social feed: plays it."
-  },
-  "android.social_replay": {
-    "text": "Replay",
-    "note": "Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start."
-  },
-  "android.social_unlike": {
-    "text": "Unlike",
-    "note": "Screen-reader name of the filled heart under a post you liked in the Social feed: takes your like back."
-  },
-  "android.social_unlike_comment": {
-    "text": "Unlike comment",
-    "note": "Screen-reader name of the filled heart beside a comment you liked in the Social feed: takes your like back."
   },
   "android.storage_gauge": {
     "text": "Storage. Show details",

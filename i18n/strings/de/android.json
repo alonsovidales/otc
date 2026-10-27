@@ -27,6 +27,14 @@
     "text": "Schalte Bluetooth ein, um das Gerät zu finden.",
     "en": "Turn Bluetooth on to find the device."
   },
+  "android.bluetooth_scan_failed": {
+    "text": "Die Suche nach Geräten konnte nicht gestartet werden. Schalte Bluetooth aus und wieder ein.",
+    "en": "Couldn't start looking for devices. Turn Bluetooth off and on again."
+  },
+  "android.bluetooth_turn_on": {
+    "text": "Bluetooth einschalten",
+    "en": "Turn on Bluetooth"
+  },
   "android.cache_bytes": {
     "text": {
       "one": "{count} Byte",
@@ -69,10 +77,6 @@
     "text": "Löschen erlauben",
     "en": "Allow deletions",
     "reviewed": "claude-backtranslation 2026-10-11 #128af4ea"
-  },
-  "android.files.cannot_read": {
-    "text": "{uri} kann nicht gelesen werden",
-    "en": "cannot read {uri}"
   },
   "android.files.folder_update_failed_detail": {
     "text": "Der Ordner konnte nicht aktualisiert werden: {detail}",
@@ -224,6 +228,10 @@
     "en": "Remove this friend?",
     "reviewed": "claude-backtranslation 2026-10-11 #5587c5ac"
   },
+  "android.location_off_hint": {
+    "text": "Der Standort ist deaktiviert. Unter dieser Android-Version findet das Handy Bluetooth-Geräte nur mit aktiviertem Standort.",
+    "en": "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on."
+  },
   "android.menu_sections": {
     "text": "Bereiche",
     "en": "Sections"
@@ -235,6 +243,10 @@
   "android.notification_channel_description": {
     "text": "Freundschaftsanfragen, neue Beiträge, Likes und Kommentare",
     "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.open_settings": {
+    "text": "Einstellungen öffnen",
+    "en": "Open Settings"
   },
   "android.photos_open_in_maps": {
     "text": "In Maps öffnen ({latitude}, {longitude})",
@@ -445,38 +457,6 @@
   "android.signal_weak": {
     "text": "Schwaches Signal",
     "en": "Weak signal"
-  },
-  "android.social_delete_comment": {
-    "text": "Kommentar löschen",
-    "en": "Delete comment"
-  },
-  "android.social_like": {
-    "text": "Gefällt mir",
-    "en": "Like"
-  },
-  "android.social_like_comment": {
-    "text": "Kommentar mit „Gefällt mir“ markieren",
-    "en": "Like comment"
-  },
-  "android.social_mute": {
-    "text": "Stummschalten",
-    "en": "Mute"
-  },
-  "android.social_play": {
-    "text": "Abspielen",
-    "en": "Play"
-  },
-  "android.social_replay": {
-    "text": "Erneut abspielen",
-    "en": "Replay"
-  },
-  "android.social_unlike": {
-    "text": "„Gefällt mir“ entfernen",
-    "en": "Unlike"
-  },
-  "android.social_unlike_comment": {
-    "text": "„Gefällt mir“ für Kommentar entfernen",
-    "en": "Unlike comment"
   },
   "android.storage_gauge": {
     "text": "Speicher. Details anzeigen",

@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">Voltar a permitir eliminações na pasta «\u2068%1$s\u2069»?</string>
     <string name="app_files_back_to_files">Voltar a Ficheiros</string>
     <string name="app_files_back_to_folder">Voltar a \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">não é possível ler \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Desativar apenas carregamento</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Eliminar %1$s item?</item>
@@ -89,6 +90,7 @@
     <string name="app_files_upload_failed">O carregamento falhou: %1$s</string>
     <string name="app_files_upload_only">Apenas carregamento</string>
     <string name="app_files_upload_only_file_info">Este item está numa pasta em apenas carregamento: não pode ser eliminado, e carregá-lo novamente mantém a versão anterior. O cadeado da pasta altera isto.</string>
+    <string name="app_files_uploading">A carregar %1$s de %2$s…</string>
     <string name="app_files_usage_empty">Nada nesta pasta ocupa espaço.</string>
     <string name="app_files_usage_failed">Não foi possível calcular quanto espaço ocupa esta pasta.</string>
     <string name="app_files_usage_needs_update">O teu dispositivo precisa de uma atualização para mostrar quanto espaço ocupam as pastas.</string>

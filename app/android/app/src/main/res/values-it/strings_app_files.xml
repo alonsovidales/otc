@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">Consentire di nuovo le eliminazioni nella cartella “\u2068%1$s\u2069”?</string>
     <string name="app_files_back_to_files">Torna a File</string>
     <string name="app_files_back_to_folder">Torna a \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">impossibile leggere \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Disattiva “Solo caricamento”</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Eliminare %1$s elemento?</item>
@@ -89,6 +90,7 @@
     <string name="app_files_upload_failed">Caricamento non riuscito: %1$s</string>
     <string name="app_files_upload_only">Solo caricamento</string>
     <string name="app_files_upload_only_file_info">Questo file si trova in una cartella in solo caricamento: non può essere eliminato, e caricarlo di nuovo ne conserva la versione precedente. Il lucchetto sulla cartella cambia questa impostazione.</string>
+    <string name="app_files_uploading">Caricamento %1$s di %2$s…</string>
     <string name="app_files_usage_empty">Nulla in questa cartella occupa spazio.</string>
     <string name="app_files_usage_failed">Impossibile calcolare quanto spazio occupa questa cartella.</string>
     <string name="app_files_usage_needs_update">Il tuo dispositivo deve essere aggiornato per mostrare quanto spazio occupano le cartelle.</string>

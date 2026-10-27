@@ -192,6 +192,10 @@
     "text": "Das Gerät antwortet nicht. Vielleicht ist es ausgeschaltet oder die Verbindung ist zu langsam.",
     "en": "The device isn't answering. It may be off, or the connection may be too slow."
   },
+  "ios.open_settings": {
+    "text": "Einstellungen öffnen",
+    "en": "Open Settings"
+  },
   "ios.photos_access_denied": {
     "text": "Zugriff auf Fotos verweigert",
     "en": "Photos access denied"

@@ -161,7 +161,7 @@ enum LoadProblem: Equatable {
     /// What a screen is waiting for: each has its own sentences, since a
     /// translation can't take "Your photos" or "The posts" as a piece.
     enum Subject {
-        case photos, files, posts
+        case photos, files, posts, alerts
     }
 
     /// Why `what` (your photos, the posts) isn't here yet, and that it
@@ -180,6 +180,10 @@ enum LoadProblem: Equatable {
         case (.posts, .unreachable): return S.appShellProblemPostsUnreachable
         case (.posts, .slow): return S.appShellProblemPostsSlow
         case (.posts, .failed): return S.appShellProblemPostsFailed
+        case (.alerts, .offline): return S.appShellProblemAlertsOffline
+        case (.alerts, .unreachable): return S.appShellProblemAlertsUnreachable
+        case (.alerts, .slow): return S.appShellProblemAlertsSlow
+        case (.alerts, .failed): return S.appShellProblemAlertsFailed
         }
     }
 

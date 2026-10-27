@@ -94,8 +94,10 @@ final class NewPostPickerVM: ObservableObject {
 
     // Issue #48: an ordered list, not a Set — publish order matches
     // selection order (last tapped = last in the post), and can be
-    // explicitly rearranged via moveSelected below.
-    @Published var selectedOrder: [String] = []
+    // explicitly rearranged via moveSelected below. Each pick is kept with
+    // its item (ComposerPicks): it stays picked while the grid shows the
+    // other source or other tags, and publish() takes it from there.
+    @Published private(set) var picks = ComposerPicks()
     // Issue #108: keyed by Item.id, because a phone pick has no server
     // path until it's uploaded at publish time - both are resolved back to
     // real paths in publish() below.
@@ -272,13 +274,15 @@ final class NewPostPickerVM: ObservableObject {
         if case .respTagsList(let tl) = resp.payload { tags = tl.tags }
     }
 
+    /// The grid starts over (a new source, a tag added or removed). What is
+    /// picked stays picked (picks): it is published from there, not from
+    /// the grid, so a photo from Phone and one from Synced can share a post.
     func resetAndLoadFirstPage() async {
         searchGeneration += 1
         thumbs.reset()
         loading = false
         endReached = false
         items = []
-        selectedOrder.removeAll()
         switch source {
         case .synced:
             token = ""
@@ -459,7 +463,13 @@ final class NewPostPickerVM: ObservableObject {
             gen.appliesPreferredTrackTransform = true
             if let cg = try? await gen.image(at: .zero).image { thumb = UIImage(cgImage: cg) }
         }
-        if source != .phone { switchSource(.phone) }
+        // To the phone's photos first, waited for: the start-over that
+        // switchSource queues ran after the capture went in, emptied the
+        // grid and took the capture's pick (and every other) away.
+        if source != .phone {
+            source = .phone
+            await resetAndLoadFirstPage()
+        }
         let item = Item(id: "local#\(asset.localIdentifier)", path: "", asset: asset, isVideo: asset.mediaType == .video)
         // The capture itself is full size: kept at the tiles' 450 px.
         if let thumb {
@@ -469,24 +479,36 @@ final class NewPostPickerVM: ObservableObject {
         }
         items.removeAll { $0.id == item.id }
         items.insert(item, at: 0)
-        if !selectedOrder.contains(item.id) { selectedOrder.append(item.id) }
+        picks.add(item)
     }
 
-    func toggleSelect(_ id: String) {
-        if let idx = selectedOrder.firstIndex(of: id) {
-            selectedOrder.remove(at: idx)
-        } else {
-            selectedOrder.append(id)
-        }
+    /// A tile tapped: picked, last in the post, or no longer picked.
+    func toggleSelect(_ item: Item) {
+        picks.toggle(item)
+    }
+
+    /// The order strip's ×: no longer picked, whichever source it came from.
+    func unpick(_ id: String) {
+        picks.remove(id)
     }
 
     /// Issue #48: explicit reordering, not just re-tapping to change
     /// position — used by the "Selected" strip's move buttons.
     func moveSelected(id: String, offset: Int) {
-        guard let idx = selectedOrder.firstIndex(of: id) else { return }
-        let newIdx = idx + offset
-        guard selectedOrder.indices.contains(newIdx) else { return }
-        selectedOrder.swapAt(idx, newIdx)
+        picks.move(id, by: offset)
+    }
+
+    /// Publish is greyed out for want of a caption alone: the composer says so.
+    var captionNeeded: Bool {
+        Self.captionNeeded(picked: picks.count, caption: caption, publishing: publishing)
+    }
+
+    /// Something is picked but the caption is empty: Publish waits for one
+    /// (issue #96), and the line above the bar says so - not while nothing
+    /// is picked (that is plain to see) or while publishing. Android's
+    /// NewPostPickerViewModel.captionNeeded.
+    nonisolated static func captionNeeded(picked: Int, caption: String, publishing: Bool) -> Bool {
+        picked > 0 && caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !publishing
     }
 
     // Issue #108: trimming needs the real video, not the thumbnail the
@@ -567,16 +589,15 @@ final class NewPostPickerVM: ObservableObject {
         // button below already disables on this same check, this just
         // guards the actual publish call too rather than trusting the
         // button's disabled state alone (same defense-in-depth as the
-        // selectedOrder check right next to it).
-        guard !selectedOrder.isEmpty, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !publishing else { return }
+        // picks check right next to it).
+        guard !picks.isEmpty, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !publishing else { return }
         publishing = true
         Task {
             defer { publishing = false; publishStatus = nil }
             do {
-                // Issue #48: publish in selectedOrder's order, not
-                // items' own display order.
-                let byId = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-                let selectedItems = selectedOrder.compactMap { byId[$0] }
+                // Issue #48: publish in the picks' order, not items' own
+                // display order - from whichever source each came.
+                let selectedItems = picks.picked
                 var resolvedPaths: [String] = []
                 var uploadedCount = 0
                 for item in selectedItems {
@@ -615,6 +636,10 @@ final class NewPostPickerVM: ObservableObject {
                     e = req
                 }
                 if case .respNewSocial = resp.payload, !resp.error {
+                    // Posted: nothing of it is left for another post.
+                    caption = ""
+                    picks = ComposerPicks()
+                    trims = [:]
                     onPosted()
                 } else {
                     alert = resp.error ? .publishRefused(resp.errorMessage) : .publishFailed
@@ -743,6 +768,52 @@ final class NewPostPickerVM: ObservableObject {
     }
 }
 
+/// What the composer has picked, in post order (issue #48), each with the
+/// item it is: a pick stays picked while the grid shows the other source or
+/// other tags, and publish() takes the items from here, never from the
+/// grid - which used to drop every pick at a change of source or tag (it
+/// published only what the grid held). Android's ComposerPicks.
+struct ComposerPicks {
+    private(set) var order: [String] = []
+    private var byId: [String: NewPostPickerVM.Item] = [:]
+
+    var count: Int { order.count }
+    var isEmpty: Bool { order.isEmpty }
+
+    func contains(_ id: String) -> Bool { byId[id] != nil }
+
+    /// Its place in the post, from 1; nil when it isn't picked.
+    func number(of id: String) -> Int? { order.firstIndex(of: id).map { $0 + 1 } }
+
+    func item(_ id: String) -> NewPostPickerVM.Item? { byId[id] }
+
+    /// The picks, in post order.
+    var picked: [NewPostPickerVM.Item] { order.compactMap { byId[$0] } }
+
+    /// A tap on a tile: picked, last in the post - or no longer picked.
+    mutating func toggle(_ item: NewPostPickerVM.Item) {
+        if byId[item.id] != nil { remove(item.id) } else { add(item) }
+    }
+
+    /// Picked (last in the post) if it wasn't; one already picked keeps
+    /// its place.
+    mutating func add(_ item: NewPostPickerVM.Item) {
+        if byId[item.id] == nil { order.append(item.id) }
+        byId[item.id] = item
+    }
+
+    mutating func remove(_ id: String) {
+        guard byId.removeValue(forKey: id) != nil else { return }
+        order.removeAll { $0 == id }
+    }
+
+    /// Issue #48: one place earlier (`offset` -1) or later (1) in the post.
+    mutating func move(_ id: String, by offset: Int) {
+        guard let idx = order.firstIndex(of: id), order.indices.contains(idx + offset) else { return }
+        order.swapAt(idx, idx + offset)
+    }
+}
+
 struct NewPostPickerView: View {
     @StateObject private var vm = NewPostPickerVM()
     @Environment(\.dismiss) private var dismiss
@@ -828,10 +899,10 @@ struct NewPostPickerView: View {
                         ForEach(vm.items) { item in
                             PickTile(
                                 item: item,
-                                selectionNumber: vm.selectedOrder.firstIndex(of: item.id).map { $0 + 1 },
+                                selectionNumber: vm.picks.number(of: item.id),
                                 thumbsVersion: vm.thumbsVersion,
                                 needThumb: { vm.needThumb(item) },
-                                onTap: { vm.toggleSelect(item.id) }
+                                onTap: { vm.toggleSelect(item) }
                             )
                             .task { await vm.loadMoreIfNeeded(current: item) }
                             // Its thumbnail asked for first while it shows.
@@ -851,7 +922,7 @@ struct NewPostPickerView: View {
                 // this strip shows the actual post order and lets it be
                 // fixed up directly, rather than requiring
                 // deselect-then-reselect-everything-in-the-right-order.
-                if !vm.selectedOrder.isEmpty {
+                if !vm.picks.isEmpty {
                     SelectedOrderStrip(vm: vm)
                 }
 
@@ -864,6 +935,14 @@ struct NewPostPickerView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
+                } else if vm.captionNeeded {
+                    // Why Publish is greyed out (issue #96: a post needs a
+                    // caption).
+                    Text(S.appSocialComposeCaptionNeeded)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                        .onAppear { Announce.polite(S.appSocialComposeCaptionNeeded) }
                 }
 
                 // Composer bar: camera (issue #150), caption, Publish.
@@ -878,15 +957,16 @@ struct NewPostPickerView: View {
                     TextField(S.appSocialComposeCaptionPlaceholder, text: $vm.caption)
                         .textFieldStyle(.roundedBorder)
                     Button(vm.publishing ? S.appSocialComposePublishing
-                           : vm.selectedOrder.isEmpty ? S.appSocialComposePublish
-                           : S.appSocialComposePublishCount(number: vm.selectedOrder.count)) {
+                           : vm.picks.isEmpty ? S.appSocialComposePublish
+                           : S.appSocialComposePublishCount(number: vm.picks.count)) {
                         vm.publish {
                             dismiss()
                             onPosted()
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(vm.selectedOrder.isEmpty || vm.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.publishing)
+                    .disabled(vm.picks.isEmpty || vm.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.publishing)
+                    .accessibilityHint(vm.captionNeeded ? S.appSocialComposeCaptionNeeded : "")
                 }
                 .padding(10)
                 .background(.ultraThinMaterial)
@@ -1146,18 +1226,20 @@ private struct SelectedOrderStrip: View {
             Text(S.appSocialComposeOrder).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Array(vm.selectedOrder.enumerated()), id: \.element) { index, id in
-                        if let item = vm.items.first(where: { $0.id == id }) {
+                    // Every pick, the ones the grid doesn't show now (the
+                    // other source, other tags) included.
+                    ForEach(Array(vm.picks.order.enumerated()), id: \.element) { index, id in
+                        if let item = vm.picks.item(id) {
                             SelectedThumb(
                                 item: item,
                                 thumbsVersion: vm.thumbsVersion,
                                 needThumb: { vm.needThumb(item) },
                                 position: index + 1,
                                 canMoveLeft: index > 0,
-                                canMoveRight: index < vm.selectedOrder.count - 1,
+                                canMoveRight: index < vm.picks.count - 1,
                                 moveLeft: { vm.moveSelected(id: id, offset: -1) },
                                 moveRight: { vm.moveSelected(id: id, offset: 1) },
-                                remove: { vm.toggleSelect(id) },
+                                remove: { vm.unpick(id) },
                                 trim: item.isVideo ? { vm.openTrimmer(for: item) } : nil,
                                 trimRange: vm.trims[id],
                                 trimLoading: vm.trimLoadingId == id

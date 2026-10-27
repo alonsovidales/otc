@@ -22,6 +22,10 @@ fun S.appFilesBackToFiles(): UiText =
 fun S.appFilesBackToFolder(folder: String): UiText =
     UiText.Res(R.string.app_files_back_to_folder, listOf(folder))
 
+/** "cannot read {name}": Why uploading a file picked on the phone failed, after Upload failed: (app.files.upload_failed, hence the lowercase start): the phone couldn't read the picked file. {name} is the file's name. */
+fun S.appFilesCannotRead(name: String): UiText =
+    UiText.Res(R.string.app_files_cannot_read, listOf(name))
+
 /** "Clear upload only": Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version. */
 fun S.appFilesClearUploadOnly(): UiText =
     UiText.Res(R.string.app_files_clear_upload_only)
@@ -273,6 +277,10 @@ fun S.appFilesUploadOnly(): UiText =
 /** "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it.": Explanation shown (title app.files.upload_only) when the lock on a file's row in Files is tapped: the file is inside an upload-only folder. */
 fun S.appFilesUploadOnlyFileInfo(): UiText =
     UiText.Res(R.string.app_files_upload_only_file_info)
+
+/** "Uploading {done} of {total}…": Files: the line above the bottom bar while the files picked to upload into the folder are being sent, with Cancel beside it. {done} is the number of the file being sent, {total} how many were picked. */
+fun S.appFilesUploading(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_files_uploading, listOf(done, total))
 
 /** "Nothing in this folder takes up space.": Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when nothing in the folder takes space: it is empty, or holds only empty folders. */
 fun S.appFilesUsageEmpty(): UiText =

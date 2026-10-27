@@ -3,6 +3,10 @@ package cloud.offthe.otc.ui.common
 
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appShellProblemAlertsFailed
+import cloud.offthe.otc.i18n.appShellProblemAlertsOffline
+import cloud.offthe.otc.i18n.appShellProblemAlertsSlow
+import cloud.offthe.otc.i18n.appShellProblemAlertsUnreachable
 import cloud.offthe.otc.i18n.appShellProblemFilesFailed
 import cloud.offthe.otc.i18n.appShellProblemFilesOffline
 import cloud.offthe.otc.i18n.appShellProblemFilesSlow
@@ -62,7 +66,7 @@ val PHOTOS_PROBLEM_TITLE: UiText get() = S.appShellProblemPhotosTitle()
 fun photosProblemText(p: LoadProblem): UiText = loadProblemText(p, LoadSubject.PHOTOS)
 
 /** What a screen is waiting for: each has its own sentences, since a translation can't take "Your photos" or "The posts" as a piece. */
-enum class LoadSubject { PHOTOS, FILES, POSTS }
+enum class LoadSubject { PHOTOS, FILES, POSTS, ALERTS }
 
 /** Why [what] (your photos, the posts) isn't here yet, and that it comes by itself once it can. */
 fun loadProblemText(p: LoadProblem, what: LoadSubject): UiText = when (what) {
@@ -83,6 +87,12 @@ fun loadProblemText(p: LoadProblem, what: LoadSubject): UiText = when (what) {
         LoadProblem.UNREACHABLE -> S.appShellProblemPostsUnreachable()
         LoadProblem.SLOW -> S.appShellProblemPostsSlow()
         LoadProblem.FAILED -> S.appShellProblemPostsFailed()
+    }
+    LoadSubject.ALERTS -> when (p) {
+        LoadProblem.OFFLINE -> S.appShellProblemAlertsOffline()
+        LoadProblem.UNREACHABLE -> S.appShellProblemAlertsUnreachable()
+        LoadProblem.SLOW -> S.appShellProblemAlertsSlow()
+        LoadProblem.FAILED -> S.appShellProblemAlertsFailed()
     }
 }
 

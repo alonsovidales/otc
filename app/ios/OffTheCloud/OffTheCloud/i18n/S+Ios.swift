@@ -245,6 +245,11 @@ extension S {
     /// Why the app can't connect, on the card shown over the app: the connection to the device stopped answering while signing in.
     static var iosNoAnswerSlow: String { L("ios.no_answer_slow", table: "Ios") }
 
+    /// Open Settings
+    ///
+    /// Button in Set up a new device (over Bluetooth) under ios.bluetooth_needed_hint: opens the iPhone's Settings at this app's page, where Bluetooth can be allowed. Settings is the iPhone's own app: use its name in this language.
+    static var iosOpenSettings: String { L("ios.open_settings", table: "Ios") }
+
     /// Photos access denied
     ///
     /// Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library.

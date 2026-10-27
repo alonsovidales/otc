@@ -17,6 +17,10 @@
     "text": "Terug naar {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "kan {name} niet lezen",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "“Alleen uploaden” uitschakelen",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Dit staat in een map met “Alleen uploaden”: het kan niet worden verwijderd, en als je het opnieuw uploadt, wordt de oudere versie bewaard. Met het slotje op de map wijzig je dit.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "Uploaden ({done} van {total})…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Niets in deze map neemt ruimte in.",

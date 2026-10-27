@@ -6,6 +6,7 @@
     <string name="app_files_allow_deletions_title">Verwijderen in “\u2068%1$s\u2069” weer toestaan?</string>
     <string name="app_files_back_to_files">Terug naar Bestanden</string>
     <string name="app_files_back_to_folder">Terug naar \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">kan \u2068%1$s\u2069 niet lezen</string>
     <string name="app_files_clear_upload_only">“Alleen uploaden” uitschakelen</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">%1$s item verwijderen?</item>
@@ -84,6 +85,7 @@
     <string name="app_files_upload_failed">Uploaden mislukt: %1$s</string>
     <string name="app_files_upload_only">Alleen uploaden</string>
     <string name="app_files_upload_only_file_info">Dit staat in een map met “Alleen uploaden”: het kan niet worden verwijderd, en als je het opnieuw uploadt, wordt de oudere versie bewaard. Met het slotje op de map wijzig je dit.</string>
+    <string name="app_files_uploading">Uploaden (%1$s van %2$s)…</string>
     <string name="app_files_usage_empty">Niets in deze map neemt ruimte in.</string>
     <string name="app_files_usage_failed">Kan niet bepalen hoeveel ruimte deze map inneemt.</string>
     <string name="app_files_usage_needs_update">Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.</string>

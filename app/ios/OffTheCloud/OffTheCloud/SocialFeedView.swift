@@ -11,13 +11,17 @@
 import SwiftUI
 import AVKit
 import Combine
+import ImageIO
 
 // When a post was published, shown in its header. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
 // falling back to an absolute date once "3d ago" stops being more useful
 // than the date itself. Worded when shown, in the app's language and locale.
-private func formatPostDate(_ date: Date) -> String {
-    let mins = Int(Date().timeIntervalSince(date) / 60)
+// `now`: the feed's TimelineView passes the minute it is drawing, so the
+// label moves on while the feed stays open (it stood still until something
+// else redrew the post).
+func formatPostDate(_ date: Date, now: Date = Date()) -> String {
+    let mins = Int(now.timeIntervalSince(date) / 60)
     if mins < 1 { return S.appShellTimeJustNow }
     if mins < 60 { return S.appShellTimeMinutesAgo(count: mins) }
     let hours = mins / 60
@@ -68,8 +72,6 @@ final class SocialFeedViewModel: ObservableObject {
     // MainView can inspect `posts`/`hasLoadedOnce` too, to decide whether
     // to default-launch on Social or fall back to Images.
     static let shared = SocialFeedViewModel()
-
-    private let ws = OTCConnection.shared
 
     /// How many publications to fetch per page (issue #15) — loading 50 at
     /// once, each with its own files/comments, was a big chunk of why the
@@ -167,6 +169,48 @@ final class SocialFeedViewModel: ObservableObject {
     func woke() {
         backOnline()
         if moreFailed { retryMore() }
+    }
+
+    /// Sends the feed's likes, comments, deletes and single posts. Tests
+    /// answer in the device's place.
+    var socialRequest: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
+
+    /// A short message at the top of the feed (a comment or a delete the
+    /// device didn't take), worded when shown; nil: none.
+    @Published private(set) var notice: FeedNotice?
+    /// Bumped by every notice: only the last one's timer takes it away.
+    private var notices = 0
+
+    /// Shows `n` at the top of the feed for a few seconds, longer for a long
+    /// sentence (the device's words), and says it to VoiceOver.
+    func say(_ n: FeedNotice) {
+        notices += 1
+        let mine = notices
+        notice = n
+        let m = n.text
+        Announce.polite(m)
+        let seconds = max(2.5, Double(m.count) / 18)
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            if self?.notices == mine { self?.notice = nil }
+        }
+    }
+
+    /// The device took the request: an Ack with ok.
+    nonisolated static func ackOK(_ resp: Msg_RespEnvelope) -> Bool {
+        if case .respAck(let ack) = resp.payload { return ack.ok }
+        return false
+    }
+
+    /// Why the device refused, in its own words (already in the app's
+    /// language) - the Ack's, else the envelope's; nil when it gave none. A
+    /// demo device answers both with its notice. Android's refusal().
+    nonisolated static func refusal(_ resp: Msg_RespEnvelope) -> String? {
+        if case .respAck(let ack) = resp.payload, !ack.errorMsg.isEmpty { return ack.errorMsg }
+        if resp.error, !resp.errorMessage.isEmpty { return resp.errorMessage }
+        return nil
     }
 
     /// Sends the feed's pages. Tests answer in the device's place.
@@ -320,12 +364,19 @@ final class SocialFeedViewModel: ObservableObject {
         Task { await loadMoreIfNeeded(current: posts.last) }
     }
 
-    /// Re-fetches exactly what's already on screen (not just page one) so a
-    /// like/comment updates counts without discarding posts the user has
-    /// already scrolled down to load via pagination.
-    private func refreshCurrentlyLoaded() async {
-        let count = Int32(max(posts.count, Int(Self.pageSize)))
-        await fetchPage(total: count, excludeUuids: [], replacing: true)
+    /// After a comment the device took: that post alone, asked for again
+    /// (ReqGetPublication) - its placeholder becomes the device's comment,
+    /// with anything else said on it meanwhile. Every post loaded, with its
+    /// thumbnails, used to come again for one comment. A post that doesn't
+    /// come keeps its placeholder until the feed loads again.
+    private func refreshPost(_ pubUuid: String) async {
+        var req = Msg_ReqGetPublication()
+        req.pubUuid = pubUuid
+        guard let resp = try? await socialRequest(.reqGetPublication(req)),
+              case .respPublication(let r) = resp.payload, r.hasPublication,
+              let idx = posts.firstIndex(where: { $0.uuid == r.publication.uuid }) else { return }
+        posts[idx] = r.publication
+        saveCachedPosts()
     }
 
     /// nil once the page is in; otherwise why not. An answer that isn't the
@@ -374,7 +425,7 @@ final class SocialFeedViewModel: ObservableObject {
         var req = Msg_LikePublication()
         req.pubUuid = uuid
         do {
-            let resp = try await ws.request { $0.payload = .reqLikePublication(req) }
+            let resp = try await socialRequest(.reqLikePublication(req))
             if case .respAck(let ack) = resp.payload, !ack.ok {
                 revertLike(pubUuid: uuid, liked: wasLiked)
             }
@@ -399,7 +450,7 @@ final class SocialFeedViewModel: ObservableObject {
         var req = Msg_LikeComment()
         req.commentUuid = uuid
         do {
-            let resp = try await ws.request { $0.payload = .reqLikeComment(req) }
+            let resp = try await socialRequest(.reqLikeComment(req))
             if case .respAck(let ack) = resp.payload, !ack.ok {
                 revertCommentLike(commentUuid: uuid, liked: wasLiked)
             }
@@ -415,9 +466,14 @@ final class SocialFeedViewModel: ObservableObject {
         posts[pubIdx].comments[cIdx].likes += liked ? 1 : -1
     }
 
-    func addComment(pubUuid: String, text: String) async {
+    /// Issue #17: the comment shows at once; the device's answer decides.
+    /// True once it is in. Otherwise it goes from the post and the feed
+    /// says why - the device's words, or ours - and the card puts the text
+    /// back in its field (it was cleared as the comment went out).
+    @discardableResult
+    func addComment(pubUuid: String, text: String) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let idx = posts.firstIndex(where: { $0.uuid == pubUuid }) else { return }
+        guard !trimmed.isEmpty, let idx = posts.firstIndex(where: { $0.uuid == pubUuid }) else { return false }
 
         var optimistic = Msg_Comment()
         optimistic.pubUuid = pubUuid
@@ -430,20 +486,24 @@ final class SocialFeedViewModel: ObservableObject {
         req.pubUuid = pubUuid
         req.comment = trimmed
         req.publisher = "me"
+        let failure: FeedNotice?
         do {
-            let resp = try await ws.request { $0.payload = .reqNewSocialComment(req) }
-            if case .respAck(let ack) = resp.payload, ack.ok {
-                // Swap the placeholder for the server's real comment (uuid,
-                // timestamp, anything anyone else posted meanwhile) — this
-                // can happen quietly in the background since the user
-                // already sees their comment.
-                await refreshCurrentlyLoaded()
-            } else {
-                removeOptimisticComment(pubUuid: pubUuid, commentUuid: optimistic.commentUuid)
-            }
+            let resp = try await socialRequest(.reqNewSocialComment(req))
+            failure = Self.ackOK(resp) ? nil : (Self.refusal(resp).map(FeedNotice.device) ?? .commentFailed)
         } catch {
-            removeOptimisticComment(pubUuid: pubUuid, commentUuid: optimistic.commentUuid)
+            failure = .commentFailed
         }
+        guard let failure else {
+            // Swap the placeholder for the server's real comment (uuid,
+            // timestamp, anything anyone else posted meanwhile) — this
+            // can happen quietly in the background since the user
+            // already sees their comment.
+            await refreshPost(pubUuid)
+            return true
+        }
+        removeOptimisticComment(pubUuid: pubUuid, commentUuid: optimistic.commentUuid)
+        say(failure)
+        return false
     }
 
     private func removeOptimisticComment(pubUuid: String, commentUuid: String) {
@@ -455,7 +515,7 @@ final class SocialFeedViewModel: ObservableObject {
     func fetchPublicationLikers(_ pubUuid: String) async -> [Msg_Profile] {
         var req = Msg_GetPublicationLikers()
         req.pubUuid = pubUuid
-        guard let resp = try? await ws.request({ $0.payload = .reqGetPublicationLikers(req) }) else { return [] }
+        guard let resp = try? await socialRequest(.reqGetPublicationLikers(req)) else { return [] }
         if case .respLikers(let l) = resp.payload { return l.likers }
         return []
     }
@@ -463,41 +523,52 @@ final class SocialFeedViewModel: ObservableObject {
     func fetchCommentLikers(_ commentUuid: String) async -> [Msg_Profile] {
         var req = Msg_GetCommentLikers()
         req.commentUuid = commentUuid
-        guard let resp = try? await ws.request({ $0.payload = .reqGetCommentLikers(req) }) else { return [] }
+        guard let resp = try? await socialRequest(.reqGetCommentLikers(req)) else { return [] }
         if case .respLikers(let l) = resp.payload { return l.likers }
         return []
     }
 
     // Issue #34: delete one of your own posts. Removed locally only once
     // the server confirms it — this hits the DB (files, comments, likes),
-    // not something to optimistically guess at.
+    // not something to optimistically guess at. A delete the device didn't
+    // take (the demo device refuses changes) leaves the post, and the feed
+    // says why - it used to do nothing visible.
     func deletePublication(_ pubUuid: String) async {
         var req = Msg_DelSocialPublication()
         req.pubUuid = pubUuid
         do {
-            let resp = try await ws.request { $0.payload = .reqDelSocialPublication(req) }
-            if case .respAck(let ack) = resp.payload, ack.ok {
-                posts.removeAll { $0.uuid == pubUuid }
-                saveCachedPosts()
+            let resp = try await socialRequest(.reqDelSocialPublication(req))
+            guard Self.ackOK(resp) else {
+                say(Self.refusal(resp).map(FeedNotice.device) ?? .deleteFailed)
+                return
             }
-        } catch { /* leave the post in place; user can retry */ }
+            posts.removeAll { $0.uuid == pubUuid }
+            saveCachedPosts()
+        } catch {
+            say(.deleteFailed)
+        }
     }
 
     // Issue #35: delete a comment on one of your own posts (server-side
     // enforces the "own post" rule regardless of who wrote the comment).
-    // Issue #174: or one you wrote on a friend's post (comment.own).
+    // Issue #174: or one you wrote on a friend's post (comment.own). As
+    // deletePublication, a refusal says why.
     func deleteComment(_ commentUuid: String) async {
+        var req = Msg_DelSocialComment()
+        req.commentUuid = commentUuid
         do {
-            var req = Msg_DelSocialComment()
-            req.commentUuid = commentUuid
-            let resp = try await ws.request { $0.payload = .reqDelSocialComment(req) }
-            if case .respAck(let ack) = resp.payload, ack.ok {
-                for idx in posts.indices {
-                    posts[idx].comments.removeAll { $0.commentUuid == commentUuid }
-                }
-                saveCachedPosts()
+            let resp = try await socialRequest(.reqDelSocialComment(req))
+            guard Self.ackOK(resp) else {
+                say(Self.refusal(resp).map(FeedNotice.device) ?? .deleteCommentFailed)
+                return
             }
-        } catch { /* leave the comment in place; user can retry */ }
+            for idx in posts.indices {
+                posts[idx].comments.removeAll { $0.commentUuid == commentUuid }
+            }
+            saveCachedPosts()
+        } catch {
+            say(.deleteCommentFailed)
+        }
     }
 
     // Issue #78: opening a post from a tapped notification. Fetches it
@@ -515,11 +586,7 @@ final class SocialFeedViewModel: ObservableObject {
         if !posts.contains(where: { $0.uuid == pubUuid }) {
             var req = Msg_ReqGetPublication()
             req.pubUuid = pubUuid
-            guard let resp = try? await ws.request({ e in
-                var env = ReqEnvelope()
-                env.payload = .reqGetPublication(req)
-                e = env
-            }) else { return }
+            guard let resp = try? await socialRequest(.reqGetPublication(req)) else { return }
             if case .respPublication(let r) = resp.payload, r.hasPublication,
                !posts.contains(where: { $0.uuid == r.publication.uuid }) {
                 posts.insert(r.publication, at: 0)
@@ -528,6 +595,23 @@ final class SocialFeedViewModel: ObservableObject {
         scrollTargetPub = pubUuid
         highlightPub = pubUuid
         highlightComment = commentUuid
+    }
+}
+
+/// A short message at the top of the feed, kept as what happened and worded
+/// when it shows (as FriendsToast); Android's State.notice.
+enum FeedNotice: Equatable {
+    case commentFailed, deleteFailed, deleteCommentFailed
+    /// The device's own words, already in the app's language.
+    case device(String)
+
+    var text: String {
+        switch self {
+        case .commentFailed: return S.appSocialPostCommentFailed
+        case .deleteFailed: return S.appSocialPostDeleteFailed
+        case .deleteCommentFailed: return S.appSocialPostDeleteCommentFailed
+        case .device(let words): return words
+        }
     }
 }
 
@@ -724,7 +808,7 @@ struct SocialFeedView: View {
                                         highlightCommentUuid: post.uuid == vm.highlightPub ? vm.highlightComment : nil,
                                         onLikePub: { Task { await vm.likePublication(post.uuid) } },
                                         onLikeComment: { c in Task { await vm.likeComment(c) } },
-                                        onComment: { text in Task { await vm.addComment(pubUuid: post.uuid, text: text) } },
+                                        onComment: { text in await vm.addComment(pubUuid: post.uuid, text: text) },
                                         fetchPublicationLikers: { await vm.fetchPublicationLikers($0) },
                                         fetchCommentLikers: { await vm.fetchCommentLikers($0) },
                                         onDeletePub: { Task { await vm.deletePublication(post.uuid) } },
@@ -804,6 +888,19 @@ struct SocialFeedView: View {
                     }
                 }
             }
+            // A comment or a delete the device didn't take: why, at the top.
+            .overlay(alignment: .top) {
+                if let notice = vm.notice {
+                    Text(notice.text)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.default, value: vm.notice)
             // No nav title here (issue #12): the tab bar already labels this
             // screen "Social", repeating it as a large title above the feed
             // was redundant chrome. Issue #81: an *empty* title (rather
@@ -921,7 +1018,8 @@ private enum MediaSizeCache {
     /// the view body - which re-runs constantly while a feed scrolls, so
     /// every visible post re-parsed every one of its images many times a
     /// second, on the main thread, with the scrolling itself waiting
-    /// behind it.
+    /// behind it. They are decoded off the main thread now (decode(_:)),
+    /// ready to draw, and the shape is read from the header alone.
     ///
     /// NSCache rather than a plain dictionary so this gives the memory
     /// back under pressure instead of growing for the life of the app.
@@ -939,25 +1037,97 @@ private enum MediaSizeCache {
         return cache
     }()
 
+    /// Each thumbnail's width / height, from its header: the box's shape
+    /// on the very first frame, before its pixels are decoded (a box that
+    /// changed height a frame later made the feed jump).
+    private static let aspects: NSCache<NSString, NSNumber> = {
+        let cache = NSCache<NSString, NSNumber>()
+        cache.countLimit = 2000
+        return cache
+    }()
+
     /// What holding this image actually costs in memory: its pixels, not
     /// the compressed bytes it arrived as.
     private static func cost(of image: UIImage) -> Int {
         Int(image.size.width * image.scale * image.size.height * image.scale) * 4
     }
 
-    static func image(of file: Msg_File) -> UIImage? {
-        let key = file.hash as NSString
-        if let cached = images.object(forKey: key) { return cached }
-        guard file.hasContent, let ui = UIImage(data: file.content) else { return nil }
-        images.setObject(ui, forKey: key, cost: cost(of: ui))
+    /// Already decoded, or nil: never decodes, so it is cheap in a body.
+    static func cachedImage(of file: Msg_File) -> UIImage? {
+        images.object(forKey: file.hash as NSString)
+    }
 
+    /// Decoded off the main thread, ready to draw (preparingForDisplay),
+    /// and kept; nil for no thumbnail or one that doesn't decode.
+    static func decode(_ file: Msg_File) async -> UIImage? {
+        if let cached = cachedImage(of: file) { return cached }
+        guard file.hasContent else { return nil }
+        let data = file.content
+        let key = file.hash as NSString
+        let ui = await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            guard let image = UIImage(data: data) else { return nil }
+            return image.preparingForDisplay() ?? image
+        }.value
+        if let ui { images.setObject(ui, forKey: key, cost: cost(of: ui)) }
         return ui
     }
 
-    static func size(of file: Msg_File) -> CGSize? {
-        guard let ui = image(of: file), ui.size.width > 0, ui.size.height > 0 else { return nil }
+    /// The thumbnail's shape, from its header alone (ImageIO, its EXIF
+    /// orientation applied); nil without one that can be read.
+    static func aspect(of file: Msg_File) -> CGFloat? {
+        let key = file.hash as NSString
+        if let known = aspects.object(forKey: key) { return CGFloat(known.doubleValue) }
+        if let ui = cachedImage(of: file), ui.size.width > 0, ui.size.height > 0 {
+            return remember(ui.size.width / ui.size.height, for: key)
+        }
+        guard file.hasContent, let aspect = headerAspect(file.content) else { return nil }
+        return remember(aspect, for: key)
+    }
 
-        return ui.size
+    private static func remember(_ aspect: CGFloat, for key: NSString) -> CGFloat {
+        aspects.setObject(NSNumber(value: Double(aspect)), forKey: key)
+        return aspect
+    }
+
+    /// Width / height from an image's header, turned as its orientation
+    /// says (5-8 are a quarter turn).
+    nonisolated static func headerAspect(_ data: Data) -> CGFloat? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+              let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              w > 0, h > 0 else { return nil }
+        let orientation = (props[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        return CGFloat(orientation >= 5 && orientation <= 8 ? h / w : w / h)
+    }
+}
+
+/// A post's thumbnail, decoded off the main thread (MediaSizeCache): what
+/// is decoded already shows at once, the rest after a frame or two in the
+/// same box, so nothing moves.
+private struct FeedThumbnail<Placeholder: View, Content: View>: View {
+    let file: Msg_File
+    @ViewBuilder let placeholder: (_ failed: Bool) -> Placeholder
+    @ViewBuilder let content: (UIImage) -> Content
+    @State private var image: UIImage?
+    @State private var failed = false
+
+    init(file: Msg_File, @ViewBuilder placeholder: @escaping (_ failed: Bool) -> Placeholder, @ViewBuilder content: @escaping (UIImage) -> Content) {
+        self.file = file
+        self.placeholder = placeholder
+        self.content = content
+        _image = State(initialValue: MediaSizeCache.cachedImage(of: file))
+    }
+
+    var body: some View {
+        Group {
+            if let image { content(image) } else { placeholder(failed) }
+        }
+        .task(id: file.hash) {
+            guard image == nil else { return }
+            image = await MediaSizeCache.decode(file)
+            failed = image == nil
+        }
     }
 }
 
@@ -1142,7 +1312,9 @@ private struct PostCard: View {
     var highlightCommentUuid: String? = nil
     let onLikePub: () -> Void
     let onLikeComment: (String) -> Void
-    let onComment: (String) -> Void
+    /// The comment's text; false: the device didn't take it, and the text
+    /// goes back in the field.
+    let onComment: (String) async -> Bool
     let fetchPublicationLikers: (String) async -> [Msg_Profile]
     let fetchCommentLikers: (String) async -> [Msg_Profile]
     let onDeletePub: () -> Void
@@ -1220,11 +1392,14 @@ private struct PostCard: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if post.hasDateTime {
-                        Text(formatPostDate(post.dateTime.date))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        // Reckoned again every minute while it shows.
+                        TimelineView(.everyMinute) { context in
+                            Text(formatPostDate(post.dateTime.date, now: context.date))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
                 }
                 Spacer()
@@ -1236,6 +1411,7 @@ private struct PostCard: View {
                         Image(systemName: "ellipsis").foregroundColor(.secondary)
                             .padding(.horizontal, 6) // bigger tap target than the glyph alone
                     }
+                    .accessibilityLabel(S.appSocialPostMoreOptions)
                 }
             }
             .padding(.horizontal, sidePadding)
@@ -1294,6 +1470,10 @@ private struct PostCard: View {
                                                 .padding(8)
                                                 .background(.black.opacity(0.45), in: Circle())
                                         }
+                                        // "Mute", said as selected while the feed's
+                                        // videos are muted (as Android).
+                                        .accessibilityLabel(S.appSocialPostMute)
+                                        .accessibilityAddTraits(feedAudio.muted ? .isSelected : [])
                                         .padding(10)
                                     }
                             }
@@ -1303,6 +1483,7 @@ private struct PostCard: View {
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinchScale)
                         .zIndex(pinchScale > 1 ? 1 : 0)
                         .onChange(of: currentImage) { _, _ in
+                            discardDownloadedVideo()
                             videoPlayer?.pause()
                             videoPlayer = nil
                             videoPlaybackURL = nil
@@ -1365,6 +1546,9 @@ private struct PostCard: View {
                     Image(systemName: post.liked ? "heart.fill" : "heart")
                         .foregroundColor(post.liked ? .red : .primary)
                 }
+                // Liked is said as selected too, as on Android.
+                .accessibilityLabel(post.liked ? S.appSocialPostUnlike : S.appSocialPostLike)
+                .accessibilityAddTraits(post.liked ? .isSelected : [])
             }
             .font(.title3)
             .padding(.horizontal, sidePadding)
@@ -1412,6 +1596,8 @@ private struct PostCard: View {
                                 Image(systemName: c.liked ? "heart.fill" : "heart")
                                     .foregroundColor(c.liked ? .red : .secondary)
                             }
+                            .accessibilityLabel(c.liked ? S.appSocialPostUnlikeComment : S.appSocialPostLikeComment)
+                            .accessibilityAddTraits(c.liked ? .isSelected : [])
                             // Issue #35: on your own post, any comment can
                             // be deleted — not just ones you wrote. Issue
                             // #174: and a comment you wrote can be deleted
@@ -1422,6 +1608,7 @@ private struct PostCard: View {
                                 } label: {
                                     Image(systemName: "trash").foregroundColor(.secondary)
                                 }
+                                .accessibilityLabel(S.appSocialPostDeleteCommentLabel)
                             }
                         }
                         .font(.caption)
@@ -1439,10 +1626,10 @@ private struct PostCard: View {
                 TextField(S.appSocialPostCommentPlaceholder, text: $commentText)
                     .textFieldStyle(.roundedBorder)
                     .font(.caption)
-                Button(S.appSocialPostSendComment) {
-                    onComment(commentText)
-                    commentText = ""
-                }
+                    // The keyboard's Send posts it, as the button beside it.
+                    .submitLabel(.send)
+                    .onSubmit(sendComment)
+                Button(S.appSocialPostSendComment, action: sendComment)
                 .font(.caption)
                 .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -1472,6 +1659,17 @@ private struct PostCard: View {
         }
     }
 
+    /// The field is cleared as the comment goes out; one the device didn't
+    /// take comes back, unless something new was typed meanwhile.
+    private func sendComment() {
+        let text = commentText
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        commentText = ""
+        Task {
+            if !(await onComment(text)), commentText.isEmpty { commentText = text }
+        }
+    }
+
     /// The actual post image, full width, whole - never cropped (rule 2,
     /// see cFeedMaxAspect). `.aspectRatio(contentMode: .fit)` computes its
     /// size from the box it is offered, so unlike the `scaledToFill()` this
@@ -1482,23 +1680,25 @@ private struct PostCard: View {
     private func mediaContent(for file: Msg_File) -> some View {
         if file.mime.hasPrefix("video/") {
             videoContent(for: file)
-        } else if let ui = MediaSizeCache.image(of: file) {
-            // .fit, never .fill: a photo is never cut. The first item's
-            // ratio shapes the box, so it fills it exactly unless it is
-            // wider than 1.91:1 or taller than the screen leaves room for;
-            // anything else in the post is letterboxed in that box.
-            // Cropping these is what broke horizontal photos, especially
-            // in a post whose first item is portrait and therefore sets a
-            // tall box.
-            feedBox {
-                Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
-            }
         } else {
-            // The same box as everything else in the post, so a thumbnail
-            // that arrives later, or never, can't change the card's
-            // height.
-            feedBox(background: Color.secondary.opacity(0.08)) {
-                Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary)
+            FeedThumbnail(file: file) { failed in
+                // The same box as everything else in the post, so a
+                // thumbnail that arrives later, or never, can't change the
+                // card's height.
+                feedBox(background: Color.secondary.opacity(0.08)) {
+                    if failed { Image(systemName: "photo").font(.largeTitle).foregroundColor(.secondary) }
+                }
+            } content: { ui in
+                // .fit, never .fill: a photo is never cut. The first item's
+                // ratio shapes the box, so it fills it exactly unless it is
+                // wider than 1.91:1 or taller than the screen leaves room for;
+                // anything else in the post is letterboxed in that box.
+                // Cropping these is what broke horizontal photos, especially
+                // in a post whose first item is portrait and therefore sets a
+                // tall box.
+                feedBox {
+                    Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
+                }
             }
         }
     }
@@ -1509,9 +1709,7 @@ private struct PostCard: View {
     /// player will have - which is what lets the player be given the
     /// poster's rect before a single byte of video has been decoded.
     private func mediaAspect(for file: Msg_File) -> CGFloat? {
-        guard let size = MediaSizeCache.size(of: file) else { return nil }
-
-        return size.width / size.height
+        MediaSizeCache.aspect(of: file)
     }
 
     /// One post's media area: a single item on its own, or a paging
@@ -1655,6 +1853,7 @@ private struct PostCard: View {
                             .shadow(radius: 4)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(S.appSocialPostReplay)
                 }
             }
             // Tapping the poster is the play gesture - starting
@@ -1662,7 +1861,13 @@ private struct PostCard: View {
             // does, instead of landing on a paused player that needs a
             // second tap on its own control.
             .onAppear { player.play() }
-            .onDisappear { player.pause() }
+            // A downloaded one (the fallback below) is deleted as it leaves
+            // the screen - one file was left in tmp for every play - and
+            // fetched again should it come back; a stream just pauses.
+            .onDisappear {
+                player.pause()
+                discardDownloadedVideo()
+            }
             // Deliberately only cleared by the replay button above: the
             // notification fires for whichever item finished, and a post
             // has exactly one, so anything else would hide the button
@@ -1680,7 +1885,9 @@ private struct PostCard: View {
             .onChange(of: feedAudio.muted) { _, muted in player.isMuted = muted }
         } else {
             ZStack {
-                if let ui = MediaSizeCache.image(of: file) {
+                FeedThumbnail(file: file) { _ in
+                    feedBox(background: Color.secondary.opacity(0.08)) {}
+                } content: { ui in
                     // .fit, like a photo and like the player that takes
                     // over from it: shown whole, in the same rect, so
                     // pressing play neither crops nor moves anything. It
@@ -1689,8 +1896,6 @@ private struct PostCard: View {
                     feedBox {
                         Image(uiImage: ui).resizable().aspectRatio(contentMode: .fit)
                     }
-                } else {
-                    feedBox(background: Color.secondary.opacity(0.08)) {}
                 }
                 if loadingVideo {
                     ProgressView().tint(.white)
@@ -1703,6 +1908,11 @@ private struct PostCard: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { loadAndPlayVideo(file) }
+            // A button to VoiceOver: "Play" (as Android's).
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(S.appSocialPostPlay)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { loadAndPlayVideo(file) }
         }
     }
 
@@ -1739,6 +1949,22 @@ private struct PostCard: View {
         videoEnded = false
     }
 
+    /// The fallback's file (GetPublicationMedia), gone with its player; a
+    /// streamed video is left as it is.
+    private func discardDownloadedVideo() {
+        guard let url = videoPlaybackURL, url.isFileURL else { return }
+        dropVideoPlayer()
+        Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// Without a stream URL (an older device, or the device declining) the
+    /// feed asks for the whole video in one message: held in memory while
+    /// it is read and written out, so above this the poster stays instead
+    /// (Android's FEED_FALLBACK_MAX_BYTES). 0, not known, is let through.
+    nonisolated static let fallbackMaxBytes: Int64 = 50 << 20
+
+    nonisolated static func fallbackAllowed(size: Int64) -> Bool { size <= fallbackMaxBytes }
+
     private func loadAndPlayVideo(_ file: Msg_File) {
         guard !loadingVideo, videoPlaybackURL == nil else { return }
         loadingVideo = true
@@ -1757,6 +1983,7 @@ private struct PostCard: View {
                 return
             }
 
+            guard Self.fallbackAllowed(size: file.fileSize) else { return }
             do {
                 // Issue #107: by hash, through the publication. A feed
                 // file has no path - social_publications_files stores

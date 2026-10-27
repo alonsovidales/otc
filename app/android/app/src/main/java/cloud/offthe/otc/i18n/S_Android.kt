@@ -34,6 +34,14 @@ fun S.androidBluetoothNeededHint(): UiText =
 fun S.androidBluetoothOffHint(): UiText =
     UiText.Res(R.string.android_bluetooth_off_hint)
 
+/** "Couldn't start looking for devices. Turn Bluetooth off and on again.": Set up a new device (over Bluetooth): heading when the phone refused to look for devices over Bluetooth (a failed scan). Try again (common.try_again) follows. */
+fun S.androidBluetoothScanFailed(): UiText =
+    UiText.Res(R.string.android_bluetooth_scan_failed)
+
+/** "Turn on Bluetooth": Button in Set up a new device (over Bluetooth) under the heading Bluetooth is off: asks the phone to turn Bluetooth on. */
+fun S.androidBluetoothTurnOn(): UiText =
+    UiText.Res(R.string.android_bluetooth_turn_on)
+
 /** "{count} bytes" (one: "{count} byte"): Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB. */
 fun S.androidCacheBytes(count: Int): UiText =
     UiText.Plural(R.plurals.android_cache_bytes, count, listOf(count))
@@ -69,10 +77,6 @@ fun S.androidDownloadWrongPiece(): UiText =
 /** "Allow deletions": Confirm button of the question app.files.allow_deletions_title (Files, a tap on an upload-only folder's lock): lets the folder's files be deleted again. */
 fun S.androidFilesAllowDeletions(): UiText =
     UiText.Res(R.string.android_files_allow_deletions)
-
-/** "cannot read {uri}": Why uploading a file picked on the phone failed, after Upload failed: (hence the lowercase start): the phone wouldn't open the picked file. {uri} is the file's address on the phone (content://...). */
-fun S.androidFilesCannotRead(uri: String): UiText =
-    UiText.Res(R.string.android_files_cannot_read, listOf(uri))
 
 /** "Could not update the folder: {detail}": Short message (toast) at the top of Files when making a folder upload only (or allowing deletions again), keeping it out of Images or showing it there again failed on the way. {detail} is the reason, from the app or the phone (it may be in the phone's own language). */
 fun S.androidFilesFolderUpdateFailedDetail(detail: String): UiText =
@@ -202,6 +206,10 @@ fun S.androidFriendsRemoveNowTitleUnnamed(): UiText =
 fun S.androidFriendsRemoveTitleUnnamed(): UiText =
     UiText.Res(R.string.android_friends_remove_title_unnamed)
 
+/** "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on.": Set up a new device (over Bluetooth), on Android 11 and older: under the heading Looking for a device to set up… while the phone's Location is off, with Open Settings (android.open_settings) under it. Location is Android's setting of that name. */
+fun S.androidLocationOffHint(): UiText =
+    UiText.Res(R.string.android_location_off_hint)
+
 /** "Sections": Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown. */
 fun S.androidMenuSections(): UiText =
     UiText.Res(R.string.android_menu_sections)
@@ -213,6 +221,10 @@ fun S.androidNotificationChannel(): UiText =
 /** "Friend requests, new posts, likes and comments": Description of that notification channel, shown under its name in Android's notification settings. */
 fun S.androidNotificationChannelDescription(): UiText =
     UiText.Res(R.string.android_notification_channel_description)
+
+/** "Open Settings": Button in Set up a new device (over Bluetooth): opens the phone's Settings - at this app's page when it isn't allowed to use Bluetooth (android.bluetooth_needed_hint), at Location when that is off (android.location_off_hint). Settings is Android's own app: use its name in this language. */
+fun S.androidOpenSettings(): UiText =
+    UiText.Res(R.string.android_open_settings)
 
 /** "Open in Maps ({latitude}, {longitude})": Button under the map in the panel with a photo's camera details: opens the place in the phone's maps app. {latitude} and {longitude} are the place's coordinates (40.41678, -3.70379). */
 fun S.androidPhotosOpenInMaps(latitude: String, longitude: String): UiText =
@@ -401,38 +413,6 @@ fun S.androidSignalStrong(): UiText =
 /** "Weak signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak. */
 fun S.androidSignalWeak(): UiText =
     UiText.Res(R.string.android_signal_weak)
-
-/** "Delete comment": Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it. */
-fun S.androidSocialDeleteComment(): UiText =
-    UiText.Res(R.string.android_social_delete_comment)
-
-/** "Like": Screen-reader name of the empty heart under a post in the Social feed: likes the post. */
-fun S.androidSocialLike(): UiText =
-    UiText.Res(R.string.android_social_like)
-
-/** "Like comment": Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment. */
-fun S.androidSocialLikeComment(): UiText =
-    UiText.Res(R.string.android_social_like_comment)
-
-/** "Mute": Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on. */
-fun S.androidSocialMute(): UiText =
-    UiText.Res(R.string.android_social_mute)
-
-/** "Play": Screen-reader name of the play symbol over a video in the Social feed: plays it. */
-fun S.androidSocialPlay(): UiText =
-    UiText.Res(R.string.android_social_play)
-
-/** "Replay": Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start. */
-fun S.androidSocialReplay(): UiText =
-    UiText.Res(R.string.android_social_replay)
-
-/** "Unlike": Screen-reader name of the filled heart under a post you liked in the Social feed: takes your like back. */
-fun S.androidSocialUnlike(): UiText =
-    UiText.Res(R.string.android_social_unlike)
-
-/** "Unlike comment": Screen-reader name of the filled heart beside a comment you liked in the Social feed: takes your like back. */
-fun S.androidSocialUnlikeComment(): UiText =
-    UiText.Res(R.string.android_social_unlike_comment)
 
 /** "Storage. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's status isn't known yet; pressing it opens the whole menu at the storage details. */
 fun S.androidStorageGauge(): UiText =

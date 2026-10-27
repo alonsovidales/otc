@@ -27,6 +27,14 @@
     "text": "Ativa o Bluetooth para encontrar o dispositivo.",
     "en": "Turn Bluetooth on to find the device."
   },
+  "android.bluetooth_scan_failed": {
+    "text": "Não foi possível começar a procurar dispositivos. Desativa e volta a ativar o Bluetooth.",
+    "en": "Couldn't start looking for devices. Turn Bluetooth off and on again."
+  },
+  "android.bluetooth_turn_on": {
+    "text": "Ativar o Bluetooth",
+    "en": "Turn on Bluetooth"
+  },
   "android.cache_bytes": {
     "text": {
       "one": "{count} byte",
@@ -69,10 +77,6 @@
     "text": "Permitir eliminações",
     "en": "Allow deletions",
     "reviewed": "claude-backtranslation 2026-10-11 #90a13c70"
-  },
-  "android.files.cannot_read": {
-    "text": "não é possível ler {uri}",
-    "en": "cannot read {uri}"
   },
   "android.files.folder_update_failed_detail": {
     "text": "Não foi possível atualizar a pasta: {detail}",
@@ -224,6 +228,10 @@
     "en": "Remove this friend?",
     "reviewed": "claude-backtranslation 2026-10-11 #945888e5"
   },
+  "android.location_off_hint": {
+    "text": "A localização está desativada. Nesta versão do Android, o telemóvel só encontra dispositivos Bluetooth com a localização ativada.",
+    "en": "Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on."
+  },
   "android.menu_sections": {
     "text": "Secções",
     "en": "Sections"
@@ -235,6 +243,10 @@
   "android.notification_channel_description": {
     "text": "Pedidos de amizade, novas publicações, gostos e comentários",
     "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.open_settings": {
+    "text": "Abrir Definições",
+    "en": "Open Settings"
   },
   "android.photos_open_in_maps": {
     "text": "Abrir numa app de mapas ({latitude}, {longitude})",
@@ -445,38 +457,6 @@
   "android.signal_weak": {
     "text": "Sinal fraco",
     "en": "Weak signal"
-  },
-  "android.social_delete_comment": {
-    "text": "Eliminar comentário",
-    "en": "Delete comment"
-  },
-  "android.social_like": {
-    "text": "Pôr Gosto",
-    "en": "Like"
-  },
-  "android.social_like_comment": {
-    "text": "Pôr Gosto no comentário",
-    "en": "Like comment"
-  },
-  "android.social_mute": {
-    "text": "Desativar som",
-    "en": "Mute"
-  },
-  "android.social_play": {
-    "text": "Reproduzir",
-    "en": "Play"
-  },
-  "android.social_replay": {
-    "text": "Reproduzir novamente",
-    "en": "Replay"
-  },
-  "android.social_unlike": {
-    "text": "Retirar Gosto",
-    "en": "Unlike"
-  },
-  "android.social_unlike_comment": {
-    "text": "Retirar Gosto do comentário",
-    "en": "Unlike comment"
   },
   "android.storage_gauge": {
     "text": "Armazenamento. Mostrar detalhes",

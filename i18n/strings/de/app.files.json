@@ -17,6 +17,10 @@
     "text": "Zurück zu {folder}",
     "en": "Back to {folder}"
   },
+  "app.files.cannot_read": {
+    "text": "{name} kann nicht gelesen werden",
+    "en": "cannot read {name}"
+  },
   "app.files.clear_upload_only": {
     "text": "„Nur hochladen“ ausschalten",
     "en": "Clear upload only"
@@ -307,6 +311,10 @@
   "app.files.upload_only_file_info": {
     "text": "Dies liegt in einem Ordner mit „Nur hochladen“: Es kann nicht gelöscht werden, und beim erneuten Hochladen bleibt die ältere Version erhalten. Das Schloss am Ordner ändert das.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.uploading": {
+    "text": "Wird hochgeladen ({done} von {total})…",
+    "en": "Uploading {done} of {total}…"
   },
   "app.files.usage_empty": {
     "text": "Nichts in diesem Ordner belegt Speicherplatz.",

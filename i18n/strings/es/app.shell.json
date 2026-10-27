@@ -278,6 +278,22 @@
     "en": "Privacy",
     "reviewed": "claude-backtranslation 2026-10-11 #ba42b0ce"
   },
+  "app.shell.problem_alerts_failed": {
+    "text": "Tus notificaciones aparecerán en cuanto tu dispositivo responda.",
+    "en": "Your notifications will appear as soon as your device answers."
+  },
+  "app.shell.problem_alerts_offline": {
+    "text": "Este teléfono no tiene conexión. Tus notificaciones aparecerán cuando vuelva a estar en línea.",
+    "en": "This phone is offline. Your notifications will appear once it's back online."
+  },
+  "app.shell.problem_alerts_slow": {
+    "text": "Tu dispositivo ha tardado demasiado en responder. Tus notificaciones aparecerán en cuanto lo haga.",
+    "en": "Your device took too long to answer. Your notifications will appear as soon as it does."
+  },
+  "app.shell.problem_alerts_unreachable": {
+    "text": "Ahora mismo no se puede contactar con tu dispositivo. Tus notificaciones aparecerán en cuanto responda.",
+    "en": "Your device isn't reachable right now. Your notifications will appear as soon as it answers."
+  },
   "app.shell.problem_files_failed": {
     "text": "Los archivos aparecerán en cuanto tu dispositivo responda.",
     "en": "The files will appear as soon as your device answers."
@@ -470,6 +486,18 @@
     "text": "Introduce la contraseña del dispositivo",
     "en": "Enter the device's password"
   },
+  "app.shell.setup_leave": {
+    "text": "Salir",
+    "en": "Leave"
+  },
+  "app.shell.setup_leave_text": {
+    "text": "El dispositivo sigue instalándose. Vuelve a abrir la configuración para seguirla, o inicia sesión cuando termine.",
+    "en": "The device goes on installing. Open the setup again to follow it, or sign in once it's done."
+  },
+  "app.shell.setup_leave_title": {
+    "text": "¿Salir de la configuración?",
+    "en": "Leave the setup?"
+  },
   "app.shell.setup_looking": {
     "text": "Buscando un dispositivo para configurar…",
     "en": "Looking for a device to set up…"
@@ -477,6 +505,10 @@
   "app.shell.setup_new_device": {
     "text": "Configurar dispositivo nuevo",
     "en": "Set up a new device"
+  },
+  "app.shell.setup_not_found": {
+    "text": "Aún no se ha encontrado ningún dispositivo. Comprueba que está encendido, con sus discos conectados, y mantén el teléfono a su lado.",
+    "en": "No device found yet. Check that it's on, with its disks connected, and keep the phone next to it."
   },
   "app.shell.setup_open_device": {
     "text": "Abrir mi dispositivo",

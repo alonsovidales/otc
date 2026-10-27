@@ -1,4 +1,8 @@
 {
+  "app.social.alerts.accept_failed": {
+    "text": "Não foi possível aceitar o pedido de amizade",
+    "en": "Couldn't accept the friend request"
+  },
   "app.social.alerts.commented": {
     "text": "<b>{name}</b> comentou a tua publicação",
     "en": "<b>{name}</b> commented on your post"
@@ -33,6 +37,10 @@
     "text": "<b>{name}</b> gostou da tua publicação",
     "en": "<b>{name}</b> liked your post"
   },
+  "app.social.alerts.load_failed": {
+    "text": "Não foi possível carregar as tuas notificações",
+    "en": "Couldn't load your notifications"
+  },
   "app.social.alerts.title": {
     "text": "Notificações",
     "en": "Notifications"
@@ -40,6 +48,10 @@
   "app.social.compose.camera": {
     "text": "Tirar uma foto ou gravar um vídeo",
     "en": "Take a photo or video"
+  },
+  "app.social.compose.caption_needed": {
+    "text": "Adiciona uma legenda para publicar",
+    "en": "Add a caption to publish"
   },
   "app.social.compose.caption_placeholder": {
     "text": "Escreve uma legenda…",
@@ -117,6 +129,10 @@
     "text": "Adicionar amigo",
     "en": "Add a friend"
   },
+  "app.social.friends.address_copied": {
+    "text": "Endereço copiado",
+    "en": "Address copied"
+  },
   "app.social.friends.ask_theirs": {
     "text": "Pedir ao dispositivo de {name} que elimine o que partilhei",
     "en": "Ask {name}'s device to delete what I shared",
@@ -149,6 +165,10 @@
   "app.social.friends.cancel_request_button": {
     "text": "Cancelar pedido",
     "en": "Cancel Request"
+  },
+  "app.social.friends.copy_address": {
+    "text": "Copiar",
+    "en": "Copy"
   },
   "app.social.friends.delete_confirm_text": {
     "text": "O pedido vai ser removido aqui e no dispositivo de quem o enviou.",
@@ -270,6 +290,10 @@
     "text": "Erro ao enviar o pedido",
     "en": "Error sending request"
   },
+  "app.social.friends.share_text": {
+    "text": "Adiciona-me como amigo no Off The Cloud: {address}",
+    "en": "Add me as a friend on Off The Cloud: {address}"
+  },
   "app.social.friends.status_accepted": {
     "text": "Aceite",
     "en": "Accepted"
@@ -326,6 +350,10 @@
     "text": "À espera do dispositivo dessa pessoa",
     "en": "Waiting for their device"
   },
+  "app.social.friends.your_address": {
+    "text": "O teu endereço: {address}",
+    "en": "Your address: {address}"
+  },
   "app.social.likes.empty": {
     "text": "Ainda não há gostos",
     "en": "No likes yet"
@@ -337,6 +365,10 @@
   "app.social.post.comment": {
     "text": "<b>{name}</b>: {comment}",
     "en": "<b>{name}</b>: {comment}"
+  },
+  "app.social.post.comment_failed": {
+    "text": "Não foi possível publicar o teu comentário",
+    "en": "Couldn't post your comment"
   },
   "app.social.post.comment_placeholder": {
     "text": "Adicionar um comentário…",
@@ -351,10 +383,22 @@
     "en": "Delete Comment",
     "reviewed": "claude-backtranslation 2026-10-11 #ef245e79"
   },
+  "app.social.post.delete_comment_failed": {
+    "text": "Não foi possível eliminar o comentário",
+    "en": "Couldn't delete the comment"
+  },
+  "app.social.post.delete_comment_label": {
+    "text": "Eliminar comentário",
+    "en": "Delete comment"
+  },
   "app.social.post.delete_comment_title": {
     "text": "Eliminar este comentário?",
     "en": "Delete this comment?",
     "reviewed": "claude-backtranslation 2026-10-11 #3af0941d"
+  },
+  "app.social.post.delete_failed": {
+    "text": "Não foi possível eliminar a publicação",
+    "en": "Couldn't delete the post"
   },
   "app.social.post.delete_post": {
     "text": "Eliminar publicação",
@@ -366,6 +410,14 @@
     "en": "Delete this post?",
     "reviewed": "claude-backtranslation 2026-10-11 #75dfef2d"
   },
+  "app.social.post.like": {
+    "text": "Pôr Gosto",
+    "en": "Like"
+  },
+  "app.social.post.like_comment": {
+    "text": "Pôr Gosto no comentário",
+    "en": "Like comment"
+  },
   "app.social.post.likes": {
     "text": {
       "one": "{count} gosto",
@@ -376,9 +428,33 @@
       "other": "{count} likes"
     }
   },
+  "app.social.post.more_options": {
+    "text": "Mais opções para esta publicação",
+    "en": "More options for this post"
+  },
+  "app.social.post.mute": {
+    "text": "Desativar som",
+    "en": "Mute"
+  },
+  "app.social.post.play": {
+    "text": "Reproduzir",
+    "en": "Play"
+  },
+  "app.social.post.replay": {
+    "text": "Reproduzir novamente",
+    "en": "Replay"
+  },
   "app.social.post.send_comment": {
     "text": "Publicar",
     "en": "Post"
+  },
+  "app.social.post.unlike": {
+    "text": "Retirar Gosto",
+    "en": "Unlike"
+  },
+  "app.social.post.unlike_comment": {
+    "text": "Retirar Gosto do comentário",
+    "en": "Unlike comment"
   },
   "app.social.post.unnamed": {
     "text": "Utilizador",

@@ -5,6 +5,7 @@
     <string name="app_files_allow_deletions_title">Allow deletions in “\u2068%1$s\u2069” again?</string>
     <string name="app_files_back_to_files">Back to Files</string>
     <string name="app_files_back_to_folder">Back to \u2068%1$s\u2069</string>
+    <string name="app_files_cannot_read">cannot read \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Clear upload only</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Delete %1$s item?</item>
@@ -83,6 +84,7 @@
     <string name="app_files_upload_failed">Upload failed: %1$s</string>
     <string name="app_files_upload_only">Upload only</string>
     <string name="app_files_upload_only_file_info">This is in an upload-only folder: it can\'t be deleted, and uploading it again keeps its older version. The lock on the folder changes it.</string>
+    <string name="app_files_uploading">Uploading %1$s of %2$s…</string>
     <string name="app_files_usage_empty">Nothing in this folder takes up space.</string>
     <string name="app_files_usage_failed">Couldn\'t find out how much space this folder takes.</string>
     <string name="app_files_usage_needs_update">Your device needs an update to show how much space folders take.</string>
