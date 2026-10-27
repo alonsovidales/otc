@@ -879,8 +879,23 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   5 s). Any other disk (a backup drive, a card fresh from the shop, another array's disk, a split
   copy) is left alone, logged once, and listed in root's `/run/otc-raid-watch/not-added.json`, from
   which `raidwatch` raises one Alert per plug-in (`dev.alert.raid.not_added_*`,
-  `<storage>/.raid-not-added`); the stopped alerts' details say the replacement must be blank
-  (`dev.alert.raid.replace_detail*`; the old `stopped_detail*` keys stay for old rows). First-sign-in
+  `<storage>/.raid-not-added`); the stopped alerts' details say a replacement that isn't blank is
+  erased once the owner confirms in Settings (`dev.alert.raid.replace_detail*`; the old
+  `stopped_detail*` keys stay for old rows). Settings › Storage (web `settings/MirrorDiskPanel.tsx`,
+  not in the phone apps yet; two disks of one name and size get no button): only while md0 has a
+  slot with no working disk - not while a replacement is copied onto, when md still says degraded
+  (`mirror_needs_disk`/`needsDisk`, which also gate the automatic add now) - `Status.mirror_candidates` (19: an opaque id, `sha256(boot id|name|diskseq|
+  size)`, the model and the size; primary owner only) lists the disks not-added.json offers (`offer`;
+  none `held`: a mount, swap or holders, whose Alert says `not_added_detail_in_use`). `UseMirrorDisk`
+  (145, raidwatch `UseDisk`: `not_degraded`, `not_candidate`, `busy` while one waits) links
+  `{"v":1,"id","disk"}` to `/run/otc/mirror-disk.request` and answers at once; `raid_watch.py`'s
+  loop takes it (renamed into its own directory, O_NOFOLLOW, the otc user's, one link), acts only on
+  a disk it offers now, checks it again (the same attachment by `diskseq`, also through an
+  O_EXCL open's BLKGETDISKSEQ, and size; not held, not the system's or the mirror's, big enough, the
+  mirror still lacking a disk), then `wipefs -a` each partition and the disk and `mdadm --add`s it,
+  answering in `/run/otc-raid-watch/mirror-disk.json` (`added`, `gone`, `not_degraded`, `in_use`,
+  `failed`, `bad_request`): an Alert unless added (`dev.alert.raid.use_*`, once per answer,
+  `<storage>/.raid-use-answered`), and a request not taken in a minute is withdrawn with one. First-sign-in
   storage setup (`OTC_SKIP_RAID` hand installs) refuses storage that already holds files, a disk with a
   signature, partitions or an md superblock, and storage fstab already names; it reads its request with
   O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750) and writes fstab by
@@ -2747,6 +2762,10 @@ than the `reboot wifi-restart` loops, triggered by `/run/otc/wifi-join.request` 
 in `/var/lib/otc` - and answering in root's `/run/otc-wifi-join/status.json`; 140.sh installs it
 with the restart runner, removes a stale request before `enable --now otc-wifi-join.path`, and
 deletes the plaintext `/var/lib/otc/wifi_join_request.json` the retired SetWifi left).
+Settings › Storage's `/run/otc/mirror-disk.request` (a disk that isn't blank, erased and added to
+the mirror) has no unit of its own: `raid_watch.py`'s loop, which update.sh reinstalls, takes it the
+same way and answers in root's `/run/otc-raid-watch/mirror-disk.json` (raidwatch above), deferring
+a SIGTERM until it has answered.
 tailscaled runs only while Tailscale Funnel is on:
 install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
 `tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't
