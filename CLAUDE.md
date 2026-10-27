@@ -532,6 +532,15 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
   and a group's `details` stop growing at 60000 bytes (later errors still count). The device DSN
   has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
+  Release 143 dropped `files`' indexes on `modified` and `size` (no query filters or sorts by
+  either); no `(created, path)` index can exist - `path` alone is InnoDB's 3072-byte key limit
+  (ERROR 1071 on 11.8), and so the `created` index isn't extended by it either. MariaDB's buffer
+  pool goes by the memory: 256 MB with 4 GB, 768 MB with 8 GB, 1 GB from 12 GB, the default under 3
+  GB - `/etc/mysql/mariadb.conf.d/70-otc-memory.cnf` from install.sh and 143.sh (from MariaDB's
+  next start: update.sh keeps otc and its users' instances running through the migrations, so it
+  restarts nothing, and 11.8 can't grow the pool past its starting size), and
+  `--innodb-buffer-pool-size` from the container's entrypoint (`buffer_pool_mb`, the memory as
+  `container.MemorySizing` reads it).
 - `files_manager` — file storage, hashing, dedup on disk. Content is keyed by hash, and the
   hash-first upload (`HasFile`/`HasCloudIds` then `LinkFile`) only skips the bytes when the blob is
   really on the disk (`hasBlob`: present and non-empty; each answer is recorded in
@@ -546,13 +555,33 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   stores a row, and UploadFile's background write holds it too - never across a `DelFile`, which
   takes its own. Blobs are written to a temporary file and renamed into place (`writeBlob`):
 no 0-byte blob after a crash, and a blob owned by another account (a recovered older
-installation's `pi`) can still be replaced; release 22's script hands such files to `otc`.
-At every start (`initRest`) `sweepOrphanedStorage` removes what interrupted work left at the top
+installation's `pi`) can still be replaced; release 22's script hands such files to `otc`. The
+folder is synced after each rename too (`blobstore.SyncDir`: `Commit`, `writeBlob`, social's
+`writeFileAtomic`, the posts' copies), so a power cut can't take a name back while its row stays.
+**Disk space** (`freespace.go`): a write that would leave less than a reserve free - 1 GiB, or 2%
+of a disk under 50 GB, at least 64 MiB: room for MariaDB on the same disk, the thumbnails and the
+alert itself - is refused before it starts: `BeginUpload` (its size plus what the uploads under way
+still have to write), `UploadFile`, `GetSharedLink`'s archive, `StartSharedGallery` and a post's
+video copy, with `RespEnvelope.error_code` "storage_full" (also for a write that hit ENOSPC) and
+`dev.files.storage_full`'s "this needs …, and only … is left". The sync clients don't yet pause on
+it. What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
+5% for root, which neither otc nor MariaDB can use - a 4 TB mirror showed ~200 GB free while
+uploads failed); Status' raid/disk size is used plus available, so the apps' free (size - usage)
+is what can be written, and Settings > Users' share is of that size. `storagewatch` (main instance,
+`machine_alerts.go`) raises an Alert at 90% full and at 98% (`dev.alert.storage.*`), the latter
+pushed too (`push.storage.full_*`, no figures), each once until the disk goes 5 points under it
+(`<storage>/.storage-alerted`).
+At every start `sweepOrphanedStorage` removes what interrupted work left at the top
 level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries with no
-`shared_links` row - none if that query fails), skipping anything modified in the last minute.
-`integrity.go` checks once a day (10 min after start) for rows whose content is
-  missing and raises one Alerts entry per change (`.integrity-reported` in the storage path holds
-  the last reported set). The missing blobs found on Cala came with its RAID recovery on
+`shared_links` row - none if that query fails): in the background once the listeners are up
+(`AfterListening`, from bin/otc.go), reading the flat folder 4096 entries at a time (unsorted),
+and only what was last modified a minute or more before this process started (`Manager.started`),
+so nothing this run writes - a paused chunked upload, an archive being built - is ever taken.
+`integrity.go` checks once a day (a minute after start, then daily) for rows whose content is
+  missing - the distinct hashes a page of 5000 at a time from `files` and from `file_versions`
+  (`dao.HashesPage`), a `hasBlob` stat each, and the paths of the missing ones only
+  (`ContentPathsOf`); every (hash, path) pair used to be loaded first - and raises one Alerts entry
+  per change (`.integrity-reported` in the storage path holds the last reported set). The missing blobs found on Cala came with its RAID recovery on
   2026-09-23: they were lost on the previous installation, most likely by the re-upload bug fixed
   on 2026-09-03 (34a8c7d), which deleted the old blob while the row kept its hash. Issue #132's upload-only folders live
   here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
@@ -674,7 +703,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   thumbnail and everything else by a generic labelled document icon whose colour says the type
   (PDF red, DOC blue, XLS green, PPT orange...; the mapping is the same in `FileTypeIcon.tsx`,
   `FileTypeIcon.swift` and `FileTypeIcon.kt` - change all three together; no vendor logos).
-  `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the stored
+  `GetThumbnails{paths}` (their rows in one `in` query, `dao.GetFilesByPaths`; a path at a time
+  should it fail) answers up to 48 paths (about 8 MB) per request with the stored
   thumbnails, in the order asked, leaving out paths without one; since 113
   `ListOfFiles.ask_again_from` (5) is the index of the first path it didn't look at (the byte cap,
   or past 48), 0 when it looked at all - before, a cut answer looked like paths without
@@ -746,10 +776,35 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
   file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
   `GetFile`, `GetPublicationMedia`, share-link parts; `GetFileInfo` reserves while it reads a
-  photo). A post's video is never loaded: `ExportVideoForPost` re-encodes it from the loopback
+  photo). One reply never holds a file too large for that (`membudget.go`; acquire lets a request
+  over the whole budget run alone, and a 1.5 GB TIFF in a viewer, or a friend syncing a multi-GB
+  post video, killed the device): `GetPublicationMedia` refuses a post's file over
+  `MaxPublicationMedia` (256 MB, or a third of the budget: 85 MB on a 4 GB Pi) and `GetFile` one over
+  `shownWholeLimit` (a third of the budget, at least 64 MB) - never a HEIC (sent as its JPEG, which the
+  decode budget bounds) nor, for now, a video (the web composer's trimmer, `NewPostPicker`, fetches
+  a library video whole and has no other way to read it; every viewer streams videos) - with
+  `RespEnvelope.error_code` "too_large" (`websocket/content_codes.go`), reserving nothing. The
+  viewers keep the thumbnail, downloads read in parts, a friend's device keeps the post's thumbnail
+  (its sync logs the refusal; fetching it through GetMediaURL is still to do). `GetFileInfo` reads a
+  photo's EXIF through the blob's ReaderAt (`exifFrom`, by its first bytes: a JPEG up to its EXIF
+  segment, a HEIC its boxes; a TIFF, which goexif reads whole, up to `shownWholeLimit`), and
+  `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). A post's video is
+  never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a
-  segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token);
-  a post's photos are read one at a time, within the budget. `budgetSize` uses the row's int64 size and
+  segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token).
+  The re-encode gets six seconds a second of output, half an hour at least (`transcodeTimeoutFor`,
+  the length from ffprobe), and once more after a timeout with `transcodePlan.fast` (ultrafast,
+  `-skip_loop_filter all`, no HDR tone mapping); if that fails too, the original is published in its
+  place only when no cut was asked for and it is within `MaxPublicationMedia` - otherwise the post
+  fails, saying why (`dev.files.video_not_cut`, `video_not_reduced`): a cut is never undone. Both
+  post copies are synced before their rename, the folder after it. A post's photo that needs no
+  converting is copied a segment at a time (`CopyForPost`), a HEIC read whole within the budget.
+  `social.NewPublication` holds the hashes it writes (`social/post_files.go`, `postsInFlight`) and
+  takes its plaintext copies back when the post isn't made (`postFiles.discard`: not a file another
+  post names or another post being made holds); once per start, before the first friend sync
+  (websocket's `backgroundWorker`), `SweepUnusedPostFiles` removes `<hash>` and `<hash>_thumbnail`
+  files older than a day that no `social_publications_files` row names (the only table naming them;
+  the alerts' thumbnails are their posts') - nothing else in the folder. `budgetSize` uses the row's int64 size and
   looks at the blob only until the size backfill below has run. Since release 93 (`93.sh`, and
   `install.sh` `apply_schema_migrations`) the size columns of `files`, `file_versions` and
   `social_publications_files` are BIGINT; `files_manager/size_backfill.go` corrects, once and in
@@ -1011,6 +1066,12 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   allocator keeps of the load), ~1.4 GB while loading, and a run needs ~650 MB more - which the
   default CPU arena keeps after it (three runs at once: +1.3 GB). Loading reads the IO names from a
   whole temporary session (`firstTensorIO`), cached per process (`cachedTensorIO`) for reloads.
+  Outside low-memory mode the primary loads it in the background (`files_manager/tagger_load.go`);
+  a load that fails no longer ends the process (`log.Fatal`, then a restart every 3 s, the device
+  unreachable for the Update that would repair it): one Alert (`dev.alert.tagger.not_loaded`), photos
+  and videos get their place tags only (`retryTagger` answers `modelserver.ErrNoTagger`, which
+  processing skips quietly), and it is tried again 1, 2, 4... minutes later, an hour apart at most;
+  Reprocess Media adds the missing tags.
 - **Low-memory profile** (`files_manager/lowmem.go`): MemTotal under 6 GB (a 4 GB Pi 5 reports
   ~3.7 GB) or `[otc] low-memory = on` (`auto` default, `off`; the primary passes a configured
   choice to its supervised instances as `OTC_LOW_MEMORY`). Logged once at start ("low-memory mode:
@@ -1071,7 +1132,14 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   under 2 GiB before allocating); tags use `tags-resized` with only the 384x384 image the child
   scaled itself (`imagestagger.Resize`, then `TagsResized`), faces still get full resolution. A
   child speaks v1 only when "info" reports it, and the primary still accepts v0 (pixels inside the
-  gob message) - keep both when changing the socket.
+  gob message) - keep both when changing the socket. The primary reads and answers two requests at
+  a time (`cServedAtOnce`; one in low-memory mode): a face request carries the whole photo. With no
+  tagging model loaded the answer is `ErrNoTagger`, which reaches a child as itself.
+- `supervisor` — issue #82's users' instances, run by the primary. One that keeps stopping is started
+  again after 4 s, doubling to 10 minutes (`respawnBackoff`; a run of 10 minutes or more starts a
+  new series), and the 5th stop in a row is alerted, once a series (`dev.alert.user.keeps_stopping`);
+  Stop ends a pause at once. Its ini, on the SD card, is rewritten only when it changes
+  (`writeIfChanged`).
 - `face_recognition` — (matching, issue #173: every face row is kept, but new faces are matched
   against at most 20 decrypted *reference* embeddings per person cached in memory -
   `files_manager/face_refs.go`; at 20 an outlier isn't added and the most redundant reference is
@@ -1221,8 +1289,9 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   no Cache-Control, Last-Modified or ETag on HTML, so browsers never keep a page from it.
   Listener bind errors are logged, not fatal.
 - `log` — leveled logger with size-based rotation, configured once in `main()` from `[logger]`.
-  Code holding the logger's mutex exits with `die()`, never `Fatal` (a rotation that couldn't
-  reopen the file used to hang).
+  A log file that can't be opened or read (a read-only card, its folder gone) no longer ends the
+  process - which used to hang holding the logger's mutex, then exit into a restart loop: the lines
+  go to stderr (journald) and the file is tried again every minute (`toStderr`, `retryLogFile`).
 - **Plaintext never on the SD card** (issue #156, releases 62/65; devices build `go build ./bin/otc.go` - one file - so `bin/` must stay a single file and helpers live in packages like `hardening`): the service `mlockall`s its memory at
   start (`hardening/hardening_linux.go`; the unit has `LimitMEMLOCK=infinity` and `LimitCORE=0`; `[otc]
   disable-mlock=true` turns it off), swap is zram only (`/etc/rpi/swap.conf.d/90-otc-ram-only.conf`,
@@ -1260,8 +1329,8 @@ that moves text into the catalog) and builds what embeds the catalog. It gates
 bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
 the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
 LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
-Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, Wi-Fi
-wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
+Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, disk
+space, Wi-Fi wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
 ports as data; update alerts are one per `notifications.update_version`, with the legacy English
 titles still matched (`updateTitles` keeps them even if the title is reworded).
 
