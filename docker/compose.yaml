@@ -18,6 +18,7 @@ services:
       OTC_DB_PORT: "${OTC_DB_PORT:-3316}"            # built-in database, 127.0.0.1 only
       # OTC_OWNER_PASSWORD_FILE: /run/secrets/owner_password   # headless setup; remove afterwards
       # OTC_TRUSTED_PROXIES: "172.18.0.0/16"                    # your reverse proxy, after the password is set
+      # OTC_ALLOWED_ORIGINS: "https://photos.example.com"       # your proxy's address, if it passes neither Host nor X-Forwarded-Host on
       # TZ: "Europe/Amsterdam"                                  # the nightly database copy is made at 03:00 here (UTC otherwise)
       # OTC_MEMORY_GB: "4"                                      # size the device below mem_limit (without a limit it sizes itself as 8 GB)
     volumes:

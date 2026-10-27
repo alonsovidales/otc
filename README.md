@@ -551,6 +551,12 @@ ssl-key=
 # a self-signed certificate they pin (made on the first start and kept in
 # <storage-path>/.lan-tls/). Defaults to port + 363 (8443) if omitted.
 lan-tls-port=8443
+# Optional: browser pages on other addresses that may open the device's
+# socket, besides the device's own page at whatever address it is reached
+# directly - a reverse proxy that passes neither the Host nor
+# X-Forwarded-Host on, or a developer's own server. Origins, separated by
+# commas. Any other site's page is refused.
+# allowed-origins=https://photos.example.com
 
 [mysql]
 user=otc

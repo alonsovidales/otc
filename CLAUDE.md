@@ -248,7 +248,12 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   keep accepting fragmented messages.
 - Passwords never cross in the clear (issue #2): each connection gets an ephemeral RSA-2048 key
   (`GetPubKey`, `rsaKeyPool`), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
-  RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). That
+  RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). So
+  are `ReqBridgeSignIn.password_sealed` and `ReqSetupTailscale.auth_key_sealed` (2026-10 review,
+  `sealedOr`): the device still reads the plain `password`/`auth_key` when no sealed one comes (older
+  pages; the phones' Tailscale sections still send `auth_key` plain), the web sends only the sealed
+  one (the device serving the page is the one it talks to), and `tailscale up` reads the key from a
+  0600 file on the TMPDIR tmpfs (`--auth-key=file:`, `authKeyArg`), never its argv. That
   key is not authenticated: the bridge terminates TLS, so a compromised bridge node could hand out
   its own key and read the password at sign-in. The owner reviewed this on 2026-10-05 and accepts
   it - the bridge nodes are the owner's own and `servercheck.sh` watches them; pinning a device
@@ -735,6 +740,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   `SharedLinksPanel`) lists every link with its opens and size, and deletes a link with its copy.
   Decrypted manifests are cached (8, 5 min idle, valid only for the same secret and manifest
   size/mtime), but the expiry is read from the database on every request.
+  An archive's link is `/#download=<uuid>_<secret>` (2026-10: the secret in the fragment, as a
+  gallery's; `downloadLink.ts` still takes `?download=`).
   Issue #166 (release 63): a share link is downloaded in parts (the web page asks for 4 MiB
   ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
   file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
@@ -1094,8 +1101,20 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   registration ends every backoff (`bridgePool.wake`). Replies go through `writeReply` (stall
   deadline `cReplyStall`, 1 min, renewed per 64 KiB piece) and `marshalReply` (a marshal error sends
   a clone with invalid UTF-8 replaced). `reserveMemory` reserves only for a caller allowed to make
-  the request. Once the peer is gone, queued `pureDownload` requests are skipped - never add one
-  with side effects (`DownloadSharedLink` counts opens). `RespFriendships` never carries
+  the request (`GetMediaRange` 2x its span for a known token, `GetStaticAsset` 2x the file, too).
+  Once the peer is gone, queued `pureDownload` requests are skipped (`GetMediaRange` is one) - never
+  add one with side effects (`DownloadSharedLink` counts opens). Until a session or a friend exists
+  (`anonymous`), a connection has `cMaxInFlightAnon` (4) requests at once - the next isn't read
+  meanwhile, nothing is refused - and its messages are read with `wsframe.ReadFree`, 64 KiB free
+  (`cAnonFrameFree`), the rest in `anonFrameBudget` (64 MiB, reserved by capacity); then 32 and
+  `frameBudget` past 4 MiB (`frameRules`). `Listen` refuses another site's page with a 403 before
+  the upgrade (`origin.go`, `originAllowed`, also the upgrader's CheckOrigin): no Origin (apps,
+  otc-sync, friends' devices), an Origin whose host is the request's Host (the web app at any of the
+  device's addresses, tunnels, Tailscale Funnel, which passes the Host on), one on
+  X-Forwarded-Host from loopback or a container's trusted proxies, or one in `[otc-api]
+  allowed-origins` (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Strangers' routine
+  requests log at Debug; refused origins, plain requests to `/ws`, passwords tried while locked out
+  and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`). `RespFriendships` never carries
   `Friendship.secret`. Push-registration syncs to the bridge go only through `mg.requestPushSync`
   (one at a time). `mediastream.Store.IssueShared(key, res)` reuses a token per resource for 5 min:
   give it a key only when it names exactly one resource every authorised caller may share (a
@@ -1107,7 +1126,13 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   keep theirs in the Keychain, so after a password `ReqAuth` it holds a single-use, TTL'd opaque
   token (`ReqIssueSessionToken` / `ReqAuthWithToken` / `ReqRevokeSessionToken`) that redeems back
   into the same already-derived `*Session`. Process-local and deliberately not persisted — exactly
-  like the `*Session` objects it points at, tokens don't survive a restart. `session/ratelimit.go` (issue #117) is the per-address
+  like the `*Session` objects it points at, tokens don't survive a restart. At most 32 a sign-in and
+  10,000 in all (oldest out), swept every minute. A password change (`ChangeKey`, whose old
+  password goes through `session.Attempts` as a sign-in's does: address, 1 s delay, lockout) starts
+  a new password generation (`session.PasswordChanged`): every token goes, none is issued or
+  redeemed for a connection signed in before, every other signed-in connection is closed
+  (`Manager.passwordChanged` over `mg.live`; friends' stay) and the changer carries on; a sign-in
+  checked before the change and done after it is refused (`signIn`). `session/ratelimit.go` (issue #117) is the per-address
   password-attempt limit: 5 failures in a minute lock that address out for a minute, answered with
   `Ack.code = "too_many_attempts"` + `retry_after_seconds`. The bridge reports each relayed client's
   address to the device with `BridgeClientInfo`, so the limit applies through the bridge too.
@@ -1158,9 +1183,16 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   relay socket clears the deadlines once registered.
   **Friend post sync** (`social.updateFriendEvents`): a file whose hash fails `dao.IsContentHash`
   is dropped (`NewSocialPublication` refuses one too, storing a post and its files in one
-  transaction); the size recorded is what the files take on this disk (int64; release 92 clamped it to MaxInt32); media is pulled under
-  `ReserveFriendMedia` (3x the declared size, waiting at most 2 min) and written by
-  `writeFileAtomic`. A transport failure (`errFriendTransport`, including the bridge answering
+  transaction); the size recorded is what the files take on this disk (int64; release 92 clamped it to MaxInt32); media is pulled in
+  an answer of at most the declared size + 64 KiB (`friendMediaLimit`; a JPEG 6x + 4 MiB, as a
+  posted HEIC is served as its JPEG under the HEIC's size; a size of 0 or less keeps the thumbnail
+  only) under `ReserveFriendMedia` of that limit (3x, waiting at most 2 min) and written by
+  `writeFileAtomic`. A file's type is kept only when `mediastream.SafeType` keeps it (ServedType's
+  inline list), else `application/octet-stream`, and every answer carrying a post's files maps it
+  again (`safePostFiles`): the web shows them from blob: URLs in the device's origin. A comment is
+  shown with the friendship's name for its `author_domain` (the domain without one), the owner's
+  name for theirs, `publisher_name` only for rows from before release 51 (`dao.queryComments`), and
+  a friend's is stored with the name the friend is known by, never the one its event signs. A transport failure (`errFriendTransport`, including the bridge answering
   `device_unreachable`/`account_disabled` for the friend) or a failed thumbnail write stops the page
   at that post without moving `latest_sync` past it; after 3 stops in a row (`cPostTries`) the post
   is given up. `GetEvents` never serves the last second and completes a full page with the rest of
@@ -1196,7 +1228,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   disable-mlock=true` turns it off), swap is zram only (`/etc/rpi/swap.conf.d/90-otc-ram-only.conf`,
   no `/var/swap` writeback; dphys-swapfile removed; Makefile.pi's `swap` is no longer in bootstrap),
   and `TMPDIR` is a per-process `otc-<pid>` directory on a tmpfs (`/tmp` when it is one, else
-  `/dev/shm`), with dead processes' directories swept at start (a supervised child resolves an
+  `/dev/shm`), made by the process and never taken as found (`ownTempDir`: `otc-<pid>-<random>` when
+  the name is taken; 0700, ours), with dead processes' directories swept at start (a supervised child resolves an
   inherited `otc-<pid>` TMPDIR to its base, `tempBaseCandidate`, so it never sweeps the primary's).
   At `level=info` the log never names
   a file path, search term, share path or Wi-Fi network - those are Debug only - errors name hashes,
@@ -2420,8 +2453,7 @@ in the list. No per-folder file count (no catalog key; the web and Android show 
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
-`ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components, `cMaxInFlight` (32)
-requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget; bridge - no `interpolateParams`,
+`ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components; bridge - no `interpolateParams`,
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
