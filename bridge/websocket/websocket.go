@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/fleet"
@@ -143,12 +144,9 @@ func bridgeLimit(key string, def int) int {
 
 // pairingKey is who a pairing is counted against: the client's address
 // (clientAddr) - an IPv6 one by its /64, which one host can rotate
-// through - and the device it asks for.
+// through (clientaddr.Bucket) - and the device it asks for.
 func pairingKey(addr, host string) string {
-	if ip := net.ParseIP(addr); ip != nil && ip.To4() == nil {
-		addr = ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
-	}
-	return addr + "|" + host
+	return clientaddr.Bucket(addr) + "|" + host
 }
 
 // reservePairing counts one more open pairing for key, unless it already

@@ -6,7 +6,9 @@ package limits
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -30,6 +32,24 @@ const MaxJSONBody = 64 << 10
 func DecodeJSON(w http.ResponseWriter, r *http.Request, v any, limit int64) error {
 	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(BodyReadTimeout))
 	return json.NewDecoder(http.MaxBytesReader(w, r.Body, limit)).Decode(v)
+}
+
+// ParseForm is r.ParseForm with a form body bounded as DecodeJSON bounds
+// a JSON one: at most limit bytes, within BodyReadTimeout. A request
+// without a body (a GET) has only its URL to parse, and no deadline set.
+func ParseForm(w http.ResponseWriter, r *http.Request, limit int64) error {
+	if r.Body != nil && r.Body != http.NoBody {
+		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(BodyReadTimeout))
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+	}
+	return r.ParseForm()
+}
+
+// RetryAfter sets a 429's Retry-After header to d, in whole seconds
+// rounded up and never 0: asked again that late, the request gets
+// through (unless more requests used up the limit meanwhile).
+func RetryAfter(w http.ResponseWriter, d time.Duration) {
+	w.Header().Set("Retry-After", strconv.FormatInt(max(1, int64(math.Ceil(d.Seconds()))), 10))
 }
 
 // WriteIdleTimeout is how long a proxied response may wait on a client
@@ -97,6 +117,13 @@ func NewRate(perSecond, burst float64) *Rate {
 
 // Allow takes a token for key, reporting false when there is none.
 func (l *Rate) Allow(key string) bool {
+	ok, _ := l.Take(key)
+	return ok
+}
+
+// Take is Allow that also says, when there is no token, how long until
+// key has one again (a 429's Retry-After).
+func (l *Rate) Take(key string) (ok bool, retryAfter time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
@@ -109,10 +136,10 @@ func (l *Rate) Allow(key string) bool {
 	b.tokens = min(l.burst, b.tokens+now.Sub(b.last).Seconds()*l.perSecond)
 	b.last = now
 	if b.tokens < 1 {
-		return false
+		return false, time.Duration((1 - b.tokens) / l.perSecond * float64(time.Second))
 	}
 	b.tokens--
-	return true
+	return true, 0
 }
 
 // sweep drops the keys idle for long enough to be full again (exactly

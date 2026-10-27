@@ -147,7 +147,7 @@ func requestAddr(r *http.Request) string {
 
 // allowOneOff applies oneOffPerAddr, answering 429 when it says no.
 func (api *API) allowOneOff(w http.ResponseWriter, r *http.Request) bool {
-	if api.oneOffPerAddr == nil || api.oneOffPerAddr.Allow(requestAddr(r)) {
+	if api.oneOffPerAddr == nil || api.oneOffPerAddr.Allow(clientaddr.Bucket(requestAddr(r))) {
 		return true
 	}
 	if w != nil {
@@ -564,8 +564,9 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	// in its own bucket and the map grew an entry per port, the very thing
 	// its own comment said it was avoiding. clientaddr.Of strips the port
 	// (and still never trusts a forwarded-for header - see its doc
-	// comment for why that matters here).
-	remoteAddr := clientaddr.Of(r)
+	// comment for why that matters here); Bucket counts an IPv6 address
+	// by its /64, which one sender can rotate through just as freely.
+	remoteAddr := clientaddr.BucketOf(r)
 
 	api.contactMu.Lock()
 	now := time.Now()
@@ -726,7 +727,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteAddr := clientaddr.Of(r)
+	remoteAddr := clientaddr.BucketOf(r) // an IPv6 address by its /64
 	api.claimMu.Lock()
 	now := time.Now()
 	if last, ok := api.lastClaimByAddr[remoteAddr]; ok && now.Sub(last) < cClaimCooldown {
@@ -1082,7 +1083,7 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // is all this is for, and it keeps the store from being used to point a
 // page at anything else.
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
-	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(requestAddr(r)) {
+	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(clientaddr.Bucket(requestAddr(r))) {
 		w.Header().Set("Retry-After", "5")
 		writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's beacon thread
 		return

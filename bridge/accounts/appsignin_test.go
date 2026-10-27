@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/bridge/limits"
 )
 
 func TestAppReturnNeedsAChallenge(t *testing.T) {
@@ -113,6 +114,66 @@ func TestAppCodeNeedsTheVerifier(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// deadlineRecorder records the read deadline a handler sets through
+// http.ResponseController.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	read time.Time
+}
+
+func (d *deadlineRecorder) SetReadDeadline(t time.Time) error { d.read = t; return nil }
+
+// The servers set no ReadTimeout (it would cut the proxied websockets), so
+// a handler bounds its own body's arrival: app-exchange through
+// limits.DecodeJSON, and the sign-in callback's form post (Apple's) through
+// limits.ParseForm, which also bounds its size. Google's GET callback has
+// no body to wait for.
+func TestSignInBodiesHaveAReadDeadline(t *testing.T) {
+	a, mock := testAccounts(t)
+	mock.ExpectBegin()
+	mock.ExpectQuery("from `app_signin_codes`").WillReturnRows(sqlmock.NewRows([]string{"account_id", "challenge", "created"}))
+	mock.ExpectRollback()
+	start := time.Now()
+	w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	a.AppExchange(w, httptest.NewRequest("POST", "/api/account/app-exchange", strings.NewReader(`{"code":"c","verifier":"v"}`)))
+	if w.Code != 401 || w.read.Before(start.Add(limits.BodyReadTimeout)) {
+		t.Errorf("app-exchange: %d, read deadline %s, want %s from the start", w.Code, w.read, limits.BodyReadTimeout)
+	}
+	w = &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	a.AppExchange(w, httptest.NewRequest("POST", "/api/account/app-exchange", strings.NewReader(`{"code":"`+strings.Repeat("c", cAppExchangeMaxBody)+`"}`)))
+	if w.Code != 400 {
+		t.Errorf("app-exchange past its size: %d, want 400", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+
+	newFakeIdP(t, a)
+	state := strings.Repeat("ab", 32)
+	callback := func(method, body string) *deadlineRecorder {
+		r := httptest.NewRequest(method, "/account/auth/google/callback", strings.NewReader(body))
+		if method == "GET" {
+			r = httptest.NewRequest(method, "/account/auth/google/callback?"+body, nil)
+		}
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.SetPathValue("provider", "google")
+		w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+		a.OAuthCallback(w, r)
+		return w
+	}
+	// The person stopped at the provider: read from the form, no database.
+	if w := callback("POST", "state="+state+"&error=user_cancelled_authorize"); w.Code != 302 ||
+		w.Header().Get("Location") != "/account?error="+cSignInCancelled || w.read.Before(start.Add(limits.BodyReadTimeout)) {
+		t.Errorf("form post: %d %q, read deadline %s", w.Code, w.Header().Get("Location"), w.read)
+	}
+	if w := callback("POST", "state="+state+"&user="+strings.Repeat("x", cCallbackMaxBody)); w.Code != 400 {
+		t.Errorf("form post past its size: %d, want 400", w.Code)
+	}
+	if w := callback("GET", "state="+state+"&error=access_denied"); w.Code != 302 || !w.read.IsZero() {
+		t.Errorf("GET callback: %d, read deadline %s, want none", w.Code, w.read)
 	}
 }
 

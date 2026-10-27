@@ -58,9 +58,10 @@ func newLoginLimiter() *loginLimiter {
 
 // clientIP is the limiter's bucket key - see clientaddr.Of for why this
 // is the remote address with its port stripped, and never a forwarded-for
-// header a guesser could just make up per request.
+// header a guesser could just make up per request, and clientaddr.Bucket
+// for why an IPv6 address counts by its /64.
 func clientIP(r *http.Request) string {
-	return clientaddr.Of(r)
+	return clientaddr.BucketOf(r)
 }
 
 // allow reports whether ip may attempt a login right now, and if not, how

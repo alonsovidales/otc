@@ -1690,7 +1690,8 @@ email) mails a one-hour `#reset=` link; `/api/account/reset` sets the password, 
 email and ends every other session. A new link is sent before older ones are dropped
 (`KeepNewestEmailToken`), and a QUIT error after an accepted DATA counts as sent.
 
-Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`
+Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`,
+and the sign-in callback's form post (Apple's) through `limits.ParseForm`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,
 `/media`) are limited per address (`oneOffPerAddr`, 10/s, burst 60 - the forwarded address for a
@@ -1701,10 +1702,17 @@ clients as `cInternalErrorMsg`; sign-ups are limited to 5 an hour per address, s
 the same for unknown, wrong and Google/Apple-only accounts, and new bridge passwords use bcrypt
 cost 12 (`limits.BcryptCost`; account hashes are upgraded at the next sign-in).
 `limits.Rate` deliberately has **no hard cap** on its map (a0ce30c removed one): refusing unknown
-keys would let a flood of distinct addresses (one IPv6 /64 is enough) lock out everyone new, for an
+keys would let a flood of distinct addresses (one IPv6 /48 is enough) lock out everyone new, for an
 hour on the sign-up and email limiters. Its size stays bounded by request rate x refill window, and
 besides the time-based sweep it sweeps once the map has doubled since the last sweep, with a 100k
-floor (`cSweepKeys`). Proxied device responses go out through `limits.WriteAll` (deadline renewed
+floor (`cSweepKeys`). The account sign-in limiter's failures map is the same: no cap, stale
+addresses swept as it doubles (10k floor), never a live lockout dropped - each failure costs a
+bcrypt. Every per-address throttle (both sign-in limiters, sign-ups, emails, sign-in starts, the
+contact and claim cooldowns, one-off GETs, setup beacons, pairing) counts `clientaddr.Bucket`: an
+IPv4 address, or an IPv6 /64, which one host can rotate through; logs, `BridgeClientInfo` and stored
+rows keep the address itself. The account sign-in's, sign-up's and email 429s carry Retry-After,
+as the admin login's does. Proxied device responses go out through `limits.WriteAll`
+(deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
 reading) and the cluster router's `deadlineWriter`; no `http.Server` `WriteTimeout`, because of the
 websockets. Only hashed Vite assets (`/assets/<name>-<8 chars>.<ext>`) are cached `immutable`. Only
@@ -1715,7 +1723,9 @@ contact/claim cooldown (`releaseCooldown`).
 
 A database error in a sign-in or setup check is "try again" (500), never a refusal (issue #189):
 `session` / `AccountFromRequest` return it (`RequireAuth` answers 500, a claim with a session
-too), `LookupSetupToken` tells "no such code" from an error (claims with a setup code, and
+too; `Me` answers 500 keeping the cookie, which it clears only for an account that is gone; the
+admin panel's `RequireAuth` 401s only an admin that is gone), `LookupSetupToken` tells "no such
+code" from an error (claims with a setup code, and
 name-available's `yours`/`online`), and `accountAddDomain` reads the account once. The setup
 wizard passes the bridge's own error answers through (`bridge_answer`; `bridge_error` keeps their
 `error`, `code` and `args`, and the page words known codes as `wiz.bridge.<code>`), and a typed
@@ -1725,7 +1735,9 @@ code is only
 Every domain registered on the bridge belongs to an account (`devices.account_id`). The package
 owns identity and sessions: email+password sign-up/sign-in (bcrypt, per-address throttling),
 Google and Apple as plain OpenID Connect authorization-code flows in `oidc.go` (no SDK: the
-provider's JWKS is fetched and cached, the id_token verified with `golang-jwt/jwt/v5`; Apple's
+provider's JWKS is fetched and cached - one fetch per provider at a time, outside the lock, and
+while refetches fail the last good keys verify for up to 24 h - the id_token verified with
+`golang-jwt/jwt/v5`; Apple's
 client secret is an ES256 JWT signed with the team's .p8), HMAC-signed session cookies like the
 admin panel's (`otc_account`, path `/`, same signing secret), and **setup tokens** - 8-character
 codes from an unambiguous alphabet, 15 minutes, in `account_tokens` - which are the only link

@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -210,6 +211,85 @@ func TestLoginLockoutDoesNotAffectOtherAddresses(t *testing.T) {
 	}
 	if got := login("198.51.100.4:1111", "the-real-password").Code; got != http.StatusOK {
 		t.Errorf("unrelated address with the correct password = %d, want %d", got, http.StatusOK)
+	}
+}
+
+// A guesser spreading attempts over the addresses of one IPv6 /64 is one
+// address to the limiter: locked out, the whole /64 gets the 429 (before
+// the database or bcrypt), and another /64 doesn't.
+func TestLoginLockoutCoversTheIPv6SlashSixtyFour(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	login := func(remoteAddr string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/admin/api/login",
+			strings.NewReader(`{"username":"operator","password":"wrong-guess"}`))
+		req.RemoteAddr = remoteAddr
+		w := httptest.NewRecorder()
+		a.Login(w, req)
+		return w
+	}
+	now := time.Now()
+	for i := 0; i < cLoginMaxFailures; i++ {
+		r := httptest.NewRequest(http.MethodPost, "/admin/api/login", nil)
+		r.RemoteAddr = fmt.Sprintf("[2001:db8:1:2:%x::1]:1111", i+1)
+		a.loginLimiter.recordFailure(clientIP(r), now)
+	}
+	if w := login("[2001:db8:1:2:ffff::9]:2222"); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("another address of the /64: %d, Retry-After %q, want 429 with one", w.Code, w.Header().Get("Retry-After"))
+	}
+	mock.ExpectQuery("select `password_hash` from `admin_users`").WillReturnRows(sqlmock.NewRows([]string{"password_hash"}))
+	if w := login("[2001:db8:1:3::1]:1111"); w.Code != http.StatusUnauthorized {
+		t.Errorf("another /64: %d, want 401", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// Issue #189's rule for the panel: a database error checking an admin's
+// session is "try again" (500), not "not an admin" - which sends a
+// signed-in operator to the login screen. An admin that is gone, or a
+// session from before the last logout, still gets 401.
+func TestRequireAuthOnADatabaseErrorIsTryAgain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	ran := false
+	h := a.RequireAuth(func(w http.ResponseWriter, r *http.Request) { ran = true })
+	call := func() int {
+		req := httptest.NewRequest(http.MethodGet, "/admin/api/devices", nil)
+		req.AddCookie(&http.Cookie{Name: cSessionCookie, Value: newSessionToken(a.sessionSecret, "operator", 2, time.Now())})
+		w := httptest.NewRecorder()
+		ran = false
+		h(w, req)
+		return w.Code
+	}
+	epochQuery := "select `session_epoch` from `admin_users`"
+	mock.ExpectQuery(epochQuery).WillReturnError(errors.New("driver: bad connection"))
+	if code := call(); code != http.StatusInternalServerError || ran {
+		t.Errorf("database error: %d (handler ran: %v), want 500", code, ran)
+	}
+	mock.ExpectQuery(epochQuery).WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}))
+	if code := call(); code != http.StatusUnauthorized || ran {
+		t.Errorf("no such admin: %d (handler ran: %v), want 401", code, ran)
+	}
+	mock.ExpectQuery(epochQuery).WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(3))
+	if code := call(); code != http.StatusUnauthorized || ran {
+		t.Errorf("a session from before a logout: %d (handler ran: %v), want 401", code, ran)
+	}
+	mock.ExpectQuery(epochQuery).WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(2))
+	if code := call(); code != http.StatusOK || !ran {
+		t.Errorf("a live session: %d (handler ran: %v), want it through", code, ran)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }
 

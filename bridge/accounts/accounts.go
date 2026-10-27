@@ -76,6 +76,9 @@ const (
 	// the window lock that address out for the window.
 	cLoginFailures = 8
 	cLoginWindow   = 10 * time.Minute
+	// cFailuresSweepAt: the failures map is swept of stale addresses once
+	// it holds this many, then whenever it has doubled since (loginFailed).
+	cFailuresSweepAt = 10000
 
 	// cSetupCodeAlphabet has no 0/O/1/I, so a code read out loud or typed
 	// from a screen has no lookalikes.
@@ -137,6 +140,8 @@ type Accounts struct {
 
 	limiterMu sync.Mutex
 	failures  map[string][]time.Time
+	// failuresKept is the failures map's size after its last sweep.
+	failuresKept int
 	// signups limits account creation per address (issue #163): each is
 	// a bcrypt, and each answer says whether an email has an account.
 	signups *limits.Rate
@@ -422,7 +427,9 @@ func validCountry(s string) (string, bool) {
 // Login throttling, per address (the admin panel does the same)
 // ---------------------------------------------------------------------
 
-func (a *Accounts) loginAllowed(addr string, now time.Time) bool {
+// loginAllowed is whether addr may try a password now, and if not, how
+// long until it may (the 429's Retry-After).
+func (a *Accounts) loginAllowed(addr string, now time.Time) (ok bool, retryAfter time.Duration) {
 	a.limiterMu.Lock()
 	defer a.limiterMu.Unlock()
 	recent := a.failures[addr][:0]
@@ -438,22 +445,35 @@ func (a *Accounts) loginAllowed(addr string, now time.Time) bool {
 	} else {
 		a.failures[addr] = recent
 	}
-
-	return len(recent) < cLoginFailures
+	if len(recent) < cLoginFailures {
+		return true, 0
+	}
+	// Free again once fewer than cLoginFailures are in the window: when
+	// the oldest of the newest cLoginFailures leaves it.
+	return false, recent[len(recent)-cLoginFailures].Add(cLoginWindow).Sub(now)
 }
 
+// loginFailed counts a wrong password from addr.
+//
+// An address with failures in the window is never dropped to make room:
+// that would lift its lockout, which is what a guesser spraying from
+// many addresses wants (the map used to be emptied, every lockout with
+// it, past 10,000). Only stale addresses are swept, once the map holds
+// cFailuresSweepAt and then each time it has doubled since the last
+// sweep, so a spray costs O(1) per failure, not a scan. Nor is there a
+// cap on new addresses: past one, a new address would go uncounted - the
+// limit off for everyone new, the mirror image of the lockout a capped
+// limits.Rate put on them (a0ce30c). The map is bounded already: every
+// failure follows a bcrypt, so one window holds at most what the node
+// can hash in 10 minutes - thousands of addresses per core, a few
+// hundred bytes each.
 func (a *Accounts) loginFailed(addr string, now time.Time) {
 	a.limiterMu.Lock()
 	defer a.limiterMu.Unlock()
-	a.failures[addr] = append(a.failures[addr], now)
-	if len(a.failures) > 10000 {
-		// Stale entries first; dropping everything (every lockout with it)
-		// only when 10,000 addresses failed within the window.
+	if _, tracked := a.failures[addr]; !tracked && len(a.failures) >= max(cFailuresSweepAt, 2*a.failuresKept) {
 		a.pruneFailuresLocked(now)
-		if len(a.failures) > 10000 {
-			a.failures = map[string][]time.Time{}
-		}
 	}
+	a.failures[addr] = append(a.failures[addr], now)
 }
 
 // pruneFailuresLocked drops the addresses whose failures are all older
@@ -466,6 +486,7 @@ func (a *Accounts) pruneFailuresLocked(now time.Time) {
 			delete(a.failures, addr)
 		}
 	}
+	a.failuresKept = len(a.failures)
 }
 
 func (a *Accounts) loginSucceeded(addr string) {
@@ -474,11 +495,13 @@ func (a *Accounts) loginSucceeded(addr string) {
 	delete(a.failures, addr)
 }
 
+// clientIP is the key the per-address limits here count a request
+// against: the connecting address, never X-Forwarded-For (nothing sits in
+// front of the bridge, so that header is whatever the client wrote - a
+// fresh one per attempt used to escape the login limit), and an IPv6 one
+// by its /64 (clientaddr.Bucket), which one host can rotate through.
 func clientIP(r *http.Request) string {
-	// The connecting address, never X-Forwarded-For: nothing sits in front
-	// of the bridge, so that header is whatever the client wrote - a
-	// fresh one per attempt used to escape the login limit.
-	return clientaddr.Of(r)
+	return clientaddr.BucketOf(r)
 }
 
 // ---------------------------------------------------------------------
@@ -572,9 +595,12 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 // {email, password, name, surname, country, accept_terms, lang}: lang,
 // optional, is the language of the page signing up (requestLanguage).
 func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
-	if a.signups != nil && !a.signups.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_signups", errorText(i18n.ApiErrorTooManySignups()))
-		return
+	if a.signups != nil {
+		if ok, wait := a.signups.Take(clientIP(r)); !ok {
+			limits.RetryAfter(w, wait)
+			writeError(w, http.StatusTooManyRequests, "too_many_signups", errorText(i18n.ApiErrorTooManySignups()))
+			return
+		}
 	}
 	var body struct {
 		Email, Password, Name, Surname, Country string
@@ -663,7 +689,8 @@ const cOAuthStartsPerMinute = 30
 func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
-	if !a.loginAllowed(ip, now) {
+	if ok, wait := a.loginAllowed(ip, now); !ok {
+		limits.RetryAfter(w, wait)
 		writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttempts()))
 		return
 	}
@@ -713,7 +740,14 @@ func (a *Accounts) Logout(w http.ResponseWriter, r *http.Request) {
 // Me is the signed-in account. GET /api/account/me.
 func (a *Accounts) Me(w http.ResponseWriter, r *http.Request, accountID string) {
 	acc, err := a.dao.GetAccount(accountID)
-	if err != nil || acc == nil {
+	if err != nil {
+		// "Try again" with the session kept (issue #189), as RequireAuth
+		// answers when the session check itself fails.
+		log.Error("error loading the signed-in account:", err)
+		writeError(w, http.StatusInternalServerError, "signin_check_unavailable", errorText(i18n.ApiErrorSigninCheckUnavailable()))
+		return
+	}
+	if acc == nil {
 		a.clearSession(w, r)
 		writeError(w, http.StatusUnauthorized, "not_signed_in", errorText(i18n.ApiErrorNotSignedIn()))
 		return
@@ -874,7 +908,8 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 	now := time.Now()
 	if acc.PasswordHash != "" {
 		ip := clientIP(r)
-		if !a.loginAllowed(ip, now) {
+		if ok, wait := a.loginAllowed(ip, now); !ok {
+			limits.RetryAfter(w, wait)
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return
 		}
@@ -924,7 +959,8 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 	now := time.Now()
 	if acc.PasswordHash != "" {
 		ip := clientIP(r)
-		if !a.loginAllowed(ip, now) {
+		if ok, wait := a.loginAllowed(ip, now); !ok {
+			limits.RetryAfter(w, wait)
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return false
 		}
@@ -1277,11 +1313,25 @@ func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// emailAllowed applies emailsPerAddr to a "send me an email" request,
+// answering it with a 429 and its Retry-After when the address has asked
+// for too many.
+func (a *Accounts) emailAllowed(w http.ResponseWriter, r *http.Request) bool {
+	if a.emailsPerAddr == nil {
+		return true
+	}
+	ok, wait := a.emailsPerAddr.Take(clientIP(r))
+	if !ok {
+		limits.RetryAfter(w, wait)
+		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
+	}
+	return ok
+}
+
 // ResendVerification mails a new verification link to the signed-in
 // account. POST /api/account/resend-verification.
 func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, accountID string) {
-	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
+	if !a.emailAllowed(w, r) {
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
@@ -1304,8 +1354,7 @@ func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, ac
 // Forgot mails a password-reset link. POST /api/account/forgot {email}.
 // The answer is the same whether or not the email has an account.
 func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
-	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
+	if !a.emailAllowed(w, r) {
 		return
 	}
 	var body struct{ Email string }

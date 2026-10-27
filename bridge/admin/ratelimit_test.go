@@ -157,3 +157,19 @@ func TestClientIPBucketsAllPortsFromOneHostTogether(t *testing.T) {
 		t.Error("expected two ports from one host to share a bucket")
 	}
 }
+
+// One host can use any address of its IPv6 /64, a new one per attempt:
+// the whole /64 is one bucket, and another /64 is not in it.
+func TestClientIPBucketsAnIPv6SlashSixtyFour(t *testing.T) {
+	req := func(remote string) *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "/admin/api/login", nil)
+		r.RemoteAddr = remote
+		return r
+	}
+	if a, b := clientIP(req("[2001:db8:1:2::1]:1111")), clientIP(req("[2001:db8:1:2:a:b:c:d]:2222")); a != b {
+		t.Errorf("clientIP() = %q and %q, want one bucket for one /64", a, b)
+	}
+	if a, b := clientIP(req("[2001:db8:1:2::1]:1111")), clientIP(req("[2001:db8:1:3::1]:1111")); a == b {
+		t.Errorf("two /64s share the bucket %q", a)
+	}
+}

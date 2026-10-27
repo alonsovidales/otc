@@ -8,13 +8,13 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/i18n"
 )
 
@@ -35,6 +35,9 @@ import (
 const AppReturn = "otcsetup://done"
 
 const cAppCodeTTL = 5 * time.Minute
+
+// cAppExchangeMaxBody bounds app-exchange's body: a code and a verifier.
+const cAppExchangeMaxBody = 4096
 
 var challengePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 
@@ -96,7 +99,8 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		Code     string `json:"code"`
 		Verifier string `json:"verifier"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+	// Within limits.BodyReadTimeout too: the servers set no ReadTimeout.
+	if err := limits.DecodeJSON(w, r, &body, cAppExchangeMaxBody); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}

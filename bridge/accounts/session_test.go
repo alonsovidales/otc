@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -311,11 +313,15 @@ func TestSavingTheProfileKeepsTheSessionAge(t *testing.T) {
 func TestLoginLimiterKeepsOnlyRecentFailures(t *testing.T) {
 	a, _ := testAccounts(t)
 	now := time.Now()
-	if !a.loginAllowed("198.51.100.1", now) || len(a.failures) != 0 {
+	allowed := func(addr string) bool {
+		ok, _ := a.loginAllowed(addr, now)
+		return ok
+	}
+	if !allowed("198.51.100.1") || len(a.failures) != 0 {
 		t.Fatalf("an address with no failures left an entry: %v", a.failures)
 	}
 	a.failures["198.51.100.2"] = []time.Time{now.Add(-time.Hour), now.Add(-30 * time.Minute)}
-	if !a.loginAllowed("198.51.100.2", now) || len(a.failures) != 0 {
+	if !allowed("198.51.100.2") || len(a.failures) != 0 {
 		t.Fatalf("stale failures left an entry: %v", a.failures)
 	}
 
@@ -327,17 +333,166 @@ func TestLoginLimiterKeepsOnlyRecentFailures(t *testing.T) {
 	if _, ok := a.failures["198.51.100.4"]; ok {
 		t.Error("the sweep kept an address whose failures are all stale")
 	}
-	if a.loginAllowed("198.51.100.3", now) {
+	if allowed("198.51.100.3") {
 		t.Error("the sweep lifted a lockout in force")
 	}
 
-	// Past the cap, stale entries go before anyone's lockout does.
-	for i := 0; i < 10000; i++ {
+	// Past the sweep threshold, stale entries go before anyone's lockout does.
+	for i := 0; i < cFailuresSweepAt; i++ {
 		a.failures[fmt.Sprintf("stale-%d", i)] = []time.Time{now.Add(-time.Hour)}
 	}
 	a.loginFailed("198.51.100.5", now)
-	if a.loginAllowed("198.51.100.3", now) || len(a.failures) != 2 {
-		t.Errorf("the cap dropped a lockout in force (%d entries left)", len(a.failures))
+	if allowed("198.51.100.3") || len(a.failures) != 2 {
+		t.Errorf("the sweep dropped a lockout in force (%d entries left)", len(a.failures))
+	}
+}
+
+// A spray of failures from more addresses than the sweep threshold, all
+// within the window, drops none of them: every lockout stays in force
+// (the map used to be emptied past 10,000), and the map is scanned each
+// time it doubles, not on every failure. Once the window has passed,
+// the sweep frees it all.
+func TestLoginFailuresKeepEveryLiveLockout(t *testing.T) {
+	a, _ := testAccounts(t)
+	now := time.Now()
+	for i := 0; i < cLoginFailures; i++ {
+		a.loginFailed("198.51.100.3", now)
+	}
+	const spray = 3 * cFailuresSweepAt
+	for i := 0; i < spray; i++ {
+		a.loginFailed(fmt.Sprintf("2001:db8:%x::/64", i), now)
+	}
+	if len(a.failures) != spray+1 {
+		t.Errorf("%d addresses tracked, want %d: a live one was dropped", len(a.failures), spray+1)
+	}
+	if ok, _ := a.loginAllowed("198.51.100.3", now); ok {
+		t.Error("the spray lifted a lockout in force")
+	}
+	if ok, _ := a.loginAllowed("2001:db8:0::/64", now); !ok {
+		t.Error("an address with one failure is locked out")
+	}
+	// Swept at 10,000 and 20,000 entries only.
+	if a.failuresKept != 2*cFailuresSweepAt {
+		t.Errorf("last sweep kept %d, want %d (one sweep per doubling)", a.failuresKept, 2*cFailuresSweepAt)
+	}
+	later := now.Add(cLoginWindow)
+	a.pruneFailuresLocked(later)
+	if ok, _ := a.loginAllowed("198.51.100.3", later); !ok || len(a.failures) != 0 {
+		t.Errorf("after the window: allowed %v, %d entries left", ok, len(a.failures))
+	}
+}
+
+// One host can use a new address of its IPv6 /64 for every attempt: the
+// sign-in limit counts the /64, and its 429 says in Retry-After when the
+// oldest failure that counts leaves the window. Another /64 is unaffected.
+func TestLoginLimitCountsAnIPv6SlashSixtyFour(t *testing.T) {
+	a, mock := testAccounts(t)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("right-password"), bcrypt.MinCost)
+	accountByEmail := func() {
+		mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	}
+	login := func(remote string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "/api/account/login", strings.NewReader(`{"email":"a@b.c","password":"wrong-password"}`))
+		r.RemoteAddr = remote
+		w := httptest.NewRecorder()
+		a.Login(w, r)
+		return w
+	}
+	for i := 0; i < cLoginFailures; i++ {
+		accountByEmail()
+		if w := login(fmt.Sprintf("[2001:db8:1:2:%x::1]:4000", i+1)); w.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d %s", i+1, w.Code, w.Body)
+		}
+	}
+	w := login("[2001:db8:1:2:ffff:ffff:ffff:ffff]:4000")
+	retry, err := strconv.Atoi(w.Header().Get("Retry-After"))
+	if w.Code != http.StatusTooManyRequests || err != nil || retry < int(cLoginWindow.Seconds())-60 || retry > int(cLoginWindow.Seconds())+1 {
+		t.Errorf("the same /64 again: %d, Retry-After %q, want 429 with about %s", w.Code, w.Header().Get("Retry-After"), cLoginWindow)
+	}
+	accountByEmail()
+	if w := login("[2001:db8:1:3::1]:4000"); w.Code != http.StatusUnauthorized {
+		t.Errorf("another /64: %d, want 401", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+
+	// The wait is for the oldest failure that still counts to age out.
+	now := time.Now()
+	b, _ := testAccounts(t)
+	for i := 0; i < cLoginFailures+2; i++ {
+		b.loginFailed("198.51.100.9", now.Add(time.Duration(i-9)*time.Minute))
+	}
+	// 10 failures, 9..0 minutes old: the newest 8 are 7..0 minutes old.
+	if ok, wait := b.loginAllowed("198.51.100.9", now); ok || wait != 3*time.Minute {
+		t.Errorf("allowed %v, wait %s, want 3m", ok, wait)
+	}
+}
+
+// A sign-up or email throttle's 429 says in Retry-After when the address
+// gets its next one (the limits refill one an hour / their hourly rate).
+func TestSignupAndEmailLimitsSayWhenToComeBack(t *testing.T) {
+	a, _ := testAccounts(t)
+	a.signups = limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour)
+	a.emailsPerAddr = limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour)
+	for i := 0; i < cSignupsPerHour; i++ {
+		a.signups.Allow("203.0.113.7")
+	}
+	for i := 0; i < cEmailsPerHour; i++ {
+		a.emailsPerAddr.Allow("203.0.113.7")
+	}
+	call := func(h http.HandlerFunc, path string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", path, strings.NewReader(`{}`))
+		r.RemoteAddr = "203.0.113.7:4000"
+		w := httptest.NewRecorder()
+		h(w, r)
+		return w
+	}
+	resend := func(w http.ResponseWriter, r *http.Request) { a.ResendVerification(w, r, "acc1") }
+	for _, c := range []struct {
+		h          http.HandlerFunc
+		path, code string
+		max        int
+	}{
+		{a.Signup, "/api/account/signup", "too_many_signups", 3600 / cSignupsPerHour},
+		{a.Forgot, "/api/account/forgot", "too_many_emails", 3600 / cEmailsPerHour},
+		{resend, "/api/account/resend-verification", "too_many_emails", 3600 / cEmailsPerHour},
+	} {
+		w := call(c.h, c.path)
+		retry, err := strconv.Atoi(w.Header().Get("Retry-After"))
+		if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), c.code) || err != nil || retry < 1 || retry > c.max {
+			t.Errorf("%s: %d %s, Retry-After %q, want 429 %s within %ds", c.path, w.Code, w.Body, w.Header().Get("Retry-After"), c.code, c.max)
+		}
+	}
+}
+
+// Issue #189: GET /api/account/me with the database failing is "try
+// again" (500), and the session cookie stays; only an account that is
+// gone signs the browser out.
+func TestMeOnADatabaseErrorKeepsTheSession(t *testing.T) {
+	a, mock := testAccounts(t)
+	me := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		a.Me(w, httptest.NewRequest("GET", "/api/account/me", nil), "acc1")
+		return w
+	}
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnError(errDBDown)
+	w := me()
+	if w.Code != http.StatusInternalServerError || !strings.Contains(w.Body.String(), `"code":"signin_check_unavailable"`) {
+		t.Errorf("database error: %d %s, want 500 signin_check_unavailable", w.Code, w.Body)
+	}
+	if c := w.Header().Get("Set-Cookie"); c != "" {
+		t.Errorf("database error touched the session cookie: %q", c)
+	}
+
+	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(accountCols))
+	w = me()
+	if w.Code != http.StatusUnauthorized || !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=;") {
+		t.Errorf("account gone: %d, cookie %q, want 401 and the cookie cleared", w.Code, w.Header().Get("Set-Cookie"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }
 

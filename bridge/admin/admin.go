@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"net/http"
 	"strconv"
@@ -196,7 +197,8 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	// Checked before the body is even decoded, so a locked-out caller
 	// can't keep the bridge doing bcrypt work on its behalf.
 	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
-		log.Error("admin login attempt from a rate-limited address:", ip, "- retry in", retryAfter.Round(time.Second))
+		// The address itself, not its bucket (an IPv6 /64).
+		log.Error("admin login attempt from a rate-limited address:", clientaddr.Of(r), "- retry in", retryAfter.Round(time.Second))
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 		writeError(w, http.StatusTooManyRequests, "too many failed attempts, try again later")
 		return
@@ -370,7 +372,14 @@ func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// not when the cookie expires - and (issue #164) one issued before
 		// the admin last logged out ends too.
 		current, found, err := a.dao.AdminSessionEpoch(user)
-		if err != nil || !found {
+		if err != nil {
+			// "Try again", not a signed-in admin sent to the login screen
+			// (as account sessions, issue #189).
+			log.Error("error checking an admin session:", err)
+			writeError(w, http.StatusInternalServerError, "could not check the session right now - try again")
+			return
+		}
+		if !found {
 			writeError(w, http.StatusUnauthorized, "not an admin")
 			return
 		}

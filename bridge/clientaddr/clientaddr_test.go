@@ -52,3 +52,38 @@ func TestOfFallsBackWhenThereIsNoPort(t *testing.T) {
 		t.Errorf("Of() = %q, want %q", got, "203.0.113.7")
 	}
 }
+
+// One host can use any address of its IPv6 /64, a new one per request:
+// a throttle counts the /64. IPv4 stays the address itself.
+func TestBucketCountsAnIPv6SlashSixtyFour(t *testing.T) {
+	for addr, want := range map[string]string{
+		"203.0.113.7":                             "203.0.113.7",
+		"::ffff:203.0.113.7":                      "203.0.113.7", // IPv4-mapped: the same IPv4 host
+		"2001:db8:1:2::1":                         "2001:db8:1:2::/64",
+		"2001:db8:1:2:ffff:ffff:ffff:ffff":        "2001:db8:1:2::/64",
+		"2001:0db8:0001:0002:0a0b:0c0d:0e0f:1011": "2001:db8:1:2::/64", // the same /64, spelled long
+		"2001:db8:1:3::1":                         "2001:db8:1:3::/64",
+		"not an address":                          "not an address",
+	} {
+		if got := Bucket(addr); got != want {
+			t.Errorf("Bucket(%q) = %q, want %q", addr, got, want)
+		}
+	}
+
+	first := httptest.NewRequest(http.MethodPost, "/api/account/login", nil)
+	first.RemoteAddr = "[2001:db8:1:2::1]:1111"
+	second := httptest.NewRequest(http.MethodPost, "/api/account/login", nil)
+	second.RemoteAddr = "[2001:db8:1:2:a:b:c:d]:2222"
+	other := httptest.NewRequest(http.MethodPost, "/api/account/login", nil)
+	other.RemoteAddr = "[2001:db8:1:3::1]:1111"
+	if BucketOf(first) != BucketOf(second) {
+		t.Errorf("BucketOf() = %q and %q, want one bucket for one /64", BucketOf(first), BucketOf(second))
+	}
+	if BucketOf(first) == BucketOf(other) {
+		t.Errorf("two /64s share the bucket %q", BucketOf(first))
+	}
+	// Of itself keeps the address, for what needs it.
+	if got := Of(second); got != "2001:db8:1:2:a:b:c:d" {
+		t.Errorf("Of() = %q, want the address itself", got)
+	}
+}

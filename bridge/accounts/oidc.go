@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
@@ -274,6 +275,10 @@ func pageError(w http.ResponseWriter, r *http.Request, m i18n.Msg, status int) {
 	http.Error(w, m.Render(acceptLanguage(r.Header.Get("Accept-Language"))), status)
 }
 
+// cCallbackMaxBody bounds a sign-in callback's form post (Apple's: a
+// code, a state and, the first time, the person's name).
+const cCallbackMaxBody = 64 << 10
+
 // signInError sends the browser back to the account page with code.
 func signInError(w http.ResponseWriter, r *http.Request, code string) {
 	http.Redirect(w, r, "/account?error="+url.QueryEscape(code), http.StatusFound)
@@ -289,7 +294,9 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
+	// Apple's form post arrives within limits.BodyReadTimeout, as a JSON
+	// body does: the servers set no ReadTimeout.
+	if err := limits.ParseForm(w, r, cCallbackMaxBody); err != nil {
 		pageError(w, r, i18n.ApiPageBadCallback(), http.StatusBadRequest)
 		return
 	}
@@ -518,7 +525,7 @@ func (a *Accounts) exchange(p *provider, code string) (jwt.MapClaims, error) {
 }
 
 // verifyIDToken checks the signature against the provider's JWKS (fetched
-// and cached, refetched once on an unknown key id), the issuer, the
+// and cached, refetched on an unknown key id - jwksCache), the issuer, the
 // audience and the expiry.
 func (a *Accounts) verifyIDToken(p *provider, raw string) (jwt.MapClaims, error) {
 	claims := jwt.MapClaims{}
@@ -549,55 +556,153 @@ func (a *Accounts) verifyIDToken(p *provider, raw string) (jwt.MapClaims, error)
 	return claims, nil
 }
 
-// jwksCache holds each provider's public keys by key id.
+// A provider's keys: a set fetched is used for cJWKSFresh before it is
+// asked for again, it is asked for at most every cJWKSRetry (a key id it
+// lacks, a fetch that failed), and while no newer set can be had - the
+// provider down or slow - the last good one still verifies for up to
+// cJWKSMaxStale: a day of outage, while a key the provider has since
+// withdrawn is trusted no longer than that.
+const (
+	cJWKSFresh    = time.Hour
+	cJWKSRetry    = time.Minute
+	cJWKSMaxStale = 24 * time.Hour
+	cJWKSTimeout  = 10 * time.Second
+)
+
+// jwksCache holds each provider's public keys by key id. A fetch runs
+// without the lock, one per provider at a time: a slow provider holds up
+// only its own sign-ins that have no key to go on - never another
+// provider's, nor one that has a key in hand.
 type jwksCache struct {
-	mu      sync.Mutex
-	keys    map[string]map[string]*rsa.PublicKey // url -> kid -> key
-	fetched map[string]time.Time
+	mu   sync.Mutex
+	sets map[string]*jwksSet // by JWKS URL
+	// fetch and now stand in for fetchJWKS and time.Now (tests).
+	fetch func(jwksURL string) (map[string]*rsa.PublicKey, error)
+	now   func() time.Time
 }
 
+// jwksSet is one provider's last good keys and the fetch under way.
+type jwksSet struct {
+	keys      map[string]*rsa.PublicKey // by kid; nil until a fetch succeeds
+	fetched   time.Time                 // when keys were fetched
+	attempted time.Time                 // the last fetch, good or not
+	err       error                     // the last fetch's error, nil after a good one
+	inflight  chan struct{}             // closed when the fetch under way ends
+}
+
+func (c *jwksCache) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
+}
+
+// key is the provider's key kid, fetching the provider's set when kid is
+// not in it or the set is older than cJWKSFresh.
 func (c *jwksCache) key(jwksURL, kid string) (*rsa.PublicKey, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.keys == nil {
-		c.keys = map[string]map[string]*rsa.PublicKey{}
-		c.fetched = map[string]time.Time{}
+	if c.sets == nil {
+		c.sets = map[string]*jwksSet{}
 	}
-	if k, ok := c.keys[jwksURL][kid]; ok && time.Since(c.fetched[jwksURL]) < time.Hour {
-		return k, nil
+	s := c.sets[jwksURL]
+	if s == nil {
+		s = &jwksSet{}
+		c.sets[jwksURL] = s
 	}
-	// Unknown (or stale) key id: fetch, at most once a minute.
-	if time.Since(c.fetched[jwksURL]) > time.Minute || c.keys[jwksURL] == nil {
-		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Get(jwksURL)
-		if err != nil {
-			return nil, err
+	for tried := false; ; tried = true {
+		now := c.clock()
+		k, have := s.keys[kid]
+		if have && now.Sub(s.fetched) < cJWKSFresh {
+			return k, nil
 		}
-		defer resp.Body.Close()
-		var set struct {
-			Keys []struct{ Kty, Kid, N, E string }
+		due := s.keys == nil || now.Sub(s.attempted) >= cJWKSRetry
+		switch {
+		case have && now.Sub(s.fetched) < cJWKSMaxStale && (tried || s.inflight != nil || !due):
+			// The last good key: no newer set to be had right now, and
+			// never a wait on another sign-in's fetch with a key in hand.
+			return k, nil
+		case !tried && s.inflight != nil:
+			// One fetch per provider: wait for the one under way (once).
+			done := s.inflight
+			c.mu.Unlock()
+			<-done
+			c.mu.Lock()
+		case !tried && due:
+			c.refresh(jwksURL, s)
+		case s.err != nil:
+			return nil, s.err
+		default:
+			return nil, fmt.Errorf("no key %q at %s", kid, jwksURL) // i18n-ignore: logged, never sent
 		}
-		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&set); err != nil {
-			return nil, err
-		}
-		keys := map[string]*rsa.PublicKey{}
-		for _, k := range set.Keys {
-			if k.Kty != "RSA" {
-				continue
-			}
-			n, err1 := base64.RawURLEncoding.DecodeString(k.N)
-			e, err2 := base64.RawURLEncoding.DecodeString(k.E)
-			if err1 != nil || err2 != nil {
-				continue
-			}
-			keys[k.Kid] = &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}
-		}
-		c.keys[jwksURL] = keys
-		c.fetched[jwksURL] = time.Now()
 	}
-	if k, ok := c.keys[jwksURL][kid]; ok {
-		return k, nil
-	}
+}
 
-	return nil, fmt.Errorf("no key %q at %s", kid, jwksURL) // i18n-ignore: logged, never sent
+// refresh fetches s's set. The caller holds c.mu; it is released for the
+// fetch and held again when refresh returns (a panic included, so no
+// waiter is left hanging). Only a usable set replaces the keys.
+func (c *jwksCache) refresh(jwksURL string, s *jwksSet) {
+	fetch := c.fetch
+	if fetch == nil {
+		fetch = fetchJWKS
+	}
+	done := make(chan struct{})
+	s.inflight, s.attempted = done, c.clock()
+	c.mu.Unlock()
+	var keys map[string]*rsa.PublicKey
+	var err error
+	finished := false
+	defer func() {
+		c.mu.Lock()
+		if finished {
+			if err == nil {
+				s.keys, s.fetched = keys, c.clock()
+			}
+			s.err = err
+		}
+		s.inflight = nil
+		close(done)
+	}()
+	keys, err = fetch(jwksURL)
+	finished = true
+	if err != nil {
+		log.Error("could not fetch the sign-in keys at", jwksURL, ":", err)
+	}
+}
+
+// fetchJWKS reads a provider's key set: its RSA keys by key id. An answer
+// that isn't one - an error status, a set without an RSA key - is an
+// error, so it never replaces the last good keys.
+func fetchJWKS(jwksURL string) (map[string]*rsa.PublicKey, error) {
+	client := &http.Client{Timeout: cJWKSTimeout}
+	resp, err := client.Get(jwksURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s answered %d", jwksURL, resp.StatusCode) // i18n-ignore: logged, never sent
+	}
+	var set struct {
+		Keys []struct{ Kty, Kid, N, E string }
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&set); err != nil {
+		return nil, err
+	}
+	keys := map[string]*rsa.PublicKey{}
+	for _, k := range set.Keys {
+		if k.Kty != "RSA" {
+			continue
+		}
+		n, err1 := base64.RawURLEncoding.DecodeString(k.N)
+		e, err2 := base64.RawURLEncoding.DecodeString(k.E)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		keys[k.Kid] = &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}
+	}
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("no RSA key at %s", jwksURL) // i18n-ignore: logged, never sent
+	}
+	return keys, nil
 }

@@ -94,6 +94,82 @@ func TestWriteAll(t *testing.T) {
 	}
 }
 
+// A refused key is told when its next token comes, which a 429 passes on
+// as Retry-After in whole seconds, rounded up.
+func TestRateTakeSaysWhenToComeBack(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := NewRate(5.0/3600, 5) // the sign-up limit: one every 12 minutes
+	l.now = func() time.Time { return now }
+	for i := 0; i < 5; i++ {
+		if ok, wait := l.Take("a"); !ok || wait != 0 {
+			t.Fatalf("request %d: %v %s", i, ok, wait)
+		}
+	}
+	near := func(got, want time.Duration) bool { return got > want-time.Millisecond && got < want+time.Millisecond }
+	if ok, wait := l.Take("a"); ok || !near(wait, 12*time.Minute) {
+		t.Fatalf("past the burst: %v, wait %s, want 12m", ok, wait)
+	}
+	now = now.Add(10 * time.Minute)
+	if ok, wait := l.Take("a"); ok || !near(wait, 2*time.Minute) {
+		t.Fatalf("10 minutes on: %v, wait %s, want 2m", ok, wait)
+	}
+	now = now.Add(2*time.Minute + time.Millisecond)
+	if ok, _ := l.Take("a"); !ok {
+		t.Fatal("no token once the wait was over")
+	}
+
+	for d, want := range map[time.Duration]string{
+		12 * time.Minute:        "720",
+		90*time.Second + 1:      "91",
+		time.Millisecond:        "1",
+		0:                       "1",
+		-time.Second:            "1",
+		599*time.Second + 999e6: "600",
+	} {
+		w := httptest.NewRecorder()
+		RetryAfter(w, d)
+		if got := w.Header().Get("Retry-After"); got != want {
+			t.Errorf("RetryAfter(%s) = %q, want %q", d, got, want)
+		}
+	}
+}
+
+// deadlineRecorder records the read deadline a handler sets through
+// http.ResponseController.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	read time.Time
+}
+
+func (d *deadlineRecorder) SetReadDeadline(t time.Time) error { d.read = t; return nil }
+
+// A form body is bounded like a JSON one: a read deadline and a size; a
+// GET has no body to wait for.
+func TestParseFormBoundsTheBody(t *testing.T) {
+	form := func(body string) *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "/cb?a=1", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		return r
+	}
+	w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	r := form("state=s&code=c")
+	start := time.Now()
+	if err := ParseForm(w, r, 50); err != nil || r.Form.Get("code") != "c" || r.Form.Get("a") != "1" {
+		t.Fatalf("a small form: %v %v", err, r.Form)
+	}
+	if w.read.Before(start.Add(BodyReadTimeout)) || w.read.After(time.Now().Add(BodyReadTimeout)) {
+		t.Errorf("read deadline %s, want %s from now", w.read, BodyReadTimeout)
+	}
+	if err := ParseForm(httptest.NewRecorder(), form("code="+strings.Repeat("x", 100)), 50); err == nil {
+		t.Error("a form over the limit was parsed")
+	}
+	w = &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	r = httptest.NewRequest(http.MethodGet, "/cb?state=s&code=c", nil)
+	if err := ParseForm(w, r, 50); err != nil || r.Form.Get("code") != "c" || !w.read.IsZero() {
+		t.Errorf("a GET: %v %v, deadline %s", err, r.Form, w.read)
+	}
+}
+
 func TestDecodeJSONLimit(t *testing.T) {
 	var v map[string]string
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"a":"`+strings.Repeat("x", 100)+`"}`))

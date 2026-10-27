@@ -97,6 +97,64 @@ func TestContactCooldownIgnoresTheSourcePort(t *testing.T) {
 	}
 }
 
+// A sender can use any address of its IPv6 /64 for each request, so the
+// contact and claim cooldowns count the /64; another /64 is someone else.
+func TestCooldownsCountAnIPv6SlashSixtyFour(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{}, lastClaimByAddr: map[string]time.Time{}}
+	contact := func(remoteAddr string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/contact", strings.NewReader(`{"name":"a","email":"a@b.c","message":"hi"}`))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.submitContact(rec, req)
+		return rec.Code
+	}
+	claim := func(remoteAddr string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
+			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
+		req.RemoteAddr = remoteAddr
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		return rec.Code
+	}
+	claimed := func() {
+		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
+	}
+
+	mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1))
+	if got := contact("[2001:db8:1:2::1]:1111"); got != http.StatusCreated {
+		t.Fatalf("first message: %d, want 201", got)
+	}
+	if got := contact("[2001:db8:1:2:a:b:c:d]:2222"); got != http.StatusTooManyRequests {
+		t.Errorf("another address of the /64: %d, want 429", got)
+	}
+	mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(2, 1))
+	if got := contact("[2001:db8:1:3::1]:1111"); got != http.StatusCreated {
+		t.Errorf("another /64: %d, want 201", got)
+	}
+
+	claimed()
+	if got := claim("[2001:db8:1:2::1]:1111"); got != http.StatusCreated {
+		t.Fatalf("first claim: %d, want 201", got)
+	}
+	if got := claim("[2001:db8:1:2:a:b:c:d]:2222"); got != http.StatusTooManyRequests {
+		t.Errorf("a claim from another address of the /64: %d, want 429", got)
+	}
+	claimed()
+	if got := claim("[2001:db8:1:3::1]:1111"); got != http.StatusCreated {
+		t.Errorf("a claim from another /64: %d, want 201", got)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
 // Issue #97: a device that's switched off, offline, or still booting used
 // to surface as a bare 502 with an empty body - see the screenshot on the
 // issue. It gets the bridge's own "not available right now" page now, with

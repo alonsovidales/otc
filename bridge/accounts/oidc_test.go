@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -377,6 +378,164 @@ func TestOAuthStartIsRateLimited(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A refetch of a provider's keys that fails (the provider down, an error
+// page, a set without keys) leaves the last good keys verifying sign-ins
+// for up to cJWKSMaxStale, asking again at most every cJWKSRetry; past
+// that, and for a key id the last set didn't have, the sign-in fails.
+func TestJWKSKeepsTheLastGoodKeys(t *testing.T) {
+	key := &rsa.PublicKey{N: big.NewInt(3233), E: 17}
+	now := time.Unix(1_000_000, 0)
+	var fail error
+	fetches := 0
+	c := &jwksCache{
+		now: func() time.Time { return now },
+		fetch: func(string) (map[string]*rsa.PublicKey, error) {
+			fetches++
+			if fail != nil {
+				return nil, fail
+			}
+			return map[string]*rsa.PublicKey{"k1": key}, nil
+		},
+	}
+	if k, err := c.key("https://idp/jwks", "k1"); err != nil || k != key {
+		t.Fatalf("first fetch: %v %v", k, err)
+	}
+	now = now.Add(2 * cJWKSFresh)
+	fail = errors.New("provider down")
+	if k, err := c.key("https://idp/jwks", "k1"); err != nil || k != key || fetches != 2 {
+		t.Fatalf("a failed refetch: %v %v after %d fetches, want the last good key", k, err, fetches)
+	}
+	now = now.Add(cJWKSRetry / 2)
+	if k, err := c.key("https://idp/jwks", "k1"); err != nil || k != key || fetches != 2 {
+		t.Fatalf("within cJWKSRetry: %v %v after %d fetches, want the key and no fetch", k, err, fetches)
+	}
+	if _, err := c.key("https://idp/jwks", "k2"); err == nil {
+		t.Fatal("a key id no set had verified")
+	}
+	now = now.Add(cJWKSMaxStale)
+	if k, err := c.key("https://idp/jwks", "k1"); err == nil || fetches != 3 {
+		t.Fatalf("past cJWKSMaxStale: %v %v after %d fetches, want an error", k, err, fetches)
+	}
+	fail = nil
+	now = now.Add(cJWKSRetry)
+	if k, err := c.key("https://idp/jwks", "k1"); err != nil || k != key || fetches != 4 {
+		t.Fatalf("the provider back: %v %v after %d fetches", k, err, fetches)
+	}
+}
+
+// What isn't a key set - an error status, a set without an RSA key, a
+// page - is a failed fetch, so it never replaces the last good keys.
+func TestFetchJWKSRefusesWhatIsNotAKeySet(t *testing.T) {
+	const good = `{"keys":[{"kty":"RSA","kid":"k1","n":"DKE","e":"EQ"}]}`
+	answers := map[string]struct {
+		status int
+		body   string
+	}{
+		"/error":   {http.StatusServiceUnavailable, good},
+		"/empty":   {http.StatusOK, `{"keys":[]}`},
+		"/ec-only": {http.StatusOK, `{"keys":[{"kty":"EC","kid":"k1"}]}`},
+		"/page":    {http.StatusOK, `<html>down for maintenance</html>`},
+		"/good":    {http.StatusOK, good},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a := answers[r.URL.Path]
+		w.WriteHeader(a.status)
+		_, _ = w.Write([]byte(a.body))
+	}))
+	defer srv.Close()
+	for _, path := range []string{"/error", "/empty", "/ec-only", "/page"} {
+		if keys, err := fetchJWKS(srv.URL + path); err == nil {
+			t.Errorf("%s: %v, want an error", path, keys)
+		}
+	}
+	keys, err := fetchJWKS(srv.URL + "/good")
+	if err != nil || keys["k1"] == nil || keys["k1"].N.Int64() != 3233 || keys["k1"].E != 17 {
+		t.Errorf("/good: %v %v", keys, err)
+	}
+}
+
+// A fetch runs outside the lock, one per provider at a time: while one
+// provider answers slowly, another provider's sign-in and one of its own
+// with a key in hand go on at once, and one without a key waits for that
+// same fetch instead of starting another.
+func TestJWKSFetchHoldsUpOnlyWhatHasNoKey(t *testing.T) {
+	key := &rsa.PublicKey{N: big.NewInt(3233), E: 17}
+	var mu sync.Mutex
+	now := time.Unix(1_000_000, 0)
+	fetches := map[string]int{}
+	slow := false
+	started, release := make(chan struct{}, 1), make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(releaseOnce)
+	c := &jwksCache{
+		now: func() time.Time { mu.Lock(); defer mu.Unlock(); return now },
+		fetch: func(u string) (map[string]*rsa.PublicKey, error) {
+			mu.Lock()
+			fetches[u]++
+			block := slow && u == "apple"
+			mu.Unlock()
+			if block {
+				select {
+				case started <- struct{}{}:
+				default: // a second fetch: counted, and the test says so
+				}
+				<-release
+			}
+			return map[string]*rsa.PublicKey{"k1": key}, nil
+		},
+	}
+	if _, err := c.key("apple", "k1"); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	now = now.Add(2 * cJWKSFresh) // Apple's keys are due for a refetch
+	slow = true
+	mu.Unlock()
+	if _, err := c.key("google", "k1"); err != nil {
+		t.Fatal(err)
+	}
+
+	refetched := make(chan error, 1)
+	go func() { _, err := c.key("apple", "k1"); refetched <- err }()
+	<-started // Apple's refetch is under way, and hangs
+	within := func(what string, f func() error) {
+		t.Helper()
+		done := make(chan error, 1)
+		go func() { done <- f() }()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("%s: %v", what, err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s waited for Apple's slow fetch", what)
+		}
+	}
+	within("Google's sign-in", func() error { _, err := c.key("google", "k1"); return err })
+	within("an Apple sign-in with its last key", func() error {
+		k, err := c.key("apple", "k1")
+		if err == nil && k != key {
+			err = errors.New("another key")
+		}
+		return err
+	})
+	noKey := make(chan error, 1)
+	go func() { _, err := c.key("apple", "k2"); noKey <- err }()
+
+	releaseOnce()
+	if err := <-refetched; err != nil {
+		t.Errorf("the refetch: %v", err)
+	}
+	if err := <-noKey; err == nil {
+		t.Error("an unknown key id verified")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if fetches["apple"] != 2 || fetches["google"] != 1 {
+		t.Errorf("fetches %v, want apple 2 (no second one while one was under way), google 1", fetches)
 	}
 }
 
