@@ -3,6 +3,7 @@
   "push.friend.accepted": {"text": "a accepté votre demande d’ami"},
   "push.friend.request": {"text": "vous a envoyé une demande d’ami"},
   "push.offline.body": {"text": "Votre appareil semble être hors ligne"},
+  "push.offline.body_named": {"text": "Votre appareil {name} semble être hors ligne"},
   "push.post.commented": {"text": "a commenté votre publication"},
   "push.post.liked": {"text": "a aimé votre publication"},
   "push.post.new": {"text": "a publié quelque chose de nouveau"},

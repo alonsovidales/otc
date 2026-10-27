@@ -24,6 +24,11 @@ func PushOfflineBody() Msg {
 	return Msg{Key: "push.offline.body"}
 }
 
+// PushOfflineBodyNamed is push.offline.body_named: "Your device {name} appears to have gone offline".
+func PushOfflineBodyNamed(name string) Msg {
+	return Msg{Key: "push.offline.body_named", Args: map[string]any{"name": name}}
+}
+
 // PushPostCommented is push.post.commented: "commented on your post".
 func PushPostCommented() Msg {
 	return Msg{Key: "push.post.commented"}

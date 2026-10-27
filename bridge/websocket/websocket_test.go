@@ -4,6 +4,7 @@ package websocket
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/push"
 	gorilla "github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -350,12 +352,16 @@ func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
 	mock.ExpectQuery("select `language` from `push_registrations` where `domain` = \\?").
 		WithArgs("pit.otc").
 		WillReturnRows(sqlmock.NewRows([]string{"language"}).AddRow("EN"))
+	// The account holds this device alone: the alert needn't name it.
+	mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\(select `account_id` from `devices` where `domain` = \\?\\)").
+		WithArgs("pit.otc").
+		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectQuery("select `endpoint`, `p256dh`, `auth` from `push_web_subs` where `domain` = \\?").
 		WithArgs("pit.otc").
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "p256dh", "auth"}))
-	asked := make(chan string, 1)
-	setVar(t, &offlineAlertText, func(lang string) (string, string) {
-		asked <- lang
+	asked := make(chan [2]string, 1)
+	setVar(t, &offlineAlertText, func(lang, name string) (string, string) {
+		asked <- [2]string{lang, name}
 		return "Off The Cloud", "Your device appears to have gone offline"
 	})
 
@@ -381,12 +387,55 @@ func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
 		t.Errorf("expected the offline alert's push flow to have run once the grace period elapsed: %v", err)
 	}
 	select {
-	case lang := <-asked:
-		if lang != "en" {
-			t.Errorf("the alert was written for %q, want the stored language normalized (en)", lang)
+	case got := <-asked:
+		if got != [2]string{"en", ""} {
+			t.Errorf("the alert was written for %q, want the stored language normalized (en) and no name", got)
 		}
 	default:
 		t.Error("the alert's text was never asked for")
+	}
+}
+
+// An account with several devices hears which one went offline: its
+// name, the first part of its address. One device alone, a domain without
+// an account and a count that can't be read all keep the alert unnamed -
+// and it goes out all the same.
+func TestOfflineAlertNamesTheDeviceOfAnAccountWithSeveral(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	count := "select count\\(\\*\\) from `devices` where `account_id` = \\(select `account_id` from `devices` where `domain` = \\?\\)"
+	for _, c := range []struct {
+		domain string
+		n      int
+		err    error
+		want   string
+	}{
+		{"casa.off-the.cloud", 2, nil, "casa"},
+		{"pepe.off-the.cloud", 5, nil, "pepe"},
+		{"casa.off-the.cloud", 1, nil, ""},
+		{"old.off-the.cloud", 0, nil, ""}, // no account: from before accounts
+		{"casa.off-the.cloud", 0, errors.New("driver: bad connection"), ""},
+	} {
+		q := mock.ExpectQuery(count).WithArgs(c.domain)
+		if c.err != nil {
+			q.WillReturnError(c.err)
+		} else {
+			q.WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(c.n))
+		}
+		if got := mg.offlineAlertName(c.domain); got != c.want {
+			t.Errorf("%s with %d domains (%v): %q, want %q", c.domain, c.n, c.err, got, c.want)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	// What the owner reads, in English and in another language.
+	if _, body := push.OfflineAlert("en", "casa"); body != "Your device casa appears to have gone offline" {
+		t.Errorf("named alert: %q", body)
 	}
 }
 

@@ -3,6 +3,7 @@
   "push.friend.accepted": {"text": "ha aceptado tu solicitud de amistad"},
   "push.friend.request": {"text": "te ha enviado una solicitud de amistad"},
   "push.offline.body": {"text": "Parece que tu dispositivo se ha quedado sin conexión"},
+  "push.offline.body_named": {"text": "Parece que tu dispositivo {name} se ha quedado sin conexión"},
   "push.post.commented": {"text": "ha comentado tu publicación"},
   "push.post.liked": {"text": "ha indicado que le gusta tu publicación"},
   "push.post.new": {"text": "ha publicado algo nuevo"},

@@ -170,11 +170,15 @@ func TestStorageDiskStoppedUnnamed(t *testing.T) {
 }
 
 // The bridge's offline alert, as bridge/websocket's offlineAlertText
-// writes it.
+// writes it: without a name, what it always said; with one (an account
+// with several devices), which device.
 func TestOfflineAlertEnglishUnchanged(t *testing.T) {
 	for _, lang := range []string{"", "en", "ja"} {
-		if title, body := OfflineAlert(lang); title != "Off The Cloud" || body != "Your device appears to have gone offline" {
+		if title, body := OfflineAlert(lang, ""); title != "Off The Cloud" || body != "Your device appears to have gone offline" {
 			t.Errorf("lang %q: %q / %q", lang, title, body)
+		}
+		if title, body := OfflineAlert(lang, "casa"); title != "Off The Cloud" || body != "Your device casa appears to have gone offline" {
+			t.Errorf("lang %q, named: %q / %q", lang, title, body)
 		}
 	}
 }

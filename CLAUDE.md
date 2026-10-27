@@ -1489,8 +1489,10 @@ to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per dev
 registration evicts other owners' relays. `DropDomains` (release, account deletion,
 `BridgeReleaseDomain`, inactivity) and `DropReplacedIdentity` (claim replace, `accountNewIdentity`)
 publish on Redis `otc:drop` for every node, and every 20 s each node checks its domains against
-MySQL (`dao.DeviceOwners`). One node sends the offline alert per outage (`otc:alert:<domain>`). The
-bridge's Web Push client reaches only public addresses, without redirects.
+MySQL (`dao.DeviceOwners`). One node sends the offline alert per outage (`otc:alert:<domain>`),
+naming the device (`push.offline.body_named`, `{name}` = the domain's first label) only when its
+account holds several domains (`dao.DomainsInAccountOf`). The bridge's Web Push client reaches only
+public addresses, without redirects.
 
 Fleet tab (`bridge/fleet`): every host's `otc-fleet-agent` (unprivileged user `otc-fleet`, passwords
 as systemd credentials) and every bridge node (`fleet.Reporter`, counts from

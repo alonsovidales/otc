@@ -3,6 +3,7 @@
   "push.friend.accepted": {"text": "ha accettato la tua richiesta di amicizia"},
   "push.friend.request": {"text": "ti ha inviato una richiesta di amicizia"},
   "push.offline.body": {"text": "Sembra che il tuo dispositivo sia offline"},
+  "push.offline.body_named": {"text": "Sembra che il tuo dispositivo {name} sia offline"},
   "push.post.commented": {"text": "ha commentato il tuo post"},
   "push.post.liked": {"text": "ha messo Mi piace al tuo post"},
   "push.post.new": {"text": "ha pubblicato qualcosa di nuovo"},

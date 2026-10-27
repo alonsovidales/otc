@@ -1154,6 +1154,19 @@ func (dao *Dao) CountAccountDomains(accountID string) (n int, err error) {
 	return
 }
 
+// DomainsInAccountOf is how many domains the account holding domain has,
+// domain included: 0 for a domain without an account (from before
+// accounts, or open registration) or not registered. The offline alert
+// names the device by it; within cRelayDBTimeout, since the alert matters
+// more than its wording.
+func (dao *Dao) DomainsInAccountOf(domain string) (n int, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
+	defer cancel()
+	err = dao.db.QueryRowContext(ctx, "select count(*) from `devices` where `account_id` = (select `account_id` from `devices` where `domain` = ?)", domain).Scan(&n)
+
+	return
+}
+
 // DomainAccount is who owns a registered domain: registered is false for
 // a free name, accountID is empty for a domain that predates accounts.
 func (dao *Dao) DomainAccount(domain string) (accountID string, registered bool, err error) {

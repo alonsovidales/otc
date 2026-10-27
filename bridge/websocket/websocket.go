@@ -948,16 +948,37 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 		return
 	}
 	ps.WebPushClient = bridgeWebPushClient
-	title, body := offlineAlertText(mg.pushLanguage(domain))
+	title, body := offlineAlertText(mg.pushLanguage(domain), mg.offlineAlertName(domain))
 	ps.Notify(title, body, push.Target{})
 }
 
 // offlineAlertText is the offline alert's title and body in lang (a code
-// this build carries, or "" for not known): push.offline.body, English
-// when lang is "" or not translated (docs/i18n.md: push keys use only
-// {name}, {version} and {port}, since Apple and Google can read every
-// push). A variable so a test can see the language it is asked for.
+// this build carries, or "" for not known), for the device named name, ""
+// for one that needn't be: push.offline.body or .body_named, English when
+// lang is "" or not translated (docs/i18n.md: push keys use only {name},
+// {version} and {port}, since Apple and Google can read every push). A
+// variable so a test can see what it is asked for.
 var offlineAlertText = push.OfflineAlert
+
+// offlineAlertName is the device's name for its offline alert when its
+// account has several domains - "your device" would leave the owner
+// guessing which - and "" otherwise: one device needs no name, and Apple
+// and Google read every push. The name is the domain's first label (casa,
+// of casa.off-the.cloud): a device name is one DNS label
+// (accounts.NamePattern). "" too when the count can't be read: the alert
+// goes out all the same.
+func (mg *Manager) offlineAlertName(domain string) string {
+	n, err := mg.dao.DomainsInAccountOf(domain)
+	if err != nil {
+		log.Error("could not count the devices of an offline device's account:", err)
+		return ""
+	}
+	if n < 2 {
+		return ""
+	}
+	name, _, _ := strings.Cut(domain, ".")
+	return name
+}
 
 // pushLanguage is the language of the bridge's own pushes to domain's
 // phones and browsers (docs/i18n.md): the one its device last reported in

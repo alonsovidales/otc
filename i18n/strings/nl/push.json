@@ -15,6 +15,10 @@
     "text": "Je apparaat lijkt offline te zijn gegaan",
     "en": "Your device appears to have gone offline"
   },
+  "push.offline.body_named": {
+    "text": "Je apparaat {name} lijkt offline te zijn gegaan",
+    "en": "Your device {name} appears to have gone offline"
+  },
   "push.post.commented": {
     "text": "heeft gereageerd op je bericht",
     "en": "commented on your post"

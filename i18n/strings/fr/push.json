@@ -15,6 +15,10 @@
     "text": "Votre appareil semble être hors ligne",
     "en": "Your device appears to have gone offline"
   },
+  "push.offline.body_named": {
+    "text": "Votre appareil {name} semble être hors ligne",
+    "en": "Your device {name} appears to have gone offline"
+  },
   "push.post.commented": {
     "text": "a commenté votre publication",
     "en": "commented on your post"

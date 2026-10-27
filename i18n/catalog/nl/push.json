@@ -3,6 +3,7 @@
   "push.friend.accepted": {"text": "heeft je vriendschapsverzoek geaccepteerd"},
   "push.friend.request": {"text": "heeft je een vriendschapsverzoek gestuurd"},
   "push.offline.body": {"text": "Je apparaat lijkt offline te zijn gegaan"},
+  "push.offline.body_named": {"text": "Je apparaat {name} lijkt offline te zijn gegaan"},
   "push.post.commented": {"text": "heeft gereageerd op je bericht"},
   "push.post.liked": {"text": "vindt je bericht leuk"},
   "push.post.new": {"text": "heeft iets nieuws geplaatst"},

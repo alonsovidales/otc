@@ -3,6 +3,7 @@
   "push.friend.accepted": {"text": "accepted your friend request"},
   "push.friend.request": {"text": "sent you a friend request"},
   "push.offline.body": {"text": "Your device appears to have gone offline"},
+  "push.offline.body_named": {"text": "Your device {name} appears to have gone offline", "args": [["name", "text"]]},
   "push.post.commented": {"text": "commented on your post"},
   "push.post.liked": {"text": "liked your post"},
   "push.post.new": {"text": "posted something new"},

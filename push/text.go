@@ -133,8 +133,15 @@ func StorageFull() Text {
 
 // OfflineAlert is the title and body of the bridge's push to a device's
 // phones and browsers when the device has gone unreachable (issue #62), in
-// lang: the product's name as the title, never translated.
-func OfflineAlert(lang string) (title, body string) {
+// lang: the product's name as the title, never translated. name is the
+// device's name (casa, of casa.off-the.cloud) when the body must say which
+// device - its account has several - and "" when it needn't: the body is
+// then the one it always was. A device's name is a {name} Apple and Google
+// may read, as a friend's is.
+func OfflineAlert(lang, name string) (title, body string) {
+	if name != "" {
+		return "Off The Cloud", i18n.PushOfflineBodyNamed(name).Render(lang)
+	}
 	return "Off The Cloud", i18n.PushOfflineBody().Render(lang)
 }
 

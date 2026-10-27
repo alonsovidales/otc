@@ -19,6 +19,12 @@
     "note": "Body of the push notification the bridge sends when the owner's Off The Cloud device has had no connection to it for a minute. Its title is the product name, Off The Cloud. No final full stop in English.",
     "max": 120
   },
+  "push.offline.body_named": {
+    "text": "Your device {name} appears to have gone offline",
+    "args": [["name", "text"]],
+    "note": "Body of the push notification the bridge sends when one of the owner's Off The Cloud devices has had no connection to it for a minute, when the owner's account has several devices (else push.offline.body). {name} is the device's name, the first part of its address (casa, of casa.off-the.cloud), as it is. Its title is the product name, Off The Cloud. No final full stop in English.",
+    "max": 120
+  },
   "push.post.commented": {
     "text": "commented on your post",
     "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the friend who did it: the friend wrote a comment on one of your posts. Write it as what the friend did, the friend being the subject.",

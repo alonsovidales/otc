@@ -15,6 +15,10 @@
     "text": "Parece que tu dispositivo se ha quedado sin conexión",
     "en": "Your device appears to have gone offline"
   },
+  "push.offline.body_named": {
+    "text": "Parece que tu dispositivo {name} se ha quedado sin conexión",
+    "en": "Your device {name} appears to have gone offline"
+  },
   "push.post.commented": {
     "text": "ha comentado tu publicación",
     "en": "commented on your post"
