@@ -2729,6 +2729,42 @@ share a whole percentage in the app's locale or "under 1%", no bar at a 0 total;
 versions lines above, `..`, the note below; no selection; a folder opens in Storage, a file as
 in the list. No per-folder file count (no catalog key; the web and Android show none).
 
+**Composer, feed, Alerts, Friends and Files after the 2026-10 review** (both apps unless named).
+The composer is a new view model per opening (Android `ComposerStore`, a `ViewModelStore` cleared
+as the dialog closes; iOS's `@StateObject` per sheet), and Android publishes in an app scope, so
+closing it doesn't stop a post. Picks are `ComposerPicks` (ids in post order with their items),
+kept across a source or tag change and published from there; a capture switches to Phone and
+waits for its page first; `captionNeeded` says "Add a caption to publish". Android keeps Synced
+tiles' late thumbnails in `State.thumbKeys`: an `Item` equals another by id, so a copy with a new
+key was an equal State the flow dropped. The feed's requests go through `socialRequest` (iOS) and
+Android's `FeedSend` helpers (`commentRefusal`, `deleteRefusal`, `fetchPost`): a comment the
+device didn't take comes back in its field and the feed's notice (`FeedNotice` / `State.notice`)
+gives `refusal()` - the Ack's words, else the envelope's - or `app.social.post.*_failed`; a comment
+that worked asks for that post alone (ReqGetPublication). Likes, the comment bin, the post's ...
+and mute carry `app.social.post.*` names (the old `android.social_*` keys) and a selected state;
+Android's tab bar names Alerts with `app.shell.section_unread`; feed and Alerts times tick each
+minute (iOS `TimelineView(.everyMinute)`, Android `rememberMinuteClock`). The GetPublicationMedia
+fallback stops above 50 MB (`FEED_FALLBACK_MAX_BYTES` / `fallbackMaxBytes`) and deletes its temp
+file with the video; iOS decodes feed thumbnails (`MediaSizeCache.decode`, the box's shape from
+the header), avatars and Alerts' pictures (`DecodedImages`) off the main thread, and a profile
+photo pick through ImageIO (`ProfilePhotoCropItem.make`). Alerts: `CountPoll` asks the unread
+count at once, on a kick (`pushArrived()` from `OTCMessagingService` / `willPresent`, the app back
+in front) and else every 45 s; a list that failed says why (`AlertsBody` / `body`, the `alerts`
+load subject) with Try again and is asked again while shown; a refused Accept says why. Friends
+shows `app.social.friends.your_address` (Settings.domain, else the endpoint's bridge name) with
+Copy and Share (`share_text`'s `{address}` is plain text, no isolation marks, so it pastes into a
+Friends field); the add field's keyboard Send sends. Files uploads go through `UploadQueue` (two
+at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
+iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
+multi-delete runs in the view model's scope. Android only: the "isn't available"/"can't connect"
+cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
+through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. The
+Bluetooth setup's Back steps back in the wizard (its `#back`) or leaves, asking first while the
+device installs (`setupLeaveAsks` / `leaveAsks`); `app.shell.setup_not_found` after 30 s of
+looking; Open Settings when access is needed (`ios.open_settings` / `android.open_settings`);
+Android also looks again on ACTION_STATE_CHANGED and on return from Settings, with Turn on
+Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try again.
+
 **Known gaps left by the 2026-10 hardening pass.** iOS `FileDownload` falls back to `GetFile` only on `error_code =
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
