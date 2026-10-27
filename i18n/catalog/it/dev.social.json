@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "errore durante l’aggiunta del Mi piace al post: {detail}"},
   "dev.social.load_file_failed": {"text": "errore durante la lettura del file “{path}”: {detail}"},
   "dev.social.media_not_available": {"text": "contenuto multimediale non disponibile"},
+  "dev.social.media_too_large": {"text": "questo file è troppo grande per inviarlo intero ({size})"},
   "dev.social.no_friendship_with": {"text": "nessuna amicizia con {domain}"},
   "dev.social.no_longer_friends": {"text": "non siete più amici"},
   "dev.social.no_such_comment": {"text": "commento inesistente"},

@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -165,6 +166,9 @@ func tagVideoFrames(ctx context.Context, tagger modelserver.Tagger, frames []ima
 	best := map[string]float32{}
 	for _, frame := range frames {
 		tags, err := tagger.Tags(ctx, frame, imagestagger.DefaultRAMOptions())
+		if errors.Is(err, modelserver.ErrNoTagger) {
+			break // no model loaded (tagger_load.go): no tags for any frame
+		}
 		if err != nil {
 			log.Error("Error processing tags for video frame:", err)
 			continue

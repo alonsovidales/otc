@@ -247,6 +247,26 @@
     "text": "Il file {name} è stato messo da parte",
     "en": "{name} was set aside"
   },
+  "dev.alert.storage.almost_full": {
+    "text": "Lo spazio di archiviazione del tuo dispositivo è pieno al {pct}%",
+    "en": "Your device's storage is {pct}% full"
+  },
+  "dev.alert.storage.detail": {
+    "text": "Restano {left} su {size}. Elimina i file che non ti servono più o sposta il dispositivo su dischi più grandi: quando sarà pieno, non si potranno salvare nuove foto né nuovi file.",
+    "en": "{left} of {size} is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."
+  },
+  "dev.alert.storage.full": {
+    "text": "Il tuo dispositivo ha quasi esaurito lo spazio (pieno al {pct}%)",
+    "en": "Your device is almost out of space ({pct}% full)"
+  },
+  "dev.alert.tagger.not_loaded": {
+    "text": "Impossibile caricare il modello di etichettatura delle immagini",
+    "en": "The image tagging model could not be loaded"
+  },
+  "dev.alert.tagger.not_loaded_detail": {
+    "text": "Foto e video vengono salvati e mostrati come sempre, ma non ricevono etichette per la ricerca finché non viene caricato; il dispositivo continua a riprovare da solo ({reason}). Una volta caricato, Rielabora media nelle Impostazioni aggiunge le etichette mancanti.",
+    "en": "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself ({reason}). Once it has loaded, Reprocess Media in Settings adds the missing tags."
+  },
   "dev.alert.update.critical": {
     "text": "Aggiornamento critico {version}: installalo al più presto",
     "en": "Critical update {version} - please install it soon"
@@ -262,6 +282,20 @@
   "dev.alert.update.major": {
     "text": "È disponibile l’aggiornamento {version}",
     "en": "Update {version} is available"
+  },
+  "dev.alert.user.keeps_stopping": {
+    "text": {
+      "one": "L’utente {name} si è fermato {count} volta di seguito",
+      "other": "L’utente {name} si è fermato {count} volte di seguito"
+    },
+    "en": {
+      "one": "The user {name} stopped {count} time in a row",
+      "other": "The user {name} stopped {count} times in a row"
+    }
+  },
+  "dev.alert.user.keeps_stopping_detail": {
+    "text": "Il dispositivo continua a riavviarlo, aspettando ogni volta di più, fino a 10 minuti. Se non si riprende, invia i log da Impostazioni > Log.",
+    "en": "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs."
   },
   "dev.alert.wifi.no_answer": {
     "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%), e il riavvio del Wi-Fi non ha mai risposto. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",

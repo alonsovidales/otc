@@ -80,6 +80,16 @@
     "note": "Title of the push notification sent when both of the device's storage disks work again after one had stopped.",
     "max": 60
   },
+  "push.storage.full_body": {
+    "text": "Free some space: once it is full, new photos and files can't be saved.",
+    "note": "Body of the push notification sent when the device's storage disks are nearly full, under push.storage.full_title.",
+    "max": 150
+  },
+  "push.storage.full_title": {
+    "text": "Your device is almost full",
+    "note": "Title of the push notification sent when the device's storage disks are nearly full (98% or more).",
+    "max": 60
+  },
   "push.update.critical_body": {
     "text": "Install it from Settings.",
     "note": "Body of the push notification for a critical update to the device's software, under push.update.critical_title. Settings is the Settings screen of the Off The Cloud apps, where the update is installed. In English the release's own summary comes before this sentence; other languages show only this sentence (release summaries stay English).",

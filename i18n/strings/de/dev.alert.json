@@ -247,6 +247,26 @@
     "text": "Die Datei {name} wurde zurückgestellt",
     "en": "{name} was set aside"
   },
+  "dev.alert.storage.almost_full": {
+    "text": "Der Speicher deines Geräts ist zu {pct} % voll",
+    "en": "Your device's storage is {pct}% full"
+  },
+  "dev.alert.storage.detail": {
+    "text": "Es sind noch {left} von {size} frei. Lösche Dateien, die du nicht mehr brauchst, oder stelle das Gerät auf größere Laufwerke um: Sobald es voll ist, können keine neuen Fotos und Dateien mehr gespeichert werden.",
+    "en": "{left} of {size} is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."
+  },
+  "dev.alert.storage.full": {
+    "text": "Dein Gerät hat fast keinen Platz mehr ({pct} % voll)",
+    "en": "Your device is almost out of space ({pct}% full)"
+  },
+  "dev.alert.tagger.not_loaded": {
+    "text": "Das Modell für die Bilderkennung konnte nicht geladen werden",
+    "en": "The image tagging model could not be loaded"
+  },
+  "dev.alert.tagger.not_loaded_detail": {
+    "text": "Fotos und Videos werden wie gewohnt gespeichert und angezeigt, erhalten aber keine Tags für die Suche, bis es geladen ist; das Gerät versucht es von selbst weiter ({reason}). Sobald es geladen ist, ergänzt Medien neu verarbeiten in den Einstellungen die fehlenden Tags.",
+    "en": "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself ({reason}). Once it has loaded, Reprocess Media in Settings adds the missing tags."
+  },
   "dev.alert.update.critical": {
     "text": "Kritisches Update {version} – bitte bald installieren",
     "en": "Critical update {version} - please install it soon"
@@ -262,6 +282,20 @@
   "dev.alert.update.major": {
     "text": "Update {version} ist verfügbar",
     "en": "Update {version} is available"
+  },
+  "dev.alert.user.keeps_stopping": {
+    "text": {
+      "one": "Der Benutzer {name} wurde {count}-mal hintereinander beendet",
+      "other": "Der Benutzer {name} wurde {count}-mal hintereinander beendet"
+    },
+    "en": {
+      "one": "The user {name} stopped {count} time in a row",
+      "other": "The user {name} stopped {count} times in a row"
+    }
+  },
+  "dev.alert.user.keeps_stopping_detail": {
+    "text": "Das Gerät startet ihn immer wieder neu und wartet dabei jedes Mal länger, bis zu 10 Minuten. Wenn er sich nicht erholt, sende die Protokolle unter Einstellungen > Protokolle.",
+    "en": "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs."
   },
   "dev.alert.wifi.no_answer": {
     "text": "das Senden von Daten hatte sich auf etwa {speed} verlangsamt, wobei {pct} % davon doppelt gesendet wurden, und auf den WLAN-Neustart kam nie eine Antwort. Starte das Gerät in den Einstellungen neu oder verbinde es mit einem Ethernet-Kabel mit deinem Router.",

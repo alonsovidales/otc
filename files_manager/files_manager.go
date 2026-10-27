@@ -163,12 +163,23 @@ type Manager struct {
 	// there is none.
 	guard *processingGuard
 	run   *runState
+
+	// started is when Init ran: what the start-up sweeps remove is older
+	// (orphan_sweep.go), so they can run while this process writes.
+	started time.Time
 }
 
-// waitForTagger blocks until the model loaded by Init is usable. Callers
-// are all on the upload path, which is both rare in the first seconds of a
-// boot and already slow enough that waiting here is invisible - unlike
-// making the whole device unreachable while it loads (see Init).
+// cServedAtOnce is how many of the supervised instances' requests the
+// primary's model socket reads and answers at once outside low-memory
+// mode (one there, serveModels).
+const cServedAtOnce = 2
+
+// waitForTagger blocks until Init's first load of the model is over -
+// usable, or (tagger_load.go) answering modelserver.ErrNoTagger while it
+// is tried again. Callers are all on the upload path, which is both rare
+// in the first seconds of a boot and already slow enough that waiting
+// here is invisible - unlike making the whole device unreachable while it
+// loads (see Init).
 func (mg *Manager) waitForTagger() modelserver.Tagger {
 	<-mg.taggerReady
 	// A low-memory device loads the model at first use (lowmem.go): here,
@@ -202,6 +213,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		dao:           dao,
 		contentBudget: newMemBudget(budget),
 		sharedLinkTTL: sharedLinkTTLFromCfg(),
+		started:       time.Now(),
 	}
 	// How the previous run ended (runstate.go), before anything is
 	// processed: a run that follows one that died processes later and one
@@ -226,8 +238,8 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// Loaded in the background instead: nothing else in startup depends on
 	// it, and the only two things that actually use it (photo and video
 	// tagging, both on the upload path) wait for it via waitForTagger.
-	// A failure is still fatal - a device that can't tag is misconfigured
-	// - just fatal a few seconds later than it used to be.
+	// A failure is no longer fatal (tagger_load.go): the device serves
+	// without tags, says so once, and tries again.
 	//
 	// thresholds-path is optional (issue #33): a per-tag calibration file
 	// alongside the model, more accurate than one flat cutoff for every
@@ -258,21 +270,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		go mg.sharedLinksSweeper()
 		return mg.initRest()
 	}
-	go func() {
-		started := time.Now()
-		tagger, err := imagestagger.NewRAMTagger(
-			cfg.GetStr("tagger", "model-path"),
-			cfg.GetStr("tagger", "tags-path"),
-			cfg.GetStr("tagger", "thresholds-path"),
-			imagestagger.DefaultRAMOptions(),
-		)
-		if err != nil {
-			log.Fatal("Error loading image encoders:", err)
-		}
-		mg.tagger = tagger
-		close(mg.taggerReady)
-		log.Info("image tagger ready after", time.Since(started).Round(time.Millisecond))
-	}()
+	tagger := &retryTagger{}
+	mg.tagger = tagger
+	go mg.loadTaggerRetrying(tagger, loadRAMTagger, mg.taggerReady, time.Sleep)
 
 	// Issue #52: unlike the tagger above, a missing/misconfigured [faces]
 	// section is not fatal - the feature is opt-in (off by default, see
@@ -300,9 +300,12 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		log.Info("Face recognition not available ([faces] section not configured)")
 	}
 
-	// Issue #167: the primary shares these with the supervised children.
+	// Issue #167: the primary shares these with the supervised children,
+	// cServedAtOnce requests at a time: a face request carries the photo
+	// at full resolution (~48 MB for 12 MP, 200 MB at 50 MP), and every
+	// child queued its own, read before the recognizer's turn.
 	go func() {
-		if err := modelserver.Serve(modelserver.SocketPath(), mg.waitForTagger, mg.faceRecognizer); err != nil {
+		if err := modelserver.ServeLimited(modelserver.SocketPath(), mg.waitForTagger, mg.faceRecognizer, cServedAtOnce); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
 	}()
@@ -332,9 +335,9 @@ func (mg *Manager) initRest() *Manager {
 		log.Error("error clearing a stale reprocess status at startup:", err)
 	}
 
-	// Before anything of this process writes to storage: bin/otc.go starts
-	// the websocket and the API only after Init returns.
-	mg.sweepOrphanedStorage()
+	// What interrupted work left in storage is swept once the listeners
+	// are up (AfterListening, from bin/otc.go): reading the flat storage
+	// folder took seconds of a start on a Pi.
 	go mg.sweepOrphanFaces()
 	// Issue #192: the folders kept out of Images, read once; a failure is
 	// read again at first use.
@@ -767,6 +770,15 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	keys := linkKeys{getCipher(secret)}
 	pathUuid := uuid.New().String()
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
+	// The archive is a copy of every file in it: refused before it starts
+	// when the disk can't hold it (freespace.go).
+	var total int64
+	for _, file := range files {
+		total += mg.budgetSize(file) + 1024 // and its entry's headers
+	}
+	if err := checkFreeSpace(filepath.Dir(targetPath), sealedSize(total)); err != nil {
+		return "", err
+	}
 	out, err := blobstore.Create(targetPath, keys)
 	if err != nil {
 		return "", err
@@ -950,13 +962,25 @@ const (
 // all of them), so the client asks for those again rather than take them
 // for paths without a thumbnail (ListOfFiles.ask_again_from).
 func (mg *Manager) Thumbnails(ses *session.Session, paths []string, small bool) (out []*pb.File, askAgainFrom int32) {
+	// The rows of the paths it looks at, in one query (it was one a path);
+	// should that fail, a path at a time as before.
+	rows, err := mg.dao.GetFilesByPaths(paths[:min(len(paths), MaxThumbnailsPerRequest)])
+	if err != nil {
+		log.Error("error reading the rows of a thumbnails request, one at a time:", err)
+		rows = nil
+	}
 	total := 0
 	for i, p := range paths {
 		if i == MaxThumbnailsPerRequest {
 			return out, int32(i)
 		}
-		f, err := mg.dao.GetFileByPath(p)
-		if err != nil || !isMedia(f) {
+		f := rows[p]
+		if rows == nil {
+			if row, err := mg.dao.GetFileByPath(p); err == nil {
+				f = row
+			}
+		}
+		if f == nil || !isMedia(f) {
 			continue
 		}
 		thumb, isSmall, err := mg.readGridThumbnail(ses, f, small)
@@ -1292,6 +1316,12 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 		file, err = mg.dao.GetFileByPath(path)
 	}
 	if err == nil {
+		// Too large to hold whole (overShownWhole): refused before anything
+		// is read. Every viewer keeps the photo's thumbnail then, and
+		// downloads read in parts (ReadFile).
+		if mg.overShownWhole(file) {
+			return nil, TooLarge(i18n.DevFilesTooLargeToOpen(mg.budgetSize(file)))
+		}
 		// These used to be logged and swallowed - the inner err shadowed
 		// this one - so a blob missing from the disk came back as a File
 		// with empty content and no error. A two-way sync client wrote
@@ -1367,6 +1397,9 @@ func isHeicFile(path, mime string) bool {
 	return strings.HasSuffix(strings.ToUpper(path), ".HEIC") || strings.EqualFold(mime, "image/heic")
 }
 
+// IsHeic is whether GetFile converts f's content to JPEG to show it.
+func IsHeic(f *pb.File) bool { return isHeicFile(f.Path, f.Mime) }
+
 // GetFileInfo returns a photo/video's camera/EXIF metadata (issue #41),
 // computed live from its own bytes on every call — nothing here is
 // persisted, so "More info" works for files uploaded before this feature
@@ -1386,8 +1419,9 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		}
 		ex, err = exifinfo.FromVideoSource(src)
 		done()
-	} else {
-		// Issue #166: read whole for its metadata, within the budget.
+	} else if strings.HasPrefix(file.Mime, "video/") {
+		// No stream to ffprobe (before the websocket layer sets one): read
+		// whole, within the budget, as before.
 		release := mg.ReserveBytes(mg.budgetSize(file))
 		var content []byte
 		content, err = blobstore.ReadAll(blobPath(file.Hash), session)
@@ -1395,6 +1429,13 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 			ex, err = extractExif(content, file.Mime, file.Path)
 		}
 		release()
+	} else {
+		// Read where the metadata is, never whole (blobstore decrypts only
+		// what a read covers): a JPEG up to its EXIF segment, a HEIC its
+		// boxes and Exif item. A TIFF (a scan, a camera raw) is parsed whole
+		// by the EXIF reader, three copies of it: at most shownWholeLimit of
+		// it is read, within the budget - a 1.5 GB scan took 4.5 GB.
+		ex, err = mg.readExif(session, file, mg.shownWholeLimit())
 	}
 	if err != nil {
 		return nil, err
@@ -1423,6 +1464,41 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 		}
 	}
 	return info, nil
+}
+
+// readExif is a stored photo's metadata, read from its blob where it is
+// (exifFrom), never more than limit bytes of it - holding the content
+// budget for the three copies of what a TIFF's parser takes.
+func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*exifinfo.Info, error) {
+	blob, err := blobstore.Open(blobPath(file.Hash), ses)
+	if err != nil {
+		return nil, err
+	}
+	defer blob.Close()
+	n := min(blob.Size(), limit)
+	defer mg.ReserveBytes(3 * n)()
+	return exifFrom(blob, n, file.Mime, file.Path)
+}
+
+// exifFrom is extractExif for a photo read at r, size bytes of it at most,
+// told apart by its first bytes: a JPEG is read up to its EXIF segment, a
+// HEIC (or HEIF, AVIF) by its boxes - one named .heic or stored as
+// application/octet-stream included - and anything else as extractExif
+// reads it, a TIFF by the EXIF parser, which reads it whole.
+func exifFrom(r io.ReaderAt, size int64, mime, path string) (*exifinfo.Info, error) {
+	head := make([]byte, 12)
+	n, _ := r.ReadAt(head, 0)
+	head = head[:n]
+	switch {
+	case isJPEGContent(head):
+		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+	case isHeif(head), strings.HasSuffix(path, ".HEIC"):
+		return exifinfo.FromHEICReader(io.NewSectionReader(r, 0, size))
+	case strings.HasPrefix(mime, "image/"):
+		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+	default:
+		return nil, devtext.New(i18n.DevFilesExifUnsupported(mime))
+	}
 }
 
 // extractExif dispatches to the right exifinfo reader for mime/path, since
@@ -1600,6 +1676,10 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	// the same lock.
 	wrote := false
 	if !mg.hasBlob(hash) {
+		// Refused, not half written, when the disk can't take it (freespace.go).
+		if err := checkFreeSpace(filepath.Dir(targetPath), sealedSize(int64(len(content)))+pendingUploads.remaining()); err != nil {
+			return nil, err
+		}
 		unlock := lockBlob(hash)
 		err = blobstore.WriteBytes(targetPath, session, content)
 		unlock()
@@ -1918,7 +1998,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				tags, err = tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
 				cancel()
-				if err != nil {
+				// No model loaded (tagger_load.go): alerted once, not per
+				// photo.
+				if err != nil && !errors.Is(err, modelserver.ErrNoTagger) {
 					mg.alert(i18n.DevAlertFileNotTagged, file.Path, err)
 				}
 			}
@@ -2158,7 +2240,12 @@ func writeBlob(target string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), target)
+	if err := os.Rename(tmp.Name(), target); err != nil {
+		return err
+	}
+	// The new name too, not only the bytes (blobstore.Commit does the same).
+	blobstore.SyncDir(filepath.Dir(target))
+	return nil
 }
 
 // blobPath is where the encrypted content for hash lives.

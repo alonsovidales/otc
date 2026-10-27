@@ -269,6 +269,31 @@ func DevAlertSetasideTitle(name string) Msg {
 	return Msg{Key: "dev.alert.setaside.title", Args: map[string]any{"name": name}}
 }
 
+// DevAlertStorageAlmostFull is dev.alert.storage.almost_full: "Your device's storage is {pct}% full".
+func DevAlertStorageAlmostFull(pct int) Msg {
+	return Msg{Key: "dev.alert.storage.almost_full", Args: map[string]any{"pct": int64(pct)}}
+}
+
+// DevAlertStorageDetail is dev.alert.storage.detail: "{left} of {size} is left. Delete files you no longer need, or move the device to…".
+func DevAlertStorageDetail(left int64, size int64) Msg {
+	return Msg{Key: "dev.alert.storage.detail", Args: map[string]any{"left": left, "size": size}}
+}
+
+// DevAlertStorageFull is dev.alert.storage.full: "Your device is almost out of space ({pct}% full)".
+func DevAlertStorageFull(pct int) Msg {
+	return Msg{Key: "dev.alert.storage.full", Args: map[string]any{"pct": int64(pct)}}
+}
+
+// DevAlertTaggerNotLoaded is dev.alert.tagger.not_loaded: "The image tagging model could not be loaded".
+func DevAlertTaggerNotLoaded() Msg {
+	return Msg{Key: "dev.alert.tagger.not_loaded"}
+}
+
+// DevAlertTaggerNotLoadedDetail is dev.alert.tagger.not_loaded_detail: "Photos and videos are saved and shown as usual, but get no tags to search by unt…".
+func DevAlertTaggerNotLoadedDetail(reason string) Msg {
+	return Msg{Key: "dev.alert.tagger.not_loaded_detail", Args: map[string]any{"reason": reason}}
+}
+
 // DevAlertUpdateCritical is dev.alert.update.critical: "Critical update {version} - please install it soon".
 func DevAlertUpdateCritical(version string) Msg {
 	return Msg{Key: "dev.alert.update.critical", Args: map[string]any{"version": version}}
@@ -287,6 +312,16 @@ func DevAlertUpdateDetailContainer(summary string) Msg {
 // DevAlertUpdateMajor is dev.alert.update.major: "Update {version} is available".
 func DevAlertUpdateMajor(version string) Msg {
 	return Msg{Key: "dev.alert.update.major", Args: map[string]any{"version": version}}
+}
+
+// DevAlertUserKeepsStopping is dev.alert.user.keeps_stopping: "The user {name} stopped {count} times in a row".
+func DevAlertUserKeepsStopping(name string, count int) Msg {
+	return Msg{Key: "dev.alert.user.keeps_stopping", Args: map[string]any{"name": name, "count": int64(count)}}
+}
+
+// DevAlertUserKeepsStoppingDetail is dev.alert.user.keeps_stopping_detail: "The device keeps starting it again, waiting longer each time, up to 10 minutes. …".
+func DevAlertUserKeepsStoppingDetail() Msg {
+	return Msg{Key: "dev.alert.user.keeps_stopping_detail"}
 }
 
 // DevAlertWifiNoAnswer is dev.alert.wifi.no_answer: "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and…".

@@ -197,9 +197,17 @@
     "text": "errore durante la creazione del link di condivisione dei file: {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.storage_full": {
+    "text": "spazio insufficiente sul dispositivo: servono {need} e ne restano solo {left}",
+    "en": "not enough space on the device: this needs {need}, and only {left} is left"
+  },
   "dev.files.stream_failed": {
     "text": "impossibile preparare lo streaming",
     "en": "could not prepare the stream"
+  },
+  "dev.files.too_large_to_open": {
+    "text": "questo file è troppo grande per aprirlo qui ({size}): scaricalo",
+    "en": "this file is too large to open here ({size}): download it instead"
   },
   "dev.files.upload_bad_hash": {
     "text": "il contenuto caricato non corrisponde al suo hash",
@@ -261,5 +269,13 @@
   "dev.files.video_no_frames_extracted": {
     "text": "nessun fotogramma estratto dal video",
     "en": "no frames extracted from video"
+  },
+  "dev.files.video_not_cut": {
+    "text": "non è stato possibile tagliare il video, quindi non è stato pubblicato nulla: riprova, o pubblicalo senza tagliarlo",
+    "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_reduced": {
+    "text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è",
+    "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
   }
 }

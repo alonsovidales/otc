@@ -3,6 +3,7 @@
 package supervisor
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -131,7 +132,19 @@ recognizer-model-path=%s
 	}
 
 	iniPath := filepath.Join(dir, fmt.Sprintf("otc_%s.ini", u.Env))
-	return os.WriteFile(iniPath, []byte(content), 0640)
+	_, err := writeIfChanged(iniPath, []byte(content), 0640)
+	return err
+}
+
+// writeIfChanged writes content to path unless the file already holds
+// exactly that, and says whether it wrote. The config is rendered at every
+// start of a user's instance - every few seconds for one that keeps
+// stopping - and lives on the SD card, which each rewrite wears.
+func writeIfChanged(path string, content []byte, perm os.FileMode) (bool, error) {
+	if old, err := os.ReadFile(path); err == nil && bytes.Equal(old, content) {
+		return false, nil
+	}
+	return true, os.WriteFile(path, content, perm)
 }
 
 // renderParams is everything renderUserConfig needs - kept separate from

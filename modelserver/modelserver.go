@@ -49,6 +49,12 @@ const EnvSocket = "OTC_MODELS_SOCKET"
 // every instance's requests, and a Reprocess on one can keep it busy.
 const cCallTimeout = 10 * time.Minute
 
+// ErrNoTagger is the answer to tagging while the primary has no model
+// loaded (files_manager's tagger_load.go: its load failed and is tried
+// again): the photo is processed without tags, and the owner was told
+// once. A child gets it back through the socket as itself.
+var ErrNoTagger = errors.New("the image tagging model is not loaded") // i18n-ignore: matched by errors.Is and across the socket, logged only
+
 // Tagger is what files_manager tags with: the local RAM++ model, or Client.
 type Tagger interface {
 	Tags(ctx context.Context, img image.Image, opt imagestagger.RAMOptions) ([]imagestagger.RAMTag, error)
@@ -290,6 +296,9 @@ func (c *Client) call(req request, pix []byte) (*response, error) {
 		return nil, err
 	}
 	if resp.Err != "" {
+		if resp.Err == ErrNoTagger.Error() {
+			return &resp, ErrNoTagger
+		}
 		return &resp, errors.New(resp.Err)
 	}
 	return &resp, nil

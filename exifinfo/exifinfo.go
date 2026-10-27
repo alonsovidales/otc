@@ -8,7 +8,9 @@ package exifinfo
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -46,7 +48,14 @@ type Info struct {
 
 // FromJPEG reads standard EXIF (APP1 segment) out of JPEG bytes.
 func FromJPEG(content []byte) (*Info, error) {
-	x, err := exif.Decode(bytes.NewReader(content))
+	return FromJPEGReader(bytes.NewReader(content))
+}
+
+// FromJPEGReader is FromJPEG reading from r: a JPEG is read only up to its
+// EXIF segment, near its start. A TIFF (a camera raw, a scan) is read
+// whole by the EXIF parser, so the caller bounds r (an io.LimitReader).
+func FromJPEGReader(r io.Reader) (*Info, error) {
+	x, err := exif.Decode(r)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +66,13 @@ func FromJPEG(content []byte) (*Info, error) {
 // container than JPEG's, but the same TIFF-based EXIF payload once
 // extracted — hence reusing the same tag reader below).
 func FromHEIC(content []byte) (*Info, error) {
-	raw, err := goheif.ExtractExif(bytes.NewReader(content))
+	return FromHEICReader(bytes.NewReader(content))
+}
+
+// FromHEICReader is FromHEIC reading at r: only the container's boxes and
+// its Exif item are read, not the picture.
+func FromHEICReader(r io.ReaderAt) (*Info, error) {
+	raw, err := goheif.ExtractExif(r)
 	if err != nil {
 		return nil, err
 	}
@@ -174,16 +189,30 @@ func FromVideo(content []byte) (*Info, error) {
 	return FromVideoSource(tmpPath)
 }
 
+// ProbeTimeout bounds FromVideoSource's ffprobe, like every other ffprobe
+// and ffmpeg call the device makes (files_manager's cProbeTimeout): one
+// that hangs on a stream held its processing slot - or the "More info"
+// request - for good.
+var ProbeTimeout = time.Minute
+
 // FromVideoSource reads a video's container metadata from src - a file
 // path or a URL ffprobe can read with ranges (a stored video's loopback
 // stream, so nothing is loaded whole).
 func FromVideoSource(tmpPath string) (*Info, error) {
-	out, err := exec.Command(
+	ctx, cancel := context.WithTimeout(context.Background(), ProbeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx,
 		"ffprobe", "-v", "error",
 		"-show_entries", "format_tags=location,location-eng,creation_time",
 		"-of", "default=noprint_wrappers=1",
 		tmpPath,
-	).Output()
+	)
+	// Once killed, its output is waited for only this long more.
+	cmd.WaitDelay = 5 * time.Second
+	out, err := cmd.Output()
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("ffprobe: no answer within %s", ProbeTimeout)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("ffprobe: %w", err)
 	}

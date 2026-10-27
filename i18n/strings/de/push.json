@@ -62,6 +62,14 @@
     "text": "Speicherlaufwerke funktionieren wieder",
     "en": "Storage disks working again"
   },
+  "push.storage.full_body": {
+    "text": "Schaffe etwas Platz: Sobald es voll ist, können keine neuen Fotos und Dateien mehr gespeichert werden.",
+    "en": "Free some space: once it is full, new photos and files can't be saved."
+  },
+  "push.storage.full_title": {
+    "text": "Dein Gerät ist fast voll",
+    "en": "Your device is almost full"
+  },
   "push.update.critical_body": {
     "text": "Installiere es in den Einstellungen.",
     "en": "Install it from Settings."

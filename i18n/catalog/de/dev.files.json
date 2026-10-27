@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "beim Löschen von Tags/Gesichtern vor der Neuverarbeitung: {detail}"},
   "dev.files.retrieve_failed": {"text": "Fehler beim Abrufen der Datei: {detail}"},
   "dev.files.share_link_failed": {"text": "Fehler beim Erstellen des Freigabelinks für die Dateien: {detail}"},
+  "dev.files.storage_full": {"text": "nicht genug Speicherplatz auf dem Gerät: Das braucht {need}, und es sind nur noch {left} frei"},
   "dev.files.stream_failed": {"text": "die Wiedergabe konnte nicht vorbereitet werden"},
+  "dev.files.too_large_to_open": {"text": "diese Datei ist zu groß, um sie hier zu öffnen ({size}): Lade sie stattdessen herunter"},
   "dev.files.upload_bad_hash": {"text": "der Inhalt des Uploads stimmt nicht mit seinem Hash überein"},
   "dev.files.upload_failed": {"text": "Fehler beim Hochladen der Datei: {detail}"},
   "dev.files.upload_finish_failed": {"text": "Fehler beim Abschließen des Uploads: {detail}"},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "Fehler beim Auflisten der Versionen: {detail}"},
   "dev.files.video_no_duration": {"text": "das Video hat keine verwertbare Dauer"},
   "dev.files.video_no_frames": {"text": "aus dem Video konnten keine Einzelbilder gewonnen werden"},
-  "dev.files.video_no_frames_extracted": {"text": "keine Einzelbilder aus dem Video gewonnen"}
+  "dev.files.video_no_frames_extracted": {"text": "keine Einzelbilder aus dem Video gewonnen"},
+  "dev.files.video_not_cut": {"text": "das Video konnte nicht gekürzt werden, deshalb wurde nichts veröffentlicht: Versuche es erneut oder veröffentliche es, ohne es zu kürzen"},
+  "dev.files.video_not_reduced": {"text": "das Video konnte für den Beitrag nicht verkleinert werden, und mit {size} ist es zu groß, um es so zu teilen"}
 }

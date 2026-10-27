@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "erreur lors de l’ajout d’un J’aime à la publication : {detail}"},
   "dev.social.load_file_failed": {"text": "erreur lors du chargement du fichier « {path} » : {detail}"},
   "dev.social.media_not_available": {"text": "média indisponible"},
+  "dev.social.media_too_large": {"text": "ce fichier est trop volumineux pour être envoyé en une seule fois ({size})"},
   "dev.social.no_friendship_with": {"text": "aucune amitié avec {domain}"},
   "dev.social.no_longer_friends": {"text": "vous n’êtes plus amis"},
   "dev.social.no_such_comment": {"text": "commentaire introuvable"},

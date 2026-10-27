@@ -247,6 +247,26 @@
     "text": "O ficheiro {name} foi posto de parte",
     "en": "{name} was set aside"
   },
+  "dev.alert.storage.almost_full": {
+    "text": "O armazenamento do teu dispositivo está {pct}% ocupado",
+    "en": "Your device's storage is {pct}% full"
+  },
+  "dev.alert.storage.detail": {
+    "text": "Restam {left} de {size}. Elimina os ficheiros de que já não precisas ou passa o dispositivo para discos maiores: quando estiver cheio, não será possível guardar novas fotos nem ficheiros.",
+    "en": "{left} of {size} is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."
+  },
+  "dev.alert.storage.full": {
+    "text": "O teu dispositivo está quase sem espaço ({pct}% ocupado)",
+    "en": "Your device is almost out of space ({pct}% full)"
+  },
+  "dev.alert.tagger.not_loaded": {
+    "text": "Não foi possível carregar o modelo de etiquetagem de imagens",
+    "en": "The image tagging model could not be loaded"
+  },
+  "dev.alert.tagger.not_loaded_detail": {
+    "text": "As fotos e os vídeos são guardados e mostrados como sempre, mas não recebem etiquetas para a pesquisa até ser carregado; o dispositivo continua a tentar sozinho ({reason}). Depois de carregado, Reprocessar multimédia nas Definições acrescenta as etiquetas em falta.",
+    "en": "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself ({reason}). Once it has loaded, Reprocess Media in Settings adds the missing tags."
+  },
   "dev.alert.update.critical": {
     "text": "Atualização crítica {version}: instala-a em breve",
     "en": "Critical update {version} - please install it soon"
@@ -262,6 +282,20 @@
   "dev.alert.update.major": {
     "text": "A atualização {version} está disponível",
     "en": "Update {version} is available"
+  },
+  "dev.alert.user.keeps_stopping": {
+    "text": {
+      "one": "O utilizador {name} parou {count} vez seguida",
+      "other": "O utilizador {name} parou {count} vezes seguidas"
+    },
+    "en": {
+      "one": "The user {name} stopped {count} time in a row",
+      "other": "The user {name} stopped {count} times in a row"
+    }
+  },
+  "dev.alert.user.keeps_stopping_detail": {
+    "text": "O dispositivo continua a iniciá-lo de novo, esperando cada vez mais, até 10 minutos. Se não recuperar, envia os registos em Definições > Registos.",
+    "en": "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs."
   },
   "dev.alert.wifi.no_answer": {
     "text": "o envio de dados tinha abrandado para cerca de {speed}, com {pct}% enviados duas vezes, e o reinício do Wi-Fi nunca respondeu. Reinicia o dispositivo em Definições ou liga-o ao teu router com um cabo Ethernet.",

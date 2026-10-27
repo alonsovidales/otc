@@ -197,9 +197,17 @@
     "text": "fout bij het maken van de deellink voor de bestanden: {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.storage_full": {
+    "text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over",
+    "en": "not enough space on the device: this needs {need}, and only {left} is left"
+  },
   "dev.files.stream_failed": {
     "text": "kan de stream niet voorbereiden",
     "en": "could not prepare the stream"
+  },
+  "dev.files.too_large_to_open": {
+    "text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan",
+    "en": "this file is too large to open here ({size}): download it instead"
   },
   "dev.files.upload_bad_hash": {
     "text": "de inhoud van de upload komt niet overeen met de hash",
@@ -261,5 +269,13 @@
   "dev.files.video_no_frames_extracted": {
     "text": "geen beelden uit de video gehaald",
     "en": "no frames extracted from video"
+  },
+  "dev.files.video_not_cut": {
+    "text": "de video kon niet worden ingekort, dus er is niets geplaatst: probeer het opnieuw, of plaats hem zonder hem in te korten",
+    "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_reduced": {
+    "text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen",
+    "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
   }
 }

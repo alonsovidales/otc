@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devtext"
@@ -288,7 +290,13 @@ func writeFileAtomic(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return err
+	}
+	// And the new name: a power cut right after the rename could take it
+	// back while the post's row, written next, stays.
+	blobstore.SyncDir(filepath.Dir(path))
+	return nil
 }
 
 // RemovePartialWrites removes the temp files writeFileAtomic left in dir
@@ -351,17 +359,28 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		}
 	}
 
+	unencDir := cfg.GetStr("otc", "unenc-storage-path")
+	// The copies this post writes - plaintext - are its own until its row
+	// is stored, and go again if it isn't made (post_files.go).
+	held := &postFiles{dir: unencDir}
+	defer func() {
+		if err != nil {
+			held.discard(sc)
+		} else {
+			held.release()
+		}
+	}()
+
 	files := make([]*pb.File, len(paths))
 	for i, path := range paths {
 		// A file uploaded a moment ago (a photo or video just taken)
 		// may not be written yet.
 		sc.filesmanager.WaitForContent(path, 2*time.Minute)
-		unencDir := cfg.GetStr("otc", "unenc-storage-path")
 		maxThumb := filesmanager.ThumbnailMaxSide()
 
 		// Issue #166: at most one file of the post is in memory at a
 		// time, and a video never is - see publishVideo.
-		file, isTransient, err := sc.publishFile(ses, path, trimByPath[path], unencDir)
+		file, isTransient, err := sc.publishFile(ses, path, trimByPath[path], unencDir, held)
 		if err != nil {
 			return "", err
 		}
@@ -417,24 +436,40 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		return "", err
 	}
 
-	return pubUuID, sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain(), true, files, time.Now())
+	if err = sc.dao.NewSocialPublication(pubUuID, text, sc.profile.Domain(), true, files, time.Now()); err != nil {
+		return "", err
+	}
+	return pubUuID, nil
 }
 
 // publishFile writes the plaintext copy a post distributes for the file at
 // path into unencDir, named by its hash, and returns its File (without
 // Content) and whether it is a transient copy (trimmed or compressed)
-// rather than the owner's file.
-func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
+// rather than the owner's file. Each hash it writes is held for the post
+// first (held), so that a failed post can take its copies back.
+func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoTrim, unencDir string, held *postFiles) (*pb.File, bool, error) {
 	meta, err := sc.dao.GetFileByPath(path)
 	if err != nil || meta == nil {
 		return nil, false, wrapCause(fmt.Sprintf("error loading file %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialLoadFileFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
+	held.hold(meta.Hash)
 	if strings.HasPrefix(meta.Mime, "video/") {
-		return sc.publishVideo(ses, meta, trim, unencDir)
+		return sc.publishVideo(ses, meta, trim, unencDir, held)
 	}
 
-	// A photo is read whole (a HEIC is converted to JPEG for everyone
-	// else's screens), within the download memory budget.
+	// A photo that needs no converting is copied a segment at a time, as
+	// it is stored, never read whole: a large scan or panorama is over
+	// what GetFile sends in one piece.
+	if !filesmanager.IsHeic(meta) {
+		if err := sc.filesmanager.CopyForPost(ses, meta, unencDir); err != nil {
+			log.Error("Error copying a file for a post:", err)
+			return nil, false, wrapCause(fmt.Sprintf("error loading file %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialLoadFileFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
+		}
+		return meta, false, nil
+	}
+
+	// A HEIC is converted to JPEG for everyone else's screens: read whole,
+	// within the download memory budget.
 	release := sc.filesmanager.ReserveForDownload(path, "")
 	defer release()
 	file, err := sc.filesmanager.GetFile(ses, path, "")
@@ -442,6 +477,7 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 		log.Error("Error loading file:", err)
 		return nil, false, wrapCause(fmt.Sprintf("error loading file %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialLoadFileFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
+	held.hold(file.Hash)
 	if err := writeFileAtomic(filepath.Join(unencDir, file.Hash), file.Content); err != nil {
 		return nil, false, err
 	}
@@ -457,14 +493,19 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 // size: a source big enough to need it is distributed at social
 // resolution however much of it survives the cut. The video is never
 // loaded: ffmpeg streams the stored file, or it is decrypted straight into
-// place (issue #166).
-func (sc *Social) publishVideo(ses *session.Session, file *pb.File, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
+// place (issue #166). A new copy is held for the post once it is in place
+// (its hash is known then; written just now, no sweep takes it).
+func (sc *Social) publishVideo(ses *session.Session, file *pb.File, trim *pb.VideoTrim, unencDir string, held *postFiles) (*pb.File, bool, error) {
 	downscale := shouldCompressForSocial(file.Mime, dao.FileSize(file))
 	var tr *filesmanager.TrimRange
 	if shouldTrimForSocial(file.Mime, trim) {
 		tr = &filesmanager.TrimRange{Start: trim.StartSecs, End: trim.EndSecs}
 	}
-	return sc.filesmanager.ExportVideoForPost(ses, file, tr, downscale, unencDir)
+	out, transient, err := sc.filesmanager.ExportVideoForPost(ses, file, tr, downscale, unencDir)
+	if err == nil {
+		held.hold(out.Hash)
+	}
+	return out, transient, err
 }
 
 // GetEvents is the page of events requester's device is served (issue
@@ -495,8 +536,25 @@ func (sc *Social) GetPublicationMedia(pubUuid, hash string) (content []byte, mim
 		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid) // i18n-ignore: logged only, the reply says media not available
 	}
 
-	content, err = os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), hash))
+	f, err := os.Open(filepath.Join(cfg.GetStr("otc", "unenc-storage-path"), hash))
 	if err != nil {
+		return nil, "", err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, "", err
+	}
+	// Read whole and sent in one reply: never one too large for that
+	// (filesmanager.MaxPublicationMedia) - a friend's sync of a multi-GB
+	// video post ran the device out of memory every two minutes. The apps
+	// play a video from its stream (GetMediaURL); a friend's device keeps
+	// the post's thumbnail (filesmanager.ErrTooLarge, "too_large").
+	if info.Size() > sc.filesmanager.MaxPublicationMedia() {
+		return nil, "", filesmanager.TooLarge(i18n.DevSocialMediaTooLarge(info.Size()))
+	}
+	content = make([]byte, info.Size())
+	if _, err := io.ReadFull(f, content); err != nil {
 		return nil, "", err
 	}
 	return content, mime, nil

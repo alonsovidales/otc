@@ -328,6 +328,35 @@
     "note": "Title of an alert in Alerts: the device stopped processing a file (making its preview and search data) because it made the device's software stop twice. {name} is the file's name. Its detail is dev.alert.setaside.detail.",
     "stored": true
   },
+  "dev.alert.storage.almost_full": {
+    "text": "Your device's storage is {pct}% full",
+    "args": [["pct", "int"]],
+    "note": "Title of an alert in Alerts: the device's storage disks are filling up. {pct} is how full they are, in percent, such as 91. Its detail is dev.alert.storage.detail.",
+    "stored": true
+  },
+  "dev.alert.storage.detail": {
+    "text": "{left} of {size} is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved.",
+    "args": [["left", "bytes"], ["size", "bytes"]],
+    "note": "Detail of the alerts dev.alert.storage.almost_full and dev.alert.storage.full. {left} is the space that can still be used and {size} the space of the device's storage, sizes such as 120 GB and 3.8 TB.",
+    "stored": true
+  },
+  "dev.alert.storage.full": {
+    "text": "Your device is almost out of space ({pct}% full)",
+    "args": [["pct", "int"]],
+    "note": "Title of an alert in Alerts: the device's storage disks are nearly full - soon nothing more can be saved. {pct} is how full they are, in percent, such as 98. Its detail is dev.alert.storage.detail.",
+    "stored": true
+  },
+  "dev.alert.tagger.not_loaded": {
+    "text": "The image tagging model could not be loaded",
+    "note": "Title of an alert in Alerts: the model the device uses to tag photos (words describing what is in a picture, to search by them) could not be loaded. Its detail is dev.alert.tagger.not_loaded_detail.",
+    "stored": true
+  },
+  "dev.alert.tagger.not_loaded_detail": {
+    "text": "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself ({reason}). Once it has loaded, Reprocess Media in Settings adds the missing tags.",
+    "args": [["reason", "text"]],
+    "note": "Detail of the alert dev.alert.tagger.not_loaded. {reason} is the error, in English, as the system said it. Reprocess Media is the name of a section in Settings (web.settings.reprocess.title): use the same words.",
+    "stored": true
+  },
   "dev.alert.update.critical": {
     "text": "Critical update {version} - please install it soon",
     "args": [["version", "text"]],
@@ -350,6 +379,20 @@
     "text": "Update {version} is available",
     "args": [["version", "text"]],
     "note": "Title of an alert in Alerts: a major update (security, stability or durability) is available for the device's software. {version} is the release's version label, such as 2.4.",
+    "stored": true
+  },
+  "dev.alert.user.keeps_stopping": {
+    "text": {
+      "one": "The user {name} stopped {count} time in a row",
+      "other": "The user {name} stopped {count} times in a row"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Title of an alert in Alerts: one of the additional users of the device (Settings > Users: each runs as its own separate instance) keeps stopping right after it starts. {name} is the user's name; {count} how many times in a row (5 or more). Its detail is dev.alert.user.keeps_stopping_detail.",
+    "stored": true
+  },
+  "dev.alert.user.keeps_stopping_detail": {
+    "text": "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs.",
+    "note": "Detail of the alert dev.alert.user.keeps_stopping. Settings > Logs is the Logs section of the apps' Settings screen.",
     "stored": true
   },
   "dev.alert.wifi.no_answer": {

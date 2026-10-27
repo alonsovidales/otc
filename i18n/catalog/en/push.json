@@ -14,6 +14,8 @@
   "push.raid.stopped_working_top": {"text": "One of the two storage disks failed. Your files are safe on the one in the top blue USB port: replace the other one soon."},
   "push.raid.working_body": {"text": "The mirror is complete: every file is on both disks again."},
   "push.raid.working_title": {"text": "Storage disks working again"},
+  "push.storage.full_body": {"text": "Free some space: once it is full, new photos and files can't be saved."},
+  "push.storage.full_title": {"text": "Your device is almost full"},
   "push.update.critical_body": {"text": "Install it from Settings."},
   "push.update.critical_body_container": {"text": "To install it, run docker compose pull and docker compose up -d on your server."},
   "push.update.critical_title": {"text": "Critical update {version} - please install it soon", "args": [["version", "text"]]}

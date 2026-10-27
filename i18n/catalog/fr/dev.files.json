@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "suppression des étiquettes et visages avant le retraitement : {detail}"},
   "dev.files.retrieve_failed": {"text": "erreur lors de la récupération du fichier : {detail}"},
   "dev.files.share_link_failed": {"text": "erreur lors de la création du lien de partage des fichiers : {detail}"},
+  "dev.files.storage_full": {"text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}"},
   "dev.files.stream_failed": {"text": "impossible de préparer la diffusion"},
+  "dev.files.too_large_to_open": {"text": "ce fichier est trop volumineux pour être ouvert ici ({size}) : téléchargez-le plutôt"},
   "dev.files.upload_bad_hash": {"text": "le contenu envoyé ne correspond pas à son empreinte"},
   "dev.files.upload_failed": {"text": "erreur lors de l’envoi du fichier : {detail}"},
   "dev.files.upload_finish_failed": {"text": "erreur lors de la finalisation de l’envoi : {detail}"},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "erreur lors de la lecture de la liste des versions : {detail}"},
   "dev.files.video_no_duration": {"text": "la vidéo n’a pas de durée exploitable"},
   "dev.files.video_no_frames": {"text": "impossible d’extraire une image de la vidéo"},
-  "dev.files.video_no_frames_extracted": {"text": "aucune image extraite de la vidéo"}
+  "dev.files.video_no_frames_extracted": {"text": "aucune image extraite de la vidéo"},
+  "dev.files.video_not_cut": {"text": "la vidéo n’a pas pu être découpée, rien n’a donc été publié : réessayez, ou publiez-la sans la découper"},
+  "dev.files.video_not_reduced": {"text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle"}
 }

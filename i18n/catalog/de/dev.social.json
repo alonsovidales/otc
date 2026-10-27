@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "Fehler beim Markieren des Beitrags mit „Gefällt mir“: {detail}"},
   "dev.social.load_file_failed": {"text": "Fehler beim Laden der Datei „{path}“: {detail}"},
   "dev.social.media_not_available": {"text": "Medien nicht verfügbar"},
+  "dev.social.media_too_large": {"text": "diese Datei ist zu groß, um sie am Stück zu senden ({size})"},
   "dev.social.no_friendship_with": {"text": "keine Freundschaft mit {domain}"},
   "dev.social.no_longer_friends": {"text": "nicht mehr befreundet"},
   "dev.social.no_such_comment": {"text": "Kommentar nicht vorhanden"},

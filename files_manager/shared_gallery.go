@@ -60,6 +60,10 @@ const (
 	cGalleryPreviewQ     = 88
 	cGalleryJobKeep      = time.Hour
 	cGalleryMaxTTL       = 90 * 24 * time.Hour
+	// cGalleryItemExtra is what an item takes besides its original, at
+	// most: a screen-sized preview (~1-2 MB) and a thumbnail - or, at low
+	// resolution, the two copies of its thumbnail.
+	cGalleryItemExtra = 4 << 20
 )
 
 var (
@@ -238,6 +242,16 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	var total int64
 	for _, f := range files {
 		total += dao.FileSize(f)
+	}
+	// The gallery is copies: the originals (only small copies at low
+	// resolution) and a preview and a thumbnail each. Refused before the
+	// job starts when the disk can't hold them (freespace.go).
+	need := int64(len(files)) * cGalleryItemExtra
+	if !lowRes {
+		need += sealedSize(total)
+	}
+	if err := checkFreeSpace(cfg.GetStr("otc", "storage-path"), need); err != nil {
+		return nil, err
 	}
 	job := &galleryJob{state: &pb.SharedGalleryJob{JobId: uuid.NewString(), Total: int32(len(files)), BytesTotal: total}}
 	galleryJobs.Lock()

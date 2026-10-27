@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "erro ao apagar as etiquetas e os rostos antes do reprocessamento: {detail}"},
   "dev.files.retrieve_failed": {"text": "erro ao tentar obter o ficheiro: {detail}"},
   "dev.files.share_link_failed": {"text": "erro ao criar a ligação de partilha dos ficheiros: {detail}"},
+  "dev.files.storage_full": {"text": "não há espaço suficiente no dispositivo: isto precisa de {need} e só restam {left}"},
   "dev.files.stream_failed": {"text": "não foi possível preparar a reprodução"},
+  "dev.files.too_large_to_open": {"text": "este ficheiro é demasiado grande para abrir aqui ({size}): transfere-o em vez disso"},
   "dev.files.upload_bad_hash": {"text": "o conteúdo do carregamento não corresponde ao seu hash"},
   "dev.files.upload_failed": {"text": "erro ao tentar carregar o ficheiro: {detail}"},
   "dev.files.upload_finish_failed": {"text": "erro ao concluir o carregamento: {detail}"},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "erro ao listar as versões: {detail}"},
   "dev.files.video_no_duration": {"text": "o vídeo não tem uma duração utilizável"},
   "dev.files.video_no_frames": {"text": "não foi possível extrair nenhum fotograma do vídeo"},
-  "dev.files.video_no_frames_extracted": {"text": "nenhum fotograma extraído do vídeo"}
+  "dev.files.video_no_frames_extracted": {"text": "nenhum fotograma extraído do vídeo"},
+  "dev.files.video_not_cut": {"text": "não foi possível cortar o vídeo, por isso nada foi publicado: tenta novamente ou publica-o sem o cortar"},
+  "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"}
 }

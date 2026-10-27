@@ -122,6 +122,15 @@ func StorageDisksWorkingAgain() Text {
 	}
 }
 
+// StorageFull is the push for a device whose storage is nearly full
+// (storagewatch): no figures, which Apple and Google have no business
+// reading - the alert in the apps has them.
+func StorageFull() Text {
+	return func(lang string) (string, string) {
+		return i18n.PushStorageFullTitle().Render(lang), i18n.PushStorageFullBody().Render(lang)
+	}
+}
+
 // OfflineAlert is the title and body of the bridge's push to a device's
 // phones and browsers when the device has gone unreachable (issue #62), in
 // lang: the product's name as the title, never translated.

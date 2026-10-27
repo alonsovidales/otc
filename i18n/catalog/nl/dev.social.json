@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "fout bij het leuk vinden van het bericht: {detail}"},
   "dev.social.load_file_failed": {"text": "fout bij het laden van het bestand “{path}”: {detail}"},
   "dev.social.media_not_available": {"text": "media niet beschikbaar"},
+  "dev.social.media_too_large": {"text": "dit bestand is te groot om in één keer te versturen ({size})"},
   "dev.social.no_friendship_with": {"text": "geen vriendschap met {domain}"},
   "dev.social.no_longer_friends": {"text": "niet langer vrienden"},
   "dev.social.no_such_comment": {"text": "deze reactie bestaat niet"},

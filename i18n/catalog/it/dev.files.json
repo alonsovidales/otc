@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "rimozione di etichette e volti prima della rielaborazione: {detail}"},
   "dev.files.retrieve_failed": {"text": "errore durante il recupero del file: {detail}"},
   "dev.files.share_link_failed": {"text": "errore durante la creazione del link di condivisione dei file: {detail}"},
+  "dev.files.storage_full": {"text": "spazio insufficiente sul dispositivo: servono {need} e ne restano solo {left}"},
   "dev.files.stream_failed": {"text": "impossibile preparare lo streaming"},
+  "dev.files.too_large_to_open": {"text": "questo file è troppo grande per aprirlo qui ({size}): scaricalo"},
   "dev.files.upload_bad_hash": {"text": "il contenuto caricato non corrisponde al suo hash"},
   "dev.files.upload_failed": {"text": "errore durante il caricamento del file: {detail}"},
   "dev.files.upload_finish_failed": {"text": "errore durante il completamento del caricamento: {detail}"},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "errore durante l’elenco delle versioni: {detail}"},
   "dev.files.video_no_duration": {"text": "il video non ha una durata utilizzabile"},
   "dev.files.video_no_frames": {"text": "impossibile estrarre fotogrammi dal video"},
-  "dev.files.video_no_frames_extracted": {"text": "nessun fotogramma estratto dal video"}
+  "dev.files.video_no_frames_extracted": {"text": "nessun fotogramma estratto dal video"},
+  "dev.files.video_not_cut": {"text": "non è stato possibile tagliare il video, quindi non è stato pubblicato nulla: riprova, o pubblicalo senza tagliarlo"},
+  "dev.files.video_not_reduced": {"text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è"}
 }

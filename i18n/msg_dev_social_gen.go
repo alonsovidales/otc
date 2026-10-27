@@ -79,6 +79,11 @@ func DevSocialMediaNotAvailable() Msg {
 	return Msg{Key: "dev.social.media_not_available"}
 }
 
+// DevSocialMediaTooLarge is dev.social.media_too_large: "this file is too large to send whole ({size})".
+func DevSocialMediaTooLarge(size int64) Msg {
+	return Msg{Key: "dev.social.media_too_large", Args: map[string]any{"size": size}}
+}
+
 // DevSocialNoFriendshipWith is dev.social.no_friendship_with: "no friendship with {domain}".
 func DevSocialNoFriendshipWith(domain string) Msg {
 	return Msg{Key: "dev.social.no_friendship_with", Args: map[string]any{"domain": domain}}

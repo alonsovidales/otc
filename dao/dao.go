@@ -708,24 +708,68 @@ func (dao *Dao) DelFileVersions(path string) (hashes []string, err error) {
 	return hashes, err
 }
 
-// ContentPaths maps every hash a file or kept version uses to the paths
-// using it (issue #141: the storage integrity check).
-func (dao *Dao) ContentPaths() (map[string][]string, error) {
-	rows, err := dao.db.Query("select `hash`, `path` from `files` union all select `hash`, `path` from `file_versions`")
+// HashesPage is the next limit distinct hashes after after ("" for the
+// first page), in order, that the files use - or, with versions, the kept
+// versions: a range of the hash index each, read a page at a time so the
+// storage integrity check never holds every row (issue #141).
+func (dao *Dao) HashesPage(versions bool, after string, limit int) ([]string, error) {
+	table := "files"
+	if versions {
+		table = "file_versions"
+	}
+	rows, err := dao.db.Query("select distinct `hash` from `"+table+"` where `hash` > ? order by `hash` limit ?", after, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := map[string][]string{}
+	var hashes []string
 	for rows.Next() {
-		var hash, path string
-		if err := rows.Scan(&hash, &path); err != nil {
+		var h string
+		if err := rows.Scan(&h); err != nil {
 			return nil, err
 		}
-		out[hash] = append(out[hash], path)
+		hashes = append(hashes, h)
 	}
-	return out, rows.Err()
+	return hashes, rows.Err()
 }
+
+// ContentPathsOf maps each of hashes to the paths of the files and kept
+// versions using it - the integrity check's report, for the few hashes
+// whose content is missing - in queries of at most cInBatch hashes.
+func (dao *Dao) ContentPathsOf(hashes []string) (map[string][]string, error) {
+	out := map[string][]string{}
+	for start := 0; start < len(hashes); start += cInBatch {
+		batch := hashes[start:min(start+cInBatch, len(hashes))]
+		args := make([]any, 0, 2*len(batch))
+		for _, h := range batch {
+			args = append(args, h)
+		}
+		args = append(args, args...)
+		in := "(?" + strings.Repeat(", ?", len(batch)-1) + ")"
+		rows, err := dao.db.Query("select `hash`, `path` from `files` where `hash` in "+in+
+			" union all select `hash`, `path` from `file_versions` where `hash` in "+in, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var hash, path string
+			if err := rows.Scan(&hash, &path); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[hash] = append(out[hash], path)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// cInBatch is the most values one `in (...)` list of these queries holds.
+const cInBatch = 500
 
 // DelTagsByHash removes a content's tags - once no file uses it (issue
 // #171: a file deleted while it was being processed).
@@ -1960,6 +2004,26 @@ func (dao *Dao) PublicationHashes(pubUuid string) (hashes []string, err error) {
 			return nil, err
 		}
 		hashes = append(hashes, h)
+	}
+	return hashes, rows.Err()
+}
+
+// SocialMediaHashes is every hash a post here - the owner's or a
+// friend's - has a file with: the names of the files in
+// unenc-storage-path that are in use.
+func (dao *Dao) SocialMediaHashes() (map[string]bool, error) {
+	rows, err := dao.db.Query("select distinct `hash` from `social_publications_files`")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	hashes := map[string]bool{}
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		hashes[h] = true
 	}
 	return hashes, rows.Err()
 }

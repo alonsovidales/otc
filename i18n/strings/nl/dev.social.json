@@ -59,6 +59,10 @@
     "text": "media niet beschikbaar",
     "en": "media not available"
   },
+  "dev.social.media_too_large": {
+    "text": "dit bestand is te groot om in één keer te versturen ({size})",
+    "en": "this file is too large to send whole ({size})"
+  },
   "dev.social.no_friendship_with": {
     "text": "geen vriendschap met {domain}",
     "en": "no friendship with {domain}"

@@ -14,6 +14,8 @@
   "push.raid.stopped_working_top": {"text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de schijf in de bovenste blauwe USB-poort: vervang de andere schijf binnenkort."},
   "push.raid.working_body": {"text": "De spiegel is compleet: elk bestand staat weer op beide schijven."},
   "push.raid.working_title": {"text": "Opslagschijven werken weer"},
+  "push.storage.full_body": {"text": "Maak wat ruimte vrij: zodra het vol is, kunnen er geen nieuwe foto’s en bestanden meer worden opgeslagen."},
+  "push.storage.full_title": {"text": "Je apparaat is bijna vol"},
   "push.update.critical_body": {"text": "Installeer de update via Instellingen."},
   "push.update.critical_body_container": {"text": "Voer docker compose pull en docker compose up -d uit op je server om de update te installeren."},
   "push.update.critical_title": {"text": "Kritieke update {version}: installeer deze binnenkort"}

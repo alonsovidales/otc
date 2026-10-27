@@ -79,6 +79,16 @@ func PushRaidWorkingTitle() Msg {
 	return Msg{Key: "push.raid.working_title"}
 }
 
+// PushStorageFullBody is push.storage.full_body: "Free some space: once it is full, new photos and files can't be saved.".
+func PushStorageFullBody() Msg {
+	return Msg{Key: "push.storage.full_body"}
+}
+
+// PushStorageFullTitle is push.storage.full_title: "Your device is almost full".
+func PushStorageFullTitle() Msg {
+	return Msg{Key: "push.storage.full_title"}
+}
+
 // PushUpdateCriticalBody is push.update.critical_body: "Install it from Settings.".
 func PushUpdateCriticalBody() Msg {
 	return Msg{Key: "push.update.critical_body"}

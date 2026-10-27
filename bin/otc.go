@@ -246,6 +246,8 @@ func main() {
 		cfg.GetStr("otc-api", "ssl-key"),
 		lanTLSPort,
 		cfg.GetStr("otc", "storage-path"))
+	// The start-up work that would otherwise keep the device unreachable.
+	filesManager.AfterListening()
 
 	log.Info("System started...")
 	// Block until a signal is received.

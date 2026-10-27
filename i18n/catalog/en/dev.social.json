@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "error liking publication: {detail}", "args": [["detail", "text"]]},
   "dev.social.load_file_failed": {"text": "error loading file \"{path}\": {detail}", "args": [["path", "user"], ["detail", "text"]]},
   "dev.social.media_not_available": {"text": "media not available"},
+  "dev.social.media_too_large": {"text": "this file is too large to send whole ({size})", "args": [["size", "bytes"]]},
   "dev.social.no_friendship_with": {"text": "no friendship with {domain}", "args": [["domain", "text"]]},
   "dev.social.no_longer_friends": {"text": "no longer friends"},
   "dev.social.no_such_comment": {"text": "no such comment"},

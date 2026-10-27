@@ -14,6 +14,8 @@
   "push.raid.stopped_working_top": {"text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro su quello nella porta USB blu superiore: sostituisci l’altro presto."},
   "push.raid.working_body": {"text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi."},
   "push.raid.working_title": {"text": "I dischi di archiviazione funzionano di nuovo"},
+  "push.storage.full_body": {"text": "Libera un po’ di spazio: quando sarà pieno, non si potranno salvare nuove foto né nuovi file."},
+  "push.storage.full_title": {"text": "Il tuo dispositivo è quasi pieno"},
   "push.update.critical_body": {"text": "Installalo da Impostazioni."},
   "push.update.critical_body_container": {"text": "Per installarlo, esegui docker compose pull e docker compose up -d sul tuo server."},
   "push.update.critical_title": {"text": "Aggiornamento critico {version}: installalo al più presto"}

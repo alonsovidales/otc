@@ -14,6 +14,8 @@
   "push.raid.stopped_working_top": {"text": "Eines der beiden Speicherlaufwerke ist ausgefallen. Deine Dateien sind auf dem im oberen blauen USB-Anschluss sicher: Ersetze das andere bald."},
   "push.raid.working_body": {"text": "Die Spiegelung ist vollständig: Jede Datei ist wieder auf beiden Laufwerken."},
   "push.raid.working_title": {"text": "Speicherlaufwerke funktionieren wieder"},
+  "push.storage.full_body": {"text": "Schaffe etwas Platz: Sobald es voll ist, können keine neuen Fotos und Dateien mehr gespeichert werden."},
+  "push.storage.full_title": {"text": "Dein Gerät ist fast voll"},
   "push.update.critical_body": {"text": "Installiere es in den Einstellungen."},
   "push.update.critical_body_container": {"text": "Führe zum Installieren docker compose pull und docker compose up -d auf deinem Server aus."},
   "push.update.critical_title": {"text": "Kritisches Update {version} – bitte bald installieren"}

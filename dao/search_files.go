@@ -346,6 +346,12 @@ func (dao *Dao) SearchFiles(text string, limit int) ([]*pb.File, error) {
 	return out, nil
 }
 
+// GetFilesByPaths is the rows of these paths, by path, in one query - as
+// GetFileByPath reads each; a path without a row isn't in the map.
+func (dao *Dao) GetFilesByPaths(paths []string) (map[string]*pb.File, error) {
+	return dao.filesByPaths(paths)
+}
+
 // filesByPaths is the rows of these paths, as GetFilesByPath reads them.
 func (dao *Dao) filesByPaths(paths []string) (map[string]*pb.File, error) {
 	files := map[string]*pb.File{}

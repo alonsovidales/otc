@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -45,16 +46,54 @@ func (mg *Manager) integrityChecker() {
 	}
 }
 
-// missingContent returns the hashes (sorted) whose content exists() says
-// is gone.
-func missingContent(paths map[string][]string, exists func(hash string) bool) []string {
-	var out []string
-	for hash := range paths {
-		if !exists(hash) {
-			out = append(out, hash)
+// cIntegrityPage is how many hashes the check reads at a time.
+const cIntegrityPage = 5000
+
+// hashPager is a page of the distinct hashes the files (versions false)
+// or the kept versions use, after after: dao.HashesPage.
+type hashPager func(versions bool, after string, limit int) ([]string, error)
+
+// missingHashes visits every hash the files and kept versions use, a page
+// at a time, and returns those exists() says are gone, sorted, once each.
+// Only those are kept: every (hash, path) pair of the library used to be
+// loaded first, ~50 MB at 200k files, for a check that finds none missing
+// almost every day.
+func missingHashes(page hashPager, exists func(hash string) bool) ([]string, error) {
+	gone := map[string]bool{}
+	for _, versions := range []bool{false, true} {
+		after := ""
+		for {
+			hashes, err := page(versions, after, cIntegrityPage)
+			if err != nil {
+				return nil, err
+			}
+			for _, h := range hashes {
+				if !gone[h] && !exists(h) {
+					gone[h] = true
+				}
+			}
+			if len(hashes) < cIntegrityPage {
+				break
+			}
+			after = hashes[len(hashes)-1]
 		}
 	}
+	out := make([]string, 0, len(gone))
+	for h := range gone {
+		out = append(out, h)
+	}
 	sort.Strings(out)
+	return out, nil
+}
+
+// stillMissing is the hashes of missing exists() still says are gone.
+func stillMissing(missing []string, exists func(hash string) bool) []string {
+	var out []string
+	for _, h := range missing {
+		if !exists(h) {
+			out = append(out, h)
+		}
+	}
 	return out
 }
 
@@ -93,18 +132,23 @@ func integrityDigest(missing []string) string {
 // CheckStorageIntegrity looks for files whose content is missing and
 // raises one alert when that set has changed since the last report.
 func (mg *Manager) CheckStorageIntegrity() error {
-	paths, err := mg.dao.ContentPaths()
+	// Every hash is looked at (hasBlob also tells listings which blobs are
+	// missing, missingblobs.go); only the missing ones' paths are read.
+	missing, err := missingHashes(mg.dao.HashesPage, mg.hasBlob)
 	if err != nil {
 		return err
 	}
-	missing := missingContent(paths, mg.hasBlob)
 	if len(missing) > 0 {
 		time.Sleep(cIntegrityRecheck)
-		still := map[string][]string{}
-		for _, h := range missing {
-			still[h] = paths[h]
+		missing = stillMissing(missing, mg.hasBlob)
+	}
+	var paths map[string][]string
+	if len(missing) > 0 {
+		if paths, err = mg.dao.ContentPathsOf(missing); err != nil {
+			return err
 		}
-		missing = missingContent(still, mg.hasBlob)
+		// A row deleted meanwhile, content and all: nothing lost.
+		missing = slices.DeleteFunc(missing, func(h string) bool { return len(paths[h]) == 0 })
 	}
 
 	marker := filepath.Join(cfg.GetStr("otc", "storage-path"), ".integrity-reported")

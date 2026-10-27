@@ -4,6 +4,7 @@ package filesmanager
 
 import (
 	"bufio"
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -116,6 +119,76 @@ func memTotalBytes() int64 {
 	return 0
 }
 
+// budgetMax is the content budget's size (contentBudgetBytes for a
+// Manager without one, as in tests).
+func (mg *Manager) budgetMax() int64 {
+	if mg.contentBudget != nil {
+		return mg.contentBudget.max
+	}
+	return contentBudgetBytes()
+}
+
+// What one reply may hold whole. A reply holds its content several times
+// (cDownloadCopies), and acquire lets one larger than the whole budget
+// run alone: a 1.5 GB TIFF opened in a viewer took ~3 GB, and a friend
+// syncing a post's multi-GB video took more, every two minutes - the
+// kernel killed the device each time. Beyond these the content is read in
+// parts (ReadFile), streamed (GetMediaURL), or shown by its thumbnail.
+const (
+	// cMaxPublicationMedia is the most a post's file served whole may be.
+	cMaxPublicationMedia = 256 << 20
+	// cMinShownWhole is what GetFile always sends whole, however small the
+	// budget.
+	cMinShownWhole = 64 << 20
+)
+
+// ErrTooLarge is a reply refused because its content is over what one
+// reply may hold whole (GetFile, GetPublicationMedia): the reply carries
+// RespEnvelope.error_code "too_large", and the apps read the file in parts,
+// stream it or keep showing its thumbnail.
+var ErrTooLarge = errors.New("too large to send whole") // i18n-ignore: a sentinel for errors.Is; the reply shows TooLarge's text
+
+// tooLargeError is TooLarge's refusal, worded by msg.
+type tooLargeError struct{ msg i18n.Msg }
+
+func (e *tooLargeError) Error() string { return devtext.New(e.msg).Error() }
+
+// Localized is the refusal in lang (devtext.Text, for the reply).
+func (e *tooLargeError) Localized(lang string) string { return devtext.New(e.msg).Localized(lang) }
+
+func (e *tooLargeError) Is(target error) bool { return target == ErrTooLarge }
+
+// TooLarge is a refusal (ErrTooLarge) that msg words.
+func TooLarge(msg i18n.Msg) error { return &tooLargeError{msg: msg} }
+
+// MaxPublicationMedia is the largest post file GetPublicationMedia sends
+// whole: cMaxPublicationMedia, or a third of the content budget when that
+// is less (85 MB on a 4 GB Raspberry Pi). The apps play a post's video
+// from its stream (GetMediaURL) whatever its size; a friend's device
+// keeps the thumbnail of a larger one.
+func (mg *Manager) MaxPublicationMedia() int64 {
+	return min(cMaxPublicationMedia, mg.budgetMax()/cDownloadCopies)
+}
+
+// shownWholeLimit is the largest file GetFile sends whole: a third of the
+// content budget (533 MB on an 8 GB Raspberry Pi, 85 MB on a 4 GB one), at
+// least cMinShownWhole.
+func (mg *Manager) shownWholeLimit() int64 {
+	return max(cMinShownWhole, mg.budgetMax()/cDownloadCopies)
+}
+
+// overShownWhole is whether GetFile refuses f as too large to send whole
+// (shownWholeLimit). A HEIC is sent as its JPEG, which the decode budget
+// bounds (heicToJpeg). A video isn't capped yet: the web composer's
+// trimmer fetches one whole with GetFile and has no other way to read it,
+// while every viewer streams videos and downloads read in parts.
+func (mg *Manager) overShownWhole(f *pb.File) bool {
+	if isHeicFile(f.Path, f.Mime) || strings.HasPrefix(f.Mime, "video/") {
+		return false
+	}
+	return mg.budgetSize(f) > mg.shownWholeLimit()
+}
+
 // ReserveBytes holds n bytes of the content budget, waiting for room.
 // Never nil.
 func (mg *Manager) ReserveBytes(n int64) func() {
@@ -132,8 +205,8 @@ func (mg *Manager) ReservePublicationMedia(hash string) func() {
 		return func() {}
 	}
 	info, err := os.Stat(filepath.Join(cfg.GetStr("otc", "unenc-storage-path"), hash))
-	if err != nil {
-		return func() {}
+	if err != nil || info.Size() > mg.MaxPublicationMedia() {
+		return func() {} // nothing to read, or refused as too large
 	}
 	return mg.ReserveBytes(info.Size() * cDownloadCopies)
 }
@@ -156,6 +229,9 @@ func (mg *Manager) ReserveForDownload(path, versionHash string) func() {
 	}
 	if err != nil || file == nil {
 		return func() {}
+	}
+	if mg.overShownWhole(file) {
+		return func() {} // refused by GetFile: nothing is read
 	}
 	sz := mg.budgetSize(file)
 	need := sz * cDownloadCopies
@@ -198,7 +274,8 @@ func (mg *Manager) SharedGalleryKnown(id, secret string) bool {
 // larger than MaxInt32.
 func (mg *Manager) budgetSize(f *pb.File) int64 {
 	n := dao.FileSize(f)
-	if n > math.MaxInt32 || mg.sizesBackfilled.Load() {
+	// No storage configured (a test's Manager): nothing on disk to ask.
+	if n > math.MaxInt32 || mg.sizesBackfilled.Load() || !cfg.HasSection("otc") {
 		return n
 	}
 	if fi, err := os.Stat(blobPath(f.Hash)); err == nil && fi.Size() > math.MaxInt32 {

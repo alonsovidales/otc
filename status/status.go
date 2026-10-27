@@ -11,13 +11,13 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/diskspace"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/raidwatch"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
-	"golang.org/x/sys/unix"
 )
 
 // mdstatPath is a var, not a const, so tests can point it at a fixture
@@ -164,18 +164,17 @@ func mdstatArray(content, name string) string {
 	return ""
 }
 
+// diskUsage is the space of the filesystem holding path as the device can
+// use it (diskspace): free is what it can still write - never ext4's
+// reserve for root, which neither otc nor MariaDB can use (a 4 TB mirror
+// showed ~200 GB free while uploads failed) - and all is used plus free,
+// so the apps' "free" (raid_size - raid_usage) is exactly that.
 func diskUsage(path string) (all, used, free uint64, err error) {
-	var stat unix.Statfs_t
-	if err = unix.Statfs(path, &stat); err != nil {
-		return
+	u, err := diskspace.Of(path)
+	if err != nil {
+		return 0, 0, 0, err
 	}
-
-	// block size * number of blocks
-	all = stat.Blocks * uint64(stat.Bsize)
-	free = stat.Bfree * uint64(stat.Bsize)
-	used = all - free
-
-	return
+	return u.Size(), u.Used, u.Avail, nil
 }
 
 // GetStatus reports this device's health, its text (Status.errors) in

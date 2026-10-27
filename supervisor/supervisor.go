@@ -25,7 +25,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/modelserver"
 )
@@ -40,8 +42,18 @@ const (
 	// respawnDelay is the pause between a child's exit and the next
 	// attempt to start it again - same "a few seconds, not a hot loop"
 	// spirit as SocialFeedViewModel's own retry convention on the iOS
-	// side, just server-side here.
+	// side, just server-side here. It doubles with every exit in a row
+	// (respawnBackoff), up to maxRespawnDelay.
 	respawnDelay = 4 * time.Second
+	// maxRespawnDelay is the longest pause between two starts of a child
+	// that keeps stopping: one that always fails was started again every
+	// four seconds forever, its config rewritten on the SD card each time.
+	maxRespawnDelay = 10 * time.Minute
+	// stableUptime is how long a child must have run for its next exit to
+	// count as the first of a new series rather than one more in a row.
+	stableUptime = 10 * time.Minute
+	// alertAfter is how many exits in a row are alerted, once a series.
+	alertAfter = 5
 	// stopGracePeriod is how long Stop waits for SIGTERM to actually end
 	// a process before giving up on a clean wait (it does not escalate to
 	// SIGKILL itself - see Stop's doc comment).
@@ -53,6 +65,40 @@ type managed struct {
 	cmd     *exec.Cmd
 	exited  chan struct{} // closed once cmd.Wait() returns, whatever the reason
 	stopped bool          // Stop() was called - the respawn loop must not restart it
+	// wake ends a pause between two starts (Stop), so a user deleted
+	// while its instance waits out a long pause is let go at once.
+	wake     chan struct{}
+	wakeOnce sync.Once
+}
+
+// respawnBackoff paces the starts of one user's instance: the pause after
+// an exit (or a start that failed) doubles with each one in a row, from
+// respawnDelay up to maxRespawnDelay, and a run of stableUptime or more
+// starts the count again. The alertAfter-th in a row is the one the owner
+// hears about, once a series.
+type respawnBackoff struct {
+	failures int
+	alerted  bool
+}
+
+// next counts an end of the instance after it had run for up (0 for a
+// start that failed), and says how long to wait before starting it again
+// and whether to raise the alert now.
+func (b *respawnBackoff) next(up time.Duration) (wait time.Duration, alert bool) {
+	if up >= stableUptime {
+		b.failures, b.alerted = 0, false
+	}
+	b.failures++
+	wait = respawnDelay
+	for i := 1; i < b.failures && wait < maxRespawnDelay; i++ {
+		wait *= 2
+	}
+	wait = min(wait, maxRespawnDelay)
+	if b.failures >= alertAfter && !b.alerted {
+		b.alerted = true
+		alert = true
+	}
+	return wait, alert
 }
 
 type Supervisor struct {
@@ -96,7 +142,7 @@ func (s *Supervisor) SpawnNow(u *dao.UserInternal) {
 		s.mu.Unlock()
 		return
 	}
-	m := &managed{exited: make(chan struct{})}
+	m := &managed{exited: make(chan struct{}), wake: make(chan struct{})}
 	s.procs[u.Uuid] = m
 	s.mu.Unlock()
 
@@ -111,6 +157,22 @@ func (s *Supervisor) SpawnNow(u *dao.UserInternal) {
 // the DB on every iteration (not just once at the top) so a delete/
 // deactivate that happens mid-crash-loop stops the retries promptly.
 func (s *Supervisor) runLoop(uuid string, m *managed) {
+	var backoff respawnBackoff
+	// pause counts one more end in a row (after up of running) and waits
+	// before the next start, alerting the owner once a series.
+	pause := func(username string, up time.Duration) {
+		wait, alert := backoff.next(up)
+		if alert {
+			s.alertKeepsStopping(username, backoff.failures)
+		}
+		if backoff.failures > 1 {
+			log.Info("supervisor:", username, "stopped", backoff.failures, "times in a row, starting it again in", wait)
+		}
+		select {
+		case <-time.After(wait):
+		case <-m.wake:
+		}
+	}
 	for {
 		m.mu.Lock()
 		if m.stopped {
@@ -135,7 +197,7 @@ func (s *Supervisor) runLoop(uuid string, m *managed) {
 		env := s.primaryEnv + "_" + u.Username
 		if err := renderUserConfig(paramsFor(u, env)); err != nil {
 			log.Error("supervisor: could not render config for", u.Username, ":", err)
-			time.Sleep(respawnDelay)
+			pause(u.Username, 0)
 			continue
 		}
 
@@ -171,13 +233,14 @@ func (s *Supervisor) runLoop(uuid string, m *managed) {
 			if crashLog != nil {
 				crashLog.Close()
 			}
-			time.Sleep(respawnDelay)
+			pause(u.Username, 0)
 			continue
 		}
 		m.cmd = cmd
 		m.mu.Unlock()
 
 		log.Info("supervisor: started", u.Username, "pid", cmd.Process.Pid, "port", u.Port)
+		startedAt := time.Now()
 		err = cmd.Wait()
 		log.Info("supervisor:", u.Username, "exited:", err)
 		if crashLog != nil {
@@ -193,7 +256,20 @@ func (s *Supervisor) runLoop(uuid string, m *managed) {
 			return
 		}
 
-		time.Sleep(respawnDelay)
+		pause(u.Username, time.Since(startedAt))
+	}
+}
+
+// alertKeepsStopping tells the owner, in Alerts, that username's instance
+// has stopped failures times in a row.
+func (s *Supervisor) alertKeepsStopping(username string, failures int) {
+	log.Error("supervisor:", username, "stopped", failures, "times in a row")
+	if s.dao == nil {
+		return
+	}
+	a := alerttext.New(i18n.DevAlertUserKeepsStopping(username, failures), i18n.DevAlertUserKeepsStoppingDetail())
+	if err := s.dao.AddErrorNotification(a); err != nil {
+		log.Error("supervisor: could not record the alert:", err)
 	}
 }
 
@@ -225,6 +301,8 @@ func (s *Supervisor) Stop(uuid string) error {
 	m.stopped = true
 	cmd := m.cmd
 	m.mu.Unlock()
+	// Out of a pause between two starts, if it is in one.
+	m.wakeOnce.Do(func() { close(m.wake) })
 
 	if cmd != nil && cmd.Process != nil {
 		if err := cmd.Process.Signal(os.Interrupt); err != nil {

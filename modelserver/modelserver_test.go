@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"image"
 	"image/color"
 	"net"
@@ -326,5 +327,32 @@ func TestServeLimitedOneAtATime(t *testing.T) {
 	wg.Wait()
 	if faces.peak != 1 {
 		t.Errorf("%d requests at once, want 1", faces.peak)
+	}
+}
+
+// noModel is a primary whose tagging model isn't loaded (files_manager's
+// retryTagger while its load is tried again).
+type noModel struct{}
+
+func (noModel) Tags(context.Context, image.Image, imagestagger.RAMOptions) ([]imagestagger.RAMTag, error) {
+	return nil, ErrNoTagger
+}
+
+func (noModel) TagsResized(context.Context, *image.RGBA, imagestagger.RAMOptions) ([]imagestagger.RAMTag, error) {
+	return nil, ErrNoTagger
+}
+
+// A child asking a primary that has no tagging model loaded gets
+// ErrNoTagger back as itself - processing then skips the tags quietly,
+// rather than alerting every photo - however old its socket version.
+func TestNoTaggerReachesTheChildAsItself(t *testing.T) {
+	path := socketPath(t)
+	go ServeLimited(path, func() Tagger { return noModel{} }, nil, 2)
+	waitForSocket(path)
+	img := image.NewRGBA(image.Rect(0, 0, 8, 8))
+	for _, c := range []*Client{{Path: path}, {Path: path, known: true, proto: 0}} {
+		if _, err := c.Tags(context.Background(), img, imagestagger.RAMOptions{}); !errors.Is(err, ErrNoTagger) {
+			t.Fatalf("protocol %d: got %v, want ErrNoTagger", c.proto, err)
+		}
 	}
 }

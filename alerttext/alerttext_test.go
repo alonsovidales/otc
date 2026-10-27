@@ -89,6 +89,17 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.raid.stopped_detail_named":         {i18n.DevAlertRaidStoppedDetailNamed(), "Your files are safe on the other disk, but they are no longer mirrored. Replace it with an empty disk at least as large, put the new disk's name in .env in place of the old one (OTC_MIRROR_DISK1 or OTC_MIRROR_DISK2) and run docker compose up -d: the device adds it and copies everything onto it."},
 		"dev.alert.raid.stopped_detail_working_named": {i18n.DevAlertRaidStoppedDetailWorkingNamed(disk), "The disk " + disk + " still works and holds all your files, but they are no longer mirrored. Replace the other one with an empty disk at least as large, put the new disk's name in .env in place of the old one and run docker compose up -d: the device adds it and copies everything onto it."},
 
+		// New with release 143 (no older English): the storage filling up,
+		// the tagging model not loading, an additional user's instance
+		// that keeps stopping.
+		"dev.alert.storage.almost_full":        {i18n.DevAlertStorageAlmostFull(91), "Your device's storage is 91% full"},
+		"dev.alert.storage.full":               {i18n.DevAlertStorageFull(98), "Your device is almost out of space (98% full)"},
+		"dev.alert.storage.detail":             {i18n.DevAlertStorageDetail(76_500_000_000, 3_800_000_000_000), "76.5 GB of 3.8 TB is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."},
+		"dev.alert.tagger.not_loaded":          {i18n.DevAlertTaggerNotLoaded(), "The image tagging model could not be loaded"},
+		"dev.alert.tagger.not_loaded_detail":   {i18n.DevAlertTaggerNotLoadedDetail("no such file"), "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself (no such file). Once it has loaded, Reprocess Media in Settings adds the missing tags."},
+		"dev.alert.user.keeps_stopping":        {i18n.DevAlertUserKeepsStopping("kim", 5), "The user kim stopped 5 times in a row"},
+		"dev.alert.user.keeps_stopping_detail": {i18n.DevAlertUserKeepsStoppingDetail(), "The device keeps starting it again, waiting longer each time, up to 10 minutes. If it doesn't recover, send the logs from Settings > Logs."},
+
 		"dev.alert.setaside.title":  {i18n.DevAlertSetasideTitle(name), name + " was set aside"},
 		"dev.alert.setaside.detail": {i18n.DevAlertSetasideDetail(), "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."},
 

@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "erro ao pôr Gosto na publicação: {detail}"},
   "dev.social.load_file_failed": {"text": "erro ao ler o ficheiro «{path}»: {detail}"},
   "dev.social.media_not_available": {"text": "conteúdo multimédia indisponível"},
+  "dev.social.media_too_large": {"text": "este ficheiro é demasiado grande para o enviar inteiro ({size})"},
   "dev.social.no_friendship_with": {"text": "não existe amizade com {domain}"},
   "dev.social.no_longer_friends": {"text": "já não são amigos"},
   "dev.social.no_such_comment": {"text": "o comentário não existe"},

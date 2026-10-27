@@ -3,6 +3,7 @@
 package filesmanager
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -85,5 +86,49 @@ func TestSweepOrphansRemovesOnlyLeftovers(t *testing.T) {
 	sort.Strings(names)
 	if len(names) != 1 || names[0] != "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" {
 		t.Errorf("galleries left: %v", names)
+	}
+}
+
+// The sweep runs after the listeners are up, while this process writes:
+// what was modified after it started - a chunked upload paused for minutes,
+// an archive being built - is never a leftover, and a folder of more
+// entries than a batch is read through.
+func TestSweepOrphansLeavesThisRunsWorkAndReadsInBatches(t *testing.T) {
+	storage := t.TempDir()
+	started := time.Now().Add(-10 * time.Minute)
+	before := started.Add(-cOrphanMinAge)
+	stale, paused := filepath.Join(storage, ".blob-stale"), filepath.Join(storage, ".blob-paused")
+	for _, p := range []string{stale, paused} {
+		if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The stale one is from before this run; the paused one was last
+	// written five minutes ago, after this run started.
+	old := started.Add(-time.Hour)
+	os.Chtimes(stale, old, old)
+	five := time.Now().Add(-5 * time.Minute)
+	os.Chtimes(paused, five, five)
+	for i := 0; i < cOrphanBatch+50; i++ {
+		p := filepath.Join(storage, fmt.Sprintf("%064x", i))
+		if err := os.WriteFile(p, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	last := filepath.Join(storage, ".upload-last")
+	os.WriteFile(last, []byte("y"), 0o600)
+	os.Chtimes(last, old, old)
+
+	n, _ := sweepOrphans(storage, "", nil, before)
+	if n != 2 {
+		t.Errorf("removed %d, want the stale blob and upload", n)
+	}
+	if _, err := os.Stat(paused); err != nil {
+		t.Error("this run's paused upload was removed")
+	}
+	for _, p := range []string{stale, last} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Errorf("%s is still there", filepath.Base(p))
+		}
 	}
 }

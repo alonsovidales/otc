@@ -197,9 +197,17 @@
     "text": "erreur lors de la création du lien de partage des fichiers : {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.storage_full": {
+    "text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}",
+    "en": "not enough space on the device: this needs {need}, and only {left} is left"
+  },
   "dev.files.stream_failed": {
     "text": "impossible de préparer la diffusion",
     "en": "could not prepare the stream"
+  },
+  "dev.files.too_large_to_open": {
+    "text": "ce fichier est trop volumineux pour être ouvert ici ({size}) : téléchargez-le plutôt",
+    "en": "this file is too large to open here ({size}): download it instead"
   },
   "dev.files.upload_bad_hash": {
     "text": "le contenu envoyé ne correspond pas à son empreinte",
@@ -261,5 +269,13 @@
   "dev.files.video_no_frames_extracted": {
     "text": "aucune image extraite de la vidéo",
     "en": "no frames extracted from video"
+  },
+  "dev.files.video_not_cut": {
+    "text": "la vidéo n’a pas pu être découpée, rien n’a donc été publié : réessayez, ou publiez-la sans la découper",
+    "en": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"
+  },
+  "dev.files.video_not_reduced": {
+    "text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle",
+    "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
   }
 }

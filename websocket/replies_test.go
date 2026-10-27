@@ -79,6 +79,9 @@ var headEnglish = []struct {
 	{"dev.social.like_post_failed", i18n.DevSocialLikePostFailed("boom"), fmt.Sprintf("error liking publication: %s", "boom")},
 	{"dev.social.load_file_failed", i18n.DevSocialLoadFileFailed("/Trip/a.jpg", "boom"), fmt.Sprintf("error loading file %q: %v", "/Trip/a.jpg", "boom")},
 	{"dev.social.media_not_available", i18n.DevSocialMediaNotAvailable(), "media not available"},
+	// New with the catalog (a post's file too large to send whole), so no
+	// older English to keep.
+	{"dev.social.media_too_large", i18n.DevSocialMediaTooLarge(600_000_000), "this file is too large to send whole (600 MB)"},
 	{"dev.social.no_friendship_with", i18n.DevSocialNoFriendshipWith("anna.off-the.cloud"), fmt.Sprintf("no friendship with %s", "anna.off-the.cloud")},
 	{"dev.social.no_longer_friends", i18n.DevSocialNoLongerFriends(), "no longer friends"},
 	{"dev.social.no_such_comment", i18n.DevSocialNoSuchComment(), "no such comment"},
@@ -147,7 +150,9 @@ var headEnglish = []struct {
 	{"dev.files.reprocess_wipe_failed", i18n.DevFilesReprocessWipeFailed("boom"), fmt.Sprintf("wiping tags/faces before reprocess: %v", "boom")},
 	{"dev.files.retrieve_failed", i18n.DevFilesRetrieveFailed("boom"), fmt.Sprintf("error trying to retrieve file: %s", "boom")},
 	{"dev.files.share_link_failed", i18n.DevFilesShareLinkFailed("boom"), fmt.Sprintf("error creating files share link: %s", "boom")},
+	{"dev.files.storage_full", i18n.DevFilesStorageFull(3_400_000_000, 1_200_000_000), "not enough space on the device: this needs 3.4 GB, and only 1.2 GB is left"},
 	{"dev.files.stream_failed", i18n.DevFilesStreamFailed(), "could not prepare the stream"},
+	{"dev.files.too_large_to_open", i18n.DevFilesTooLargeToOpen(1_500_000_000), "this file is too large to open here (1.5 GB): download it instead"},
 	{"dev.files.upload_bad_hash", i18n.DevFilesUploadBadHash(), "the upload's content doesn't match its hash"},
 	{"dev.files.upload_failed", i18n.DevFilesUploadFailed("boom"), fmt.Sprintf("error trying to upload file: %s", "boom")},
 	{"dev.files.upload_finish_failed", i18n.DevFilesUploadFinishFailed("boom"), fmt.Sprintf("error finishing the upload: %s", "boom")},
@@ -161,6 +166,10 @@ var headEnglish = []struct {
 	{"dev.files.upload_unknown", i18n.DevFilesUploadUnknown(), "unknown or expired upload"},
 	{"dev.files.versions_failed", i18n.DevFilesVersionsFailed("boom"), fmt.Sprintf("error listing the versions: %s", "boom")},
 	{"dev.files.video_no_duration", i18n.DevFilesVideoNoDuration(), "video has no usable duration"},
+	// New with the catalog (a post's video that couldn't be re-encoded), so
+	// no older English to keep.
+	{"dev.files.video_not_cut", i18n.DevFilesVideoNotCut(), "the video could not be cut, so nothing was posted: try again, or post it without cutting it"},
+	{"dev.files.video_not_reduced", i18n.DevFilesVideoNotReduced(3_200_000_000), "the video could not be made smaller for the post, and at 3.2 GB it is too large to share as it is"},
 	{"dev.files.video_no_frames", i18n.DevFilesVideoNoFrames(), "could not extract any frames from video"},
 	{"dev.files.video_no_frames_extracted", i18n.DevFilesVideoNoFramesExtracted(), "no frames extracted from video"},
 

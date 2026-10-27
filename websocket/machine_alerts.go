@@ -15,6 +15,7 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/raidwatch"
+	"github.com/alonsovidales/otc/storagewatch"
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/updater"
 	"github.com/alonsovidales/otc/wifiwatch"
@@ -22,7 +23,7 @@ import (
 
 // startMachineAlerts starts, from Init, the watchers whose alerts are
 // about the machine rather than one user's library: updates, the
-// mirror's disks and the Wi-Fi. Each runs on the main instance only (sup
+// mirror's disks, the storage's free space and the Wi-Fi. Each runs on the main instance only (sup
 // != nil), so they land in the primary owner's Notifications and push
 // with the primary's Push. Alerts are stored with their keys and pushes
 // rendered at delivery, each in its reader's language (alerttext,
@@ -57,6 +58,19 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 		// (Settings > Logs > Device): the disks, the mirror, why a disk
 		// wasn't added, the kernel's lines about them.
 		go raidwatch.FollowLog(cfg.GetStr("otc", "storage-path"))
+	}
+
+	// The storage filling up: an Alert at 90% full and at 98%, which is
+	// also pushed (storagewatch) - in a container too, its folder or mirror.
+	if sup != nil && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
+		go storagewatch.Watch(cfg.GetStr("otc", "storage-path"), storagewatch.Notify{
+			AlertText: func(a alerttext.Alert) {
+				if err := dao.AddStorageNotification(a); err != nil {
+					log.Error("could not add the disk space notification:", err)
+				}
+			},
+			PushText: func(t push.Text) { ps.NotifyText(t, push.Target{}) },
+		})
 	}
 
 	// A Wi-Fi that stopped sending properly (Pit, brcmfmac over SDIO) is

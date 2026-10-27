@@ -3,10 +3,14 @@
 package exifinfo
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // testdata/gps_test.{jpg,heic} are real-world sample images with GPS EXIF
@@ -155,5 +159,69 @@ func TestFormatExposure(t *testing.T) {
 		if got := formatExposure(c.num, c.den); got != c.want {
 			t.Errorf("formatExposure(%d, %d) = %q, want %q", c.num, c.den, got, c.want)
 		}
+	}
+}
+
+// countingReader counts the bytes read through it.
+type countingReader struct {
+	r interface {
+		ReadAt(p []byte, off int64) (int, error)
+	}
+	n int64
+}
+
+func (c *countingReader) ReadAt(p []byte, off int64) (int, error) {
+	n, err := c.r.ReadAt(p, off)
+	c.n += int64(n)
+	return n, err
+}
+
+// The readers read where the metadata is, not the picture: a JPEG up to
+// its EXIF segment, a HEIC its boxes and Exif item ("More info" on a
+// stored photo decrypts only what they read).
+func TestReadersReadOnlyTheMetadata(t *testing.T) {
+	jpg, err := os.ReadFile("testdata/gps_test.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cj := &countingReader{r: bytes.NewReader(jpg)}
+	info, err := FromJPEGReader(io.NewSectionReader(cj, 0, int64(len(jpg))))
+	if err != nil || !info.HasGPS {
+		t.Fatalf("FromJPEGReader: %+v, %v", info, err)
+	}
+	if cj.n >= int64(len(jpg))/2 {
+		t.Errorf("read %d of the JPEG's %d bytes", cj.n, len(jpg))
+	}
+	heic, err := os.ReadFile("testdata/gps_test.heic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch := &countingReader{r: bytes.NewReader(heic)}
+	info, err = FromHEICReader(ch)
+	if err != nil || !info.HasGPS {
+		t.Fatalf("FromHEICReader: %+v, %v", info, err)
+	}
+	if ch.n >= int64(len(heic))/2 {
+		t.Errorf("read %d of the HEIC's %d bytes", ch.n, len(heic))
+	}
+}
+
+// ffprobe that never answers no longer holds its caller for good.
+func TestFromVideoSourceTimesOut(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ffprobe"), []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	prev := ProbeTimeout
+	ProbeTimeout = 200 * time.Millisecond
+	defer func() { ProbeTimeout = prev }()
+	start := time.Now()
+	_, err := FromVideoSource("http://127.0.0.1:1/media/x")
+	if err == nil {
+		t.Fatal("no error from an ffprobe that never answered")
+	}
+	if took := time.Since(start); took > 10*time.Second {
+		t.Fatalf("took %v", took)
 	}
 }

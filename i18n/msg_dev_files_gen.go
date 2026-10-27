@@ -249,9 +249,19 @@ func DevFilesShareLinkFailed(detail string) Msg {
 	return Msg{Key: "dev.files.share_link_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesStorageFull is dev.files.storage_full: "not enough space on the device: this needs {need}, and only {left} is left".
+func DevFilesStorageFull(need int64, left int64) Msg {
+	return Msg{Key: "dev.files.storage_full", Args: map[string]any{"need": need, "left": left}}
+}
+
 // DevFilesStreamFailed is dev.files.stream_failed: "could not prepare the stream".
 func DevFilesStreamFailed() Msg {
 	return Msg{Key: "dev.files.stream_failed"}
+}
+
+// DevFilesTooLargeToOpen is dev.files.too_large_to_open: "this file is too large to open here ({size}): download it instead".
+func DevFilesTooLargeToOpen(size int64) Msg {
+	return Msg{Key: "dev.files.too_large_to_open", Args: map[string]any{"size": size}}
 }
 
 // DevFilesUploadBadHash is dev.files.upload_bad_hash: "the upload's content doesn't match its hash".
@@ -327,4 +337,14 @@ func DevFilesVideoNoFrames() Msg {
 // DevFilesVideoNoFramesExtracted is dev.files.video_no_frames_extracted: "no frames extracted from video".
 func DevFilesVideoNoFramesExtracted() Msg {
 	return Msg{Key: "dev.files.video_no_frames_extracted"}
+}
+
+// DevFilesVideoNotCut is dev.files.video_not_cut: "the video could not be cut, so nothing was posted: try again, or post it without…".
+func DevFilesVideoNotCut() Msg {
+	return Msg{Key: "dev.files.video_not_cut"}
+}
+
+// DevFilesVideoNotReduced is dev.files.video_not_reduced: "the video could not be made smaller for the post, and at {size} it is too large …".
+func DevFilesVideoNotReduced(size int64) Msg {
+	return Msg{Key: "dev.files.video_not_reduced", Args: map[string]any{"size": size}}
 }

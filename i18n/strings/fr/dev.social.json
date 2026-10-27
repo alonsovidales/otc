@@ -59,6 +59,10 @@
     "text": "média indisponible",
     "en": "media not available"
   },
+  "dev.social.media_too_large": {
+    "text": "ce fichier est trop volumineux pour être envoyé en une seule fois ({size})",
+    "en": "this file is too large to send whole ({size})"
+  },
   "dev.social.no_friendship_with": {
     "text": "aucune amitié avec {domain}",
     "en": "no friendship with {domain}"

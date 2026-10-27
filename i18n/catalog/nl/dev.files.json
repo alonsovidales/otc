@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "fout bij het wissen van tags/gezichten voor het opnieuw verwerken: {detail}"},
   "dev.files.retrieve_failed": {"text": "fout bij het ophalen van het bestand: {detail}"},
   "dev.files.share_link_failed": {"text": "fout bij het maken van de deellink voor de bestanden: {detail}"},
+  "dev.files.storage_full": {"text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over"},
   "dev.files.stream_failed": {"text": "kan de stream niet voorbereiden"},
+  "dev.files.too_large_to_open": {"text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan"},
   "dev.files.upload_bad_hash": {"text": "de inhoud van de upload komt niet overeen met de hash"},
   "dev.files.upload_failed": {"text": "fout bij het uploaden van het bestand: {detail}"},
   "dev.files.upload_finish_failed": {"text": "fout bij het afronden van de upload: {detail}"},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "fout bij het ophalen van de versies: {detail}"},
   "dev.files.video_no_duration": {"text": "de video heeft geen bruikbare duur"},
   "dev.files.video_no_frames": {"text": "kan geen beelden uit de video halen"},
-  "dev.files.video_no_frames_extracted": {"text": "geen beelden uit de video gehaald"}
+  "dev.files.video_no_frames_extracted": {"text": "geen beelden uit de video gehaald"},
+  "dev.files.video_not_cut": {"text": "de video kon niet worden ingekort, dus er is niets geplaatst: probeer het opnieuw, of plaats hem zonder hem in te korten"},
+  "dev.files.video_not_reduced": {"text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen"}
 }

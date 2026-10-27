@@ -34,6 +34,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devicerestart"
 	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/diskspace"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/i18n"
@@ -56,7 +57,6 @@ import (
 	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
-	"github.com/shirou/gopsutil/v4/disk"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -381,6 +381,12 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 // friend devices and so on
 func (mg *Manager) backgroundWorker() {
 	log.Debug("Background Worker")
+	// Once, before the first friend sync (which may find a post's file
+	// already there and use it): the plaintext copies of posts that were
+	// never made (social/post_files.go). Off the start's path.
+	if cfg.HasSection("otc") {
+		mg.social.SweepUnusedPostFiles(cfg.GetStr("otc", "unenc-storage-path"))
+	}
 	for true {
 		// Update friendship status
 		mg.social.SyncWithFriends()
@@ -2225,7 +2231,14 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 			break
 		}
 		content, mime, err := ch.mg.social.GetPublicationMedia(req.PubUuid, req.Hash)
-		if err != nil {
+		if errors.Is(err, filesmanager.ErrTooLarge) {
+			// Played from its stream (GetMediaURL) instead; a friend's
+			// device keeps its thumbnail.
+			log.Info("a post's file is too large to send whole:", req.Hash)
+			resp.Error = true
+			resp.ErrorMessage = devtext.Text(lang, err)
+			contentCode(resp, err)
+		} else if err != nil {
 			log.Error("error reading publication media:", err)
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevSocialMediaNotAvailable().Render(lang)
@@ -2299,6 +2312,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevSocialPostFailed(devtext.Text(lang, err)).Render(lang)
+			contentCode(resp, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespNewSocial{
 				RespNewSocial: &pb.NewSocial{
@@ -2486,6 +2500,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain(), r.LowRes)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, errText(lang, err)
+			contentCode(resp, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGalleryJob{RespSharedGalleryJob: job}
@@ -2520,6 +2535,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesShareLinkFailed(devtext.Text(lang, err)).Render(lang)
+			contentCode(resp, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespShareLink{
 				RespShareLink: &pb.ShareLink{
@@ -2537,6 +2553,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
 				resp.ErrorCode = cCodeDuplicatedFile
 			}
+			contentCode(resp, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
@@ -2565,6 +2582,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesUploadStartFailed(devtext.Text(lang, err)).Render(lang)
+			contentCode(resp, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
@@ -2578,6 +2596,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if errors.Is(err, filesmanager.ErrOutOfOrder) {
 				resp.ErrorCode = "out_of_order"
 			}
+			contentCode(resp, err)
 		}
 		resp.Payload = &pb.RespEnvelope_RespUploadProgress{RespUploadProgress: &pb.UploadProgress{Received: received}}
 
@@ -2589,6 +2608,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
 				resp.ErrorCode = cCodeDuplicatedFile
 			}
+			contentCode(resp, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
@@ -2648,6 +2668,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesRetrieveFailed(devtext.Text(lang, err)).Render(lang)
+			contentCode(resp, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
@@ -4235,10 +4256,12 @@ func (ch *connHandler) getUserMetrics(uuidStr string) (*pb.RespUserMetrics, erro
 		return nil, err
 	}
 
-	total, err := disk.Usage(cfg.GetStr("otc", "storage-path"))
+	// Of the space the device can use (diskspace: the reserve for root
+	// left out), as Status' raid_size.
+	total, err := diskspace.Of(cfg.GetStr("otc", "storage-path"))
 	var pct float64
-	if err == nil && total.Total > 0 {
-		pct = (mb * 1024 * 1024) / float64(total.Total) * 100
+	if err == nil && total.Size() > 0 {
+		pct = (mb * 1024 * 1024) / float64(total.Size()) * 100
 	}
 
 	active := int32(0)

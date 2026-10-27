@@ -127,7 +127,13 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	if path == "" {
 		return "", devtext.New(i18n.DevFilesNoPath())
 	}
-	w, err := blobstore.Create(fmt.Sprintf("%s/.pending", cfg.GetStr("otc", "storage-path")), ses)
+	// Room for all of it, and for what the uploads already under way still
+	// have to write: a sync starts several at once.
+	storage := cfg.GetStr("otc", "storage-path")
+	if err := checkFreeSpace(storage, sealedSize(size)+pendingUploads.remaining()); err != nil {
+		return "", err
+	}
+	w, err := blobstore.Create(fmt.Sprintf("%s/.pending", storage), ses)
 	if err != nil {
 		return "", err
 	}
@@ -144,6 +150,19 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	}
 	pendingUploads.mu.Unlock()
 	return id, nil
+}
+
+// remaining is what the uploads under way still have to write, sealed.
+func (u *uploads) remaining() int64 {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	var n int64
+	for _, up := range u.by {
+		up.mu.Lock()
+		n += sealedSize(up.size - up.received)
+		up.mu.Unlock()
+	}
+	return n
 }
 
 func (u *uploads) get(ses *session.Session, id string) (*chunkedUpload, error) {

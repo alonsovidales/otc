@@ -131,8 +131,23 @@ func (w *Writer) Commit() error {
 	}
 	if err != nil {
 		os.Remove(w.tmp.Name())
+		return err
 	}
-	return err
+	// The rename lives in the folder: synced too, so a power cut right
+	// after it can't take the new name back while the file's row (written
+	// next) stays.
+	SyncDir(filepath.Dir(w.target))
+	return nil
+}
+
+// SyncDir flushes dir's entries - a rename or a new file in it - to the
+// disk. Best effort: the files themselves are complete either way, this
+// only makes the names in it survive a power cut right after.
+func SyncDir(dir string) {
+	if d, err := os.Open(dir); err == nil {
+		d.Sync()
+		d.Close()
+	}
 }
 
 // Abort discards the file.

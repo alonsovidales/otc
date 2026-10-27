@@ -59,6 +59,10 @@
     "text": "contenido multimedia no disponible",
     "en": "media not available"
   },
+  "dev.social.media_too_large": {
+    "text": "este archivo es demasiado grande para enviarlo entero ({size})",
+    "en": "this file is too large to send whole ({size})"
+  },
   "dev.social.no_friendship_with": {
     "text": "no hay ninguna amistad con {domain}",
     "en": "no friendship with {domain}"

@@ -4,13 +4,17 @@ package filesmanager
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"image"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devtext"
@@ -145,11 +149,32 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 // their memory together.
 var transcodeSlots = make(chan struct{}, 1)
 
+// transcodePlan is how one re-encode runs: timeout for each ffmpeg run,
+// and fast for the second try of one that ran out of time - x264's
+// quickest preset, a decoder that skips its loop filter (most of what
+// decoding a 4K HEVC recording costs; the picture is scaled down anyway)
+// and no HDR tone mapping, which is slow in software.
+type transcodePlan struct {
+	timeout time.Duration
+	fast    bool
+}
+
+// errTranscodeTimedOut is a re-encode that ran out of time.
+var errTranscodeTimedOut = errors.New("the re-encode took too long") // i18n-ignore: a technical detail after a translated sentence, or logged
+
 // transcodeFile re-encodes the video at inPath - a file, or a URL ffmpeg
 // reads with range requests (a stored video's loopback stream) - into
 // outPath as an MP4.
 // The caller holds a transcodeSlots slot.
 func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) error {
+	return transcodeFileWith(inPath, outPath, trim, downscale, transcodePlan{timeout: cTranscodeTimeout})
+}
+
+// transcodeFileWith is transcodeFile as plan says.
+func transcodeFileWith(inPath, outPath string, trim *TrimRange, downscale bool, plan transcodePlan) error {
+	if plan.timeout <= 0 {
+		plan.timeout = cTranscodeTimeout
+	}
 	args := []string{"-y"}
 	if trim != nil && trim.Start > 0 {
 		// -ss ahead of -i seeks by index before decoding anything, which
@@ -159,6 +184,10 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 		// seconds away - visibly wrong when someone trimmed to a specific
 		// moment.
 		args = append(args, "-ss", strconv.FormatFloat(trim.Start, 'f', 3, 64))
+	}
+	if plan.fast {
+		// A decoder option, so before the input it applies to.
+		args = append(args, "-skip_loop_filter", "all")
 	}
 	args = append(args, ffmpegInput(inPath)...)
 	if d := trimDuration(trim); d > 0 {
@@ -180,11 +209,15 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 	if downscale {
 		rate = []string{"-b:v", cSocialVideoBitrate}
 	}
+	preset := "veryfast"
+	if plan.fast {
+		preset = "ultrafast"
+	}
 	encode := func(color []string) []string {
 		chain := append(append([]string{}, filters...), color...)
 		vf := strings.Join(append(chain, cTagBT709), ",")
 		a := append(append([]string{}, args...), "-vf", vf,
-			"-c:v", "libx264", "-preset", "veryfast")
+			"-c:v", "libx264", "-preset", preset)
 		if ffmpegThreads != "" {
 			// The encoder's threads too, on a low-memory device.
 			a = append(a, "-threads", ffmpegThreads)
@@ -198,19 +231,30 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 	// to standard colour first. Without a tone-mapping filter in this
 	// ffmpeg (it needs zscale), the plain 8-bit conversion still plays -
 	// just flatter-looking - which beats a video that doesn't play at all.
+	// The faster try converts plainly: tone mapping is the slow part.
+	colors := [][]string{hdrToSDR(probeColor(inPath)), {"format=yuv420p"}}
+	if plan.fast {
+		colors = colors[1:]
+	}
 	var runErr error
 	var stderr bytes.Buffer
-	for _, color := range [][]string{hdrToSDR(probeColor(inPath)), {"format=yuv420p"}} {
+	for _, color := range colors {
 		if color == nil {
 			continue
 		}
 		stderr.Reset()
-		cmd, cancel := command(cTranscodeTimeout, "ffmpeg", encode(color)...)
+		ctx, cancel := context.WithTimeout(context.Background(), plan.timeout)
+		cmd := exec.CommandContext(ctx, "ffmpeg", encode(color)...)
 		cmd.Stderr = &stderr
 		runErr = cmd.Run()
+		timedOut := ctx.Err() == context.DeadlineExceeded
 		cancel()
 		if runErr == nil {
 			break
+		}
+		if timedOut {
+			// The next conversion would take as long: the caller decides.
+			return fmt.Errorf("%w (%s)", errTranscodeTimedOut, plan.timeout) // i18n-ignore: technical detail after a translated sentence or in an alert
 		}
 		log.Info("ffmpeg transcode failed with", strings.Join(color, ","), "- trying the next conversion:", runErr)
 	}

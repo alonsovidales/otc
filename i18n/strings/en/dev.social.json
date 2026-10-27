@@ -72,6 +72,11 @@
     "text": "media not available",
     "note": "Error reply when a photo or video of a post can't be shown (it is gone, or a friend asked for media of a post that isn't the owner's own)."
   },
+  "dev.social.media_too_large": {
+    "text": "this file is too large to send whole ({size})",
+    "args": [["size", "bytes"]],
+    "note": "Error answered when an app or a friend's device asks for a post's photo or video in one piece and it is too large to send that way (videos are played from a stream instead). {size} is the file's size, such as 600 MB."
+  },
   "dev.social.no_friendship_with": {
     "text": "no friendship with {domain}",
     "args": [["domain", "text"]],

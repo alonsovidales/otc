@@ -62,6 +62,14 @@
     "text": "Los discos de almacenamiento vuelven a funcionar",
     "en": "Storage disks working again"
   },
+  "push.storage.full_body": {
+    "text": "Libera algo de espacio: cuando se llene, no se podrán guardar fotos ni archivos nuevos.",
+    "en": "Free some space: once it is full, new photos and files can't be saved."
+  },
+  "push.storage.full_title": {
+    "text": "Tu dispositivo está casi lleno",
+    "en": "Your device is almost full"
+  },
   "push.update.critical_body": {
     "text": "Instálala desde Ajustes.",
     "en": "Install it from Settings."

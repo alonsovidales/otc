@@ -231,9 +231,19 @@
     "args": [["detail", "text"]],
     "note": "Error reply in Files when making a link to download the chosen files failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
   },
+  "dev.files.storage_full": {
+    "text": "not enough space on the device: this needs {need}, and only {left} is left",
+    "args": [["need", "bytes"], ["left", "bytes"]],
+    "note": "Error shown after a sentence such as \"error starting the upload: \" when the device refuses to save something (an upload, a shared link or gallery, a post's video) because its storage disks are almost full: it always keeps some space free for its own database. {need} is what saving it takes and {left} what can still be used, both sizes such as 3.4 GB."
+  },
   "dev.files.stream_failed": {
     "text": "could not prepare the stream",
     "note": "Error reply when the device could not get a video ready to play."
+  },
+  "dev.files.too_large_to_open": {
+    "text": "this file is too large to open here ({size}): download it instead",
+    "args": [["size", "bytes"]],
+    "note": "Error shown after \"error trying to retrieve file: \" when the app asks the device for a whole photo or file to show it and it is too large for the device to send in one piece (the apps download large files in parts). {size} is the file's size, such as 1.2 GB."
   },
   "dev.files.upload_bad_hash": {
     "text": "the upload's content doesn't match its hash",
@@ -302,5 +312,14 @@
   "dev.files.video_no_frames_extracted": {
     "text": "no frames extracted from video",
     "note": "Error when the device could not take a picture out of a video it shrank for a post, to make its preview."
+  },
+  "dev.files.video_not_cut": {
+    "text": "the video could not be cut, so nothing was posted: try again, or post it without cutting it",
+    "note": "Error shown after \"error trying to create publication: \" when the owner cut (trimmed) a video for a post and the device could not make the cut copy. The post is not made at all, so the parts the owner cut out are never shared."
+  },
+  "dev.files.video_not_reduced": {
+    "text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is",
+    "args": [["size", "bytes"]],
+    "note": "Error shown after \"error trying to create publication: \" when a large video is posted: the device makes a smaller copy for friends, and here it could not, and the original is too large to send to friends instead. {size} is the original video's size, such as 3.2 GB."
   }
 }

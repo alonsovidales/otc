@@ -48,7 +48,9 @@
   "dev.files.reprocess_wipe_failed": {"text": "wiping tags/faces before reprocess: {detail}", "args": [["detail", "text"]]},
   "dev.files.retrieve_failed": {"text": "error trying to retrieve file: {detail}", "args": [["detail", "text"]]},
   "dev.files.share_link_failed": {"text": "error creating files share link: {detail}", "args": [["detail", "text"]]},
+  "dev.files.storage_full": {"text": "not enough space on the device: this needs {need}, and only {left} is left", "args": [["need", "bytes"], ["left", "bytes"]]},
   "dev.files.stream_failed": {"text": "could not prepare the stream"},
+  "dev.files.too_large_to_open": {"text": "this file is too large to open here ({size}): download it instead", "args": [["size", "bytes"]]},
   "dev.files.upload_bad_hash": {"text": "the upload's content doesn't match its hash"},
   "dev.files.upload_failed": {"text": "error trying to upload file: {detail}", "args": [["detail", "text"]]},
   "dev.files.upload_finish_failed": {"text": "error finishing the upload: {detail}", "args": [["detail", "text"]]},
@@ -63,5 +65,7 @@
   "dev.files.versions_failed": {"text": "error listing the versions: {detail}", "args": [["detail", "text"]]},
   "dev.files.video_no_duration": {"text": "video has no usable duration"},
   "dev.files.video_no_frames": {"text": "could not extract any frames from video"},
-  "dev.files.video_no_frames_extracted": {"text": "no frames extracted from video"}
+  "dev.files.video_no_frames_extracted": {"text": "no frames extracted from video"},
+  "dev.files.video_not_cut": {"text": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"},
+  "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]}
 }

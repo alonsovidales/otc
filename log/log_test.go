@@ -3,10 +3,8 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -54,34 +52,55 @@ func TestOneEntryOneLine(t *testing.T) {
 
 // A rotation that can't reopen the log (its directory gone, a read-only
 // card) used to call Fatal while holding the logger's lock, which took it
-// again and hung the process. It must exit instead, so systemd restarts it.
-func TestFailedRotationExitsInsteadOfHanging(t *testing.T) {
-	if dir := os.Getenv("OTC_LOG_ROTATE_DIR"); dir != "" {
-		SetLogger(INFO, filepath.Join(dir, "x.log"), 0)
-		Info("first line")
-		os.RemoveAll(dir)
-		Info("this one rotates into a directory that is gone")
-		os.Exit(0)
-	}
+// again and hung the process; then it exited, and systemd started it again
+// every few seconds for good. Now the lines go to stderr, nothing hangs or
+// exits, and the file is used again once it can be opened.
+func TestLostLogFileFallsBackToStderrAndComesBack(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "logs")
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestFailedRotationExitsInsteadOfHanging$")
-	cmd.Env = append(os.Environ(), "OTC_LOG_ROTATE_DIR="+dir)
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	retryLogFile = 0 // tried again at every line
+	defer func() { retryLogFile = cRetryLogFile }()
+	logPath := filepath.Join(dir, "x.log")
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		SetLogger(INFO, logPath, 0) // every line after the first rotates
+		Info("first line")
+		os.RemoveAll(dir)
+		Info("this one rotates into a directory that is gone")
+		Error("and this one finds no file either")
+		os.Mkdir(dir, 0o700)
+		Info("back in the file")
+	}()
 	select {
-	case err := <-done:
-		var ee *exec.ExitError
-		if !errors.As(err, &ee) || ee.ExitCode() != 1 {
-			t.Fatalf("want exit status 1, got %v", err)
-		}
+	case <-done:
 	case <-time.After(20 * time.Second):
-		cmd.Process.Kill()
-		t.Fatal("the logger hung on a failed rotation")
+		t.Fatal("the logger hung on a log file it could not open")
+	}
+	b, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("the log file was not opened again: %v", err)
+	}
+	if !strings.Contains(string(b), "back in the file") || strings.Contains(string(b), "finds no file") {
+		t.Fatalf("log file: %q", b)
+	}
+}
+
+// A file that can't be opened at all at start (a read-only card) doesn't
+// end the start either.
+func TestUnopenableLogFileAtStart(t *testing.T) {
+	retryLogFile = time.Hour
+	defer func() { retryLogFile = cRetryLogFile }()
+	SetLogger(INFO, filepath.Join(t.TempDir(), "missing", "x.log"), 10)
+	Info("to stderr")
+	mutex.Lock()
+	defer mutex.Unlock()
+	if file != nil {
+		t.Fatal("a log file is open")
+	}
+	if retryLogFileAt.Before(time.Now().Add(time.Minute)) {
+		t.Fatal("the file is tried again at every line, not later")
 	}
 }

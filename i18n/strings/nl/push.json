@@ -62,6 +62,14 @@
     "text": "Opslagschijven werken weer",
     "en": "Storage disks working again"
   },
+  "push.storage.full_body": {
+    "text": "Maak wat ruimte vrij: zodra het vol is, kunnen er geen nieuwe foto’s en bestanden meer worden opgeslagen.",
+    "en": "Free some space: once it is full, new photos and files can't be saved."
+  },
+  "push.storage.full_title": {
+    "text": "Je apparaat is bijna vol",
+    "en": "Your device is almost full"
+  },
   "push.update.critical_body": {
     "text": "Installeer de update via Instellingen.",
     "en": "Install it from Settings."

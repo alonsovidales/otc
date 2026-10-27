@@ -14,6 +14,7 @@
   "dev.social.like_post_failed": {"text": "error al dar Me gusta a la publicación: {detail}"},
   "dev.social.load_file_failed": {"text": "error al cargar el archivo “{path}”: {detail}"},
   "dev.social.media_not_available": {"text": "contenido multimedia no disponible"},
+  "dev.social.media_too_large": {"text": "este archivo es demasiado grande para enviarlo entero ({size})"},
   "dev.social.no_friendship_with": {"text": "no hay ninguna amistad con {domain}"},
   "dev.social.no_longer_friends": {"text": "ya no sois amigos"},
   "dev.social.no_such_comment": {"text": "no existe ese comentario"},

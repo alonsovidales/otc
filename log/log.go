@@ -116,15 +116,31 @@ func Fatal(v ...interface{}) {
 	os.Exit(1)
 }
 
-// die is Fatal for code that already holds mutex: Fatal would take it
-// again and hang the process (and every goroutine that logs) instead of
-// exiting. The log file can't be trusted any more, so the line goes to
-// stderr (journald).
-func die(v ...interface{}) {
-	_, f, line, _ := runtime.Caller(1)
+// A log file that can't be opened or read (a read-only card, its folder
+// gone, a full disk) used to end the process - and systemd started it
+// again a few seconds later, for good, the device unreachable. The lines
+// go to stderr (journald) instead, and the file is tried again every
+// cRetryLogFile: once it opens, logging goes back to it.
+const cRetryLogFile = time.Minute
+
+// retryLogFileAt is when the file is next tried while logging goes to
+// stderr (file nil, path set). Guarded by mutex.
+var retryLogFileAt time.Time
+
+// retryLogFile is cRetryLogFile; a variable for tests.
+var retryLogFile = cRetryLogFile
+
+// toStderr makes stderr the log's output for now, saying why there, and
+// arranges for the file to be tried again. Called with mutex held.
+func toStderr(why string, err error) {
+	if file != nil {
+		file.Close()
+		file = nil
+	}
 	logger.SetOutput(os.Stderr)
-	logger.Print(fmt.Sprintf("FATAL: <%s:%d> ", filepath.Base(f), line), strings.TrimRight(fmt.Sprintln(v...), "\n"), "\n")
-	os.Exit(1)
+	retryLogFileAt = time.Now().Add(retryLogFile)
+	_, f, line, _ := runtime.Caller(1)
+	logger.Print(fmt.Sprintf("ERROR: <%s:%d> ", filepath.Base(f), line), why, " ", path, ": ", err, " - logging to stderr, trying it again in ", retryLogFile, "\n")
 }
 
 // setLogFile Sets the specified path as new log file, in case of have defined
@@ -138,15 +154,22 @@ func setLogFile(filePath string) {
 	}
 
 	path = filePath
-	if outFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600); err == nil {
-		// Private: 0o600 above only applies when the file is created, and
-		// the device's used to be readable by every account on it.
-		outFile.Chmod(0o600)
-		file = outFile
-		logger.SetOutput(file)
-	} else {
-		die("Can't open the log file:", filePath)
+	openLogFile()
+}
+
+// openLogFile opens path for appending, or leaves logging on stderr.
+// Called with mutex held.
+func openLogFile() {
+	outFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600)
+	if err != nil {
+		toStderr("can't open the log file", err)
+		return
 	}
+	// Private: 0o600 above only applies when the file is created, and
+	// the device's used to be readable by every account on it.
+	outFile.Chmod(0o600)
+	file = outFile
+	logger.SetOutput(file)
 }
 
 // pruneRotated keeps the newest cKeepRotated "<path>_<unix>.old" files.
@@ -167,12 +190,14 @@ func pruneRotated(path string) {
 // the begging
 func newLog(l string, v ...interface{}) {
 	mutex.Lock()
+	if file == nil && path != "" && !time.Now().Before(retryLogFileAt) {
+		openLogFile()
+	}
 	if file != nil {
 		fStat, err := file.Stat()
 		if err != nil {
-			die("Can't stat logger file")
-		}
-		if fStat.Size() > maxSize {
+			toStderr("can't stat the log file", err)
+		} else if fStat.Size() > maxSize {
 			fmt.Println("ROTATE", fStat.Size(), maxSize)
 			logger.Print("Rotating log file")
 			setLogFile(path)

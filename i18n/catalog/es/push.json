@@ -14,6 +14,8 @@
   "push.raid.stopped_working_top": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el del puerto USB azul superior: sustituye el otro pronto."},
   "push.raid.working_body": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},
   "push.raid.working_title": {"text": "Los discos de almacenamiento vuelven a funcionar"},
+  "push.storage.full_body": {"text": "Libera algo de espacio: cuando se llene, no se podrán guardar fotos ni archivos nuevos."},
+  "push.storage.full_title": {"text": "Tu dispositivo está casi lleno"},
   "push.update.critical_body": {"text": "Instálala desde Ajustes."},
   "push.update.critical_body_container": {"text": "Para instalarla, ejecuta docker compose pull y docker compose up -d en tu servidor."},
   "push.update.critical_title": {"text": "Actualización crítica {version}: instálala pronto"}
