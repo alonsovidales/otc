@@ -1744,32 +1744,52 @@ where the device served the page (not `localhost` dev, not `__OTC_CONFIG`); it w
 account and needs nothing from the internet (an earlier draft compared `CheckUpdate`'s version,
 which only the primary instance answers and which fetches the release list from GitHub).
 
-The first-run tour on the web (`components/Tour.tsx`, rules in `tourSteps.ts`, `node
-web/scripts/tour-test.mjs`; the phones have their own `TourView` with the same rules and their own
-steps): a card in a native modal `<dialog>` (centred from 600px, a sheet at the foot below that),
-one step at a time - welcome, menu, images, people (only while face recognition is on: steps are
-kept by id, so People can come or go mid-tour), collections, files, social, post, friends, alerts,
-done - with Skip on every step. What a step says never depends on the page, and every label it
-quotes is an argument from that label's own key (`web.tour.*`; section titles reuse
-`web.shell.menu.*`), so it follows their wording in every language. It opens by itself once per
-browser origin, the first time the signed-in shell shows, however the sign-in came (a restored
-session too, so people signed in before the tour get it once) - never over a new device's setup,
-in the phone apps' web view (`__OTC_CONFIG`), on `/shared` or with `?download`: `claimAutoTour`
-writes `localStorage.otc_tour_seen` = `cTourVersion` (1; raise it only to show a rewritten tour
-again) before it shows, storage that throws means no tour by itself, and Sign out keeps the flag.
-Show the tour (account menu, between Settings and Sign out; Settings › Getting started, after
-Language) replays it from step 1 and leaves the flag alone. App keeps `tour` (`{step, auto}`), so it
-comes back at its step after the unreachable screen, and drops it when the session ends;
-nothing else opens with it (notifications are asked for from the feed's card). Where a step's
-control is on screen (`data-tour` on the docked menu and its items - looked up under `.sb-dock`
-only -, `.tb-menu`, `.tb-action` and `.am-btn`) the dimmed layer, an SVG path with an evenodd
-hole, leaves a hole and an ember ring around it: a click in the hole ends the tour and is passed
-to the control under it (`elementFromPoint` once the dialog is closed); a click elsewhere on the
-layer, Esc, Back or a close the browser makes itself is Skip. Its
-keydown listener stops every key (arrows step, Tab stays in the card; the explicit `role="dialog"`
-is for Files' capture-phase Escape), wheel and one-finger touch moves are cancelled unless the
-card's text scrolls, the focus goes back to the opener if it had keyboard focus, else the account
-button, and a polite live region reads each new step. It sends nothing, so the demo needs nothing.
+The first-run tour on the web (tour 2, 2026-10-27: `components/Tour.tsx`, its drawings `TourArt.tsx`
++ `.css` and their timer `tourMotion.ts`, rules in `tourSteps.ts`, the seen flag in `tourSeen.ts`;
+`node web/scripts/tour-test.mjs`, and `back-stack-test.mjs` for its history; the phones' `TourView`
+is still the first tour, with its own steps and version 1): a card in a native modal `<dialog>` that
+teaches one skill a step, by showing it - welcome (the menu), search, dates (the scrubber), select,
+viewer, people (only while face recognition is on: steps are kept by id, so People can come or go
+mid-tour), collections, files (List/Grid/Storage, sorting), upload (drag in, Share, Download ZIP,
+the lock and versions), social (like, comment), post, friends, alerts (Alerts and Settings, and
+where to replay it) - with Skip on every step. Each step shows its section (`cStepSection`: Tour
+calls App's `tourShow`, a correction of the tour's own history entry, so Back is Skip; never
+Alerts, which marks every alert read as it opens - the last step shows Settings), and ending it -
+Skip, Done, Esc, Back, the dimmed layer - shows the section it opened over (`tourFrom`, noted at the
+first step). Every step has a small moving drawing of its controls (`TourArt.tsx`: plain React and
+CSS, labels from the real controls' own keys, colours from the theme's variables, gradient tiles
+and outline faces for "photos" and "people", samples `web.tour.art.*` - `art.thing` stays English
+because the device's tags are RAM++'s English words - a timer `useScene` steps through each scene's
+states, one still state under reduced motion; `aria-hidden`, the text says it all), so the tour
+teaches an empty library; every label a text quotes is an argument from its own key. Where a
+step's real control is on screen (`cStepTargets`: the search field, the scrubber, the first photo -
+its circle shown, `data-tour-lit` -, a face, a card, Files' view switch and a heading or Sort by, a
+row's tick and the drop tip, a post's heart and comment field, `+ New post`, the address and the
+friend's field, Settings' Show the tour - `data-tour="show-tour"` - and the menu's Alerts and
+Settings) the dimmed layer - an SVG path, evenodd - leaves a hole with an ember ring around each
+(`holesFor`, touching ones merged), found again on every change of the page behind (a
+MutationObserver, once a frame) and scrolled into view once a step (all of them when they fit,
+`scrollToShow`). From 600px the card goes beside the holes (`placeCard`: the roomiest side, a little
+shorter with its text scrolling rather than over them, else the corner that covers least); below
+that it is a sheet at the foot, rings it would cover dropped and the page given room at its foot
+(`html[data-tour-room]` padding) so a control can be scrolled up above it. A click in a hole ends the
+tour where it is and goes on to the control under it (`elementFromPoint` once the dialog is closed;
+App's `keepSection` makes the section an entry of its own over the one the tour opened on). It
+opens by itself once per browser origin, the first time the signed-in shell shows, however the
+sign-in came (a restored session too) - never over a new device's setup, in the phone apps' web view
+(`__OTC_CONFIG`), on `/shared` or with `?download`: `claimAutoTour` writes
+`localStorage.otc_tour_seen` = `cTourVersion` (2, so a browser that saw the first tour sees this one
+once; raise it only for a rewritten tour) before it shows, storage that throws means no tour by
+itself, and Sign out keeps the flag. Show the tour (account menu, between Settings and Sign out;
+Settings › Getting started, after Language) replays it from step 1 and leaves the flag alone. App
+keeps `tour` (`{step, auto}`), so it comes back at its step after the unreachable screen, and drops
+it when the session ends; it is a lazy part (`lazyPart`, in a layer's `Part`: none of it, its rules
+or drawings is in the first chunk - `tourSeen.ts` is), and nothing else opens with it (notifications
+are asked for from the feed's card). Its keydown listener stops every key (arrows step, Tab stays in
+the card; the explicit `role="dialog"` is for Files' capture-phase Escape), wheel and one-finger
+touch moves are cancelled unless the card's text scrolls, the focus goes back to the opener if it had
+keyboard focus, else the account button, and a polite live region reads each new step. It sends
+nothing that changes anything (only the reads its sections make), so the demo needs nothing.
 
 Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in appEntry.tsx: shown at
 once on hover and on keyboard focus, in a portal), not `title`, whose tip waits about a second. An
