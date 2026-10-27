@@ -230,6 +230,11 @@ type Manager struct {
 	// from one api hasn't set yet.
 	local    atomic.Pointer[lantls.Endpoint]
 	localSet atomic.Bool
+	// live is every connection being served, with what closes it: a
+	// password change ends the others signed in (passwordChanged). liveMu
+	// also orders a sign-in against a change (signIn).
+	liveMu sync.Mutex
+	live   map[*connHandler]func()
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -1212,6 +1217,10 @@ func tooManyAttemptsAck(secs int32, lang string) *pb.Ack {
 	}
 }
 
+// cFailedPasswordDelay is how long a wrong password waits for its answer
+// (a sign-in's, or ChangeKey's old one). A var for tests.
+var cFailedPasswordDelay = time.Second
+
 // lockedOutAttempt notes a password refused unread because addr is locked
 // out: counted (anonlog.go), the address at Debug only - a stranger
 // retrying at once wrote a line each.
@@ -1252,6 +1261,9 @@ type connHandler struct {
 	mu            sync.RWMutex
 	session       *session.Session
 	friendProfile *profile.Profile
+	// sessionGen is the password generation session was signed in under
+	// (session.PasswordGeneration): what its tokens are issued for.
+	sessionGen uint64
 	// keyMu serialises taking this connection's key (getOrCreatePrivKey),
 	// apart from mu so waiting for one never holds up other requests.
 	keyMu sync.Mutex
@@ -1268,10 +1280,82 @@ func (ch *connHandler) getSession() *session.Session {
 	return ch.session
 }
 
+// setSession makes s this connection's session in the current password
+// generation, unchecked: a request signs in with signIn.
 func (ch *connHandler) setSession(s *session.Session) {
+	gen := session.PasswordGeneration()
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
-	ch.session = s
+	ch.session, ch.sessionGen = s, gen
+}
+
+// signIn makes ses this connection's session, signed in under the
+// password generation gen (taken before the password or token was
+// checked) - unless the password changed meanwhile: false then, and
+// nothing changes. Under liveMu, so a password change either finds this
+// connection signed in, and ends it, or comes first.
+func (ch *connHandler) signIn(ses *session.Session, gen uint64) bool {
+	ch.mg.liveMu.Lock()
+	defer ch.mg.liveMu.Unlock()
+	if gen != session.PasswordGeneration() {
+		return false
+	}
+	ch.mu.Lock()
+	ch.session, ch.sessionGen = ses, gen
+	ch.mu.Unlock()
+	return true
+}
+
+// sessionGeneration is the password generation this connection signed in
+// under.
+func (ch *connHandler) sessionGeneration() uint64 {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.sessionGen
+}
+
+// track adds a connection being served to mg.live, with what closes it;
+// untrack takes it out once it is done.
+func (mg *Manager) track(ch *connHandler, closeConn func()) {
+	mg.liveMu.Lock()
+	defer mg.liveMu.Unlock()
+	if mg.live == nil {
+		mg.live = map[*connHandler]func(){}
+	}
+	mg.live[ch] = closeConn
+}
+
+func (mg *Manager) untrack(ch *connHandler) {
+	mg.liveMu.Lock()
+	defer mg.liveMu.Unlock()
+	delete(mg.live, ch)
+}
+
+// passwordChanged follows a password change made on by: a new password
+// generation (every session token goes, none is issued or redeemed for a
+// sign-in from before), by carries on in it, and every other connection
+// signed in - with the old password, or a token it gave - is closed: its
+// clients sign in again, with the new one. What such a connection had
+// already read still runs, as it would have a moment earlier. A friend's
+// connection never signed in with the password and stays. Returns how many
+// were closed.
+func (mg *Manager) passwordChanged(by *connHandler) int {
+	mg.liveMu.Lock()
+	gen := session.PasswordChanged()
+	by.mu.Lock()
+	by.sessionGen = gen
+	by.mu.Unlock()
+	var closers []func()
+	for ch, closeConn := range mg.live {
+		if ch != by && ch.getSession() != nil {
+			closers = append(closers, closeConn)
+		}
+	}
+	mg.liveMu.Unlock()
+	for _, closeConn := range closers {
+		closeConn()
+	}
+	return len(closers)
 }
 
 func (ch *connHandler) getFriendProfile() *profile.Profile {
@@ -1440,6 +1524,10 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 			Size: dao.FileSize(file),
 			Keys: ses,
 		}
+		// One file, as it is now, and only ever the owner's (every session
+		// here is): asked again within the reuse window, the same token -
+		// the demo device's public password let anyone mint one per ask.
+		reuseKey = fmt.Sprintf("file:%q:%s", req.Path, file.Hash)
 
 	default:
 		return "", 0, "", 0, devtext.New(i18n.DevFilesNothingToStream())
@@ -1825,6 +1913,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			return resp, true
 		}
 
+		// The generation the password is checked under: a change that
+		// comes meanwhile leaves this sign-in out (signIn).
+		gen := session.PasswordGeneration()
+		var ses *session.Session
 		// Checked again, and the outcome recorded, in turn with every other
 		// password check (see Attempt): guesses queued behind a failure are
 		// refused once the limit trips, without an Argon2 derivation each.
@@ -1833,13 +1925,8 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			if err != nil {
 				return err
 			}
-			ses, err := session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
-			if err != nil {
-				return err
-			}
-			ch.setSession(ses)
-			ch.mg.startBackfillOnce(ses)
-			return nil
+			ses, err = session.New(p.ReqAuth.Uuid, key, p.ReqAuth.Create, ch.mg.dao)
+			return err
 		})
 		if blocked {
 			lockedOutAttempt(addr, retry)
@@ -1861,7 +1948,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			// Deliberate delay on a failed auth attempt: was `time.Sleep(1)`,
 			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.
 			// nanoseconds) — no throttling at all against repeated guesses.
-			time.Sleep(time.Second)
+			time.Sleep(cFailedPasswordDelay)
 			ack := &pb.Ack{Ok: false, ErrorMsg: i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang)}
 			// Issue #117: the attempt that spends the allowance is answered
 			// with the lockout itself, so the client can say when to retry.
@@ -1872,6 +1959,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
 		}
+		if !ch.signIn(ses, gen) {
+			// The password was changed while this one was checked: no
+			// guess, but nothing to sign in with either.
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevAuthSessionExpired().Render(lang)}}
+			return resp, true
+		}
+		ch.mg.startBackfillOnce(ses)
 		log.Info("Authenticated session")
 
 		// One-off self-healing sweep for any face row written before
@@ -1911,7 +2005,10 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// of these instead of the real password. RedeemToken hands back
 		// the exact *Session a real password login already built, so
 		// there's no vault/Argon2id work to redo here at all.
-		ses, ok := session.RedeemToken(p.ReqAuthWithToken.Token)
+		ses, gen, ok := session.RedeemToken(p.ReqAuthWithToken.Token)
+		if ok {
+			ok = ch.signIn(ses, gen)
+		}
 		if !ok {
 			// Deliberately does NOT close the connection, unlike ReqAuth's
 			// own failure path above: an expired token is the completely
@@ -1932,7 +2029,6 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			}
 			break
 		}
-		ch.setSession(ses)
 		ch.mg.startBackfillOnce(ses)
 		log.Info("Authenticated session via token")
 
@@ -2947,25 +3043,49 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqChangeKey:
 		log.Info("Change key")
 		oldKey, err := ch.decryptSecret(p.ReqChangeKey.OldKey)
+		var newKey string
 		if err == nil {
-			var newKey string
 			newKey, err = ch.decryptSecret(p.ReqChangeKey.NewKey)
-			if err == nil {
-				err = ses.ChangeKey(oldKey, newKey)
-			}
 		}
-
-		if errors.Is(err, session.ErrPasswordTooShort) {
+		if err != nil {
+			// Nothing was checked: no attempt.
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+			break
+		}
+		// The old password is checked as a sign-in checks one (issue
+		// #117): the same address's attempts, the same delay - a session
+		// someone else got hold of must not guess it at leisure, then
+		// change it.
+		addr := ch.addr()
+		retry, blocked, locked, err := session.Attempts.Attempt(addr, func() error {
+			return ses.ChangeKey(oldKey, newKey)
+		})
+		switch {
+		case blocked:
+			lockedOutAttempt(addr, retry)
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds()+0.999), lang)}
+		case errors.Is(err, session.ErrPasswordTooShort):
 			// An Ack, so every client shows the reason: for a bare error
 			// they only say "Unexpected response".
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: devtext.Text(lang, err)},
 			}
-		} else if err != nil {
+		case err != nil:
 			log.Error("error trying to change secret key:", err)
+			time.Sleep(cFailedPasswordDelay) // as a failed sign-in
+			if locked > 0 {
+				log.Info("too many failed password attempts from", addr, "- locked out for", locked)
+				resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(locked.Seconds()), lang)}
+				break
+			}
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
-		} else {
+		default:
+			// Every other device and tab signed in with the old password
+			// (or a token from then) is signed out; this one stays.
+			closed := ch.mg.passwordChanged(ch)
+			log.Info("password changed: every session token dropped,", closed, "other connections signed out")
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok: true,
@@ -2976,12 +3096,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqIssueSessionToken:
 		// Issue #101: called right after a password-based Auth, after a
 		// ChangeKey (ses itself is unaffected by a password change - it
-		// re-wraps the same vault secret, see Session.ChangeKey - so the
-		// existing token remains just as valid, but the client mints a
-		// fresh one anyway since ChangeKey is exactly when the old
-		// savePersistedKey(newKey) used to run), and after redeeming a
-		// token, to keep rotating a fresh one into the client's storage.
-		token, expiresAt, err := session.IssueToken(ses)
+		// re-wraps the same vault secret, see Session.ChangeKey - but the
+		// change ends every token, so the client's must be replaced: the
+		// web app asks at once), and after redeeming a token, to keep
+		// rotating a fresh one into the client's storage. None for a
+		// connection signed in before a password change.
+		token, expiresAt, err := session.IssueToken(ses, ch.sessionGeneration())
 		if err != nil {
 			log.Error("error issuing session token:", err)
 			resp.Error = true
@@ -4306,6 +4426,9 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 		})
 		markGone()
 	}
+	// A password change closes it if it is signed in (passwordChanged).
+	mg.track(ch, closeConn)
+	defer mg.untrack(ch)
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
 	// this connection left unfinished are dropped once none of its
 	// requests is still running (a FinishUpload in flight still commits).

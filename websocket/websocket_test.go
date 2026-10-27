@@ -577,7 +577,7 @@ func TestAuthWithTokenRejectsUnknownTokenWithoutClosingTheConnection(t *testing.
 // whoever else might have a copy of it.
 func TestAuthWithTokenIsSingleUse(t *testing.T) {
 	ses := newTestAuthenticatedSession(t)
-	token, _, err := session.IssueToken(ses)
+	token, _, err := session.IssueToken(ses, session.PasswordGeneration())
 	if err != nil {
 		t.Fatalf("session.IssueToken: %v", err)
 	}
@@ -606,7 +606,7 @@ func TestAuthWithTokenIsSingleUse(t *testing.T) {
 
 func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
 	ses := newTestAuthenticatedSession(t)
-	token, _, err := session.IssueToken(ses)
+	token, _, err := session.IssueToken(ses, session.PasswordGeneration())
 	if err != nil {
 		t.Fatalf("session.IssueToken: %v", err)
 	}
