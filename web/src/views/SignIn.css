@@ -17,3 +17,7 @@
 .setup-head { margin: 28px 0 1.17em; }
 .setup-head h3 { margin: 0; }
 .lpk.setup-lang { position: absolute; top: 0; right: 0; }
+
+/* The storage step's buttons: Finish setup, or after a failure Try again
+   and Continue without disks. */
+.setup-actions { display: flex; flex-wrap: wrap; gap: 8px; }

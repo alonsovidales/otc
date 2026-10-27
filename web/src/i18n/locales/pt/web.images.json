@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Limpar pesquisa",
   "web.images.grid.date": "{day} de {month} de {year}",
   "web.images.grid.dismiss": "Ignorar",
+  "web.images.grid.empty_apps": "Ou faz cópias de segurança de um telemóvel ou de um computador com as \u003clink\u003eapps do Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Seleciona fotos em Imagens e escolhe «Adicionar a uma coleção».",
   "web.images.grid.empty_collection_title": "Esta coleção está vazia",
   "web.images.grid.empty_text": "As fotos das apps para telemóvel e computador aparecem aqui.",
   "web.images.grid.empty_title": "Ainda não há fotos",
+  "web.images.grid.empty_upload": "Carregar deste computador",
   "web.images.grid.go_to_images": "Ir para Imagens",
   "web.images.grid.loading": "A carregar fotos",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "A tentar…",
   "web.images.grid.unreachable_text": "As tuas fotos vão aparecer assim que ele responder.",
   "web.images.grid.unreachable_title": "Não é possível contactar o teu dispositivo",
+  "web.images.grid.upload_failed": {
+    "one": "Não foi possível carregar {count} ficheiro.",
+    "other": "Não foi possível carregar {count} ficheiros.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "A carregar {current} de {total}…",
   "web.images.load.check": "Verifica se o teu dispositivo está online e tenta novamente.",
   "web.images.load.waiting": "Ainda à espera do teu dispositivo",
   "web.images.people.add_name": "Adicionar nome",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Este ficheiro não tem metadados EXIF",
   "web.images.viewer.no_metadata": "Não foram encontrados metadados",
   "web.images.viewer.previous": "Anterior",
+  "web.images.viewer.show_map": "Mostrar no mapa",
   "web.images.viewer.stalled": "Este vídeo está a demorar demasiado a carregar.",
   "web.images.viewer.stalled_hint": "Há algum tempo que não chega nada do teu dispositivo: pode estar ocupado ou difícil de contactar neste momento. Tentar novamente costuma resolver.",
   "web.images.viewer.taken": "Tirada em"

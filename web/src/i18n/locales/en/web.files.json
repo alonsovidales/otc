@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version",
   "web.files.lock.on_tip": "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear.",
   "web.files.lock.on_tip_short": "Upload only. Click to clear.",
+  "web.files.open.failed": "Couldn't open \u2068{name}\u2069. Check the connection to your device and try again.",
   "web.files.results.back": "Back to \u2068{folder}\u2069",
   "web.files.results.back_files": "Back to Files",
   "web.files.results.cant_search": "This device can't search its files yet. Update it in Settings.",
@@ -109,6 +110,8 @@
     "other": "Delete {count} items? This cannot be undone.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Deleting stopped: the device didn't answer. {done} of {total} were deleted.",
+  "web.files.selection.deleting": "Deleting {done} of {total}…",
   "web.files.selection.download_zip": "Download ZIP",
   "web.files.selection.link_copied": "Share link copied to clipboard",
   "web.files.selection.preparing": "Preparing…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Current",
+  "web.files.versions.download_failed": "Couldn't download this version of \u2068{name}\u2069.",
   "web.files.versions.hint": "The file is in an upload-only folder, so each upload to this path kept the one before it.",
   "web.files.versions.replaced": "Replaced {date}",
   "web.files.versions.tip": "Older versions of this file",

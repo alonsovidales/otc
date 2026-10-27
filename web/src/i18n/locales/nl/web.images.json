@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Zoekopdracht wissen",
   "web.images.grid.date": "{day} {month} {year}",
   "web.images.grid.dismiss": "Sluiten",
+  "web.images.grid.empty_apps": "Of maak een back-up van een telefoon of computer met de \u003clink\u003eapps van Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Selecteer foto’s in Afbeeldingen en kies “Toevoegen aan collectie”.",
   "web.images.grid.empty_collection_title": "Deze collectie is leeg",
   "web.images.grid.empty_text": "Foto’s uit de telefoon- en computerapps verschijnen hier.",
   "web.images.grid.empty_title": "Nog geen foto’s",
+  "web.images.grid.empty_upload": "Uploaden vanaf deze computer",
   "web.images.grid.go_to_images": "Naar Afbeeldingen",
   "web.images.grid.loading": "Foto’s laden",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Proberen…",
   "web.images.grid.unreachable_text": "Je foto’s verschijnen zodra het apparaat antwoordt.",
   "web.images.grid.unreachable_title": "Kan je apparaat niet bereiken",
+  "web.images.grid.upload_failed": {
+    "one": "{count} bestand is niet geüpload.",
+    "other": "{count} bestanden zijn niet geüpload.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "Uploaden {current} van {total}…",
   "web.images.load.check": "Controleer of je apparaat online is en probeer het opnieuw.",
   "web.images.load.waiting": "Nog steeds wachten op je apparaat",
   "web.images.people.add_name": "Naam toevoegen",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Geen EXIF-metadata in dit bestand",
   "web.images.viewer.no_metadata": "Geen metadata gevonden",
   "web.images.viewer.previous": "Vorige",
+  "web.images.viewer.show_map": "Op de kaart tonen",
   "web.images.viewer.stalled": "Het laden van deze video duurt te lang.",
   "web.images.viewer.stalled_hint": "Er is al een tijdje niets van je apparaat binnengekomen; het is misschien bezig of nu moeilijk bereikbaar. Opnieuw proberen werkt meestal.",
   "web.images.viewer.taken": "Gemaakt op"

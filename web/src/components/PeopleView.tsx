@@ -15,6 +15,7 @@ import Spinner from "./Spinner";
 import { say, type UiText } from "./uiText";
 import { useDragSelect } from "./useDragSelect";
 import { refuseOnDemo } from "../net/demo";
+import { ErrorBoundary } from "./ErrorBoundary";
 import "./PeopleView.css";
 
 // The People page: the faces the device found, named people first, each a
@@ -125,7 +126,12 @@ function namesOf(list: readonly Person[]): string[] {
   return names;
 }
 
-export default function PeopleView({ onOpenPhotos }: Props) {
+// People, inside its section's error boundary (ErrorBoundary.tsx).
+export default function PeopleView(props: Props) {
+  return <ErrorBoundary where="tab"><PeoplePage {...props} /></ErrorBoundary>;
+}
+
+function PeoplePage({ onOpenPhotos }: Props) {
   const t = useT();
   const { items, thumbs, loaded } = usePeople();
   const { failed, slow, retry } = useFreshList(loaded, reloadPeople);

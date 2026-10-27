@@ -16,7 +16,8 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
-import { useT, type TFunction } from "../i18n";
+import { Trans, useT, type TFunction } from "../i18n";
+import { uploadAsNew } from "../net/upload";
 import { useWS } from "../net/useWS";
 import type { DeepPartial, File as MsgFile, ImageGroup, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { fileSize } from "../net/fileSize";
@@ -25,7 +26,10 @@ import "./PhotoGallery.css";
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
-import { ConfirmDialog, Modal } from "./ConfirmDialog";
+import { ConfirmDialog, LinkDialog, Modal } from "./ConfirmDialog";
+import { useToasts } from "./useToasts";
+import ToastView from "./ToastView";
+import { ErrorBoundary } from "./ErrorBoundary";
 import DateScrubber, { type ScrubBucket } from "./DateScrubber";
 import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
@@ -63,11 +67,22 @@ const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/"
 const pathOf = (f: MsgFile) => f.path;
 
 // A tile's thumbnail - always a JPEG, see isVideoFile. Module-level, so
-// useObjectURLs gets the stable `make` it needs.
+// useObjectURLs gets the stable `make` it needs. The bytes go into a Blob
+// once, kept with the photo, and leave the photo then: every thumbnail was
+// held twice, in the page's reply and in its Blob (10,000 photos: 428 MB of
+// replies kept). A second URL for the same photo (the post dialog's) is
+// made from the same Blob.
+const thumbBlobs = new WeakMap<MsgFile, Blob>();
 const thumbOf = (f: MsgFile) => {
-  const bytes = f.content;
-  if (!bytes || bytes.byteLength === 0) return "";
-  return URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
+  let blob = thumbBlobs.get(f);
+  if (!blob) {
+    const bytes = f.content;
+    if (!bytes || bytes.byteLength === 0) return "";
+    blob = new Blob([bytes as BlobPart], { type: "image/jpeg" });
+    thumbBlobs.set(f, blob);
+    f.content = undefined;
+  }
+  return URL.createObjectURL(blob);
 };
 // The duplicate check for a page (mapRef): the same file at the same place
 // in a page that a restarted search sent again.
@@ -314,21 +329,13 @@ type DialogState =
   // allows a copy right after a click, and making the link took longer).
   | { kind: "link"; link: string };
 
-// Its words are made when shown (UiText), so a message on screen follows a
-// change of language.
-type Toast = {
-  id: number;
-  text: UiText;
-  error?: boolean;
-  // Stays until replaced (work in progress), with a spinner.
-  busy?: boolean;
-  action?: { label: UiText; run: () => void };
-  // Stays until used or dismissed: its action is the only way to what it
-  // offers.
-  stay?: boolean;
-};
+// Images, inside its section's error boundary (ErrorBoundary.tsx): with
+// no "Go to Images" - it is Images.
+export default function PhotoGallery(props: PhotoGalleryProps) {
+  return <ErrorBoundary where="tab" noImages><PhotoGalleryView {...props} /></ErrorBoundary>;
+}
 
-export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
+function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   const t = useT();
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
@@ -1016,21 +1023,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     openAt(idx);
   };
 
-  // -------- toasts ------------------------------------------------------------
-  const [toast, setToast] = useState<Toast | null>(null);
-  const toastIdRef = useRef(0);
-  const showToast = useCallback((next: Omit<Toast, "id">) => {
-    const id = ++toastIdRef.current;
-    setToast({ ...next, id });
-    return id;
-  }, []);
-  const dismissToast = useCallback((id: number) => setToast((cur) => (cur?.id === id ? null : cur)), []);
-  useEffect(() => {
-    if (!toast || toast.busy || toast.stay) return;
-    const timer = window.setTimeout(() => dismissToast(toast.id), toast.action ? 6000 : toast.error ? 5000 : 3000);
-    return () => window.clearTimeout(timer);
-  }, [toast, dismissToast]);
-  const toastError = useCallback((text: UiText) => { showToast({ text, error: true }); }, [showToast]);
+  // -------- toasts (useToasts.ts, shared with Files) ----------------------------
+  const { toast, showToast, dismissToast, toastError } = useToasts();
 
   // -------- dialogs, menus and sharing -----------------------------------------
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -1366,7 +1360,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           selecting={selecting}
         />
       ));
-      if (!dateOrdered) return <div key="all" className="pg-sec" style={sectionStyle(tiles.length)}>{tiles}</div>;
+      if (!dateOrdered) return <div key="all" className="pg-sec" style={sectionStyle(tiles.length, cols)}>{tiles}</div>;
       // The last month may have more photos on the way: it takes the room
       // they will need now, so the next page fills it in instead of moving
       // it off a row it shared.
@@ -1387,7 +1381,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         );
       }
       return (
-        <section key={unique(`month-${month ?? ""}`)} className="pg-sec" data-month={month ?? undefined} style={sectionStyle(room)}>
+        <section key={unique(`month-${month ?? ""}`)} className="pg-sec" data-month={month ?? undefined} style={sectionStyle(room, cols)}>
           <MonthTitle month={month} oneTile={room === 1} />
           {lead}
           {tiles}
@@ -1536,7 +1530,12 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         </Empty>
       );
     } else {
-      body = <Empty icon={<ImagesIcon size={32} />} title={t("web.images.grid.empty_title")} text={t("web.images.grid.empty_text")} />;
+      body = (
+        <EmptyLibrary
+          onUploaded={reloadGrid}
+          onFailed={(count) => toastError((tt) => tt("web.images.grid.upload_failed", { count }))}
+        />
+      );
     }
   } else {
     body = (
@@ -1719,28 +1718,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       )}
       {dialog?.kind === "link" && <LinkDialog link={dialog.link} onClose={closeDialog} />}
 
-      <div className="pg-toast-wrap" aria-live="polite">
-        {toast && (
-          <div key={toast.id} className={`pg-toast${toast.error ? " error" : ""}${toast.action ? " has-action" : ""}`}>
-            {toast.busy && <Spinner />}
-            <span className="pg-toast-text">{toast.text(t)}</span>
-            {toast.action && (
-              <button
-                type="button"
-                className="pg-toast-action"
-                onClick={() => { swallowSecondClick(); toast.action?.run(); dismissToast(toast.id); }}
-              >
-                {toast.action.label(t)}
-              </button>
-            )}
-            {toast.stay && (
-              <button type="button" className="pg-icon-btn pg-toast-close" onClick={() => dismissToast(toast.id)} aria-label={t("web.images.grid.dismiss")}>
-                <CloseIcon size={18} />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <ToastView toast={toast} onDismiss={dismissToast} beforeAction={swallowSecondClick} />
 
       {/* The shared viewer (MediaViewer.tsx), also used by Files. */}
       {openIdx != null && openIdx < items.length && (
@@ -1819,8 +1797,11 @@ const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TilePr
 });
 
 // How many tiles a section has room for: its width, up to a whole row, is
-// made from it (.pg-sec).
-const sectionStyle = (tiles: number) => ({ "--pg-n": tiles }) as CSSProperties;
+// made from it (.pg-sec); and, with how many fit in a row (cols), how many
+// rows it takes - the height a month off screen is given before the browser
+// has drawn it (.pg-sec's content-visibility).
+const sectionStyle = (tiles: number, cols = 0) =>
+  ({ "--pg-n": tiles, "--pg-sec-rows": cols > 0 ? Math.max(1, Math.ceil(tiles / cols)) : 1 }) as CSSProperties;
 // Whole rows of grey tiles drawn as one block (issue #194, .pg-skel-rows).
 const rowsStyle = (rows: number) => ({ "--pg-rows": rows }) as CSSProperties;
 
@@ -2422,39 +2403,64 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   );
 }
 
-// The share link, for copying by hand (see DialogState's "link").
-function LinkDialog({ link, onClose }: { link: string; onClose: () => void }) {
+// ---- empty states -------------------------------------------------------------------
+
+// Where the empty library's upload puts what it sends (in Files, at the
+// top): Images shows every photo and video on the device, whatever folder.
+const cUploadDir = "/Uploads/";
+
+// No photos on the device yet (UX 3 of the 2026-10 review): what to do
+// about it - send some from this computer (one at a time, as Files and the
+// composer do), or back up a phone or a computer with the apps.
+function EmptyLibrary({ onUploaded, onFailed }: { onUploaded: () => void; onFailed: (count: number) => void }) {
   const t = useT();
-  const titleId = useId();
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-    } catch {
-      // The field is selected: the system's own copy works.
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [sending, setSending] = useState<{ current: number; total: number } | null>(null);
+  const upload = async (files: File[]) => {
+    if (!files.length || sending) return;
+    let failed = 0;
+    for (const [i, f] of files.entries()) {
+      setSending({ current: i + 1, total: files.length });
+      try {
+        const resp = await uploadAsNew(cUploadDir, f);
+        if (resp.error || resp.payload?.$case !== "respFile") failed++;
+      } catch {
+        failed++;
+      }
     }
+    setSending(null);
+    if (failed) onFailed(failed);
+    if (failed < files.length) onUploaded();
   };
   return (
-    <Modal labelledBy={titleId} onClose={onClose}>
-      <div>
-        <h2 id={titleId} className="pg-dlg-title">{t("web.images.share.link_title")}</h2>
-        <p className="pg-dlg-text">{t("web.images.share.link_text")}</p>
-      </div>
-      <div className="pg-inline">
-        <input className="pg-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label={t("web.images.share.link_field")} data-autofocus />
-        <button type="button" className="pg-btn primary" onClick={() => void copy()}>
-          {copied ? t("web.images.share.copy_done") : t("web.images.share.copy")}
-        </button>
-      </div>
-      <div className="pg-dlg-actions">
-        <button type="button" className="pg-btn quiet" onClick={onClose}>{t("common.done")}</button>
-      </div>
-    </Modal>
+    <Empty icon={<ImagesIcon size={32} />} title={t("web.images.grid.empty_title")} text={t("web.images.grid.empty_text")}>
+      <button
+        type="button"
+        className="pg-btn primary"
+        disabled={!!sending}
+        aria-busy={!!sending}
+        onClick={() => { if (!refuseOnDemo()) inputRef.current?.click(); }}
+      >
+        {sending ? <Spinner label={t("web.images.grid.uploading", sending)} /> : t("web.images.grid.empty_upload")}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          void upload(files);
+        }}
+      />
+      <p className="pg-empty-apps">
+        <Trans k="web.images.grid.empty_apps" parts={{ link: (s) => <a href="https://off-the.cloud/#download" target="_blank" rel="noreferrer">{s}</a> }} />
+      </p>
+    </Empty>
   );
 }
-
-// ---- empty states -------------------------------------------------------------------
 
 function Empty({ icon, title, text, children }: { icon: ReactNode; title: string; text: string; children?: ReactNode }) {
   return (

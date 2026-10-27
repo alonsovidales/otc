@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Auf „Nur hochladen“ stellen: In diesem Ordner kann nichts gelöscht werden, und beim erneuten Hochladen bleibt die alte Version erhalten",
   "web.files.lock.on_tip": "Nur hochladen: In diesem Ordner kann nichts gelöscht werden, und beim erneuten Hochladen bleibt die alte Version erhalten. Klicke zum Ausschalten.",
   "web.files.lock.on_tip_short": "Nur hochladen. Klicke zum Ausschalten.",
+  "web.files.open.failed": "\u2068{name}\u2069 konnte nicht geöffnet werden. Prüfe die Verbindung zu deinem Gerät und versuche es erneut.",
   "web.files.results.back": "Zurück zu \u2068{folder}\u2069",
   "web.files.results.back_files": "Zurück zu Dateien",
   "web.files.results.cant_search": "Dieses Gerät kann seine Dateien noch nicht durchsuchen. Aktualisiere es in den Einstellungen.",
@@ -109,6 +110,8 @@
     "other": "{count} Elemente löschen? Das kann nicht rückgängig gemacht werden.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Löschen abgebrochen: Das Gerät hat nicht geantwortet. {done} von {total} wurden gelöscht.",
+  "web.files.selection.deleting": "Löschen ({done} von {total})…",
   "web.files.selection.download_zip": "ZIP herunterladen",
   "web.files.selection.link_copied": "Freigabelink in die Zwischenablage kopiert",
   "web.files.selection.preparing": "Wird vorbereitet…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Aktuell",
+  "web.files.versions.download_failed": "Diese Version von \u2068{name}\u2069 konnte nicht heruntergeladen werden.",
   "web.files.versions.hint": "Die Datei liegt in einem Ordner mit „Nur hochladen“, daher hat jeder Upload unter diesem Pfad die vorherige Version behalten.",
   "web.files.versions.replaced": "Ersetzt: {date}",
   "web.files.versions.tip": "Ältere Versionen dieser Datei",

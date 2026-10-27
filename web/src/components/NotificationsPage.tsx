@@ -13,6 +13,10 @@ import { FriendShipStatus, NotificationType } from "../proto/messages";
 import "./NotificationsPage.css";
 import { Trans, fmtDate, useT, type RichKey, type TFunction } from "../i18n";
 import { refuseOnDemo } from "../net/demo";
+import { pollDevice } from "./devicePoll";
+import { asIs, say, type UiText } from "./uiText";
+import Spinner from "./Spinner";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 const POLL_MS = 5000;
 
@@ -50,28 +54,27 @@ function describe(n: PbNotification): ActorKey | null {
 
 // Shared with App.tsx, which needs the unread count to badge the
 // Notifications entry in TopTabs itself - polls independently of whether
-// this page is actually mounted (same setInterval-in-a-useEffect shape as
-// StatusWidget's own polling elsewhere in this app).
+// this page is actually mounted (devicePoll.ts: a closed socket is opened
+// again, and a failed turn waits longer before the next).
 export function useNotificationCount(authenticated: boolean): [number, () => void] {
   const [count, setCount] = useState(0);
 
-  const fetchCount = useCallback(async () => {
-    if (!useWS.connected()) return;
+  const fetchCount = useCallback(async (): Promise<boolean> => {
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqGetNotificationCount", reqGetNotificationCount: {} };
+        e.payload = { $case: "reqGetNotificationCount", reqGetNotificationCount: {} };
       });
-      if (resp.payload?.$case === "respNotificationCount") {
-        setCount(resp.payload.respNotificationCount.unacknowledgedCount);
-      }
-    } catch { /* next poll will retry */ }
+      if (resp.payload?.$case !== "respNotificationCount") return false;
+      setCount(resp.payload.respNotificationCount.unacknowledgedCount);
+      return true;
+    } catch {
+      return false; // the next turn tries again
+    }
   }, []);
 
   useEffect(() => {
     if (!authenticated) { setCount(0); return; }
-    fetchCount();
-    const t = setInterval(fetchCount, POLL_MS);
-    return () => clearInterval(t);
+    return pollDevice(fetchCount, POLL_MS);
   }, [authenticated, fetchCount]);
 
   // Lets NotificationsPage zero this the instant it marks everything read,
@@ -79,12 +82,7 @@ export function useNotificationCount(authenticated: boolean): [number, () => voi
   return [count, () => setCount(0)];
 }
 
-export default function NotificationsPage({
-  onOpenPost,
-  onOpenFriendRequests,
-  onOpenSettings,
-  onAcknowledged,
-}: {
+type NotificationsProps = {
   onOpenPost: (pubUuid: string, commentUuid: string | null) => void;
   onOpenFriendRequests: () => void;
   // Issue #183: an update notification opens Settings, where Update is.
@@ -92,9 +90,24 @@ export default function NotificationsPage({
   // Lets App.tsx zero the TopTabs badge the instant this page marks
   // everything read, rather than waiting for that separate poll to catch up.
   onAcknowledged: () => void;
-}) {
+};
+
+// Alerts, inside its section's error boundary (ErrorBoundary.tsx).
+export default function NotificationsPage(props: NotificationsProps) {
+  return <ErrorBoundary where="tab"><Alerts {...props} /></ErrorBoundary>;
+}
+
+function Alerts({
+  onOpenPost,
+  onOpenFriendRequests,
+  onOpenSettings,
+  onAcknowledged,
+}: NotificationsProps) {
   const t = useT();
   const [notifications, setNotifications] = useState<PbNotification[] | null>(null);
+  // The list couldn't be read: the device's words, or ours, with Try again.
+  const [loadError, setLoadError] = useState<UiText | null>(null);
+  const [loadTry, setLoadTry] = useState(0);
   // Issue #64: an error row's full list of errors shows on hover; a click
   // pins it open, for touch screens and for copying the text.
   const [pinnedDetails, setPinnedDetails] = useState<Record<string, boolean>>({});
@@ -126,20 +139,34 @@ export default function NotificationsPage({
 
   // Issue #78: "when the user opens the section all the notifications will
   // change to acknowledged" - fetch the list, then immediately mark
-  // everything read.
+  // everything read. A list that didn't come says so, with Try again (it
+  // used to say "Loading…" for good), and marks nothing read.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqListNotifications", reqListNotifications: { limit: 50 } };
-      });
+      setLoadError(null);
+      let resp: RespEnvelope;
+      try {
+        resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqListNotifications", reqListNotifications: { limit: 50 } };
+        });
+      } catch {
+        if (!cancelled) setLoadError(() => say("web.social.alerts.load_failed"));
+        return;
+      }
       if (cancelled) return;
-      if (resp.payload?.$case === "respNotifications") {
-        const list = resp.payload.respNotifications.notifications;
-        setNotifications(list);
+      if (resp.payload?.$case !== "respNotifications") {
+        const words = resp.errorMessage;
+        setLoadError(() => (words ? asIs(words) : say("web.social.alerts.load_failed")));
+        return;
+      }
+      const list = resp.payload.respNotifications.notifications;
+      setNotifications(list);
+      onAcknowledged();
+      try {
         if (list.some((n) => n.type === NotificationType.NotificationFriendRequest)) {
           const fr: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            (e as any).payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
+            e.payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
           });
           if (!cancelled && fr.payload?.$case === "respFriendships") {
             setAwaiting(new Set(fr.payload.respFriendships.friendships
@@ -147,24 +174,29 @@ export default function NotificationsPage({
               .map((f) => f.originProfile?.domain ?? "")));
           }
         }
+        await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqMarkNotificationsAcknowledged", reqMarkNotificationsAcknowledged: {} };
+        });
+      } catch {
+        // The list shows; the next visit marks it read.
       }
-      onAcknowledged();
-      await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqMarkNotificationsAcknowledged", reqMarkNotificationsAcknowledged: {} };
-      });
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadTry]);
 
   const accept = async (domain: string) => {
     if (refuseOnDemo()) return; // a demo device (net/demo.ts)
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqChangeFriendStatus", reqChangeFriendStatus: { domain, status: FriendShipStatus.Accepted } };
-    });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-      setAwaiting((s) => { const n = new Set(s); n.delete(domain); return n; });
-      setAcceptedHere((s) => new Set(s).add(domain));
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqChangeFriendStatus", reqChangeFriendStatus: { domain, status: FriendShipStatus.Accepted } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setAwaiting((s) => { const n = new Set(s); n.delete(domain); return n; });
+        setAcceptedHere((s) => new Set(s).add(domain));
+      }
+    } catch {
+      // No answer: the button stays, to press again.
     }
   };
 
@@ -186,8 +218,13 @@ export default function NotificationsPage({
 
   return (
     <div className="np-page">
-      {notifications == null ? (
-        <div className="np-empty">{t("common.loading")}</div>
+      {notifications == null && loadError ? (
+        <div className="np-empty np-load-error" role="alert">
+          <p>{loadError(t)}</p>
+          <button type="button" className="np-retry" onClick={() => setLoadTry((n) => n + 1)}>{t("common.try_again")}</button>
+        </div>
+      ) : notifications == null ? (
+        <div className="np-empty"><Spinner label={t("common.loading")} /></div>
       ) : notifications.length === 0 ? (
         <div className="np-empty">{t("web.social.alerts.nothing")}</div>
       ) : (
@@ -198,12 +235,14 @@ export default function NotificationsPage({
             const isUpdate = n.type === NotificationType.NotificationUpdate;
             const actorKey = describe(n);
             const actor = n.actorName || n.actorDomain;
-            return (
-              <li
-                key={n.uuid}
-                className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}${isError ? " np-error" : ""}${pinnedDetails[n.uuid] ? " np-pinned" : ""}`}
-                onClick={() => onClickNotification(n)}
-              >
+            // Where the row goes: an error row (with details) opens and
+            // closes its list of errors, an update Settings, the rest the
+            // post or the friend requests. A row with nowhere to go is
+            // text, not a button.
+            const opens = isUpdate || (isError ? !!n.details
+              : n.type === NotificationType.NotificationFriendRequest || n.type === NotificationType.NotificationFriendAccepted || !!n.pubUuid);
+            const content = (
+              <>
                 {isUpdate ? (
                   <div className="np-avatar np-avatar-placeholder np-update-icon" aria-hidden="true">
                     <svg width="20" height="20" viewBox="0 0 24 24">
@@ -243,15 +282,34 @@ export default function NotificationsPage({
                   )}
                   <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>
                 </span>
+                {thumb && <img src={thumb} className="np-thumb" alt="" />}
+              </>
+            );
+            return (
+              <li
+                key={n.uuid}
+                className={`np-item${n.acknowledged ? "" : " np-unacknowledged"}${isError ? " np-error" : ""}${pinnedDetails[n.uuid] ? " np-pinned" : ""}`}
+              >
+                {opens ? (
+                  <button
+                    type="button"
+                    className="np-open"
+                    onClick={() => onClickNotification(n)}
+                    aria-expanded={isError ? !!pinnedDetails[n.uuid] : undefined}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div className="np-open">{content}</div>
+                )}
                 {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && (
-                  <button className="np-accept" onClick={(e) => { e.stopPropagation(); void accept(n.actorDomain); }}>{t("common.accept")}</button>
+                  <button className="np-accept" onClick={() => void accept(n.actorDomain)}>{t("common.accept")}</button>
                 )}
                 {n.type === NotificationType.NotificationFriendRequest && acceptedHere.has(n.actorDomain) && (
                   <span className="np-accepted">{t("web.social.alerts.friends")}</span>
                 )}
-                {thumb && <img src={thumb} className="np-thumb" alt="" />}
                 {isError && n.details && (
-                  <pre className="np-popover" onClick={(e) => e.stopPropagation()}>{n.details}</pre>
+                  <pre className="np-popover">{n.details}</pre>
                 )}
               </li>
             );

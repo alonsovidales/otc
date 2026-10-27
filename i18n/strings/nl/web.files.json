@@ -294,6 +294,10 @@
     "text": "Alleen uploaden. Klik om uit te schakelen.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "Kan {name} niet openen. Controleer de verbinding met je apparaat en probeer het opnieuw.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Terug naar {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #ca36b409"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Verwijderen gestopt: het apparaat heeft niet geantwoord. {done} van {total} zijn verwijderd.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "Verwijderen {done} van {total}…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "ZIP downloaden",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Huidige versie",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "Kan deze versie van {name} niet downloaden.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.",

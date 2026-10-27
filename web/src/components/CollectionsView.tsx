@@ -9,6 +9,7 @@ import type { Reload } from "./libraryStore";
 import { CollectionsIcon } from "./NavIcons";
 import { openGroup, showAll } from "./photoFilter";
 import "./CollectionsView.css";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 // The Collections page: every collection (an image group in the protocol)
 // as a card with its cover, newest first as the device lists them. A card
@@ -26,7 +27,12 @@ const cSlowMs = 10_000;
 
 const nameOf = (t: TFunction, g: ImageGroup) => g.name.trim() || t("web.images.collections.untitled");
 
-export default function CollectionsView({ onOpenPhotos }: Props) {
+// Collections, inside its section's error boundary (ErrorBoundary.tsx).
+export default function CollectionsView(props: Props) {
+  return <ErrorBoundary where="tab"><CollectionsPage {...props} /></ErrorBoundary>;
+}
+
+function CollectionsPage({ onOpenPhotos }: Props) {
   const t = useT();
   const { items, thumbs, loaded } = useGroups();
   const { failed, slow, retry } = useFreshList(loaded, reloadGroups);

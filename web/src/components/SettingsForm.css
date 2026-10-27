@@ -28,10 +28,36 @@
 .sf-secret-row .sf-input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }
 .sf-secret-input { font-family: ui-monospace, monospace; width: 100%; box-sizing: border-box; }
 
-.sf-status { padding: 10px 12px; border-radius: 8px; }
-.sf-status.info { background: var(--panel); color: var(--mist-dim); }
-.sf-status.success { background: var(--success-bg); color: var(--success); }
-.sf-status.error { background: var(--danger-bg); color: var(--danger); }
+/* The result of a change, fixed at the foot of the window beside the
+   menu (SettingsForm.tsx), as Images' toasts are. */
+.sf-toast-wrap {
+  position: fixed;
+  z-index: 70;
+  left: var(--content-left, 0px);
+  right: 0;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.sf-status {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+}
+.sf-status-close { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; display: grid; place-items: center; }
+.sf-status-close:hover { background: var(--panel); filter: none; }
+/* Opaque: it lies over the page. */
+.sf-status.info { background: var(--ink-3); color: var(--mist-dim); }
+.sf-status.success { background: linear-gradient(var(--success-bg), var(--success-bg)), var(--ink-3); color: var(--success); }
+.sf-status.error { background: linear-gradient(var(--danger-bg), var(--danger-bg)), var(--ink-3); color: var(--danger); }
 
 /* Issue #73: reprocess progress - same visual language as the native
    apps' upload indicator (a thin linear bar + label), but scoped to this

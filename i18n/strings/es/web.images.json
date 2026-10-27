@@ -324,6 +324,10 @@
     "text": "Descartar",
     "en": "Dismiss"
   },
+  "web.images.grid.empty_apps": {
+    "text": "O haz copias de seguridad de un teléfono o un ordenador con las <link>apps de Off The Cloud</link>.",
+    "en": "Or back up a phone or a computer with the <link>Off The Cloud apps</link>."
+  },
   "web.images.grid.empty_collection_text": {
     "text": "Selecciona fotos en Imágenes y luego elige “Añadir a una colección”.",
     "en": "Select photos in Images, then choose Add to collection."
@@ -339,6 +343,10 @@
   "web.images.grid.empty_title": {
     "text": "Aún no hay fotos",
     "en": "No photos yet"
+  },
+  "web.images.grid.empty_upload": {
+    "text": "Subir desde este ordenador",
+    "en": "Upload from this computer"
   },
   "web.images.grid.go_to_images": {
     "text": "Ir a Imágenes",
@@ -399,6 +407,20 @@
   "web.images.grid.unreachable_title": {
     "text": "No se puede contactar con tu dispositivo",
     "en": "Can't reach your device"
+  },
+  "web.images.grid.upload_failed": {
+    "text": {
+      "one": "No se ha podido subir {count} archivo.",
+      "other": "No se han podido subir {count} archivos."
+    },
+    "en": {
+      "one": "{count} file didn't upload.",
+      "other": "{count} files didn't upload."
+    }
+  },
+  "web.images.grid.uploading": {
+    "text": "Subiendo {current} de {total}…",
+    "en": "Uploading {current} of {total}…"
   },
   "web.images.load.check": {
     "text": "Comprueba que tu dispositivo está en línea y vuelve a intentarlo.",
@@ -1033,6 +1055,10 @@
   "web.images.viewer.previous": {
     "text": "Anterior",
     "en": "Previous"
+  },
+  "web.images.viewer.show_map": {
+    "text": "Mostrar en el mapa",
+    "en": "Show on map"
   },
   "web.images.viewer.stalled": {
     "text": "Este vídeo está tardando demasiado en cargarse.",

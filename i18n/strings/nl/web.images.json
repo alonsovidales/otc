@@ -324,6 +324,10 @@
     "text": "Sluiten",
     "en": "Dismiss"
   },
+  "web.images.grid.empty_apps": {
+    "text": "Of maak een back-up van een telefoon of computer met de <link>apps van Off The Cloud</link>.",
+    "en": "Or back up a phone or a computer with the <link>Off The Cloud apps</link>."
+  },
   "web.images.grid.empty_collection_text": {
     "text": "Selecteer foto’s in Afbeeldingen en kies “Toevoegen aan collectie”.",
     "en": "Select photos in Images, then choose Add to collection."
@@ -339,6 +343,10 @@
   "web.images.grid.empty_title": {
     "text": "Nog geen foto’s",
     "en": "No photos yet"
+  },
+  "web.images.grid.empty_upload": {
+    "text": "Uploaden vanaf deze computer",
+    "en": "Upload from this computer"
   },
   "web.images.grid.go_to_images": {
     "text": "Naar Afbeeldingen",
@@ -399,6 +407,20 @@
   "web.images.grid.unreachable_title": {
     "text": "Kan je apparaat niet bereiken",
     "en": "Can't reach your device"
+  },
+  "web.images.grid.upload_failed": {
+    "text": {
+      "one": "{count} bestand is niet geüpload.",
+      "other": "{count} bestanden zijn niet geüpload."
+    },
+    "en": {
+      "one": "{count} file didn't upload.",
+      "other": "{count} files didn't upload."
+    }
+  },
+  "web.images.grid.uploading": {
+    "text": "Uploaden {current} van {total}…",
+    "en": "Uploading {current} of {total}…"
   },
   "web.images.load.check": {
     "text": "Controleer of je apparaat online is en probeer het opnieuw.",
@@ -1033,6 +1055,10 @@
   "web.images.viewer.previous": {
     "text": "Vorige",
     "en": "Previous"
+  },
+  "web.images.viewer.show_map": {
+    "text": "Op de kaart tonen",
+    "en": "Show on map"
   },
   "web.images.viewer.stalled": {
     "text": "Het laden van deze video duurt te lang.",

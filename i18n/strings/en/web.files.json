@@ -320,6 +320,11 @@
     "text": "Upload only. Click to clear.",
     "note": "Files grid: tooltip of the lock on a folder that is upload only. An upload-only folder keeps every file: nothing in it can be deleted, and uploading a file again keeps the old version."
   },
+  "web.files.open.failed": {
+    "text": "Couldn't open {name}. Check the connection to your device and try again.",
+    "args": [["name", "user"]],
+    "note": "Files: a click on a file got no answer from the device, so it couldn't be opened or downloaded. {name} is the file's name. When the device says why, its own words show instead."
+  },
   "web.files.results.back": {
     "text": "Back to {folder}",
     "args": [["folder", "user"]],
@@ -420,6 +425,17 @@
     "note": "Files: confirmation before deleting the ticked files and folders (a folder with everything in it). {count} is how many are ticked.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #2d31124d"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Deleting stopped: the device didn't answer. {done} of {total} were deleted.",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Files: deleting the picked files and folders stopped because the device didn't answer. {done} is how many were deleted before it stopped, {total} how many were picked."
+  },
+  "web.files.selection.deleting": {
+    "text": "Deleting {done} of {total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Files, the selection's Delete button while the picked files and folders are deleted one at a time. {done} is the one being deleted, {total} how many.",
+    "max": 40
   },
   "web.files.selection.download_zip": {
     "text": "Download ZIP",
@@ -763,6 +779,11 @@
     "text": "Current",
     "note": "Files: the first row of a file's versions pop-up, the version in use now.",
     "max": 24
+  },
+  "web.files.versions.download_failed": {
+    "text": "Couldn't download this version of {name}.",
+    "args": [["name", "user"]],
+    "note": "Files, the versions pop-up of a file: downloading one of its versions failed and the device gave no reason of its own. {name} is the file's name."
   },
   "web.files.versions.hint": {
     "text": "The file is in an upload-only folder, so each upload to this path kept the one before it.",

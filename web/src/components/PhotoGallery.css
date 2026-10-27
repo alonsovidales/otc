@@ -144,6 +144,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--pg-tile) - .5px), 1fr));
   gap: var(--pg-gap);
+  /* A month far off screen isn't laid out or painted (10,000 photos are
+     80,000 elements): it keeps the room its rows take (--pg-sec-rows,
+     PhotoGallery.tsx: its title's 28px and each row a tile and a gap) until
+     drawn, then the size it was drawn at. Its width is set above. */
+  content-visibility: auto;
+  contain-intrinsic-height: auto calc(28px + var(--pg-sec-rows, 1) * (var(--pg-tile) + var(--pg-gap)));
 }
 
 /* A month's title. One line, the same height in every month, so months
@@ -845,6 +851,9 @@
 /* ---- toasts ------------------------------------------------------------------- */
 
 .pg-toast-wrap {
+  /* Files has them too, outside .pg-root. */
+  --pg-hover: rgba(234, 242, 239, 0.08);
+  --pg-press: rgba(234, 242, 239, 0.14);
   position: fixed;
   z-index: 70;
   left: var(--content-left, 0px);
@@ -1030,6 +1039,8 @@
 .pg-info-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .pg-info-label { color: var(--mist-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
+/* Before the map is asked for: the button in its place. */
+.pg-info-showmap { margin-top: 4px; align-self: flex-start; }
 /* Issue #130: the arrows live inside the box now (they used to hang 46px
    outside it, off-screen on a phone); swiping still pages too. They come
    after the picture in the page (MediaViewer.tsx), so they are drawn over
@@ -1072,3 +1083,6 @@
   background: var(--ember); color: var(--ember-ink); font-weight: 600; text-decoration: none;
 }
 
+
+/* The empty library's way to the apps, under its upload button. */
+.pg-empty-apps { margin: 4px 0 0; max-width: 420px; color: var(--mist-dim); font-size: 14px; }

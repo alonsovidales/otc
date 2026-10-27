@@ -18,7 +18,7 @@ import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 import { useT, type TFunction } from "../i18n";
-import { asIs, say, type UiText } from "./uiText";
+import { asIs, percentText, say, type UiText } from "./uiText";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content) return "";
@@ -72,6 +72,26 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     if (url) { URL.revokeObjectURL(url); localUrlsRef.current.delete(f); }
     setLocalFiles(prev => prev.filter(x => x !== f));
   };
+
+  // How each file from this computer is getting on (F20 of the 2026-10
+  // review): its bytes the device has taken, and the path it landed at
+  // once it has. A file that reached the device is never sent again - not
+  // when some others failed and the person tries again, nor after a
+  // publish the device turned down.
+  type Sent = { status: "sending" | "done" | "failed"; sent: number; path?: string };
+  const [sentFiles, setSentFiles] = useState<Map<File, Sent>>(new Map());
+  const sentRef = useRef(sentFiles);
+  const noteSent = (f: File, next: Sent) => {
+    const m = new Map(sentRef.current);
+    m.set(f, next);
+    sentRef.current = m;
+    setSentFiles(m);
+  };
+  // Some files didn't upload: nothing is posted until the person says
+  // whether to post the rest or try those again.
+  const [partial, setPartial] = useState(false);
+  // While publishing: which file of how many is being sent.
+  const [uploading, setUploading] = useState<{ current: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Issue #150: the phone's camera, straight into the post. `capture`
   // opens the camera on phones and tablets; desktop browsers ignore it
@@ -423,9 +443,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // the server path it lands at so it can be included in the publish
   // call below - a post always references paths already on the server,
   // whether they got there just now or were already synced in.
-  const uploadLocalFile = async (f: File): Promise<string | null> => {
+  const uploadLocalFile = async (f: File, onProgress: (sent: number) => void): Promise<string | null> => {
     const path = `/web/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
-    const resp: RespEnvelope = await uploadFile(path, f, false);
+    const resp: RespEnvelope = await uploadFile(path, f, false, onProgress);
     // An upload answers with the stored RespFile (its path/hash/etc.),
     // not the generic Ack every mutation-with-nothing-to-say-back uses -
     // checking for respAck here always missed, silently treating every
@@ -438,7 +458,9 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     return null;
   };
 
-  const publish = async () => {
+  // postAnyway: post the files that uploaded, leaving out the ones that
+  // didn't (the person's answer to `partial`).
+  const publish = async (postAnyway = false) => {
     const hasSelection = source === "local" ? localFiles.length > 0 : selected.length > 0;
     // Issue #96: a post always needs its own caption - the button below
     // already disables on this same check, this just guards the actual
@@ -447,6 +469,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     if (!hasSelection || !caption.trim() || publishing) return;
     setPublishing(true);
     setError(null);
+    setPartial(false);
     try {
       let paths: string[];
       // Index-aligned with localFiles (null where an upload failed) - kept
@@ -459,18 +482,33 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         // the composer showed it. One at a time: all at once read and
         // queued every selected file together, so a few phone videos
         // held gigabytes in the tab; the bytes share one socket anyway.
+        // What already reached the device (an earlier try) isn't sent
+        // again; with postAnyway, nothing more is sent.
         uploadedPaths = [];
+        const toSend = localFiles.filter((f) => !sentRef.current.get(f)?.path);
+        let n = 0;
         for (const f of localFiles) {
-          uploadedPaths.push(await uploadLocalFile(f).catch(() => null));
+          const had = sentRef.current.get(f)?.path;
+          if (had || postAnyway) { uploadedPaths.push(had ?? null); continue; }
+          setUploading({ current: ++n, total: toSend.length });
+          noteSent(f, { status: "sending", sent: 0 });
+          const path = await uploadLocalFile(f, (sent) => noteSent(f, { status: "sending", sent })).catch(() => null);
+          noteSent(f, path ? { status: "done", sent: f.size, path } : { status: "failed", sent: 0 });
+          uploadedPaths.push(path);
         }
+        setUploading(null);
         paths = uploadedPaths.filter((p): p is string => p !== null);
         if (paths.length === 0) {
           setError(() => say("web.social.composer.upload_none"));
           return;
         }
-        if (paths.length < localFiles.length) {
+        // Some didn't make it: stop and ask (it used to warn, publish
+        // the rest and close at once, the warning unseen).
+        if (paths.length < localFiles.length && !postAnyway) {
           const failed = localFiles.length - paths.length;
-          setError(() => (tt: TFunction) => tt("web.social.composer.upload_some", { count: failed }));
+          setError(() => (tt: TFunction) => tt("web.social.composer.upload_partial", { count: failed }));
+          setPartial(true);
+          return;
         }
       } else {
         paths = selected;
@@ -510,6 +548,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     } catch (err: any) {
       setError(() => errorText(err));
     } finally {
+      setUploading(null);
       setPublishing(false);
     }
   };
@@ -782,6 +821,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                         ? <video src={localUrlFor(f)} muted />
                         : <img src={localUrlFor(f)} alt={f.name} />}
                       <span className="np-strip-pos">{i + 1}</span>
+                      <SentBadge t={t} sent={sentFiles.get(f)} size={f.size} />
                       {f.type.startsWith("video/") && <span className="np-strip-video">▶</span>}
                       {f.type.startsWith("video/") && (
                         <span className={`np-trim-btn${localTrims.get(f) ? " trimmed" : ""}`} aria-hidden="true">
@@ -819,7 +859,18 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         />
       )}
 
-      {error && <div className="np-error">{error(t)}</div>}
+      {error && (
+        <div className="np-error" role="alert">
+          {error(t)}
+          {/* Some files didn't upload: the person decides (F20). */}
+          {partial && !publishing && (
+            <div className="np-error-actions">
+              <button type="button" className="np-error-btn" onClick={() => void publish(true)}>{t("web.social.composer.post_uploaded")}</button>
+              <button type="button" className="np-error-btn" onClick={() => void publish()}>{t("common.try_again")}</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="np-composer">
         <input
@@ -831,13 +882,40 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         <button
           className="np-publish"
           disabled={(source === "local" ? !localFiles.length : !selected.length) || !caption.trim() || publishing}
-          onClick={publish}
+          onClick={() => void publish()}
         >
-          {publishing
+          {uploading
+            ? t("web.social.composer.uploading", uploading)
+            : publishing
             ? t("web.social.composer.publishing")
             : picked ? t("web.social.composer.publish_count", { count: picked }) : t("web.social.composer.publish")}
         </button>
       </div>
     </div>
+  );
+}
+
+// How a file from this computer is getting on, over its thumbnail in the
+// order strip: how much of it the device has taken, then a check mark, or
+// an exclamation mark when it didn't upload.
+function SentBadge({ t, sent, size }: {
+  t: TFunction;
+  sent?: { status: "sending" | "done" | "failed"; sent: number };
+  size: number;
+}) {
+  if (!sent) return null;
+  if (sent.status === "done") {
+    return <span className="np-sent done" role="img" aria-label={t("web.social.composer.file_uploaded")}>✓</span>;
+  }
+  if (sent.status === "failed") {
+    const label = t("web.social.composer.file_failed");
+    return <span className="np-sent failed" role="img" aria-label={label} data-tip={label}>!</span>;
+  }
+  const share = size > 0 ? Math.min(100, Math.round((100 * sent.sent) / size)) : 0;
+  return (
+    <span className="np-sent sending">
+      <span className="np-sent-bar"><span style={{ width: `${share}%` }} /></span>
+      <span className="np-sent-pct">{percentText(t, share)}</span>
+    </span>
   );
 }

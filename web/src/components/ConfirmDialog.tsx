@@ -5,7 +5,8 @@
 // (Delete...), and maybe a second, outlined one before it (issue #201's
 // "Delete only this copy"). Images' dialogs use them, and the photo viewer
 // (MediaViewer) asks with ConfirmDialog before deleting what it shows.
-// Styled in PhotoGallery.css (.pg-dlg*, .pg-btn).
+// LinkDialog shows a share link to copy by hand (Images and Files). Styled
+// in PhotoGallery.css (.pg-dlg*, .pg-btn).
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useT } from "../i18n";
@@ -156,6 +157,40 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
         <button type="button" className="pg-btn danger" onClick={() => void run("confirm", onConfirm)} disabled={busy != null} aria-busy={busy === "confirm"}>
           {busy === "confirm" ? <Spinner label={busyText} /> : confirm}
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+// A share link, for copying by hand: the clipboard refused it (a browser
+// that only allows a copy right after a click, and making the link took
+// longer). Images and Files.
+export function LinkDialog({ link, onClose }: { link: string; onClose: () => void }) {
+  const t = useT();
+  const titleId = useId();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+    } catch {
+      // The field is selected: the system's own copy works.
+    }
+  };
+  return (
+    <Modal labelledBy={titleId} onClose={onClose}>
+      <div>
+        <h2 id={titleId} className="pg-dlg-title">{t("web.images.share.link_title")}</h2>
+        <p className="pg-dlg-text">{t("web.images.share.link_text")}</p>
+      </div>
+      <div className="pg-inline">
+        <input className="pg-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label={t("web.images.share.link_field")} data-autofocus />
+        <button type="button" className="pg-btn primary" onClick={() => void copy()}>
+          {copied ? t("web.images.share.copy_done") : t("web.images.share.copy")}
+        </button>
+      </div>
+      <div className="pg-dlg-actions">
+        <button type="button" className="pg-btn quiet" onClick={onClose}>{t("common.done")}</button>
       </div>
     </Modal>
   );

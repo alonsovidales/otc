@@ -294,6 +294,10 @@
     "text": "Solo subida. Haz clic para desactivarlo.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "No se ha podido abrir {name}. Comprueba la conexión con tu dispositivo y vuelve a intentarlo.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Volver a {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #412c49ad"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Se ha detenido la eliminación: el dispositivo no ha respondido. Se han eliminado {done} de {total}.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "Eliminando {done} de {total}…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "Descargar ZIP",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Actual",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "No se ha podido descargar esta versión de {name}.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "El archivo está en una carpeta de solo subida, así que cada subida a esta ruta ha conservado la anterior.",

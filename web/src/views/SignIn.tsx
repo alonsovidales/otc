@@ -144,22 +144,30 @@ function SignIn({ isPrimary, container, onDone }: { isPrimary: boolean; containe
     });
   };
 
+  // A refusal or no answer stays on this step, saying why, with Try
+  // again and Continue without disks: it used to finish the setup anyway,
+  // the note gone with the step (and a request nothing answered said
+  // nothing at all).
   const submitStorage = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setStorageNote(null);
     try {
       const resp = await useWS.request((e) => {
-        (e as any).payload = { $case: "reqSetupStorage", reqSetupStorage: { devicePaths: selected } };
+        e.payload = { $case: "reqSetupStorage", reqSetupStorage: { devicePaths: selected } };
       });
-      if (resp.error) {
-        // Not fatal to finishing setup — storage can always be configured
-        // later from Settings.
-        setStorageNote(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.setup.storage_failed")));
+      const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
+      if (resp.error || (ack && !ack.ok)) {
+        const words = resp.errorMessage || ack?.errorMsg || "";
+        setStorageNote(() => (words ? asIs(words) : say("web.shell.setup.storage_failed")));
+        return;
       }
       // Building the array (if 1 or 2 disks were picked) happens in the
       // background from here — see raid_watch.py — so this only confirms
       // the request was saved, not that storage is ready yet.
       onDone();
+    } catch {
+      setStorageNote(() => say("web.shell.setup.storage_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -187,10 +195,17 @@ function SignIn({ isPrimary, container, onDone }: { isPrimary: boolean; containe
               </span>
             </label>
           ))}
-          {storageNote && <p className="sf-note error">{storageNote(t)}</p>}
-          <button className="sf-btn" disabled={submitting}>
-            {submitting ? t("web.shell.setup.saving") : t("web.shell.setup.finish")}
-          </button>
+          {storageNote && <p className="sf-note error" role="alert">{storageNote(t)}</p>}
+          <div className="setup-actions">
+            <button className="sf-btn" disabled={submitting}>
+              {submitting ? t("web.shell.setup.saving") : storageNote ? t("common.try_again") : t("web.shell.setup.finish")}
+            </button>
+            {/* The disks can be set up later; the files go to the boot disk
+                meanwhile. */}
+            {storageNote && !submitting && (
+              <button type="button" className="sf-btn sf-btn-secondary" onClick={onDone}>{t("web.shell.setup.continue_without_disks")}</button>
+            )}
+          </div>
         </form>
       </section>
     );

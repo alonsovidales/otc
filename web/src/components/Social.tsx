@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import NewPostPicker from "./NewPostPicker";
@@ -19,6 +19,12 @@ import Spinner from "./Spinner";
 import { startDownload, pubMediaKey, extensionForMime, leafName, useDownloadState, useDownloadFailure, useDownloadHost, useDownloadToldByHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { fmtDate, useT, type TFunction } from "../i18n";
+import { FriendShipStatus } from "../proto/messages";
+import { usePageRetry } from "./usePageRetry";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { showSection } from "./showSection";
+import { safeImage, safeVideo } from "./inlineTypes";
+import { asIs, say, type UiText } from "./uiText";
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -211,7 +217,7 @@ const cRapidStepMs = 250;
 // end, mirroring the native iOS app's pagination.
 const PAGE_SIZE = 4;
 
-export default function Social({ authenticated, openPubUuid, openCommentUuid, onOpened, onRegisterOpenComposer }: {
+type SocialProps = {
   authenticated: boolean;
   // Issue #78: set by a tapped notification to open/scroll to a specific
   // post (and, for a comment-related notification, that comment too).
@@ -223,18 +229,45 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   // owns that button but has no reason to know about pickerOpen, so this
   // just hands it a function to call instead.
   onRegisterOpenComposer?: (open: () => void) => void;
-}) {
+};
+
+// The feed, inside its section's error boundary (ErrorBoundary.tsx): a
+// post that can't be drawn says so in place of the feed, not as a blank
+// window.
+export default function Social(props: SocialProps) {
+  return <ErrorBoundary where="tab"><SocialFeed {...props} /></ErrorBoundary>;
+}
+
+// What a page of the feed brought: ok, or why not (the device's words or
+// ours).
+type PageResult = { ok: true } | { ok: false; error: UiText };
+
+function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onRegisterOpenComposer }: SocialProps) {
   const t = useT();
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   // Whether the first page has answered - an empty feed before that is
   // "still loading", not "nothing here", and must not show the invitation.
   const [loaded, setLoaded] = useState(false);
+  // The first page didn't come: why, shown with Try again (it used to
+  // leave the page blank for good); asked again by itself after a pause.
+  const [firstError, setFirstError] = useState<UiText | null>(null);
+  // A later page didn't come: the end of the feed says so, with Try again.
+  const [moreError, setMoreError] = useState<UiText | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const endReachedRef = useRef(false);
   const loadingMoreRef = useRef(false);
   const feedRef = useRef<PbSocialPublication[]>([]);
   useEffect(() => { feedRef.current = feed; }, [feed]);
+  // The first page's retry and the next pages' (usePageRetry): a page
+  // that failed is asked again after a pause, not at once in a loop.
+  const firstRetry = usePageRetry();
+  const moreRetry = usePageRetry();
+  // A like (of the post or of one of its comments) made on a post since:
+  // a post fetched again (refreshPost) keeps the likes on screen when one
+  // was made after it was asked for.
+  const likeEditsRef = useRef(new Map<string, number>());
+  const noteLikeEdit = (pubUuid: string) => likeEditsRef.current.set(pubUuid, (likeEditsRef.current.get(pubUuid) ?? 0) + 1);
 
   // Issue #78: opening a post from a notification. Briefly highlighted
   // (highlightPub/highlightComment) rather than a persistent style, so it
@@ -242,11 +275,19 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const [highlightPub, setHighlightPub] = useState<string | null>(null);
   const [highlightComment, setHighlightComment] = useState<string | null>(null);
 
-  const fetchPage = useCallback(async (total: number, excludeUuids: string[], replacing: boolean) => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { total, excludeUuids } };
-    });
-    if (resp.payload?.$case !== "respSocialPublications") return;
+  const fetchPage = useCallback(async (total: number, excludeUuids: string[], replacing: boolean): Promise<PageResult> => {
+    let resp: RespEnvelope;
+    try {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { total, excludeUuids } };
+      });
+    } catch {
+      return { ok: false, error: say("web.social.feed.load_failed") };
+    }
+    if (resp.payload?.$case !== "respSocialPublications") {
+      const words = resp.errorMessage;
+      return { ok: false, error: words ? asIs(words) : say("web.social.feed.load_failed") };
+    }
     const sp: PbSocialPublications = resp.payload.respSocialPublications;
     setLoaded(true);
     if (replacing) {
@@ -258,40 +299,113 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       });
     }
     if (sp.publications.length < total) endReachedRef.current = true;
+    return { ok: true };
   }, []);
 
+  // The first page: a spinner until it comes, the reason and Try again if
+  // it doesn't (asked again by itself after the retry's pause).
+  const { failed: firstFailed, reset: firstReset, tick: firstTick } = firstRetry;
   const loadFeed = useCallback(async () => {
     endReachedRef.current = false;
-    await fetchPage(PAGE_SIZE, [], true);
-  }, [fetchPage]);
+    const got = await fetchPage(PAGE_SIZE, [], true);
+    if (got.ok) {
+      setFirstError(null);
+      firstReset();
+    } else {
+      setFirstError(() => got.error);
+      firstFailed();
+    }
+  }, [fetchPage, firstFailed, firstReset]);
 
-  // Re-fetches everything currently on screen (not just page 1), so a
-  // like/comment action doesn't collapse the feed back down to one page.
-  const refreshCurrentlyLoaded = useCallback(async () => {
-    const count = Math.max(feedRef.current.length, PAGE_SIZE);
-    await fetchPage(count, [], true);
-  }, [fetchPage]);
+  // Issue F10 (2026-10 review): one post again, after a comment on it -
+  // the whole loaded feed used to come again (every photo's thumbnail and
+  // every publisher's picture, megabytes for each comment). A like made on
+  // it meanwhile stays as it is on screen.
+  const refreshPost = useCallback(async (pubUuid: string) => {
+    const edits = likeEditsRef.current.get(pubUuid) ?? 0;
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetPublication", reqGetPublication: { pubUuid } };
+      });
+      const pub = resp.payload?.$case === "respPublication" ? resp.payload.respPublication.publication : undefined;
+      if (!pub) return;
+      const liked = (likeEditsRef.current.get(pubUuid) ?? 0) !== edits;
+      setFeed(prev => prev.map(p => {
+        if (p.uuid !== pubUuid) return p;
+        if (!liked) return pub;
+        const mine = new Map(p.comments.map(c => [c.commentUuid, c]));
+        return {
+          ...pub, liked: p.liked, likes: p.likes,
+          comments: pub.comments.map(c => {
+            const shown = mine.get(c.commentUuid);
+            return shown ? { ...c, liked: shown.liked, likes: shown.likes } : c;
+          }),
+        };
+      }));
+    } catch {
+      // The comment is posted either way; the next load shows it.
+    }
+  }, []);
 
+  const { failed: moreFailed, reset: moreReset, ready: moreReady, tick: moreTick } = moreRetry;
   const loadMoreIfNeeded = useCallback(async (pubUuid: string) => {
-    if (loadingMoreRef.current || endReachedRef.current) return;
+    if (loadingMoreRef.current || endReachedRef.current || !moreReady()) return;
     const cur = feedRef.current;
     const idx = cur.findIndex(p => p.uuid === pubUuid);
     if (idx === -1 || idx < cur.length - 2) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      await fetchPage(PAGE_SIZE, cur.map(p => p.uuid), false);
+      const got = await fetchPage(PAGE_SIZE, cur.map(p => p.uuid), false);
+      if (got.ok) {
+        setMoreError(null);
+        moreReset();
+      } else {
+        setMoreError(() => got.error);
+        moreFailed();
+      }
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [fetchPage]);
+  }, [fetchPage, moreFailed, moreReady, moreReset]);
 
   useEffect(() => {
-    (async () => {
-      await loadFeed();
-    })();
+    void loadFeed();
   }, [loadFeed]);
+  // The first page's retry, once its pause is over (or the device is back).
+  useEffect(() => {
+    if (firstTick && !loaded) void loadFeed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstTick]);
+  const retryFirst = () => {
+    firstReset();
+    setFirstError(null);
+    void loadFeed();
+  };
+  const retryMore = () => {
+    moreReset();
+    setMoreError(null);
+    const last = feedRef.current[feedRef.current.length - 1];
+    if (last) void loadMoreIfNeeded(last.uuid);
+  };
+
+  // Issue UX 4 (2026-10 review): an owner with an empty feed and no friend
+  // yet is shown the way to Friends - nothing will come into the feed
+  // until there is one.
+  const [hasFriends, setHasFriends] = useState<boolean | null>(null);
+  const emptyFeed = authenticated && loaded && feed.length === 0;
+  useEffect(() => {
+    if (!emptyFeed || hasFriends !== null) return;
+    let live = true;
+    useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
+    }).then((resp: RespEnvelope) => {
+      if (!live || resp.payload?.$case !== "respFriendships") return;
+      setHasFriends(resp.payload.respFriendships.friendships.some(f => f.status === FriendShipStatus.Accepted));
+    }, () => { /* the invitation alone, as before */ });
+    return () => { live = false; };
+  }, [emptyFeed, hasFriends]);
 
   // Issue #78: a tapped notification names a post (and maybe a comment on
   // it) to open. Fetches it directly via reqGetPublication if it isn't
@@ -341,6 +455,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 
   const likePublication = useCallback(async (pub_uuid: string) => {
     const wasLiked = feedRef.current.find(p => p.uuid === pub_uuid)?.liked ?? false;
+    noteLikeEdit(pub_uuid);
     setFeed(prev => prev.map(p => p.uuid === pub_uuid
       ? { ...p, liked: !wasLiked, likes: p.likes + (wasLiked ? -1 : 1) }
       : p));
@@ -367,6 +482,8 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     const wasLiked = feedRef.current
       .flatMap(p => p.comments)
       .find(c => c.commentUuid === comment_uuid)?.liked ?? false;
+    const onPost = feedRef.current.find(p => p.comments.some(c => c.commentUuid === comment_uuid));
+    if (onPost) noteLikeEdit(onPost.uuid);
     const toggle = (liked: boolean) => setFeed(prev => prev.map(p => ({
       ...p,
       comments: p.comments.map(c => c.commentUuid === comment_uuid
@@ -387,42 +504,33 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     }
   }, []);
 
-  const addComment = useCallback(async (pub_uuid: string, text: string, publisherName: string) => {
+  // A comment stays in its field until the device has it (NewComment): it
+  // used to be cleared at once and lost without a word when sending
+  // failed. Resolves with whether it was posted (and why not) - once it is,
+  // the post comes again with it (its uuid and time, and anything anyone
+  // else wrote meanwhile).
+  const addComment = useCallback(async (pub_uuid: string, text: string, publisherName: string): Promise<CommentResult> => {
     const trimmed = text.trim();
-    if (!trimmed || refuseOnDemo()) return;
-
-    const tempUuid = `pending-${Math.random().toString(36).slice(2)}`;
-    setFeed(prev => prev.map(p => p.uuid === pub_uuid
-      ? { ...p, comments: [...p.comments, {
-          pubUuid: pub_uuid, commentUuid: tempUuid, comment: trimmed,
-          publisher: publisherName, likes: 0, liked: false, dateTime: undefined, own: true,
-        }] }
-      : p));
-
-    const removeOptimistic = () => setFeed(prev => prev.map(p => p.uuid === pub_uuid
-      ? { ...p, comments: p.comments.filter(c => c.commentUuid !== tempUuid) }
-      : p));
-
+    // A demo device's notice says why (refuseOnDemo); the text stays.
+    if (!trimmed || refuseOnDemo()) return { posted: false };
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqNewSocialComment", reqNewSocialComment: {
+        e.payload = { $case: "reqNewSocialComment", reqNewSocialComment: {
           pubUuid: pub_uuid,
           comment: trimmed,
           publisher: publisherName, // whatever identity you use
         }};
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        // Swap the placeholder for the server's real comment (uuid,
-        // timestamp, anything anyone else posted meanwhile) quietly, now
-        // that the user has already seen their comment appear.
-        await refreshCurrentlyLoaded();
-      } else {
-        removeOptimistic();
+        await refreshPost(pub_uuid);
+        return { posted: true };
       }
+      const words = resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : resp.errorMessage;
+      return { posted: false, error: words ? asIs(words) : say("web.social.comment.failed") };
     } catch {
-      removeOptimistic();
+      return { posted: false, error: say("web.social.comment.failed") };
     }
-  }, [refreshCurrentlyLoaded]);
+  }, [refreshPost]);
 
   // Issue #34: delete one of your own posts.
   const deletePublication = useCallback(async (pub_uuid: string) => {
@@ -462,28 +570,45 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   }, []);
 
   // ---------------- Likers modal (issue #29) ----------------
-  const [likersOpen, setLikersOpen] = useState(false);
+  // What it lists: a post's likers or a comment's; null when closed. Its
+  // list (null while on its way), or why it didn't come.
+  const [likersOf, setLikersOf] = useState<{ pub?: string; comment?: string } | null>(null);
+  const likersOpen = likersOf !== null;
   const [likers, setLikers] = useState<PbProfile[] | null>(null);
+  const [likersError, setLikersError] = useState<UiText | null>(null);
+  const likersSeq = useRef(0);
 
-  const showPublicationLikers = useCallback(async (pub_uuid: string) => {
-    setLikersOpen(true);
+  const loadLikers = useCallback(async (of: { pub?: string; comment?: string }) => {
+    const seq = ++likersSeq.current;
+    setLikersOf(of);
     setLikers(null);
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetPublicationLikers", reqGetPublicationLikers: { pubUuid: pub_uuid } };
-    });
-    setLikers(resp.payload?.$case === "respLikers" ? resp.payload.respLikers.likers : []);
+    setLikersError(null);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = of.pub
+          ? { $case: "reqGetPublicationLikers", reqGetPublicationLikers: { pubUuid: of.pub } }
+          : { $case: "reqGetCommentLikers", reqGetCommentLikers: { commentUuid: of.comment ?? "" } };
+      });
+      if (seq !== likersSeq.current) return;
+      if (resp.payload?.$case === "respLikers") {
+        setLikers(resp.payload.respLikers.likers);
+      } else {
+        const words = resp.errorMessage;
+        setLikersError(() => (words ? asIs(words) : say("web.social.likes.failed")));
+      }
+    } catch {
+      if (seq === likersSeq.current) setLikersError(() => say("web.social.likes.failed"));
+    }
   }, []);
+  const showPublicationLikers = useCallback((pub_uuid: string) => loadLikers({ pub: pub_uuid }), [loadLikers]);
+  const showCommentLikers = useCallback((comment_uuid: string) => loadLikers({ comment: comment_uuid }), [loadLikers]);
 
-  const showCommentLikers = useCallback(async (comment_uuid: string) => {
-    setLikersOpen(true);
+  const closeLikers = useCallback(() => {
+    likersSeq.current++;
+    setLikersOf(null);
     setLikers(null);
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetCommentLikers", reqGetCommentLikers: { commentUuid: comment_uuid } };
-    });
-    setLikers(resp.payload?.$case === "respLikers" ? resp.payload.respLikers.likers : []);
+    setLikersError(null);
   }, []);
-
-  const closeLikers = useCallback(() => { setLikersOpen(false); setLikers(null); }, []);
   // One avatar URL per liker while the list is up, freed with it - not a
   // new, never-freed one for every liker on every render of Social.
   const likerURLs = useMemo(
@@ -511,6 +636,10 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   const [viewerIsVideo, setViewerIsVideo] = useState(false);
   const [viewerPosterURL, setViewerPosterURL] = useState<string | null>(null);
   const [viewerVideoURL, setViewerVideoURL] = useState<string | null>(null);
+  // The item is of a type the browser must not show from a blob: URL of
+  // this app's origin (inlineTypes.ts): only its preview shows, and
+  // Download saves it.
+  const [viewerDownloadOnly, setViewerDownloadOnly] = useState(false);
   // Which item the viewer is on: every step (and closing) moves it on, so
   // a full-size reply for an item already paged past is dropped. The
   // device answers out of order, and one used to land under the next
@@ -543,14 +672,29 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     setViewerOpen(true);
 
     const f = pub.files[index];
+    if (!f) return;
     const isVideo = (f.mime || "").startsWith("video/");
-    setViewerIsVideo(isVideo);
+    // Only a photo or a video of a type that can't run script is fetched
+    // whole and shown (a friend's device says what each item is); an item
+    // that says no type is decided by the one its full size comes with.
+    const typed = !!f.mime;
+    const showable = !typed || (isVideo ? safeVideo(f.mime) : safeImage(f.mime));
+    setViewerIsVideo(isVideo && showable);
+    setViewerDownloadOnly(!showable);
 
     // f.content is always a JPEG thumbnail (see the isVideo comment near
     // current/lowURL above) - shown immediately either as the low-res
     // image preview, or as a video's poster while its real bytes load.
     const thumb = bytesToURL(f.content as unknown as Uint8Array, "image/jpeg") || null;
     if (thumb) viewerBlobsRef.current.add(thumb);
+    if (!showable) {
+      setViewerURL(thumb);
+      setViewerPosterURL(null);
+      setViewerVideoURL(null);
+      setViewerHiRes(false);
+      setViewerLoading(false);
+      return;
+    }
     if (isVideo) {
       setViewerPosterURL(thumb);
       setViewerVideoURL(null);
@@ -597,8 +741,15 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         };
       });
       if (!current()) return;
+      // The type it comes with decides too, as it does in Files.
+      const mime = resp.payload?.$case === "respFile" ? resp.payload.respFile.mime || f.mime : "";
+      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content?.length && !(isVideo ? safeVideo(mime) : safeImage(mime))) {
+        // Of no type that may be shown from a blob: URL: Download saves it.
+        setViewerDownloadOnly(true);
+        return;
+      }
       if (resp.payload?.$case === "respFile" && resp.payload.respFile.content?.length) {
-        const blob = new Blob([resp.payload.respFile.content as BlobPart], { type: resp.payload.respFile.mime || "application/octet-stream" });
+        const blob = new Blob([resp.payload.respFile.content as BlobPart], { type: mime });
         const full = URL.createObjectURL(blob);
         viewerBlobsRef.current.add(full);
         viewerFullRef.current = { key: pubMediaKey(pub.uuid, f.hash), blob };
@@ -624,17 +775,18 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     setViewerPosterURL(null);
     setViewerVideoURL(null);
     setViewerIsVideo(false);
+    setViewerDownloadOnly(false);
     setViewerPub(null);
   }, []);
 
   const nextImg = useCallback(() => {
-    if (!viewerPub) return;
+    if (!viewerPub?.files.length) return;
     const next = (viewerIdx + 1) % viewerPub.files.length;
     void openViewer(viewerPub, next);
   }, [viewerPub, viewerIdx, openViewer]);
 
   const prevImg = useCallback(() => {
-    if (!viewerPub) return;
+    if (!viewerPub?.files.length) return;
     const prev = (viewerIdx - 1 + viewerPub.files.length) % viewerPub.files.length;
     void openViewer(viewerPub, prev);
   }, [viewerPub, viewerIdx, openViewer]);
@@ -729,6 +881,24 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     };
   }, [viewerOpen, nextImg, prevImg, closeViewer, viewerStops]);
 
+  // The likers pop-up: Escape closes it, and the keyboard's focus goes
+  // into it and back to what opened it, as the photo viewer's does.
+  const likersBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!likersOpen) return;
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    likersBoxRef.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); closeLikers(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (back?.isConnected) back.focus({ preventScroll: true });
+    };
+  }, [likersOpen, closeLikers]);
+  const likersTitleId = useId();
+
   // basic swipe, shared by post images and the full-screen modal
   const useSwipe = () => {
     const startX = useRef<number | null>(null);
@@ -792,7 +962,19 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         {/* Issue #79: an empty timeline invites the first post instead of
             being blank. Only for the owner - a visitor with nothing to see
             gets nothing to do about it either. */}
-        {authenticated && loaded && feed.length === 0 && (
+        {/* The first page: a spinner until it comes, its reason and Try
+            again if it doesn't. */}
+        {authenticated && !loaded && (
+          firstError ? (
+            <div className="sv-feed-note" role="alert">
+              <p>{firstError(t)}</p>
+              <button type="button" className="sv-btn" onClick={retryFirst}>{t("common.try_again")}</button>
+            </div>
+          ) : (
+            <div className="sv-feed-note"><Spinner label={t("web.social.feed.loading")} /></div>
+          )
+        )}
+        {emptyFeed && (
           <div className="sv-empty">
             <h2>{t("web.social.feed.empty_title")}</h2>
             <p>{t("web.social.feed.empty_text")}</p>
@@ -803,6 +985,14 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
               </svg>
             </button>
+            {/* With no friend yet nothing will come in: Friends is where
+                one is added. */}
+            {hasFriends === false && (
+              <div className="sv-empty-friends">
+                <p>{t("web.social.feed.no_friends")}</p>
+                <button type="button" className="sv-btn" onClick={() => showSection("Friends")}>{t("web.social.feed.add_friends")}</button>
+              </div>
+            )}
           </div>
         )}
         {feed.map((p, i) => (
@@ -812,10 +1002,19 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             highlighted={p.uuid === highlightPub}
             highlightComment={highlightComment}
             armPagination={i >= feed.length - 2 && !loadingMore}
+            // A failed page is asked again (a new observer) when its pause
+            // is over: only the last two posts hear of it.
+            pageRetry={i >= feed.length - 2 ? moreTick : 0}
             actions={postActions}
           />
         ))}
         {loadingMore && <div className="sv-loading-more">{t("web.social.feed.loading_more")}</div>}
+        {!loadingMore && moreError && (
+          <div className="sv-feed-note" role="alert">
+            <p>{moreError(t)}</p>
+            <button type="button" className="sv-btn" onClick={retryMore}>{t("common.try_again")}</button>
+          </div>
+        )}
       </div>
 
       {/* Issue #32: new post — a dedicated picker (tag filter + tap to
@@ -900,7 +1099,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 }}
               >
                 <img className="sv-full" ref={viewerImgRef} src={viewerURL} alt={t("web.social.viewer.full")} />
-                {!viewerHiRes && <LowResBadge imgRef={viewerImgRef} loading={viewerLoading} />}
+                {!viewerHiRes && !viewerDownloadOnly && <LowResBadge imgRef={viewerImgRef} loading={viewerLoading} />}
                 {(viewerPub?.files.length ?? 0) > 1 && (
                   <div className="sv-dots" aria-hidden="true">
                     {viewerPub!.files.map((_, i) => (
@@ -909,9 +1108,10 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   </div>
                 )}
               </div>
-            ) : (
+            ) : viewerDownloadOnly ? null : (
               <div className="sv-loading">{t("common.loading")}</div>
             )}
+            {viewerDownloadOnly && <p className="sv-download-only">{t("web.social.viewer.download_only")}</p>}
             <DownloadNote failed={downloadFailed} />
             {/* Last of all: see onViewerGuardFocus. */}
             <span ref={viewerGuardRef} className="pg-modal-sr" tabIndex={0} onFocus={onViewerGuardFocus} />
@@ -922,11 +1122,24 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
       {/* Likers modal (issue #29) */}
       {likersOpen && (
         <div className="sv-modal" onClick={closeLikers}>
-          <div className="sv-modal-body sv-likers-body" onClick={(e) => e.stopPropagation()}>
-            <button className="sv-close" onClick={closeLikers}>✕</button>
-            <h3 className="sv-likers-title">{t("web.social.likes.title")}</h3>
-            {likers == null ? (
-              <div className="sv-loading-more">{t("common.loading")}</div>
+          <div
+            ref={likersBoxRef}
+            className="sv-modal-body sv-likers-body"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={likersTitleId}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="sv-close" onClick={closeLikers} aria-label={t("common.close")} data-tip={t("common.close")}>✕</button>
+            <h3 className="sv-likers-title" id={likersTitleId}>{t("web.social.likes.title")}</h3>
+            {likersError ? (
+              <div className="sv-feed-note" role="alert">
+                <p>{likersError(t)}</p>
+                <button type="button" className="sv-btn" onClick={() => { if (likersOf) void loadLikers(likersOf); }}>{t("common.try_again")}</button>
+              </div>
+            ) : likers == null ? (
+              <div className="sv-loading-more"><Spinner label={t("common.loading")} /></div>
             ) : likers.length === 0 ? (
               <div className="sv-loading-more">{t("web.social.likes.none")}</div>
             ) : (
@@ -935,7 +1148,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   const avatarURL = likerURLs[i];
                   return (
                     <li key={`${l.domain}-${i}`}>
-                      {avatarURL ? <img src={avatarURL} className="sv-img-avatar" /> : <div className="sv-avatar">👤</div>}
+                      {avatarURL ? <img src={avatarURL} className="sv-img-avatar" alt="" /> : <div className="sv-avatar" aria-hidden="true">👤</div>}
                       <span>{l.name || l.domain}</span>
                     </li>
                   );
@@ -961,6 +1174,12 @@ function viewerLabel(t: TFunction, video: boolean, name: string, idx: number, to
   return video ? t("web.social.viewer.video_by", { name }) : t("web.social.viewer.photo_by", { name });
 }
 
+/** A photo's alt text in the feed (a video's poster too): what it is, by
+    whom, and which of the post's items it is when there are several. */
+function slideLabel(t: TFunction, f: PbFile, name: string, idx: number, total: number): string {
+  return viewerLabel(t, (f.mime || "").startsWith("video/"), name, idx, total);
+}
+
 /** The download button under a post: its tooltip and accessible name, for
     the item on screen ("Download this photo 2 of 3"). */
 function postDownloadTexts(t: TFunction, video: boolean, idx: number, total: number): { title: string; label: string } {
@@ -978,20 +1197,25 @@ function postDownloadTexts(t: TFunction, video: boolean, idx: number, total: num
 /** Previous/next over a video in a post with more than one item: the
     player takes every click, so the click-to-page zones can't be used.
     A touch on them must not start the strip's swipe either. */
-function PostNavButtons({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
+function PostNavButtons({ onPrev, onNext, focusOnly = false }: { onPrev: () => void; onNext: () => void; focusOnly?: boolean }) {
   const t = useT();
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const only = focusOnly ? " focus-only" : "";
   return (
     <>
-      <button type="button" className="sv-nav prev" aria-label={t("web.social.post.previous_item")} data-tip={t("web.social.post.previous")}
+      <button type="button" className={`sv-nav prev${only}`} aria-label={t("web.social.post.previous_item")} data-tip={t("web.social.post.previous")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onPrev(); }}>‹</button>
-      <button type="button" className="sv-nav next" aria-label={t("web.social.post.next_item")} data-tip={t("web.social.post.next")}
+      <button type="button" className={`sv-nav next${only}`} aria-label={t("web.social.post.next_item")} data-tip={t("web.social.post.next")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onNext(); }}>›</button>
     </>
   );
 }
+
+// What sending a comment came to: posted, or not (with why, unless a demo
+// device's notice already said it).
+type CommentResult = { posted: true } | { posted: false; error?: UiText };
 
 // One post of the feed. Its own component at module level: declared inside
 // Social it was a new component type on every Social render, so a like, a
@@ -1004,7 +1228,7 @@ type PostActions = {
   loadMoreIfNeeded: (pubUuid: string) => Promise<void>;
   likePublication: (pubUuid: string) => Promise<void>;
   likeComment: (commentUuid: string) => Promise<void>;
-  addComment: (pubUuid: string, text: string, publisherName: string) => Promise<void>;
+  addComment: (pubUuid: string, text: string, publisherName: string) => Promise<CommentResult>;
   deletePublication: (pubUuid: string) => Promise<void>;
   deleteComment: (commentUuid: string) => Promise<void>;
   showPublicationLikers: (pubUuid: string) => Promise<void>;
@@ -1012,13 +1236,15 @@ type PostActions = {
   openViewer: (pub: PbSocialPublication, index: number) => Promise<void>;
 };
 
-const Post = memo(function Post({ p, highlighted, highlightComment, armPagination, actions }: {
+const Post = memo(function Post({ p, highlighted, highlightComment, armPagination, pageRetry, actions }: {
   p: PbSocialPublication;
   // Issue #78: the post (and comment) a tapped notification opened.
   highlighted: boolean;
   highlightComment: string | null;
   // One of the last two posts while no page is loading (see below).
   armPagination: boolean;
+  // Changes when a failed page may be asked for again (usePageRetry).
+  pageRetry: number;
   actions: PostActions;
 }) {
   const {
@@ -1044,10 +1270,14 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     }, { rootMargin: "600px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [p.uuid, armPagination, loadMoreIfNeeded]);
+  }, [p.uuid, armPagination, pageRetry, loadMoreIfNeeded]);
 
-  const goLeft = () => setIdx(i => (i - 1 + p.files.length) % p.files.length);
-  const goRight = () => setIdx(i => (i + 1) % p.files.length);
+  // A post may come with no files at all (the device takes one, and a
+  // friend's sync can store one): it is a card of text alone. It used to
+  // throw here and unmount the whole app.
+  const count = p.files.length;
+  const goLeft = () => setIdx(i => (count ? (i - 1 + count) % count : 0));
+  const goRight = () => setIdx(i => (count ? (i + 1) % count : 0));
 
   // Issue #112 fix-up: the box takes this post's own shape (no wider
   // than 1.91:1, see cFeedMaxAspect) - hardcoding 4:5 for every post
@@ -1133,12 +1363,15 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     else if (dx > width / 4) goLeft();
   };
 
-  const current = p.files[idx];
-  const isVideo = (current.mime || "").startsWith("video/");
+  const current: PbFile | undefined = p.files[idx];
+  // A video plays in the feed only when it says it is one a <video> can
+  // take from a blob: URL (inlineTypes.ts); anything else is a picture
+  // that opens the viewer, which offers it as a download.
+  const isVideo = !!current && (current.mime || "").startsWith("video/") && safeVideo(current.mime);
   // Download, for the item on screen: a video plays right here and never
   // opens the pop-up, so this is where it is saved from (photos too, as
   // in the pop-up). Re-renders this post only when its own download moves.
-  const dlKey = pubMediaKey(p.uuid, current.hash);
+  const dlKey = current ? pubMediaKey(p.uuid, current.hash) : "";
   const dlSave = useDownloadState(dlKey);
   const dlToldByPopup = useDownloadToldByHost(dlKey);
   const dlTexts = postDownloadTexts(t, isVideo, idx, p.files.length);
@@ -1150,7 +1383,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   // tagged "video/mp4" over genuinely-JPEG bytes and the browser refuses
   // to render it as an <img> (issue #60).
   const lowURL = useMemo(
-    () => bytesToURL(current.content as unknown as Uint8Array, "image/jpeg"),
+    () => bytesToURL(current?.content as unknown as Uint8Array, "image/jpeg"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [p.uuid, idx]
   );
@@ -1186,7 +1419,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   }, []);
 
   const playInline = async (f: PbFile) => {
-    if (inlineLoading) return;
+    if (inlineLoading || !safeVideo(f.mime)) return;
     if (inlineVideo?.path === f.hash) return; // already playing this one
     setInlineLoading(true);
     try {
@@ -1215,10 +1448,10 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           reqGetPublicationMedia: { pubUuid: p.uuid, hash: f.hash },
         };
       });
-      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content) {
+      if (resp.payload?.$case === "respFile" && resp.payload.respFile.content && safeVideo(resp.payload.respFile.mime || f.mime)) {
         // The real file mime here, unlike the thumbnail above - these
         // are the actual video bytes.
-        const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
+        const url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime || f.mime);
         if (url) {
           setInlineVideo(prev => {
             if (prev?.url.startsWith("blob:")) URL.revokeObjectURL(prev.url);
@@ -1253,7 +1486,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           // Already loaded: just resume. Otherwise fetch it, which
           // sets autoPlay on the element that replaces the poster.
           if (videoElRef.current) void videoElRef.current.play().catch(() => {});
-          else void playInline(current);
+          else if (current) void playInline(current);
         } else {
           videoElRef.current?.pause();
         }
@@ -1263,7 +1496,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     obs.observe(node);
     return () => obs.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVideo, current.hash, inlineVideo?.url]);
+  }, [isVideo, current?.hash, inlineVideo?.url]);
 
 
   // Made again only when a refresh brings new image bytes (a like or a
@@ -1285,7 +1518,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
       ref={rootRef as React.RefObject<HTMLElement>}
     >
       <header className="sv-post-hdr">
-        {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
+        {profURL && <img src={profURL} className="sv-img-avatar" alt="" /> || <div className="sv-avatar" aria-hidden="true">👤</div> }
         <div className="sv-pub-meta">
           <div className="sv-publisher">{p.publisher?.name || t("web.social.feed.user")}</div>
           {p.dateTime && <PostDate d={p.dateTime} />}
@@ -1306,7 +1539,9 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
       {/* The box's shape is the post's (boxAspect); its height cap and
           the frame of the current item (--sv-r) are Social.css's. The
           poster and the player are both sized from that one ratio,
-          which is what keeps them identical (issue #112). */}
+          which is what keeps them identical (issue #112). A post with no
+          files has none. */}
+      {current && (
       <div className="sv-media"
            ref={mediaRef}
            style={{
@@ -1345,28 +1580,36 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             }}
           >
             {p.files.map((f, i) => (
-              <img
+              // A button each, for the keyboard and screen readers too:
+              // Enter opens the viewer (or plays a video), and the
+              // previous/next buttons below page. Only the one on screen
+              // is a Tab stop.
+              <button
+                type="button"
                 key={`${f.hash}-${i}`}
                 className="sv-slide"
-                src={stripURLs[i] || lowURL}
-                alt={f.path}
+                tabIndex={i === idx ? 0 : -1}
+                aria-hidden={i === idx ? undefined : true}
                 onClick={(e) => {
                   // Issue #20: click the left/right quarter of a
                   // multi-image post to page through it (no visible
                   // buttons) — the middle half still opens the
                   // full-screen viewer, which is also where a video
                   // post's thumbnail (its poster, tapped here) actually
-                  // starts playing (issue #60).
-                  if (p.files.length > 1) {
+                  // starts playing (issue #60). A press from the keyboard
+                  // (detail 0) is never a quarter.
+                  if (p.files.length > 1 && e.detail > 0) {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     if (x < rect.width * 0.25) { goLeft(); return; }
                     if (x > rect.width * 0.75) { goRight(); return; }
                   }
-                  if ((f.mime || "").startsWith("video/")) { void playInline(f); return; }
+                  if ((f.mime || "").startsWith("video/") && safeVideo(f.mime)) { void playInline(f); return; }
                   openViewer(p, i);
                 }}
-              />
+              >
+                <img src={stripURLs[i] || lowURL} alt={slideLabel(t, f, p.publisher?.name || t("web.social.feed.user"), i, p.files.length)} draggable={false} />
+              </button>
             ))}
           </div>
         ) : (
@@ -1412,9 +1655,11 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         {/* A video takes every click for its own controls, so the
             left/right-quarter paging above can't reach the next item from
             it: while a video is the item on screen, visible buttons page
-            instead. Photos keep the button-free paging (issue #20). */}
-        {isVideo && p.files.length > 1 && (
-          <PostNavButtons onPrev={goLeft} onNext={goRight} />
+            instead. Photos keep the button-free paging (issue #20) for the
+            pointer; their buttons show for the keyboard (Social.css: on
+            focus). */}
+        {p.files.length > 1 && (
+          <PostNavButtons onPrev={goLeft} onNext={goRight} focusOnly={!isVideo} />
         )}
         {/* Issue #68: the iOS app already shows a dot per image (current
             one solid, the rest dimmed) over a multi-image post - the web
@@ -1429,8 +1674,9 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           </div>
         )}
       </div>
+      )}
 
-      <div className="sv-caption">{p.text}</div>
+      <div className={`sv-caption${current ? "" : " sv-caption-only"}`}>{p.text}</div>
 
       <div className="sv-actions">
         <button
@@ -1441,17 +1687,18 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         >
           {p.liked ? "❤️" : "🤍"}
         </button>
-        <button className="sv-btn" onClick={() => alert(t("web.social.post.share_unavailable"))}>↗︎ {t("common.share")}</button>
-        <DownloadButton
-          cls="sv-dl"
-          className="sv-btn"
-          save={dlSave}
-          onClick={() => downloadPostMedia(p, idx)}
-          what={postMediaName(p, idx)}
-          title={dlTexts.title}
-          label={dlTexts.label}
-          announce={!dlToldByPopup}
-        />
+        {current && (
+          <DownloadButton
+            cls="sv-dl"
+            className="sv-btn"
+            save={dlSave}
+            onClick={() => downloadPostMedia(p, idx)}
+            what={postMediaName(p, idx)}
+            title={dlTexts.title}
+            label={dlTexts.label}
+            announce={!dlToldByPopup}
+          />
+        )}
       </div>
       {/* Issue #29: tap the count (separate from the heart toggle above) */}
       {p.likes > 0 && (
@@ -1501,7 +1748,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             )}
           </div>
         ))}
-        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />
+        <NewComment onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />
       </div>
     </article>
   );
@@ -1519,21 +1766,48 @@ function commentAuthor(t: TFunction, c: { commentUuid: string; publisher: string
   return c.publisher || t("web.social.feed.user");
 }
 
-function NewComment({ onSend }: { pubUuid: string; onSend: (t: string) => void }) {
+// A comment being written. It stays in the field until the device has it
+// (Issue F21 of the 2026-10 review: it used to be cleared at once and lost
+// without a word when sending failed), and what went wrong shows under it.
+function NewComment({ onSend }: { onSend: (t: string) => Promise<CommentResult> }) {
   const t = useT();
   const [txt, setTxt] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<UiText | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const send = async () => {
+    if (!txt.trim() || sending) return;
+    setSending(true);
+    setError(null);
+    const sent = txt;
+    const result = await onSend(sent);
+    setSending(false);
+    if (result.posted) {
+      // Only what was sent: anything typed since stays.
+      setTxt((now) => (now === sent ? "" : now));
+      return;
+    }
+    if (result.error) setError(() => result.error!);
+    inputRef.current?.focus();
+  };
   return (
-    <div className="sv-newcomment">
-      <input
-        className="sv-input"
-        placeholder={t("web.social.comment.placeholder")}
-        value={txt}
-        onChange={(e) => setTxt(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && txt.trim()) { onSend(txt); setTxt(""); } }}
-      />
-      <button className="sv-btn tiny" disabled={!txt.trim()} onClick={() => { onSend(txt); setTxt(""); }}>
-        {t("web.social.comment.post")}
-      </button>
+    <div className="sv-newcomment-wrap">
+      <div className="sv-newcomment">
+        <input
+          ref={inputRef}
+          className="sv-input"
+          placeholder={t("web.social.comment.placeholder")}
+          value={txt}
+          readOnly={sending}
+          aria-invalid={error ? true : undefined}
+          onChange={(e) => { setTxt(e.target.value); if (error) setError(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
+        />
+        <button className="sv-btn tiny" disabled={!txt.trim() || sending} onClick={() => void send()}>
+          {sending ? t("web.social.comment.posting") : t("web.social.comment.post")}
+        </button>
+      </div>
+      {error && <p className="sv-comment-error" role="alert">{error(t)}</p>}
     </div>
   );
 }

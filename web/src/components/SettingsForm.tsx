@@ -223,6 +223,12 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   // Status
   // Kept as UiText: made when shown, so it follows a language change.
   const [status, setStatus] = useState<{ kind: "info"|"success"|"error"; text: UiText } | null>(null);
+  // Anything but an error goes by itself.
+  useEffect(() => {
+    if (!status || status.kind === "error") return;
+    const timer = window.setTimeout(() => setStatus(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   useEffect(() => {
     if (pushSupported()) void isPushSubscribed().then(setPushSubscribed);
@@ -336,11 +342,23 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
 
   return (
     <div className="sf-wrap">
-      {status && (
-        <div className={`sf-status ${status.kind}`}>
-          {status.text(t)}
-        </div>
-      )}
+      {/* The result of a change (password, notifications, faces, tagging,
+          reprocess), fixed at the foot of the window where it is seen
+          whatever was scrolled to - it used to be at the top of Settings,
+          above the screen. Always on the page, so it is announced: an
+          error at once (alert) and staying until closed or the next
+          change; the rest politely, and gone after a while. */}
+      <div className="sf-toast-wrap" role="alert">
+        {status?.kind === "error" && (
+          <div className="sf-status error">
+            <span>{status.text(t)}</span>
+            <button type="button" className="sf-status-close" onClick={() => setStatus(null)} aria-label={t("common.close")}>✕</button>
+          </div>
+        )}
+      </div>
+      <div className="sf-toast-wrap" role="status">
+        {status && status.kind !== "error" && <div className={`sf-status ${status.kind}`}><span>{status.text(t)}</span></div>}
+      </div>
 
       {/* Issue #84: first thing in Settings, not tucked away behind a
           top-level "Profile" tab (which used to show this only while

@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Cancella ricerca",
   "web.images.grid.date": "{day} {month} {year}",
   "web.images.grid.dismiss": "Chiudi",
+  "web.images.grid.empty_apps": "Oppure fai il backup di un telefono o di un computer con le \u003clink\u003eapp di Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Seleziona le foto in Immagini, poi scegli “Aggiungi a una raccolta”.",
   "web.images.grid.empty_collection_title": "Questa raccolta è vuota",
   "web.images.grid.empty_text": "Qui compaiono le foto caricate dalle app per telefono e computer.",
   "web.images.grid.empty_title": "Ancora nessuna foto",
+  "web.images.grid.empty_upload": "Carica da questo computer",
   "web.images.grid.go_to_images": "Vai a Immagini",
   "web.images.grid.loading": "Caricamento delle foto",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Nuovo tentativo…",
   "web.images.grid.unreachable_text": "Le tue foto compariranno appena risponde.",
   "web.images.grid.unreachable_title": "Impossibile raggiungere il tuo dispositivo",
+  "web.images.grid.upload_failed": {
+    "one": "{count} file non è stato caricato.",
+    "other": "{count} file non sono stati caricati.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "Caricamento {current} di {total}…",
   "web.images.load.check": "Controlla che il tuo dispositivo sia online, poi riprova.",
   "web.images.load.waiting": "Ancora in attesa del tuo dispositivo",
   "web.images.people.add_name": "Aggiungi nome",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Nessun metadato EXIF in questo file",
   "web.images.viewer.no_metadata": "Nessun metadato trovato",
   "web.images.viewer.previous": "Precedente",
+  "web.images.viewer.show_map": "Mostra sulla mappa",
   "web.images.viewer.stalled": "Il caricamento di questo video sta richiedendo troppo tempo.",
   "web.images.viewer.stalled_hint": "Da un po’ non arriva niente dal tuo dispositivo: potrebbe essere occupato o difficile da raggiungere in questo momento. Di solito riprovare funziona.",
   "web.images.viewer.taken": "Data di scatto"

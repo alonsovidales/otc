@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Ativar apenas carregamento: nada nesta pasta pode ser eliminado, e os novos carregamentos mantêm a versão anterior",
   "web.files.lock.on_tip": "Apenas carregamento: nada nesta pasta pode ser eliminado, e os novos carregamentos mantêm a versão anterior. Clica para desativar.",
   "web.files.lock.on_tip_short": "Apenas carregamento. Clica para desativar.",
+  "web.files.open.failed": "Não foi possível abrir \u2068{name}\u2069. Verifica a ligação ao teu dispositivo e tenta novamente.",
   "web.files.results.back": "Voltar a \u2068{folder}\u2069",
   "web.files.results.back_files": "Voltar a Ficheiros",
   "web.files.results.cant_search": "Este dispositivo ainda não consegue pesquisar os ficheiros. Atualiza-o em Definições.",
@@ -109,6 +110,8 @@
     "other": "Eliminar {count} itens? Esta ação não pode ser anulada.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "A eliminação parou: o dispositivo não respondeu. Foram eliminados {done} de {total}.",
+  "web.files.selection.deleting": "A eliminar {done} de {total}…",
   "web.files.selection.download_zip": "Transferir ZIP",
   "web.files.selection.link_copied": "Ligação de partilha copiada para a área de transferência",
   "web.files.selection.preparing": "A preparar…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Atual",
+  "web.files.versions.download_failed": "Não foi possível transferir esta versão de \u2068{name}\u2069.",
   "web.files.versions.hint": "O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.",
   "web.files.versions.replaced": "Substituída em {date}",
   "web.files.versions.tip": "Versões anteriores deste ficheiro",

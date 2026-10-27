@@ -98,3 +98,18 @@
 .np-caption { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink); color: var(--mist); font-size: 16px; }
 .np-publish { padding: 8px 14px; border: 0; border-radius: 8px; background: var(--ember); color: var(--ember-ink); font-weight: 600; cursor: pointer; white-space: nowrap; }
 .np-publish:disabled { background: var(--mist-dim); color: var(--ink); cursor: not-allowed; }
+
+/* F20: how each file from this computer is getting on (SentBadge), over
+   its thumbnail in the order strip. */
+.np-sent { position: absolute; left: 0; right: 0; bottom: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; pointer-events: none; }
+.np-sent.done, .np-sent.failed { left: auto; right: 2px; bottom: 2px; width: 18px; height: 18px; border-radius: 50%; }
+.np-sent.done { background: var(--success); color: var(--ink); }
+.np-sent.failed { background: var(--danger); color: var(--ink); pointer-events: auto; }
+.np-sent.sending { padding: 2px 4px 3px; background: rgba(0, 0, 0, 0.55); gap: 2px; }
+.np-sent-bar { width: 100%; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); overflow: hidden; }
+.np-sent-bar > span { display: block; height: 100%; background: var(--ember); transition: width .2s ease; }
+.np-sent-pct { font-variant-numeric: tabular-nums; line-height: 1.1; }
+/* Some files didn't upload: post the rest, or try them again. */
+.np-error-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.np-error-btn { padding: 6px 12px; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .np-sent-bar > span { transition: none; } }

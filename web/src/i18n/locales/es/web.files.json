@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Activar solo subida: no se podrá eliminar nada de esta carpeta, y al volver a subir un archivo se conservará la versión anterior",
   "web.files.lock.on_tip": "Solo subida: no se puede eliminar nada de esta carpeta, y al volver a subir un archivo se conserva la versión anterior. Haz clic para desactivarlo.",
   "web.files.lock.on_tip_short": "Solo subida. Haz clic para desactivarlo.",
+  "web.files.open.failed": "No se ha podido abrir \u2068{name}\u2069. Comprueba la conexión con tu dispositivo y vuelve a intentarlo.",
   "web.files.results.back": "Volver a \u2068{folder}\u2069",
   "web.files.results.back_files": "Volver a Archivos",
   "web.files.results.cant_search": "Este dispositivo aún no puede buscar en sus archivos. Actualízalo en Ajustes.",
@@ -109,6 +110,8 @@
     "other": "¿Eliminar {count} elementos? Esto no se puede deshacer.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Se ha detenido la eliminación: el dispositivo no ha respondido. Se han eliminado {done} de {total}.",
+  "web.files.selection.deleting": "Eliminando {done} de {total}…",
   "web.files.selection.download_zip": "Descargar ZIP",
   "web.files.selection.link_copied": "Enlace para compartir copiado en el portapapeles",
   "web.files.selection.preparing": "Preparando…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Actual",
+  "web.files.versions.download_failed": "No se ha podido descargar esta versión de \u2068{name}\u2069.",
   "web.files.versions.hint": "El archivo está en una carpeta de solo subida, así que cada subida a esta ruta ha conservado la anterior.",
   "web.files.versions.replaced": "Sustituida: {date}",
   "web.files.versions.tip": "Versiones anteriores de este archivo",

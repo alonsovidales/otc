@@ -324,6 +324,10 @@
     "text": "Chiudi",
     "en": "Dismiss"
   },
+  "web.images.grid.empty_apps": {
+    "text": "Oppure fai il backup di un telefono o di un computer con le <link>app di Off The Cloud</link>.",
+    "en": "Or back up a phone or a computer with the <link>Off The Cloud apps</link>."
+  },
   "web.images.grid.empty_collection_text": {
     "text": "Seleziona le foto in Immagini, poi scegli “Aggiungi a una raccolta”.",
     "en": "Select photos in Images, then choose Add to collection."
@@ -339,6 +343,10 @@
   "web.images.grid.empty_title": {
     "text": "Ancora nessuna foto",
     "en": "No photos yet"
+  },
+  "web.images.grid.empty_upload": {
+    "text": "Carica da questo computer",
+    "en": "Upload from this computer"
   },
   "web.images.grid.go_to_images": {
     "text": "Vai a Immagini",
@@ -399,6 +407,20 @@
   "web.images.grid.unreachable_title": {
     "text": "Impossibile raggiungere il tuo dispositivo",
     "en": "Can't reach your device"
+  },
+  "web.images.grid.upload_failed": {
+    "text": {
+      "one": "{count} file non è stato caricato.",
+      "other": "{count} file non sono stati caricati."
+    },
+    "en": {
+      "one": "{count} file didn't upload.",
+      "other": "{count} files didn't upload."
+    }
+  },
+  "web.images.grid.uploading": {
+    "text": "Caricamento {current} di {total}…",
+    "en": "Uploading {current} of {total}…"
   },
   "web.images.load.check": {
     "text": "Controlla che il tuo dispositivo sia online, poi riprova.",
@@ -1033,6 +1055,10 @@
   "web.images.viewer.previous": {
     "text": "Precedente",
     "en": "Previous"
+  },
+  "web.images.viewer.show_map": {
+    "text": "Mostra sulla mappa",
+    "en": "Show on map"
   },
   "web.images.viewer.stalled": {
     "text": "Il caricamento di questo video sta richiedendo troppo tempo.",

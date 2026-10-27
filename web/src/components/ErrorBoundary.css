@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* A section (or the whole app) that stopped working: what happened and
+   the ways on, in the middle of where the page was. */
+.eb-root {
+  max-width: 480px;
+  margin: 12vh auto 0;
+  padding: 0 16px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--mist);
+}
+.eb-app, .eb-shared { margin-top: 20vh; }
+.eb-title { margin: 0; font-size: 1.3rem; line-height: 1.3; }
+.eb-text { margin: 0; color: var(--mist-dim); }
+.eb-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }
+.eb-actions .eb-quiet { background: none; border-color: var(--line); color: var(--mist); }
+.eb-actions .eb-quiet:hover { background: var(--panel); filter: none; }

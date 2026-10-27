@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Borrar búsqueda",
   "web.images.grid.date": "{day} de {month} de {year}",
   "web.images.grid.dismiss": "Descartar",
+  "web.images.grid.empty_apps": "O haz copias de seguridad de un teléfono o un ordenador con las \u003clink\u003eapps de Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Selecciona fotos en Imágenes y luego elige “Añadir a una colección”.",
   "web.images.grid.empty_collection_title": "Esta colección está vacía",
   "web.images.grid.empty_text": "Las fotos de las apps para teléfono y ordenador aparecen aquí.",
   "web.images.grid.empty_title": "Aún no hay fotos",
+  "web.images.grid.empty_upload": "Subir desde este ordenador",
   "web.images.grid.go_to_images": "Ir a Imágenes",
   "web.images.grid.loading": "Cargando fotos",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Reintentando…",
   "web.images.grid.unreachable_text": "Tus fotos aparecerán en cuanto responda.",
   "web.images.grid.unreachable_title": "No se puede contactar con tu dispositivo",
+  "web.images.grid.upload_failed": {
+    "one": "No se ha podido subir {count} archivo.",
+    "other": "No se han podido subir {count} archivos.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "Subiendo {current} de {total}…",
   "web.images.load.check": "Comprueba que tu dispositivo está en línea y vuelve a intentarlo.",
   "web.images.load.waiting": "Seguimos esperando a tu dispositivo",
   "web.images.people.add_name": "Añadir nombre",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Este archivo no tiene metadatos EXIF",
   "web.images.viewer.no_metadata": "No se han encontrado metadatos",
   "web.images.viewer.previous": "Anterior",
+  "web.images.viewer.show_map": "Mostrar en el mapa",
   "web.images.viewer.stalled": "Este vídeo está tardando demasiado en cargarse.",
   "web.images.viewer.stalled_hint": "Hace un rato que no llega nada de tu dispositivo: puede que esté ocupado o que ahora mismo cueste contactar con él. Volver a intentarlo suele funcionar.",
   "web.images.viewer.taken": "Fecha de captura"

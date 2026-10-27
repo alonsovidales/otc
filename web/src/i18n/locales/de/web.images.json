@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Suche löschen",
   "web.images.grid.date": "{day}. {month} {year}",
   "web.images.grid.dismiss": "Schließen",
+  "web.images.grid.empty_apps": "Oder sichere ein Handy oder einen Computer mit den \u003clink\u003eApps von Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Wähle in „Bilder“ Fotos aus und klicke dann auf „Zur Sammlung hinzufügen“.",
   "web.images.grid.empty_collection_title": "Diese Sammlung ist leer",
   "web.images.grid.empty_text": "Fotos aus den Handy- und Computer-Apps erscheinen hier.",
   "web.images.grid.empty_title": "Noch keine Fotos",
+  "web.images.grid.empty_upload": "Von diesem Computer hochladen",
   "web.images.grid.go_to_images": "„Bilder“ öffnen",
   "web.images.grid.loading": "Fotos werden geladen",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Neuer Versuch…",
   "web.images.grid.unreachable_text": "Deine Fotos erscheinen, sobald es antwortet.",
   "web.images.grid.unreachable_title": "Dein Gerät ist nicht erreichbar",
+  "web.images.grid.upload_failed": {
+    "one": "{count} Datei wurde nicht hochgeladen.",
+    "other": "{count} Dateien wurden nicht hochgeladen.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "{current} von {total} wird hochgeladen…",
   "web.images.load.check": "Prüfe, ob dein Gerät online ist, und versuche es dann erneut.",
   "web.images.load.waiting": "Noch keine Antwort von deinem Gerät",
   "web.images.people.add_name": "Name eingeben",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Keine EXIF-Metadaten in dieser Datei",
   "web.images.viewer.no_metadata": "Keine Metadaten gefunden",
   "web.images.viewer.previous": "Zurück",
+  "web.images.viewer.show_map": "Auf der Karte zeigen",
   "web.images.viewer.stalled": "Dieses Video braucht zu lange zum Laden.",
   "web.images.viewer.stalled_hint": "Von deinem Gerät kommt seit einer Weile nichts an – es ist vielleicht ausgelastet oder gerade schwer erreichbar. Ein neuer Versuch klappt meistens.",
   "web.images.viewer.taken": "Aufgenommen"

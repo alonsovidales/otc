@@ -34,6 +34,10 @@
     "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
     "rich": ["b"]
   },
+  "web.social.alerts.load_failed": {
+    "text": "Couldn't load the alerts.",
+    "note": "Alerts section: the list couldn't be read from the device and it gave no reason of its own. Above a Try again button."
+  },
   "web.social.alerts.more": {
     "text": "+{more} more",
     "args": [["more", "int"]],
@@ -59,6 +63,10 @@
     "text": "Delete comment",
     "note": "Social feed: tooltip and screen-reader name of the bin button on a comment you can delete (on your post, or your own)."
   },
+  "web.social.comment.failed": {
+    "text": "Your comment wasn't posted. Try again.",
+    "note": "Under a post's comment field when sending the comment failed and the device gave no reason of its own; the comment stays in the field."
+  },
   "web.social.comment.like": {
     "text": "Like comment",
     "note": "Social feed: accessibility name of the heart button on a comment you haven't liked."
@@ -77,6 +85,11 @@
     "note": "Social feed: button that sends the comment written. A verb.",
     "max": 12
   },
+  "web.social.comment.posting": {
+    "text": "Posting…",
+    "note": "The Post button under a post's comment field while the comment is on its way to the device.",
+    "max": 24
+  },
   "web.social.comment.unlike": {
     "text": "Unlike comment",
     "note": "Social feed: accessibility name of the heart button on a comment you liked."
@@ -92,6 +105,16 @@
   "web.social.composer.drop": {
     "text": "Drag photos or videos here, or click to choose files from this computer.",
     "note": "New post (the composer opened from the + button): the box that takes photos and videos from this computer."
+  },
+  "web.social.composer.file_failed": {
+    "text": "Didn't upload",
+    "note": "Screen-reader text and tooltip on a file of the new-post composer's order strip that couldn't be sent to the device (an exclamation mark shows).",
+    "max": 24
+  },
+  "web.social.composer.file_uploaded": {
+    "text": "Uploaded",
+    "note": "Screen-reader text on a file of the new-post composer's order strip once it reached the device (a check mark shows).",
+    "max": 24
   },
   "web.social.composer.library": {
     "text": "Library",
@@ -111,6 +134,11 @@
   "web.social.composer.order": {
     "text": "Order in post — drag, or use ‹ ›",
     "note": "New post (the composer opened from the + button): title of the strip showing the post's photos in order. ‹ and › are the buttons that move one; keep them."
+  },
+  "web.social.composer.post_uploaded": {
+    "text": "Post the ones that uploaded",
+    "note": "Button in the new-post composer after some files from this computer didn't upload: publishes the post with the files that did.",
+    "max": 40
   },
   "web.social.composer.publish": {
     "text": "Publish",
@@ -179,13 +207,24 @@
     "text": "Could not upload any of the selected files.",
     "note": "New post (the composer opened from the + button): error when none of the files from this computer could be sent to the device."
   },
-  "web.social.composer.upload_some": {
+  "web.social.composer.upload_partial": {
     "text": {
-      "one": "{count} file(s) failed to upload - publishing the rest.",
-      "other": "{count} file(s) failed to upload - publishing the rest."
+      "one": "{count} file didn't upload. Post the ones that did, or try again.",
+      "other": "{count} files didn't upload. Post the ones that did, or try again."
     },
     "args": [["count", "count"]],
-    "note": "New post (the composer opened from the + button): when some files from this computer couldn't be sent; the post goes out with the rest. {count} is how many failed."
+    "note": "New post (the composer opened from the + button), files from this computer: some couldn't be sent to the device. Nothing is posted yet; above the buttons Post the ones that uploaded (web.social.composer.post_uploaded) and Try again. {count} is how many failed."
+  },
+  "web.social.composer.uploading": {
+    "text": "Uploading {current} of {total}…",
+    "args": [["current", "int"], ["total", "int"]],
+    "note": "The Publish button of the new-post composer while files from this computer are being sent to the device, one at a time. {current} is the file being sent, {total} how many.",
+    "max": 40
+  },
+  "web.social.feed.add_friends": {
+    "text": "Add friends",
+    "note": "Button in the empty Social feed of an owner without friends: opens the Friends section, where friend requests are sent.",
+    "max": 32
   },
   "web.social.feed.empty_text": {
     "text": "Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between.",
@@ -195,6 +234,15 @@
     "text": "No social posts",
     "note": "Social feed: title when there are no posts yet."
   },
+  "web.social.feed.load_failed": {
+    "text": "Couldn't load the posts.",
+    "note": "Social feed: the first posts couldn't be read from the device and it gave no reason of its own. Above a Try again button."
+  },
+  "web.social.feed.loading": {
+    "text": "Loading posts…",
+    "note": "Social feed: while the first posts are on their way from the device (beside a spinner).",
+    "max": 40
+  },
   "web.social.feed.loading_more": {
     "text": "Loading more…",
     "note": "Social feed: at the end of the feed while older posts load."
@@ -202,6 +250,10 @@
   "web.social.feed.new_post": {
     "text": "New post",
     "note": "Social feed: accessibility name of the big + button that starts a new post when there are none."
+  },
+  "web.social.feed.no_friends": {
+    "text": "Add friends to see their posts here and share yours with them.",
+    "note": "Social feed, empty, for an owner who has no friends yet: under web.social.feed.empty_text, above the button Add friends (web.social.feed.add_friends)."
   },
   "web.social.feed.user": {
     "text": "User",
@@ -211,6 +263,10 @@
   "web.social.friends.add_title": {
     "text": "Add a friend",
     "note": "Friends section: title of the box that sends a friend request."
+  },
+  "web.social.friends.address_hint": {
+    "text": "Give it to a friend so they can add you, or add theirs below. You become friends once the other person accepts the request.",
+    "note": "Friends section, under Your address: how two people become friends. Requests are sent to a device's address; the receiver accepts them."
   },
   "web.social.friends.ask_delete_mine": {
     "text": "Ask {name}'s device to delete what I shared there",
@@ -239,6 +295,11 @@
     "note": "Friends section: button that withdraws a friend request you sent.",
     "max": 24
   },
+  "web.social.friends.confirm_block": {
+    "text": "Block {name}? Nothing more is shared between your devices until you accept them again.",
+    "args": [["name", "user"]],
+    "note": "Confirmation after pressing Block on a friend or a friend request in the Friends section. {name} is the friend's name."
+  },
   "web.social.friends.confirm_cancel": {
     "text": "Cancel this request?",
     "note": "Friends section: asked before withdrawing a friend request you sent.",
@@ -257,6 +318,16 @@
     "note": "Friends section: confirmation of Remove now. {name} is the friend's name.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #8da0f471"
+  },
+  "web.social.friends.copied": {
+    "text": "Copied",
+    "note": "The Copy button next to Your address in the Friends section, for a moment after the address was copied.",
+    "max": 24
+  },
+  "web.social.friends.copy": {
+    "text": "Copy",
+    "note": "Button next to Your address in the Friends section: copies the address.",
+    "max": 24
   },
   "web.social.friends.delete_error": {
     "text": "Error deleting request",
@@ -296,6 +367,15 @@
     "text": "Leaving",
     "note": "Friends section: the state of a friendship, on a pill beside the friend: a friend removed, whose device hasn't deleted what you shared yet.",
     "max": 20
+  },
+  "web.social.friends.load_failed": {
+    "text": "Couldn't load your friends.",
+    "note": "Friends section: the list of friends couldn't be read from the device and it gave no reason of its own. Above a Try again button."
+  },
+  "web.social.friends.loading": {
+    "text": "Loading your friends…",
+    "note": "Friends section: while the list of friends and requests is on its way from the device.",
+    "max": 40
   },
   "web.social.friends.name_label": {
     "text": "Friend's device name, before .{suffix}",
@@ -375,6 +455,11 @@
     "note": "Friends section: on the Send request button while the request is sent.",
     "max": 20
   },
+  "web.social.friends.share_text": {
+    "text": "Add me as a friend on Off The Cloud: {address}",
+    "args": [["address", "text"]],
+    "note": "The message the system share sheet sends when the owner shares their address from the Friends section. {address} is this device's address (pit.off-the.cloud)."
+  },
   "web.social.friends.status_accepted": {
     "text": "Accepted",
     "note": "Friends section: the state of a friendship, on a pill beside the friend: you are friends.",
@@ -438,6 +523,15 @@
     "text": "Yes",
     "note": "Friends section: button that confirms cancelling or deleting a friend request.",
     "max": 16
+  },
+  "web.social.friends.your_address": {
+    "text": "Your address",
+    "note": "Friends section, at the top: label before this device's own address (pit.off-the.cloud), which friends send their requests to. Copy and Share buttons follow.",
+    "max": 32
+  },
+  "web.social.likes.failed": {
+    "text": "Couldn't load who liked this.",
+    "note": "The Likes pop-up of a post or a comment: the list couldn't be read from the device and it gave no reason of its own. Above a Try again button."
   },
   "web.social.likes.none": {
     "text": "No likes yet",
@@ -524,10 +618,6 @@
   "web.social.post.replay": {
     "text": "Replay video",
     "note": "Social feed: accessibility name of the button that plays a video again once it ended."
-  },
-  "web.social.post.share_unavailable": {
-    "text": "Share (not implemented)",
-    "note": "Social feed: message after pressing Share under a post; sharing a post isn't possible yet."
   },
   "web.social.post.unlike": {
     "text": "Unlike publication",
@@ -633,6 +723,10 @@
     "args": [["minutes", "int"]],
     "note": "Social feed: a post's date when it is less than an hour old. {minutes} is how many minutes. Short form (m for minutes).",
     "max": 16
+  },
+  "web.social.viewer.download_only": {
+    "text": "This file can't be shown here. Download it to open it.",
+    "note": "Social feed's photo viewer, for an item of a friend's post whose type the browser must not open inline (anything but a photo or a video): only its preview shows, and the Download button saves it."
   },
   "web.social.viewer.download_photo": {
     "text": "Download this photo",

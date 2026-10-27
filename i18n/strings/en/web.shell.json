@@ -118,6 +118,29 @@
     "args": [["name", "user"]],
     "note": "Told to screen readers when the browser has a downloaded file. {name} is the file's name."
   },
+  "web.shell.error.images": {
+    "text": "Go to Images",
+    "note": "Button under Something went wrong: opens Images, the photo library section of the menu, instead of the page that stopped working.",
+    "max": 32
+  },
+  "web.shell.error.reload": {
+    "text": "Reload",
+    "note": "Button under Something went wrong: loads the page again.",
+    "max": 24
+  },
+  "web.shell.error.text": {
+    "text": "This page stopped working. Reload it, or go to Images.",
+    "note": "Under Something went wrong (web.shell.error.title), when a page of the web app stopped working because of a fault in the app. Images is the photo library section of the menu."
+  },
+  "web.shell.error.text_reload": {
+    "text": "This page stopped working. Reload it to try again.",
+    "note": "Under Something went wrong (web.shell.error.title), when the page that stopped working is Images itself or a shared gallery's public page, where only Reload is offered."
+  },
+  "web.shell.error.title": {
+    "text": "Something went wrong",
+    "note": "Title shown in place of a page of the web app that stopped working because of a fault in the app (the top bar and the menu stay when it is one section). Under it web.shell.error.text and the buttons Reload (web.shell.error.reload) and Go to Images (web.shell.error.images).",
+    "max": 60
+  },
   "web.shell.file_icon.generic": {
     "text": "FILE",
     "note": "Written in capitals on the coloured band of the document icon in the Files grid for a file without an extension, where a type such as PDF or DOC would be. An abbreviation is fine.",
@@ -405,6 +428,11 @@
   "web.shell.setup.confirm_password": {
     "text": "Confirm password",
     "note": "Label of the field where the new password is typed a second time, in the first step of a new device's setup."
+  },
+  "web.shell.setup.continue_without_disks": {
+    "text": "Continue without disks",
+    "note": "A new device's setup, Storage step, after saving the chosen disks failed (the error is shown above): finishes the setup with the files kept on the boot disk. Next to Try again.",
+    "max": 40
   },
   "web.shell.setup.disk": {
     "text": "{path} — {size}",

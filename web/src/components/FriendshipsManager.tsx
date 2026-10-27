@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Import your generated types (adjust paths/names if needed)
 import type {
@@ -14,6 +14,8 @@ import { friendDomain, FRIEND_TLD } from "../net/friendDomain";
 import { useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { refuseOnDemo } from "../net/demo";
+import { ErrorBoundary } from "./ErrorBoundary";
+import Spinner from "./Spinner";
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -60,15 +62,21 @@ function ActionButtons({
   disabled?: boolean;
 }) {
   const t = useT();
-  const btn = (label: string, next: FriendShipStatus) => (
-    <button
-      className="fr-btn"
-      onClick={() => onChange(next)}
-      disabled={disabled}
-    >
-      {label}
-    </button>
-  );
+  // Block is the quiet one, and asks first (UX 8 of the 2026-10 review:
+  // beside Accept it looked the same, a tap away from it).
+  const name = f.originProfile?.name || f.originProfile?.domain || t("web.social.friends.no_name");
+  const btn = (label: string, next: FriendShipStatus) => {
+    const block = next === FriendShipStatus.Blocked;
+    return (
+      <button
+        className={`fr-btn${block ? " secondary" : ""}`}
+        onClick={() => { if (!block || window.confirm(t("web.social.friends.confirm_block", { name }))) onChange(next); }}
+        disabled={disabled}
+      >
+        {label}
+      </button>
+    );
+  };
   // Issue #25: same request to the device either way; the label says
   // which side of it the owner is on.
   const del = (
@@ -117,15 +125,78 @@ function ActionButtons({
   }
 }
 
+// Friends, inside its section's error boundary (ErrorBoundary.tsx).
 export default function FriendshipsManager() {
+  return <ErrorBoundary where="tab"><Friendships /></ErrorBoundary>;
+}
+
+// This device's own address (UX 1 of the 2026-10 review): what a friend
+// sends their request to, with Copy - and Share where the browser has it -
+// and how two people become friends. Only for a device on the bridge
+// (<name>.off-the.cloud): a device at home only has no address to give.
+function OwnAddress() {
+  const t = useT();
+  const [address, setAddress] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    useWS.request((e) => {
+      e.payload = { $case: "reqGetProfile", reqGetProfile: {} };
+    }).then((resp) => {
+      if (!live || resp.payload?.$case !== "respProfile") return;
+      const domain = resp.payload.respProfile.domain;
+      // Only a whole <name>.off-the.cloud.
+      if (domain && friendDomain(domain) === domain.toLowerCase()) setAddress(domain.toLowerCase());
+    }, () => { /* no address shown */ });
+    return () => {
+      live = false;
+      if (copiedTimer.current != null) window.clearTimeout(copiedTimer.current);
+    };
+  }, []);
+  if (!address) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      if (copiedTimer.current != null) window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // The address is on the page, to select by hand.
+    }
+  };
+  const canShare = typeof navigator.share === "function";
+  return (
+    <section className="card fr-address">
+      <div className="fr-address-row">
+        <span className="fr-address-label">{t("web.social.friends.your_address")}</span>
+        <code className="fr-address-value">{address}</code>
+        <div className="fr-actions">
+          <button type="button" className="fr-btn secondary" onClick={() => void copy()} aria-live="polite">
+            {copied ? t("web.social.friends.copied") : t("web.social.friends.copy")}
+          </button>
+          {canShare && (
+            <button type="button" className="fr-btn secondary" onClick={() => {
+              void navigator.share({ text: t("web.social.friends.share_text", { address }) }).catch(() => { /* closed */ });
+            }}>{t("common.share")}</button>
+          )}
+        </div>
+      </div>
+      <p className="fr-hint">{t("web.social.friends.address_hint")}</p>
+    </section>
+  );
+}
+
+function Friendships() {
   const t = useT();
   // Friendship request (by domain)
   const [targetDomain, setTargetDomain] = useState("");
   const [sendingReq, setSendingReq] = useState(false);
 
-  // Friendships list
+  // Friendships list; why it couldn't be read, when it couldn't.
   const [friends, setFriends] = useState<MsgFriendships | null>(null);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [loadError, setLoadError] = useState<UiText | null>(null);
 
   // Issue #25: domain of the request whose delete is awaiting a second
   // click - the row swaps its buttons for a confirm/keep pair meanwhile.
@@ -142,12 +213,18 @@ export default function FriendshipsManager() {
     setConfirmingRemove(domain);
   };
 
-  // Toast/message: ours, or the device's own words.
-  const [message, setMessage] = useState<UiText | null>(null);
-  const showMsg = (m: UiText | null) => {
-    setMessage(() => m);
-    setTimeout(() => setMessage(null), 2500);
+  // Toast/message: ours, or the device's own words. Announced (an error
+  // at once); an error stays until closed or the next message, the rest
+  // go after a while - and only their own: an older message's timer used
+  // to clear a newer one.
+  const [message, setMessage] = useState<{ id: number; text: UiText; error: boolean } | null>(null);
+  const messageId = useRef(0);
+  const showMsg = (m: UiText | null, error = false) => {
+    const id = ++messageId.current;
+    setMessage(m ? { id, text: m, error } : null);
+    if (m && !error) window.setTimeout(() => setMessage((cur) => (cur?.id === id ? null : cur)), 4000);
   };
+  const showError = (m: UiText | null) => showMsg(m, true);
   // The device's words when it gave some, else ours.
   const orSay = (words: string | undefined, fallback: Parameters<typeof say>[0]) => (words ? asIs(words) : say(fallback));
 
@@ -161,13 +238,17 @@ export default function FriendshipsManager() {
     setLoadingFriends(true);
     try {
       const resp = await useWS.request((e) => {
-        (e as any).payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
+        e.payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
       });
       if (resp.payload?.$case === "respFriendships") {
         setFriends(resp.payload.respFriendships);
+        setLoadError(null);
+      } else {
+        setLoadError(() => orSay(resp.errorMessage, "web.social.friends.load_failed"));
       }
     } catch (err) {
       console.error("Friendships load error:", err);
+      setLoadError(() => say("web.social.friends.load_failed"));
     } finally {
       setLoadingFriends(false);
     }
@@ -178,7 +259,7 @@ export default function FriendshipsManager() {
     if (!targetDomain.trim()) return;
     const domain = friendDomain(targetDomain);
     if (!domain) {
-      showMsg(say("web.social.friends.invalid_name"));
+      showError(say("web.social.friends.invalid_name"));
       return;
     }
     setSendingReq(true);
@@ -196,13 +277,13 @@ export default function FriendshipsManager() {
         setTargetDomain("");
         await reloadFriendships();
       } else {
-        showMsg(resp.payload?.$case === "respAck"
+        showError(resp.payload?.$case === "respAck"
           ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.request_failed")
           : resp.error ? orSay(resp.errorMessage, "web.social.friends.request_failed") : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Friend request error:", err);
-      showMsg(say("web.social.friends.send_error"));
+      showError(say("web.social.friends.send_error"));
     } finally {
       setSendingReq(false);
     }
@@ -225,13 +306,13 @@ export default function FriendshipsManager() {
         await reloadFriendships();
         showMsg(say("web.social.friends.status_updated"));
       } else {
-        showMsg(resp.payload?.$case === "respAck"
+        showError(resp.payload?.$case === "respAck"
           ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.update_failed")
           : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Change status error:", err);
-      showMsg(say("web.social.friends.update_error"));
+      showError(say("web.social.friends.update_error"));
     }
   };
 
@@ -251,11 +332,11 @@ export default function FriendshipsManager() {
         showMsg(say(f.sent ? "web.social.friends.request_cancelled" : "web.social.friends.request_deleted"));
       } else {
         // The device's words as they are; none shows nothing (as before).
-        showMsg(resp.error ? (resp.errorMessage ? asIs(resp.errorMessage) : null) : say("web.social.friends.delete_failed"));
+        showError(resp.error ? (resp.errorMessage ? asIs(resp.errorMessage) : null) : say("web.social.friends.delete_failed"));
       }
     } catch (err) {
       console.error("Delete friendship error:", err);
-      showMsg(say("web.social.friends.delete_error"));
+      showError(say("web.social.friends.delete_error"));
     }
   };
 
@@ -280,13 +361,13 @@ export default function FriendshipsManager() {
         await reloadFriendships();
         showMsg(say(askThem ? "web.social.friends.asked_delete" : "web.social.friends.removed"));
       } else {
-        showMsg(resp.payload?.$case === "respAck"
+        showError(resp.payload?.$case === "respAck"
           ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.remove_failed")
           : resp.error ? orSay(resp.errorMessage, "web.social.friends.remove_failed") : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Remove friend error:", err);
-      showMsg(say("web.social.friends.remove_error"));
+      showError(say("web.social.friends.remove_error"));
     }
   };
 
@@ -393,7 +474,20 @@ export default function FriendshipsManager() {
 
   return (
     <div className="friends-wrap">
-      {message && <div className="toast">{message(t)}</div>}
+      {/* Both always on the page, so what comes in them is announced. */}
+      <div className="fr-live" role="alert">
+        {message?.error && (
+          <div className="toast error">
+            <span>{message.text(t)}</span>
+            <button type="button" className="fr-toast-close" onClick={() => setMessage(null)} aria-label={t("common.close")}>✕</button>
+          </div>
+        )}
+      </div>
+      <div className="fr-live" role="status">
+        {message && !message.error && <div className="toast">{message.text(t)}</div>}
+      </div>
+
+      <OwnAddress />
 
       {/* Requests waiting for an answer come first: a clicked
           friend-request alert lands here to answer it. */}
@@ -446,7 +540,18 @@ export default function FriendshipsManager() {
           </button>
         </div>
 
-        {others.length === 0 ? (
+        {/* Nothing is said about the list before it has come: "No
+            friendships yet" while it loads, or after it failed, was a lie. */}
+        {friends == null ? (
+          loadError && !loadingFriends ? (
+            <div className="empty fr-load-error" role="alert">
+              <p>{loadError(t)}</p>
+              <button type="button" className="fr-btn" onClick={() => void reloadFriendships()}>{t("common.try_again")}</button>
+            </div>
+          ) : (
+            <div className="empty"><Spinner label={t("web.social.friends.loading")} /></div>
+          )
+        ) : others.length === 0 ? (
           <div className="empty">{waiting.length ? t("web.social.friends.no_others") : t("web.social.friends.none")}</div>
         ) : (
           <ul className="friends-list">{others.map(renderRow)}</ul>

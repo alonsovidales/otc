@@ -101,6 +101,26 @@
     "text": "{name}: download avviato",
     "en": "{name}: download started"
   },
+  "web.shell.error.images": {
+    "text": "Vai a Immagini",
+    "en": "Go to Images"
+  },
+  "web.shell.error.reload": {
+    "text": "Ricarica",
+    "en": "Reload"
+  },
+  "web.shell.error.text": {
+    "text": "Questa pagina ha smesso di funzionare. Ricaricala o vai a Immagini.",
+    "en": "This page stopped working. Reload it, or go to Images."
+  },
+  "web.shell.error.text_reload": {
+    "text": "Questa pagina ha smesso di funzionare. Ricaricala per riprovare.",
+    "en": "This page stopped working. Reload it to try again."
+  },
+  "web.shell.error.title": {
+    "text": "Qualcosa è andato storto",
+    "en": "Something went wrong"
+  },
   "web.shell.file_icon.generic": {
     "text": "FILE",
     "en": "FILE"
@@ -353,6 +373,10 @@
   "web.shell.setup.confirm_password": {
     "text": "Conferma password",
     "en": "Confirm password"
+  },
+  "web.shell.setup.continue_without_disks": {
+    "text": "Continua senza dischi",
+    "en": "Continue without disks"
   },
   "web.shell.setup.disk": {
     "text": "{path} — {size}",

@@ -294,6 +294,10 @@
     "text": "Apenas carregamento. Clica para desativar.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "Não foi possível abrir {name}. Verifica a ligação ao teu dispositivo e tenta novamente.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Voltar a {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #060bfd81"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "A eliminação parou: o dispositivo não respondeu. Foram eliminados {done} de {total}.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "A eliminar {done} de {total}…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "Transferir ZIP",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Atual",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "Não foi possível transferir esta versão de {name}.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.",

@@ -111,7 +111,16 @@
   position: absolute; inset: 0;
   display: flex; will-change: transform;
 }
-.sv-slide { flex: 0 0 100%; height: 100%; }
+/* Each item of a post is a button (Enter opens the viewer, or plays a
+   video), the picture filling it as the bare image did. index.css draws
+   every button as an ember pill: these start from nothing. */
+.sv-slide {
+  flex: 0 0 100%; height: 100%;
+  margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: none; display: block; cursor: pointer;
+}
+.sv-slide:hover { filter: none; }
+.sv-slide:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
 
 /* contain, not cover: nothing is ever cut - not a photo, not a video.
    The box took its shape from the post's first item, so that one fills
@@ -201,6 +210,11 @@
 .sv-nav:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .sv-nav.prev { left: 10px; }
 .sv-nav.next { right: 10px; }
+/* A photo post's previous/next are for the keyboard: a pointer pages by
+   the picture's quarters (issue #20). They show while the keyboard is in
+   the post's media. */
+.sv-nav.focus-only { opacity: 0; pointer-events: none; }
+.sv-media:has(:focus-visible) .sv-nav.focus-only { opacity: 1; pointer-events: auto; }
 .sv-media img { cursor: pointer; }
 .sv-media-ph { color: var(--mist-dim); padding: 20px; }
 
@@ -341,3 +355,18 @@
 }
 .sv-empty-new svg { width: 44px; height: 44px; display: block; }
 .sv-empty-new:hover { filter: brightness(1.08); }
+
+/* The feed's first page on its way, or what went wrong with it or with a
+   later page (with Try again); the same in the likers pop-up. */
+.sv-feed-note { display: grid; justify-items: center; gap: 10px; padding: 40px 16px; color: var(--mist-dim); text-align: center; }
+.sv-feed-note p { margin: 0; }
+.sv-likers-body .sv-feed-note { padding: 16px 0 8px; }
+/* An empty feed with no friend yet: the way to Friends, under the "+". */
+.sv-empty-friends { margin-top: 12px; display: grid; justify-items: center; gap: 10px; }
+.sv-empty .sv-empty-friends p { font-size: 15px; }
+/* A post of text alone: its words where the picture would be. */
+.sv-caption.sv-caption-only { font-size: 1.05rem; padding: 4px 12px 12px; white-space: pre-wrap; }
+/* The viewer on an item it won't show from a blob: URL. */
+.sv-download-only { margin: 8px 4px 0; color: var(--mist-dim); font-size: 14px; text-align: center; }
+/* A comment that wasn't posted: why, under its field (it stays there). */
+.sv-comment-error { margin: 4px 0 0; color: var(--danger); font-size: 13px; }

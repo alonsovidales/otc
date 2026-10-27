@@ -26,11 +26,37 @@
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
-  cursor: pointer;
   color: var(--mist);
 }
 .np-item:last-child { border-bottom: 0; }
-.np-item:hover { background: var(--panel); }
+.np-item:has(> button.np-open):hover { background: var(--panel); }
+/* The row's own button (or plain text, for a row that opens nothing): its
+   picture, its words and the post's thumbnail. index.css draws every
+   button as an ember pill: this one starts from nothing. The row is the
+   button's to the edges, its padding included. */
+.np-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -12px 0 -12px -16px;
+  padding: 12px 0 12px 16px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+}
+button.np-open { cursor: pointer; }
+button.np-open:hover { filter: none; }
+button.np-open:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.np-item > .np-open:last-child { margin-right: -16px; padding-right: 16px; }
+/* The list that couldn't be read: the words, then Try again. */
+.np-load-error { display: grid; justify-items: center; gap: 12px; }
+.np-load-error p { margin: 0; }
 .np-avatar {
   flex: none;
   width: 40px;

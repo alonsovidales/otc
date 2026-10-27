@@ -101,6 +101,26 @@
     "text": "{name} : téléchargement lancé",
     "en": "{name}: download started"
   },
+  "web.shell.error.images": {
+    "text": "Aller dans Images",
+    "en": "Go to Images"
+  },
+  "web.shell.error.reload": {
+    "text": "Recharger",
+    "en": "Reload"
+  },
+  "web.shell.error.text": {
+    "text": "Cette page ne fonctionne plus. Rechargez-la ou allez dans Images.",
+    "en": "This page stopped working. Reload it, or go to Images."
+  },
+  "web.shell.error.text_reload": {
+    "text": "Cette page ne fonctionne plus. Rechargez-la pour réessayer.",
+    "en": "This page stopped working. Reload it to try again."
+  },
+  "web.shell.error.title": {
+    "text": "Un problème est survenu",
+    "en": "Something went wrong"
+  },
   "web.shell.file_icon.generic": {
     "text": "FICH.",
     "en": "FILE"
@@ -353,6 +373,10 @@
   "web.shell.setup.confirm_password": {
     "text": "Confirmer le mot de passe",
     "en": "Confirm password"
+  },
+  "web.shell.setup.continue_without_disks": {
+    "text": "Continuer sans disques",
+    "en": "Continue without disks"
   },
   "web.shell.setup.disk": {
     "text": "{path} – {size}",

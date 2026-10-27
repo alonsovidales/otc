@@ -324,6 +324,10 @@
     "text": "Schließen",
     "en": "Dismiss"
   },
+  "web.images.grid.empty_apps": {
+    "text": "Oder sichere ein Handy oder einen Computer mit den <link>Apps von Off The Cloud</link>.",
+    "en": "Or back up a phone or a computer with the <link>Off The Cloud apps</link>."
+  },
   "web.images.grid.empty_collection_text": {
     "text": "Wähle in „Bilder“ Fotos aus und klicke dann auf „Zur Sammlung hinzufügen“.",
     "en": "Select photos in Images, then choose Add to collection."
@@ -339,6 +343,10 @@
   "web.images.grid.empty_title": {
     "text": "Noch keine Fotos",
     "en": "No photos yet"
+  },
+  "web.images.grid.empty_upload": {
+    "text": "Von diesem Computer hochladen",
+    "en": "Upload from this computer"
   },
   "web.images.grid.go_to_images": {
     "text": "„Bilder“ öffnen",
@@ -399,6 +407,20 @@
   "web.images.grid.unreachable_title": {
     "text": "Dein Gerät ist nicht erreichbar",
     "en": "Can't reach your device"
+  },
+  "web.images.grid.upload_failed": {
+    "text": {
+      "one": "{count} Datei wurde nicht hochgeladen.",
+      "other": "{count} Dateien wurden nicht hochgeladen."
+    },
+    "en": {
+      "one": "{count} file didn't upload.",
+      "other": "{count} files didn't upload."
+    }
+  },
+  "web.images.grid.uploading": {
+    "text": "{current} von {total} wird hochgeladen…",
+    "en": "Uploading {current} of {total}…"
   },
   "web.images.load.check": {
     "text": "Prüfe, ob dein Gerät online ist, und versuche es dann erneut.",
@@ -1033,6 +1055,10 @@
   "web.images.viewer.previous": {
     "text": "Zurück",
     "en": "Previous"
+  },
+  "web.images.viewer.show_map": {
+    "text": "Auf der Karte zeigen",
+    "en": "Show on map"
   },
   "web.images.viewer.stalled": {
     "text": "Dieses Video braucht zu lange zum Laden.",

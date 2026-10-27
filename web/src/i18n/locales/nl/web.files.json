@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Op “Alleen uploaden” zetten: er kan niets uit deze map worden verwijderd, en opnieuw uploaden bewaart de oude versie",
   "web.files.lock.on_tip": "Alleen uploaden: er kan niets uit deze map worden verwijderd, en opnieuw uploaden bewaart de oude versie. Klik om uit te schakelen.",
   "web.files.lock.on_tip_short": "Alleen uploaden. Klik om uit te schakelen.",
+  "web.files.open.failed": "Kan \u2068{name}\u2069 niet openen. Controleer de verbinding met je apparaat en probeer het opnieuw.",
   "web.files.results.back": "Terug naar \u2068{folder}\u2069",
   "web.files.results.back_files": "Terug naar Bestanden",
   "web.files.results.cant_search": "Dit apparaat kan zijn bestanden nog niet doorzoeken. Werk het bij in Instellingen.",
@@ -109,6 +110,8 @@
     "other": "{count} items verwijderen? Dit kan niet ongedaan worden gemaakt.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Verwijderen gestopt: het apparaat heeft niet geantwoord. {done} van {total} zijn verwijderd.",
+  "web.files.selection.deleting": "Verwijderen {done} van {total}…",
   "web.files.selection.download_zip": "ZIP downloaden",
   "web.files.selection.link_copied": "Deellink gekopieerd naar het klembord",
   "web.files.selection.preparing": "Voorbereiden…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Huidige versie",
+  "web.files.versions.download_failed": "Kan deze versie van \u2068{name}\u2069 niet downloaden.",
   "web.files.versions.hint": "Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.",
   "web.files.versions.replaced": "Vervangen: {date}",
   "web.files.versions.tip": "Oudere versies van dit bestand",

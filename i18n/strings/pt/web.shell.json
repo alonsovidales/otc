@@ -101,6 +101,26 @@
     "text": "{name}: transferência iniciada",
     "en": "{name}: download started"
   },
+  "web.shell.error.images": {
+    "text": "Ir para Imagens",
+    "en": "Go to Images"
+  },
+  "web.shell.error.reload": {
+    "text": "Recarregar",
+    "en": "Reload"
+  },
+  "web.shell.error.text": {
+    "text": "Esta página deixou de funcionar. Recarrega-a ou vai para Imagens.",
+    "en": "This page stopped working. Reload it, or go to Images."
+  },
+  "web.shell.error.text_reload": {
+    "text": "Esta página deixou de funcionar. Recarrega-a para tentar novamente.",
+    "en": "This page stopped working. Reload it to try again."
+  },
+  "web.shell.error.title": {
+    "text": "Algo correu mal",
+    "en": "Something went wrong"
+  },
   "web.shell.file_icon.generic": {
     "text": "FICH",
     "en": "FILE"
@@ -353,6 +373,10 @@
   "web.shell.setup.confirm_password": {
     "text": "Confirmar palavra-passe",
     "en": "Confirm password"
+  },
+  "web.shell.setup.continue_without_disks": {
+    "text": "Continuar sem discos",
+    "en": "Continue without disks"
   },
   "web.shell.setup.disk": {
     "text": "{path} — {size}",

@@ -163,6 +163,7 @@ export type MessageKey =
   | "web.files.lock.off_tip"
   | "web.files.lock.on_tip"
   | "web.files.lock.on_tip_short"
+  | "web.files.open.failed"
   | "web.files.results.back"
   | "web.files.results.back_files"
   | "web.files.results.cant_search"
@@ -182,6 +183,8 @@ export type MessageKey =
   | "web.files.results.video_kept_out"
   | "web.files.selection.clear"
   | "web.files.selection.confirm_delete"
+  | "web.files.selection.delete_stopped"
+  | "web.files.selection.deleting"
   | "web.files.selection.download_zip"
   | "web.files.selection.link_copied"
   | "web.files.selection.preparing"
@@ -243,6 +246,7 @@ export type MessageKey =
   | "web.files.usage.versions"
   | "web.files.versions.count"
   | "web.files.versions.current"
+  | "web.files.versions.download_failed"
   | "web.files.versions.hint"
   | "web.files.versions.replaced"
   | "web.files.versions.tip"
@@ -312,6 +316,7 @@ export type MessageKey =
   | "web.images.grid.empty_collection_title"
   | "web.images.grid.empty_text"
   | "web.images.grid.empty_title"
+  | "web.images.grid.empty_upload"
   | "web.images.grid.go_to_images"
   | "web.images.grid.loading"
   | "web.images.grid.month_short"
@@ -327,6 +332,8 @@ export type MessageKey =
   | "web.images.grid.trying"
   | "web.images.grid.unreachable_text"
   | "web.images.grid.unreachable_title"
+  | "web.images.grid.upload_failed"
+  | "web.images.grid.uploading"
   | "web.images.load.check"
   | "web.images.load.waiting"
   | "web.images.people.add_name"
@@ -464,6 +471,7 @@ export type MessageKey =
   | "web.images.viewer.no_exif"
   | "web.images.viewer.no_metadata"
   | "web.images.viewer.previous"
+  | "web.images.viewer.show_map"
   | "web.images.viewer.stalled"
   | "web.images.viewer.stalled_hint"
   | "web.images.viewer.taken"
@@ -699,6 +707,11 @@ export type MessageKey =
   | "web.shell.download.progress"
   | "web.shell.download.started"
   | "web.shell.download.started_sr"
+  | "web.shell.error.images"
+  | "web.shell.error.reload"
+  | "web.shell.error.text"
+  | "web.shell.error.text_reload"
+  | "web.shell.error.title"
   | "web.shell.file_icon.generic"
   | "web.shell.file_icon.label"
   | "web.shell.link.done"
@@ -756,6 +769,7 @@ export type MessageKey =
   | "web.shell.session.signing_in"
   | "web.shell.setup.choose_disks"
   | "web.shell.setup.confirm_password"
+  | "web.shell.setup.continue_without_disks"
   | "web.shell.setup.disk"
   | "web.shell.setup.disk_model"
   | "web.shell.setup.failed"
@@ -808,23 +822,29 @@ export type MessageKey =
   | "web.shell.unreachable.title"
   | "web.shell.unreachable.wifi_hint"
   | "web.social.alerts.friends"
+  | "web.social.alerts.load_failed"
   | "web.social.alerts.more"
   | "web.social.alerts.nothing"
   | "web.social.comment.author"
   | "web.social.comment.confirm_delete"
   | "web.social.comment.delete"
+  | "web.social.comment.failed"
   | "web.social.comment.like"
   | "web.social.comment.me"
   | "web.social.comment.placeholder"
   | "web.social.comment.post"
+  | "web.social.comment.posting"
   | "web.social.comment.unlike"
   | "web.social.composer.camera"
   | "web.social.composer.caption"
   | "web.social.composer.drop"
+  | "web.social.composer.file_failed"
+  | "web.social.composer.file_uploaded"
   | "web.social.composer.library"
   | "web.social.composer.move_earlier"
   | "web.social.composer.move_later"
   | "web.social.composer.order"
+  | "web.social.composer.post_uploaded"
   | "web.social.composer.publish"
   | "web.social.composer.publish_count"
   | "web.social.composer.publish_failed"
@@ -839,21 +859,30 @@ export type MessageKey =
   | "web.social.composer.trim_item"
   | "web.social.composer.trim_load_failed"
   | "web.social.composer.upload_none"
-  | "web.social.composer.upload_some"
+  | "web.social.composer.upload_partial"
+  | "web.social.composer.uploading"
+  | "web.social.feed.add_friends"
   | "web.social.feed.empty_text"
   | "web.social.feed.empty_title"
+  | "web.social.feed.load_failed"
+  | "web.social.feed.loading"
   | "web.social.feed.loading_more"
   | "web.social.feed.new_post"
+  | "web.social.feed.no_friends"
   | "web.social.feed.user"
   | "web.social.friends.add_title"
+  | "web.social.friends.address_hint"
   | "web.social.friends.ask_delete_mine"
   | "web.social.friends.ask_delete_mine_hint"
   | "web.social.friends.asked_delete"
   | "web.social.friends.block"
   | "web.social.friends.cancel_request"
+  | "web.social.friends.confirm_block"
   | "web.social.friends.confirm_cancel"
   | "web.social.friends.confirm_delete"
   | "web.social.friends.confirm_remove_now"
+  | "web.social.friends.copied"
+  | "web.social.friends.copy"
   | "web.social.friends.delete_error"
   | "web.social.friends.delete_failed"
   | "web.social.friends.delete_theirs"
@@ -862,6 +891,8 @@ export type MessageKey =
   | "web.social.friends.invalid_name"
   | "web.social.friends.keep"
   | "web.social.friends.leaving"
+  | "web.social.friends.load_failed"
+  | "web.social.friends.loading"
   | "web.social.friends.name_label"
   | "web.social.friends.name_placeholder"
   | "web.social.friends.no_domain"
@@ -880,6 +911,7 @@ export type MessageKey =
   | "web.social.friends.send"
   | "web.social.friends.send_error"
   | "web.social.friends.sending"
+  | "web.social.friends.share_text"
   | "web.social.friends.status_accepted"
   | "web.social.friends.status_accepted_sent"
   | "web.social.friends.status_blocked"
@@ -894,6 +926,8 @@ export type MessageKey =
   | "web.social.friends.waiting_delete"
   | "web.social.friends.waiting_title"
   | "web.social.friends.yes"
+  | "web.social.friends.your_address"
+  | "web.social.likes.failed"
   | "web.social.likes.none"
   | "web.social.likes.title"
   | "web.social.post.confirm_delete"
@@ -912,7 +946,6 @@ export type MessageKey =
   | "web.social.post.previous"
   | "web.social.post.previous_item"
   | "web.social.post.replay"
-  | "web.social.post.share_unavailable"
   | "web.social.post.unlike"
   | "web.social.post.unmute"
   | "web.social.profile.avatar"
@@ -935,6 +968,7 @@ export type MessageKey =
   | "web.social.time.just_now"
   | "web.social.time.minutes"
   | "web.social.time.minutes_ago"
+  | "web.social.viewer.download_only"
   | "web.social.viewer.download_photo"
   | "web.social.viewer.download_video"
   | "web.social.viewer.full"
@@ -968,6 +1002,7 @@ export type RichKey =
   | "web.files.share.low_res"
   | "web.files.share.summary"
   | "web.images.collections.empty_text"
+  | "web.images.grid.empty_apps"
   | "web.images.people.name_label"
   | "web.images.people.will_be_called"
   | "web.images.trim.keeping"
@@ -1108,6 +1143,7 @@ export interface MessageArgs {
   "web.files.lock.off_tip": undefined;
   "web.files.lock.on_tip": undefined;
   "web.files.lock.on_tip_short": undefined;
+  "web.files.open.failed": { name: string };
   "web.files.results.back": { folder: string };
   "web.files.results.back_files": undefined;
   "web.files.results.cant_search": undefined;
@@ -1127,6 +1163,8 @@ export interface MessageArgs {
   "web.files.results.video_kept_out": { name: string; folder: string };
   "web.files.selection.clear": undefined;
   "web.files.selection.confirm_delete": { count: number };
+  "web.files.selection.delete_stopped": { done: number; total: number };
+  "web.files.selection.deleting": { done: number; total: number };
   "web.files.selection.download_zip": undefined;
   "web.files.selection.link_copied": undefined;
   "web.files.selection.preparing": undefined;
@@ -1191,6 +1229,7 @@ export interface MessageArgs {
   "web.files.usage.versions": { size: string };
   "web.files.versions.count": { count: number };
   "web.files.versions.current": undefined;
+  "web.files.versions.download_failed": { name: string };
   "web.files.versions.hint": undefined;
   "web.files.versions.replaced": { date: string };
   "web.files.versions.tip": undefined;
@@ -1257,10 +1296,12 @@ export interface MessageArgs {
   "web.images.grid.clear_search": undefined;
   "web.images.grid.date": { day: string; month: string; year: string };
   "web.images.grid.dismiss": undefined;
+  "web.images.grid.empty_apps": undefined;
   "web.images.grid.empty_collection_text": undefined;
   "web.images.grid.empty_collection_title": undefined;
   "web.images.grid.empty_text": undefined;
   "web.images.grid.empty_title": undefined;
+  "web.images.grid.empty_upload": undefined;
   "web.images.grid.go_to_images": undefined;
   "web.images.grid.loading": undefined;
   "web.images.grid.month_short": { month: string; year: string };
@@ -1276,6 +1317,8 @@ export interface MessageArgs {
   "web.images.grid.trying": undefined;
   "web.images.grid.unreachable_text": undefined;
   "web.images.grid.unreachable_title": undefined;
+  "web.images.grid.upload_failed": { count: number };
+  "web.images.grid.uploading": { current: number; total: number };
   "web.images.load.check": undefined;
   "web.images.load.waiting": undefined;
   "web.images.people.add_name": undefined;
@@ -1416,6 +1459,7 @@ export interface MessageArgs {
   "web.images.viewer.no_exif": undefined;
   "web.images.viewer.no_metadata": undefined;
   "web.images.viewer.previous": undefined;
+  "web.images.viewer.show_map": undefined;
   "web.images.viewer.stalled": undefined;
   "web.images.viewer.stalled_hint": undefined;
   "web.images.viewer.taken": undefined;
@@ -1663,6 +1707,11 @@ export interface MessageArgs {
   "web.shell.download.progress": { percent: string };
   "web.shell.download.started": undefined;
   "web.shell.download.started_sr": { name: string };
+  "web.shell.error.images": undefined;
+  "web.shell.error.reload": undefined;
+  "web.shell.error.text": undefined;
+  "web.shell.error.text_reload": undefined;
+  "web.shell.error.title": undefined;
   "web.shell.file_icon.generic": undefined;
   "web.shell.file_icon.label": { type: string };
   "web.shell.link.done": undefined;
@@ -1721,6 +1770,7 @@ export interface MessageArgs {
   "web.shell.session.signing_in": undefined;
   "web.shell.setup.choose_disks": undefined;
   "web.shell.setup.confirm_password": undefined;
+  "web.shell.setup.continue_without_disks": undefined;
   "web.shell.setup.disk": { path: string; size: string };
   "web.shell.setup.disk_model": { path: string; size: string; model: string };
   "web.shell.setup.failed": undefined;
@@ -1779,23 +1829,29 @@ export interface MessageArgs {
   "web.social.alerts.friends": undefined;
   "web.social.alerts.liked_comment": { name: string };
   "web.social.alerts.liked_post": { name: string };
+  "web.social.alerts.load_failed": undefined;
   "web.social.alerts.more": { more: number };
   "web.social.alerts.nothing": undefined;
   "web.social.comment.author": { name: string };
   "web.social.comment.confirm_delete": undefined;
   "web.social.comment.delete": undefined;
+  "web.social.comment.failed": undefined;
   "web.social.comment.like": undefined;
   "web.social.comment.me": undefined;
   "web.social.comment.placeholder": undefined;
   "web.social.comment.post": undefined;
+  "web.social.comment.posting": undefined;
   "web.social.comment.unlike": undefined;
   "web.social.composer.camera": undefined;
   "web.social.composer.caption": undefined;
   "web.social.composer.drop": undefined;
+  "web.social.composer.file_failed": undefined;
+  "web.social.composer.file_uploaded": undefined;
   "web.social.composer.library": undefined;
   "web.social.composer.move_earlier": { name: string };
   "web.social.composer.move_later": { name: string };
   "web.social.composer.order": undefined;
+  "web.social.composer.post_uploaded": undefined;
   "web.social.composer.publish": undefined;
   "web.social.composer.publish_count": { count: number };
   "web.social.composer.publish_failed": undefined;
@@ -1810,21 +1866,30 @@ export interface MessageArgs {
   "web.social.composer.trim_item": { name: string };
   "web.social.composer.trim_load_failed": undefined;
   "web.social.composer.upload_none": undefined;
-  "web.social.composer.upload_some": { count: number };
+  "web.social.composer.upload_partial": { count: number };
+  "web.social.composer.uploading": { current: number; total: number };
+  "web.social.feed.add_friends": undefined;
   "web.social.feed.empty_text": undefined;
   "web.social.feed.empty_title": undefined;
+  "web.social.feed.load_failed": undefined;
+  "web.social.feed.loading": undefined;
   "web.social.feed.loading_more": undefined;
   "web.social.feed.new_post": undefined;
+  "web.social.feed.no_friends": undefined;
   "web.social.feed.user": undefined;
   "web.social.friends.add_title": undefined;
+  "web.social.friends.address_hint": undefined;
   "web.social.friends.ask_delete_mine": { name: string };
   "web.social.friends.ask_delete_mine_hint": undefined;
   "web.social.friends.asked_delete": undefined;
   "web.social.friends.block": undefined;
   "web.social.friends.cancel_request": undefined;
+  "web.social.friends.confirm_block": { name: string };
   "web.social.friends.confirm_cancel": undefined;
   "web.social.friends.confirm_delete": undefined;
   "web.social.friends.confirm_remove_now": { name: string };
+  "web.social.friends.copied": undefined;
+  "web.social.friends.copy": undefined;
   "web.social.friends.delete_error": undefined;
   "web.social.friends.delete_failed": undefined;
   "web.social.friends.delete_theirs": { name: string };
@@ -1833,6 +1898,8 @@ export interface MessageArgs {
   "web.social.friends.invalid_name": undefined;
   "web.social.friends.keep": undefined;
   "web.social.friends.leaving": undefined;
+  "web.social.friends.load_failed": undefined;
+  "web.social.friends.loading": undefined;
   "web.social.friends.name_label": { suffix: string };
   "web.social.friends.name_placeholder": undefined;
   "web.social.friends.no_domain": undefined;
@@ -1851,6 +1918,7 @@ export interface MessageArgs {
   "web.social.friends.send": undefined;
   "web.social.friends.send_error": undefined;
   "web.social.friends.sending": undefined;
+  "web.social.friends.share_text": { address: string };
   "web.social.friends.status_accepted": undefined;
   "web.social.friends.status_accepted_sent": undefined;
   "web.social.friends.status_blocked": undefined;
@@ -1865,6 +1933,8 @@ export interface MessageArgs {
   "web.social.friends.waiting_delete": undefined;
   "web.social.friends.waiting_title": undefined;
   "web.social.friends.yes": undefined;
+  "web.social.friends.your_address": undefined;
+  "web.social.likes.failed": undefined;
   "web.social.likes.none": undefined;
   "web.social.likes.title": undefined;
   "web.social.post.confirm_delete": undefined;
@@ -1883,7 +1953,6 @@ export interface MessageArgs {
   "web.social.post.previous": undefined;
   "web.social.post.previous_item": undefined;
   "web.social.post.replay": undefined;
-  "web.social.post.share_unavailable": undefined;
   "web.social.post.unlike": undefined;
   "web.social.post.unmute": undefined;
   "web.social.profile.avatar": undefined;
@@ -1906,6 +1975,7 @@ export interface MessageArgs {
   "web.social.time.just_now": undefined;
   "web.social.time.minutes": { minutes: number };
   "web.social.time.minutes_ago": { minutes: number };
+  "web.social.viewer.download_only": undefined;
   "web.social.viewer.download_photo": undefined;
   "web.social.viewer.download_video": undefined;
   "web.social.viewer.full": undefined;
@@ -1950,6 +2020,7 @@ export interface RichTags {
   "web.files.share.low_res": "b";
   "web.files.share.summary": "b";
   "web.images.collections.empty_text": "b";
+  "web.images.grid.empty_apps": "link";
   "web.images.people.name_label": "dim";
   "web.images.people.will_be_called": "b";
   "web.images.trim.keeping": "b";

@@ -348,6 +348,11 @@
     "note": "Screen-reader name of the × that closes a message at the bottom of Images (for example Your ZIP is ready).",
     "max": 24
   },
+  "web.images.grid.empty_apps": {
+    "text": "Or back up a phone or a computer with the <link>Off The Cloud apps</link>.",
+    "note": "In the empty Images section, under Upload from this computer. The link opens the website's downloads (the phone and computer apps).",
+    "rich": ["link"]
+  },
   "web.images.grid.empty_collection_text": {
     "text": "Select photos in Images, then choose Add to collection.",
     "note": "Text under web.images.grid.empty_collection_title. Images is the section's name (menu); Add to collection is the selection bar's button (web.images.select.collect) and the dialog it opens: use the same words."
@@ -363,6 +368,11 @@
   "web.images.grid.empty_title": {
     "text": "No photos yet",
     "note": "Title of the Images page when the device holds no photos or videos at all."
+  },
+  "web.images.grid.empty_upload": {
+    "text": "Upload from this computer",
+    "note": "Button in the empty Images section (no photos on the device yet): picks photos and videos on this computer and sends them to the device.",
+    "max": 40
   },
   "web.images.grid.go_to_images": {
     "text": "Go to Images",
@@ -432,6 +442,20 @@
   "web.images.grid.unreachable_title": {
     "text": "Can't reach your device",
     "note": "Title of the Images page when the first photos could not be fetched because the user's device didn't answer. The page keeps trying by itself."
+  },
+  "web.images.grid.upload_failed": {
+    "text": {
+      "one": "{count} file didn't upload.",
+      "other": "{count} files didn't upload."
+    },
+    "args": [["count", "count"]],
+    "note": "Notice in Images after photos from this computer were sent to the device and some couldn't be. {count} is how many failed."
+  },
+  "web.images.grid.uploading": {
+    "text": "Uploading {current} of {total}…",
+    "args": [["current", "int"], ["total", "int"]],
+    "note": "The empty Images section's upload button while photos from this computer are sent to the device, one at a time. {current} is the one being sent, {total} how many.",
+    "max": 40
   },
   "web.images.load.check": {
     "text": "Check that your device is online, then try again.",
@@ -1124,6 +1148,11 @@
   "web.images.viewer.previous": {
     "text": "Previous",
     "note": "Screen-reader name of the ‹ arrow in the full-screen photo viewer that shows the previous photo."
+  },
+  "web.images.viewer.show_map": {
+    "text": "Show on map",
+    "note": "Images' viewer, the Info panel of a photo with a location: loads a map of where it was taken, from OpenStreetMap (a website), only when pressed.",
+    "max": 32
   },
   "web.images.viewer.stalled": {
     "text": "This video is taking too long to load.",

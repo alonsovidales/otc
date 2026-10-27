@@ -86,9 +86,25 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
 .s-2 { background: var(--danger-bg); color: var(--danger); }   /* Blocked */
 .s-leaving { background: rgba(234,242,239,0.10); color: var(--mist-dim); } /* Issue #174 */
 
+/* The two live regions (status, alert) hold the messages; the error one
+   sticks under the top bar until closed. */
+.fr-live { position: sticky; top: calc(var(--topbar-h) + 10px); z-index: 10; }
+.fr-live:empty { position: static; }
 .toast {
-  position: sticky; top: calc(var(--topbar-h) + 10px); z-index: 10;
   background: var(--ink-2); color: var(--mist); padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px; text-align: center;
 }
+.toast.error { display: flex; align-items: center; justify-content: center; gap: 10px; border-color: rgba(255, 138, 117, .45); color: var(--danger); }
+.fr-toast-close { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; display: grid; place-items: center; }
+.fr-toast-close:hover { background: var(--panel); filter: none; }
+/* Block, beside Accept: the quiet one (it asks first). Copy and Share too. */
+.fr-btn.secondary { background: transparent; color: var(--mist); border: 1px solid var(--line); }
+.fr-btn.secondary:hover { background: var(--panel); filter: none; }
+/* UX 1: this device's address, at the top. */
+.fr-address-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.fr-address-label { color: var(--mist-dim); }
+.fr-address-value { font-size: 1rem; color: var(--mist); overflow-wrap: anywhere; }
+.fr-address .fr-hint { margin: 8px 0 0; font-size: .9rem; }
+.fr-load-error { display: grid; justify-items: center; gap: 10px; }
+.fr-load-error p { margin: 0; }

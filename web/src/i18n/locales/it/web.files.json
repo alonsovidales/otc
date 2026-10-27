@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Attiva “Solo caricamento”: nulla in questa cartella potrà essere eliminato, e i nuovi caricamenti conservano la versione precedente",
   "web.files.lock.on_tip": "Solo caricamento: nulla in questa cartella può essere eliminato, e i nuovi caricamenti conservano la versione precedente. Fai clic per disattivarlo.",
   "web.files.lock.on_tip_short": "Solo caricamento. Fai clic per disattivarlo.",
+  "web.files.open.failed": "Impossibile aprire \u2068{name}\u2069. Controlla la connessione al tuo dispositivo e riprova.",
   "web.files.results.back": "Torna a \u2068{folder}\u2069",
   "web.files.results.back_files": "Torna a File",
   "web.files.results.cant_search": "Questo dispositivo non può ancora cercare tra i suoi file. Aggiornalo in Impostazioni.",
@@ -109,6 +110,8 @@
     "other": "Eliminare {count} elementi? L’operazione non può essere annullata.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Eliminazione interrotta: il dispositivo non ha risposto. Eliminati {done} di {total}.",
+  "web.files.selection.deleting": "Eliminazione {done} di {total}…",
   "web.files.selection.download_zip": "Scarica ZIP",
   "web.files.selection.link_copied": "Link di condivisione copiato negli appunti",
   "web.files.selection.preparing": "Preparazione…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Attuale",
+  "web.files.versions.download_failed": "Impossibile scaricare questa versione di \u2068{name}\u2069.",
   "web.files.versions.hint": "Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.",
   "web.files.versions.replaced": "Sostituita: {date}",
   "web.files.versions.tip": "Versioni precedenti di questo file",

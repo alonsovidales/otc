@@ -101,6 +101,26 @@
     "text": "{name}: download gestart",
     "en": "{name}: download started"
   },
+  "web.shell.error.images": {
+    "text": "Naar Afbeeldingen",
+    "en": "Go to Images"
+  },
+  "web.shell.error.reload": {
+    "text": "Opnieuw laden",
+    "en": "Reload"
+  },
+  "web.shell.error.text": {
+    "text": "Deze pagina werkt niet meer. Laad de pagina opnieuw of ga naar Afbeeldingen.",
+    "en": "This page stopped working. Reload it, or go to Images."
+  },
+  "web.shell.error.text_reload": {
+    "text": "Deze pagina werkt niet meer. Laad de pagina opnieuw om het nog eens te proberen.",
+    "en": "This page stopped working. Reload it to try again."
+  },
+  "web.shell.error.title": {
+    "text": "Er is iets misgegaan",
+    "en": "Something went wrong"
+  },
   "web.shell.file_icon.generic": {
     "text": "DATA",
     "en": "FILE"
@@ -353,6 +373,10 @@
   "web.shell.setup.confirm_password": {
     "text": "Wachtwoord bevestigen",
     "en": "Confirm password"
+  },
+  "web.shell.setup.continue_without_disks": {
+    "text": "Doorgaan zonder schijven",
+    "en": "Continue without disks"
   },
   "web.shell.setup.disk": {
     "text": "{path} – {size}",

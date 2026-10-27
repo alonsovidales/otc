@@ -23,6 +23,10 @@
     "text": "<b>{name}</b> a aimé votre publication",
     "en": "<b>{name}</b> liked your post"
   },
+  "web.social.alerts.load_failed": {
+    "text": "Impossible de charger les alertes.",
+    "en": "Couldn't load the alerts."
+  },
   "web.social.alerts.more": {
     "text": "+{more} de plus",
     "en": "+{more} more"
@@ -44,6 +48,10 @@
     "text": "Supprimer le commentaire",
     "en": "Delete comment"
   },
+  "web.social.comment.failed": {
+    "text": "Votre commentaire n’a pas été publié. Réessayez.",
+    "en": "Your comment wasn't posted. Try again."
+  },
   "web.social.comment.like": {
     "text": "Aimer le commentaire",
     "en": "Like comment"
@@ -59,6 +67,10 @@
   "web.social.comment.post": {
     "text": "Publier",
     "en": "Post"
+  },
+  "web.social.comment.posting": {
+    "text": "Publication…",
+    "en": "Posting…"
   },
   "web.social.comment.unlike": {
     "text": "Ne plus aimer le commentaire",
@@ -76,6 +88,14 @@
     "text": "Faites glisser des photos ou des vidéos ici, ou cliquez pour choisir des fichiers sur cet ordinateur.",
     "en": "Drag photos or videos here, or click to choose files from this computer."
   },
+  "web.social.composer.file_failed": {
+    "text": "Non envoyé",
+    "en": "Didn't upload"
+  },
+  "web.social.composer.file_uploaded": {
+    "text": "Envoyé",
+    "en": "Uploaded"
+  },
   "web.social.composer.library": {
     "text": "Bibliothèque",
     "en": "Library"
@@ -91,6 +111,10 @@
   "web.social.composer.order": {
     "text": "Ordre dans la publication : faites glisser, ou utilisez ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_uploaded": {
+    "text": "Publier ceux qui ont été envoyés",
+    "en": "Post the ones that uploaded"
   },
   "web.social.composer.publish": {
     "text": "Publier",
@@ -148,15 +172,23 @@
     "text": "Aucun des fichiers sélectionnés n’a pu être envoyé.",
     "en": "Could not upload any of the selected files."
   },
-  "web.social.composer.upload_some": {
+  "web.social.composer.upload_partial": {
     "text": {
-      "one": "{count} fichier n’a pas pu être envoyé : publication des autres.",
-      "other": "{count} fichiers n’ont pas pu être envoyés : publication des autres."
+      "one": "{count} fichier n’a pas été envoyé. Publiez ceux qui l’ont été ou réessayez.",
+      "other": "{count} fichiers n’ont pas été envoyés. Publiez ceux qui l’ont été ou réessayez."
     },
     "en": {
-      "one": "{count} file(s) failed to upload - publishing the rest.",
-      "other": "{count} file(s) failed to upload - publishing the rest."
+      "one": "{count} file didn't upload. Post the ones that did, or try again.",
+      "other": "{count} files didn't upload. Post the ones that did, or try again."
     }
+  },
+  "web.social.composer.uploading": {
+    "text": "Envoi {current} sur {total}…",
+    "en": "Uploading {current} of {total}…"
+  },
+  "web.social.feed.add_friends": {
+    "text": "Ajouter des amis",
+    "en": "Add friends"
   },
   "web.social.feed.empty_text": {
     "text": "Partagez une photo ou une vidéo avec vos amis : elle passe de votre appareil au leur, sans aucun cloud entre les deux.",
@@ -166,6 +198,14 @@
     "text": "Pas de publications sur Social",
     "en": "No social posts"
   },
+  "web.social.feed.load_failed": {
+    "text": "Impossible de charger les publications.",
+    "en": "Couldn't load the posts."
+  },
+  "web.social.feed.loading": {
+    "text": "Chargement des publications…",
+    "en": "Loading posts…"
+  },
   "web.social.feed.loading_more": {
     "text": "Chargement de la suite…",
     "en": "Loading more…"
@@ -174,6 +214,10 @@
     "text": "Nouvelle publication",
     "en": "New post"
   },
+  "web.social.feed.no_friends": {
+    "text": "Ajoutez des amis pour voir leurs publications ici et partager les vôtres avec eux.",
+    "en": "Add friends to see their posts here and share yours with them."
+  },
   "web.social.feed.user": {
     "text": "Utilisateur",
     "en": "User"
@@ -181,6 +225,10 @@
   "web.social.friends.add_title": {
     "text": "Ajouter des amis",
     "en": "Add a friend"
+  },
+  "web.social.friends.address_hint": {
+    "text": "Donnez-la à un ami pour qu’il vous ajoute, ou ajoutez la sienne ci-dessous. Vous devenez amis dès que l’autre personne accepte la demande.",
+    "en": "Give it to a friend so they can add you, or add theirs below. You become friends once the other person accepts the request."
   },
   "web.social.friends.ask_delete_mine": {
     "text": "Demander à l’appareil de {name} de supprimer ce que j’y ai partagé",
@@ -204,6 +252,10 @@
     "text": "Annuler la demande",
     "en": "Cancel request"
   },
+  "web.social.friends.confirm_block": {
+    "text": "Bloquer {name} ? Plus rien ne sera partagé entre vos appareils tant que vous ne l’aurez pas accepté à nouveau.",
+    "en": "Block {name}? Nothing more is shared between your devices until you accept them again."
+  },
   "web.social.friends.confirm_cancel": {
     "text": "Annuler cette demande ?",
     "en": "Cancel this request?",
@@ -218,6 +270,14 @@
     "text": "Retirer {name} maintenant ? Cela met fin à l’attente de son appareil. Ce qu’il n’a pas encore supprimé y reste.",
     "en": "Remove {name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.",
     "reviewed": "claude-backtranslation 2026-10-11 #6ef0ac47"
+  },
+  "web.social.friends.copied": {
+    "text": "Copié",
+    "en": "Copied"
+  },
+  "web.social.friends.copy": {
+    "text": "Copier",
+    "en": "Copy"
   },
   "web.social.friends.delete_error": {
     "text": "Erreur lors de la suppression de la demande",
@@ -252,6 +312,14 @@
   "web.social.friends.leaving": {
     "text": "Retrait en cours",
     "en": "Leaving"
+  },
+  "web.social.friends.load_failed": {
+    "text": "Impossible de charger vos amis.",
+    "en": "Couldn't load your friends."
+  },
+  "web.social.friends.loading": {
+    "text": "Chargement de vos amis…",
+    "en": "Loading your friends…"
   },
   "web.social.friends.name_label": {
     "text": "Nom de l’appareil de la personne, avant .{suffix}",
@@ -325,6 +393,10 @@
     "text": "Envoi…",
     "en": "Sending…"
   },
+  "web.social.friends.share_text": {
+    "text": "Ajoutez-moi comme ami sur Off The Cloud : {address}",
+    "en": "Add me as a friend on Off The Cloud: {address}"
+  },
   "web.social.friends.status_accepted": {
     "text": "Acceptée",
     "en": "Accepted"
@@ -380,6 +452,14 @@
   "web.social.friends.yes": {
     "text": "Oui",
     "en": "Yes"
+  },
+  "web.social.friends.your_address": {
+    "text": "Votre adresse",
+    "en": "Your address"
+  },
+  "web.social.likes.failed": {
+    "text": "Impossible de charger les mentions J’aime.",
+    "en": "Couldn't load who liked this."
   },
   "web.social.likes.none": {
     "text": "Pas encore de J’aime",
@@ -459,10 +539,6 @@
   "web.social.post.replay": {
     "text": "Revoir la vidéo",
     "en": "Replay video"
-  },
-  "web.social.post.share_unavailable": {
-    "text": "Partager (pas encore disponible)",
-    "en": "Share (not implemented)"
   },
   "web.social.post.unlike": {
     "text": "Ne plus aimer la publication",
@@ -551,6 +627,10 @@
   "web.social.time.minutes_ago": {
     "text": "{minutes} min",
     "en": "{minutes}m ago"
+  },
+  "web.social.viewer.download_only": {
+    "text": "Ce fichier ne peut pas être affiché ici. Téléchargez-le pour l’ouvrir.",
+    "en": "This file can't be shown here. Download it to open it."
   },
   "web.social.viewer.download_photo": {
     "text": "Télécharger cette photo",

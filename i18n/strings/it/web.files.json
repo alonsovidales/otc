@@ -294,6 +294,10 @@
     "text": "Solo caricamento. Fai clic per disattivarlo.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "Impossibile aprire {name}. Controlla la connessione al tuo dispositivo e riprova.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Torna a {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #ca2fdd12"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Eliminazione interrotta: il dispositivo non ha risposto. Eliminati {done} di {total}.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "Eliminazione {done} di {total}…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "Scarica ZIP",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Attuale",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "Impossibile scaricare questa versione di {name}.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.",

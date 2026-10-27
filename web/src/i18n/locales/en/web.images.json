@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Clear search",
   "web.images.grid.date": "{day} {month} {year}",
   "web.images.grid.dismiss": "Dismiss",
+  "web.images.grid.empty_apps": "Or back up a phone or a computer with the \u003clink\u003eOff The Cloud apps\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Select photos in Images, then choose Add to collection.",
   "web.images.grid.empty_collection_title": "This collection is empty",
   "web.images.grid.empty_text": "Photos from the phone and computer apps appear here.",
   "web.images.grid.empty_title": "No photos yet",
+  "web.images.grid.empty_upload": "Upload from this computer",
   "web.images.grid.go_to_images": "Go to Images",
   "web.images.grid.loading": "Loading photos",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Trying…",
   "web.images.grid.unreachable_text": "Your photos will appear as soon as it answers.",
   "web.images.grid.unreachable_title": "Can't reach your device",
+  "web.images.grid.upload_failed": {
+    "one": "{count} file didn't upload.",
+    "other": "{count} files didn't upload.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "Uploading {current} of {total}…",
   "web.images.load.check": "Check that your device is online, then try again.",
   "web.images.load.waiting": "Still waiting for your device",
   "web.images.people.add_name": "Add a name",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "No EXIF metadata in this file",
   "web.images.viewer.no_metadata": "No metadata found",
   "web.images.viewer.previous": "Previous",
+  "web.images.viewer.show_map": "Show on map",
   "web.images.viewer.stalled": "This video is taking too long to load.",
   "web.images.viewer.stalled_hint": "Nothing has arrived from your device for a while - it may be busy or hard to reach right now. Trying again usually works.",
   "web.images.viewer.taken": "Taken"

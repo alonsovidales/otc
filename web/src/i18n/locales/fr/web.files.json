@@ -82,6 +82,7 @@
   "web.files.lock.off_tip": "Mettre en envoi uniquement : rien dans ce dossier ne pourra être supprimé, et un nouvel envoi conservera l’ancienne version",
   "web.files.lock.on_tip": "Envoi uniquement : rien dans ce dossier ne peut être supprimé, et un nouvel envoi conserve l’ancienne version. Cliquez pour désactiver.",
   "web.files.lock.on_tip_short": "Envoi uniquement. Cliquez pour désactiver.",
+  "web.files.open.failed": "Impossible d’ouvrir \u2068{name}\u2069. Vérifiez la connexion à votre appareil et réessayez.",
   "web.files.results.back": "Retour à \u2068{folder}\u2069",
   "web.files.results.back_files": "Retour à Fichiers",
   "web.files.results.cant_search": "Cet appareil ne peut pas encore rechercher dans ses fichiers. Mettez-le à jour dans les Paramètres.",
@@ -109,6 +110,8 @@
     "other": "Supprimer {count} éléments ? Cette action est irréversible.",
     "arg": "count"
   },
+  "web.files.selection.delete_stopped": "Suppression interrompue : l’appareil n’a pas répondu. {done} sur {total} ont été supprimés.",
+  "web.files.selection.deleting": "Suppression {done} sur {total}…",
   "web.files.selection.download_zip": "Télécharger en ZIP",
   "web.files.selection.link_copied": "Lien de partage copié dans le presse-papiers",
   "web.files.selection.preparing": "Préparation…",
@@ -205,6 +208,7 @@
     "arg": "count"
   },
   "web.files.versions.current": "Version actuelle",
+  "web.files.versions.download_failed": "Impossible de télécharger cette version de \u2068{name}\u2069.",
   "web.files.versions.hint": "Le fichier se trouve dans un dossier en envoi uniquement : chaque envoi vers ce chemin a conservé le précédent.",
   "web.files.versions.replaced": "Remplacée : {date}",
   "web.files.versions.tip": "Anciennes versions de ce fichier",

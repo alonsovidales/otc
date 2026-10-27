@@ -23,6 +23,10 @@
     "text": "<b>{name}</b> vindt je bericht leuk",
     "en": "<b>{name}</b> liked your post"
   },
+  "web.social.alerts.load_failed": {
+    "text": "Kan de meldingen niet laden.",
+    "en": "Couldn't load the alerts."
+  },
   "web.social.alerts.more": {
     "text": "+{more} meer",
     "en": "+{more} more"
@@ -44,6 +48,10 @@
     "text": "Reactie verwijderen",
     "en": "Delete comment"
   },
+  "web.social.comment.failed": {
+    "text": "Je reactie is niet geplaatst. Probeer het opnieuw.",
+    "en": "Your comment wasn't posted. Try again."
+  },
   "web.social.comment.like": {
     "text": "Reactie leuk vinden",
     "en": "Like comment"
@@ -59,6 +67,10 @@
   "web.social.comment.post": {
     "text": "Plaatsen",
     "en": "Post"
+  },
+  "web.social.comment.posting": {
+    "text": "Plaatsen…",
+    "en": "Posting…"
   },
   "web.social.comment.unlike": {
     "text": "Reactie niet meer leuk vinden",
@@ -76,6 +88,14 @@
     "text": "Sleep foto’s of video’s hierheen, of klik om bestanden op deze computer te kiezen.",
     "en": "Drag photos or videos here, or click to choose files from this computer."
   },
+  "web.social.composer.file_failed": {
+    "text": "Niet geüpload",
+    "en": "Didn't upload"
+  },
+  "web.social.composer.file_uploaded": {
+    "text": "Geüpload",
+    "en": "Uploaded"
+  },
   "web.social.composer.library": {
     "text": "Bibliotheek",
     "en": "Library"
@@ -91,6 +111,10 @@
   "web.social.composer.order": {
     "text": "Volgorde in het bericht: sleep, of gebruik ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_uploaded": {
+    "text": "De geüploade bestanden plaatsen",
+    "en": "Post the ones that uploaded"
   },
   "web.social.composer.publish": {
     "text": "Publiceren",
@@ -148,15 +172,23 @@
     "text": "Kan geen van de geselecteerde bestanden uploaden.",
     "en": "Could not upload any of the selected files."
   },
-  "web.social.composer.upload_some": {
+  "web.social.composer.upload_partial": {
     "text": {
-      "one": "{count} bestand kon niet worden geüpload; de rest wordt gepubliceerd.",
-      "other": "{count} bestanden konden niet worden geüpload; de rest wordt gepubliceerd."
+      "one": "{count} bestand is niet geüpload. Plaats de bestanden die wel zijn geüpload of probeer het opnieuw.",
+      "other": "{count} bestanden zijn niet geüpload. Plaats de bestanden die wel zijn geüpload of probeer het opnieuw."
     },
     "en": {
-      "one": "{count} file(s) failed to upload - publishing the rest.",
-      "other": "{count} file(s) failed to upload - publishing the rest."
+      "one": "{count} file didn't upload. Post the ones that did, or try again.",
+      "other": "{count} files didn't upload. Post the ones that did, or try again."
     }
+  },
+  "web.social.composer.uploading": {
+    "text": "Uploaden {current} van {total}…",
+    "en": "Uploading {current} of {total}…"
+  },
+  "web.social.feed.add_friends": {
+    "text": "Vrienden toevoegen",
+    "en": "Add friends"
   },
   "web.social.feed.empty_text": {
     "text": "Deel een foto of video met je vrienden: die gaat van jouw apparaat naar dat van hen, zonder cloud ertussen.",
@@ -166,6 +198,14 @@
     "text": "Geen berichten",
     "en": "No social posts"
   },
+  "web.social.feed.load_failed": {
+    "text": "Kan de berichten niet laden.",
+    "en": "Couldn't load the posts."
+  },
+  "web.social.feed.loading": {
+    "text": "Berichten laden…",
+    "en": "Loading posts…"
+  },
   "web.social.feed.loading_more": {
     "text": "Meer laden…",
     "en": "Loading more…"
@@ -174,6 +214,10 @@
     "text": "Nieuw bericht",
     "en": "New post"
   },
+  "web.social.feed.no_friends": {
+    "text": "Voeg vrienden toe om hier hun berichten te zien en die van jou met hen te delen.",
+    "en": "Add friends to see their posts here and share yours with them."
+  },
   "web.social.feed.user": {
     "text": "Gebruiker",
     "en": "User"
@@ -181,6 +225,10 @@
   "web.social.friends.add_title": {
     "text": "Vrienden toevoegen",
     "en": "Add a friend"
+  },
+  "web.social.friends.address_hint": {
+    "text": "Geef het aan een vriend zodat die je kan toevoegen, of voeg hieronder het adres van die vriend toe. Jullie zijn vrienden zodra de ander het verzoek accepteert.",
+    "en": "Give it to a friend so they can add you, or add theirs below. You become friends once the other person accepts the request."
   },
   "web.social.friends.ask_delete_mine": {
     "text": "Het apparaat van {name} vragen om te verwijderen wat ik daar heb gedeeld",
@@ -204,6 +252,10 @@
     "text": "Verzoek intrekken",
     "en": "Cancel request"
   },
+  "web.social.friends.confirm_block": {
+    "text": "{name} blokkeren? Er wordt niets meer gedeeld tussen jullie apparaten tot je die persoon weer accepteert.",
+    "en": "Block {name}? Nothing more is shared between your devices until you accept them again."
+  },
   "web.social.friends.confirm_cancel": {
     "text": "Dit verzoek intrekken?",
     "en": "Cancel this request?",
@@ -218,6 +270,14 @@
     "text": "{name} nu verwijderen? Er wordt dan niet langer gewacht op hun apparaat. Wat het nog niet heeft verwijderd, blijft daar staan.",
     "en": "Remove {name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.",
     "reviewed": "claude-backtranslation 2026-10-11 #b0c6f7eb"
+  },
+  "web.social.friends.copied": {
+    "text": "Gekopieerd",
+    "en": "Copied"
+  },
+  "web.social.friends.copy": {
+    "text": "Kopiëren",
+    "en": "Copy"
   },
   "web.social.friends.delete_error": {
     "text": "Fout bij het verwijderen van het verzoek",
@@ -252,6 +312,14 @@
   "web.social.friends.leaving": {
     "text": "Wordt verwijderd",
     "en": "Leaving"
+  },
+  "web.social.friends.load_failed": {
+    "text": "Kan je vrienden niet laden.",
+    "en": "Couldn't load your friends."
+  },
+  "web.social.friends.loading": {
+    "text": "Je vrienden laden…",
+    "en": "Loading your friends…"
   },
   "web.social.friends.name_label": {
     "text": "Apparaatnaam van je vriend, vóór .{suffix}",
@@ -325,6 +393,10 @@
     "text": "Versturen…",
     "en": "Sending…"
   },
+  "web.social.friends.share_text": {
+    "text": "Voeg me toe als vriend op Off The Cloud: {address}",
+    "en": "Add me as a friend on Off The Cloud: {address}"
+  },
   "web.social.friends.status_accepted": {
     "text": "Geaccepteerd",
     "en": "Accepted"
@@ -380,6 +452,14 @@
   "web.social.friends.yes": {
     "text": "Ja",
     "en": "Yes"
+  },
+  "web.social.friends.your_address": {
+    "text": "Je adres",
+    "en": "Your address"
+  },
+  "web.social.likes.failed": {
+    "text": "Kan de likes niet laden.",
+    "en": "Couldn't load who liked this."
   },
   "web.social.likes.none": {
     "text": "Nog geen likes",
@@ -459,10 +539,6 @@
   "web.social.post.replay": {
     "text": "Video opnieuw afspelen",
     "en": "Replay video"
-  },
-  "web.social.post.share_unavailable": {
-    "text": "Delen (niet beschikbaar)",
-    "en": "Share (not implemented)"
   },
   "web.social.post.unlike": {
     "text": "Bericht niet meer leuk vinden",
@@ -551,6 +627,10 @@
   "web.social.time.minutes_ago": {
     "text": "{minutes} min",
     "en": "{minutes}m ago"
+  },
+  "web.social.viewer.download_only": {
+    "text": "Dit bestand kan hier niet worden getoond. Download het om het te openen.",
+    "en": "This file can't be shown here. Download it to open it."
   },
   "web.social.viewer.download_photo": {
     "text": "Deze foto downloaden",

@@ -19,8 +19,9 @@ const send = (payload: ReqEnvelope["payload"]): Promise<RespEnvelope> =>
 // answered: the stored respFile, or the device's error reply (from
 // whichever step failed). Like ReqUploadFile it sends no dates or cloud id,
 // and no hash: crypto.subtle is missing on a plain-HTTP LAN origin, and the
-// device checks every piece's offset and the total size.
-export async function uploadFile(path: string, file: File, forceOverride = false): Promise<RespEnvelope> {
+// device checks every piece's offset and the total size. onProgress hears
+// how many bytes the device has taken, after each piece.
+export async function uploadFile(path: string, file: File, forceOverride = false, onProgress?: (sent: number) => void): Promise<RespEnvelope> {
   const begin = await send({
     $case: "reqBeginUpload",
     reqBeginUpload: { path, size: BigInt(file.size), forceOverride, cloudId: "" },
@@ -41,7 +42,23 @@ export async function uploadFile(path: string, file: File, forceOverride = false
         resp.payload.respUploadProgress.received !== BigInt(off + data.length)) {
       throw new Error(`the device stopped taking ${file.name} at ${off} bytes`); // i18n-ignore: only logged, never shown
     }
+    onProgress?.(off + data.length);
   }
 
   return send({ $case: "reqFinishUpload", reqFinishUpload: { uploadId, sha256: "" } });
+}
+
+// uploadAsNew stores file in dir (with its slash) under its own name, or
+// "name (2).jpg" and on when the device holds other content at that path
+// (duplicated_file): never over a file already there. It resolves as
+// uploadFile does.
+export async function uploadAsNew(dir: string, file: File, onProgress?: (sent: number) => void): Promise<RespEnvelope> {
+  const dot = file.name.lastIndexOf(".");
+  const base = dot > 0 ? file.name.slice(0, dot) : file.name;
+  const ext = dot > 0 ? file.name.slice(dot) : "";
+  for (let n = 1; ; n++) {
+    const name = n === 1 ? file.name : `${base} (${n})${ext}`;
+    const resp = await uploadFile(dir + name, file, false, onProgress);
+    if (resp.errorCode !== "duplicated_file" || n >= 20) return resp;
+  }
 }

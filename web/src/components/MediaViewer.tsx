@@ -171,6 +171,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const [infoOpen, setInfoOpen] = useState(false);
   const [infoLoading, setInfoLoading] = useState(false);
   const [infoData, setInfoData] = useState<FileExifInfo | null>(null);
+  // The Info panel's map, once asked for (F22 of the 2026-10 review): for
+  // the info it was asked on, so another photo's starts without it.
+  const [mapFor, setMapFor] = useState<FileExifInfo | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   // Whether the full-size fetch is still going (for the Low res badge).
   const [hiLoading, setHiLoading] = useState(false);
@@ -364,6 +367,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
       });
       if (gen !== viewGenRef.current) return;
       if (resp.payload?.$case === "respFileInfo") setInfoData(resp.payload.respFileInfo);
+    } catch {
+      // No answer: the panel says there is nothing to show.
     } finally {
       if (gen === viewGenRef.current) setInfoLoading(false);
     }
@@ -756,14 +761,23 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                     <span>{[infoData.city, infoData.country].filter(Boolean).join(", ")}</span>
                   </div>
                 )}
-                {infoData.hasGps && (
+                {/* The map is OpenStreetMap's page, with the photo's exact
+                    place in its address: loaded only when asked for, sent
+                    no Referer (the device's address), and sandboxed. */}
+                {infoData.hasGps && (mapFor === infoData ? (
                   <iframe
                     className="pg-info-map"
                     title={t("web.images.viewer.map")}
                     loading="lazy"
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin"
                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${infoData.longitude - 0.02}%2C${infoData.latitude - 0.02}%2C${infoData.longitude + 0.02}%2C${infoData.latitude + 0.02}&layer=mapnik&marker=${infoData.latitude}%2C${infoData.longitude}`}
                   />
-                )}
+                ) : (
+                  <button type="button" className="pg-btn outline small pg-info-showmap" onClick={() => setMapFor(infoData)}>
+                    {t("web.images.viewer.show_map")}
+                  </button>
+                ))}
                 {!infoData.cameraMake && !infoData.cameraModel && !infoData.hasGps && !infoData.exposureTime && (
                   <div className="pg-info-loading">{t("web.images.viewer.no_exif")}</div>
                 )}

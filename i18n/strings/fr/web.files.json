@@ -294,6 +294,10 @@
     "text": "Envoi uniquement. Cliquez pour désactiver.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "Impossible d’ouvrir {name}. Vérifiez la connexion à votre appareil et réessayez.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Retour à {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #4d2d9f9b"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Suppression interrompue : l’appareil n’a pas répondu. {done} sur {total} ont été supprimés.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "Suppression {done} sur {total}…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "Télécharger en ZIP",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Version actuelle",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "Impossible de télécharger cette version de {name}.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "Le fichier se trouve dans un dossier en envoi uniquement : chaque envoi vers ce chemin a conservé le précédent.",

@@ -105,10 +105,12 @@
   "web.images.grid.clear_search": "Effacer la recherche",
   "web.images.grid.date": "{day} {month} {year}",
   "web.images.grid.dismiss": "Fermer",
+  "web.images.grid.empty_apps": "Ou sauvegardez un téléphone ou un ordinateur avec les \u003clink\u003eapps Off The Cloud\u003c/link\u003e.",
   "web.images.grid.empty_collection_text": "Sélectionnez des photos dans Images, puis choisissez « Ajouter à une collection ».",
   "web.images.grid.empty_collection_title": "Cette collection est vide",
   "web.images.grid.empty_text": "Les photos des apps pour téléphone et ordinateur apparaissent ici.",
   "web.images.grid.empty_title": "Pas encore de photos",
+  "web.images.grid.empty_upload": "Envoyer depuis cet ordinateur",
   "web.images.grid.go_to_images": "Aller dans Images",
   "web.images.grid.loading": "Chargement des photos",
   "web.images.grid.month_short": "{month} {year}",
@@ -124,6 +126,12 @@
   "web.images.grid.trying": "Nouvel essai…",
   "web.images.grid.unreachable_text": "Vos photos apparaîtront dès qu’il répondra.",
   "web.images.grid.unreachable_title": "Impossible de joindre votre appareil",
+  "web.images.grid.upload_failed": {
+    "one": "{count} fichier n’a pas été envoyé.",
+    "other": "{count} fichiers n’ont pas été envoyés.",
+    "arg": "count"
+  },
+  "web.images.grid.uploading": "Envoi {current} sur {total}…",
   "web.images.load.check": "Vérifiez que votre appareil est en ligne, puis réessayez.",
   "web.images.load.waiting": "Toujours en attente de votre appareil",
   "web.images.people.add_name": "Ajouter un nom",
@@ -304,6 +312,7 @@
   "web.images.viewer.no_exif": "Aucune métadonnée EXIF dans ce fichier",
   "web.images.viewer.no_metadata": "Aucune métadonnée trouvée",
   "web.images.viewer.previous": "Précédent",
+  "web.images.viewer.show_map": "Afficher sur la carte",
   "web.images.viewer.stalled": "Le chargement de cette vidéo prend trop de temps.",
   "web.images.viewer.stalled_hint": "Rien n’est arrivé de votre appareil depuis un moment : il est peut-être occupé ou difficile à joindre pour le moment. Un nouvel essai suffit généralement.",
   "web.images.viewer.taken": "Prise de vue"

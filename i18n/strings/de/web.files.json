@@ -294,6 +294,10 @@
     "text": "Nur hochladen. Klicke zum Ausschalten.",
     "en": "Upload only. Click to clear."
   },
+  "web.files.open.failed": {
+    "text": "{name} konnte nicht geöffnet werden. Prüfe die Verbindung zu deinem Gerät und versuche es erneut.",
+    "en": "Couldn't open {name}. Check the connection to your device and try again."
+  },
   "web.files.results.back": {
     "text": "Zurück zu {folder}",
     "en": "Back to {folder}"
@@ -382,6 +386,14 @@
       "other": "Delete {count} items? This cannot be undone."
     },
     "reviewed": "claude-backtranslation 2026-10-11 #e4b07c00"
+  },
+  "web.files.selection.delete_stopped": {
+    "text": "Löschen abgebrochen: Das Gerät hat nicht geantwortet. {done} von {total} wurden gelöscht.",
+    "en": "Deleting stopped: the device didn't answer. {done} of {total} were deleted."
+  },
+  "web.files.selection.deleting": {
+    "text": "Löschen ({done} von {total})…",
+    "en": "Deleting {done} of {total}…"
   },
   "web.files.selection.download_zip": {
     "text": "ZIP herunterladen",
@@ -689,6 +701,10 @@
   "web.files.versions.current": {
     "text": "Aktuell",
     "en": "Current"
+  },
+  "web.files.versions.download_failed": {
+    "text": "Diese Version von {name} konnte nicht heruntergeladen werden.",
+    "en": "Couldn't download this version of {name}."
   },
   "web.files.versions.hint": {
     "text": "Die Datei liegt in einem Ordner mit „Nur hochladen“, daher hat jeder Upload unter diesem Pfad die vorherige Version behalten.",

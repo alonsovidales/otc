@@ -24,6 +24,11 @@
 .fb-head { position: sticky; top: calc(var(--topbar-h) + var(--fb-sel-h, 0px)); z-index: 2; }
 .c { padding: 10px 12px; }
 .fb-body .fb-row { border-top: 1px solid var(--line); color: var(--mist); }
+/* The folder's rows come in blocks (FilesExplorer.tsx's cRowBlock): a
+   block far off screen isn't laid out or painted (a 20,000-file folder is
+   240,000 elements). It keeps its rows' room until drawn (45px each, a
+   row's height), then the size it was drawn at. */
+.fb-rowblock { content-visibility: auto; contain-intrinsic-height: auto calc(var(--fb-block-rows, 1) * 45px); }
 /* Issue #200: a picked row shows it across, as a picked tile does - a drag
    over the list is seen as it goes. */
 .fb-body .fb-row.selected { background: rgba(255, 107, 74, 0.1); }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
 import { uploadFile } from "../net/upload";
@@ -30,6 +30,11 @@ import { useDragSelect } from "./useDragSelect";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 import { refusedText } from "./photoCopies";
 import { openWaitingTab } from "./zipTab";
+import { canOpenInline, safeToOpen } from "./inlineTypes";
+import { useToasts } from "./useToasts";
+import ToastView from "./ToastView";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { LinkDialog } from "./ConfirmDialog";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -77,6 +82,11 @@ const cNoFile: PbFile = {
 };
 // The grid asks for thumbnails this many paths at a time.
 const cThumbBatch = 24;
+// The most thumbnails kept: the ones seen longest ago go first (their
+// tiles ask again when they come back in sight). A phone's whole library
+// in one folder kept every one it had shown, for as long as the page was
+// open.
+const cThumbKeep = 1000;
 
 // The top bar's "Search documents" (filesNav.searchInFiles): every file and
 // folder whose path holds the text, as SearchFiles finds them - at most
@@ -177,24 +187,25 @@ function SortArrow({ dir }: { dir: "asc" | "desc" }) {
   return new Date(sec * 1000 + Math.floor(ns / 1e6));
 }*/
 
-// Security advisory (web app, HTML/SVG in the app's origin): a file opened
-// in a tab is a blob: URL of this app's own origin, so an HTML or SVG file
-// opened that way ran with full access to the app (its session token, the
-// window that opened it). Only types that can't run script are opened;
-// everything else is downloaded - never rendered.
-const INLINE_EXT = /\.(pdf|txt|md|csv|log|json|jpe?g|png|gif|webp|bmp|heic|heif|avif|mp4|mov|m4v|webm|mkv|mp3|m4a|aac|wav|ogg|oga|flac)$/i;
-const INLINE_MIME = /^(application\/pdf|text\/plain|text\/csv|text\/markdown|application\/json|image\/(jpeg|png|gif|webp|bmp|heic|heif|avif)|video\/[\w.+-]+|audio\/[\w.+-]+)(;.*)?$/i;
-function canOpenInline(name: string) { return INLINE_EXT.test(name); }
-function safeToOpen(mime: string) { return INLINE_MIME.test(mime || ""); }
+// Only types that can't run script are opened; everything else is
+// downloaded - never rendered (inlineTypes.ts, the security advisory).
 
-function downloadBytes(parts: Uint8Array[], name: string) {
-  // octet-stream: saved, never rendered, whatever the file is.
-  const url = blobURL(parts, "application/octet-stream");
+// How long a download's blob: URL is kept after its click: the browser may
+// start reading it later than the click (Safari), and one revoked at once
+// saved nothing (mediaDownload.ts keeps them as long).
+const cBlobKeepMs = 40_000;
+
+function saveURL(url: string, name: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), cBlobKeepMs);
+}
+
+function downloadBytes(parts: Uint8Array[], name: string) {
+  // octet-stream: saved, never rendered, whatever the file is.
+  saveURL(blobURL(parts, "application/octet-stream"), name);
 }
 
 function bytesToURL(bytes: Uint8Array, mime = "application/octet-stream") {
@@ -220,7 +231,8 @@ function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
 // it. GetFile answers with the whole file in one message: the device holds
 // about three times the file in memory while every other download waits
 // behind it, and past the bridge's message limit the download just fails.
-// Its original bytes and mime, or null if the device stopped answering.
+// Its original bytes and mime, or why not: the device's words ("" when it
+// gave none, or stopped sending). A request with no answer throws.
 //
 // Each piece looks the path up again, so a file replaced while it is read
 // (a sync client overriding it, a new version in an upload-only folder)
@@ -229,14 +241,15 @@ function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
 // whole-file GetFile always gave one version.
 const cReadChunk = 4 << 20;
 const cChanged = Symbol("changed");
-async function readAll(path: string, hash = ""): Promise<{ parts: Uint8Array[]; mime: string } | null> {
+type ReadResult = { parts: Uint8Array[]; mime: string } | { failed: string };
+async function readAll(path: string, hash = ""): Promise<ReadResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const got = await readOnce(path, hash);
     if (got !== cChanged) return got;
   }
-  return null;
+  return { failed: "" };
 }
-async function readOnce(path: string, hash: string): Promise<{ parts: Uint8Array[]; mime: string } | null | typeof cChanged> {
+async function readOnce(path: string, hash: string): Promise<ReadResult | typeof cChanged> {
   const parts: Uint8Array[] = [];
   let mime = "";
   let content = "";
@@ -246,7 +259,7 @@ async function readOnce(path: string, hash: string): Promise<{ parts: Uint8Array
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       e.payload = { $case: "reqReadFile", reqReadFile: { path, hash, offset: BigInt(offset), length: cReadChunk } };
     });
-    if (resp.payload?.$case !== "respFileChunk") return null;
+    if (resp.payload?.$case !== "respFileChunk") return { failed: resp.errorMessage };
     const chunk = resp.payload.respFileChunk;
     if (total < 0) {
       mime = chunk.mime;
@@ -255,7 +268,7 @@ async function readOnce(path: string, hash: string): Promise<{ parts: Uint8Array
       return cChanged;
     }
     total = Number(chunk.size);
-    if (chunk.data.length === 0 && offset < total) return null;
+    if (chunk.data.length === 0 && offset < total) return { failed: "" };
     parts.push(chunk.data);
     offset += chunk.data.length;
   }
@@ -288,10 +301,189 @@ function leafName(full: string) {
   return parts[parts.length - 1] || full;
 }
 
-export default function FilesExplorer({
+// The lock of an upload-only folder (issue #132), open or closed.
+function LockIcon({ locked }: { locked: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      {locked
+        ? <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+        : <path d="M8 11V7a4 4 0 0 1 7.5-2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
+// What the folder's switches for Images know of the listing (issue #192):
+// shown (the device can, for the folder listed), the folder kept out (by
+// `cover`, itself or a folder above it) and a change on its way.
+type NoImgSwitchState = { shown: boolean; folderOut: boolean; cover: string; busy: boolean };
+
+// Issue #192: a folder's switch for Images, beside its lock. Its name
+// stays the same and aria-pressed says whether the folder is kept out
+// ("Keep Backups out of Images, pressed"); the tip says what a click
+// does. While a change is on its way every switch waits, and says so. In
+// a folder kept out, every subfolder is kept out by it (or a folder above
+// it), and the device would refuse its Show: a marker naming that folder
+// then, not a switch - the banner has the way back.
+function NoImgSwitch({ state, name, full, outOfImages, tile = false, onToggle }: {
+  state: NoImgSwitchState;
+  name: string;
+  full: string;
+  outOfImages: boolean;
+  tile?: boolean;
+  onToggle: (full: string, out: boolean) => void;
+}) {
+  const t = useT();
+  const tileClass = tile ? " fb-tile-noimg" : "";
+  if (state.folderOut) {
+    const tip = t("web.files.keep_out.parent_tip", { folder: state.cover });
+    return (
+      <span className={`fb-noimg${tileClass} on static`} data-tip={tip} role="img" aria-label={tip}>
+        <NoImgIcon />
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`fb-noimg${tileClass}${outOfImages ? " on" : ""}`}
+      onClick={() => onToggle(full, outOfImages)}
+      data-tip={outOfImages ? t("web.files.keep_out.tip_on") : t("web.files.keep_out.tip_off")}
+      data-noimg={full}
+      aria-label={t("web.files.keep_out.switch", { name })}
+      aria-pressed={outOfImages}
+      aria-disabled={state.busy || undefined}
+    >
+      <NoImgIcon />
+    </button>
+  );
+}
+
+// The list's rows in blocks of this many (see the list's render).
+const cRowBlock = 100;
+function rowBlocks<T>(rows: readonly T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < rows.length; i += cRowBlock) out.push(rows.slice(i, i + cRowBlock));
+  return out;
+}
+
+// A row of the folder's list, as rows (below) prepare it.
+type ListRow = {
+  k: string;
+  name: string;
+  isDir: boolean;
+  size: number;
+  created?: Date;
+  modified?: Date;
+  uploadOnly: boolean;
+  outOfImages: boolean;
+  versions: number;
+  file: PbFile;
+  sort: SortFields;
+};
+// What a row's controls do: the same functions for every row and render
+// (FilesExplorer keeps the latest of each behind them).
+type RowActions = {
+  open: (f: PbFile) => void;
+  toggle: (f: PbFile, range: boolean) => void;
+  toggleLock: (f: PbFile) => void;
+  versions: (f: PbFile) => void;
+  toggleNoImg: (full: string, out: boolean) => void;
+};
+
+// One row of the list: memoised, so picking one row (or a drag over many)
+// draws only the rows whose own state changed - a 20,000-file folder used
+// to draw every row again for each click on a checkbox (150 ms).
+const FileRow = memo(function FileRow({ r, full, selected, opening, busy, noImg, actions }: {
+  r: ListRow;
+  // Its full path ("" for "..").
+  full: string;
+  selected: boolean;
+  // Its file is being fetched to open (issue #71); `busy`, any is.
+  opening: boolean;
+  busy: boolean;
+  noImg: NoImgSwitchState;
+  actions: RowActions;
+}) {
+  const t = useT();
+  const up = r.name === "..";
+  return (
+    <div className={`fb-row${selected ? " selected" : ""}`} role="row" data-key={r.k}>
+      <div className="c c-check" role="cell">
+        {!up && (
+          <input type="checkbox" checked={selected}
+            onChange={(e) => actions.toggle(r.file, (e.nativeEvent as MouseEvent).shiftKey)}
+            aria-label={t("web.files.list.select_item", { name: r.name })} />
+        )}
+      </div>
+      <div className="c c-name" role="cell">
+        <button
+          className={`${r.isDir ? "link" : "file"}`}
+          title={r.name}
+          onClick={() => actions.open(r.file)}
+          disabled={busy}
+        >
+          {/* Issue #71: a spinner in place of the row's own label
+              while its GetFile round trip is in flight - the only
+              feedback a click used to get was however long that
+              took, which just looked stuck. */}
+          {opening ? <span className="fb-opening">{t("web.files.list.opening")}</span> : r.name}
+        </button>
+        {/* Issue #132: the lock on a folder flags it upload only;
+            on a file it just says the file is inside one. */}
+        {!up && r.isDir && (
+          <button
+            className={`fb-lock${r.uploadOnly ? " on" : ""}`}
+            onClick={() => actions.toggleLock(r.file)}
+            data-tip={r.uploadOnly ? t("web.files.lock.on_tip") : t("web.files.lock.off_tip")}
+            aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")}
+            aria-pressed={r.uploadOnly}
+          >
+            <LockIcon locked={r.uploadOnly} />
+          </button>
+        )}
+        {!up && r.isDir && noImg.shown && (
+          <NoImgSwitch state={noImg} name={r.name} full={full} outOfImages={r.outOfImages} onToggle={actions.toggleNoImg} />
+        )}
+        {!r.isDir && r.uploadOnly && (
+          <span className="fb-lock on static" data-tip={t("web.files.lock.file")} role="img" aria-label={t("web.files.lock.file")}><LockIcon locked /></span>
+        )}
+        {!r.isDir && r.versions > 0 && (
+          <button className="fb-versions" onClick={() => actions.versions(r.file)}
+            data-tip={t("web.files.versions.tip")} aria-description={t("web.files.versions.tip")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12a8 8 0 1 0 2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+              <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+            </svg>
+            {t("web.files.versions.count", { count: r.versions })}
+          </button>
+        )}
+      </div>
+      <div className="c c-size" role="cell">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
+      <div className="c c-created" role="cell">{r.created ? fmtDate(t.lang, r.created, dateTimeFields) : "—"}</div>
+      <div className="c c-modified" role="cell">{r.modified ? fmtDate(t.lang, r.modified, dateTimeFields) : "—"}</div>
+    </div>
+  );
+});
+
+// Files, inside its section's error boundary (ErrorBoundary.tsx).
+export default function FilesExplorer(props: Props) {
+  return <ErrorBoundary where="tab"><FilesExplorerView {...props} /></ErrorBoundary>;
+}
+
+function FilesExplorerView({
   initialPath = "/"
 }: Props) {
   const t = useT();
+  // What went wrong (or right) with a share, an open, a download or a
+  // delete: Images' toasts (useToasts.ts) - nothing showed when one was
+  // refused or got no answer - and its link dialog when the clipboard
+  // refused the link.
+  const { toast, showToast, dismissToast } = useToasts();
+  const [linkShown, setLinkShown] = useState<string | null>(null);
+  // A failure in the device's words, else ours.
+  const failText = (words: string | undefined, ours: UiText): UiText => (words ? asIs(words) : ours);
   // Issue #53 follow-up: a reload restores the Files tab itself now, but
   // used to still always drop back to initialPath ("/") rather than
   // wherever the user had actually navigated to.
@@ -605,12 +797,16 @@ export default function FilesExplorer({
     // Not "noopener": that returns null, and the tab is still needed here.
     if (preopenedTab) preopenedTab.opener = null;
 
+    const name = leafName(f.path);
+    const openFailed = (words?: string) =>
+      showToast({ text: failText(words, (tt) => tt("web.files.open.failed", { name })), error: true });
     try {
       const fullPath = f.path.includes("/") ? f.path : joinPath(path, f.path);
       if (!isImg(f) && !isHeicName(f.path)) {
         const got = await readAll(fullPath);
-        if (!got) {
+        if ("failed" in got) {
           preopenedTab?.close();
+          openFailed(got.failed);
           return;
         }
         // The device's own reading of the content decides, as below.
@@ -627,6 +823,7 @@ export default function FilesExplorer({
       });
       if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) {
         preopenedTab?.close();
+        openFailed(resp.errorMessage);
         return;
       }
       const bytes = resp.payload.respFile.content as Uint8Array;
@@ -644,6 +841,7 @@ export default function FilesExplorer({
       }
     } catch {
       preopenedTab?.close();
+      openFailed();
     } finally {
       setOpeningPath(null);
     }
@@ -678,23 +876,51 @@ export default function FilesExplorer({
   // a file synced over since is refused ("changed") rather than deleted;
   // the device's words then say so, once ("Delete failed: …", as Images
   // and the phones say them), and the folder is listed again.
+  // One at a time, with how far it got on the Delete button; a refusal
+  // in the device's words (the first, once), and a request nothing
+  // answered stops it and says how many went (F24 of the 2026-10 review:
+  // both used to be silent, and a thrown request left the folder unlisted).
+  const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
   const delSelected = async () => {
-    if (!selected.length || selectedUploadOnly || refuseOnDemo()) return;
+    if (!selected.length || selectedUploadOnly || deleting || refuseOnDemo()) return;
     if (!window.confirm(t("web.files.selection.confirm_delete", { count: selected.length }))) return;
-    let changed = "";
-    for (const f of selected) {
-      const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqDelFile", reqDelFile: f.hash ? { path: full, hash: f.hash } : { path: full } };
-      });
-      if (resp.error && resp.errorCode === "upload_only") {
-        alert(t("web.files.list.upload_only_refused", { name: leafName(full) }));
-        break;
+    const files = selected;
+    const total = files.length;
+    let refused: UiText | null = null;
+    let deleted = 0;
+    let stopped = false;
+    setDeleting({ done: 0, total });
+    try {
+      for (const f of files) {
+        const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
+        let resp: RespEnvelope;
+        try {
+          resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+            e.payload = { $case: "reqDelFile", reqDelFile: f.hash ? { path: full, hash: f.hash } : { path: full } };
+          });
+        } catch {
+          stopped = true;
+          break;
+        }
+        const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
+        if (resp.error && resp.errorCode === "upload_only") {
+          refused ??= (tt) => tt("web.files.list.upload_only_refused", { name: leafName(full) });
+          break;
+        }
+        if (resp.error || (ack && !ack.ok)) {
+          const words = resp.errorMessage || ack?.errorMsg || "";
+          refused ??= words ? (tt) => refusedText(tt, words) : say("web.files.list.update_failed");
+        } else {
+          deleted++;
+        }
+        setDeleting({ done: deleted, total });
       }
-      if (resp.error && resp.errorCode === "changed" && resp.errorMessage) changed = resp.errorMessage;
+    } finally {
+      setDeleting(null);
     }
-    if (changed) alert(refusedText(t, changed));
-    await loadList(path);
+    if (stopped) showToast({ text: (tt) => tt("web.files.selection.delete_stopped", { done: deleted, total }), error: true });
+    else if (refused) showToast({ text: refused, error: true });
+    await loadList(pathRef.current);
   };
 
   // Issue #132: the lock next to a folder - flag it upload only, or clear
@@ -796,24 +1022,27 @@ export default function FilesExplorer({
   };
 
   // A version downloads by its hash; the current one is the row itself.
+  // Saved, never rendered (octet-stream, as every download here); its URL
+  // is let go after a while, not at once (a revoke right after the click
+  // could save nothing). What went wrong shows.
   const downloadVersion = async (full: string, hash: string, name: string, mime: string) => {
-    let url: string;
-    if (isHeicName(name) || mime.toLowerCase() === "image/heic") {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
-      });
-      if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) return;
-      url = bytesToURL(resp.payload.respFile.content as Uint8Array, resp.payload.respFile.mime);
-    } else {
-      const got = await readAll(full, hash);
-      if (!got) return;
-      url = blobURL(got.parts, got.mime);
+    const failed = (words?: string) =>
+      showToast({ text: failText(words, (tt) => tt("web.files.versions.download_failed", { name })), error: true });
+    try {
+      if (isHeicName(name) || mime.toLowerCase() === "image/heic") {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqGetFile", reqGetFile: { path: full, hash } };
+        });
+        if (resp.payload?.$case !== "respFile" || !resp.payload.respFile.content) { failed(resp.errorMessage); return; }
+        downloadBytes([resp.payload.respFile.content as Uint8Array], name);
+      } else {
+        const got = await readAll(full, hash);
+        if ("failed" in got) { failed(got.failed); return; }
+        downloadBytes(got.parts, name);
+      }
+    } catch {
+      failed();
     }
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
   };
 
   // Same reasoning as the Photo Gallery's own share actions: the device
@@ -821,31 +1050,49 @@ export default function FilesExplorer({
   // which is seconds of apparent nothing without an indicator.
   const [preparing, setPreparing] = useState<null | "share" | "zip">(null);
 
+  // As Images' (PhotoGallery makeLink): a refusal says so in the device's
+  // words, and a link the clipboard refused (Safari, once the await took
+  // too long after the click) is shown to copy by hand - it used to open
+  // in a new tab, which Safari blocks too, and was lost.
   const shareOrZip = async (openZip: boolean) => {
     if (!selected.length || preparing || refuseOnDemo()) return;
     setPreparing(openZip ? "zip" : "share");
     // As Images: the ZIP's tab opens at the click, since a browser blocks
     // one opened once the archive is made, seconds later.
     const tab = openZip ? openWaitingTab(t) : null;
-    let sent = false;
     try {
       const paths = selected.map(f => f.path.includes("/") ? f.path : joinPath(path, f.path));
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths } };
+        e.payload = { $case: "reqShareFilesLink", reqShareFilesLink: { paths } };
       });
-      if (resp.payload?.$case === "respShareLink" && resp.payload.respShareLink.link) {
-        const link = resp.payload.respShareLink.link;
-        if (openZip) {
-          if (tab && !tab.closed) tab.location.href = link;
-          else window.open(link, "_blank");
-          sent = true;
-        } else {
-          try { await navigator.clipboard.writeText(link); alert(t("web.files.selection.link_copied")); }
-          catch { window.open(link, "_blank"); }
-        }
+      const link = resp.payload?.$case === "respShareLink" ? resp.payload.respShareLink.link : "";
+      if (!link) {
+        tab?.close();
+        showToast({ text: failText(resp.errorMessage, say(openZip ? "web.images.share.zip_failed" : "web.images.share.link_failed")), error: true });
+        return;
       }
+      if (openZip) {
+        if (tab && !tab.closed) tab.location.href = link;
+        else if (!window.open(link, "_blank")) {
+          // Popups refused, or the tab closed meanwhile: a button opens it.
+          showToast({
+            text: say("web.images.share.zip_ready"),
+            stay: true,
+            action: { label: say("common.download"), run: () => { window.open(link, "_blank"); } },
+          });
+        }
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast({ text: say("web.files.selection.link_copied") });
+      } catch {
+        setLinkShown(link);
+      }
+    } catch {
+      tab?.close();
+      showToast({ text: say("web.images.error.unreachable"), error: true });
     } finally {
-      if (!sent) tab?.close();
       setPreparing(null);
     }
   };
@@ -896,7 +1143,7 @@ export default function FilesExplorer({
   };
 
   // ---- rows prepared for display, in that order ----
-  const rows = useMemo(() => sortEntries(listing.map((f) => {
+  const rows = useMemo(() => sortEntries(listing.map((f): ListRow => {
     const name = f.path === ".." ? ".." : leafName(f.path);
     return {
       k: rowKey(f),
@@ -958,6 +1205,27 @@ export default function FilesExplorer({
   thumbsRef.current = thumbs;
   const thumbsAsked = useRef<Set<string>>(new Set());
   useEffect(() => () => { Object.values(thumbsRef.current).forEach(u => u && URL.revokeObjectURL(u)); }, []);
+  // When each thumbnail was last wanted (a tile coming in sight, the
+  // viewer, a search's results), for cThumbKeep: a count, not a time.
+  const thumbSeen = useRef(new Map<string, number>());
+  const seenTick = useRef(0);
+  const sawThumb = useCallback((p: string) => { thumbSeen.current.set(p, ++seenTick.current); }, []);
+  useEffect(() => {
+    const kept = Object.entries(thumbs).filter(([, u]) => u);
+    if (kept.length <= cThumbKeep) return;
+    const seen = thumbSeen.current;
+    const out = kept.sort((a, b) => (seen.get(a[0]) ?? 0) - (seen.get(b[0]) ?? 0)).slice(0, kept.length - cThumbKeep);
+    for (const [p, u] of out) {
+      URL.revokeObjectURL(u);
+      thumbsAsked.current.delete(p);
+      seen.delete(p);
+    }
+    setThumbs(prev => {
+      const next = { ...prev };
+      for (const [p] of out) delete next[p];
+      return next;
+    });
+  }, [thumbs]);
   const fullPathOf = useCallback((f: PbFile) => (f.path.includes("/") ? f.path : joinPath(path, f.path)), [path]);
 
   // Only tiles on or near the screen ask for theirs, as the iOS app does:
@@ -1003,30 +1271,29 @@ export default function FilesExplorer({
   }, []);
   const wantThumbs = useCallback((paths: string[]) => {
     for (const p of paths) {
+      sawThumb(p);
       if (thumbsAsked.current.has(p)) continue;
       thumbsAsked.current.add(p);
       thumbQueue.current.push(p);
     }
     void pumpThumbs();
-  }, [pumpThumbs]);
+  }, [pumpThumbs, sawThumb]);
   useEffect(() => {
     if (viewMode !== "grid" || loading || !gridRef.current) return;
     const asked = thumbsAsked.current;
     // The viewport as the root, 1000px ahead: an ancestor that scrolls
-    // still clips, whichever element it is.
+    // still clips, whichever element it is. Every tile stays watched: one
+    // whose thumbnail went (cThumbKeep) asks again when back in sight.
     const obs = new IntersectionObserver((entries) => {
       const paths: string[] = [];
       for (const en of entries) {
         if (!en.isIntersecting) continue;
         const el = en.target as HTMLElement;
-        obs.unobserve(el);
         if (el.dataset.thumb) paths.push(el.dataset.thumb);
       }
       if (paths.length) wantThumbs(paths);
     }, { rootMargin: "1000px 0px" });
-    gridRef.current.querySelectorAll<HTMLElement>("[data-thumb]").forEach(el => {
-      if (!asked.has(el.dataset.thumb!)) obs.observe(el);
-    });
+    gridRef.current.querySelectorAll<HTMLElement>("[data-thumb]").forEach(el => obs.observe(el));
     return () => {
       obs.disconnect();
       thumbQueue.current.forEach(p => asked.delete(p));
@@ -1146,7 +1413,7 @@ export default function FilesExplorer({
   // Whether something lies over the folder or the results (the viewer, a
   // pop-up: theirs to close Escape with).
   const overlayOpen = useRef(false);
-  overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder);
+  overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder || linkShown);
   const inResults = results !== null;
 
   // A found folder opens in Files; a photo or video in the viewer, paging
@@ -1287,7 +1554,7 @@ export default function FilesExplorer({
   // screen a long press picks the row first. Once something is picked a tap
   // there picks or unpicks a row, where a click opens it.
   const dragSel = useDragSelect<Row>({
-    enabled: !loading && !inResults && !mediaViewer && !viewer && !versionsOf && !sharingFolder && viewMode !== "storage",
+    enabled: !loading && !inResults && !mediaViewer && !viewer && !versionsOf && !sharingFolder && !linkShown && viewMode !== "storage",
     items: rows,
     keyOf: keyOfRow,
     indexAt: (el) => {
@@ -1422,32 +1689,30 @@ export default function FilesExplorer({
   // above it), and the device would refuse its Show: a marker naming that
   // folder then, not a switch - the banner has the way back.
   const noImgCover = noImg.folderOut ? (noImg.cover ?? normPath(path)).replace(/\/+$/, "") : "";
-  const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => {
-    const tileClass = tile ? " fb-tile-noimg" : "";
-    if (noImg.folderOut) {
-      const tip = t("web.files.keep_out.parent_tip", { folder: noImgCover });
-      return (
-        <span className={`fb-noimg${tileClass} on static`} data-tip={tip} role="img" aria-label={tip}>
-          <NoImgIcon />
-        </span>
-      );
-    }
-    const full = fullPathOf(r.file);
-    return (
-      <button
-        type="button"
-        className={`fb-noimg${tileClass}${r.outOfImages ? " on" : ""}`}
-        onClick={() => void toggleOutOfImages(full, r.outOfImages, "row")}
-        data-tip={r.outOfImages ? t("web.files.keep_out.tip_on") : t("web.files.keep_out.tip_off")}
-        data-noimg={full}
-        aria-label={t("web.files.keep_out.switch", { name: r.name })}
-        aria-pressed={r.outOfImages}
-        aria-disabled={noImgBusy !== null || undefined}
-      >
-        <NoImgIcon />
-      </button>
-    );
+  const noImgState = useMemo<NoImgSwitchState>(
+    () => ({ shown: noImgShown, folderOut: noImg.folderOut, cover: noImgCover, busy: noImgBusy !== null }),
+    [noImgShown, noImg.folderOut, noImgCover, noImgBusy],
+  );
+  // The rows' controls, the same functions from render to render (FileRow
+  // is memoised): each calls the latest of what it stands for.
+  const latestRowActions = useRef<RowActions | null>(null);
+  latestRowActions.current = {
+    open: (f) => void openEntry(f),
+    toggle: (f, range) => toggleOne(f, range),
+    toggleLock: (f) => void toggleUploadOnly(f),
+    versions: (f) => void openVersions(f),
+    toggleNoImg: (full, out) => void toggleOutOfImages(full, out, "row"),
   };
+  const rowActions = useMemo<RowActions>(() => ({
+    open: (f) => latestRowActions.current?.open(f),
+    toggle: (f, range) => latestRowActions.current?.toggle(f, range),
+    toggleLock: (f) => latestRowActions.current?.toggleLock(f),
+    versions: (f) => latestRowActions.current?.versions(f),
+    toggleNoImg: (full, out) => latestRowActions.current?.toggleNoImg(full, out),
+  }), []);
+  const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => (
+    <NoImgSwitch state={noImgState} name={r.name} full={fullPathOf(r.file)} outOfImages={r.outOfImages} tile={tile} onToggle={rowActions.toggleNoImg} />
+  );
   // The banner's button: the listed folder when it is kept out itself,
   // else the outermost folder keeping it out (the one Show the device
   // takes) - not known until ListOutOfImages answers (no button until
@@ -1457,14 +1722,7 @@ export default function FilesExplorer({
   const noImgShowByParent = noImgShow !== null && noImgShow !== listedKey;
   const noImgShowPath = noImgShow?.replace(/\/+$/, "") ?? "";
 
-  const lockIcon = (locked: boolean) => (
-    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
-      {locked
-        ? <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-        : <path d="M8 11V7a4 4 0 0 1 7.5-2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />}
-    </svg>
-  );
+  const lockIcon = (locked: boolean) => <LockIcon locked={locked} />;
 
   // Issue #196: the Sort by list - over the folder (the grid and narrow
   // screens have no headings to click) and over a search's results.
@@ -1864,8 +2122,10 @@ export default function FilesExplorer({
             </button>
             <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
             <div className="grow" />
-            <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
-              title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
+            <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly || !!deleting}
+              title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>
+              {deleting ? <Spinner label={t("web.files.selection.deleting", { done: Math.min(deleting.done + 1, deleting.total), total: deleting.total })} /> : t("common.delete")}
+            </button>
             <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
               {preparing === "share" ? <Spinner label={t("web.files.selection.preparing")} /> : t("common.share")}
             </button>
@@ -1944,60 +2204,25 @@ export default function FilesExplorer({
         <div className="fb-body" role="rowgroup" ref={dragRef} onClickCapture={onItemsClickCapture}
           onPointerDown={dragSel.onPointerDown} onContextMenu={dragSel.onContextMenu} onDragStart={dragSel.onDragStart}>
           {loading && <div className="fb-row" role="row"><span role="cell">{t("common.loading")}</span></div>}
-          {!loading && rows.map(r => (
-            <div className={`fb-row${sel[r.k] ? " selected" : ""}`} role="row" key={r.k} data-key={r.k}>
-              <div className="c c-check" role="cell">
-                {r.name !== ".." && (
-                  <input type="checkbox" checked={!!sel[r.k]}
-                    onChange={(e) => toggleOne(r.file, (e.nativeEvent as MouseEvent).shiftKey)}
-                    aria-label={t("web.files.list.select_item", { name: r.name })} />
-                )}
-              </div>
-              <div className="c c-name" role="cell">
-                <button
-                  className={`${r.isDir ? "link" : "file"}`}
-                  title={r.name}
-                  onClick={() => openEntry(r.file)}
-                  disabled={openingPath !== null}
-                >
-                  {/* Issue #71: a spinner in place of the row's own label
-                      while its GetFile round trip is in flight - the only
-                      feedback a click used to get was however long that
-                      took, which just looked stuck. */}
-                  {openingPath === r.file.path ? <span className="fb-opening">{t("web.files.list.opening")}</span> : r.name}
-                </button>
-                {/* Issue #132: the lock on a folder flags it upload only;
-                    on a file it just says the file is inside one. */}
-                {r.name !== ".." && r.isDir && (
-                  <button
-                    className={`fb-lock${r.uploadOnly ? " on" : ""}`}
-                    onClick={() => void toggleUploadOnly(r.file)}
-                    data-tip={r.uploadOnly ? t("web.files.lock.on_tip") : t("web.files.lock.off_tip")}
-                    aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")}
-                    aria-pressed={r.uploadOnly}
-                  >
-                    {lockIcon(r.uploadOnly)}
-                  </button>
-                )}
-                {r.name !== ".." && r.isDir && noImgShown && noImgButton(r)}
-                {!r.isDir && r.uploadOnly && (
-                  <span className="fb-lock on static" data-tip={t("web.files.lock.file")} role="img" aria-label={t("web.files.lock.file")}>{lockIcon(true)}</span>
-                )}
-                {!r.isDir && r.versions > 0 && (
-                  <button className="fb-versions" onClick={() => void openVersions(r.file)}
-                    data-tip={t("web.files.versions.tip")} aria-description={t("web.files.versions.tip")}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 12a8 8 0 1 0 2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                      <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                    </svg>
-                    {t("web.files.versions.count", { count: r.versions })}
-                  </button>
-                )}
-              </div>
-              <div className="c c-size" role="cell">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
-              <div className="c c-created" role="cell">{r.created ? fmtDate(t.lang, r.created, dateTimeFields) : "—"}</div>
-              <div className="c c-modified" role="cell">{r.modified ? fmtDate(t.lang, r.modified, dateTimeFields) : "—"}</div>
+          {/* In blocks of cRowBlock rows, which the browser skips laying
+              out and painting while they are far off screen
+              (FilesExplorer.css): a 20,000-file folder is 240,000
+              elements, and skipping single rows cost as much as it saved. */}
+          {!loading && rowBlocks(rows).map((block, b) => (
+            <div className="fb-rowblock" role="presentation" key={block[0].k}
+              style={{ "--fb-block-rows": block.length } as React.CSSProperties} data-block={b}>
+              {block.map(r => (
+                <FileRow
+                  key={r.k}
+                  r={r}
+                  full={r.name === ".." ? "" : fullPathOf(r.file)}
+                  selected={!!sel[r.k]}
+                  opening={openingPath === r.file.path}
+                  busy={openingPath !== null}
+                  noImg={noImgState}
+                  actions={rowActions}
+                />
+              ))}
             </div>
           ))}
         </div>
@@ -2022,9 +2247,7 @@ export default function FilesExplorer({
           onDeleteChanged={(_it, said) => {
             closeViewer();
             void loadList(pathRef.current);
-            const words = said ? refusedText(t, said) : t("web.images.delete.changed", { count: 1 });
-            // Once the viewer has gone from the screen.
-            window.setTimeout(() => alert(words), 0);
+            showToast({ text: (tt) => (said ? refusedText(tt, said) : tt("web.images.delete.changed", { count: 1 })), error: true });
           }}
           deleteBlocked={viewerDeleteBlocked}
         />
@@ -2069,6 +2292,8 @@ export default function FilesExplorer({
         </div>
       )}
       {sharingFolder && <SharedGalleryShare source={{ directory: sharingFolder }} onClose={() => setSharingFolder(null)} />}
+      {linkShown && <LinkDialog link={linkShown} onClose={() => setLinkShown(null)} />}
+      <ToastView toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }
