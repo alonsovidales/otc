@@ -1707,7 +1707,10 @@ hour on the sign-up and email limiters. Its size stays bounded by request rate x
 besides the time-based sweep it sweeps once the map has doubled since the last sweep, with a 100k
 floor (`cSweepKeys`). The account sign-in limiter's failures map is the same: no cap, stale
 addresses swept as it doubles (10k floor), never a live lockout dropped - each failure costs a
-bcrypt. Every per-address throttle (both sign-in limiters, sign-ups, emails, sign-in starts, the
+bcrypt; and a sign-in that succeeds clears nothing (failures age out of the window), or a sign-in
+to one's own account between guesses at another's would reset the count (the admin panel's still
+clears: nobody can make an admin). Every per-address throttle (both sign-in limiters, sign-ups,
+emails, sign-in starts, the
 contact and claim cooldowns, one-off GETs, setup beacons, pairing) counts `clientaddr.Bucket`: an
 IPv4 address, or an IPv6 /64, which one host can rotate through; logs, `BridgeClientInfo` and stored
 rows keep the address itself. The account sign-in's, sign-up's and email 429s carry Retry-After,

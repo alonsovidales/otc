@@ -424,7 +424,14 @@ func validCountry(s string) (string, bool) {
 }
 
 // ---------------------------------------------------------------------
-// Login throttling, per address (the admin panel does the same)
+// Login throttling, per address, as the admin panel does - except that a
+// sign-in that succeeds clears nothing here: failures only age out of the
+// window. Sign-up is open, so clearing them on success let anyone sign in
+// to an account of their own between guesses at someone else's password
+// and never meet the lockout. A right password is never counted, so
+// someone who mistyped and then got it right signs in again as often as
+// they like; only more mistakes add up. (No one can make an admin
+// account, so the panel still clears an address on success.)
 // ---------------------------------------------------------------------
 
 // loginAllowed is whether addr may try a password now, and if not, how
@@ -487,12 +494,6 @@ func (a *Accounts) pruneFailuresLocked(now time.Time) {
 		}
 	}
 	a.failuresKept = len(a.failures)
-}
-
-func (a *Accounts) loginSucceeded(addr string) {
-	a.limiterMu.Lock()
-	defer a.limiterMu.Unlock()
-	delete(a.failures, addr)
 }
 
 // clientIP is the key the per-address limits here count a request
@@ -719,7 +720,7 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid_credentials", errorText(i18n.ApiErrorInvalidCredentials()))
 		return
 	}
-	a.loginSucceeded(ip)
+	// The address's failures stay, to age out (see "Login throttling").
 	// Older hashes move to the current cost while the password is at hand.
 	if cost, err := bcrypt.Cost([]byte(acc.PasswordHash)); err == nil && cost < limits.BcryptCost {
 		if h, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost); err == nil {
@@ -918,7 +919,6 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPasswordCurrent()))
 			return
 		}
-		a.loginSucceeded(ip)
 	} else if c, err := r.Cookie(cSessionCookie); err != nil {
 		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequired()))
 		return
@@ -969,7 +969,6 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPassword()))
 			return false
 		}
-		a.loginSucceeded(ip)
 		return true
 	}
 	c, err := r.Cookie(cSessionCookie)

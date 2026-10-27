@@ -430,6 +430,76 @@ func TestLoginLimitCountsAnIPv6SlashSixtyFour(t *testing.T) {
 	}
 }
 
+// Sign-up is open, so a guesser has an account of their own. Signing in to
+// it between guesses at someone else's password must not reset the count:
+// the 8th wrong password in the window still locks the address out, their
+// own account included. Someone who mistyped their own password and then
+// got it right signs in again as often as they like: a right password is
+// never counted, and only more mistakes add up.
+func TestOwnSignInsDoNotResetTheGuessCount(t *testing.T) {
+	a, mock := testAccounts(t)
+	// At the current cost, so a sign-in doesn't rehash it.
+	own, err := bcrypt.GenerateFromPassword([]byte("own-password"), limits.BcryptCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	victim, _ := bcrypt.GenerateFromPassword([]byte("victim-password"), bcrypt.MinCost)
+	accountRow := func(id, email string, hash []byte) {
+		mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs(email).WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow(id, email, "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	}
+	signedIn := func() { // the session cookie's epoch, then last_seen
+		epochRow(mock, 0)
+		mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	login := func(remote, email, password string) int {
+		r := httptest.NewRequest("POST", "/api/account/login", strings.NewReader(`{"email":"`+email+`","password":"`+password+`"}`))
+		r.RemoteAddr = remote
+		w := httptest.NewRecorder()
+		a.Login(w, r)
+		return w.Code
+	}
+
+	const guesser = "203.0.113.7:4000"
+	for i := 1; i <= cLoginFailures; i++ {
+		accountRow("victim", "victim@example.com", victim)
+		if code := login(guesser, "victim@example.com", fmt.Sprintf("guess-%d", i)); code != http.StatusUnauthorized {
+			t.Fatalf("guess %d: %d, want 401", i, code)
+		}
+		if i == cLoginFailures/2 || i == cLoginFailures-1 {
+			accountRow("guesser", "guesser@example.com", own)
+			signedIn()
+			if code := login(guesser, "guesser@example.com", "own-password"); code != http.StatusOK {
+				t.Fatalf("the guesser's own sign-in after guess %d: %d, want 200", i, code)
+			}
+		}
+	}
+	if code := login(guesser, "victim@example.com", "guess-9"); code != http.StatusTooManyRequests {
+		t.Errorf("a 9th guess after own sign-ins in between: %d, want 429", code)
+	}
+	if code := login(guesser, "guesser@example.com", "own-password"); code != http.StatusTooManyRequests {
+		t.Errorf("the locked-out address's own account: %d, want 429", code)
+	}
+
+	const person = "198.51.100.20:4000"
+	for i := 1; i < cLoginFailures; i++ {
+		accountRow("person", "person@example.com", own)
+		if code := login(person, "person@example.com", fmt.Sprintf("typo-%d", i)); code != http.StatusUnauthorized {
+			t.Fatalf("typo %d: %d, want 401", i, code)
+		}
+	}
+	for i := 1; i <= 2; i++ {
+		accountRow("person", "person@example.com", own)
+		signedIn()
+		if code := login(person, "person@example.com", "own-password"); code != http.StatusOK {
+			t.Errorf("the right password after %d typos, sign-in %d: %d, want 200", cLoginFailures-1, i, code)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
 // A sign-up or email throttle's 429 says in Retry-After when the address
 // gets its next one (the limits refill one an hour / their hourly rate).
 func TestSignupAndEmailLimitsSayWhenToComeBack(t *testing.T) {
