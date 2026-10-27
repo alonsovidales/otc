@@ -6,6 +6,7 @@ import { RaidState } from "../proto/messages";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";
 import type { TFunction } from "../i18n";
 import { percentText, unitText } from "./uiText";
+import { pollDevice } from "./devicePoll";
 
 // A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB" -
 // the same as sizeText in the iOS and Android apps - in the language's own
@@ -38,35 +39,34 @@ export function raidStateLabel(t: TFunction, status: MsgStatus): string {
 }
 
 /** The device's status (storage, mirror, CPU, memory, errors), polled
- *  while connected; `failed` while the last poll got no status. */
+ *  (devicePoll.ts: a closed socket is opened again, a failure waits
+ *  longer); `failed` while the last poll got no status. */
 export function useDeviceStatus(refreshMs = 5000) {
   const [status, setStatus] = useState<MsgStatus | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let stop = false;
-    async function fetchStatus() {
-      if (!useWS.connected()) return;
+    const fetchStatus = async (): Promise<boolean> => {
       try {
         const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
           (e as { payload?: ReqEnvelope["payload"] }).payload = { $case: "reqGetStatus", reqGetStatus: {} };
         });
-        if (stop) return;
-        if (resp.error) {
-          setFailed(true);
-          return;
-        }
+        if (stop) return true;
         if (resp.payload?.$case === "respStatus") {
           setStatus(resp.payload.respStatus);
           setFailed(false);
+          return true;
         }
+        setFailed(true);
+        return false;
       } catch {
         if (!stop) setFailed(true);
+        return false;
       }
-    }
-    void fetchStatus();
-    const t = setInterval(fetchStatus, refreshMs);
-    return () => { stop = true; clearInterval(t); };
+    };
+    const cancel = pollDevice(fetchStatus, refreshMs);
+    return () => { stop = true; cancel(); };
   }, [refreshMs]);
 
   return { status, failed };

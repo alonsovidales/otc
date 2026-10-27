@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import forge from "node-forge";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { t } from "../i18n/runtime";
 
@@ -12,13 +11,14 @@ import { t } from "../i18n/runtime";
 // half via GetPubKey/PubKey; the client encrypts the password with it
 // (RSA-OAEP/SHA-256) before it ever leaves the browser.
 //
-// This uses node-forge rather than the browser's native crypto.subtle:
-// SubtleCrypto is only available in a "secure context" (HTTPS, or
-// localhost/127.0.0.1), which a brand-new device being reached over plain
-// http://<lan-ip-or-hostname> during first-run setup (issue #38/#39) isn't
-// — crypto.subtle is simply undefined there, which used to crash this
-// whole flow. node-forge does the same RSA-OAEP/SHA-256 math in pure JS,
-// so it works regardless of secure-context status.
+// The browser's own crypto.subtle does it wherever the page is a "secure
+// context" (HTTPS, or localhost/127.0.0.1) - through the bridge, always.
+// A device reached over plain http://<lan-ip-or-hostname> (first-run
+// setup, issue #38/#39, or a home network without its certificate) has no
+// crypto.subtle at all, which used to crash this whole flow: there
+// node-forge does the same RSA-OAEP/SHA-256 math in pure JS. It is loaded
+// only then (a chunk of its own, 287 KB), never for the pages that don't
+// need it.
 
 type Requester = (build: (e: Partial<ReqEnvelope>) => void) => Promise<RespEnvelope>;
 
@@ -151,28 +151,38 @@ export async function encryptForConnection(request: Requester, plaintext: string
 
 /**
  * The same with a GetPubKey answer already in hand, for a caller that looks
- * at the answer's flags first (useWS.sendAuth). Throws when the answer
- * isn't a key.
+ * at the answer's flags first (useWS.sendAuth). Rejects when the answer
+ * isn't a key. `withForge` is for the tests: the plain-HTTP way.
  */
-export function encryptWithPubKey(resp: RespEnvelope, plaintext: string): Uint8Array {
+export async function encryptWithPubKey(resp: RespEnvelope, plaintext: string, withForge = false): Promise<Uint8Array> {
   if (resp.payload?.$case !== "respPubKey") {
     const msg = resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : undefined;
     throw new Error(msg || t("web.shell.connection.no_key"));
   }
 
+  // The server hands out PKIX/SubjectPublicKeyInfo DER
+  // (x509.MarshalPKIXPublicKey), and decrypts with rsa.DecryptOAEP(
+  // sha256.New(), ...): SHA-256 for both the OAEP hash and MGF1, no label.
   const der = resp.payload.respPubKey.publicKey;
-  // The server hands out PKIX/SubjectPublicKeyInfo DER (x509.MarshalPKIXPublicKey) —
-  // exactly what forge.pki.publicKeyFromAsn1 expects.
-  const derBuffer = forge.util.createBuffer(forge.util.binary.raw.encode(der));
-  const publicKey = forge.pki.publicKeyFromAsn1(forge.asn1.fromDer(derBuffer)) as forge.pki.rsa.PublicKey;
+  const data = new TextEncoder().encode(plaintext);
+  const subtle = !withForge && globalThis.isSecureContext !== false ? globalThis.crypto?.subtle : undefined;
+  if (subtle) {
+    try {
+      const key = await subtle.importKey("spki", new Uint8Array(der), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+      return new Uint8Array(await subtle.encrypt({ name: "RSA-OAEP" }, key, data));
+    } catch (err) {
+      // A key it can't use: WebCrypto's errors often have no words.
+      throw new Error((err as Error | undefined)?.message || t("web.shell.connection.no_key"));
+    }
+  }
 
-  // Matches the server's rsa.DecryptOAEP(sha256.New(), ...): SHA-256 for
-  // both the OAEP hash and MGF1, no label.
+  const forge = (await import("node-forge")).default;
+  const derBuffer = forge.util.createBuffer(forge.util.binary.raw.encode(der));
+  const publicKey = forge.pki.publicKeyFromAsn1(forge.asn1.fromDer(derBuffer)) as import("node-forge").pki.rsa.PublicKey;
   const encrypted = publicKey.encrypt(
-    forge.util.binary.raw.encode(new TextEncoder().encode(plaintext)),
+    forge.util.binary.raw.encode(data),
     "RSA-OAEP",
     { md: forge.md.sha256.create(), mgf1: { md: forge.md.sha256.create() } },
   );
-
   return forge.util.binary.raw.decode(encrypted);
 }

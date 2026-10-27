@@ -59,6 +59,16 @@ function bridgeAnswer(resp: RespEnvelope): Error | null {
   return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || t("web.shell.connection.no_answer"));
 }
 
+// How often the stored session token is replaced while signed in (it
+// lasts an hour on the device).
+const cTokenRefreshMs = 30 * 60 * 1000;
+
+// A timer that never keeps Node running (the scripts' tests load this).
+const unrefTimer = (timer: ReturnType<typeof setInterval>) => {
+  (timer as { unref?: () => void }).unref?.();
+  return timer;
+};
+
 // How long a refused token waits for another tab's successor (see
 // authWithToken): the tab that redeemed the same token first stores the
 // next one a round trip after its own redemption succeeded.
@@ -104,6 +114,8 @@ export function UseWS() {
   // waiting for a reconnect. Without that it would reach the device, once
   // it is back, on a connection with no session.
   let authOwed = false;
+  // When the stored token was last replaced (see keepTokenFresh below).
+  let tokenRefreshedAt = 0;
   // Told after every sign-in the device accepts: the first one and each
   // one a reconnect makes (deviceBuild.ts asks the device's build then).
   const signInListeners = new Set<() => void>();
@@ -236,6 +248,7 @@ export function UseWS() {
       if (resp.payload?.$case === "respSessionToken" && resp.payload.respSessionToken.sessionToken) {
         const { token, expiresAtUnixMs } = resp.payload.respSessionToken.sessionToken;
         savePersistedToken(token, Number(expiresAtUnixMs));
+        tokenRefreshedAt = Date.now();
       } else {
         console.error("Device did not return a session token:", resp.errorMessage);
       }
@@ -276,7 +289,7 @@ export function UseWS() {
         if (opts.refuseNewDevice && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice) {
           throw new NewDevice(keyResp.payload.respPubKey.isPrimary, keyResp.payload.respPubKey.container);
         }
-        const encryptedKey = encryptWithPubKey(keyResp, key);
+        const encryptedKey = await encryptWithPubKey(keyResp, key);
         const resp: RespEnvelope = await rawRequest(e => {
           (e as any).payload = { $case: "reqAuth", reqAuth: { key: encryptedKey, create: true } };
         });
@@ -432,6 +445,36 @@ export function UseWS() {
 
     return authPromise;
   };
+
+  // The stored token lasts an hour on the device (session/tokens.go) and
+  // was only replaced at a sign-in or a redemption: a tab that stayed
+  // connected longer kept an expired one, and the next reconnect - with
+  // nothing else to sign in with - signed it out, losing a comment or a
+  // post being written. Every half hour while signed in and connected it
+  // is replaced; a look once a minute, so a tab whose timers the browser
+  // slowed in the background catches up when it can.
+  const keepTokenFresh = () => {
+    if (!hadSession || !wsClient.connected || authPromise) return;
+    if (Date.now() - tokenRefreshedAt < cTokenRefreshMs) return;
+    void refreshSessionToken();
+  };
+  unrefTimer(setInterval(keepTokenFresh, 60_000));
+
+  // A socket that closed (or that ws.ts found dead) was opened again only
+  // by the next request, so nothing reconnected until a click. Back
+  // online, or back in front of someone, a signed-in tab asks the device
+  // for its status: request() opens a new socket and signs in again when
+  // the old one is gone, and a socket that died while the laptop slept is
+  // found out by ws.ts as the status goes unanswered.
+  const wake = () => {
+    if (!signedIn()) return;
+    void request((e) => { e.payload = { $case: "reqGetStatus", reqGetStatus: {} }; })
+      .then(() => keepTokenFresh(), () => { /* the polls keep trying */ });
+  };
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    window.addEventListener("online", wake);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wake(); });
+  }
 
   const init = (url: string, setAuthenticated: ((e: boolean) => void)) => {
     urlRef = url;
