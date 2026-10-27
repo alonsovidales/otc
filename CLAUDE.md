@@ -2505,9 +2505,11 @@ content colour and vanishes in dark mode.
 Onboarding's Save & Continue and the Bluetooth setup's "Use this device" call `SyncChoice.ask()`
 before saving the credentials, and a screen that can't be dismissed asks for all photos and videos
 (= Sync All: watermark cleared) or only new ones (= Sync From Now), with Wi-Fi only, Include videos
-and Sync from iCloud / Sync from cloud and a warning that a whole library takes long and uses data.
+and (iOS) Sync from iCloud, and a warning that a whole library takes long and uses data.
 Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) `PhotoSync.runForeground`
-returns at once - background runs included - and Android asks for media permission only after it.
+returns at once - background runs included. No run asks for access: Photos/media are asked from Start
+Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
+once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
 **Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
 iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
 missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and
@@ -2585,23 +2587,32 @@ asset at 900 px): `otc_logo` is drawn for the feed's 28dp and blurs at 84dp.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
-off so that date is fetched again. Android holds it before the first failed upload; iOS keeps failed
-assets in a retry list (`asset_sync_pending.log`) fetched first next run. A running sync's writes
-are gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe)
-and by Sync From Now. A photo whose name the device holds with other content goes to
+off so that date is fetched again. Failed assets go on a retry list, not the watermark (iOS
+`asset_sync_pending.log`, Android `asset_sync_pending.txt`); a run sends new, then retried, then
+one-off assets, and goes once more for a trigger that came meanwhile (`rerunWanted`). Its writes are
+gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe) and
+by Sync All and Sync From Now. "Wi-Fi only" holds a run before it and between chunks ("Waiting for
+Wi-Fi", Android UNMETERED jobs), `storage_full` stops it ("Your device is full", 30 min), a small run
+(< 100 assets) skips the folder's listing, and between chunks the transfer hold lets a put-off route
+check run. What the viewer's Save wrote stays out of the sync and Free Up Space (iOS `SavedToPhone`,
+Android `Pictures|Movies/Off The Cloud/`). iOS BG tasks join the run in flight (`runInBackground`).
+A photo whose name the device holds with other content goes to
 `<stem>_<first 8 hex of SHA-256(localIdentifier | MediaStore id)>.<ext>`. After the device rejects
 Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the same credentials
-without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it.
+without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it;
+both show the can't-connect card, never `statusCode`. A request is sent again only if it never left
+(`retriesAfter`; else `WSClient.SentNoAnswer`), and ws:// goes only to the home network
+(`CleartextRule`, before dialling and for media URLs).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
 `unknown_payload` fallback. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
 socket past 16 MiB queued). Android only: backup and device transfer include just
 `otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
 unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its
-Keystore key by resetting to a fresh install; connection forms write `SecretsStore` only on Save,
-since every reconnect dials the stored values; `PhotoSync.hasPermission()` must match
-`mediaPermissions()`. iOS unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with
-`-only-testing:OffTheCloudTests`.
+Keystore key by resetting to a fresh install; `PhotoSync.hasPermission()` must match
+`mediaPermissions()`. Both: connection forms edit drafts and write `SecretsStore` only on Save
+(`saveCredentials`; options `persistOptions`), since every reconnect dials the stored values. iOS
+unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with `-only-testing:OffTheCloudTests`.
 
 **Drag to select** (issue #200, iOS `DragSelect.swift` <-> Android `ui/common/DragSelect.kt`):
 Images, People and Files (list and grid) select by long press, and a drag on without lifting
