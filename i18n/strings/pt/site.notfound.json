@@ -1,0 +1,18 @@
+{
+  "site.notfound.heading": {
+    "text": "Página não encontrada",
+    "en": "Page not found"
+  },
+  "site.notfound.home": {
+    "text": "Ir para a página inicial",
+    "en": "Go to the home page"
+  },
+  "site.notfound.meta.title": {
+    "text": "Página não encontrada — Off The Cloud",
+    "en": "Page not found — Off The Cloud"
+  },
+  "site.notfound.text": {
+    "text": "A ligação pode ter um erro, ou a página pode ter mudado de sítio. Recomeça a partir da página inicial, ou procura a tua pergunta nas perguntas frequentes.",
+    "en": "The link may be mistyped, or the page may have moved. Start again from the home page, or look for your question in the FAQ."
+  }
+}

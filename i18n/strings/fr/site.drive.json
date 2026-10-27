@@ -283,12 +283,12 @@
     "en": "How it compares with Google Drive and Dropbox"
   },
   "site.drive.meta.description": {
-    "text": "Gardez les fichiers de votre famille sur un petit NAS chez vous, synchronisés avec vos ordinateurs Mac, Windows et Linux et vos téléphones, au lieu de Google Drive, Dropbox, iCloud Drive ou Proton Drive.",
-    "en": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive."
+    "text": "Les fichiers de votre famille sur un NAS chez vous, synchronisés avec Mac, Windows, Linux et téléphones, plutôt que Google Drive, Dropbox ou iCloud.",
+    "en": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and phones, instead of Google Drive, Dropbox or iCloud."
   },
   "site.drive.meta.title": {
-    "text": "Alternative auto-hébergée à Google Drive et Dropbox | Off The Cloud",
-    "en": "Self-hosted Google Drive and Dropbox alternative | Off The Cloud"
+    "text": "Alternative auto-hébergée à Google Drive et Dropbox",
+    "en": "Self-hosted Google Drive and Dropbox alternative"
   },
   "site.drive.move.desktop": {
     "text": "<b>Depuis Dropbox, Proton Drive, pCloud et autres :</b> si l’app du service conserve un dossier sur votre ordinateur, assurez-vous que chaque fichier qu’il contient est bien téléchargé, et non disponible en ligne uniquement, puis ajoutez ce dossier à l’app Mac, Windows ou Linux : chaque fichier part vers votre appareil. Sinon, téléchargez d’abord vos fichiers depuis le site web du service.",

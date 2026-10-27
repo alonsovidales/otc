@@ -1,0 +1,45 @@
+@html.lang=en
+Page not found — Off The Cloud
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
+Page not found
+The link may be mistyped, or the page may have moved. Start again from the home page, or look for your question in the FAQ.
+@a.href=/
+@a.href=/#faq
+Go to the home page FAQ
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

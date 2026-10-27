@@ -414,7 +414,7 @@ func SiteAltMetaDescription() Msg {
 	return Msg{Key: "site.alt.meta.description"}
 }
 
-// SiteAltMetaTitle is site.alt.meta.title: "Self-hosted Google Photos and iCloud alternative | Off The Cloud".
+// SiteAltMetaTitle is site.alt.meta.title: "Self-hosted Google Photos and iCloud alternative".
 func SiteAltMetaTitle() Msg {
 	return Msg{Key: "site.alt.meta.title"}
 }

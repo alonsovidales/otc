@@ -379,12 +379,12 @@ func SiteSocialLink() Msg {
 	return Msg{Key: "site.social.link"}
 }
 
-// SiteSocialMetaDescription is site.social.meta.description: "Share photos and videos with family and friends on a social network that runs on…".
+// SiteSocialMetaDescription is site.social.meta.description: "A private social network for your family, on your own device at home: no ads, no…".
 func SiteSocialMetaDescription() Msg {
 	return Msg{Key: "site.social.meta.description"}
 }
 
-// SiteSocialMetaTitle is site.social.meta.title: "Private family social network: an Instagram alternative | Off The Cloud".
+// SiteSocialMetaTitle is site.social.meta.title: "Private family social network and Instagram alternative".
 func SiteSocialMetaTitle() Msg {
 	return Msg{Key: "site.social.meta.title"}
 }
@@ -444,7 +444,7 @@ func SiteSocialRowWhere() Msg {
 	return Msg{Key: "site.social.row.where"}
 }
 
-// SiteSocialStartAccounts is site.social.start.accounts: "<b>Add the family.</b> In the web app, under Settings › Users, add an account fo…".
+// SiteSocialStartAccounts is site.social.start.accounts: "<b>Add the family.</b> In Settings › Users, in the web app or the phone apps, ad…".
 func SiteSocialStartAccounts() Rich {
 	return Rich{Key: "site.social.start.accounts"}
 }

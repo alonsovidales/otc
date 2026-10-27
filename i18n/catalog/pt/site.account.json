@@ -82,7 +82,7 @@
   "site.account.setup.expires": {"text": "Expira daqui a {minutes} minutos."},
   "site.account.setup.failed": {"text": "Não foi possível gerar um código"},
   "site.account.setup.get": {"text": "Obter um código de configuração"},
-  "site.account.setup.hint": {"text": "Grava a imagem, liga o dispositivo e configura-o a partir da app para iOS ou Android («Configurar um novo dispositivo», por Bluetooth). No passo da conta, escolhe <b>Tenho um código de configuração</b> e escreve este código: associa o nome do novo dispositivo a esta conta. Válido durante 15 minutos."},
+  "site.account.setup.hint": {"text": "Prepara o cartão com a app para computador (ou grava a imagem), liga o dispositivo e conclui a configuração por Bluetooth a partir da app para iPhone ou Android, ou da app para Mac. No passo da conta, escolhe <b>Tenho um código de configuração</b> e escreve este código: associa o nome do novo dispositivo a esta conta. Válido durante 15 minutos."},
   "site.account.setup.lost": {"text": "Perdeste um dispositivo? Configura o substituto da mesma forma e dá-lhe o <b>mesmo nome</b>: o nome passa para o novo dispositivo e o antigo fica bloqueado."},
   "site.account.setup.title": {"text": "Vais configurar um dispositivo?"},
   "site.account.signed_out.lead": {"text": "Uma conta reúne os domínios dos teus dispositivos: inicia sessão aqui para os veres, substituir um dispositivo perdido ou obter um código para configurar um novo."},

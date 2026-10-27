@@ -63,6 +63,7 @@ const (
 	Disabled    = "disabled.html"
 	Unavailable = "unavailable.html"
 	Account     = "account.html"
+	NotFound    = "notfound.html"
 )
 
 // The comparison pages' addresses after / (English) or /<code>/: one
@@ -168,11 +169,23 @@ func PagePath(page, code string) string {
 func switcherPath(page, code string) string { return "/" + code + "/" + slugOf(page) }
 
 // alternates are page's addresses in every carried language, absolute,
-// for hreflang: each language's tag, then x-default, the English one.
+// for hreflang: each language's tag, then x-default, the English one. A
+// tag with a region (pt-PT) also names its page for the language alone
+// (pt), unless a carried language has that tag: the Portuguese page is
+// the one for every Portuguese reader, in Brazil too.
 func alternates(page, base string) []alternate {
+	langs := i18n.Languages()
+	tags := map[string]bool{}
+	for _, l := range langs {
+		tags[l.Tag] = true
+	}
 	var out []alternate
-	for _, l := range i18n.Languages() {
-		out = append(out, alternate{l.Tag, base + PagePath(page, l.Code)})
+	for _, l := range langs {
+		href := base + PagePath(page, l.Code)
+		out = append(out, alternate{l.Tag, href})
+		if lang, _, region := strings.Cut(l.Tag, "-"); region && !tags[lang] {
+			out = append(out, alternate{lang, href})
+		}
 	}
 	return append(out, alternate{"x-default", base + PagePath(page, English())})
 }
@@ -207,6 +220,9 @@ type data struct {
 	// Home is the landing page in this language (/, /<code>/), where the
 	// other pages' links home go.
 	Home string
+	// Account is the account page in this language (/account,
+	// /<code>/account), where the header's sign-in and sign-up go.
+	Account string
 	// Sections is what the shared header's and footer's links to the
 	// landing page's sections (#download, #faq, #contact...) start with:
 	// "" on the landing page itself, Home on the others.
@@ -240,13 +256,14 @@ type choice struct {
 
 func pageData(page string, l i18n.Language, o Options) data {
 	d := data{
-		Page:  page,
-		Lang:  l.Code,
-		Tag:   l.Tag,
-		Nonce: o.Nonce,
-		Year:  strconv.Itoa(o.Now.Year()),
-		Base:  o.Base,
-		Home:  Path(l.Code),
+		Page:    page,
+		Lang:    l.Code,
+		Tag:     l.Tag,
+		Nonce:   o.Nonce,
+		Year:    strconv.Itoa(o.Now.Year()),
+		Base:    o.Base,
+		Home:    Path(l.Code),
+		Account: AccountPath(l.Code),
 		Compare: comparePages{
 			Social: PagePath(Social, l.Code),
 			Photos: PagePath(Alternative, l.Code),
@@ -336,7 +353,9 @@ const (
 // tags are what the tags of the site.* keys become. A translation has the
 // English's tags (the checker refuses anything else), and TestPageKeys
 // checks that every tag an English site.* key uses is here; a tag missing
-// all the same comes out as plain text.
+// all the same comes out as plain text. The links to the account page are
+// its English address: a page in another language links its own
+// (localHref).
 var tags = map[string]span{
 	"b":        {El: "strong"},
 	"em":       {El: "em"},
@@ -356,6 +375,17 @@ var tags = map[string]span{
 	"imager":   {El: "a", Href: "https://www.raspberrypi.com/software/"},
 	"winarm":   {El: "a", Href: releases + "desktop/otc-sync-windows-arm64.exe", Download: true},
 	"linuxarm": {El: "a", Href: releases + "desktop/otc-sync-linux-arm64", Download: true},
+}
+
+// localHref is a tag's link on a page in code: the account page's English
+// address (/account, /account?signup=1) becomes the page's own language's
+// (/es/account?signup=1), so following it never lands on the English page
+// or goes through a redirect.
+func localHref(href, code string) string {
+	if rest, ok := strings.CutPrefix(href, AccountPath(English())); ok && (rest == "" || rest[0] == '?') {
+		return AccountPath(code) + rest
+	}
+	return href
 }
 
 // line is one line of a text drawn in the SVG, which doesn't wrap: Y is
@@ -397,6 +427,7 @@ func funcs(code string) template.FuncMap {
 					if el, ok := tags[p.Tag]; ok {
 						s = el
 						s.Text = p.Text
+						s.Href = localHref(el.Href, code)
 					}
 				}
 				out = append(out, s)

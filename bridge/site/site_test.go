@@ -25,7 +25,7 @@ import (
 )
 
 // pages are every page the site renders.
-var pages = []string{Landing, Social, Alternative, Drive, Disabled, Unavailable, Account}
+var pages = []string{Landing, Social, Alternative, Drive, Disabled, Unavailable, Account, NotFound}
 
 // publicPages are the pages in the sitemap, in its order (localized's):
 // the landing page, then the comparison pages.
@@ -744,6 +744,119 @@ func TestInstallTabs(t *testing.T) {
 		}
 		if len(installApps) != 3 {
 			t.Errorf("%s: %d buttons in the computer app tab, want 3", l.Code, len(installApps))
+		}
+	}
+}
+
+// A page links the account page in its own language - the header's sign-in
+// and sign-up, and the texts' account and sign-up links - never the
+// English address, which would answer with a redirect or the wrong
+// language.
+func TestAccountLinksInPageLanguage(t *testing.T) {
+	for _, page := range []string{Landing, Social, Alternative, Drive, NotFound} {
+		for _, l := range i18n.Languages() {
+			out, err := Render(page, l.Code, testOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			account := AccountPath(l.Code)
+			signIn, signUp := 0, 0
+			for n := range doc.Descendants() {
+				href := attr(n, "href")
+				if n.DataAtom != atom.A || !strings.Contains(href, "account") {
+					continue
+				}
+				switch href {
+				case account:
+					signIn++
+				case account + "?signup=1":
+					signUp++
+				default:
+					t.Errorf("%s in %s: a link to %s", page, l.Code, href)
+				}
+			}
+			if signIn == 0 || signUp == 0 {
+				t.Errorf("%s in %s: %d links to %s, %d to sign up", page, l.Code, signIn, account, signUp)
+			}
+		}
+	}
+	if got := localHref("/account?signup=1", "es"); got != "/es/account?signup=1" {
+		t.Errorf("localHref: %q", got)
+	}
+	if got := localHref("/accounts", "es"); got != "/accounts" {
+		t.Errorf("localHref: %q", got)
+	}
+}
+
+// Below the width its links need, the header has a Menu (a <details>, no
+// script) with the same links, and on a phone the sign-up too.
+func TestHeaderMenu(t *testing.T) {
+	for _, l := range i18n.Languages() {
+		out, err := Render(Social, l.Code, testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := html.Parse(bytes.NewReader(out))
+		if err != nil {
+			t.Fatal(err)
+		}
+		links := func(class string) (hrefs []string, label string) {
+			for n := range doc.Descendants() {
+				if !strings.Contains(" "+attr(n, "class")+" ", " "+class+" ") {
+					continue
+				}
+				for c := range n.Descendants() {
+					if c.DataAtom == atom.A {
+						hrefs = append(hrefs, attr(c, "href"))
+					}
+					if c.DataAtom == atom.Span && attr(c, "class") == "vh" && c.FirstChild != nil {
+						label = c.FirstChild.Data
+					}
+				}
+				return hrefs, label
+			}
+			return nil, ""
+		}
+		bar, _ := links("navlinks")
+		menu, label := links("nav-menu")
+		if len(bar) != 6 || !slices.Equal(menu, append(slices.Clone(bar), AccountPath(l.Code)+"?signup=1")) {
+			t.Errorf("%s: the bar links %v, the Menu %v", l.Code, bar, menu)
+		}
+		if label != i18n.T(l.Code, "site.landing.nav.menu", nil) {
+			t.Errorf("%s: the Menu is named %q", l.Code, label)
+		}
+	}
+}
+
+// The page for an address the site doesn't have: in every language, kept
+// out of search results, titled and headed as such, with the header and
+// footer of the other pages and its way back to the home page in its
+// language.
+func TestNotFoundPage(t *testing.T) {
+	for _, l := range i18n.Languages() {
+		out, err := Render(NotFound, l.Code, testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := string(out)
+		for _, want := range []string{
+			`<meta name="robots" content="noindex">`,
+			"<title>" + template.HTMLEscapeString(i18n.T(l.Code, "site.notfound.meta.title", nil)) + "</title>",
+			"<h1>" + template.HTMLEscapeString(i18n.T(l.Code, "site.notfound.heading", nil)) + "</h1>",
+			`<a class="btn ember" href="` + Path(l.Code) + `">`,
+			`href="` + Path(l.Code) + `#faq"`,
+			`class="lang-switch"`,
+		} {
+			if !strings.Contains(s, want) {
+				t.Errorf("%s: the page has no %s", l.Code, want)
+			}
+		}
+		if strings.Contains(s, `rel="canonical"`) || strings.Contains(s, `hreflang="x-default"`) {
+			t.Errorf("%s: the page names a canonical or alternate address", l.Code)
 		}
 	}
 }

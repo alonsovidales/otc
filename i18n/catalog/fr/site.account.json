@@ -82,7 +82,7 @@
   "site.account.setup.expires": {"text": "Expire dans {minutes} minutes."},
   "site.account.setup.failed": {"text": "Impossible de créer un code"},
   "site.account.setup.get": {"text": "Obtenir un code de configuration"},
-  "site.account.setup.hint": {"text": "Flashez l’image, allumez l’appareil et configurez-le depuis l’app iOS ou Android (« Configurer un nouvel appareil », par Bluetooth). À l’étape du compte, choisissez <b>J’ai un code de configuration</b> et saisissez ce code : il associe le nom du nouvel appareil à ce compte. Valable 15 minutes."},
+  "site.account.setup.hint": {"text": "Préparez la carte avec l’app pour ordinateur (ou flashez l’image), allumez l’appareil et terminez la configuration par Bluetooth depuis l’app iPhone ou Android, ou depuis l’app Mac. À l’étape du compte, choisissez <b>J’ai un code de configuration</b> et saisissez ce code : il associe le nom du nouvel appareil à ce compte. Valable 15 minutes."},
   "site.account.setup.lost": {"text": "Vous avez perdu un appareil ? Configurez son remplaçant de la même façon et donnez-lui le <b>même nom</b> : le nom passe au nouvel appareil et l’ancien n’y a plus accès."},
   "site.account.setup.title": {"text": "Vous configurez un appareil ?"},
   "site.account.signed_out.lead": {"text": "Un seul compte regroupe les domaines de vos appareils : connectez-vous ici pour les voir, remplacer un appareil perdu ou obtenir un code pour configurer un nouvel appareil."},

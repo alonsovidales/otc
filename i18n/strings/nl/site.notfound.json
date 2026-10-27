@@ -1,0 +1,18 @@
+{
+  "site.notfound.heading": {
+    "text": "Pagina niet gevonden",
+    "en": "Page not found"
+  },
+  "site.notfound.home": {
+    "text": "Naar de startpagina",
+    "en": "Go to the home page"
+  },
+  "site.notfound.meta.title": {
+    "text": "Pagina niet gevonden — Off The Cloud",
+    "en": "Page not found — Off The Cloud"
+  },
+  "site.notfound.text": {
+    "text": "De link is misschien verkeerd getypt, of de pagina is verplaatst. Begin opnieuw op de startpagina, of zoek je vraag bij de veelgestelde vragen.",
+    "en": "The link may be mistyped, or the page may have moved. Start again from the home page, or look for your question in the FAQ."
+  }
+}

@@ -82,7 +82,7 @@
   "site.account.setup.expires": {"text": "Verloopt over {minutes} minuten."},
   "site.account.setup.failed": {"text": "Kan geen code maken"},
   "site.account.setup.get": {"text": "Configuratiecode aanvragen"},
-  "site.account.setup.hint": {"text": "Flash de image, zet het apparaat aan en stel het in vanuit de iOS- of Android-app (“Nieuw apparaat instellen”, via Bluetooth). Kies bij de accountstap <b>Ik heb een configuratiecode</b> en typ deze code in: die koppelt de naam van het nieuwe apparaat aan dit account. 15 minuten geldig."},
+  "site.account.setup.hint": {"text": "Maak de kaart klaar met de computerapp (of flash de image), zet het apparaat aan en voltooi de configuratie via Bluetooth vanuit de iPhone- of Android-app, of de Mac-app. Kies bij de accountstap <b>Ik heb een configuratiecode</b> en typ deze code in: die koppelt de naam van het nieuwe apparaat aan dit account. 15 minuten geldig."},
   "site.account.setup.lost": {"text": "Een apparaat kwijt? Stel de vervanger op dezelfde manier in en geef die <b>dezelfde naam</b>: de naam gaat over naar het nieuwe apparaat en het oude wordt buitengesloten."},
   "site.account.setup.title": {"text": "Een apparaat instellen?"},
   "site.account.signed_out.lead": {"text": "Eén account bevat de domeinen van je apparaten: log hier in om ze te zien, een verloren apparaat te vervangen of een code aan te vragen om een nieuw apparaat in te stellen."},

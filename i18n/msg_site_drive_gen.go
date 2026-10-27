@@ -359,7 +359,7 @@ func SiteDriveMetaDescription() Msg {
 	return Msg{Key: "site.drive.meta.description"}
 }
 
-// SiteDriveMetaTitle is site.drive.meta.title: "Self-hosted Google Drive and Dropbox alternative | Off The Cloud".
+// SiteDriveMetaTitle is site.drive.meta.title: "Self-hosted Google Drive and Dropbox alternative".
 func SiteDriveMetaTitle() Msg {
 	return Msg{Key: "site.drive.meta.title"}
 }

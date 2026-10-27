@@ -82,7 +82,7 @@
   "site.account.setup.expires": {"text": "Läuft in {minutes} Minuten ab."},
   "site.account.setup.failed": {"text": "Es konnte kein Code erstellt werden"},
   "site.account.setup.get": {"text": "Einrichtungscode anfordern"},
-  "site.account.setup.hint": {"text": "Schreib das Image auf die Karte, schalte das Gerät ein und richte es mit der App für iOS oder Android ein („Neues Gerät einrichten“, über Bluetooth). Wähle beim Schritt zum Konto <b>Ich habe einen Einrichtungscode</b> und gib diesen Code ein – er verknüpft den Namen des neuen Geräts mit diesem Konto. 15 Minuten lang gültig."},
+  "site.account.setup.hint": {"text": "Bereite die Karte mit der Computer-App vor (oder schreib das Image selbst darauf), schalte das Gerät ein und schließ die Einrichtung über Bluetooth in der App für iPhone oder Android oder in der Mac-App ab. Wähle beim Schritt zum Konto <b>Ich habe einen Einrichtungscode</b> und gib diesen Code ein – er verknüpft den Namen des neuen Geräts mit diesem Konto. 15 Minuten lang gültig."},
   "site.account.setup.lost": {"text": "Ein Gerät verloren? Richte den Ersatz auf dieselbe Weise ein und gib ihm <b>denselben Namen</b>: Der Name wechselt zum neuen Gerät, und das alte wird ausgesperrt."},
   "site.account.setup.title": {"text": "Richtest du ein Gerät ein?"},
   "site.account.signed_out.lead": {"text": "Ein Konto enthält die Domains deiner Geräte: Melde dich hier an, um sie zu sehen, ein verlorenes Gerät zu ersetzen oder einen Code zum Einrichten eines neuen zu erhalten."},

@@ -1,8 +1,191 @@
-/* The style the public pages share (landing.html, alternative.html): each
-   puts it first in its <style> element, as the template "site-style", which
-   is this file (site.go parses it under that name). Plain CSS, with no
-   template actions: html/template writes it into the page, under the page's
-   CSP nonce, like the rest of its style. */
+/* The style the public pages share (landing.html, the comparison pages,
+   notfound.html): each puts it first in its <style> element, as the
+   template "site-style", which is this file (site.go parses it under that
+   name). Plain CSS, with no template actions: html/template writes it into
+   the page, under the page's CSP nonce, like the rest of its style. */
+/* The self-hosted fonts: bridge/static/fonts/fonts.css's @font-face rules,
+   word for word (TestFontFaces), so the pages don't wait for a stylesheet
+   before they draw; the account, privacy and terms pages still link it. */
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-ext-9c38cb2d.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-2c32b9b3.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-ext-9c38cb2d.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-2c32b9b3.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-ext-ce093b34.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-e310b55a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-ext-ce093b34.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-e310b55a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-ext-ce093b34.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-e310b55a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-ext-ce093b34.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-e310b55a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-ext-ce093b34.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(/fonts/manrope-latin-e310b55a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-ext-ed84482d.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-d7f07f8a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-ext-ed84482d.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-d7f07f8a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-ext-ed84482d.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(/fonts/unbounded-latin-d7f07f8a.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 :root{
   --ink:#10231f;
   --ink-2:#0b1815;
@@ -31,9 +214,13 @@
    on an element forces its overflow-y to compute as auto (CSS Overflow
    spec), so putting this on body instead of html would silently turn
    body into its own scroll container separate from the document's -
-   breaking window.scrollTo/scrollIntoView and #hash navigation. */
-html{overflow-x:hidden}
-html,body{height:100%}
+   breaking window.scrollTo/scrollIntoView and #hash navigation. A jump to
+   a #section stops below the sticky header (scroll-padding). */
+html{overflow-x:hidden;height:100%;scroll-padding-top:88px}
+/* At least the window's height, and as tall as the page: a body only as
+   tall as the window let the sticky header go off the top once the page
+   scrolled past the first screen. */
+body{min-height:100%}
 body{
   margin:0;
   font:17.5px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
@@ -79,13 +266,37 @@ header{
 .btn:active{transform:translateY(1px)}
 .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
 .btn.ember{background:var(--ember);color:#26100a}
+.nav-actions{display:flex;gap:10px;flex:none;align-items:center}
+@media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
+/* The Menu: a <details> whose summary is the button, its links a panel
+   under the header. On a phone "Create an account" moves into it too. */
+.nav-menu{display:none;position:relative}
 /* The links and buttons need ~1006px side by side in English and up to
    ~1110px in the other languages (Spanish); below that they would wrap
-   under the buttons, so the header keeps the brand and the buttons. */
-@media (max-width:1005px){ .navlinks{display:none} }
-@media (max-width:1119px){ html:not([lang="en"]) .navlinks{display:none} }
-.nav-actions{display:flex;gap:10px;flex:none}
-@media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
+   under the buttons, so the links move into the Menu beside them. */
+@media (max-width:1005px){ .navlinks{display:none} .nav-menu{display:block} }
+@media (max-width:1119px){ html:not([lang="en"]) .navlinks{display:none} html:not([lang="en"]) .nav-menu{display:block} }
+.nav-menu summary{list-style:none;cursor:pointer;width:44px;height:44px;display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:12px;color:var(--mist)}
+.nav-menu summary::-webkit-details-marker{display:none}
+.nav-menu summary:hover{border-color:var(--mist-dim)}
+.nav-menu summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.nav-menu-icon,.nav-menu-icon::before,.nav-menu-icon::after{display:block;width:18px;height:2px;border-radius:2px;background:currentColor}
+.nav-menu-icon{position:relative}
+.nav-menu-icon::before,.nav-menu-icon::after{content:'';position:absolute;left:0}
+.nav-menu-icon::before{top:-6px}
+.nav-menu-icon::after{top:6px}
+.nav-menu[open] .nav-menu-icon{background:transparent}
+.nav-menu[open] .nav-menu-icon::before{top:0;transform:rotate(45deg)}
+.nav-menu[open] .nav-menu-icon::after{top:0;transform:rotate(-45deg)}
+.nav-menu-links{position:absolute;right:0;top:calc(100% + 12px);display:grid;gap:2px;min-width:230px;max-width:calc(100vw - 32px);
+  padding:8px;background:var(--ink-2);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.nav-menu-links a{display:block;padding:11px 14px;border-radius:9px;color:var(--mist);font-weight:600;font-size:16px;text-decoration:none}
+.nav-menu-links a:hover,.nav-menu-links a:focus-visible{background:var(--panel)}
+.nav-menu-links .nav-menu-signup{display:none}
+@media (max-width:480px){ .nav-signup{display:none} .nav-menu-links .nav-menu-signup{display:block;color:var(--gold)} }
+/* Text for screen readers only (the Menu button's name). */
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 section{padding:60px 0;border-top:1px solid var(--line)}
 section:first-of-type{border-top:none}
@@ -111,24 +322,24 @@ section:first-of-type{border-top:none}
 }
 .note strong{color:var(--mist)}
 
-/* FAQ */
+/* FAQ: each question a <details>, with the id a link opens it by. */
 .faq{display:grid;gap:10px;max-width:1040px;margin:0 auto}
-details{
+.faq details{
   background:var(--panel);border:1px solid var(--line);border-radius:12px;
   padding:4px 18px;
 }
-details summary{
+.faq summary{
   cursor:pointer;padding:16px 0;font-weight:700;font-size:17px;list-style:none;
   display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-details summary::-webkit-details-marker{display:none}
-details summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
-details[open] summary::after{content:'−'}
-details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
-details ul,details ol{margin:0 0 16px;padding-left:22px;color:var(--mist-dim);font-size:16px;line-height:1.6}
-details li+li{margin-top:6px}
-details strong{color:var(--mist)}
-@media (max-width:480px){ details{padding:4px 14px} }
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
+.faq details[open] summary::after{content:'−'}
+.faq details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+.faq details ul,.faq details ol{margin:0 0 16px;padding-left:22px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+.faq details li+li{margin-top:6px}
+.faq details strong{color:var(--mist)}
+@media (max-width:480px){ .faq details{padding:4px 14px} }
 
 footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:15px}
 .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}

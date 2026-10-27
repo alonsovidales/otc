@@ -295,10 +295,10 @@
     "max": 60
   },
   "site.social.faq.cost.a": {
-    "text": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
+    "text": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, shared by your device and the family accounts you give one; for more, write to us.",
     "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: answer to \"What does it cost?\". The bridge: our relay service. Commercial terms: keep the meaning exact. Prices: write them as your language writes euros (9,99 € in many languages), and keep every number exact.",
     "review": "required",
-    "reviewed": "owner 2026-10-22 #9cc77453"
+    "reviewed": "claude-backtranslation 2026-10-27 #6449db43"
   },
   "site.social.faq.cost.q": {
     "text": "What does it cost?",
@@ -384,14 +384,14 @@
     "max": 60
   },
   "site.social.meta.description": {
-    "text": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed.",
-    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
-    "max": 230
+    "text": "A private social network for your family, on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook and WhatsApp.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language. At most 155 characters, so search engines show it whole.",
+    "max": 155
   },
   "site.social.meta.title": {
-    "text": "Private family social network: an Instagram alternative | Off The Cloud",
-    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (a private social network for families; an alternative to Instagram), not as a literal translation, and keep \"| Off The Cloud\" at the end. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
-    "max": 75
+    "text": "Private family social network and Instagram alternative",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (a private social network for families; an alternative to Instagram), not as a literal translation. Search engines show the site's name beside it, so it doesn't name Off The Cloud. At most 60 characters, so they show it whole. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
+    "max": 60
   },
   "site.social.row.ads": {
     "text": "Ads",
@@ -449,8 +449,8 @@
     "max": 50
   },
   "site.social.start.accounts": {
-    "text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.",
-    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the second step. <b> marks its short title in bold; <em> marks the name of a checkbox in the app. Settings › Users and Request bridge access are names in the web app: use the app's own words (web.settings).",
+    "text": "<b>Add the family.</b> In Settings › Users, in the web app or the phone apps, add an account for each person with <em>Request bridge access</em> on, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the second step. <b> marks its short title in bold; <em> marks the name of the switch in the apps (a checkbox in the web app). Settings › Users and Request bridge access are names in the apps: use the apps' own words (web.settings, app.settings).",
     "rich": ["b", "em"]
   },
   "site.social.start.device": {

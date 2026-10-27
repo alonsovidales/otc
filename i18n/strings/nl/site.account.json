@@ -23,8 +23,8 @@
   },
   "site.account.delete.hint": {
     "text": "<b>Als je je account verwijdert</b>, worden al je domeinen vrijgegeven (elke naam blijft 30 dagen voor je gereserveerd, zodat niemand zich bij je vrienden voor je apparaat kan uitgeven) en worden je gegevens, inloggegevens en configuratiecodes verwijderd. Je apparaten blijven thuis werken, op <code>{address}</code>, alsof ze zonder account zijn ingesteld – met alles wat erop staat – maar zijn niet meer bereikbaar van buitenaf of voor je vrienden. Dit kan niet ongedaan worden gemaakt.",
-    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
-    "reviewed": "claude-backtranslation 2026-10-11 #d8617083"
+    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-27 #bb248373"
   },
   "site.account.delete.password_label": {
     "text": "Je wachtwoord",
@@ -181,8 +181,8 @@
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> is van jou. Kopieer dit nu, want het wordt niet nog een keer getoond:",
-    "en": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
-    "reviewed": "claude-backtranslation 2026-10-11 #98d7c83a"
+    "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
+    "reviewed": "claude-backtranslation 2026-10-27 #33ff1512"
   },
   "site.account.loading": {
     "text": "Laden…",
@@ -350,8 +350,8 @@
     "en": "Get a setup code"
   },
   "site.account.setup.hint": {
-    "text": "Flash de image, zet het apparaat aan en stel het in vanuit de iOS- of Android-app (“Nieuw apparaat instellen”, via Bluetooth). Kies bij de accountstap <b>Ik heb een configuratiecode</b> en typ deze code in: die koppelt de naam van het nieuwe apparaat aan dit account. 15 minuten geldig.",
-    "en": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."
+    "text": "Maak de kaart klaar met de computerapp (of flash de image), zet het apparaat aan en voltooi de configuratie via Bluetooth vanuit de iPhone- of Android-app, of de Mac-app. Kies bij de accountstap <b>Ik heb een configuratiecode</b> en typ deze code in: die koppelt de naam van het nieuwe apparaat aan dit account. 15 minuten geldig.",
+    "en": "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes."
   },
   "site.account.setup.lost": {
     "text": "Een apparaat kwijt? Stel de vervanger op dezelfde manier in en geef die <b>dezelfde naam</b>: de naam gaat over naar het nieuwe apparaat en het oude wordt buitengesloten.",
@@ -473,7 +473,7 @@
   },
   "site.account.verify.prompt": {
     "text": "We hebben een link gestuurd naar <b>{email}</b>. Open die om te bevestigen dat het adres van jou is; tot die tijd kan dit account geen apparaatnamen registreren of configuratiecodes geven.",
-    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes."
+    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
   },
   "site.account.verify.prompt_title": {
     "text": "Bevestig je e-mailadres",
@@ -485,6 +485,6 @@
   },
   "site.account.verify.resent": {
     "text": "Verstuurd: kijk in je inbox (en in je spammap).",
-    "en": "Sent - check your inbox (and the spam folder)."
+    "en": "Sent — check your inbox (and the spam folder)."
   }
 }

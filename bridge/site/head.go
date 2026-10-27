@@ -33,7 +33,6 @@ const (
 	demo           = "https://demo.off-the.cloud/"
 	factSheet      = repo + "/blob/main/docs/press/fact-sheet.md"
 	hackster       = "https://www.hackster.io/vidalesmiguelez/off-the-cloud-a-raspberry-pi-5-that-replaces-google-photos-8f79ea"
-	founderGitHub  = "https://github.com/alonsovidales"
 	agpl           = "https://www.gnu.org/licenses/agpl-3.0.html"
 	contactEmail   = "info@off-the.cloud"
 )
@@ -169,7 +168,9 @@ func structuredData(d data, title, description string) map[string]any {
 }
 
 // siteNodes are the Organization, the WebSite and the software, as every
-// public page defines them in its language.
+// public page defines them in its language. The Organization names no
+// person: what the site says publicly is the project, not who is behind
+// it.
 func siteNodes(d data) (organization, website, software map[string]any) {
 	var tags []string
 	for _, l := range i18n.Languages() {
@@ -185,7 +186,6 @@ func siteNodes(d data) (organization, website, software map[string]any) {
 		"url":           d.Base + "/",
 		"logo":          map[string]any{"@type": "ImageObject", "url": d.Base + logo, "width": logoSize, "height": logoSize},
 		"email":         contactEmail,
-		"founder":       map[string]any{"@type": "Person", "name": "Alonso Vidales", "sameAs": founderGitHub},
 		"sameAs":        []string{repo, hackster},
 	})
 	website = ldNode(d, "WebSite", "website", map[string]any{

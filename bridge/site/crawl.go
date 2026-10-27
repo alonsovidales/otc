@@ -218,11 +218,23 @@ func LLMs(base string) []byte {
 			}
 		}
 	}
-	b.WriteString("\n## Questions\n\nAnswered on the site's FAQ.\n\n")
+	b.WriteString("\n## Questions\n\nAnswered on the site's FAQ, each at its own address.\n\n")
 	for _, key := range llmsText.questions {
-		b.WriteString("- [" + text(key) + "](" + base + "/#faq)\n")
+		b.WriteString("- [" + text(key) + "](" + base + "/#" + faqID(key) + ")\n")
 	}
 	return []byte(b.String())
+}
+
+// faqID is the id of a question's <details> on its page, from its key:
+// site.landing.faq.social_how.q is #faq-social-how. A link to it opens
+// the answer (common.html's faq-script); TestFAQIDs checks every page's
+// questions carry theirs.
+func faqID(key string) string {
+	parts := strings.Split(key, ".")
+	if len(parts) < 2 {
+		return "faq"
+	}
+	return "faq-" + strings.ReplaceAll(parts[len(parts)-2], "_", "-")
 }
 
 // markdown is key's text in lang as Markdown: plain text escaped, and a

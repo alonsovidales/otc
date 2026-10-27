@@ -23,8 +23,8 @@
   },
   "site.account.delete.hint": {
     "text": "<b>Wenn du dein Konto löschst,</b> werden alle deine Domains freigegeben (jeder Name bleibt 30 Tage lang für dich reserviert, damit sich niemand gegenüber deinen Freunden als dein Gerät ausgeben kann), und deine Angaben, Anmeldungen und Einrichtungscodes werden entfernt. Deine Geräte funktionieren zu Hause weiter, unter <code>{address}</code>, als wären sie ohne Konto eingerichtet worden – mit allem, was darauf ist –, sind aber von außerhalb und für deine Freunde nicht mehr erreichbar. Das kann nicht rückgängig gemacht werden.",
-    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
-    "reviewed": "claude-backtranslation 2026-10-11 #e864f27e"
+    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-27 #3812ca26"
   },
   "site.account.delete.password_label": {
     "text": "Dein Passwort",
@@ -181,8 +181,8 @@
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> gehört jetzt dir. Kopiere das jetzt – es wird nicht noch einmal angezeigt:",
-    "en": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
-    "reviewed": "claude-backtranslation 2026-10-11 #e74ef824"
+    "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
+    "reviewed": "claude-backtranslation 2026-10-27 #96386221"
   },
   "site.account.loading": {
     "text": "Wird geladen…",
@@ -350,8 +350,8 @@
     "en": "Get a setup code"
   },
   "site.account.setup.hint": {
-    "text": "Schreib das Image auf die Karte, schalte das Gerät ein und richte es mit der App für iOS oder Android ein („Neues Gerät einrichten“, über Bluetooth). Wähle beim Schritt zum Konto <b>Ich habe einen Einrichtungscode</b> und gib diesen Code ein – er verknüpft den Namen des neuen Geräts mit diesem Konto. 15 Minuten lang gültig.",
-    "en": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."
+    "text": "Bereite die Karte mit der Computer-App vor (oder schreib das Image selbst darauf), schalte das Gerät ein und schließ die Einrichtung über Bluetooth in der App für iPhone oder Android oder in der Mac-App ab. Wähle beim Schritt zum Konto <b>Ich habe einen Einrichtungscode</b> und gib diesen Code ein – er verknüpft den Namen des neuen Geräts mit diesem Konto. 15 Minuten lang gültig.",
+    "en": "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes."
   },
   "site.account.setup.lost": {
     "text": "Ein Gerät verloren? Richte den Ersatz auf dieselbe Weise ein und gib ihm <b>denselben Namen</b>: Der Name wechselt zum neuen Gerät, und das alte wird ausgesperrt.",
@@ -473,7 +473,7 @@
   },
   "site.account.verify.prompt": {
     "text": "Wir haben einen Link an <b>{email}</b> gesendet. Öffne ihn, um zu bestätigen, dass die Adresse dir gehört – bis dahin kann dieses Konto keine Gerätenamen registrieren und keine Einrichtungscodes ausgeben.",
-    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes."
+    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
   },
   "site.account.verify.prompt_title": {
     "text": "Bestätige deine E-Mail-Adresse",
@@ -485,6 +485,6 @@
   },
   "site.account.verify.resent": {
     "text": "Gesendet – sieh in deinem Posteingang (und im Spam-Ordner) nach.",
-    "en": "Sent - check your inbox (and the spam folder)."
+    "en": "Sent — check your inbox (and the spam folder)."
   }
 }

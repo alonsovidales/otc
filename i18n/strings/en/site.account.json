@@ -29,12 +29,12 @@
     "max": 60
   },
   "site.account.delete.hint": {
-    "text": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "text": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.",
     "args": [["address", "text"]],
     "note": "Account page: what deleting the account does, above the deletion fields. <b> marks the opening words in bold. {address} is the device's address on the home network (http://otc.local:8080), in code style (<code>).",
     "rich": ["b", "code"],
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #8be9d17a"
+    "reviewed": "claude-backtranslation 2026-10-27 #e97369f0"
   },
   "site.account.delete.password_label": {
     "text": "Your password",
@@ -239,12 +239,12 @@
     "rich": ["b", "details"]
   },
   "site.account.identity.yours": {
-    "text": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
+    "text": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "args": [["domain", "text"]],
     "note": "Account page: line above the new device identity (two lines of secret values) after registering a name or asking for a new identity. {domain} is the device's address (name.off-the.cloud), in bold (<b>). The values are shown only this once.",
     "rich": ["b"],
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #9c306d23"
+    "reviewed": "claude-backtranslation 2026-10-27 #f166051c"
   },
   "site.account.loading": {
     "text": "Loading…",
@@ -453,8 +453,8 @@
     "max": 36
   },
   "site.account.setup.hint": {
-    "text": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.",
-    "note": "Account page: text of the setup-code box. The image is the system image written to the microSD card. \"Set up a new device\" and \"I have a setup code\" (in bold, <b>) are the words the apps and the setup page show: use their translations. The code expires after 15 minutes.",
+    "text": "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes.",
+    "note": "Account page: text of the setup-code box. The computer app is the Mac, Windows or Linux app, which prepares the microSD card; the image is the system image written to the card. \"I have a setup code\" (in bold, <b>) is the choice the setup page shows: use its translation. The code expires after 15 minutes.",
     "rich": ["b"]
   },
   "site.account.setup.lost": {
@@ -608,7 +608,7 @@
     "max": 60
   },
   "site.account.verify.prompt": {
-    "text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.",
+    "text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes.",
     "args": [["email", "text"]],
     "note": "Account page: text of the box shown until the email address is confirmed. {email} is the account's email address, in bold (<b>). A device name is the device's address (name.off-the.cloud); a setup code links a new device to the account.",
     "rich": ["b"]
@@ -624,7 +624,7 @@
     "max": 30
   },
   "site.account.verify.resent": {
-    "text": "Sent - check your inbox (and the spam folder).",
+    "text": "Sent — check your inbox (and the spam folder).",
     "note": "Account page: message under the Send the link again button once the email is on its way."
   }
 }

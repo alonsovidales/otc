@@ -100,8 +100,8 @@
     "en": "Computer apps"
   },
   "site.landing.desktop.lead": {
-    "text": "Sauvegardez des dossiers de votre ordinateur, ou gardez-les identiques des deux côtés. Les apps se logent dans la barre des menus ou la zone de notification et se mettent à jour d’elles-mêmes : quand une nouvelle version sort, un clic suffit pour l’installer.",
-    "en": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray and update themselves: when a new version is out, one click installs it."
+    "text": "Sauvegardez des dossiers de votre ordinateur, ou gardez-les identiques des deux côtés. Les apps se logent dans la barre des menus ou la zone de notification ; le Mac App Store garde l’app Mac à jour, et sous Windows et Linux, un clic suffit pour installer une nouvelle version.",
+    "en": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray; the Mac App Store keeps the Mac app up to date, and on Windows and Linux one click installs a new version."
   },
   "site.landing.desktop.linux_alt": {
     "text": "Processeur ARM (par exemple un Raspberry Pi) ? <linuxarm>Linux ARM64</linuxarm>. Ensuite :",
@@ -124,9 +124,9 @@
     "en": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you."
   },
   "site.landing.desktop.signed_note": {
-    "text": "<b>Chaque mise à jour est signée.</b> Les apps n’installent une nouvelle version qu’après avoir vérifié sa signature avec la clé de publication du projet, la même clé que celle qui signe les mises à jour de l’appareil. Le code source est sur <github>GitHub</github>, et chaque fichier est listé sur la <release>page de la version pour ordinateur</release>.",
-    "en": "<b>Every update is signed.</b> The apps only install a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
-    "reviewed": "claude-backtranslation 2026-10-11 #502f8b9d"
+    "text": "<b>Chaque mise à jour est signée.</b> Sous Windows et Linux, l’app n’installe une nouvelle version qu’après avoir vérifié sa signature avec la clé de publication du projet, la même clé que celle qui signe les mises à jour de l’appareil. Le code source est sur <github>GitHub</github>, et chaque fichier est listé sur la <release>page de la version pour ordinateur</release>.",
+    "en": "<b>Every update is signed.</b> On Windows and Linux the app only installs a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
+    "reviewed": "claude-backtranslation 2026-10-27 #879e106c"
   },
   "site.landing.desktop.title": {
     "text": "Gardez vos dossiers synchronisés",
@@ -141,8 +141,8 @@
     "en": "Download for Windows"
   },
   "site.landing.desktop.windows_text": {
-    "text": "Windows 10 ou 11. Placez le fichier dans un emplacement définitif (pas dans Téléchargements) et lancez-le : il apparaît dans la zone de notification et démarre à l’ouverture de session.",
-    "en": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray and starts at login."
+    "text": "Windows 10 ou 11. Placez le fichier dans un emplacement définitif (pas dans Téléchargements) et lancez-le : il apparaît dans la zone de notification et peut démarrer à l’ouverture de session si vous le souhaitez.",
+    "en": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray, and can start at login if you choose."
   },
   "site.landing.download.your_system": {
     "text": "Votre système",
@@ -227,7 +227,7 @@
   },
   "site.landing.faq.bridge.q": {
     "text": "Qu’est-ce que « la passerelle », et en ai-je besoin ?",
-    "en": "What is \"the Bridge\", and do I need it?"
+    "en": "What is \"the bridge\", and do I need it?"
   },
   "site.landing.faq.eyebrow": {
     "text": "Questions fréquentes",
@@ -242,12 +242,12 @@
     "en": "There's no fixed limit on the number of accounts, but each one runs its own copy of the device's software and takes memory, so the more there are, the slower the device gets. We recommend no more than five on one device."
   },
   "site.landing.faq.family.p3": {
-    "text": "Pour utiliser son compte hors de chez soi, un membre de la famille a besoin de sa propre adresse off-the.cloud, tout comme un appareil. Vous lui en attribuez une lorsque vous ajoutez son compte dans l’app web : dans Paramètres › Utilisateurs, laissez <b>Demander l’accès à la passerelle</b> coché, et l’adresse <code>{address}</code> lui est attribuée (si elle est prise, choisissez un autre nom d’utilisateur). Décidez-le au moment d’ajouter le compte, car aucun réglage ne permet d’attribuer une adresse à un compte existant par la suite. Les apps iPhone et Android ne le proposent pas encore : les comptes ajoutés depuis ces apps ne fonctionnent que sur votre réseau domestique.",
-    "en": "To use their account away from home, a family member needs an off-the.cloud address of their own, just as a device does. You give them one when you add their account in the web app: in Settings › Users, leave <b>Request bridge access</b> ticked, and they get <code>{address}</code> (if that address is taken, choose another user name). Decide when you add the account, because there's no switch to give an existing account an address later. The iPhone and Android apps don't offer this yet: accounts added there work on your home network only."
+    "text": "Pour utiliser son compte hors de chez soi, un membre de la famille a besoin de sa propre adresse off-the.cloud, tout comme un appareil. Vous lui en attribuez une lorsque vous ajoutez son compte dans Paramètres › Utilisateurs, dans l’app web, l’app iPhone ou l’app Android : laissez <b>Demander l’accès à la passerelle</b> activé, et l’adresse <code>{address}</code> lui est attribuée (si elle est prise, choisissez un autre nom d’utilisateur). Décidez-le au moment d’ajouter le compte, car aucun réglage ne permet d’attribuer une adresse à un compte existant par la suite.",
+    "en": "To use their account away from home, a family member needs an off-the.cloud address of their own, just as a device does. You give them one when you add their account in Settings › Users, in the web app, the iPhone app or the Android app: leave <b>Request bridge access</b> on, and they get <code>{address}</code> (if that address is taken, choose another user name). Decide when you add the account, because there's no switch to give an existing account an address later."
   },
   "site.landing.faq.family.p4": {
-    "text": "L’appareil enregistre ces adresses lui-même, en dehors de votre compte de passerelle : elles ne comptent donc pas dans ses cinq adresses et n’apparaissent pas sur la page de votre compte. Avec une telle adresse, un membre de la famille accède à son compte depuis n’importe où, et vous pouvez devenir amis dans le fil privé et y partager des photos.",
-    "en": "The device registers these addresses by itself, outside your bridge account, so they don't count toward its five addresses and don't appear on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there."
+    "text": "L’appareil enregistre ces adresses lui-même, sous votre compte de passerelle : chacune compte dans les cinq adresses du compte et apparaît sur la page de votre compte. Avec une telle adresse, un membre de la famille accède à son compte depuis n’importe où, et vous pouvez devenir amis dans le fil privé et y partager des photos. Pour plus de cinq adresses, écrivez-nous.",
+    "en": "The device registers these addresses by itself, under your bridge account: each one counts toward the account's five addresses and shows on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there. For more than five addresses, write to us."
   },
   "site.landing.faq.family.q": {
     "text": "Ma famille et mes amis peuvent-ils utiliser le même appareil, ou me faut-il plusieurs Raspberry Pi ?",
@@ -325,7 +325,7 @@
   },
   "site.landing.faq.hardware.a": {
     "text": "Un Raspberry Pi 5 (8 Go) avec une carte microSD pour le système et deux supports USB pour le stockage, en miroir pour que chacun contienne une copie complète de vos fichiers : clés USB, SSD, disques durs ou cartes microSD dans des lecteurs USB, tout fonctionne. Branchez-les sur les deux ports USB bleus du Pi (les ports rapides ; l’appareil vous indique alors lequel remplacer si l’un d’eux tombe un jour en panne). Ajoutez une alimentation et un ventilateur actif : que du matériel du commerce. Consultez le README pour la liste exacte des composants recommandés. Un Pi 5 avec 4 Go peut aussi fonctionner, avec l’étiquetage des images et la reconnaissance faciale désactivés.",
-    "en": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
   },
   "site.landing.faq.hardware.q": {
     "text": "Dois-je acheter du matériel spécial ?",
@@ -535,9 +535,9 @@
     "en": "What happens if the Raspberry Pi itself dies?"
   },
   "site.landing.faq.private.a": {
-    "text": "Vos fichiers sont chiffrés au repos avec une clé que seul votre mot de passe déverrouille, et le mot de passe lui-même n’est jamais stocké sur l’appareil. Les photos et vidéos que vous publiez, et les publications que vos amis partagent avec vous, sont l’exception : elles sont conservées non chiffrées pour que les appareils de vos amis puissent les récupérer à tout moment. Les noms de fichiers et les étiquettes restent aussi lisibles pour que la recherche fonctionne. Rien n’est vendu, utilisé pour entraîner des modèles d’IA ni montré à quiconque avec qui vous n’avez pas choisi de le partager. Les deux questions suivantes expliquent ce que voient la passerelle et les autres services, et où vos photos sont analysées.",
-    "en": "Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.",
-    "reviewed": "claude-backtranslation 2026-10-11 #eec14423"
+    "text": "Vos fichiers sont chiffrés au repos avec une clé que seul votre mot de passe déverrouille, et le mot de passe lui-même n’est jamais stocké sur l’appareil. Ce que vous publiez est la part que vous choisissez de partager : c’est conservé, prêt à être récupéré à tout moment par les appareils de vos amis, en dehors de ce chiffrement, tout comme les publications qu’ils partagent avec vous et les noms de fichiers et étiquettes qu’utilise la recherche. Rien n’est vendu, utilisé pour entraîner des modèles d’IA ni montré à quiconque avec qui vous n’avez pas choisi de le partager. Les deux questions suivantes expliquent ce que voient la passerelle et les autres services, et où vos photos sont analysées.",
+    "en": "Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. What you post is the part you choose to share: it's kept ready for your friends' devices to fetch at any time, outside that encryption, as are the posts they share with you and the file names and tags that search uses. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.",
+    "reviewed": "claude-backtranslation 2026-10-27 #003b86c4"
   },
   "site.landing.faq.private.q": {
     "text": "Mes données sont-elles vraiment privées ?",
@@ -599,17 +599,17 @@
   },
   "site.landing.faq.speed.a": {
     "text": "Chez vous, c’est généralement beaucoup plus rapide. Les apps iPhone, Android, Mac et Windows/Linux se connectent directement à votre appareil via votre propre Wi-Fi ou réseau : sauvegardes, gros envois et vidéos circulent donc à la vitesse du réseau local. Un service cloud doit faire passer chaque fichier par votre connexion Internet domestique, dont le débit montant n’est souvent qu’une petite fraction de celui de votre Wi-Fi. Hors de chez vous, les apps passent comme d’habitude par la passerelle. La connexion à domicile est chiffrée et vérifiée avec la clé propre à votre appareil : rien n’est donc jamais envoyé à une machine qui se ferait passer pour la vôtre.",
-    "en": "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the Bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.",
-    "reviewed": "claude-backtranslation 2026-10-11 #376a9ad4"
+    "en": "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.",
+    "reviewed": "claude-backtranslation 2026-10-27 #a01e374d"
   },
   "site.landing.faq.speed.q": {
     "text": "Est-ce aussi rapide qu’un service cloud ?",
     "en": "Is it as fast as a cloud service?"
   },
   "site.landing.faq.storage.a": {
-    "text": "Remplacez les deux cartes par des cartes plus grandes, l’une après l’autre, pendant que l’appareil continue de fonctionner. Retirez une carte et insérez-en une plus grande, au moins aussi grande que celle que vous avez retirée : l’appareil y copie tout de lui-même (tout ce que contient déjà la nouvelle carte est effacé). Vous recevez une alerte indiquant qu’un disque ne fonctionne plus, ce qui est normal ici, puis une autre, « Les deux disques de stockage fonctionnent de nouveau », une fois la copie terminée ; cela peut prendre quelques heures pour une grande carte. Ensuite seulement, faites de même avec l’autre carte. Une fois les deux cartes plus grandes, l’appareil agrandit de lui-même son stockage à la taille de la plus petite, en une dizaine de minutes environ, sans s’arrêter. Vos fichiers restent disponibles pendant tout ce temps, mais pendant une copie, ils ne sont que sur une seule carte : ne retirez donc jamais la seconde carte avant la fin de la première copie.",
-    "en": "Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, \"Both storage disks are working again\", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.",
-    "reviewed": "claude-backtranslation 2026-10-11 #2f8a0e89"
+    "text": "Remplacez les deux disques par des disques plus grands, l’un après l’autre, pendant que l’appareil continue de fonctionner. Débranchez un disque et branchez-en un plus grand, au moins aussi grand que celui que vous avez débranché : l’appareil y copie tout de lui-même (tout ce que contient déjà le nouveau disque est effacé). Vous recevez une alerte indiquant qu’un disque ne fonctionne plus, ce qui est normal ici, puis une autre, « Les deux disques de stockage fonctionnent de nouveau », une fois la copie terminée ; cela peut prendre quelques heures pour un grand disque. Ensuite seulement, faites de même avec l’autre disque. Une fois les deux disques plus grands, l’appareil agrandit de lui-même son stockage à la taille du plus petit, en une dizaine de minutes environ, sans s’arrêter. Vos fichiers restent disponibles pendant tout ce temps, mais pendant une copie, ils ne sont que sur un seul disque : ne débranchez donc jamais le second disque avant la fin de la première copie.",
+    "en": "Swap the two drives for bigger ones, one at a time, while the device keeps running. Unplug one drive and plug in a bigger one, at least as large as the one you unplugged: the device copies everything onto it by itself (anything already on the new drive is erased). You get an alert that a disk stopped working, which is expected here, and another, \"Both storage disks are working again\", when the copy is done; that can take a few hours for a large drive. Only then do the same with the other drive. Once both drives are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one drive only, so never unplug the second drive before the first copy has finished.",
+    "reviewed": "claude-backtranslation 2026-10-27 #2c2ddf48"
   },
   "site.landing.faq.storage.q": {
     "text": "Comment obtenir plus de stockage ?",
@@ -931,8 +931,8 @@
     "en": "100% open source · social network, photos and files on your own device"
   },
   "site.landing.hero.title_1": {
-    "text": "Le réseau social de votre famille.",
-    "en": "A social network your family owns."
+    "text": "Le réseau social privé de votre famille.",
+    "en": "A private social network your family owns."
   },
   "site.landing.hero.title_2": {
     "text": "<em>Hors du cloud</em>, chez vous.",
@@ -948,7 +948,7 @@
   },
   "site.landing.install.app_step_card": {
     "text": "<b>Préparez la carte.</b> L’app télécharge l’image et la vérifie avec la signature du projet. Sous Windows et Linux, elle l’écrit ensuite sur une carte microSD de 8 Go ou plus, après vous avoir demandé l’autorisation d’un administrateur ; sur un Mac, elle ouvre <imager>Raspberry Pi Imager</imager> pour écrire la carte et vous indique quoi y choisir.",
-    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a MicroSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
+    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a microSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
   },
   "site.landing.install.app_step_open": {
     "text": "<b>Installez l’app</b> et choisissez <b>Configurer un appareil…</b> : dans les <b>Paramètres</b> de l’app pour Mac, ou dans le menu de la zone de notification sous Windows et Linux.",
@@ -956,7 +956,7 @@
   },
   "site.landing.install.app_step_setup": {
     "text": "<b>Terminez la configuration</b> par Bluetooth. Sur un Mac, directement dans l’app : <b>Sur ce Mac</b> (ou utilisez votre téléphone). Sous Windows et Linux, dans l’app pour téléphone (iOS ou Android) : touchez <b>Configurer un nouvel appareil</b>. Dans les deux cas, elle vous demande votre Wi-Fi, un nom et un mot de passe pour l’appareil et la façon d’utiliser les disques, puis installe le logiciel, en 20 minutes environ.",
-    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes."
+    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
   },
   "site.landing.install.bridge_link": {
     "text": "Vous souhaitez y accéder depuis l’extérieur de votre réseau domestique ? Créez un compte pour la passerelle →",
@@ -996,7 +996,7 @@
   },
   "site.landing.install.requirements": {
     "text": "Pour un <b>Raspberry Pi 5 avec au moins 8 Go de RAM</b>, une carte microSD pour le système et, en option, deux disques USB en RAID-1, branchés sur les <b>deux ports USB bleus</b> du Pi. Utilisez l’<b>alimentation USB-C officielle Raspberry Pi de 27 W</b> (ou une meilleure) : avec une alimentation plus faible, le Pi peut redémarrer à cause d’une tension trop basse pendant qu’il traite vos photos. Ni clavier, ni écran, ni connaissances Linux nécessaires. <b>Vous n’avez qu’un Pi de 4 Go ?</b> Il peut fonctionner, mais seulement avec l’<b>Étiquetage des images</b> et la <b>Reconnaissance faciale</b> désactivés dans les Paramètres, avant de sauvegarder vos photos : ces modèles ont besoin de plus de mémoire que ce que laissent 4 Go.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
+    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
   },
   "site.landing.install.script_intro": {
     "text": "Une seule commande sur toute machine à laquelle vous pouvez déjà vous connecter : Ubuntu, Debian, Raspberry Pi OS et autres distributions basées sur Debian (64 bits).",
@@ -1004,12 +1004,12 @@
   },
   "site.landing.install.script_note": {
     "text": "Il installe tout et compile le logiciel à partir des sources, puis démarre le service à l’adresse <code>{address}</code>. Vous pouvez le relancer sans risque pour mettre à jour. Vos fichiers sont placés sur deux disques en miroir RAID-1 : il réutilise un miroir existant et n’efface deux nouveaux disques pour en créer un que si vous le confirmez, et il installe aussi les voyants d’état. Un seul disque fonctionne également (voir le <readme>README</readme>). La configuration du Wi-Fi ne fait pas partie de cette méthode : utilisez l’image pour partir de zéro sur un Raspberry Pi.",
-    "en": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The WiFi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
-    "reviewed": "claude-backtranslation 2026-10-11 #2c88f7ea"
+    "en": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The Wi-Fi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
+    "reviewed": "claude-backtranslation 2026-10-27 #e1c17f7f"
   },
   "site.landing.install.step_flash": {
     "text": "<b>Flashez-la</b> sur la carte microSD avec <imager>Raspberry Pi Imager</imager> : « Utiliser image personnalisée », choisissez le fichier, écrivez. Ignorez l’étape de personnalisation d’Imager.",
-    "en": "<b>Flash it</b> to the MicroSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
+    "en": "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
   },
   "site.landing.install.step_plug": {
     "text": "<b>Branchez</b> les disques (sur les deux ports USB bleus), insérez la carte et allumez le Pi. Au bout d’une minute, il se signale par Bluetooth.",
@@ -1017,7 +1017,7 @@
   },
   "site.landing.install.step_setup": {
     "text": "<b>Configurez-le depuis votre téléphone</b> avec l’app (iOS ou Android) : sur l’écran d’accueil, touchez <b>Configurer un nouvel appareil</b>. Elle trouve le Pi par Bluetooth et lance la configuration directement : votre téléphone reste sur son propre Wi-Fi. Elle vous demande votre Wi-Fi, un nom et un mot de passe pour l’appareil et la façon d’utiliser les disques, puis installe le logiciel, en 20 minutes environ.",
-    "en": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi. It asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes."
+    "en": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there — your phone stays on its own Wi-Fi. It asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes."
   },
   "site.landing.install.step_signin": {
     "text": "<b>Connectez-vous</b> une fois l’installation terminée : l’app se connecte d’elle-même au nouvel appareil avec le mot de passe que vous avez choisi, ou ouvrez <code>{address}</code> dans un navigateur.",
@@ -1056,12 +1056,12 @@
     "en": "Previous screenshot"
   },
   "site.landing.meta.description": {
-    "text": "Réseau social familial, sauvegarde de photos et stockage de fichiers sur un petit appareil chez vous, au lieu d’Instagram, Google Photos et Drive. Gratuit, open source.",
-    "en": "Your family's own social network, photo backup and file storage, on a small device at home instead of Instagram, Google Photos and Drive. Free, open source."
+    "text": "Réseau social privé, sauvegarde photo et NAS familial sur un Raspberry Pi 5 chez vous, au lieu d’Instagram, Google Photos et Drive. Gratuit, open source.",
+    "en": "Your family's private social network, photo backup and NAS on a Raspberry Pi 5 at home, instead of Instagram, Google Photos and Drive. Free, open source."
   },
   "site.landing.meta.title": {
-    "text": "Off The Cloud : réseau social familial privé et cloud personnel",
-    "en": "Off The Cloud: private family social network and home cloud"
+    "text": "Off The Cloud : réseau social privé et NAS pour la famille",
+    "en": "Off The Cloud: private family social network and home NAS"
   },
   "site.landing.nav.create_account": {
     "text": "Créer un compte",
@@ -1082,6 +1082,10 @@
   "site.landing.nav.get_started": {
     "text": "Commencer",
     "en": "Get started"
+  },
+  "site.landing.nav.menu": {
+    "text": "Menu",
+    "en": "Menu"
   },
   "site.landing.nav.sign_in": {
     "text": "Se connecter",
@@ -1124,8 +1128,8 @@
     "en": "Your feed and your photos, on your phone"
   },
   "site.landing.shots.desktop_group": {
-    "text": "Client macOS / Windows",
-    "en": "macOS / Windows client"
+    "text": "Apps pour ordinateur",
+    "en": "Computer apps"
   },
   "site.landing.shots.device_alt": {
     "text": "L’appareil Off The Cloud : un Raspberry Pi 5 dont les disques en miroir sont deux cartes microSD dans des lecteurs de cartes USB, avec une carte en cours de remplacement et les voyants d’état allumés en rouge et en vert",
@@ -1140,8 +1144,8 @@
     "en": "See it running"
   },
   "site.landing.shots.lead": {
-    "text": "L’appareil physique, et les quatre apps qui communiquent avec lui.",
-    "en": "The physical device, and the four apps that talk to it."
+    "text": "L’appareil lui-même, et les apps qui communiquent avec lui.",
+    "en": "The device itself, and the apps that talk to it."
   },
   "site.landing.shots.macos_alt": {
     "text": "L’app de barre des menus pour Mac : connectée, stockage en bon état, deux dossiers synchronisés et un en cours d’envoi",
@@ -1204,12 +1208,12 @@
     "en": "A photo in the web app with More info open: camera, exposure and where it was taken, on a map"
   },
   "site.landing.started.eyebrow": {
-    "text": "Pour commencer",
-    "en": "Get started"
+    "text": "Le script d’installation",
+    "en": "The install script"
   },
   "site.landing.started.lead": {
-    "text": "Les deux méthodes mènent au même résultat : l’image exécute simplement le script d’installation pour vous, après vous avoir demandé votre Wi-Fi, un nom et vos disques depuis un téléphone.",
-    "en": "Both paths end in the same place: the image just runs the install script for you, after asking for your WiFi, a name and your disks from a phone."
+    "text": "Les trois méthodes mènent au même résultat : l’app pour ordinateur place l’image du Raspberry Pi 5 sur la carte, et l’image exécute ce script d’installation pour vous, après vous avoir demandé votre Wi-Fi, un nom et vos disques depuis un téléphone ou un Mac.",
+    "en": "All three ways end in the same place: the computer app puts the Raspberry Pi 5 image on the card, and the image runs this install script for you, after asking for your Wi-Fi, a name and your disks from a phone or a Mac."
   },
   "site.landing.started.note": {
     "text": "<b>Vous partez de zéro sur un Raspberry Pi 5 ?</b> Utilisez l’<install>image Raspberry Pi 5</install> : elle efface et met en miroir deux disques USB pendant la configuration, et si un Pi tombe un jour en panne, il suffit de flasher une nouvelle carte et de brancher les mêmes disques pour que l’assistant propose de tout récupérer. Les LED d’état et toutes les options de configuration sont décrites dans le <readme>README</readme>.",

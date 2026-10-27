@@ -64,7 +64,7 @@ func TestVisitCounting(t *testing.T) {
 		{"account page", "GET", "/account", browser, &visit{"/account", ""}},
 		{"account page in German, one page", "GET", "/de/account?complete=1", browser, &visit{"/account", ""}},
 		{"privacy", "GET", "/privacy", browser, &visit{"/privacy", ""}},
-		{"privacy.html", "GET", "/privacy.html", browser, &visit{"/privacy", ""}},
+		{"privacy.html, a redirect to /privacy", "GET", "/privacy.html", browser, nil},
 		{"terms", "GET", "/terms", browser, &visit{"/terms", ""}},
 
 		{"HEAD", "HEAD", "/", browser, nil},

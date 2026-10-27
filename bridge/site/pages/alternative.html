@@ -260,23 +260,23 @@
           <h2>{{t "site.landing.faq.title"}}</h2>
         </div>
         <div class="faq">
-          <details open>
+          <details id="faq-side-by-side" open>
             <summary>{{t "site.alt.faq.side_by_side.q"}}</summary>
             <p>{{template "spans" (rich "site.alt.faq.side_by_side.a")}}</p>
           </details>
-          <details>
+          <details id="faq-cost">
             <summary>{{t "site.alt.faq.cost.q"}}</summary>
             <p>{{t "site.alt.faq.cost.a"}}</p>
           </details>
-          <details>
+          <details id="faq-private">
             <summary>{{t "site.alt.faq.private.q"}}</summary>
             <p>{{t "site.alt.faq.private.a"}}</p>
           </details>
-          <details>
+          <details id="faq-immich">
             <summary>{{t "site.alt.faq.immich.q"}}</summary>
             <p>{{t "site.alt.faq.immich.a"}}</p>
           </details>
-          <details>
+          <details id="faq-breaks">
             <summary>{{t "site.alt.faq.breaks.q"}}</summary>
             <p>{{t "site.alt.faq.breaks.a"}}</p>
           </details>
@@ -286,5 +286,6 @@
   </main>
 
   {{template "footer" .}}
+  {{template "faq-script" .}}
 </body>
 </html>

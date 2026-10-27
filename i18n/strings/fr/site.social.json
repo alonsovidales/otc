@@ -234,9 +234,9 @@
     "en": "What's different from the big apps"
   },
   "site.social.faq.cost.a": {
-    "text": "Le logiciel est gratuit et open source. Il vous faut un Raspberry Pi 5 et deux disques USB, achetés une seule fois, et une adresse off-the.cloud pour chaque personne du fil : le compte de passerelle est gratuit pendant ses deux premières années, puis coûte 9,99 € + TVA par an avec jusqu’à cinq adresses, et les comptes que vous ajoutez pour votre famille sur votre appareil ne comptent pas dans ces cinq.",
-    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
-    "reviewed": "claude-backtranslation 2026-10-22 #32ef3be7"
+    "text": "Le logiciel est gratuit et open source. Il vous faut un Raspberry Pi 5 et deux disques USB, achetés une seule fois, et une adresse off-the.cloud pour chaque personne du fil : le compte de passerelle est gratuit pendant ses deux premières années, puis coûte 9,99 € + TVA par an avec jusqu’à cinq adresses, partagées entre votre appareil et les comptes de votre famille auxquels vous en donnez une ; pour davantage, écrivez-nous.",
+    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, shared by your device and the family accounts you give one; for more, write to us.",
+    "reviewed": "claude-backtranslation 2026-10-27 #35e48b59"
   },
   "site.social.faq.cost.q": {
     "text": "Combien cela coûte-t-il ?",
@@ -310,12 +310,12 @@
     "en": "How it compares with Instagram and Facebook"
   },
   "site.social.meta.description": {
-    "text": "Partagez photos et vidéos en famille et entre amis sur un réseau social hébergé sur votre propre appareil, chez vous : ni publicité, ni algorithme, ni inconnus. Comparé à Instagram, Facebook, WhatsApp, FamilyAlbum et Pixelfed.",
-    "en": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed."
+    "text": "Un réseau social privé pour votre famille, sur votre appareil chez vous : ni publicité, ni algorithme, ni inconnus. Face à Instagram, Facebook et WhatsApp.",
+    "en": "A private social network for your family, on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook and WhatsApp."
   },
   "site.social.meta.title": {
-    "text": "Réseau social familial privé : une alternative à Instagram | Off The Cloud",
-    "en": "Private family social network: an Instagram alternative | Off The Cloud"
+    "text": "Réseau social familial privé, alternative à Instagram",
+    "en": "Private family social network and Instagram alternative"
   },
   "site.social.row.ads": {
     "text": "Publicité",
@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Ajoutez la famille.</b> Dans l’app web, dans Paramètres › Utilisateurs, ajoutez un compte pour chaque personne en cochant <em>Demander l’accès à la passerelle</em>, et choisissez un premier mot de passe à lui donner. Elle le change dans Paramètres › Modifier le mot de passe, et dès lors elle seule le connaît.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
+    "text": "<b>Ajoutez la famille.</b> Dans Paramètres › Utilisateurs, dans l’app web ou les apps pour téléphone, ajoutez un compte pour chaque personne avec <em>Demander l’accès à la passerelle</em> activé, et choisissez un premier mot de passe à lui donner. Elle le change dans Paramètres › Modifier le mot de passe, et dès lors elle seule le connaît.",
+    "en": "<b>Add the family.</b> In Settings › Users, in the web app or the phone apps, add an account for each person with <em>Request bridge access</em> on, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Configurez l’appareil.</b> L’app pour ordinateur prépare la carte du Raspberry Pi 5, et vous terminez la configuration depuis votre téléphone par Bluetooth, en 20 minutes environ. Elle vous demande un compte de passerelle, qui donne à votre appareil son adresse off-the.cloud.",

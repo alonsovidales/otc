@@ -159,7 +159,7 @@ func SiteLandingDesktopMacText() Msg {
 	return Msg{Key: "site.landing.desktop.mac_text"}
 }
 
-// SiteLandingDesktopSignedNote is site.landing.desktop.signed_note: "<b>Every update is signed.</b> The apps only install a new version after checkin…".
+// SiteLandingDesktopSignedNote is site.landing.desktop.signed_note: "<b>Every update is signed.</b> On Windows and Linux the app only installs a new …".
 func SiteLandingDesktopSignedNote() Rich {
 	return Rich{Key: "site.landing.desktop.signed_note"}
 }
@@ -274,7 +274,7 @@ func SiteLandingFaqBridgeP2() Rich {
 	return Rich{Key: "site.landing.faq.bridge.p2"}
 }
 
-// SiteLandingFaqBridgeQ is site.landing.faq.bridge.q: "What is \"the Bridge\", and do I need it?".
+// SiteLandingFaqBridgeQ is site.landing.faq.bridge.q: "What is \"the bridge\", and do I need it?".
 func SiteLandingFaqBridgeQ() Msg {
 	return Msg{Key: "site.landing.faq.bridge.q"}
 }
@@ -299,7 +299,7 @@ func SiteLandingFaqFamilyP3(address string) Rich {
 	return Rich{Key: "site.landing.faq.family.p3", Args: map[string]any{"address": address}}
 }
 
-// SiteLandingFaqFamilyP4 is site.landing.faq.family.p4: "The device registers these addresses by itself, outside your bridge account, so …".
+// SiteLandingFaqFamilyP4 is site.landing.faq.family.p4: "The device registers these addresses by itself, under your bridge account: each …".
 func SiteLandingFaqFamilyP4() Msg {
 	return Msg{Key: "site.landing.faq.family.p4"}
 }
@@ -394,7 +394,7 @@ func SiteLandingFaqFromIcloudQ() Msg {
 	return Msg{Key: "site.landing.faq.from_icloud.q"}
 }
 
-// SiteLandingFaqHardwareA is site.landing.faq.hardware.a: "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives fo…".
+// SiteLandingFaqHardwareA is site.landing.faq.hardware.a: "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives fo…".
 func SiteLandingFaqHardwareA() Msg {
 	return Msg{Key: "site.landing.faq.hardware.a"}
 }
@@ -729,7 +729,7 @@ func SiteLandingFaqSpeedQ() Msg {
 	return Msg{Key: "site.landing.faq.speed.q"}
 }
 
-// SiteLandingFaqStorageA is site.landing.faq.storage.a: "Swap the two cards for bigger ones, one at a time, while the device keeps runnin…".
+// SiteLandingFaqStorageA is site.landing.faq.storage.a: "Swap the two drives for bigger ones, one at a time, while the device keeps runni…".
 func SiteLandingFaqStorageA() Msg {
 	return Msg{Key: "site.landing.faq.storage.a"}
 }
@@ -1109,7 +1109,7 @@ func SiteLandingHeroPill() Msg {
 	return Msg{Key: "site.landing.hero.pill"}
 }
 
-// SiteLandingHeroTitle1 is site.landing.hero.title_1: "A social network your family owns.".
+// SiteLandingHeroTitle1 is site.landing.hero.title_1: "A private social network your family owns.".
 func SiteLandingHeroTitle1() Msg {
 	return Msg{Key: "site.landing.hero.title_1"}
 }
@@ -1189,7 +1189,7 @@ func SiteLandingInstallRecommended() Msg {
 	return Msg{Key: "site.landing.install.recommended"}
 }
 
-// SiteLandingInstallRequirements is site.landing.install.requirements: "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the sy…".
+// SiteLandingInstallRequirements is site.landing.install.requirements: "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the sy…".
 func SiteLandingInstallRequirements() Rich {
 	return Rich{Key: "site.landing.install.requirements"}
 }
@@ -1204,7 +1204,7 @@ func SiteLandingInstallScriptNote(address string) Rich {
 	return Rich{Key: "site.landing.install.script_note", Args: map[string]any{"address": address}}
 }
 
-// SiteLandingInstallStepFlash is site.landing.install.step_flash: "<b>Flash it</b> to the MicroSD card with <imager>Raspberry Pi Imager</imager>: \"…".
+// SiteLandingInstallStepFlash is site.landing.install.step_flash: "<b>Flash it</b> to the microSD card with <imager>Raspberry Pi Imager</imager>: \"…".
 func SiteLandingInstallStepFlash() Rich {
 	return Rich{Key: "site.landing.install.step_flash"}
 }
@@ -1264,12 +1264,12 @@ func SiteLandingLightboxPrevious() Msg {
 	return Msg{Key: "site.landing.lightbox.previous"}
 }
 
-// SiteLandingMetaDescription is site.landing.meta.description: "Your family's own social network, photo backup and file storage, on a small devi…".
+// SiteLandingMetaDescription is site.landing.meta.description: "Your family's private social network, photo backup and NAS on a Raspberry Pi 5 a…".
 func SiteLandingMetaDescription() Msg {
 	return Msg{Key: "site.landing.meta.description"}
 }
 
-// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud: private family social network and home cloud".
+// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud: private family social network and home NAS".
 func SiteLandingMetaTitle() Msg {
 	return Msg{Key: "site.landing.meta.title"}
 }
@@ -1297,6 +1297,11 @@ func SiteLandingNavGallery() Msg {
 // SiteLandingNavGetStarted is site.landing.nav.get_started: "Get started".
 func SiteLandingNavGetStarted() Msg {
 	return Msg{Key: "site.landing.nav.get_started"}
+}
+
+// SiteLandingNavMenu is site.landing.nav.menu: "Menu".
+func SiteLandingNavMenu() Msg {
+	return Msg{Key: "site.landing.nav.menu"}
 }
 
 // SiteLandingNavSignIn is site.landing.nav.sign_in: "Sign in".
@@ -1349,7 +1354,7 @@ func SiteLandingPhoneTitle() Msg {
 	return Msg{Key: "site.landing.phone.title"}
 }
 
-// SiteLandingShotsDesktopGroup is site.landing.shots.desktop_group: "macOS / Windows client".
+// SiteLandingShotsDesktopGroup is site.landing.shots.desktop_group: "Computer apps".
 func SiteLandingShotsDesktopGroup() Msg {
 	return Msg{Key: "site.landing.shots.desktop_group"}
 }
@@ -1369,7 +1374,7 @@ func SiteLandingShotsEyebrow() Msg {
 	return Msg{Key: "site.landing.shots.eyebrow"}
 }
 
-// SiteLandingShotsLead is site.landing.shots.lead: "The physical device, and the four apps that talk to it.".
+// SiteLandingShotsLead is site.landing.shots.lead: "The device itself, and the apps that talk to it.".
 func SiteLandingShotsLead() Msg {
 	return Msg{Key: "site.landing.shots.lead"}
 }
@@ -1449,12 +1454,12 @@ func SiteLandingShotsWebViewerAlt() Msg {
 	return Msg{Key: "site.landing.shots.web_viewer_alt"}
 }
 
-// SiteLandingStartedEyebrow is site.landing.started.eyebrow: "Get started".
+// SiteLandingStartedEyebrow is site.landing.started.eyebrow: "The install script".
 func SiteLandingStartedEyebrow() Msg {
 	return Msg{Key: "site.landing.started.eyebrow"}
 }
 
-// SiteLandingStartedLead is site.landing.started.lead: "Both paths end in the same place: the image just runs the install script for you…".
+// SiteLandingStartedLead is site.landing.started.lead: "All three ways end in the same place: the computer app puts the Raspberry Pi 5 i…".
 func SiteLandingStartedLead() Msg {
 	return Msg{Key: "site.landing.started.lead"}
 }

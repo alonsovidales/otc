@@ -1,0 +1,21 @@
+{
+  "site.notfound.heading": {
+    "text": "Page not found",
+    "note": "Website: the heading of the page shown for an address the site doesn't have (a 404 error).",
+    "max": 40
+  },
+  "site.notfound.home": {
+    "text": "Go to the home page",
+    "note": "Website: button on the page shown for an address the site doesn't have (a 404 error), opening the home page in the same language.",
+    "max": 30
+  },
+  "site.notfound.meta.title": {
+    "text": "Page not found — Off The Cloud",
+    "note": "Website: the title (browser tab) of the page shown for an address the site doesn't have (a 404 error). Off The Cloud is the product name.",
+    "max": 60
+  },
+  "site.notfound.text": {
+    "text": "The link may be mistyped, or the page may have moved. Start again from the home page, or look for your question in the FAQ.",
+    "note": "Website: the sentence under the heading of the page shown for an address the site doesn't have (a 404 error). Two buttons follow: site.notfound.home and the FAQ (site.landing.nav.faq)."
+  }
+}

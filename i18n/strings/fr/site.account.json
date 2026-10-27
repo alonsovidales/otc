@@ -23,8 +23,8 @@
   },
   "site.account.delete.hint": {
     "text": "<b>Supprimer votre compte</b> libère tous vos domaines (chaque nom reste réservé pour vous pendant 30 jours, pour que personne ne puisse se faire passer pour votre appareil auprès de vos amis) et efface vos coordonnées, vos moyens de connexion et vos codes de configuration. Vos appareils continuent de fonctionner à la maison, à l’adresse <code>{address}</code>, comme s’ils avaient été configurés sans compte, avec tout leur contenu, mais ne sont plus joignables depuis l’extérieur ni par vos amis. Cette action est irréversible.",
-    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
-    "reviewed": "claude-backtranslation 2026-10-11 #8e723c01"
+    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-27 #6558a9c2"
   },
   "site.account.delete.password_label": {
     "text": "Votre mot de passe",
@@ -181,8 +181,8 @@
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> est à vous. Copiez ces informations maintenant, elles ne seront plus affichées :",
-    "en": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
-    "reviewed": "claude-backtranslation 2026-10-11 #2c72b52b"
+    "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
+    "reviewed": "claude-backtranslation 2026-10-27 #caafab9a"
   },
   "site.account.loading": {
     "text": "Chargement…",
@@ -350,8 +350,8 @@
     "en": "Get a setup code"
   },
   "site.account.setup.hint": {
-    "text": "Flashez l’image, allumez l’appareil et configurez-le depuis l’app iOS ou Android (« Configurer un nouvel appareil », par Bluetooth). À l’étape du compte, choisissez <b>J’ai un code de configuration</b> et saisissez ce code : il associe le nom du nouvel appareil à ce compte. Valable 15 minutes.",
-    "en": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."
+    "text": "Préparez la carte avec l’app pour ordinateur (ou flashez l’image), allumez l’appareil et terminez la configuration par Bluetooth depuis l’app iPhone ou Android, ou depuis l’app Mac. À l’étape du compte, choisissez <b>J’ai un code de configuration</b> et saisissez ce code : il associe le nom du nouvel appareil à ce compte. Valable 15 minutes.",
+    "en": "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes."
   },
   "site.account.setup.lost": {
     "text": "Vous avez perdu un appareil ? Configurez son remplaçant de la même façon et donnez-lui le <b>même nom</b> : le nom passe au nouvel appareil et l’ancien n’y a plus accès.",
@@ -473,7 +473,7 @@
   },
   "site.account.verify.prompt": {
     "text": "Nous avons envoyé un lien à <b>{email}</b>. Ouvrez-le pour confirmer que l’adresse vous appartient : d’ici là, ce compte ne peut ni enregistrer de noms d’appareils, ni fournir de codes de configuration.",
-    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes."
+    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
   },
   "site.account.verify.prompt_title": {
     "text": "Confirmez votre adresse e-mail",
@@ -485,6 +485,6 @@
   },
   "site.account.verify.resent": {
     "text": "Envoyé : vérifiez votre boîte de réception (et le dossier des spams).",
-    "en": "Sent - check your inbox (and the spam folder)."
+    "en": "Sent — check your inbox (and the spam folder)."
   }
 }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{t "site.notfound.meta.title"}}</title>
+  <meta name="robots" content="noindex">
+  {{- template "fonts"}}
+  {{- template "icons"}}
+  <meta name="theme-color" content="#10231f">
+  <style nonce="{{.Nonce}}">
+    {{- template "site-style"}}
+
+    /* The page for an address the site doesn't have (answered with a 404):
+       the site's header and footer around a way back. */
+    .lost{padding:72px 24px 88px;display:grid;gap:20px;justify-items:center;text-align:center}
+    .lost h1{font-size:clamp(30px,4.4vw,48px);line-height:1.1;margin:0}
+    .lost p{margin:0;color:var(--mist-dim);max-width:40em;font-size:17.5px}
+    .lost-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+    .lost-more{font-weight:700}
+  </style>
+</head>
+<body>
+
+  {{template "header" .}}
+
+  <main>
+    <div class="container lost">
+      <h1>{{t "site.notfound.heading"}}</h1>
+      <p>{{t "site.notfound.text"}}</p>
+      <div class="lost-actions">
+        <a class="btn ember" href="{{.Home}}">{{t "site.notfound.home"}}</a>
+        <a class="btn secondary" href="{{.Home}}#faq">{{t "site.landing.nav.faq"}}</a>
+      </div>
+      <p class="lost-more">{{t "site.landing.glance.compare_with"}}
+        <a href="{{.Compare.Social}}">{{t "site.landing.glance.compare_social"}}</a> ·
+        <a href="{{.Compare.Photos}}">{{t "site.landing.glance.compare_photos"}}</a> ·
+        <a href="{{.Compare.Drive}}">{{t "site.landing.glance.compare_drive"}}</a></p>
+    </div>
+  </main>
+
+  {{template "footer" .}}
+</body>
+</html>

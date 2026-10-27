@@ -1367,7 +1367,7 @@ username). The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetu
 sessionStorage (never passwords or the terms checkbox); the Mac's setup window has its own
 language menu (`LanguageMenu` in `LanguagePicker.swift`). It words install.sh's steps from its
 `[otc-install] @step|@error <token>` marks, only when the key's English equals the line that
-follows. The bridge's landing, account, disabled and unavailable pages are templates in
+follows. The bridge's landing, comparison, account, not-found, disabled and unavailable pages are templates in
 `bridge/site` (Frontend below); its emails follow `accounts.lang` (their links go to
 `/<code>/account` for a carried non-English language; `mail.date.long`'s `{day}` is a count only so
 French can write "1er janvier"), while its JSON `error` texts and websocket replies stay English (a
@@ -1520,9 +1520,13 @@ page, the account page and the pages shown for a disabled or unreachable device 
 files in `bridge/site/pages/*.html`, embedded in the binary (package `bridge/site`) and served by
 `bridge/api/site.go` in the visitor's language: `/` and `/account` (English, or a 302 to
 `/<code>/` / `/<code>/account` by `Accept-Language`, query kept), `/en/`, `/en/account`,
-`/<code>/` and `/<code>/account`, `/account.html` -> 301 `/account`, hreflang plus x-default, a
-footer language switcher once a second language ships, and a CSP with a nonce per response
-(docs/i18n.md "bridge"). They are never read from `/var/www`, where older deploys left copies (an
+`/<code>/` and `/<code>/account`, `/account.html` -> 301 `/account`, `/privacy.html` and
+`/terms.html` -> 301 without `.html`, a page's address with a last slash (`/account/`,
+`/es/private-social-network/`, `/privacy/`) -> 301 without it, hreflang plus x-default (and `pt`
+beside `pt-PT`, the same page), a footer language switcher once a second language ships, and a
+CSP with a nonce per response (docs/i18n.md "bridge"). An address the host doesn't have is the
+site's own 404 page (`notfound.html`, noindex, in the path's language or `Accept-Language`'s) for
+a browser asking for a page (`Accept: text/html`), the bare 404 for anything else. They are never read from `/var/www`, where older deploys left copies (an
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
 and the assets, copied to `/var/www` by the deploy. For search: the
 three comparison pages (`social.html` at `/private-social-network`, `alternative.html` at
@@ -1530,13 +1534,27 @@ three comparison pages (`social.html` at `/private-social-network`, `alternative
 `/<code>/...`, routed like `/account`) share the landing page's head, header and footer
 (`pages/common.html`, `pages/site.css`, plus `pages/compare.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
 the same `@id`s in every language, nothing the page doesn't state - no ratings, counts or
-versions; `og-1200x630.jpg` is the hero photo's crop); the account page says noindex.
-`/robots.txt`, `/sitemap.xml` and `/llms.txt` come from `bridge/site/crawl.go` (llms.txt rendered
-from the English catalog, its keys in `llmsText`). Pages and those files are gzipped; unknown
-addresses on the bridge's host are 404 (never the old web app's `index.html` left in `/var/www`);
-`www.` is a 301 to the bare domain; every answer for a device's address says `X-Robots-Tag:
-noindex` (`noindexDevices`). Static files: content-named fonts cached for good, pictures and
-`fonts.css` a day, HTML `no-cache`. The landing hero puts `img/hero-{900,1280,1600}`
+versions, and no person: the Organization has no founder; `og-1200x630.jpg` is the hero photo's
+crop); the account page says noindex. Titles are at most 60 characters and descriptions 155 in
+every language (the keys' `max`); the comparison pages' titles leave out the brand, which search
+engines show beside them. `/robots.txt`, `/sitemap.xml` and `/llms.txt` come from
+`bridge/site/crawl.go` (llms.txt rendered from the English catalog, its keys in `llmsText`, each
+question linked to its own answer). Every FAQ question is a `<details id="faq-<key>">` (`faqID`:
+`site.landing.faq.social_how.q` is `#faq-social-how`) that common.html's `faq-script` opens when
+the address names it. The header links the account page in the page's language (`.Account`, and
+`localHref` for the texts' `account`/`signup` tags); below the width its links need (1006 px in
+English, 1120 px otherwise) they move into a Menu, a `<details>` with no script, and on a phone
+(480 px) "Create an account" too. It stays at the top of the whole page (a `body` only as tall as
+the window let it go after the first screen), and `scroll-padding-top` keeps a `#section` below
+it. `site.css` carries `bridge/static/fonts/fonts.css`'s `@font-face` rules word for word
+(`TestFontFaces`) and the head preloads Unbounded's and Manrope's latin files, so the public
+pages don't wait for a stylesheet; the account, privacy and terms pages still link `fonts.css`.
+Pages and those files are gzipped, and so are the static directory's text files (`compress.go`:
+`fonts.css`, privacy, terms, `sw.js`; never on a Range request); unknown addresses on the
+bridge's host are 404 (never the old web app's `index.html` left in `/var/www`); `www.` is a 301
+to the bare domain; every answer for a device's address says `X-Robots-Tag: noindex`
+(`noindexDevices`). Static files: content-named fonts cached for good, a picture asked for with
+its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`. The landing hero puts `img/hero-{900,1280,1600}`
 (WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the summary, stacked below
 820 px; its install block (`#install`) has three tabs, the ARIA tabs pattern (arrows, Home and End
 select; only the selected tab is in the tab order; chips below 600 px): "Computer app" (first,
@@ -1544,12 +1562,18 @@ selected, "Recommended") - the Mac App Store, Windows and Linux buttons are the 
 section's links (`TestInstallTabs` keeps them equal; the visitor's OS is ember and first) and its
 steps say only what issue #184 below does (the Mac hands the card to Raspberry Pi Imager and can
 finish over Bluetooth; otc-sync writes the card and the phone app finishes) - then "Raspberry Pi
-5 image" and "Install script" (`/#script` opens it). The gallery (`#screenshots`) has the device
-photo, the Mac popover (`macos-sync.jpg`), five phone shots (`mobile-1..5`) and six web shots
-(`web-1..6`, three to a row). No picture shows a real person (the AI sample library of
-`docs/promo/source/library`, animals, or nothing). A picture that replaces another keeps its file
-name, because the deploy copies over `/var/www` and never deletes, so the old file is overwritten.
-It also gets a new `?v=` in its `src`.
+5 image" and "Install script" (`/#script` opens it); the header's "Get started" goes to it, and the
+section under the hood (`#get-started`) is the install script's. The gallery (`#screenshots`) has
+the device photo, the Mac popover (`macos-sync.jpg`), five phone shots (`mobile-1..5`) and six web
+shots (`web-1..6`, three to a row), each shown as a WebP thumbnail at two widths, about once and
+twice its size on the page (`mobile-N-{180,360}`, `web-N-{450,900}`, `device-{460,920}`,
+`macos-sync-{340,680}`; `cwebp -q 80 -m 6 -sharp_yuv -resize W 0` from the full picture), with
+`srcset`/`sizes`, opening the full picture (`data-full`) in the lightbox, which makes the page
+behind it inert and keeps Tab on its buttons; the JSON-LD's screenshots are full pictures
+(`TestStructuredData`, `TestLandingPictures`). No picture shows a real person (the AI sample
+library of `docs/promo/source/library`, animals, or nothing). A picture that replaces another
+keeps its file name, because the deploy copies over `/var/www` and never deletes, so the old file
+is overwritten. It, and its thumbnails made again, also get a new `?v=` in the page.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or

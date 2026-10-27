@@ -1,12 +1,12 @@
 @html.lang=en
-Self-hosted Google Photos and iCloud alternative | Off The Cloud
-@meta.description=Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud, and see how it compares with Immich, Synology Photos and Ente.
+Self-hosted Google Photos and iCloud alternative
+@meta.description=Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud. Compared with Immich, Synology Photos and Ente.
 @a.aria-label=Off The Cloud
 @a.href=/
 @img.src=/logo.png
 @img.alt=
 Off The Cloud
-@a.href=/#get-started
+@a.href=/#install
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
@@ -16,6 +16,15 @@ Get started Download What it is Gallery FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
 A self-hosted alternative to Google Photos and iCloud
 Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: it does the job of Google Photos or iCloud Photos, on a small device you own. Your phones back up your photos and videos in full quality, and the device tags them for search and keeps them on two mirrored drives, with no monthly storage plan. It suits families who would rather own a small device than pay for cloud storage every month.
 @a.href=https://demo.off-the.cloud/

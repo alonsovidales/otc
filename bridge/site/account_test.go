@@ -86,8 +86,10 @@ var accountTags = map[string]string{
 // template literals filled in at run time is the {placeholder} the script
 // fills in now, and what they held as literals (the 8 of the password's
 // length, "delete", the home address, the identity file) is filled in
-// here with those same values. The one difference: the account holder's
-// name in "Hello, {name}" comes between isolation marks.
+// here with those same values. The differences: the account holder's
+// name in "Hello, {name}" comes between isolation marks, the dashes are
+// the site's (" — "), and the setup code's hint names every way of
+// setting up (2026-10-27).
 var accountScriptEnglish = map[string]string{
 	"signOut":             "Sign out",
 	"emailLabel":          "Email",
@@ -107,9 +109,9 @@ var accountScriptEnglish = map[string]string{
 	"verifyDone":          "Your email is confirmed. You can register your devices now.",
 	"verifyFailed":        "Could not confirm the email",
 	"verifyPromptTitle":   "Confirm your email",
-	"verifyPrompt":        "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.",
+	"verifyPrompt":        "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes.",
 	"verifyResend":        "Send the link again",
-	"verifyResent":        "Sent - check your inbox (and the spam folder).",
+	"verifyResent":        "Sent — check your inbox (and the spam folder).",
 	"sendFailed":          "Could not send it right now",
 	"signedOutTitle":      "Your Off The Cloud account",
 	"signedOutLead":       "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one.",
@@ -146,7 +148,7 @@ var accountScriptEnglish = map[string]string{
 	"hello":               "Hello, \u2068{name}\u2069",
 	"summary":             `{registered} of {max} domains registered · free until <b>{date}</b> · <a href="/account?complete=1">your details</a>`,
 	"setupTitle":          "Setting up a device?",
-	"setupHint":           "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.",
+	"setupHint":           "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes.",
 	"setupGet":            "Get a setup code",
 	"setupLost":           "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
 	"setupFailed":         "Could not make a code",
@@ -157,7 +159,7 @@ var accountScriptEnglish = map[string]string{
 	"manualPlaceholder":   "e.g. casa",
 	"manualRegister":      "Register the name",
 	"manualFailed":        "Could not register that name",
-	"identityYours":       "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
+	"identityYours":       "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
 	"domainsTitle":        "Your domains",
 	"connected":           "connected",
 	"notConnected":        "not connected",
@@ -183,7 +185,7 @@ var accountScriptEnglish = map[string]string{
 	"dataTitle":           "Your data and your account",
 	"dataHint":            `Download everything this bridge keeps about you: your details, how you sign in, your domains and their traffic counts. What <a href="/privacy">we keep, and why</a>.`,
 	"dataDownload":        "Download my data",
-	"deleteHint":          "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>http://otc.local:8080</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
+	"deleteHint":          "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>http://otc.local:8080</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.",
 	"deletePassword":      "Your password",
 	"deleteProvider":      "You sign in with Google or Apple: sign in again just before deleting (within 15 minutes).",
 	"deleteType":          "Type <b>delete</b> to confirm",

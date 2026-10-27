@@ -345,14 +345,14 @@
     "max": 60
   },
   "site.drive.meta.description": {
-    "text": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive.",
-    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. NAS: a storage device on the home network. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
-    "max": 220
+    "text": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and phones, instead of Google Drive, Dropbox or iCloud.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. NAS: a storage device on the home network. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language. At most 155 characters, so search engines show it whole.",
+    "max": 155
   },
   "site.drive.meta.title": {
-    "text": "Self-hosted Google Drive and Dropbox alternative | Off The Cloud",
-    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (an alternative to Google Drive; self-hosted: on your own device at home), not as a literal translation, and keep \"| Off The Cloud\" at the end. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
-    "max": 75
+    "text": "Self-hosted Google Drive and Dropbox alternative",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (an alternative to Google Drive; self-hosted: on your own device at home), not as a literal translation. Search engines show the site's name beside it, so it doesn't name Off The Cloud. At most 60 characters, so they show it whole. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 60
   },
   "site.drive.move.desktop": {
     "text": "<b>From Dropbox, Proton Drive, pCloud and the like:</b> if the service's app keeps a folder on your computer, make sure every file in it is downloaded, not online-only, then add that folder to the Mac, Windows or Linux app: every file goes to your device. Otherwise, download your files from the service's website first.",

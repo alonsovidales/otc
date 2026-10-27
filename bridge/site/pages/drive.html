@@ -243,19 +243,19 @@
           <h2>{{t "site.landing.faq.title"}}</h2>
         </div>
         <div class="faq">
-          <details open>
+          <details id="faq-network" open>
             <summary>{{t "site.drive.faq.network.q"}}</summary>
             <p>{{t "site.drive.faq.network.a"}}</p>
           </details>
-          <details>
+          <details id="faq-private">
             <summary>{{t "site.drive.faq.private.q"}}</summary>
             <p>{{t "site.drive.faq.private.a"}}</p>
           </details>
-          <details>
+          <details id="faq-fails">
             <summary>{{t "site.drive.faq.fails.q"}}</summary>
             <p>{{t "site.drive.faq.fails.a"}}</p>
           </details>
-          <details>
+          <details id="faq-space">
             <summary>{{t "site.drive.faq.space.q"}}</summary>
             <p>{{t "site.drive.faq.space.a"}}</p>
           </details>
@@ -265,5 +265,6 @@
   </main>
 
   {{template "footer" .}}
+  {{template "faq-script" .}}
 </body>
 </html>

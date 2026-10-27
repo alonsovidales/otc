@@ -4,7 +4,7 @@
   "site.account.data.title": {"text": "Your data and your account"},
   "site.account.delete.button": {"text": "Delete my account"},
   "site.account.delete.failed": {"text": "Could not delete the account"},
-  "site.account.delete.hint": {"text": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.", "args": [["address", "text"]]},
+  "site.account.delete.hint": {"text": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account — with everything on them — but are no longer reachable from outside nor by your friends. This can't be undone.", "args": [["address", "text"]]},
   "site.account.delete.password_label": {"text": "Your password"},
   "site.account.delete.provider_hint": {"text": "You sign in with Google or Apple: sign in again just before deleting (within 15 minutes)."},
   "site.account.delete.type_error": {"text": "Type {word} to confirm", "args": [["word", "text"]]},
@@ -41,7 +41,7 @@
   "site.account.header.sign_out": {"text": "Sign out"},
   "site.account.home.hello": {"text": "Hello, {name}", "args": [["name", "user"]]},
   "site.account.home.summary": {"text": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>", "args": [["registered", "int"], ["max", "int"], ["date", "text"]]},
-  "site.account.identity.yours": {"text": "<b>{domain}</b> is yours. Copy this now - it is not shown again:", "args": [["domain", "text"]]},
+  "site.account.identity.yours": {"text": "<b>{domain}</b> is yours. Copy this now — it is not shown again:", "args": [["domain", "text"]]},
   "site.account.loading": {"text": "Loading…"},
   "site.account.manual.failed": {"text": "Could not register that name"},
   "site.account.manual.hint": {"text": "For a device installed with the install script rather than the image: register its name here and put the identity you get into <code>{path}</code> before running the script (it is shown once).", "args": [["path", "text"]]},
@@ -82,7 +82,7 @@
   "site.account.setup.expires": {"text": "Expires in {minutes} minutes.", "args": [["minutes", "int"]]},
   "site.account.setup.failed": {"text": "Could not make a code"},
   "site.account.setup.get": {"text": "Get a setup code"},
-  "site.account.setup.hint": {"text": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."},
+  "site.account.setup.hint": {"text": "Prepare the card with the computer app (or flash the image), power the device on and finish the setup over Bluetooth from the iPhone or Android app, or the Mac app. At the account step choose <b>I have a setup code</b> and type this code — it links the new device's name to this account. Good for 15 minutes."},
   "site.account.setup.lost": {"text": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out."},
   "site.account.setup.title": {"text": "Setting up a device?"},
   "site.account.signed_out.lead": {"text": "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one."},
@@ -111,8 +111,8 @@
   "site.account.terms.tick": {"text": "Tick the box to accept them."},
   "site.account.verify.done": {"text": "Your email is confirmed. You can register your devices now."},
   "site.account.verify.failed": {"text": "Could not confirm the email"},
-  "site.account.verify.prompt": {"text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.", "args": [["email", "text"]]},
+  "site.account.verify.prompt": {"text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes.", "args": [["email", "text"]]},
   "site.account.verify.prompt_title": {"text": "Confirm your email"},
   "site.account.verify.resend": {"text": "Send the link again"},
-  "site.account.verify.resent": {"text": "Sent - check your inbox (and the spam folder)."}
+  "site.account.verify.resent": {"text": "Sent — check your inbox (and the spam folder)."}
 }

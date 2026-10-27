@@ -234,9 +234,9 @@
     "en": "What's different from the big apps"
   },
   "site.social.faq.cost.a": {
-    "text": "Die Software ist kostenlos und Open Source. Du brauchst einen Raspberry Pi 5 und zwei USB-Laufwerke, einmalig gekauft, und eine Adresse unter off-the.cloud für alle im Feed: Das Bridge-Konto ist in seinen ersten zwei Jahren kostenlos, danach kostet es 9,99 € zuzüglich MwSt. pro Jahr mit bis zu fünf Adressen, und die Konten, die du auf deinem Gerät für deine Familie anlegst, zählen nicht zu diesen fünf.",
-    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
-    "reviewed": "claude-backtranslation 2026-10-22 #d7a4b63f"
+    "text": "Die Software ist kostenlos und Open Source. Du brauchst einen Raspberry Pi 5 und zwei USB-Laufwerke, einmalig gekauft, und eine Adresse unter off-the.cloud für alle im Feed: Das Bridge-Konto ist in seinen ersten zwei Jahren kostenlos, danach kostet es 9,99 € zuzüglich MwSt. pro Jahr mit bis zu fünf Adressen, die sich dein Gerät und die Konten deiner Familie teilen, denen du eine gibst; für mehr schreib uns.",
+    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, shared by your device and the family accounts you give one; for more, write to us.",
+    "reviewed": "claude-backtranslation 2026-10-27 #054223df"
   },
   "site.social.faq.cost.q": {
     "text": "Was kostet es?",
@@ -310,12 +310,12 @@
     "en": "How it compares with Instagram and Facebook"
   },
   "site.social.meta.description": {
-    "text": "Fotos und Videos mit Familie und Freunden teilen – in einem sozialen Netzwerk auf deinem Gerät zu Hause: keine Werbung, kein Algorithmus, keine Fremden. Im Vergleich mit Instagram, Facebook, WhatsApp, FamilyAlbum und Pixelfed.",
-    "en": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed."
+    "text": "Privates soziales Netzwerk für die Familie auf deinem Gerät zu Hause: ohne Werbung, Algorithmus und Fremde. Verglichen mit Instagram, Facebook, WhatsApp.",
+    "en": "A private social network for your family, on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook and WhatsApp."
   },
   "site.social.meta.title": {
-    "text": "Privates soziales Netzwerk für Familien statt Instagram | Off The Cloud",
-    "en": "Private family social network: an Instagram alternative | Off The Cloud"
+    "text": "Privates soziales Netzwerk für Familien statt Instagram",
+    "en": "Private family social network and Instagram alternative"
   },
   "site.social.row.ads": {
     "text": "Werbung",
@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Füge deine Familie hinzu.</b> Lege in der Web-App unter Einstellungen › Benutzer für jede Person ein Konto an, mit angehaktem <em>Bridge-Zugang anfordern</em>, und wähle ein erstes Passwort, das du ihr gibst. Sie ändert es unter Einstellungen › Passwort ändern, und ab dann kennt nur sie es.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
+    "text": "<b>Füge deine Familie hinzu.</b> Lege unter Einstellungen › Benutzer, in der Web-App oder den Handy-Apps, für jede Person ein Konto an, mit eingeschaltetem <em>Bridge-Zugang anfordern</em>, und wähle ein erstes Passwort, das du ihr gibst. Sie ändert es unter Einstellungen › Passwort ändern, und ab dann kennt nur sie es.",
+    "en": "<b>Add the family.</b> In Settings › Users, in the web app or the phone apps, add an account for each person with <em>Request bridge access</em> on, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Richte das Gerät ein.</b> Die Computer-App bereitet die Karte des Raspberry Pi 5 vor, und du schließt die Einrichtung in etwa 20 Minuten über Bluetooth auf deinem Handy ab. Dabei wird nach einem Bridge-Konto gefragt, das deinem Gerät seine Adresse unter off-the.cloud gibt.",

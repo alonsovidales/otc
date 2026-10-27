@@ -4,19 +4,27 @@
   of its own.
 
     head        the <head>'s metadata, from (head . title description): head.go
+    fonts       the preloads of the two fonts every page shows first (their
+                @font-face rules are site.css's, the same as fonts.css's)
     icons       the favicon links (the account page's head has them too)
     site-style  the style every public page uses, first in its <style>:
                 site.css, which site.go parses under that name
     compare-style
                 what the comparison pages add to it: compare.css, parsed the
                 same way
-    header      the top bar
+    header      the top bar; below the width its links need, they move into
+                a Menu (a <details>: no script)
+    nav-links   the header's links, in the bar and in the Menu
     footer      the footer, with the language switcher
+    faq-script  opens the question a link names (/#faq-bridge): each
+                question's <details> has the id faqID gives its key
 
   The header's and footer's links to the landing page's sections start with
   .Sections: "" on the landing page itself, its address (/, /<code>/) on
-  the others, so #faq becomes /#faq there. The logo links to .Home, and the
-  footer to the comparison pages in the page's language (.Compare).
+  the others, so #faq becomes /#faq there. The logo links to .Home, the
+  sign-in and sign-up to the account page in the page's language
+  (.Account), and the footer to the comparison pages in the page's
+  language (.Compare).
 */}}
 
 {{define "head" -}}
@@ -28,7 +36,7 @@
   {{- range .Alternates}}
   <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
   {{- end}}
-  <link rel="stylesheet" href="/fonts/fonts.css">
+  {{- template "fonts"}}
   {{- template "icons"}}
   <meta name="theme-color" content="#10231f">
   <meta property="og:type" content="website">
@@ -48,6 +56,11 @@
   <script type="application/ld+json">{{.LD}}</script>
 {{- end}}
 
+{{define "fonts"}}
+  <link rel="preload" href="/fonts/unbounded-latin-d7f07f8a.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/manrope-latin-e310b55a.woff2" as="font" type="font/woff2" crossorigin>
+{{- end}}
+
 {{define "icons"}}
   <link rel="icon" href="/favicon.ico" sizes="16x16">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -63,19 +76,30 @@
         <span>Off The Cloud</span>
       </a>
       <nav class="navlinks">
-        <a href="{{.Sections}}#get-started">{{t "site.landing.nav.get_started"}}</a>
+        {{- template "nav-links" .}}
+      </nav>
+      <div class="nav-actions">
+        <a class="btn ember" href="{{.Account}}">{{t "site.landing.nav.sign_in"}}</a>
+        <a class="btn nav-signup" href="{{.Account}}?signup=1">{{t "site.landing.nav.create_account"}}</a>
+        <details class="nav-menu">
+          <summary><span class="nav-menu-icon" aria-hidden="true"></span><span class="vh">{{t "site.landing.nav.menu"}}</span></summary>
+          <nav class="nav-menu-links">
+            {{- template "nav-links" .}}
+            <a class="nav-menu-signup" href="{{.Account}}?signup=1">{{t "site.landing.nav.create_account"}}</a>
+          </nav>
+        </details>
+      </div>
+    </div>
+  </header>
+{{- end}}
+
+{{define "nav-links"}}
+        <a href="{{.Sections}}#install">{{t "site.landing.nav.get_started"}}</a>
         <a href="{{.Sections}}#download">{{t "site.landing.nav.download"}}</a>
         <a href="{{.Sections}}#what">{{t "site.landing.nav.what"}}</a>
         <a href="{{.Sections}}#screenshots">{{t "site.landing.nav.gallery"}}</a>
         <a href="{{.Sections}}#faq">{{t "site.landing.nav.faq"}}</a>
         <a href="https://github.com/alonsovidales/otc">GitHub</a>
-      </nav>
-      <div class="nav-actions">
-        <a class="btn ember" href="/account">{{t "site.landing.nav.sign_in"}}</a>
-        <a class="btn" href="/account?signup=1">{{t "site.landing.nav.create_account"}}</a>
-      </div>
-    </div>
-  </header>
 {{- end}}
 
 {{define "footer" -}}
@@ -102,4 +126,19 @@
       {{- end}}
     </div>
   </footer>
+{{- end}}
+
+{{define "faq-script" -}}
+  <script nonce="{{.Nonce}}">
+    // A link to one question (/#faq-bridge, from llms.txt or another page)
+    // opens its answer, on arrival and whenever the address's # changes.
+    (() => {
+      const open = () => {
+        const el = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
+        if (el && el.tagName === 'DETAILS') el.open = true;
+      };
+      open();
+      window.addEventListener('hashchange', open);
+    })();
+  </script>
 {{- end}}

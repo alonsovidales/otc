@@ -330,12 +330,12 @@
     "en": "How it compares with Google Photos and iCloud"
   },
   "site.alt.meta.description": {
-    "text": "Guarda as fotos da família em qualidade original num Raspberry Pi 5 em casa, em vez do Google Fotos ou do iCloud, e compara com Immich, Synology Photos e Ente.",
-    "en": "Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud, and see how it compares with Immich, Synology Photos and Ente."
+    "text": "As fotos da tua família em qualidade original num Raspberry Pi 5 em casa, em vez do Google Fotos ou do iCloud. Face a Immich, Synology Photos e Ente.",
+    "en": "Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud. Compared with Immich, Synology Photos and Ente."
   },
   "site.alt.meta.title": {
-    "text": "Alternativa ao Google Fotos e ao iCloud em casa | Off The Cloud",
-    "en": "Self-hosted Google Photos and iCloud alternative | Off The Cloud"
+    "text": "Alternativa ao Google Fotos e ao iCloud em casa",
+    "en": "Self-hosted Google Photos and iCloud alternative"
   },
   "site.alt.move.computer": {
     "text": "<b>De um computador:</b> as apps para Mac, Windows e Linux fazem a cópia de segurança de qualquer pasta que escolhas, por isso as fotos que tens num computador também passam.",

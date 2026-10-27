@@ -1,12 +1,12 @@
 @html.lang=en
-Private family social network: an Instagram alternative | Off The Cloud
-@meta.description=Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed.
+Private family social network and Instagram alternative
+@meta.description=A private social network for your family, on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook and WhatsApp.
 @a.aria-label=Off The Cloud
 @a.href=/
 @img.src=/logo.png
 @img.alt=
 Off The Cloud
-@a.href=/#get-started
+@a.href=/#install
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
@@ -16,6 +16,15 @@ Get started Download What it is Gallery FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
 A private social network for your family, on a device you own
 Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files.
 @a.href=https://demo.off-the.cloud/
@@ -133,7 +142,7 @@ FamilyAlbum if you want a family album with nothing to set up: it's free with ad
 Pixelfed if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself.
 Bringing your family in
 Set up the device. The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address.
-Add the family. In the web app, under Settings › Users, add an account for each person with Request bridge access ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.
+Add the family. In Settings › Users, in the web app or the phone apps, add an account for each person with Request bridge access on, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.
 Add friends. In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed.
 Share with everyone else. Choose photos in Images, add them to a collection and share it as a link.
 See it before you buy anything
@@ -150,7 +159,7 @@ On purpose, to make the network safer, for children above all. Without chats or 
 Does it work with Mastodon, Pixelfed or the fediverse?
 No. Off The Cloud devices only talk to each other: your posts never appear on the fediverse, and you can't follow fediverse accounts from it. That's part of what keeps it private: your posts are never public, and there's no search for strangers to find you with.
 What does it cost?
-The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.
+The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, shared by your device and the family accounts you give one; for more, write to us.
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme

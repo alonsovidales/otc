@@ -81,7 +81,9 @@
       height:180px;display:flex;align-items:center;justify-content:center;
     }
     .shot img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
-    .shot.wide{height:280px;max-width:520px;justify-self:start}
+    /* As wide as it may be: a thumbnail's own width (its sizes) would
+       shrink the box around it. */
+    .shot.wide{height:280px;width:100%;max-width:520px;justify-self:start}
     /* A row of wide screenshots (the web app): each box takes the pictures'
        own shape, three to a row on a wide screen, one on a phone. */
     .shot-row.wide-row{grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr))}
@@ -202,7 +204,7 @@
 
   <main>
     <div class="container hero">
-      <span class="pill">🔓 {{t "site.landing.hero.pill"}}</span>
+      <span class="pill"><span aria-hidden="true">🔓</span> {{t "site.landing.hero.pill"}}</span>
       <h1>{{t "site.landing.hero.title_1"}}<br>{{template "spans" (rich "site.landing.hero.title_2")}}</h1>
       <div class="hero-intro">
         <picture class="hero-photo">
@@ -245,7 +247,7 @@
         </div>
         <div class="install-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
           <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
-          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ {{t "site.landing.install.download"}}</a>
+          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz"><span aria-hidden="true">⬇</span> {{t "site.landing.install.download"}}</a>
           <ol>
             <li>{{template "spans" (rich "site.landing.install.step_flash")}}</li>
             <li>{{template "spans" (rich "site.landing.install.step_plug")}}</li>
@@ -267,7 +269,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </div>
           <p>{{template "spans" (rich "site.landing.install.script_note" "address" (printf "http://<%s>:8080/" (t "site.landing.example.device_ip")))}}</p>
         </div>
-        <a class="hero-install-alt" href="/account?signup=1">{{t "site.landing.install.bridge_link"}}</a>
+        <a class="hero-install-alt" href="{{.Account}}?signup=1">{{t "site.landing.install.bridge_link"}}</a>
       </div>
     </div>
 
@@ -387,62 +389,62 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <div class="value-grid">
           <div class="value-card">
-            <span class="ico">💬</span>
+            <span class="ico" aria-hidden="true">💬</span>
             <h3>{{t "site.landing.what.feed_title"}}</h3>
             <p>{{t "site.landing.what.feed_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🏡</span>
+            <span class="ico" aria-hidden="true">🏡</span>
             <h3>{{t "site.landing.what.decentral_title"}}</h3>
             <p>{{t "site.landing.what.decentral_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">📸</span>
+            <span class="ico" aria-hidden="true">📸</span>
             <h3>{{t "site.landing.what.photos_title"}}</h3>
             <p>{{t "site.landing.what.photos_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🗂️</span>
+            <span class="ico" aria-hidden="true">🗂️</span>
             <h3>{{t "site.landing.what.files_title"}}</h3>
             <p>{{t "site.landing.what.files_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🔍</span>
+            <span class="ico" aria-hidden="true">🔍</span>
             <h3>{{t "site.landing.what.search_title"}}</h3>
             <p>{{t "site.landing.what.search_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">👨‍👩‍👧</span>
+            <span class="ico" aria-hidden="true">👨‍👩‍👧</span>
             <h3>{{t "site.landing.what.family_title"}}</h3>
             <p>{{t "site.landing.what.family_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🔗</span>
+            <span class="ico" aria-hidden="true">🔗</span>
             <h3>{{t "site.landing.what.share_title"}}</h3>
             <p>{{t "site.landing.what.share_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">⚡</span>
+            <span class="ico" aria-hidden="true">⚡</span>
             <h3>{{t "site.landing.what.fast_title"}}</h3>
             <p>{{t "site.landing.what.fast_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">💾</span>
+            <span class="ico" aria-hidden="true">💾</span>
             <h3>{{t "site.landing.what.device_title"}}</h3>
             <p>{{t "site.landing.what.device_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">📱</span>
+            <span class="ico" aria-hidden="true">📱</span>
             <h3>{{t "site.landing.what.mobile_title"}}</h3>
             <p>{{t "site.landing.what.mobile_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🖥️</span>
+            <span class="ico" aria-hidden="true">🖥️</span>
             <h3>{{t "site.landing.what.desktop_title"}}</h3>
             <p>{{t "site.landing.what.desktop_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🌐</span>
+            <span class="ico" aria-hidden="true">🌐</span>
             <h3>{{t "site.landing.what.web_title"}}</h3>
             <p>{{t "site.landing.what.web_text"}}</p>
           </div>
@@ -459,15 +461,20 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
 
         <!-- The screenshots show no real person: the AI-made sample library,
-             animals or nothing. "?v=2" marks pictures that replaced older ones
-             under the same name (a deploy copies over /var/www and never
-             deletes, so reusing the name is what takes the old ones down);
-             it makes browsers fetch the new file. -->
+             animals or nothing. Each shows a WebP thumbnail about twice its
+             size on the page (made from the full picture with cwebp, at two
+             widths) and opens the full picture, data-full, in the lightbox;
+             the head's structured data names the full ones. ?v= is a
+             picture's version: one that replaces another under the same name
+             gets the next (a deploy copies over /var/www and never deletes,
+             so reusing the name is what takes the old one down), its
+             thumbnails too, and a picture asked for with its ?v= is cached
+             for 30 days. -->
         <div class="shot-group">
           <h3>{{t "site.landing.shots.device_group"}}</h3>
           <div class="shot-row">
             <div class="shot wide">
-              <img src="/img/device.jpg" alt="{{t "site.landing.shots.device_alt"}}" loading="lazy">
+              <img src="/img/device-460.webp?v=1" srcset="/img/device-460.webp?v=1 460w, /img/device-920.webp?v=1 920w" sizes="(max-width: 504px) calc(100vw - 50px), 455px" width="460" height="282" data-full="/img/device.jpg" alt="{{t "site.landing.shots.device_alt"}}" loading="lazy" decoding="async">
             </div>
           </div>
         </div>
@@ -476,7 +483,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <h3>{{t "site.landing.shots.desktop_group"}}</h3>
           <div class="shot-row">
             <div class="shot wide">
-              <img src="/img/macos-sync.jpg?v=2" alt="{{t "site.landing.shots.macos_alt"}}" loading="lazy">
+              <img src="/img/macos-sync-340.webp?v=1" srcset="/img/macos-sync-340.webp?v=1 340w, /img/macos-sync-680.webp?v=1 680w" sizes="(max-width: 381px) calc(100vw - 50px), 333px" width="340" height="285" data-full="/img/macos-sync.jpg?v=2" alt="{{t "site.landing.shots.macos_alt"}}" loading="lazy" decoding="async">
             </div>
           </div>
         </div>
@@ -484,23 +491,23 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <div class="shot-group">
           <h3>{{t "site.landing.shots.mobile_group"}}</h3>
           <div class="shot-row">
-            <div class="shot"><img src="/img/mobile-1.jpg?v=2" alt="{{t "site.landing.shots.mobile_library_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-2.jpg?v=2" alt="{{t "site.landing.shots.mobile_search_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-3.jpg?v=2" alt="{{t "site.landing.shots.mobile_details_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-4.jpg?v=2" alt="{{t "site.landing.shots.mobile_storage_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-5.jpg?v=2" alt="{{t "site.landing.shots.mobile_social_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-1-180.webp?v=1" srcset="/img/mobile-1-180.webp?v=1 180w, /img/mobile-1-360.webp?v=1 360w" sizes="89px" width="180" height="360" data-full="/img/mobile-1.jpg?v=2" alt="{{t "site.landing.shots.mobile_library_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot"><img src="/img/mobile-2-180.webp?v=1" srcset="/img/mobile-2-180.webp?v=1 180w, /img/mobile-2-360.webp?v=1 360w" sizes="89px" width="180" height="360" data-full="/img/mobile-2.jpg?v=2" alt="{{t "site.landing.shots.mobile_search_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot"><img src="/img/mobile-3-180.webp?v=1" srcset="/img/mobile-3-180.webp?v=1 180w, /img/mobile-3-360.webp?v=1 360w" sizes="89px" width="180" height="360" data-full="/img/mobile-3.jpg?v=2" alt="{{t "site.landing.shots.mobile_details_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot"><img src="/img/mobile-4-180.webp?v=1" srcset="/img/mobile-4-180.webp?v=1 180w, /img/mobile-4-360.webp?v=1 360w" sizes="89px" width="180" height="360" data-full="/img/mobile-4.jpg?v=2" alt="{{t "site.landing.shots.mobile_storage_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot"><img src="/img/mobile-5-180.webp?v=1" srcset="/img/mobile-5-180.webp?v=1 180w, /img/mobile-5-360.webp?v=1 360w" sizes="89px" width="180" height="360" data-full="/img/mobile-5.jpg?v=2" alt="{{t "site.landing.shots.mobile_social_alt"}}" loading="lazy" decoding="async"></div>
           </div>
         </div>
 
         <div class="shot-group">
           <h3>{{t "site.landing.shots.web_group"}}</h3>
           <div class="shot-row wide-row">
-            <div class="shot wide"><img src="/img/web-1.jpg?v=2" alt="{{t "site.landing.shots.web_images_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-2.jpg?v=2" alt="{{t "site.landing.shots.web_viewer_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-3.jpg?v=2" alt="{{t "site.landing.shots.web_people_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-4.jpg?v=2" alt="{{t "site.landing.shots.web_files_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-5.jpg" alt="{{t "site.landing.shots.web_storage_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-6.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-1-450.webp?v=1" srcset="/img/web-1-450.webp?v=1 450w, /img/web-1-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-1.jpg?v=2" alt="{{t "site.landing.shots.web_images_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot wide"><img src="/img/web-2-450.webp?v=1" srcset="/img/web-2-450.webp?v=1 450w, /img/web-2-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-2.jpg?v=2" alt="{{t "site.landing.shots.web_viewer_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot wide"><img src="/img/web-3-450.webp?v=1" srcset="/img/web-3-450.webp?v=1 450w, /img/web-3-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-3.jpg?v=2" alt="{{t "site.landing.shots.web_people_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot wide"><img src="/img/web-4-450.webp?v=1" srcset="/img/web-4-450.webp?v=1 450w, /img/web-4-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-4.jpg?v=2" alt="{{t "site.landing.shots.web_files_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot wide"><img src="/img/web-5-450.webp?v=1" srcset="/img/web-5-450.webp?v=1 450w, /img/web-5-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-5.jpg" alt="{{t "site.landing.shots.web_storage_alt"}}" loading="lazy" decoding="async"></div>
+            <div class="shot wide"><img src="/img/web-6-450.webp?v=1" srcset="/img/web-6-450.webp?v=1 450w, /img/web-6-900.webp?v=1 900w" sizes="(max-width: 781px) calc(100vw - 48px), (max-width: 1155px) calc(50vw - 31px), (max-width: 1359px) calc(33.3vw - 25px), 428px" width="450" height="290" data-full="/img/web-6.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy" decoding="async"></div>
           </div>
         </div>
       </div>
@@ -513,37 +520,37 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <h2>{{t "site.landing.faq.title"}}</h2>
         </div>
         <div class="faq">
-          <details open>
+          <details id="faq-social-how" open>
             <summary>{{t "site.landing.faq.social_how.q"}}</summary>
             <p>{{template "spans" (rich "site.landing.faq.social_how.p1")}}</p>
             <p>{{t "site.landing.faq.social_how.p2"}}</p>
             <p>{{t "site.landing.faq.social_how.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-friends-device">
             <summary>{{t "site.landing.faq.friends_device.q"}}</summary>
             <p>{{t "site.landing.faq.friends_device.p1"}}</p>
             <p>{{t "site.landing.faq.friends_device.p2"}}</p>
           </details>
-          <details>
+          <details id="faq-vs-instagram">
             <summary>{{t "site.landing.faq.vs_instagram.q"}}</summary>
             <p>{{t "site.landing.faq.vs_instagram.p1"}}</p>
             <p>{{t "site.landing.faq.vs_instagram.p2"}}</p>
             <p class="faq-more"><a href="{{.Compare.Social}}">{{t "site.social.link"}}</a></p>
           </details>
-          <details>
+          <details id="faq-vs-drive">
             <summary>{{t "site.landing.faq.vs_drive.q"}}</summary>
             <p>{{t "site.landing.faq.vs_drive.p1"}}</p>
             <p>{{t "site.landing.faq.vs_drive.p2"}}</p>
             <p class="faq-more"><a href="{{.Compare.Drive}}">{{t "site.drive.link"}}</a></p>
           </details>
-          <details>
+          <details id="faq-vs-cloud">
             <summary>{{t "site.landing.faq.vs_cloud.q"}}</summary>
             <p>{{t "site.landing.faq.vs_cloud.p1"}}</p>
             <p>{{t "site.landing.faq.vs_cloud.p2"}}</p>
             <p>{{t "site.landing.faq.vs_cloud.p3"}}</p>
             <p class="faq-more"><a href="{{.Compare.Photos}}">{{t "site.alt.link"}}</a></p>
           </details>
-          <details>
+          <details id="faq-vs-selfhosted">
             <summary>{{t "site.landing.faq.vs_selfhosted.q"}}</summary>
             <p>{{t "site.landing.faq.vs_selfhosted.p1"}}</p>
             <p>{{t "site.landing.faq.vs_selfhosted.p2"}}</p>
@@ -557,15 +564,15 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ul>
             <p class="faq-more"><a href="{{.Compare.Photos}}">{{t "site.alt.link"}}</a></p>
           </details>
-          <details>
+          <details id="faq-hardware">
             <summary>{{t "site.landing.faq.hardware.q"}}</summary>
             <p>{{t "site.landing.faq.hardware.a"}}</p>
           </details>
-          <details>
+          <details id="faq-image">
             <summary>{{t "site.landing.faq.image.q"}}</summary>
             <p data-install-tab="tab-image">{{template "spans" (rich "site.landing.faq.image.a")}}</p>
           </details>
-          <details>
+          <details id="faq-other-hw">
             <summary>{{t "site.landing.faq.other_hw.q"}}</summary>
             <p data-install-tab="tab-script">{{template "spans" (rich "site.landing.faq.other_hw.p1")}}</p>
             <p>{{t "site.landing.faq.other_hw.p2"}}</p>
@@ -576,25 +583,25 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ul>
             <p>{{template "spans" (rich "site.landing.faq.other_hw.p3")}}</p>
           </details>
-          <details>
+          <details id="faq-from-icloud">
             <summary>{{t "site.landing.faq.from_icloud.q"}}</summary>
             <p>{{t "site.landing.faq.from_icloud.p1"}}</p>
             <p>{{t "site.landing.faq.from_icloud.p2"}}</p>
             <p>{{t "site.landing.faq.from_icloud.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-from-google">
             <summary>{{t "site.landing.faq.from_google.q"}}</summary>
             <p>{{template "spans" (rich "site.landing.faq.from_google.p1")}}</p>
             <p>{{t "site.landing.faq.from_google.p2"}}</p>
           </details>
-          <details>
+          <details id="faq-raw">
             <summary>{{t "site.landing.faq.raw.q"}}</summary>
             <p>{{t "site.landing.faq.raw.p1"}}</p>
             <p>{{t "site.landing.faq.raw.p2"}}</p>
             <p>{{template "spans" (rich "site.landing.faq.raw.p3")}}</p>
             <p>{{t "site.landing.faq.raw.p4"}}</p>
           </details>
-          <details>
+          <details id="faq-lights">
             <summary>{{t "site.landing.faq.lights.q"}}</summary>
             <p>{{t "site.landing.faq.lights.p1"}}</p>
             <figure class="wiring">
@@ -688,18 +695,18 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ul>
             <p>{{t "site.landing.faq.lights.p4"}}</p>
           </details>
-          <details>
+          <details id="faq-family">
             <summary>{{t "site.landing.faq.family.q"}}</summary>
             <p>{{t "site.landing.faq.family.p1"}}</p>
             <p>{{t "site.landing.faq.family.p2"}}</p>
             <p>{{template "spans" (rich "site.landing.faq.family.p3" "address" (printf "<%s>.off-the.cloud" (t "site.landing.example.user_name")))}}</p>
             <p>{{t "site.landing.faq.family.p4"}}</p>
           </details>
-          <details>
+          <details id="faq-storage">
             <summary>{{t "site.landing.faq.storage.q"}}</summary>
             <p>{{t "site.landing.faq.storage.a"}}</p>
           </details>
-          <details>
+          <details id="faq-wifi">
             <summary>{{t "site.landing.faq.wifi.q"}}</summary>
             <p>{{t "site.landing.faq.wifi.p1"}}</p>
             <p>{{t "site.landing.faq.wifi.p2"}}</p>
@@ -710,13 +717,13 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ol>
             <p>{{t "site.landing.faq.wifi.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-pi-dies">
             <summary>{{t "site.landing.faq.pi_dies.q"}}</summary>
             <p>{{t "site.landing.faq.pi_dies.p1"}}</p>
             <p data-install-tab="tab-image">{{template "spans" (rich "site.landing.faq.pi_dies.p2")}}</p>
             <p>{{t "site.landing.faq.pi_dies.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-backup">
             <summary>{{t "site.landing.faq.backup.q"}}</summary>
             <p>{{t "site.landing.faq.backup.p1"}}</p>
             <ol>
@@ -728,7 +735,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <p>{{t "site.landing.faq.backup.p3"}}</p>
             <p>{{t "site.landing.faq.backup.p4"}}</p>
           </details>
-          <details>
+          <details id="faq-password">
             <summary>{{t "site.landing.faq.password.q"}}</summary>
             <p>{{t "site.landing.faq.password.p1"}}</p>
             <p>{{t "site.landing.faq.password.p2"}}</p>
@@ -740,16 +747,16 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ul>
             <p>{{t "site.landing.faq.password.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-protect">
             <summary>{{t "site.landing.faq.protect.q"}}</summary>
             <p>{{t "site.landing.faq.protect.a"}}</p>
           </details>
-          <details>
+          <details id="faq-bridge">
             <summary>{{t "site.landing.faq.bridge.q"}}</summary>
             <p>{{template "spans" (rich "site.landing.faq.bridge.p1")}}</p>
             <p>{{template "spans" (rich "site.landing.faq.bridge.p2")}}</p>
           </details>
-          <details>
+          <details id="faq-free">
             <summary>{{t "site.landing.faq.free.q"}}</summary>
             <p>{{t "site.landing.faq.free.p1"}}</p>
             <p>{{template "spans" (rich "site.landing.faq.free.p2")}}</p>
@@ -760,15 +767,15 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
               <li>{{template "spans" (rich "site.landing.faq.free.li3")}}</li>
             </ul>
           </details>
-          <details>
+          <details id="faq-speed">
             <summary>{{t "site.landing.faq.speed.q"}}</summary>
             <p>{{t "site.landing.faq.speed.a"}}</p>
           </details>
-          <details>
+          <details id="faq-private">
             <summary>{{t "site.landing.faq.private.q"}}</summary>
             <p>{{t "site.landing.faq.private.a"}}</p>
           </details>
-          <details>
+          <details id="faq-third-parties">
             <summary>{{t "site.landing.faq.third_parties.q"}}</summary>
             <p>{{t "site.landing.faq.third_parties.p1"}}</p>
             <ul>
@@ -782,17 +789,17 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             </ul>
             <p>{{template "spans" (rich "site.landing.faq.third_parties.p2")}}</p>
           </details>
-          <details>
+          <details id="faq-ai">
             <summary>{{t "site.landing.faq.ai.q"}}</summary>
             <p>{{t "site.landing.faq.ai.p1"}}</p>
             <p>{{t "site.landing.faq.ai.p2"}}</p>
             <p>{{t "site.landing.faq.ai.p3"}}</p>
           </details>
-          <details>
+          <details id="faq-open-source">
             <summary>{{t "site.landing.faq.open_source.q"}}</summary>
             <p>{{template "spans" (rich "site.landing.faq.open_source.a")}}</p>
           </details>
-          <details>
+          <details id="faq-social">
             <summary>{{t "site.landing.faq.social.q"}}</summary>
             <p>{{t "site.landing.faq.social.a"}}</p>
           </details>
@@ -840,17 +847,17 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </form>
           <div class="contact-side">
             <div class="value-card">
-              <span class="ico">🧑‍💻</span>
+              <span class="ico" aria-hidden="true">🧑‍💻</span>
               <h3>{{t "site.landing.contact.status_title"}}</h3>
               <p>{{t "site.landing.contact.status_text"}}</p>
             </div>
             <div class="value-card">
-              <span class="ico">🌉</span>
+              <span class="ico" aria-hidden="true">🌉</span>
               <h3>{{t "site.landing.contact.bridge_title"}}</h3>
               <p>{{template "spans" (rich "site.landing.contact.bridge_text")}}</p>
             </div>
             <div class="value-card">
-              <span class="ico">🛠️</span>
+              <span class="ico" aria-hidden="true">🛠️</span>
               <h3>{{t "site.landing.contact.diy_title"}}</h3>
               <p>{{template "spans" (rich "site.landing.contact.diy_text")}}</p>
             </div>
@@ -861,6 +868,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
   </main>
 
   {{template "footer" .}}
+  {{template "faq-script" .}}
 
   <!-- What the scripts below write, in the page's language. -->
   <script type="application/json" id="site-text">{{texts
@@ -898,6 +906,10 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         // (the image, the script) opens that tab, not the first one.
         const tab = link.closest('[data-install-tab]');
         if (tab) selectTab(tab.dataset.installTab);
+        // A link in the header's Menu closes it; one to a question opens it.
+        const menu = link.closest('.nav-menu');
+        if (menu) menu.open = false;
+        if (target.tagName === 'DETAILS') target.open = true;
         target.scrollIntoView({ behavior: 'smooth' });
         history.pushState(null, '', link.getAttribute('href'));
       });
@@ -1011,15 +1023,18 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
     <div class="lb-cap"></div>
   </div>
   <script nonce="{{.Nonce}}">
-    // Screenshots open large, with arrows (and keys/swipes) through their group.
+    // Screenshots open large, with arrows (and keys/swipes) through their
+    // group: each thumbnail opens its full-size picture (data-full). While
+    // it is open the page behind it is inert and Tab goes round its buttons.
     (() => {
       const lb = document.getElementById('lb'), big = lb.querySelector('img'), cap = lb.querySelector('.lb-cap');
+      const behind = [...document.body.children].filter(el => el !== lb && el.tagName !== 'SCRIPT');
       let list = [], i = 0, opener = null;
-      const show = () => { const im = list[i]; big.src = im.currentSrc || im.src; big.alt = im.alt; cap.textContent = im.alt;
+      const show = () => { const im = list[i]; big.src = im.dataset.full || im.currentSrc || im.src; big.alt = im.alt; cap.textContent = im.alt;
         lb.querySelector('.lb-prev').style.display = lb.querySelector('.lb-next').style.display = list.length > 1 ? '' : 'none'; };
       const open = (im) => { list = [...im.closest('.shot-row').querySelectorAll('img')]; i = list.indexOf(im); opener = im;
-        show(); lb.classList.add('on'); document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
-      const close = () => { lb.classList.remove('on'); document.body.style.overflow = ''; big.src = ''; opener && opener.focus(); };
+        show(); lb.classList.add('on'); behind.forEach(el => { el.inert = true; }); document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
+      const close = () => { lb.classList.remove('on'); behind.forEach(el => { el.inert = false; }); document.body.style.overflow = ''; big.src = ''; opener && opener.focus(); };
       const step = (d) => { i = (i + d + list.length) % list.length; show(); };
       document.querySelectorAll('.shot img').forEach(im => {
         im.tabIndex = 0;
@@ -1031,7 +1046,9 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
       lb.querySelector('.lb-next').onclick = () => step(1);
       lb.addEventListener('click', e => { if (e.target === lb) close(); });
       document.addEventListener('keydown', e => { if (!lb.classList.contains('on')) return;
-        if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); });
+        if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1);
+        else if (e.key === 'Tab') { const f = [...lb.querySelectorAll('button')].filter(b => b.style.display !== 'none'), at = f.indexOf(document.activeElement);
+          e.preventDefault(); f[at < 0 ? (e.shiftKey ? f.length - 1 : 0) : (at + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus(); } });
       let x0 = null;
       lb.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
       lb.addEventListener('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });

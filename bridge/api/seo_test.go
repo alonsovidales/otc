@@ -32,7 +32,7 @@ import (
 func TestApexUnknownPathsAreNotFound(t *testing.T) {
 	api := siteAPI(t)
 	for _, target := range []string{"/nope", "/robots", "/some/client/route", "/index.html", "/index",
-		"/foo.xyz", "/img/missing.jpg", "/google-photos-alternative/", "/assets/index-AAAAAAAA.js", "/fonts/"} {
+		"/foo.xyz", "/img/missing.jpg", "/google-photos-alternative/x", "/assets/index-AAAAAAAA.js", "/fonts/"} {
 		rec := siteGet(api, http.MethodGet, target, nil)
 		if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "web app shell") {
 			t.Errorf("%s: %d %q, want 404", target, rec.Code, rec.Body.String())
@@ -49,8 +49,9 @@ func TestApexUnknownPathsAreNotFound(t *testing.T) {
 
 // Every file of bridge/static is still served on the bridge's own host,
 // as it is (the privacy, terms and admin pages at their addresses without
-// .html too), with the caching its kind allows: a font named by its
-// content for good, a page never without asking, the rest a day.
+// .html too; privacy.html and terms.html are 301s to those), with the
+// caching its kind allows: a font named by its content for good, a page
+// never without asking, the rest a day.
 func TestApexServesEveryStaticFile(t *testing.T) {
 	static, err := filepath.Abs(filepath.Join("..", "static"))
 	if err != nil {
@@ -75,6 +76,14 @@ func TestApexServesEveryStaticFile(t *testing.T) {
 		targets := []string{rel}
 		if strings.HasSuffix(rel, ".html") && !strings.Contains(rel[1:], "/") {
 			targets = append(targets, strings.TrimSuffix(rel, ".html"))
+		}
+		if rel == "/privacy.html" || rel == "/terms.html" {
+			// One address each: the .html one sends there.
+			rec := siteGet(api, http.MethodGet, rel+"?x=1", nil)
+			if want := strings.TrimSuffix(rel, ".html") + "?x=1"; rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != want {
+				t.Errorf("%s: %d %q, want 301 %q", rel, rec.Code, rec.Header().Get("Location"), want)
+			}
+			targets = targets[1:]
 		}
 		for _, target := range targets {
 			rec := siteGet(api, http.MethodGet, target, nil)
@@ -269,7 +278,7 @@ func TestSiteComparisonPages(t *testing.T) {
 		if !strings.Contains(rec.Body.String(), `<link rel="canonical" href="https://bridge.test/`+slug+`">`) {
 			t.Errorf("/en/%s doesn't name /%s as its canonical address", slug, slug)
 		}
-		for _, target := range []string{"/xx/" + slug, "/en/" + slug + "/", "/es/" + slug + "/x",
+		for _, target := range []string{"/xx/" + slug, "/xx/" + slug + "/", "/es/" + slug + "/x",
 			"/es/google-photos", "/es/alternative", "/es/private-social", "/en/x"} {
 			if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "STALE") {
 				t.Errorf("%s: %d, want 404", target, rec.Code)

@@ -214,7 +214,7 @@ func SiteAccountHomeSummary(registered int, max int, date string) Rich {
 	return Rich{Key: "site.account.home.summary", Args: map[string]any{"registered": int64(registered), "max": int64(max), "date": date}}
 }
 
-// SiteAccountIdentityYours is site.account.identity.yours: "<b>{domain}</b> is yours. Copy this now - it is not shown again:".
+// SiteAccountIdentityYours is site.account.identity.yours: "<b>{domain}</b> is yours. Copy this now — it is not shown again:".
 func SiteAccountIdentityYours(domain string) Rich {
 	return Rich{Key: "site.account.identity.yours", Args: map[string]any{"domain": domain}}
 }
@@ -419,7 +419,7 @@ func SiteAccountSetupGet() Msg {
 	return Msg{Key: "site.account.setup.get"}
 }
 
-// SiteAccountSetupHint is site.account.setup.hint: "Flash the image, power the device on and set it up from the iOS or Android app (…".
+// SiteAccountSetupHint is site.account.setup.hint: "Prepare the card with the computer app (or flash the image), power the device on…".
 func SiteAccountSetupHint() Rich {
 	return Rich{Key: "site.account.setup.hint"}
 }
@@ -564,7 +564,7 @@ func SiteAccountVerifyFailed() Msg {
 	return Msg{Key: "site.account.verify.failed"}
 }
 
-// SiteAccountVerifyPrompt is site.account.verify.prompt: "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - unti…".
+// SiteAccountVerifyPrompt is site.account.verify.prompt: "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — unti…".
 func SiteAccountVerifyPrompt(email string) Rich {
 	return Rich{Key: "site.account.verify.prompt", Args: map[string]any{"email": email}}
 }
@@ -579,7 +579,7 @@ func SiteAccountVerifyResend() Msg {
 	return Msg{Key: "site.account.verify.resend"}
 }
 
-// SiteAccountVerifyResent is site.account.verify.resent: "Sent - check your inbox (and the spam folder).".
+// SiteAccountVerifyResent is site.account.verify.resent: "Sent — check your inbox (and the spam folder).".
 func SiteAccountVerifyResent() Msg {
 	return Msg{Key: "site.account.verify.resent"}
 }

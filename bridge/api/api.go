@@ -359,7 +359,8 @@ func (api *API) registerAdminAPIs() {
 // serveStatic serves the files of the bridge's own site (the bare domain
 // matching [otc-api] tld - the privacy, terms and admin pages, fonts and
 // pictures; the pages people land on come from the binary, site.go) from
-// staticPath, same as always, and a 404 for what is no file there. Any
+// staticPath, same as always - text gzipped for a client that takes it
+// (compress.go) - and the site's 404 page for what is no file there. Any
 // other host is a device's own subdomain,
 // and (issue #95) is no longer served from a local copy at all: the
 // bridge has never rebuilt its own web app, only redeployed the same
@@ -397,12 +398,15 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	// 404 search engines index as another copy of the site.
 	path, err := staticassets.Resolve(api.staticPath, filePath)
 	if index, absErr := filepath.Abs(api.staticPath + "index.html"); err != nil || absErr != nil || path == index {
-		http.NotFound(w, r)
+		api.notFound(w, r, "")
 		return
 	}
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
-	w.Header().Set("Cache-Control", staticCacheControl(r.URL.Path, path))
+	w.Header().Set("Cache-Control", staticCacheControl(r.URL.Path, path, r.URL.Query().Has("v")))
+	if serveStaticGzipped(w, r, path) {
+		return
+	}
 	http.ServeFile(w, r, path)
 }
 
@@ -410,18 +414,25 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 // with the first 8 hex digits of its SHA-256, so a new font is a new name.
 var cFontPath = regexp.MustCompile(`^/fonts/[a-z0-9-]+-[0-9a-f]{8}\.woff2$`)
 
+// cPictureExt are the static files that are pictures.
+var cPictureExt = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".avif": true, ".gif": true, ".svg": true, ".ico": true}
+
 // staticCacheControl is how long browsers keep a file of the site's own,
-// asked for at urlPath and served from file: a font named by its content
-// for good; a page not without asking again (Last-Modified makes that a
-// 304), so a deploy shows at once; anything else a day - a picture that
-// replaces another keeps its file name (the deploy copies over the old one
-// and never deletes), and so does fonts.css.
-func staticCacheControl(urlPath, file string) string {
+// asked for at urlPath (with a ?v= when versioned) and served from file: a
+// font named by its content for good; a page not without asking again
+// (Last-Modified makes that a 304), so a deploy shows at once; a picture
+// asked for with its ?v= 30 days - a picture that replaces another keeps
+// its file name (the deploy copies over the old one and never deletes)
+// and gets a new ?v= in the pages, so its new address is fetched at once;
+// anything else a day, fonts.css and a picture without its ?v= too.
+func staticCacheControl(urlPath, file string, versioned bool) string {
 	switch {
 	case cFontPath.MatchString(urlPath):
 		return "public, max-age=31536000, immutable"
 	case strings.HasSuffix(file, ".html"):
 		return "no-cache"
+	case versioned && cPictureExt[strings.ToLower(filepath.Ext(file))]:
+		return "public, max-age=2592000"
 	}
 	return "public, max-age=86400"
 }

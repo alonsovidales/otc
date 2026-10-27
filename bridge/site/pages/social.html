@@ -236,19 +236,19 @@
           <h2>{{t "site.landing.faq.title"}}</h2>
         </div>
         <div class="faq">
-          <details open>
+          <details id="faq-library" open>
             <summary>{{t "site.social.faq.library.q"}}</summary>
             <p>{{t "site.social.faq.library.a"}}</p>
           </details>
-          <details>
+          <details id="faq-messages">
             <summary>{{t "site.social.faq.messages.q"}}</summary>
             <p>{{t "site.social.faq.messages.a"}}</p>
           </details>
-          <details>
+          <details id="faq-fediverse">
             <summary>{{t "site.social.faq.fediverse.q"}}</summary>
             <p>{{t "site.social.faq.fediverse.a"}}</p>
           </details>
-          <details>
+          <details id="faq-cost">
             <summary>{{t "site.social.faq.cost.q"}}</summary>
             <p>{{t "site.social.faq.cost.a"}}</p>
           </details>
@@ -258,5 +258,6 @@
   </main>
 
   {{template "footer" .}}
+  {{template "faq-script" .}}
 </body>
 </html>

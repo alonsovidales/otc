@@ -95,7 +95,7 @@ func TestSiteRootServesEnglishOrRedirects(t *testing.T) {
 		}
 		rec := siteGet(api, http.MethodGet, "/", map[string]string{"Accept-Language": al})
 		checkPage(t, "/ with "+al, rec, http.StatusOK, site.English())
-		if !strings.Contains(rec.Body.String(), "A social network your family owns.") {
+		if !strings.Contains(rec.Body.String(), "A private social network your family owns.") {
 			t.Errorf("/ with %q: not the English landing page", al)
 		}
 		if rec.Header().Get("Vary") != "Accept-Language" {
@@ -238,13 +238,16 @@ func TestSiteAccountPage(t *testing.T) {
 		"/account.html":               "/account",
 		"/account.html?delete=1":      "/account?delete=1",
 		"/account.html?error=expired": "/account?error=expired",
+		"/account/":                   "/account",
+		"/account/?complete=1":        "/account?complete=1",
+		"/en/account/":                "/en/account",
 	} {
 		rec := siteGet(api, http.MethodGet, target, nil)
 		if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != want {
 			t.Errorf("%s: %d %q, want 301 %q", target, rec.Code, rec.Header().Get("Location"), want)
 		}
 	}
-	notFound := []string{"/xx/account", "/zzz/account", "/en/account/", "/en/account/x", "/img/account"}
+	notFound := []string{"/xx/account", "/zzz/account", "/xx/account/", "/en/account/x", "/img/account"}
 	if _, ok := site.Language("es"); !ok {
 		notFound = append(notFound, "/es/account")
 	}
@@ -258,5 +261,77 @@ func TestSiteAccountPage(t *testing.T) {
 	}
 	if rec := siteGet(api, http.MethodHead, "/account", nil); rec.Code != http.StatusOK {
 		t.Errorf("HEAD /account: %d", rec.Code)
+	}
+}
+
+// A page's address with a slash after it is a 301 to the page, query kept;
+// the landing pages' own slashed addresses stay, and what names no page
+// stays a 404.
+func TestSlashedAddressesRedirect(t *testing.T) {
+	api := siteAPI(t)
+	redirects := map[string]string{
+		"/account/":                    "/account",
+		"/privacy/":                    "/privacy",
+		"/terms/?a=b":                  "/terms?a=b",
+		"/private-social-network/":     "/private-social-network",
+		"/google-photos-alternative/":  "/google-photos-alternative",
+		"/google-drive-alternative/?x": "/google-drive-alternative?x",
+		"/en/private-social-network/":  "/en/private-social-network",
+	}
+	for _, l := range i18n.Languages()[1:] {
+		redirects["/"+l.Code+"/"+site.DriveSlug+"/?utm=a"] = "/" + l.Code + "/" + site.DriveSlug + "?utm=a"
+		redirects["/"+l.Code+"/account/"] = "/" + l.Code + "/account"
+	}
+	for target, want := range redirects {
+		rec := siteGet(api, http.MethodGet, target, nil)
+		if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != want {
+			t.Errorf("%s: %d %q, want 301 %q", target, rec.Code, rec.Header().Get("Location"), want)
+		}
+	}
+	for _, target := range []string{"/", "/en/", "/es/"} {
+		if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusOK {
+			t.Errorf("%s: %d, want 200", target, rec.Code)
+		}
+	}
+	for _, target := range []string{"/xx/account/", "/es/nope/", "/img/", "/nope/", "/landing/", "/es//", "/account//"} {
+		if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", target, rec.Code)
+		}
+	}
+}
+
+// An address the bridge's host doesn't have is the site's own 404 page for
+// a browser: in the path's language, else Accept-Language's, with the
+// pages' policy and headers. Anything else asking gets the bare 404.
+func TestSiteNotFoundPage(t *testing.T) {
+	api := siteAPI(t)
+	html := map[string]string{"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+	for target, lang := range map[string]string{"/nope": "en", "/img/missing.jpg": "en", "/es/nope": "es", "/xx/account": "en"} {
+		rec := siteGet(api, http.MethodGet, target, html)
+		checkPage(t, target, rec, http.StatusNotFound, lang)
+		if !strings.Contains(rec.Body.String(), "<title>"+i18n.T(lang, "site.notfound.meta.title", nil)+"</title>") || strings.Contains(rec.Body.String(), "web app shell") {
+			t.Errorf("%s: not the %s 404 page", target, lang)
+		}
+	}
+	for _, l := range i18n.Languages()[1:] {
+		rec := siteGet(api, http.MethodGet, "/nope", map[string]string{"Accept": "text/html", "Accept-Language": l.Tag})
+		checkPage(t, "/nope for "+l.Tag, rec, http.StatusNotFound, l.Code)
+		if !strings.Contains(strings.Join(rec.Header().Values("Vary"), ","), "Accept-Language") {
+			t.Errorf("/nope for %s: Vary %q", l.Tag, rec.Header().Values("Vary"))
+		}
+		// Under a language, the path's language whatever the browser asks.
+		if rec := siteGet(api, http.MethodGet, "/"+l.Code+"/nope", map[string]string{"Accept": "text/html", "Accept-Language": "en"}); rec.Header().Get("Content-Language") != l.Tag {
+			t.Errorf("/%s/nope: Content-Language %q", l.Code, rec.Header().Get("Content-Language"))
+		}
+	}
+	gz := siteGet(api, http.MethodGet, "/nope", map[string]string{"Accept": "text/html", "Accept-Encoding": "gzip"})
+	if gz.Code != http.StatusNotFound || gz.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("/nope gzipped: %d %q", gz.Code, gz.Header().Get("Content-Encoding"))
+	}
+	for _, accept := range []string{"", "image/avif,image/webp,*/*", "application/json"} {
+		rec := siteGet(api, http.MethodGet, "/img/missing.jpg", map[string]string{"Accept": accept})
+		if rec.Code != http.StatusNotFound || strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") {
+			t.Errorf("/img/missing.jpg for %q: %d %q", accept, rec.Code, rec.Header().Get("Content-Type"))
+		}
 	}
 }

@@ -1,12 +1,12 @@
 @html.lang=en
-Self-hosted Google Drive and Dropbox alternative | Off The Cloud
-@meta.description=Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive.
+Self-hosted Google Drive and Dropbox alternative
+@meta.description=Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and phones, instead of Google Drive, Dropbox or iCloud.
 @a.aria-label=Off The Cloud
 @a.href=/
 @img.src=/logo.png
 @img.alt=
 Off The Cloud
-@a.href=/#get-started
+@a.href=/#install
 @a.href=/#download
 @a.href=/#what
 @a.href=/#screenshots
@@ -16,6 +16,15 @@ Get started Download What it is Gallery FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
 A home NAS instead of Google Drive or Dropbox
 Off The Cloud is free, open-source software that turns a Raspberry Pi 5 with two USB drives into your family's own file storage: a NAS that keeps folders on your computers in sync, backs up your phones and shares files with a link, with no storage plan to pay for every month. The same device is your family's private social network and photo library.
 @a.href=https://demo.off-the.cloud/

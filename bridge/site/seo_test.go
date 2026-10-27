@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"text/template/parse"
 
 	"github.com/alonsovidales/otc/i18n"
 	"golang.org/x/net/html"
@@ -24,13 +25,14 @@ import (
 
 // renderedHead is what a rendered page's head says - its title, meta tags
 // by name or property, canonical, hreflang links and JSON-LD block as
-// written - and the addresses its links and images go to.
+// written - and the addresses its links and images go to (fulls: the full
+// pictures the lightbox opens, data-full).
 type renderedHead struct {
-	title, canonical string
-	meta             map[string][]string
-	hreflang         map[string]string
-	ld               string
-	hrefs, imgs      []string
+	title, canonical   string
+	meta               map[string][]string
+	hreflang           map[string]string
+	ld                 string
+	hrefs, imgs, fulls []string
 }
 
 func readHead(t *testing.T, page []byte) renderedHead {
@@ -69,6 +71,9 @@ func readHead(t *testing.T, page []byte) renderedHead {
 			h.hrefs = append(h.hrefs, attr(n, "href"))
 		case atom.Img:
 			h.imgs = append(h.imgs, attr(n, "src"))
+			if full := attr(n, "data-full"); full != "" {
+				h.fulls = append(h.fulls, full)
+			}
 		}
 	}
 	if lds != 1 {
@@ -167,8 +172,9 @@ func TestStructuredData(t *testing.T) {
 						t.Errorf("%s: %s's address %q isn't on the page", what, name, u)
 					}
 				}
+				// The full pictures, which the gallery's thumbnails open.
 				for _, s := range anyStrings(byID[base+"/#software"]["screenshot"]) {
-					if !slices.Contains(h.imgs, strings.TrimPrefix(s, base)) {
+					if !slices.Contains(h.fulls, strings.TrimPrefix(s, base)) {
 						t.Errorf("%s: screenshot %s isn't on the page", what, s)
 					}
 				}
@@ -337,8 +343,13 @@ func TestSitemap(t *testing.T) {
 		for _, l := range i18n.Languages() {
 			loc := base + PagePath(page, l.Code)
 			m := alts[loc]
-			if len(m) != len(i18n.Languages())+1 || m["x-default"] != base+PagePath(page, English()) || m[l.Tag] != loc {
+			if len(m) != len(hreflangs())+1 || m["x-default"] != base+PagePath(page, English()) || m[l.Tag] != loc {
 				t.Errorf("%s: alternates %v", loc, m)
+			}
+			// A tag with a region names the page for its language too:
+			// pt-PT's page is pt's.
+			if lang, _, region := strings.Cut(l.Tag, "-"); region && m[lang] != loc {
+				t.Errorf("%s: hreflang %s is %q, want the %s page", loc, lang, m[lang], l.Tag)
 			}
 			// Reciprocal: every version it names names it back.
 			for tag, href := range m {
@@ -361,6 +372,22 @@ func TestSitemap(t *testing.T) {
 			t.Errorf("%s has language versions", path)
 		}
 	}
+}
+
+// hreflangs are the hreflang values a localized page's alternates name,
+// besides x-default: every carried language's tag, and the language alone
+// of a tag with a region (pt for pt-PT) that no carried language has.
+func hreflangs() []string {
+	var out []string
+	for _, l := range i18n.Languages() {
+		out = append(out, l.Tag)
+	}
+	for _, l := range i18n.Languages() {
+		if lang, _, region := strings.Cut(l.Tag, "-"); region && !slices.Contains(out, lang) {
+			out = append(out, lang)
+		}
+	}
+	return out
 }
 
 func mapsEqual(a, b map[string]string) bool {
@@ -424,7 +451,7 @@ func TestLLMs(t *testing.T) {
 		t.Errorf("llms.txt has no %q", glance.String())
 	}
 	for _, key := range llmsText.questions {
-		if line := "- [" + mdEscape(i18n.T(en, key, nil)) + "](" + base + "/#faq)\n"; !strings.Contains(out, line) {
+		if line := "- [" + mdEscape(i18n.T(en, key, nil)) + "](" + base + "/#" + faqID(key) + ")\n"; !strings.Contains(out, line) {
 			t.Errorf("llms.txt has no %q", line)
 		}
 	}
@@ -537,7 +564,7 @@ func TestComparisonPages(t *testing.T) {
 				}
 			}
 			home := Path(l.Code)
-			for _, section := range []string{"#get-started", "#download", "#what", "#screenshots", "#faq", "#contact"} {
+			for _, section := range []string{"#install", "#download", "#what", "#screenshots", "#faq", "#contact"} {
 				if !slices.Contains(h.hrefs, home+section) {
 					t.Errorf("%s: no link to %s%s", what, home, section)
 				}
@@ -726,4 +753,173 @@ func attrOK(n *html.Node, name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// Every question of every public page's FAQ is a <details> with the id its
+// key gives it (faqID), once on the page, so a link can open it; llms.txt
+// links each of the landing page's questions to its own.
+func TestFAQIDs(t *testing.T) {
+	question := regexp.MustCompile(`^site\.[a-z]+\.faq\.[a-z_]+\.q$`)
+	for _, page := range publicPages {
+		for _, l := range i18n.Languages() {
+			out, err := Render(page, l.Code, testOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids := map[string]int{}
+			var details []*html.Node
+			for n := range doc.Descendants() {
+				if id := attr(n, "id"); n.Type == html.ElementNode && id != "" {
+					ids[id]++
+				}
+				if n.DataAtom == atom.Details && strings.Contains(attr(n.Parent, "class"), "faq") {
+					details = append(details, n)
+				}
+			}
+			var keys []string
+			for _, u := range pageUsesOf(t, page) {
+				if question.MatchString(u) && !slices.Contains(keys, u) {
+					keys = append(keys, u)
+				}
+			}
+			if len(details) != len(keys) || len(keys) == 0 {
+				t.Fatalf("%s in %s: %d questions, %d question keys", page, l.Code, len(details), len(keys))
+			}
+			for i, d := range details {
+				if id := attr(d, "id"); id != faqID(keys[i]) || ids[id] != 1 {
+					t.Errorf("%s in %s: question %d has id %q (%d on the page), want %q", page, l.Code, i+1, id, ids[id], faqID(keys[i]))
+				}
+			}
+		}
+	}
+}
+
+// pageUsesOf are the keys page asks for with t, in the page's order.
+func pageUsesOf(t *testing.T, page string) []string {
+	t.Helper()
+	tmpl, err := templates(English())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	var walk func(n parse.Node)
+	walk = func(n parse.Node) {
+		switch n := n.(type) {
+		case *parse.ListNode:
+			if n != nil {
+				for _, c := range n.Nodes {
+					walk(c)
+				}
+			}
+		case *parse.ActionNode:
+			for _, c := range n.Pipe.Cmds {
+				if len(c.Args) > 1 {
+					if id, ok := c.Args[0].(*parse.IdentifierNode); ok && id.Ident == "t" {
+						if s, ok := c.Args[1].(*parse.StringNode); ok {
+							keys = append(keys, s.Text)
+						}
+					}
+				}
+			}
+		case *parse.IfNode:
+			walk(n.List)
+			walk(n.ElseList)
+		case *parse.RangeNode:
+			walk(n.List)
+			walk(n.ElseList)
+		}
+	}
+	walk(tmpl.Lookup(page).Tree.Root)
+	return keys
+}
+
+// The public pages draw with the self-hosted fonts without waiting for
+// fonts.css: site.css holds its @font-face rules word for word, and the
+// two fonts the head preloads are fonts.css's own.
+func TestFontFaces(t *testing.T) {
+	fonts, err := os.ReadFile(filepath.Join("..", "static", "fonts", "fonts.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	css, err := pagesFS.ReadFile("pages/site.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := regexp.MustCompile(`(?s)@font-face \{.*?\}`)
+	rules := rule.FindAllString(string(fonts), -1)
+	if len(rules) < 4 {
+		t.Fatalf("fonts.css has %d @font-face rules", len(rules))
+	}
+	for _, r := range rules {
+		if !strings.Contains(string(css), r) {
+			t.Errorf("site.css lacks fonts.css's\n%s", r)
+		}
+	}
+	if got := len(rule.FindAllString(string(css), -1)); got != len(rules) {
+		t.Errorf("site.css has %d @font-face rules, fonts.css %d", got, len(rules))
+	}
+	out, err := Render(Landing, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preload := regexp.MustCompile(`<link rel="preload" href="(/fonts/[^"]+\.woff2)" as="font" type="font/woff2" crossorigin>`)
+	found := preload.FindAllStringSubmatch(string(out), -1)
+	if len(found) != 2 {
+		t.Fatalf("%d font preloads, want 2", len(found))
+	}
+	for _, m := range found {
+		if !strings.Contains(string(fonts), "url("+m[1]+")") {
+			t.Errorf("preloaded %s isn't one of fonts.css's", m[1])
+		}
+	}
+	if strings.Contains(string(out), `href="/fonts/fonts.css"`) {
+		t.Error("the landing page still waits for fonts.css")
+	}
+}
+
+// Every picture the landing page shows or opens is in bridge/static: each
+// <img>'s src, every srcset candidate and the full picture (data-full).
+func TestLandingPictures(t *testing.T) {
+	out, err := Render(Landing, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := html.Parse(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for n := range doc.Descendants() {
+		if n.DataAtom != atom.Img && n.DataAtom != atom.Source {
+			continue
+		}
+		var urls []string
+		if src := attr(n, "src"); src != "" {
+			urls = append(urls, src)
+		}
+		if full := attr(n, "data-full"); full != "" {
+			urls = append(urls, full)
+		}
+		for _, c := range strings.Split(attr(n, "srcset"), ",") {
+			if f := strings.Fields(c); len(f) > 0 {
+				urls = append(urls, f[0])
+			}
+		}
+		for _, u := range urls {
+			if !strings.HasPrefix(u, "/") {
+				continue // the lightbox's empty <img>
+			}
+			seen++
+			if _, err := os.Stat(filepath.Join("..", "static", filepath.FromSlash(strings.Split(u, "?")[0]))); err != nil {
+				t.Errorf("%s: %v", u, err)
+			}
+		}
+	}
+	if seen < 40 {
+		t.Errorf("only %d pictures", seen)
+	}
 }

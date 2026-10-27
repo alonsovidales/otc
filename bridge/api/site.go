@@ -40,8 +40,17 @@ import (
 //	/xx/account       404 for a language this build doesn't carry (and the comparison pages under /xx/)
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
+//	/privacy.html, /terms.html
+//	                  301 to /privacy and /terms, their one address each
+//	/account/, /<slug>/, /<code>/<slug>/, /privacy/, /terms/
+//	                  301 to the same address without its last slash, query kept
 //	/robots.txt, /sitemap.xml, /llms.txt
 //	                  what crawlers read (package site, crawl.go)
+//
+// Every 404 on the bridge's host is the site's own page (site.NotFound)
+// for a browser asking for a page (Accept: text/html), in the path's
+// language or Accept-Language's, with the header and footer that lead
+// back; anything else asking (a picture, a script) gets the bare 404.
 //
 // The pages and those three files go out gzipped to a client that takes
 // it (they are text, about 80 KB for the landing page; fonts and pictures
@@ -95,6 +104,11 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
 	case "/account.html":
 		answer = func() { siteRedirect(w, r, "/account", http.StatusMovedPermanently) }
+	case "/privacy.html", "/terms.html":
+		// The legal pages are files in the static directory, served at
+		// their address without .html; this one is the same page again.
+		to := strings.TrimSuffix(p, ".html")
+		answer = func() { siteRedirect(w, r, to, http.StatusMovedPermanently) }
 	case "/disabled", "/disabled.html":
 		answer = func() { api.writeLocalizedPage(w, r, site.Disabled, http.StatusOK) }
 	case "/unavailable", "/unavailable.html":
@@ -114,6 +128,10 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 			writeCompressed(w, r, "application/xml; charset=utf-8", http.StatusOK, body)
 		}
 	default:
+		if to, ok := slashless(p); ok {
+			answer = func() { siteRedirect(w, r, to, http.StatusMovedPermanently) }
+			break
+		}
 		code, rest, slash := strings.Cut(p[1:], "/")
 		if !langSegment.MatchString(code) {
 			return false
@@ -125,8 +143,10 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 			answer = func() { siteRedirect(w, r, "/"+code+"/", http.StatusMovedPermanently) }
 		case carried && localized:
 			answer = func() { api.writeSitePage(w, r, page, code, http.StatusOK) }
-		case carried, localized:
-			answer = func() { http.NotFound(w, r) }
+		case carried:
+			answer = func() { api.notFound(w, r, code) }
+		case localized:
+			answer = func() { api.notFound(w, r, "") }
 		default:
 			// Not a language: /img/device.jpg and the like.
 			return false
@@ -152,6 +172,46 @@ func (api *API) writeEnglishOrRedirect(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 	api.writeSitePage(w, r, page, site.English(), http.StatusOK)
+}
+
+// slashless is where a slashed address of one of the site's pages goes:
+// the page's own address, which has no last slash (/account,
+// /es/private-social-network, /privacy). The landing pages' own addresses
+// end with one (/, /es/) and stay as they are.
+func slashless(p string) (string, bool) {
+	t, slashed := strings.CutSuffix(p, "/")
+	if !slashed || t == "" || strings.HasSuffix(t, "/") {
+		return "", false
+	}
+	switch t {
+	case "/privacy", "/terms":
+		return t, true
+	}
+	code, slug, inLang := strings.Cut(t[1:], "/")
+	if !inLang {
+		code, slug = "", t[1:]
+	} else if _, ok := site.Language(code); !ok {
+		return "", false
+	}
+	if _, ok := site.Localized(slug); !ok || slug == "" {
+		return "", false
+	}
+	return t, true
+}
+
+// notFound answers an address the bridge's host doesn't have: the site's
+// page for it in lang (a carried code; "" for Accept-Language's choice)
+// to a browser asking for a page, the bare 404 to anything else.
+func (api *API) notFound(w http.ResponseWriter, r *http.Request, lang string) {
+	if !strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.NotFound(w, r)
+		return
+	}
+	if lang == "" {
+		w.Header().Add("Vary", "Accept-Language")
+		lang = i18n.Match(r.Header.Get("Accept-Language"))
+	}
+	api.writeSitePage(w, r, site.NotFound, lang, http.StatusNotFound)
 }
 
 // siteRedirect sends r to path, keeping its query.
