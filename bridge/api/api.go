@@ -502,21 +502,31 @@ func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The device names every file's type by its extension
+	// (mime.TypeByExtension, else what DetectContentType sees in it), as it
+	// has since the bridge first relayed them: scripts, styles and pages get
+	// theirs. Never empty here, so nothing guesses - not net/http, which
+	// would have to read a gzipped body, nor the browser.
 	ct := asset.RespStaticAsset.ContentType
-	if ct != "" {
-		w.Header().Set("Content-Type", ct)
+	if ct == "" {
+		ct = http.DetectContentType(asset.RespStaticAsset.Content)
 	}
+	h := w.Header()
+	h.Set("Content-Type", ct)
+	// The browser takes that type as given (a file is never run or styled
+	// as something else), and no other site may show a device's page in a
+	// frame. Only frame-ancestors: a fuller policy would have to fit every
+	// build of the web app a device may still run, older ones too.
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "frame-ancestors 'none'")
 	// Vite's content-hashed build output: a name never changes content, so
 	// the browser keeps it instead of fetching it through the device's
 	// uplink on every visit. Never for HTML: the device answers a missing
 	// file with index.html, which must not get stuck under an asset URL.
 	if cHashedAssetPath.MatchString(r.URL.Path) && !strings.HasPrefix(ct, "text/html") {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		h.Set("Cache-Control", "public, max-age=31536000, immutable")
 	}
-	// Under a write deadline: the whole asset is in memory by now, and the
-	// device slot is already free, so a client that never reads would
-	// otherwise hold it here for good.
-	_ = limits.WriteAll(w, asset.RespStaticAsset.Content, limits.WriteIdleTimeout)
+	writeAsset(w, r, ct, asset.RespStaticAsset.Content)
 }
 
 // submitContact handles the public landing page's contact form (issue

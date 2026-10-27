@@ -7,11 +7,15 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	pb "github.com/alonsovidales/otc/proto/generated"
+	"google.golang.org/protobuf/proto"
 )
 
 // gunzip is body uncompressed, or the test's end.
@@ -127,6 +131,130 @@ func TestVersionedPicturesAreCachedLonger(t *testing.T) {
 		if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != want {
 			t.Errorf("%s: %d, Cache-Control %q, want %q", target, rec.Code, rec.Header().Get("Cache-Control"), want)
 		}
+	}
+}
+
+// assetDevice is a device whose web app holds files, by path: what it
+// answers ReqGetStaticAsset with, as the device does (the type from the
+// extension).
+func assetDevice(files map[string]struct{ ct, body string }) func(string, []byte) ([]byte, error) {
+	return func(_ string, frame []byte) ([]byte, error) {
+		var req pb.ReqEnvelope
+		if err := proto.Unmarshal(frame, &req); err != nil {
+			return nil, err
+		}
+		f, ok := files[req.GetReqGetStaticAsset().GetPath()]
+		if !ok {
+			return proto.Marshal(&pb.RespEnvelope{Id: req.Id, Error: true})
+		}
+		return proto.Marshal(&pb.RespEnvelope{Id: req.Id, Payload: &pb.RespEnvelope_RespStaticAsset{
+			RespStaticAsset: &pb.RespStaticAsset{Content: []byte(f.body), ContentType: f.ct},
+		}})
+	}
+}
+
+func assetGet(api *API, method, host, target string, header map[string]string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, target, nil)
+	req.Host = host
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	rec := httptest.NewRecorder()
+	api.proxyStaticAsset(rec, req)
+	return rec
+}
+
+// What the bridge relays of a device's web app: always with nosniff and
+// frame-ancestors 'none' (only that: older web apps must keep working),
+// the device's own type, and its text gzipped for a client that takes it,
+// with Vary and the compressed length. Pictures, a Range request and a
+// client refusing gzip get the bytes as they are.
+func TestProxiedAssetsHeadersAndGzip(t *testing.T) {
+	script := strings.Repeat("console.log('the web app');\n", 200)
+	style := strings.Repeat("body{margin:0}\n", 200)
+	page := "<!doctype html><title>Off The Cloud</title>" + strings.Repeat("<p>x</p>", 200)
+	picture := strings.Repeat("\x89PNG", 400)
+	files := map[string]struct{ ct, body string }{
+		"/assets/index-CKSsrHu4.js":  {"text/javascript; charset=utf-8", script},
+		"/assets/index-CFDGqsbq.css": {"text/css; charset=utf-8", style},
+		"/":                          {"text/html; charset=utf-8", page},
+		"/social":                    {"text/html; charset=utf-8", page},
+		"/sw.js":                     {"text/javascript; charset=utf-8", script},
+		"/manifest.webmanifest":      {"application/manifest+json", strings.Repeat(`{"name":"Off The Cloud"}`, 40)},
+		"/favicon-192x192.png":       {"image/png", picture},
+		"/tiny.js":                   {"text/javascript; charset=utf-8", "x()"},
+	}
+	api := &API{forwardOneOff: assetDevice(files)}
+	gz := map[string]string{"Accept-Encoding": "gzip, deflate, br"}
+	for path, f := range files {
+		rec := assetGet(api, http.MethodGet, "pit.off-the.cloud", path, gz)
+		h := rec.Header()
+		if rec.Code != http.StatusOK || h.Get("Content-Type") != f.ct || h.Get("X-Content-Type-Options") != "nosniff" ||
+			h.Get("Content-Security-Policy") != "frame-ancestors 'none'" || h.Get("Content-Length") != strconv.Itoa(rec.Body.Len()) {
+			t.Errorf("%s: %d, headers %v", path, rec.Code, h)
+		}
+		text := compressible(f.ct)
+		if vary := strings.Contains(strings.Join(h.Values("Vary"), ","), "Accept-Encoding"); vary != text {
+			t.Errorf("%s: Vary %q", path, h.Values("Vary"))
+		}
+		body := rec.Body.Bytes()
+		if wantGzip := text && len(f.body) >= cGzipMin; (h.Get("Content-Encoding") == "gzip") != wantGzip {
+			t.Errorf("%s: Content-Encoding %q", path, h.Get("Content-Encoding"))
+		} else if wantGzip {
+			body = gunzip(t, body)
+		}
+		if string(body) != f.body {
+			t.Errorf("%s: the body isn't the device's", path)
+		}
+		for what, header := range map[string]map[string]string{
+			"a Range request":        {"Accept-Encoding": "gzip", "Range": "bytes=0-9"},
+			"a client refusing gzip": {"Accept-Encoding": "identity"},
+		} {
+			rec := assetGet(api, http.MethodGet, "pit.off-the.cloud", path, header)
+			if rec.Header().Get("Content-Encoding") != "" || rec.Body.String() != f.body || rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+				t.Errorf("%s for %s: Content-Encoding %q, %d bytes", path, what, rec.Header().Get("Content-Encoding"), rec.Body.Len())
+			}
+		}
+	}
+	// HEAD: the same headers, no body.
+	get := assetGet(api, http.MethodGet, "pit.off-the.cloud", "/assets/index-CKSsrHu4.js", gz)
+	head := assetGet(api, http.MethodHead, "pit.off-the.cloud", "/assets/index-CKSsrHu4.js", gz)
+	if head.Header().Get("Content-Length") != get.Header().Get("Content-Length") || head.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("HEAD: %v", head.Header())
+	}
+	// The headers on a device's 404 too.
+	if rec := assetGet(api, http.MethodGet, "pit.off-the.cloud", "/nope.js", gz); rec.Code != http.StatusNotFound || rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("a device's 404: %d %v", rec.Code, rec.Header())
+	}
+}
+
+// A content-named file is gzipped once per content: kept by the SHA-256 of
+// the device's bytes, so a second device answering the same name with
+// other bytes gets its own back - never the first device's.
+func TestProxiedAssetGzipCacheIsByContent(t *testing.T) {
+	path := "/assets/index-AbCd1234.js"
+	mine := strings.Repeat("mine();\n", 300)
+	theirs := strings.Repeat("theirs();\n", 300)
+	devices := map[string]func(string, []byte) ([]byte, error){
+		"pit.off-the.cloud":  assetDevice(map[string]struct{ ct, body string }{path: {"text/javascript; charset=utf-8", mine}}),
+		"evil.off-the.cloud": assetDevice(map[string]struct{ ct, body string }{path: {"text/javascript; charset=utf-8", theirs}}),
+	}
+	api := &API{forwardOneOff: func(domain string, frame []byte) ([]byte, error) { return devices[domain](domain, frame) }}
+	gz := map[string]string{"Accept-Encoding": "gzip"}
+	first := assetGet(api, http.MethodGet, "pit.off-the.cloud", path, gz)
+	if string(gunzip(t, first.Body.Bytes())) != mine {
+		t.Fatal("pit's script isn't pit's")
+	}
+	again := assetGet(api, http.MethodGet, "pit.off-the.cloud", path, gz)
+	if !bytes.Equal(again.Body.Bytes(), first.Body.Bytes()) {
+		t.Error("the same content was compressed again into other bytes")
+	}
+	other := assetGet(api, http.MethodGet, "evil.off-the.cloud", path, gz)
+	if string(gunzip(t, other.Body.Bytes())) != theirs {
+		t.Error("a device's script came back as another device's")
+	}
+	if string(gunzip(t, assetGet(api, http.MethodGet, "pit.off-the.cloud", path, gz).Body.Bytes())) != mine {
+		t.Error("pit's script came back as another device's")
 	}
 }
 

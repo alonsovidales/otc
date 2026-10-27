@@ -1554,10 +1554,17 @@ Pages and those files are gzipped, and so are the static directory's text files 
 bridge's host are 404 (never the old web app's `index.html` left in `/var/www`); `www.` is a 301
 to the bare domain; every answer for a device's address says `X-Robots-Tag: noindex`
 (`noindexDevices`). Static files: content-named fonts cached for good, a picture asked for with
-its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`. The landing hero puts `img/hero-{900,1280,1600}`
-(WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the summary, stacked below
-820 px; its install block (`#install`) has three tabs, the ARIA tabs pattern (arrows, Home and End
-select; only the selected tab is in the tab order; chips below 600 px): "Computer app" (first,
+its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`. A device's web app
+files, relayed by `proxyStaticAsset`, go out with `X-Content-Type-Options: nosniff` and
+`Content-Security-Policy: frame-ancestors 'none'` only (a fuller policy would have to fit every
+web app build a device may still run; the device types each file by its extension), and text
+gzipped for a client that takes it; a content-named one (`cHashedAssetPath`) is compressed once,
+kept by the SHA-256 of the device's bytes (never by its name: another device's file under the same
+name never stands in for it) in a 32 MB least-recently-used cache. The landing hero puts
+`img/hero-{900,1280,1600}` (WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the
+summary, stacked below 820 px; its install block (`#install`) has three tabs, the ARIA tabs
+pattern (arrows, Home and End select; only the selected tab is in the tab order; chips below 600
+px): "Computer app" (first,
 selected, "Recommended") - the Mac App Store, Windows and Linux buttons are the Downloads
 section's links (`TestInstallTabs` keeps them equal; the visitor's OS is ember and first) and its
 steps say only what issue #184 below does (the Mac hands the card to Raspberry Pi Imager and can

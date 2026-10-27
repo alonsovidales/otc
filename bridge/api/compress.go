@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"container/list"
+	"crypto/sha256"
+	"encoding/hex"
 	"mime"
 	"net/http"
 	"os"
@@ -14,20 +16,24 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alonsovidales/otc/bridge/limits"
 )
 
 // Gzip for what the bridge sends besides its own pages (writeCompressed,
 // site.go, renders those): the files of its site's static directory
-// (fonts.css, the privacy and terms pages, sw.js). Pictures, fonts and
-// video are compressed already and go as they are, and so does an answer
-// to a Range request.
+// (fonts.css, the privacy and terms pages, sw.js) and the text files of a
+// device's web app it relays (proxyStaticAsset). Pictures, fonts and video
+// are compressed already and go as they are, and so does an answer to a
+// Range request.
 
 const (
 	// cGzipMin is the smallest body worth it: below this, gzip's own
 	// header and trailer eat most of what it saves.
 	cGzipMin = 512
 	// cGzipCacheBytes is the most the cache of gzipped bodies holds, and
-	// cGzipCacheEntry the largest body it keeps.
+	// cGzipCacheEntry the largest body it keeps (a web app's main script
+	// is about 1.3 MB, 400 KB gzipped).
 	cGzipCacheBytes = 32 << 20
 	cGzipCacheEntry = 4 << 20
 )
@@ -64,8 +70,11 @@ func gzipBytes(b []byte) ([]byte, error) {
 }
 
 // gzipCache keeps gzipped bodies the bridge sends again and again, so
-// each is compressed once: a static file by its path, size and time. The
-// least recently used go first once the bodies pass max bytes.
+// each is compressed once: a static file by its path, size and time, a
+// device's content-named asset by the SHA-256 of the bytes that device
+// sent - never by its name alone, so one device's file can never stand in
+// for another's. The least recently used go first once the bodies pass
+// max bytes.
 type gzipCache struct {
 	mu    sync.Mutex
 	max   int
@@ -169,4 +178,47 @@ func serveStaticGzipped(w http.ResponseWriter, r *http.Request, path string) boo
 		_, _ = w.Write(body)
 	}
 	return true
+}
+
+// writeAsset writes a device's static file (its web app's) as the device
+// sent it, or gzipped when it is text a client that takes gzip asked for
+// whole. A content-named file (cHashedAssetPath: the same name is always
+// the same bytes) is compressed once per content and kept in gzipped.
+// Under a write deadline: the whole asset is in memory by now, and the
+// device slot is already free, so a client that never reads would
+// otherwise hold it here for good.
+func writeAsset(w http.ResponseWriter, r *http.Request, ct string, content []byte) {
+	body := content
+	if compressible(ct) {
+		w.Header().Add("Vary", "Accept-Encoding")
+		if len(content) >= cGzipMin && r.Header.Get("Range") == "" && acceptsGzip(r.Header.Get("Accept-Encoding")) {
+			if gz, ok := assetGzip(r.URL.Path, content); ok {
+				w.Header().Set("Content-Encoding", "gzip")
+				body = gz
+			}
+		}
+	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	_ = limits.WriteAll(w, body, limits.WriteIdleTimeout)
+}
+
+// assetGzip is content gzipped, from the cache for a content-named path;
+// false when gzip wouldn't make it smaller.
+func assetGzip(path string, content []byte) ([]byte, bool) {
+	var key string
+	if cHashedAssetPath.MatchString(path) {
+		sum := sha256.Sum256(content)
+		key = "asset:" + hex.EncodeToString(sum[:])
+		if gz, ok := gzipped.get(key); ok {
+			return gz, len(gz) < len(content)
+		}
+	}
+	gz, err := gzipBytes(content)
+	if err != nil {
+		return nil, false
+	}
+	if key != "" {
+		gzipped.put(key, gz)
+	}
+	return gz, len(gz) < len(content)
 }
