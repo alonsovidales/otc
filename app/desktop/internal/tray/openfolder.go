@@ -21,8 +21,8 @@ import (
 // (FolderOpenArea in PopoverView.swift): a tray item that has a submenu
 // takes no click of its own on Windows or Linux, hence the item. A folder
 // that is gone is only reported, with where it was expected; nothing is
-// removed or changed here (the next pass already takes a two-way folder
-// whose folder is gone off the list, leaving the device alone).
+// removed or changed here (the folder's passes wait for it, "Folder not
+// found - reconnect the drive", leaving both sides alone).
 
 // addOpenItem adds a folder's Open item, first in its submenu.
 func addOpenItem(mi *systray.MenuItem, f config.FolderStatus) *systray.MenuItem {

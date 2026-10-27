@@ -69,6 +69,16 @@ func DeskMainCannotWatch(detail string) Msg {
 	return Msg{Key: "desk.main.cannot_watch", Args: map[string]any{"detail": detail}}
 }
 
+// DeskMainChangePassword is desk.main.change_password: "Change Password…".
+func DeskMainChangePassword() Msg {
+	return Msg{Key: "desk.main.change_password"}
+}
+
+// DeskMainChangePasswordTip is desk.main.change_password_tip: "Enter the device's password again - your folders stay as they are".
+func DeskMainChangePasswordTip() Msg {
+	return Msg{Key: "desk.main.change_password_tip"}
+}
+
 // DeskMainChecking is desk.main.checking: "Checking…".
 func DeskMainChecking() Msg {
 	return Msg{Key: "desk.main.checking"}
@@ -94,9 +104,34 @@ func DeskMainConfigInvalid(detail string) Msg {
 	return Msg{Key: "desk.main.config_invalid", Args: map[string]any{"detail": detail}}
 }
 
+// DeskMainConfigUnreadable is desk.main.config_unreadable: "The settings can't be read".
+func DeskMainConfigUnreadable() Msg {
+	return Msg{Key: "desk.main.config_unreadable"}
+}
+
+// DeskMainConnectConnected is desk.main.connect_connected: "Connected to {device}.".
+func DeskMainConnectConnected(device string) Msg {
+	return Msg{Key: "desk.main.connect_connected", Args: map[string]any{"device": device}}
+}
+
 // DeskMainConnectMenu is desk.main.connect_menu: "Connect to a Device…".
 func DeskMainConnectMenu() Msg {
 	return Msg{Key: "desk.main.connect_menu"}
+}
+
+// DeskMainConnectStillTrying is desk.main.connect_still_trying: "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is c…".
+func DeskMainConnectStillTrying(device string) Msg {
+	return Msg{Key: "desk.main.connect_still_trying", Args: map[string]any{"device": device}}
+}
+
+// DeskMainConnectUnreachable is desk.main.connect_unreachable: "{device} can't be reached right now. otc-sync keeps trying and starts syncing on…".
+func DeskMainConnectUnreachable(device string) Msg {
+	return Msg{Key: "desk.main.connect_unreachable", Args: map[string]any{"device": device}}
+}
+
+// DeskMainConnectWrongPassword is desk.main.connect_wrong_password: "{device} turned the password down.".
+func DeskMainConnectWrongPassword(device string) Msg {
+	return Msg{Key: "desk.main.connect_wrong_password", Args: map[string]any{"device": device}}
 }
 
 // DeskMainConnectedHome is desk.main.connected_home: "Connected over your home network".
@@ -194,9 +229,34 @@ func DeskMainFolderMissing(name string, path string) Msg {
 	return Msg{Key: "desk.main.folder_missing", Args: map[string]any{"name": name, "path": path}}
 }
 
+// DeskMainFolderNotFound is desk.main.folder_not_found: "Folder not found - reconnect the drive".
+func DeskMainFolderNotFound() Msg {
+	return Msg{Key: "desk.main.folder_not_found"}
+}
+
 // DeskMainFolderOffline is desk.main.folder_offline: "Device offline - will resume".
 func DeskMainFolderOffline() Msg {
 	return Msg{Key: "desk.main.folder_offline"}
+}
+
+// DeskMainFolderOverlapHolds is desk.main.folder_overlap_holds: "“{name}” holds “{other}”, which is already synced.".
+func DeskMainFolderOverlapHolds(name string, other string) Msg {
+	return Msg{Key: "desk.main.folder_overlap_holds", Args: map[string]any{"name": name, "other": other}}
+}
+
+// DeskMainFolderOverlapInside is desk.main.folder_overlap_inside: "“{name}” is inside “{other}”, which is already synced.".
+func DeskMainFolderOverlapInside(name string, other string) Msg {
+	return Msg{Key: "desk.main.folder_overlap_inside", Args: map[string]any{"name": name, "other": other}}
+}
+
+// DeskMainFolderOverlapSame is desk.main.folder_overlap_same: "“{name}” is already synced.".
+func DeskMainFolderOverlapSame(name string) Msg {
+	return Msg{Key: "desk.main.folder_overlap_same", Args: map[string]any{"name": name}}
+}
+
+// DeskMainFolderOverlapWhy is desk.main.folder_overlap_why: "A folder can be synced only once: inside another synced folder, or holding one, …".
+func DeskMainFolderOverlapWhy() Msg {
+	return Msg{Key: "desk.main.folder_overlap_why"}
 }
 
 // DeskMainFolderSynced is desk.main.folder_synced: "Synced".
@@ -324,9 +384,34 @@ func DeskMainPercent(percent int) Msg {
 	return Msg{Key: "desk.main.percent", Args: map[string]any{"percent": int64(percent)}}
 }
 
+// DeskMainRemoveMessage is desk.main.remove_message: "The folder is taken out of this app. Its files stay on this computer and on the …".
+func DeskMainRemoveMessage() Msg {
+	return Msg{Key: "desk.main.remove_message"}
+}
+
 // DeskMainRemoveTip is desk.main.remove_tip: "Stop syncing this folder (nothing is deleted)".
 func DeskMainRemoveTip() Msg {
 	return Msg{Key: "desk.main.remove_tip"}
+}
+
+// DeskMainRemoveTitle is desk.main.remove_title: "Stop syncing “{name}”?".
+func DeskMainRemoveTitle(name string) Msg {
+	return Msg{Key: "desk.main.remove_title", Args: map[string]any{"name": name}}
+}
+
+// DeskMainResetSettings is desk.main.reset_settings: "Reset Settings…".
+func DeskMainResetSettings() Msg {
+	return Msg{Key: "desk.main.reset_settings"}
+}
+
+// DeskMainResetSettingsMessage is desk.main.reset_settings_message: "otc-sync can't read its settings:\n\n{detail}\n\nResetting starts over with no devic…".
+func DeskMainResetSettingsMessage(detail string) Msg {
+	return Msg{Key: "desk.main.reset_settings_message", Args: map[string]any{"detail": detail}}
+}
+
+// DeskMainResetSettingsTitle is desk.main.reset_settings_title: "Reset otc-sync's settings?".
+func DeskMainResetSettingsTitle() Msg {
+	return Msg{Key: "desk.main.reset_settings_title"}
 }
 
 // DeskMainRestoredFiles is desk.main.restored_files: "{files} files had disappeared from the device - restored them from this computer…".
@@ -357,6 +442,21 @@ func DeskMainSettingsHintWindows() Msg {
 // DeskMainSettingsTitle is desk.main.settings_title: "Off The Cloud — Settings".
 func DeskMainSettingsTitle() Msg {
 	return Msg{Key: "desk.main.settings_title"}
+}
+
+// DeskMainShowLog is desk.main.show_log: "Show Log".
+func DeskMainShowLog() Msg {
+	return Msg{Key: "desk.main.show_log"}
+}
+
+// DeskMainShowLogFailed is desk.main.show_log_failed: "The log could not be opened:\n\n{detail}\n\nIt is at {path}".
+func DeskMainShowLogFailed(detail string, path string) Msg {
+	return Msg{Key: "desk.main.show_log_failed", Args: map[string]any{"detail": detail, "path": path}}
+}
+
+// DeskMainShowLogTip is desk.main.show_log_tip: "What otc-sync has done, to find out what went wrong".
+func DeskMainShowLogTip() Msg {
+	return Msg{Key: "desk.main.show_log_tip"}
 }
 
 // DeskMainSignatureMalformed is desk.main.signature_malformed: "the signature of {url} is malformed: {detail}".
@@ -399,6 +499,11 @@ func DeskMainStatusTooManyAttempts(seconds int) Msg {
 	return Msg{Key: "desk.main.status_too_many_attempts", Args: map[string]any{"seconds": int64(seconds)}}
 }
 
+// DeskMainStatusWaitingPassword is desk.main.status_waiting_password: "Waiting for the password - unlock the keyring".
+func DeskMainStatusWaitingPassword() Msg {
+	return Msg{Key: "desk.main.status_waiting_password"}
+}
+
 // DeskMainStatusWrongPassword is desk.main.status_wrong_password: "Wrong password".
 func DeskMainStatusWrongPassword() Msg {
 	return Msg{Key: "desk.main.status_wrong_password"}
@@ -434,6 +539,21 @@ func DeskMainStorageUsed(percent int) Msg {
 	return Msg{Key: "desk.main.storage_used", Args: map[string]any{"percent": int64(percent)}}
 }
 
+// DeskMainSwitchDeviceButton is desk.main.switch_device_button: "Disconnect and Connect".
+func DeskMainSwitchDeviceButton() Msg {
+	return Msg{Key: "desk.main.switch_device_button"}
+}
+
+// DeskMainSwitchDeviceMessage is desk.main.switch_device_message: "This computer syncs {count} folders with {current}. Connecting to another device…".
+func DeskMainSwitchDeviceMessage(count int, current string) Msg {
+	return Msg{Key: "desk.main.switch_device_message", Args: map[string]any{"count": int64(count), "current": current}}
+}
+
+// DeskMainSwitchDeviceTitle is desk.main.switch_device_title: "Connect to {device}?".
+func DeskMainSwitchDeviceTitle(device string) Msg {
+	return Msg{Key: "desk.main.switch_device_title", Args: map[string]any{"device": device}}
+}
+
 // DeskMainTitle is desk.main.title: "Off The Cloud — Sync".
 func DeskMainTitle() Msg {
 	return Msg{Key: "desk.main.title"}
@@ -442,6 +562,21 @@ func DeskMainTitle() Msg {
 // DeskMainTrayTip is desk.main.tray_tip: "Off The Cloud — {status}".
 func DeskMainTrayTip(status string) Msg {
 	return Msg{Key: "desk.main.tray_tip", Args: map[string]any{"status": status}}
+}
+
+// DeskMainUnencryptedButton is desk.main.unencrypted_button: "Connect Anyway".
+func DeskMainUnencryptedButton() Msg {
+	return Msg{Key: "desk.main.unencrypted_button"}
+}
+
+// DeskMainUnencryptedMessage is desk.main.unencrypted_message: "{address} is not encrypted: anyone on a network between this computer and the de…".
+func DeskMainUnencryptedMessage(address string) Msg {
+	return Msg{Key: "desk.main.unencrypted_message", Args: map[string]any{"address": address}}
+}
+
+// DeskMainUnencryptedTitle is desk.main.unencrypted_title: "Connect without encryption?".
+func DeskMainUnencryptedTitle() Msg {
+	return Msg{Key: "desk.main.unencrypted_title"}
 }
 
 // DeskMainUpdateAvailable is desk.main.update_available: "Device update {version} available".
@@ -522,4 +657,14 @@ func DeskMainUsedOfTotalTb(used string, total string) Msg {
 // DeskMainUsedTbOfTotalGb is desk.main.used_tb_of_total_gb: "{used} TB of {total} GB".
 func DeskMainUsedTbOfTotalGb(used string, total string) Msg {
 	return Msg{Key: "desk.main.used_tb_of_total_gb", Args: map[string]any{"used": used, "total": total}}
+}
+
+// DeskMainWaitingFor is desk.main.waiting_for: "Waiting for {name}".
+func DeskMainWaitingFor(name string) Msg {
+	return Msg{Key: "desk.main.waiting_for", Args: map[string]any{"name": name}}
+}
+
+// DeskMainWrongPasswordTip is desk.main.wrong_password_tip: "The device turned the password down - click to enter it again".
+func DeskMainWrongPasswordTip() Msg {
+	return Msg{Key: "desk.main.wrong_password_tip"}
 }

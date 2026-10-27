@@ -187,6 +187,11 @@
     "text": "Ouvrir {path} dans le Finder",
     "en": "Open {path} in Finder"
   },
+  "macos.folders.remove_message": {
+    "text": "Le dossier est retiré de cette app. Ses fichiers restent sur ce Mac et sur l’appareil.",
+    "en": "The folder is taken out of this app. Its files stay on this Mac and on the device.",
+    "reviewed": "claude-backtranslation 2026-10-27 #dc618225"
+  },
   "macos.folders.restored_files": {
     "text": "{files} fichiers avaient disparu de l’appareil : ils ont été restaurés depuis ce Mac au lieu d’être supprimés ici",
     "en": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here"
@@ -276,6 +281,22 @@
   "macos.settings.retry": {
     "text": "Réessayer",
     "en": "Retry"
+  },
+  "macos.settings.switch_device_message": {
+    "text": {
+      "one": "Ce Mac synchronise {count} dossier avec l’appareil {current}. Se connecter à un autre appareil le retire d’abord de cette app, pour qu’il ne se mette pas par erreur à se synchroniser avec le nouvel appareil. Ses fichiers restent sur ce Mac et sur {current}.",
+      "other": "Ce Mac synchronise {count} dossiers avec l’appareil {current}. Se connecter à un autre appareil les retire d’abord de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec le nouvel appareil. Leurs fichiers restent sur ce Mac et sur {current}."
+    },
+    "en": {
+      "one": "This Mac syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this Mac and on {current}.",
+      "other": "This Mac syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this Mac and on {current}."
+    },
+    "reviewed": "claude-backtranslation 2026-10-27 #24b43833"
+  },
+  "macos.settings.unencrypted_message": {
+    "text": "L’adresse {address} n’est pas chiffrée : toute personne sur un réseau entre ce Mac et l’appareil pourrait lire vos fichiers et s’emparer de votre mot de passe. N’utilisez une adresse ws:// que pour un appareil de votre réseau domestique, et une adresse wss:// pour tout le reste.",
+    "en": "{address} is not encrypted: anyone on a network between this Mac and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.",
+    "reviewed": "claude-backtranslation 2026-10-27 #f6c206d6"
   },
   "macos.setup.bad_hash": {
     "text": "L’image téléchargée ne correspond pas à sa somme de contrôle signée : elle a donc été supprimée. Réessayez.",

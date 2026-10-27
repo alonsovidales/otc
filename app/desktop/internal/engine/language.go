@@ -98,7 +98,7 @@ func (e *Engine) sendLanguage() {
 }
 
 func (e *Engine) sendLanguageNow(sent string, expected *string, domain string) {
-	resp, err := e.request(func(r *pb.ReqEnvelope) {
+	resp, err := e.requestWithin(smallRequest, func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqSetLanguage{ReqSetLanguage: &pb.SetLanguage{Language: sent, Expected: expected}}
 	})
 	e.mu.Lock()
@@ -282,22 +282,16 @@ func (e *Engine) languageStatusLocked(st *config.State) {
 
 // editConfigOnDisk applies edit to config.json, read again just before so
 // whatever the tray or the command line wrote meanwhile stays, and saves
-// it when edit says it changed something. A read or a write that races
-// another process's rename-over (Windows) is tried again.
+// it when edit says it changed something - under the lock every process's
+// edits take (config.Edit). A write that races another process's
+// rename-over (Windows) is tried again.
 func editConfigOnDisk(edit func(*config.Config) bool) error {
 	var err error
 	for try := 0; try < 3; try++ {
 		if try > 0 {
 			time.Sleep(50 * time.Millisecond)
 		}
-		var cfg *config.Config
-		if cfg, err = config.Load(); err != nil {
-			continue
-		}
-		if !edit(cfg) {
-			return nil
-		}
-		if err = saveConfig(cfg); err == nil {
+		if _, err = config.EditSaving(func(c *config.Config) (bool, error) { return edit(c), nil }, saveConfig); err == nil {
 			return nil
 		}
 	}

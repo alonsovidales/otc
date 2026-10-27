@@ -424,7 +424,12 @@ struct SetupWizardView: View {
     @MainActor
     static func switchDevice(to domain: String) -> Bool {
         let settings = SettingsStore.shared
-        guard settings.ready, settings.domain != domain else { return true }
+        let sync = SyncModel.shared
+        // Asked whenever folders would otherwise go over to the new device:
+        // also with the old one's password gone (not "ready"), which used to
+        // let its folders sync with, or delete on, the new one.
+        let hasFolders = !sync.folders.isEmpty || !sync.remoteFolders.isEmpty
+        guard !settings.domain.isEmpty, !SyncPaths.sameDevice(settings.domain, domain), settings.ready || hasFolders else { return true }
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = S.macosSetupSwitchTitle

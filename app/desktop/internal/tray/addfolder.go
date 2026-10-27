@@ -12,6 +12,7 @@ import (
 	"github.com/ncruces/zenity"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
+	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/i18n"
 )
 
@@ -272,17 +273,17 @@ func (u *ui) addLocalFolder(k folderKind, chosen map[addOption]bool) {
 	if err != nil || dir == "" {
 		return
 	}
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	// A two-way folder from here is made two-way by the engine
-	// (migrateFolders), its requests with it.
-	cfg.Folders = append(cfg.Folders, newLocalFolder(dir, k, chosen))
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
-	}
-	Refresh()
+	u.edit(func(cfg *config.Config) (bool, error) {
+		// A folder is synced once - here and on the device.
+		if o := cfg.FolderOverlap(dir, engine.DevicePathFor(dir), engine.DevicePathFor); o != nil {
+			return false, o
+		}
+		// A two-way folder from here is made two-way by the engine
+		// (migrateFolders), its requests with it.
+		cfg.Folders = append(cfg.Folders, newLocalFolder(dir, k, chosen))
+
+		return true, nil
+	})
 }
 
 // newLocalFolder is the config entry for dir: a backup is one way (and

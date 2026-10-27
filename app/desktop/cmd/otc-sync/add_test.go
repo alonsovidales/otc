@@ -77,3 +77,34 @@ func TestUploadOnlyLabels(t *testing.T) {
 		t.Fatalf("unsupported: %q", got)
 	}
 }
+
+// Another device while folders are synced is refused - the folders
+// would start syncing with, or deleting on, the other one; Disconnect
+// first. The same device spelled another way, or a password alone, is
+// fine. An unencrypted address for a device elsewhere needs
+// --allow-unencrypted.
+func TestCheckNewDevice(t *testing.T) {
+	withFolders := &config.Config{Domain: "cala.off-the.cloud", RemoteFolders: []config.RemoteFolder{{ID: "r1", RemotePath: "/x", LocalPath: "/home/a/x"}}}
+	for _, tc := range []struct {
+		cfg      *config.Config
+		domain   string
+		insecure bool
+		ok       bool
+	}{
+		{withFolders, "pit.off-the.cloud", false, false},
+		{withFolders, "wss://cala.off-the.cloud/ws", false, true},
+		{withFolders, "Cala.off-the.cloud", false, true},
+		{&config.Config{Domain: "cala.off-the.cloud"}, "pit.off-the.cloud", false, true},
+		{&config.Config{}, "ws://203.0.113.7:8080/ws", false, false},
+		{&config.Config{}, "ws://203.0.113.7:8080/ws", true, true},
+		{&config.Config{}, "ws://192.168.1.10:8080/ws", false, true},
+	} {
+		err := checkNewDevice(tc.cfg, tc.domain, tc.insecure)
+		if (err == nil) != tc.ok {
+			t.Errorf("%q from %q (insecure %v): %v", tc.domain, tc.cfg.Domain, tc.insecure, err)
+		}
+		if err != nil && !tc.insecure && len(tc.cfg.RemoteFolders) > 0 && !strings.Contains(err.Error(), "otc-sync disconnect") {
+			t.Errorf("the refusal doesn't say how: %v", err)
+		}
+	}
+}

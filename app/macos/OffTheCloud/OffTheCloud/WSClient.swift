@@ -71,6 +71,29 @@ final class WSClient {
     // later pass of that folder, until the app is relaunched.
     private let requestTimeout: TimeInterval = 30 * 60
     private var isOpen = false
+
+    // The client's own keep-alive, as otc-sync's wsclient: a
+    // ping every pingEvery, and a connection that has received nothing - no
+    // answer, no pong - for deadAfter while nothing is being sent is taken
+    // for dead and dialled again. One that died without a word (the Mac
+    // asleep, the Wi-Fi changed, a router that forgot it) used to look
+    // alive until TCP gave up, or a request's own timeout ran out - half an
+    // hour. While a message is being sent its pong can't come back before
+    // it is out, so a send in progress holds the watchdog off.
+    private static let pingEvery: TimeInterval = 20
+    private static let deadAfter: TimeInterval = 45
+    /// When something last came in on the current socket, or a send ended.
+    private var lastSeen = Date()
+    /// Sends under way on the current socket: when each started and by when
+    /// it must be out (sendTimeout) - a send that isn't is a dead link, as
+    /// otc-sync's write deadline.
+    private var sending: [Int32: Date] = [:]
+
+    /// How long sending `bytes` may take: half a minute, and as long again
+    /// as the bytes take at 32 KiB/s. As otc-sync's writeTimeout.
+    private static func sendTimeout(_ bytes: Int) -> TimeInterval { 30 + Double(bytes) / Double(32 << 10) }
+    private var keepAliveTimer: DispatchSourceTimer?
+    private var lastPing = Date()
     /// The device accepted the password on this socket. isConnected() is
     /// both: a socket that's open but still signing in used to count as
     /// connected, so a folder's first ListFiles raced the Auth, got "not
@@ -174,6 +197,12 @@ final class WSClient {
 
     /// A home endpoint is stored for the configured address.
     var hasLocalEndpoint: Bool { queue.sync { local != nil } }
+
+    /// The certificate pin of the home endpoint held for the configured
+    /// device, nil when there is none: the device's own identity (it keeps
+    /// the certificate on its storage), which sync records are bound to
+    /// (SyncPaths.RecordDevice).
+    var localPin: Data? { queue.sync { local?.pin } }
 
     /// Whether the device answers on the home network right now, pinned as
     /// always, without touching the current connection: a WebSocket that
@@ -347,8 +376,48 @@ final class WSClient {
         // resetting on every socket would retry each second.
         isOpen = true
         signedIn = false
+        lastSeen = Date()
+        sending = [:]
+        startKeepAlive(conn)
         receiveLoop()
         authenticateThenAnnounce()
+    }
+
+    /// The keep-alive of `conn` (see pingEvery): on the queue, once a
+    /// second; it ends when `conn` is no longer the current socket.
+    private func startKeepAlive(_ conn: NWConnection) {
+        keepAliveTimer?.cancel()
+        lastPing = Date()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            guard self.conn === conn, self.isOpen else {
+                timer.cancel()
+                return
+            }
+            if Date().timeIntervalSince(self.lastPing) >= Self.pingEvery {
+                self.lastPing = Date()
+                let meta = NWProtocolWebSocket.Metadata(opcode: .ping)
+                meta.setPongHandler(self.queue) { [weak self] error in
+                    guard let self, error == nil, self.conn === conn else { return }
+                    self.lastSeen = Date()
+                }
+                let ctx = NWConnection.ContentContext(identifier: "ping", metadata: [meta])
+                conn.send(content: nil, contentContext: ctx, isComplete: true, completion: .idempotent)
+            }
+            let quiet = Date().timeIntervalSince(self.lastSeen)
+            let stuck = self.sending.values.contains { $0 < Date() }
+            if (self.sending.isEmpty && quiet > Self.deadAfter) || stuck {
+                print("WSClient: no answer from the device for \(Int(quiet))s - connecting again")
+                timer.cancel()
+                // Its .cancelled reconnects, as for any drop.
+                self.isOpen = false; self.signedIn = false
+                conn.cancel()
+            }
+        }
+        keepAliveTimer = timer
+        timer.resume()
     }
 
     /// Manual stop. Also disables auto-reconnect (call `enableAutoReconnect()` to re-enable).
@@ -372,6 +441,13 @@ final class WSClient {
     /// Send a request built by `build` and await response (matched by `id`).
     func request(_ build: @escaping (inout Req) -> Void) async throws -> Resp {
         try await request(on: nil, build)
+    }
+
+    /// request, waiting at most `timeout` for the answer: a device that took
+    /// a small request and never answered it held a folder's pass for the
+    /// 30-minute bound (the keep-alive finds a dead connection sooner).
+    func request(timeout: TimeInterval, _ build: @escaping (inout Req) -> Void) async throws -> Resp {
+        try await request(on: nil, timeout: timeout, build)
     }
 
     /// `expected`, when given, is the socket the request belongs to: once
@@ -405,7 +481,12 @@ final class WSClient {
                     let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
                     let ctx = NWConnection.ContentContext(identifier: "req\(req.id)", metadata: [meta])
 
+                    self.sending[req.id] = Date().addingTimeInterval(Self.sendTimeout(bytes.count))
                     conn.send(content: bytes, contentContext: ctx, isComplete: true, completion: .contentProcessed { sendErr in
+                        if self.conn === conn {
+                            self.sending.removeValue(forKey: req.id)
+                            self.lastSeen = Date()
+                        }
                         if let sendErr = sendErr {
                             if let c = self.waiters.removeValue(forKey: req.id) {
                                 c.resume(throwing: sendErr)
@@ -502,6 +583,7 @@ final class WSClient {
 
             if let data = data, !data.isEmpty {
                 self.partial.append(data)
+                self.lastSeen = Date()
             }
             if isComplete && !self.partial.isEmpty {
                 let whole = self.partial

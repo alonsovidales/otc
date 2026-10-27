@@ -87,6 +87,16 @@ extension S {
         L("desk.main.cannot_watch", table: "DeskMain", detail)
     }
 
+    /// Change Password…
+    ///
+    /// Both apps: the Mac's button in Settings and otc-sync's tray menu item that ask for the device's password again - after it was changed, or a wrong one - keeping the device and every folder. Title Case.
+    static var deskMainChangePassword: String { L("desk.main.change_password", table: "DeskMain") }
+
+    /// Enter the device's password again - your folders stay as they are
+    ///
+    /// otc-sync: tooltip of the tray's Change Password… item (desk.main.change_password).
+    static var deskMainChangePasswordTip: String { L("desk.main.change_password_tip", table: "DeskMain") }
+
     /// Checking…
     ///
     /// Both apps: a folder's state while the app compares it with the device, before it knows which file it is on.
@@ -118,10 +128,43 @@ extension S {
         L("desk.main.config_invalid", table: "DeskMain", detail)
     }
 
+    /// The settings can't be read
+    ///
+    /// otc-sync: the tray menu's line, after a warning sign, when otc-sync can't read its settings file; Reset Settings… is under it.
+    static var deskMainConfigUnreadable: String { L("desk.main.config_unreadable", table: "DeskMain") }
+
+    /// Connected to {device}.
+    ///
+    /// otc-sync: dialog after Connect to a Device…, once the device accepted the password. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainConnectConnected(device: String) -> String {
+        L("desk.main.connect_connected", table: "DeskMain", device)
+    }
+
     /// Connect to a Device…
     ///
     /// otc-sync: tray menu item shown while no device is set; opens the dialogs that ask for the device and its password. Title Case.
     static var deskMainConnectMenu: String { L("desk.main.connect_menu", table: "DeskMain") }
+
+    /// Still connecting to {device}. otc-sync keeps trying; the menu shows when it is connected.
+    ///
+    /// otc-sync: dialog after Connect to a Device… when there is no answer yet after a while. {device} is the device's address (for example cala.off-the.cloud). otc-sync is the program's name, never translated.
+    static func deskMainConnectStillTrying(device: String) -> String {
+        L("desk.main.connect_still_trying", table: "DeskMain", device)
+    }
+
+    /// {device} can't be reached right now. otc-sync keeps trying and starts syncing once it answers.
+    ///
+    /// otc-sync: dialog after Connect to a Device…, when the device is offline or doesn't answer. {device} is the device's address (for example cala.off-the.cloud). otc-sync is the program's name, never translated.
+    static func deskMainConnectUnreachable(device: String) -> String {
+        L("desk.main.connect_unreachable", table: "DeskMain", device)
+    }
+
+    /// {device} turned the password down.
+    ///
+    /// otc-sync: error dialog after Connect to a Device… or Change Password…, when the device refused the password; its buttons are Try Again and Cancel. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainConnectWrongPassword(device: String) -> String {
+        L("desk.main.connect_wrong_password", table: "DeskMain", device)
+    }
 
     /// Connected over your home network
     ///
@@ -235,10 +278,41 @@ extension S {
         L("desk.main.folder_missing", table: "DeskMain", L10n.isolate(name), L10n.isolate(path))
     }
 
+    /// Folder not found - reconnect the drive
+    ///
+    /// Both apps: a folder's state when its folder on this computer isn't there - a disk unplugged, a network share not mounted, the folder moved or renamed. The app waits, changes nothing on either side, and carries on by itself once the folder is back. Shown after a warning sign.
+    static var deskMainFolderNotFound: String { L("desk.main.folder_not_found", table: "DeskMain") }
+
     /// Device offline - will resume
     ///
     /// Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.
     static var deskMainFolderOffline: String { L("desk.main.folder_offline", table: "DeskMain") }
+
+    /// “{name}” holds “{other}”, which is already synced.
+    ///
+    /// Both apps: why a folder being added was refused - a folder the app already syncs is inside it (on this computer or on the device). {name} is the folder being added, {other} the folder already synced inside it. Followed by desk.main.folder_overlap_why.
+    static func deskMainFolderOverlapHolds(name: String, other: String) -> String {
+        L("desk.main.folder_overlap_holds", table: "DeskMain", L10n.isolate(name), L10n.isolate(other))
+    }
+
+    /// “{name}” is inside “{other}”, which is already synced.
+    ///
+    /// Both apps: why a folder being added was refused - it is inside a folder the app already syncs (on this computer or on the device). {name} is the folder being added, {other} the folder already synced. Followed by desk.main.folder_overlap_why.
+    static func deskMainFolderOverlapInside(name: String, other: String) -> String {
+        L("desk.main.folder_overlap_inside", table: "DeskMain", L10n.isolate(name), L10n.isolate(other))
+    }
+
+    /// “{name}” is already synced.
+    ///
+    /// Both apps: why a folder being added was refused - it is already in the app. {name} is the folder's name. Shown with desk.main.folder_overlap_why after it (the Mac: under the folder list; otc-sync: an error dialog).
+    static func deskMainFolderOverlapSame(name: String) -> String {
+        L("desk.main.folder_overlap_same", table: "DeskMain", L10n.isolate(name))
+    }
+
+    /// A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes.
+    ///
+    /// Both apps: the explanation after desk.main.folder_overlap_same, _inside or _holds, when a folder being added is refused.
+    static var deskMainFolderOverlapWhy: String { L("desk.main.folder_overlap_why", table: "DeskMain") }
 
     /// Synced
     ///
@@ -391,10 +465,43 @@ extension S {
         L("desk.main.percent", table: "DeskMain", percent)
     }
 
+    /// The folder is taken out of this app. Its files stay on this computer and on the device.
+    ///
+    /// otc-sync: the text of the dialog before a folder is removed from the app (desk.main.remove_title). The Mac's says “this Mac” (macos.folders.remove_message).
+    static var deskMainRemoveMessage: String { L("desk.main.remove_message", table: "DeskMain") }
+
     /// Stop syncing this folder (nothing is deleted)
     ///
     /// otc-sync: tooltip of Remove in a folder's submenu of the tray menu.
     static var deskMainRemoveTip: String { L("desk.main.remove_tip", table: "DeskMain") }
+
+    /// Stop syncing “{name}”?
+    ///
+    /// Both apps: the question before a folder is removed from the app (the Mac: inside its row; otc-sync: a dialog). {name} is the folder's name. Nothing is deleted.
+    static func deskMainRemoveTitle(name: String) -> String {
+        L("desk.main.remove_title", table: "DeskMain", L10n.isolate(name))
+    }
+
+    /// Reset Settings…
+    ///
+    /// otc-sync: tray menu item, shown only while the settings file can't be read, that asks before starting over with no device and no folders. Title Case.
+    static var deskMainResetSettings: String { L("desk.main.reset_settings", table: "DeskMain") }
+
+    /// otc-sync can't read its settings:
+    ///
+    /// {detail}
+    ///
+    /// Resetting starts over with no device and no folders. The unreadable file is kept next to the new one, and no file is deleted, on this computer or on the device.
+    ///
+    /// otc-sync: the text of the question titled desk.main.reset_settings_title. {detail} is why the file can't be read, in English. otc-sync is the program's name, never translated. Keep the blank lines.
+    static func deskMainResetSettingsMessage(detail: String) -> String {
+        L("desk.main.reset_settings_message", table: "DeskMain", detail)
+    }
+
+    /// Reset otc-sync's settings?
+    ///
+    /// otc-sync: title of the question before Reset Settings… starts over. otc-sync is the program's name, never translated.
+    static var deskMainResetSettingsTitle: String { L("desk.main.reset_settings_title", table: "DeskMain") }
 
     /// {files} files had disappeared from the device - restored them from this computer instead of deleting them here
     ///
@@ -427,6 +534,27 @@ extension S {
     ///
     /// otc-sync: title of the dialog that asks which device to connect to.
     static var deskMainSettingsTitle: String { L("desk.main.settings_title", table: "DeskMain") }
+
+    /// Show Log
+    ///
+    /// otc-sync: tray menu item that opens otc-sync's log file, what it has done, to find out what went wrong. Title Case.
+    static var deskMainShowLog: String { L("desk.main.show_log", table: "DeskMain") }
+
+    /// The log could not be opened:
+    ///
+    /// {detail}
+    ///
+    /// It is at {path}
+    ///
+    /// otc-sync: error dialog when Show Log can't open the log file. {detail} is the system's own reason, in English; {path} is the file's full path, for the user to open by hand. Keep the blank lines.
+    static func deskMainShowLogFailed(detail: String, path: String) -> String {
+        L("desk.main.show_log_failed", table: "DeskMain", detail, L10n.isolate(path))
+    }
+
+    /// What otc-sync has done, to find out what went wrong
+    ///
+    /// otc-sync: tooltip of the tray's Show Log item (desk.main.show_log). otc-sync is the program's name, never translated.
+    static var deskMainShowLogTip: String { L("desk.main.show_log_tip", table: "DeskMain") }
 
     /// the signature of {url} is malformed: {detail}
     ///
@@ -472,6 +600,11 @@ extension S {
         L("desk.main.status_too_many_attempts", table: "DeskMain", seconds)
     }
 
+    /// Waiting for the password - unlock the keyring
+    ///
+    /// otc-sync: connection status while a device is set but its password can't be read yet - the system's keyring is locked, as it is at boot before anyone logs in. The service tries again every half a minute.
+    static var deskMainStatusWaitingPassword: String { L("desk.main.status_waiting_password", table: "DeskMain") }
+
     /// Wrong password
     ///
     /// Both apps: connection status when the device refused the password; the app stops trying until the password is changed or Retry is pressed.
@@ -511,6 +644,26 @@ extension S {
         L("desk.main.storage_used", table: "DeskMain", percent)
     }
 
+    /// Disconnect and Connect
+    ///
+    /// Both apps: the button of the warning titled desk.main.switch_device_title, which removes every folder from the app and connects to the new device. Title Case.
+    static var deskMainSwitchDeviceButton: String { L("desk.main.switch_device_button", table: "DeskMain") }
+
+    /// one: This computer syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this computer and on {current}.
+    /// other: This computer syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this computer and on {current}.
+    ///
+    /// otc-sync: the text of the warning titled desk.main.switch_device_title. {count} is how many folders are synced; {current} is the address of the device they sync with now. Nothing is deleted. The Mac's says “this Mac” (macos.settings.switch_device_message).
+    static func deskMainSwitchDeviceMessage(count: Int, current: String) -> String {
+        L("desk.main.switch_device_message", table: "DeskMain", count, current)
+    }
+
+    /// Connect to {device}?
+    ///
+    /// Both apps: title of the warning shown when another device is entered while folders are synced with the one set up (the Mac: inside Settings; otc-sync: a dialog). {device} is the new device's address (for example cala.off-the.cloud).
+    static func deskMainSwitchDeviceTitle(device: String) -> String {
+        L("desk.main.switch_device_title", table: "DeskMain", device)
+    }
+
     /// Off The Cloud — Sync
     ///
     /// Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. "Off The Cloud" is the product name; "Sync" names this app, the sync client.
@@ -522,6 +675,23 @@ extension S {
     static func deskMainTrayTip(status: String) -> String {
         L("desk.main.tray_tip", table: "DeskMain", status)
     }
+
+    /// Connect Anyway
+    ///
+    /// Both apps: the button of the warning titled desk.main.unencrypted_title that uses the unencrypted address all the same. Title Case.
+    static var deskMainUnencryptedButton: String { L("desk.main.unencrypted_button", table: "DeskMain") }
+
+    /// {address} is not encrypted: anyone on a network between this computer and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.
+    ///
+    /// otc-sync: the text of the warning titled desk.main.unencrypted_title. {address} is the address entered (it starts with ws://). Keep ws:// and wss:// as they are. The Mac's says “this Mac” (macos.settings.unencrypted_message).
+    static func deskMainUnencryptedMessage(address: String) -> String {
+        L("desk.main.unencrypted_message", table: "DeskMain", address)
+    }
+
+    /// Connect without encryption?
+    ///
+    /// Both apps: title of the warning shown when a ws:// address (not encrypted) is entered for a device that isn't on this network (the Mac: inside Settings; otc-sync: a dialog).
+    static var deskMainUnencryptedTitle: String { L("desk.main.unencrypted_title", table: "DeskMain") }
 
     /// Device update {version} available
     ///
@@ -622,4 +792,16 @@ extension S {
     static func deskMainUsedTbOfTotalGb(used: String, total: String) -> String {
         L("desk.main.used_tb_of_total_gb", table: "DeskMain", used, total)
     }
+
+    /// Waiting for {name}
+    ///
+    /// Both apps: a folder's state while its sync waits for another folder's to finish (a few folders sync at a time). {name} is the name of the folder it waits for.
+    static func deskMainWaitingFor(name: String) -> String {
+        L("desk.main.waiting_for", table: "DeskMain", L10n.isolate(name))
+    }
+
+    /// The device turned the password down - click to enter it again
+    ///
+    /// otc-sync: tooltip of the tray's status line while it says Wrong password; clicking it asks for the password (desk.main.change_password).
+    static var deskMainWrongPasswordTip: String { L("desk.main.wrong_password_tip", table: "DeskMain") }
 }

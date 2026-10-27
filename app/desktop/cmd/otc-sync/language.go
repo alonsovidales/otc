@@ -49,10 +49,18 @@ func runLanguage(args []string, out io.Writer, now time.Time) error {
 		if st != nil {
 			device = st.DeviceLanguage
 		}
-		cfg.SetLanguage(code, device, now)
-		if err := cfg.Save(); err != nil {
+		saved, err := config.Edit(func(c *config.Config) (bool, error) {
+			if c.Language == code {
+				return false, nil
+			}
+			c.SetLanguage(code, device, now)
+
+			return true, nil
+		})
+		if err != nil {
 			return err
 		}
+		cfg = saved
 	}
 	fmt.Fprint(out, languageReport(cfg, st))
 

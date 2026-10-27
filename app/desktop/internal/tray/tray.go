@@ -75,10 +75,20 @@ type Controller interface {
 	Snapshot() config.State
 	// Config is for display: empty when config.json can't be read.
 	Config() *config.Config
-	// LoadConfig is for an edit that is saved back: it fails rather than
-	// hand over an empty config to save over the real one.
+	// LoadConfig is config.json for a dialog that changes it: it fails
+	// rather than hand over an empty config.
 	LoadConfig() (*config.Config, error)
-	SaveConfig(*config.Config) error
+	// EditConfig changes config.json - read again just before, under the
+	// lock every otc-sync process's edits take (config.Edit) - and applies
+	// it; edit says whether it changed anything. Never between dialogs: the
+	// lock is held while edit runs.
+	EditConfig(edit func(*config.Config) (bool, error)) error
+	// ConfigError is why config.json couldn't be read at start (nil when it
+	// could); ResetSettings puts it aside and starts over with none.
+	ConfigError() error
+	ResetSettings() error
+	// LogPath is otc-sync's log file (Show Log).
+	LogPath() string
 	Password() string
 	SetPassword(string) error
 	// RemoteBrowser lists device folders for one use of the remote folder
@@ -126,7 +136,11 @@ type ui struct {
 	add       *systray.MenuItem
 	explain   *systray.MenuItem
 	settings  *systray.MenuItem
+	changePw  *systray.MenuItem // The password again, folders kept
 	autost    *systray.MenuItem
+	showLog   *systray.MenuItem // Otc-sync's log
+	cfgErr    *systray.MenuItem // Config.json can't be read
+	reset     *systray.MenuItem // and Reset Settings… under it
 	language  *languageMenu // nil while only English ships (language.go)
 	quit      *systray.MenuItem
 	lastIcon  string
@@ -173,7 +187,11 @@ func (u *ui) onReady() {
 	u.build(nil)
 	u.apply()
 	go u.watchUpdates()
-	if !u.configured() { // nothing set up yet: the settings come first
+	switch {
+	case u.c.ConfigError() != nil:
+		// config.json can't be read: said at once, with the way out.
+		go u.resetSettings()
+	case !u.configured(): // nothing set up yet: the settings come first
 		go u.settingsDialog()
 	}
 	go func() {
@@ -333,6 +351,13 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.appUpdate = addMenuItem("", "")
 	u.appUpdate.Hide()
 	u.title.Disable()
+	// Config.json unreadable - said at the top, with the way out.
+	u.cfgErr = addMenuItem("⚠ "+i18n.DeskMainConfigUnreadable().Render(l), "")
+	u.cfgErr.Disable()
+	u.cfgErr.Hide()
+	u.reset = addMenuItem(i18n.DeskMainResetSettings().Render(l), "")
+	u.reset.Hide()
+	u.hidden(u.cfgErr, u.reset)
 	u.status = addMenuItem(i18n.DeskMainStatusNotConnected().Render(l), "")
 	u.status.Disable()
 	// Enabled, unlike the other status lines, or its submenu - the
@@ -383,8 +408,12 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.explain = addMenuItem(i18n.DeskMainExplain().Render(l), i18n.DeskMainExplainTip().Render(l))
 	// Connected: the device and Disconnect; not: the device and password.
 	u.settings = addMenuItem(u.settingsTitle(), "")
+	u.changePw = addMenuItem(i18n.DeskMainChangePassword().Render(l), i18n.DeskMainChangePasswordTip().Render(l))
+	u.changePw.Hide()
+	u.hidden(u.changePw)
 	u.autost = addMenuItemCheckbox(autostartToggle(l), autostartToggleTip(l), u.c.AutostartEnabled())
 	u.language = addLanguageMenu(u.c.Config())
+	u.showLog = addMenuItem(i18n.DeskMainShowLog().Render(l), i18n.DeskMainShowLogTip().Render(l))
 	systray.AddSeparator()
 	u.setup = addMenuItem(i18n.DeskMainSetUpDevice().Render(l), i18n.DeskMainSetUpDeviceTip().Render(l))
 	systray.AddSeparator()
@@ -395,11 +424,21 @@ func (u *ui) build(folders []config.FolderStatus) {
 	items := u.folders
 	add, settings, autost, quit := u.add, u.settings, u.autost, u.quit
 	explain, appUpdate, setup, web := u.explain, u.appUpdate, u.setup, u.web
+	changePw, showLog, reset, status := u.changePw, u.showLog, u.reset, u.status
 	go func() {
 		for {
 			select {
 			case <-stop:
 				return
+			case <-status.ClickedCh:
+				// Enabled only while it says Wrong password.
+				go u.changePassword()
+			case <-changePw.ClickedCh:
+				go u.changePassword()
+			case <-showLog.ClickedCh:
+				go u.openLog()
+			case <-reset.ClickedCh:
+				go u.resetSettings()
 			case <-appUpdate.ClickedCh:
 				go u.installUpdate()
 			case <-web.ClickedCh:
@@ -439,7 +478,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 				case <-fi.open.ClickedCh:
 					go u.openFolder(fi)
 				case <-fi.remove.ClickedCh:
-					u.removeFolder(fi)
+					go u.removeFolder(fi)
 				case <-fi.images.ClickedCh:
 					go u.toggleImages(fi)
 				}
@@ -479,8 +518,27 @@ func (u *ui) apply() {
 	// bridge - in the line that says it is.
 	line := engine.StatusText(l, st, cfg.Domain)
 	u.setTitle(u.status, statusDot(st.Status)+" "+line)
+	// "Wrong password" is a way to enter it again.
+	wrong := st.Status == engine.StatusWrongPassword
+	u.setEnabled(u.status, wrong)
+	if wrong {
+		u.setTip(u.status, i18n.DeskMainWrongPasswordTip().Render(l))
+	} else {
+		u.setTip(u.status, "")
+	}
 	configured := cfg.Domain != "" && u.c.Password() != ""
 	u.setTitle(u.settings, settingsTitleFor(cfg, configured))
+	// A device is set - the password again, keeping every folder.
+	u.setShown(u.changePw, cfg.Domain != "")
+	// Config.json unreadable at start, until it is reset.
+	if err := u.c.ConfigError(); err != nil {
+		u.setTip(u.cfgErr, errorText(l, err))
+		u.setShown(u.cfgErr, true)
+		u.setShown(u.reset, true)
+	} else {
+		u.setShown(u.cfgErr, false)
+		u.setShown(u.reset, false)
+	}
 	if addr := config.WebURL(cfg.Domain); configured && addr != "" {
 		u.setTip(u.web, i18n.DeskMainOpenWebAppTip(addr).Render(l))
 		u.setShown(u.web, true)
@@ -550,6 +608,12 @@ func (u *ui) applyTexts(l string) {
 	u.setTip(u.autost, autostartToggleTip(l))
 	u.setTitle(u.setup, i18n.DeskMainSetUpDevice().Render(l))
 	u.setTip(u.setup, i18n.DeskMainSetUpDeviceTip().Render(l))
+	u.setTitle(u.changePw, i18n.DeskMainChangePassword().Render(l))
+	u.setTip(u.changePw, i18n.DeskMainChangePasswordTip().Render(l))
+	u.setTitle(u.showLog, i18n.DeskMainShowLog().Render(l))
+	u.setTip(u.showLog, i18n.DeskMainShowLogTip().Render(l))
+	u.setTitle(u.cfgErr, "⚠ "+i18n.DeskMainConfigUnreadable().Render(l))
+	u.setTitle(u.reset, i18n.DeskMainResetSettings().Render(l))
 	u.setTitle(u.quit, i18n.CommonQuit().Render(l))
 	for _, fi := range u.folders {
 		u.setTitle(fi.remove, i18n.CommonRemove().Render(l))
@@ -608,8 +672,8 @@ func progressText(lang string, progress float64, file string) string {
 	return i18n.DeskMainPercent(int(progress*100)).Render(lang) + " · " + file
 }
 
-// editConfig is config.json for an edit, or nil - and the reason shown -
-// when it can't be read, so nothing is saved over it.
+// editConfig is config.json for a dialog about to change it, or nil -
+// and the reason shown - when it can't be read: nothing is saved over it.
 func (u *ui) editConfig() *config.Config {
 	cfg, err := u.c.LoadConfig()
 	if err != nil {
@@ -621,32 +685,70 @@ func (u *ui) editConfig() *config.Config {
 	return cfg
 }
 
-func (u *ui) removeFolder(fi *folderItem) {
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	if fi.remote {
-		kept := cfg.RemoteFolders[:0:0]
-		for _, f := range cfg.RemoteFolders {
-			if f.ID != fi.id {
-				kept = append(kept, f)
-			}
+// edit is EditConfig, the failure shown.
+func (u *ui) edit(change func(*config.Config) (bool, error)) bool {
+	if err := u.c.EditConfig(change); err != nil {
+		var o *config.Overlap
+		if errors.As(err, &o) {
+			showOverlap(o)
+		} else {
+			_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 		}
-		cfg.RemoteFolders = kept
-	} else {
-		kept := cfg.Folders[:0:0]
-		for _, f := range cfg.Folders {
-			if f.ID != fi.id {
-				kept = append(kept, f)
-			}
-		}
-		cfg.Folders = kept
-	}
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
+
+		return false
 	}
 	Refresh()
+
+	return true
+}
+
+// showOverlap says why a folder can't be added: it is synced
+// already, inside one that is, or holds one - and that a folder is synced
+// only once.
+func showOverlap(o *config.Overlap) {
+	l := lang()
+	reason, why := o.Msg()
+	_ = dlgError(reason.Render(l)+"\n\n"+why.Render(l), dlgTitle("Off The Cloud"))
+}
+
+// removeFolder takes a folder out of the app, once asked: its files
+// stay where they are, here and on the device.
+func (u *ui) removeFolder(fi *folderItem) {
+	name := fi.id
+	if f, ok := findFolder(u.c.Snapshot(), fi.id); ok {
+		name = filepath.Base(f.Path)
+	}
+	l := lang()
+	if dlgQuestion(i18n.DeskMainRemoveMessage().Render(l), dlgTitle(i18n.DeskMainRemoveTitle(name).Render(l)),
+		dlgOK(i18n.CommonRemove().Render(l)), dlgCancel(i18n.CommonCancel().Render(l))) != nil {
+		return
+	}
+	u.edit(func(cfg *config.Config) (bool, error) {
+		removed := false
+		if fi.remote {
+			kept := cfg.RemoteFolders[:0:0]
+			for _, f := range cfg.RemoteFolders {
+				if f.ID != fi.id {
+					kept = append(kept, f)
+				} else {
+					removed = true
+				}
+			}
+			cfg.RemoteFolders = kept
+		} else {
+			kept := cfg.Folders[:0:0]
+			for _, f := range cfg.Folders {
+				if f.ID != fi.id {
+					kept = append(kept, f)
+				} else {
+					removed = true
+				}
+			}
+			cfg.Folders = kept
+		}
+
+		return removed, nil
+	})
 }
 
 // explainKinds is the tray's (i): the macOS chooser's three explanations.
@@ -688,15 +790,15 @@ func (u *ui) addRemote() {
 	if err != nil || dir == "" {
 		return
 	}
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
-	}
-	Refresh()
+	u.edit(func(cfg *config.Config) (bool, error) {
+		// A folder is synced once - here and on the device.
+		if o := cfg.FolderOverlap(dir, remote, engine.DevicePathFor); o != nil {
+			return false, o
+		}
+		cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
+
+		return true, nil
+	})
 }
 
 func baseName(p string) string {
@@ -719,9 +821,10 @@ func parentPath(p string) string {
 }
 
 // settings is SettingsInlineView: the device by name (issue #121) or any
-// address, then the password.
+// address, then the password. Then it waits to say whether that worked
+//.
 func (u *ui) settingsDialog() {
-	// Before the password is asked for: it is saved only with this config.
+	// For the dialog: the device set now, if any.
 	cfg := u.editConfig()
 	if cfg == nil {
 		return
@@ -742,11 +845,28 @@ func (u *ui) settingsDialog() {
 	if entered == "" {
 		return
 	}
-	oldDomain := cfg.Domain
+	domain := config.BridgeDomainForName(entered)
 	if strings.Contains(entered, "://") || strings.Contains(entered, ".") {
-		cfg.Domain = entered
-	} else {
-		cfg.Domain = config.BridgeDomainForName(entered)
+		domain = entered
+	}
+	// An unencrypted address for a device that isn't on this network.
+	if !engine.SameDevice(cfg.Domain, domain) && config.Unencrypted(domain) {
+		if dlgQuestion(i18n.DeskMainUnencryptedMessage(domain).Render(l), dlgTitle(i18n.DeskMainUnencryptedTitle().Render(l)),
+			dlgOK(i18n.DeskMainUnencryptedButton().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon) != nil {
+			return
+		}
+	}
+	// Another device while folders sync with this one - they would
+	// start syncing with, or deleting on, the other: removed first, once
+	// asked, as Disconnect does.
+	folders := len(cfg.Folders) + len(cfg.RemoteFolders)
+	switching := cfg.Domain != "" && folders > 0 && !engine.SameDevice(cfg.Domain, domain)
+	if switching {
+		if dlgQuestion(i18n.DeskMainSwitchDeviceMessage(folders, deviceLabel(cfg.Domain)).Render(l),
+			dlgTitle(i18n.DeskMainSwitchDeviceTitle(deviceLabel(domain)).Render(l)),
+			dlgOK(i18n.DeskMainSwitchDeviceButton().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon) != nil {
+			return
+		}
 	}
 	// Both halves are asked for before anything is saved, so the engine
 	// reconnects once with the new pair - not once with the new device and
@@ -756,18 +876,10 @@ func (u *ui) settingsDialog() {
 	// while the first dialog was open (at the first start, it opens by
 	// itself).
 	l = lang()
-	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(cfg.Domain).Render(l))
+	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(deviceLabel(domain)).Render(l))
 	if err != nil {
 		return
 	}
-	// config.json as it is now, with the new device: what the tray
-	// changed while the dialogs were open - a language picked in its
-	// Language menu, a change for the device set up now - stays.
-	latest := u.editConfig()
-	if latest == nil {
-		return
-	}
-	latest.Domain = cfg.Domain
 	if pw != "" {
 		if err := u.c.SetPassword(pw); err != nil {
 			_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
@@ -775,13 +887,134 @@ func (u *ui) settingsDialog() {
 			return
 		}
 	}
-	if latest.Domain != oldDomain {
+	oldDomain := cfg.Domain
+	// config.json as it is now, with the new device: what the tray
+	// changed while the dialogs were open - a language picked in its
+	// Language menu, a change for the device set up now - stays.
+	if !u.edit(func(latest *config.Config) (bool, error) {
+		if !engine.SameDevice(latest.Domain, domain) && len(latest.Folders)+len(latest.RemoteFolders) > 0 {
+			if !switching {
+				return false, errFoldersAdded
+			}
+			latest.Folders, latest.RemoteFolders = nil, nil
+		}
+		latest.Domain = domain
+
+		return true, nil
+	}) {
+		return
+	}
+	if !engine.SameDevice(oldDomain, domain) {
 		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
 	}
-	if err := u.c.SaveConfig(latest); err != nil {
+	u.waitForConnection(domain)
+}
+
+// errFoldersAdded: folders were added while the Connect dialogs were open
+// for another device - asked again rather than removed unasked.
+var errFoldersAdded = errors.New("folders were added meanwhile - connect again to be asked about them") // i18n-ignore: a rare race, shown as it is
+
+// connectWait is how long Connect and Change Password wait to say how it
+// went (waitForConnection).
+const connectWait = 30 * time.Second
+
+// waitForConnection says how the new settings went once the sync knows
+//: connected, the password turned down (Try Again asks for it),
+// the device unreachable - or still trying after connectWait. A tray next
+// to the service reads the service's state, as its menu does.
+func (u *ui) waitForConnection(domain string) {
+	label := deviceLabel(domain)
+	start := time.Now()
+	moved := false
+	for time.Since(start) < connectWait {
+		time.Sleep(500 * time.Millisecond)
+		st := u.c.Snapshot()
+		l := lang()
+		// A "Connected" from before the change counts only once the
+		// status has moved, or after a few seconds of it.
+		if st.Status != engine.StatusConnected {
+			moved = true
+		}
+		_, lockedOut := engine.TooManyAttempts(st.Status)
+		switch {
+		case st.Status == engine.StatusConnected && (moved || time.Since(start) > 3*time.Second):
+			_ = dlgInfo(i18n.DeskMainConnectConnected(label).Render(l), dlgTitle("Off The Cloud"))
+
+			return
+		case st.Status == engine.StatusWrongPassword:
+			if dlgQuestion(i18n.DeskMainConnectWrongPassword(label).Render(l), dlgTitle("Off The Cloud"),
+				dlgOK(i18n.CommonTryAgain().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.ErrorIcon) == nil {
+				u.changePassword()
+			}
+
+			return
+		case st.Status == engine.StatusOffline:
+			_ = dlgWarning(i18n.DeskMainConnectUnreachable(label).Render(l), dlgTitle("Off The Cloud"))
+
+			return
+		case lockedOut:
+			_ = dlgWarning(engine.StatusText(l, st, domain), dlgTitle("Off The Cloud"))
+
+			return
+		}
+	}
+	_ = dlgInfo(i18n.DeskMainConnectStillTrying(label).Render(lang()), dlgTitle("Off The Cloud"))
+}
+
+// changePassword asks for the device's password again - after it was
+// changed, or turned down - keeping the device and every folder; the
+// command line's `otc-sync settings --password-prompt`.
+func (u *ui) changePassword() {
+	cfg := u.c.Config()
+	if cfg.Domain == "" {
+		return
+	}
+	l := lang()
+	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(deviceLabel(cfg.Domain)).Render(l))
+	if err != nil || pw == "" {
+		return
+	}
+	if err := u.c.SetPassword(pw); err != nil {
 		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
+
+		return
 	}
 	Refresh()
+	u.waitForConnection(cfg.Domain)
+}
+
+// openLog shows otc-sync's log in the desktop's text editor.
+func (u *ui) openLog() {
+	p := u.c.LogPath()
+	if err := openLogAt(p); err != nil {
+		_ = dlgError(i18n.DeskMainShowLogFailed(err.Error(), p).Render(lang()), dlgTitle("Off The Cloud"))
+	}
+}
+
+// openLogAt is browser.OpenFile; the tests replace it.
+var openLogAt = browser.OpenFile
+
+// resetSettings is Reset Settings…, for a config.json that can't be read
+//: asked first; the file is put aside, never deleted.
+func (u *ui) resetSettings() {
+	err := u.c.ConfigError()
+	if err == nil {
+		return
+	}
+	l := lang()
+	if dlgQuestion(i18n.DeskMainResetSettingsMessage(errorText(l, err)).Render(l), dlgTitle(i18n.DeskMainResetSettingsTitle().Render(l)),
+		dlgOK(i18n.DeskMainResetSettings().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon) != nil {
+		return
+	}
+	if err := u.c.ResetSettings(); err != nil {
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
+
+		return
+	}
+	Refresh()
+	if !u.configured() {
+		u.settingsDialog()
+	}
 }
 
 // settingsHint is the device dialog's prompt in lang. Windows' entry
@@ -837,11 +1070,11 @@ func (u *ui) disconnectDialog() {
 		dlgOK(i18n.CommonDisconnect().Render(l)), zenity.WarningIcon) != nil {
 		return
 	}
-	cfg.Folders = nil
-	cfg.RemoteFolders = nil
-	cfg.Domain = ""
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(errorText(l, err), dlgTitle("Off The Cloud"))
+	if !u.edit(func(c *config.Config) (bool, error) {
+		c.Folders, c.RemoteFolders, c.Domain = nil, nil, ""
+
+		return true, nil
+	}) {
 		return
 	}
 	_ = config.ClearLocalEndpoint() // and its home-network endpoint (issue #190)

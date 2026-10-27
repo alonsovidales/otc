@@ -35,6 +35,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -53,6 +54,7 @@ import (
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/app/desktop/internal/flasher"
+	"github.com/alonsovidales/otc/app/desktop/internal/logfile"
 	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
 	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
 	"github.com/alonsovidales/otc/app/desktop/internal/service"
@@ -76,6 +78,13 @@ func main() {
 	if len(args) > 0 {
 		cmd = args[0]
 		args = args[1:]
+	}
+	switch cmd {
+	case "", "tray", "run", "flash-device":
+	default:
+		// A command typed in a terminal (the Windows build is a GUI
+		// program, which Windows gives no console of its own).
+		attachConsole()
 	}
 	var err error
 	switch cmd {
@@ -290,24 +299,29 @@ type app struct {
 	saveTmr  *time.Timer
 	saveMu   sync.Mutex // one state.json write at a time, in order
 	quit     chan struct{}
+	// ownsLock: this process runs the engine (it holds the lock).
+	ownsLock bool
+	// cfgErr is why config.json couldn't be read at start (the tray then
+	// offers Reset Settings…); nil once it could.
+	cfgErr  error
+	logPath string
 }
 
-func runDaemon(withTray bool) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	if cfg.EnsureClientID() {
-		if err := cfg.Save(); err != nil {
-			return err
-		}
-	}
-	pw, err := config.LoadPassword()
-	if err != nil {
-		return err
-	}
-	a := &app{cfg: cfg, password: pw, quit: make(chan struct{})}
+// passwordRetry is how often a daemon whose password can't be read yet
+// (a keyring still locked at boot) asks again.
+const passwordRetry = 30 * time.Second
 
+func runDaemon(withTray bool) error {
+	dir, err := config.Dir()
+	if err != nil {
+		return err
+	}
+	// The log in the config directory too (Show Log): the Windows tray's
+	// standard error goes nowhere.
+	logPath, err := logfile.Start(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "the log file can't be written:", err)
+	}
 	lockPath, err := config.LockPath()
 	if err != nil {
 		return err
@@ -317,19 +331,37 @@ func runDaemon(withTray bool) error {
 	if err != nil {
 		return err
 	}
-	if owned {
-		a.eng = engine.New(cfg, pw, func() { a.scheduleStateWrite(); tray.Refresh() })
-		a.eng.Start()
-		go a.watchConfig()
-		defer func() {
-			a.eng.Stop()
-			_ = lock.Unlock()
-		}()
-	} else if !withTray {
+	if !owned && !withTray {
 		return errors.New("another otc-sync is already running the sync (the tray app or the service)")
+	}
+	if owned {
+		defer func() { _ = lock.Unlock() }()
 	} else {
 		fmt.Fprintln(os.Stderr, "the sync is running elsewhere (the service?); this tray shows its state and edits the shared configuration")
 	}
+	a := &app{quit: make(chan struct{}), ownsLock: owned, logPath: logPath}
+	cfg, err := config.Load()
+	switch {
+	case err == nil:
+		if err := a.start(cfg); err != nil {
+			return err
+		}
+	case withTray:
+		// The tray starts all the same, saying so, with Reset Settings…:
+		// it used to exit, which looked like otc-sync not starting at all.
+		log.Printf("config.json can't be read: %v", err)
+		a.cfgErr = err
+	default:
+		return err
+	}
+	defer func() {
+		a.mu.Lock()
+		eng := a.eng
+		a.mu.Unlock()
+		if eng != nil {
+			eng.Stop()
+		}
+	}()
 
 	if withTray {
 		// One tray per user: a second launch (double-clicking the exe again,
@@ -348,7 +380,9 @@ func runDaemon(withTray bool) error {
 			return nil
 		}
 		defer func() { _ = trayLock.Unlock() }()
-		registerAtLaunch(cfg)
+		if cfg != nil { // nil while config.json can't be read (Reset Settings…)
+			registerAtLaunch(cfg)
+		}
 		tray.Run(a)
 
 		return nil
@@ -362,6 +396,58 @@ func runDaemon(withTray bool) error {
 	}
 
 	return nil
+}
+
+// start is the sync over cfg: this install's client id, the password, and
+// the engine when this process holds the lock (a viewer only reads).
+func (a *app) start(cfg *config.Config) error {
+	if cfg.ClientID == "" {
+		saved, err := config.Edit(func(c *config.Config) (bool, error) { return c.EnsureClientID(), nil })
+		if err != nil {
+			return err
+		}
+		cfg = saved
+	}
+	pw, pwErr := config.LoadPassword()
+	if pwErr != nil && !errors.Is(pwErr, config.ErrKeyringLocked) {
+		return pwErr
+	}
+	a.mu.Lock()
+	a.cfg, a.password, a.cfgErr = cfg, pw, nil
+	a.mu.Unlock()
+	if !a.ownsLock {
+		return nil
+	}
+	eng := engine.New(cfg, pw, func() { a.scheduleStateWrite(); tray.Refresh() })
+	eng.SetWaitingForPassword(errors.Is(pwErr, config.ErrKeyringLocked) && cfg.Domain != "")
+	a.mu.Lock()
+	a.eng = eng
+	a.mu.Unlock()
+	eng.Start()
+	go a.watchConfig()
+	go a.retryPassword()
+
+	return nil
+}
+
+// retryPassword reads the password again while a device is set and it
+// couldn't be (the keyring of a service started at boot, locked until
+// someone logs in): the sync used to stay "Missing domain/password" until
+// restarted.
+func (a *app) retryPassword() {
+	for {
+		select {
+		case <-a.quit:
+			return
+		case <-time.After(passwordRetry):
+		}
+		a.mu.Lock()
+		waiting := a.cfg != nil && a.cfg.Domain != "" && a.password == ""
+		a.mu.Unlock()
+		if waiting {
+			a.reload()
+		}
+	}
 }
 
 // watchConfig reloads config.json and the password whenever either is
@@ -403,17 +489,18 @@ func (a *app) watchConfig() {
 func (a *app) reload() {
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "config reload failed:", err)
+		log.Printf("config reload failed: %v", err)
 
 		return
 	}
-	pw, _ := config.LoadPassword()
+	pw, pwErr := config.LoadPassword()
 	a.mu.Lock()
 	a.cfg = cfg
 	a.password = pw
 	eng := a.eng
 	a.mu.Unlock()
 	if eng != nil {
+		eng.SetWaitingForPassword(errors.Is(pwErr, config.ErrKeyringLocked))
 		eng.UpdateConfig(cfg, pw)
 	}
 	tray.Refresh()
@@ -435,13 +522,14 @@ func (a *app) scheduleStateWrite() {
 		// Cleared before the snapshot, so a change made while it is
 		// written schedules the next write rather than being missed.
 		a.saveTmr = nil
+		eng := a.eng
 		a.mu.Unlock()
-		if a.eng == nil {
+		if eng == nil {
 			return
 		}
 		a.saveMu.Lock()
 		defer a.saveMu.Unlock()
-		st := a.eng.Snapshot()
+		st := eng.Snapshot()
 		_ = config.SaveState(&st)
 	})
 }
@@ -449,8 +537,11 @@ func (a *app) scheduleStateWrite() {
 // -- tray.Controller --
 
 func (a *app) Snapshot() config.State {
-	if a.eng != nil {
-		return a.eng.Snapshot()
+	a.mu.Lock()
+	eng := a.eng
+	a.mu.Unlock()
+	if eng != nil {
+		return eng.Snapshot()
 	}
 	st, _ := config.LoadState()
 	if st == nil || time.Since(st.Updated) > 30*time.Second {
@@ -484,14 +575,49 @@ func (a *app) LoadConfig() (*config.Config, error) {
 	return cfg, err
 }
 
-func (a *app) SaveConfig(cfg *config.Config) error {
-	if err := cfg.Save(); err != nil {
+// EditConfig is an edit of config.json under the lock every process's
+// edits take (config.Edit), applied here at once.
+func (a *app) EditConfig(edit func(*config.Config) (bool, error)) error {
+	if _, err := config.Edit(edit); err != nil {
 		return err
 	}
 	a.reload()
 
 	return nil
 }
+
+// ConfigError is why config.json couldn't be read at start; nil once it
+// could, or was reset.
+func (a *app) ConfigError() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.cfgErr
+}
+
+// ResetSettings is the tray's Reset Settings…: the unreadable config.json
+// put aside (kept, renamed), and the sync started over with none - no
+// device, no folders.
+func (a *app) ResetSettings() error {
+	aside, err := config.Reset(time.Now())
+	if err != nil {
+		return err
+	}
+	log.Printf("settings reset: the unreadable config.json was kept as %s", aside)
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if err := a.start(cfg); err != nil {
+		return err
+	}
+	tray.Refresh()
+
+	return nil
+}
+
+// LogPath is otc-sync's log file (Show Log).
+func (a *app) LogPath() string { return a.logPath }
 
 func (a *app) Password() string {
 	a.mu.Lock()
@@ -503,6 +629,14 @@ func (a *app) Password() string {
 func (a *app) SetPassword(pw string) error {
 	if err := config.SavePassword(pw); err != nil {
 		return err
+	}
+	if !a.ownsLock {
+		// A tray next to the service: the service reloads when config.json
+		// or the password file is written, and a password kept in the
+		// keyring is neither - config.json is written again, as it is.
+		if _, err := config.Edit(func(*config.Config) (bool, error) { return true, nil }); err != nil {
+			return err
+		}
 	}
 	a.reload()
 
@@ -517,8 +651,11 @@ func (a *app) SetPassword(pw string) error {
 // is replaced, and a listing that fails on a reused one is tried once on a
 // fresh one, so every listing still works, or fails, as a fresh one would.
 func (a *app) RemoteBrowser() (func(string) ([]engine.RemoteEntry, error), func()) {
-	if a.eng != nil {
-		return a.eng.ListRemoteDirectory, func() {}
+	a.mu.Lock()
+	eng := a.eng
+	a.mu.Unlock()
+	if eng != nil {
+		return eng.ListRemoteDirectory, func() {}
 	}
 	var mu sync.Mutex
 	var ws *wsclient.Client
@@ -596,13 +733,12 @@ func (a *app) AutostartEnabled() bool {
 // then applied to the registration.
 func (a *app) SetAutostart(on bool) error {
 	// Before the login item changes: a failed read leaves both as they are.
-	cfg, err := a.LoadConfig()
-	if err != nil {
-		return err
-	}
-	v := on
-	cfg.Autostart = &v
-	if err := cfg.Save(); err != nil {
+	if _, err := config.Edit(func(cfg *config.Config) (bool, error) {
+		v := on
+		cfg.Autostart = &v
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	exe, err := os.Executable()
@@ -618,7 +754,10 @@ func (a *app) SetAutostart(on bool) error {
 // tray next to the service is only a viewer, and the service already starts
 // at boot; it is asked once the tray runs the sync itself.
 func (a *app) OfferAutostart() bool {
-	if a.eng == nil {
+	a.mu.Lock()
+	eng := a.eng
+	a.mu.Unlock()
+	if eng == nil {
 		return false
 	}
 	cfg, err := config.Load() // fresh: the CLI may have answered meanwhile
@@ -789,34 +928,43 @@ func cmdSettings(args []string) error {
 	address := fs.String("address", "", "full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)")
 	pwStdin := fs.Bool("password-stdin", false, "read the password from standard input")
 	pwPrompt := fs.Bool("password-prompt", false, "ask for the password on the terminal")
+	insecure := fs.Bool("allow-unencrypted", false, "use a ws:// address for a device that isn't on the home network")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	cfg, err := config.Load()
+	current, err := config.Load()
 	if err != nil {
 		return err
 	}
-	changed := false
-	oldDomain := cfg.Domain
+	domain := current.Domain
 	if *name != "" {
-		cfg.Domain = config.BridgeDomainForName(*name)
-		changed = true
+		domain = config.BridgeDomainForName(*name)
 	}
 	if *address != "" {
-		cfg.Domain = strings.TrimSpace(*address)
-		changed = true
+		domain = strings.TrimSpace(*address)
 	}
-	if cfg.EnsureClientID() {
-		changed = true
+	if err := checkNewDevice(current, domain, *insecure); err != nil {
+		return err
 	}
-	if cfg.Domain != oldDomain {
+	cfg, err := config.Edit(func(c *config.Config) (bool, error) {
+		// Checked again under the lock: a folder added meanwhile.
+		if err := checkNewDevice(c, domain, true); err != nil {
+			return false, err
+		}
+		changed := c.Domain != domain
+		c.Domain = domain
+		if c.EnsureClientID() {
+			changed = true
+		}
+
+		return changed, nil
+	})
+	if err != nil {
+		return err
+	}
+	if !engine.SameDevice(current.Domain, cfg.Domain) {
 		// The old device's home-network endpoint (issue #190).
 		if err := config.ClearLocalEndpoint(); err != nil {
-			return err
-		}
-	}
-	if changed {
-		if err := cfg.Save(); err != nil {
 			return err
 		}
 	}
@@ -841,6 +989,27 @@ func cmdSettings(args []string) error {
 		fmt.Println("Syncing will start automatically.")
 	} else {
 		fmt.Println("Enter both device and password to start syncing.")
+	}
+
+	return nil
+}
+
+// checkNewDevice refuses what the settings would do wrong with domain: a
+// device other than the one cfg's folders sync with (they would start
+// syncing with, or deleting on, the other one - Disconnect removes them
+// first), or, without insecure, an unencrypted address for a device that
+// isn't on the home network (config.Unencrypted). Changing only the
+// password, or the spelling of the same address, is fine.
+func checkNewDevice(cfg *config.Config, domain string, insecure bool) error {
+	n := len(cfg.Folders) + len(cfg.RemoteFolders)
+	if n > 0 && cfg.Domain != "" && !engine.SameDevice(cfg.Domain, domain) {
+		return fmt.Errorf("otc-sync syncs %d folder(s) with %s - to connect to another device, first run: otc-sync disconnect "+
+			"(it removes the folders from otc-sync; the files stay on this computer and on the device)", n, cfg.Domain)
+	}
+	if !insecure && !engine.SameDevice(cfg.Domain, domain) && config.Unencrypted(domain) {
+		return fmt.Errorf("%s is not encrypted (ws://): anyone on a network between this computer and the device could read your files "+
+			"and take your password - use a ws:// address only for a device on your home network and a wss:// one otherwise, "+
+			"or add --allow-unencrypted to use it anyway", domain)
 	}
 
 	return nil
@@ -975,23 +1144,17 @@ func cmdAdd(args []string, oneWay bool) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	for _, f := range cfg.Folders {
-		if f.Path == dir {
-			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
-		}
-	}
-	for _, f := range cfg.RemoteFolders {
-		if f.LocalPath == dir {
-			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
-		}
-	}
 	f := config.Folder{ID: config.NewID(), Path: dir, OneWay: oneWay, OutOfImages: outOfImages, UploadOnly: uploadOnly}
-	cfg.Folders = append(cfg.Folders, f)
-	if err := cfg.Save(); err != nil {
+	if _, err := config.Edit(func(cfg *config.Config) (bool, error) {
+		// A folder is synced once: not one already synced, nor inside one
+		// or holding one, here or on the device (config.FolderOverlap).
+		if o := cfg.FolderOverlap(dir, engine.DevicePathFor(dir), engine.DevicePathFor); o != nil {
+			return false, o
+		}
+		cfg.Folders = append(cfg.Folders, f)
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	fmt.Printf("added %s as %s\n", dir, f.ID)
@@ -1021,16 +1184,25 @@ func cmdAddRemote(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil { // perms: rwxr-xr-x
-		return err
-	}
-	cfg, err := config.Load()
+	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir}
+	current, err := config.Load()
 	if err != nil {
 		return err
 	}
-	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir}
-	cfg.RemoteFolders = append(cfg.RemoteFolders, f)
-	if err := cfg.Save(); err != nil {
+	if o := current.FolderOverlap(dir, remote, engine.DevicePathFor); o != nil {
+		return o
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil { // perms: rwxr-xr-x
+		return err
+	}
+	if _, err := config.Edit(func(cfg *config.Config) (bool, error) {
+		if o := cfg.FolderOverlap(dir, remote, engine.DevicePathFor); o != nil {
+			return false, o
+		}
+		cfg.RemoteFolders = append(cfg.RemoteFolders, f)
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	fmt.Printf("added %s ⇄ %s as %s\n", remote, dir, f.ID)
@@ -1097,8 +1269,9 @@ func cmdImages(args []string) error {
 			}
 		}
 	}
-	cfg.SetOutOfImagesRequest(id, keepOut)
-	if err := cfg.Save(); err != nil {
+	if _, err := config.Edit(func(c *config.Config) (bool, error) {
+		return c.SetOutOfImagesRequest(id, keepOut), nil
+	}); err != nil {
 		return err
 	}
 	if keepOut {
@@ -1134,8 +1307,11 @@ func cmdDisconnect(args []string) error {
 			return errors.New("cancelled")
 		}
 	}
-	cfg.Folders, cfg.RemoteFolders, cfg.Domain = nil, nil, ""
-	if err := cfg.Save(); err != nil {
+	if _, err := config.Edit(func(c *config.Config) (bool, error) {
+		c.Folders, c.RemoteFolders, c.Domain = nil, nil, ""
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	if err := config.SavePassword(""); err != nil {
@@ -1158,33 +1334,32 @@ func cmdRemove(args []string) error {
 			key = abs
 		}
 	}
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
 	removed := ""
-	kept := cfg.Folders[:0:0]
-	for _, f := range cfg.Folders {
-		if f.ID == key || f.Path == key {
-			removed = f.Path
-		} else {
-			kept = append(kept, f)
+	if _, err := config.Edit(func(cfg *config.Config) (bool, error) {
+		kept := cfg.Folders[:0:0]
+		for _, f := range cfg.Folders {
+			if f.ID == key || f.Path == key {
+				removed = f.Path
+			} else {
+				kept = append(kept, f)
+			}
 		}
-	}
-	cfg.Folders = kept
-	keptR := cfg.RemoteFolders[:0:0]
-	for _, f := range cfg.RemoteFolders {
-		if f.ID == key || f.LocalPath == key {
-			removed = f.LocalPath
-		} else {
-			keptR = append(keptR, f)
+		cfg.Folders = kept
+		keptR := cfg.RemoteFolders[:0:0]
+		for _, f := range cfg.RemoteFolders {
+			if f.ID == key || f.LocalPath == key {
+				removed = f.LocalPath
+			} else {
+				keptR = append(keptR, f)
+			}
 		}
-	}
-	cfg.RemoteFolders = keptR
-	if removed == "" {
-		return fmt.Errorf("no folder matches %q (see: otc-sync folders)", args[0])
-	}
-	if err := cfg.Save(); err != nil {
+		cfg.RemoteFolders = keptR
+		if removed == "" {
+			return false, fmt.Errorf("no folder matches %q (see: otc-sync folders)", args[0])
+		}
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	fmt.Printf("removed %s (nothing was deleted, locally or on the device)\n", removed)
@@ -1248,13 +1423,17 @@ func cmdOpen() error {
 }
 
 func cmdService(args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: otc-sync service install|uninstall|status")
+	if len(args) < 1 || (args[0] != "install" && len(args) != 1) {
+		return errors.New("usage: otc-sync service install [--password-file]|uninstall|status")
 	}
+	rest := args[1:]
 	switch args[0] {
 	case "install":
 		exe, err := os.Executable()
 		if err != nil {
+			return err
+		}
+		if err := offerPasswordFile(rest); err != nil {
 			return err
 		}
 		if err := service.Install(exe); err != nil {
@@ -1270,6 +1449,49 @@ func cmdService(args []string) error {
 	default:
 		return errors.New("usage: otc-sync service install|uninstall|status")
 	}
+}
+
+// offerPasswordFile is `service install`'s question: a service starts at
+// boot, before the keyring (the desktop's Secret Service) is unlocked, so
+// it can't read a password kept there - it waited at "Missing
+// domain/password" until someone logged in. The password can be kept in a
+// file only this user can read (0600) in otc-sync's config folder instead.
+// --password-file says yes without asking.
+func offerPasswordFile(args []string) error {
+	yes := false
+	for _, a := range args {
+		switch a {
+		case "--password-file", "-password-file":
+			yes = true
+		default:
+			return fmt.Errorf("unknown option %q (usage: otc-sync service install [--password-file])", a)
+		}
+	}
+	if config.PasswordFileOnly() || !config.InKeyring() {
+		return nil // in the file already, or no password yet
+	}
+	pw, err := config.LoadPassword()
+	if err != nil || pw == "" {
+		return nil
+	}
+	p, _ := config.PasswordPath()
+	if !yes {
+		fmt.Printf("The service starts at boot, before your keyring is unlocked, so it can't read the password kept there.\n"+
+			"Keep the password in %s instead, a file only you can read? [y/N] ", p)
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		yes = strings.EqualFold(strings.TrimSpace(line), "y") || strings.EqualFold(strings.TrimSpace(line), "yes")
+	}
+	if !yes {
+		fmt.Println("The password stays in the keyring: the service syncs once it is unlocked (it tries again every half a minute).")
+
+		return nil
+	}
+	if err := config.MovePasswordToFile(pw); err != nil {
+		return err
+	}
+	fmt.Println("The password is in", p, "now (readable only by you).")
+
+	return nil
 }
 
 // cmdAutostart is the command line's start at login: an explicit answer,
@@ -1288,8 +1510,11 @@ func cmdAutostart(args []string) error {
 		return nil
 	}
 	on := args[0] == "on"
-	cfg.Autostart = &on
-	if err := cfg.Save(); err != nil {
+	if _, err := config.Edit(func(c *config.Config) (bool, error) {
+		c.Autostart = &on
+
+		return true, nil
+	}); err != nil {
 		return err
 	}
 	exe, err := os.Executable()

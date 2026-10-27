@@ -291,24 +291,9 @@ func (e *Engine) clearRequest(k *requestKind, id string, sent bool) {
 // stays. A read or a write that races another process's rename-over
 // (Windows) is tried again.
 func clearRequestOnDisk(field config.Request, id string, sent bool) error {
-	var err error
-	for try := 0; try < 3; try++ {
-		if try > 0 {
-			time.Sleep(50 * time.Millisecond)
-		}
-		var cfg *config.Config
-		if cfg, err = config.Load(); err != nil {
-			continue
-		}
-		if !cfg.ClearRequest(field, id, sent) {
-			return nil // another request since, or the folder gone
-		}
-		if err = saveConfig(cfg); err == nil {
-			return nil
-		}
-	}
-
-	return err
+	// ClearRequest says false for another request since, or the folder gone:
+	// nothing to write.
+	return editConfigOnDisk(func(cfg *config.Config) bool { return cfg.ClearRequest(field, id, sent) })
 }
 
 // applyPendingRequests sends every folder's pending request of kind k (or

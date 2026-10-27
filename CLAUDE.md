@@ -2008,7 +2008,20 @@ dialog at launch. Once connected they show the device and a Disconnect button: M
 clears the address and password (`SyncModel.disconnect` / config with no folders and no domain).
 The files stay where they are. This is because folders kept across a change of device would sync
 with, or delete on, the other device. The Mac wizard's "Sync this Mac with my device" asks the same
-when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is a small
+when another device is set (`SetupWizardView.switchDevice`), and so do the tray's Connect dialog
+and the Mac's connect form when another device is entered while folders are synced - also with the
+old password gone - then disconnect first; `otc-sync settings` refuses it and points to `otc-sync
+disconnect`. A respelling of the same address is no change (`engine.SameDevice` /
+`SyncPaths.sameDevice`). "Change Password…" (the tray, Mac Settings' ⋯ menu, `otc-sync settings
+--password-prompt`) keeps every folder; "Wrong password" in the tray's status line and the popover
+leads to it. The tray's Connect and Change Password wait up to 30 s and say Connected, turned down
+(Try Again) or unreachable (`waitForConnection`). A ws:// address for a device not on the home
+network (`config.Unencrypted` / `SyncPaths.isUnencryptedRemote`: not loopback, private,
+link-local, `.local`/`.lan`/`.home.arpa`/`.internal` or single-label) asks before it is used; the
+CLI wants `--allow-unencrypted`. Removing a folder asks first ("its files stay"). A folder is
+synced once: one equal to, inside or holding a synced folder, here or on the device (ignoring case
+on macOS and Windows), is refused with why (`config.FolderOverlap` / `SyncModel.admit`); on the
+Mac, a folder waiting for its disk picked again is linked to it again, not added twice. "Set Up a New Device…" is a small
 button (Disconnect's size) at the right of "Start at login" in the Mac's Settings (the Language
 picker is the row below, last, at the left), and its own section above Quit in the tray.
 **Web app (issue #193).** Once a device is configured both offer "Open Web App": the Mac in the
@@ -2172,14 +2185,24 @@ usb-storage,drive=card,removable=on`). Its packages are one-to-one with the Swif
 WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
 10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
 hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
-per directory, added as directories appear), `tray` = PopoverView.swift (fyne.io/systray menu,
+per directory, added as directories appear; 4 KiB buffers on Windows, an overflow checks the
+whole folder; a watch limit reached leaves the rest watched), `tray` = PopoverView.swift (fyne.io/systray menu,
 the OS's own dialogs through ncruces/zenity - no GUI toolkit, no CGO), `config` = SettingsStore
 + the bookmarks (config.json, keyring or a 0600 `secret` file, state.json), `autostart` = the
 registration half of LoginItem.swift (XDG autostart file / HKCU Run key, only with consent - see
 "Start at login" above), `service` (systemd user unit + linger). One process runs the
 engine (a flock in the config dir); a tray started next to the service is a viewer, and every
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
-never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
+never disagree. Every edit takes `config.lock` (`config.Edit`; flock, LockFileEx on Windows) and is
+written through a temp file of its own, fsynced and renamed (`WriteFileAtomic`, also state.json,
+records, caches); the file replaced is kept as `config.json.bak`, which `Load` reads when
+config.json isn't valid. One that can't be read starts the tray with "The settings can't be read"
+and "Reset Settings…" (`config.Reset` renames it aside). The tray and the service log to `<config
+dir>/otc-sync.log` (5 MiB, one `.1` kept; the tray's "Show Log" - the Mac logs to the unified
+log instead, `log show --predicate 'subsystem == "cloud.off-the.OffTheCloud"'`); on Windows the CLI subcommands
+attach to the terminal's console (`attachConsole`). A keyring still locked at boot shows "Waiting
+for the password" and is asked again every 30 s; `otc-sync service install [--password-file]`
+offers to keep the password in the 0600 `secret` file instead (`Config.PasswordInFile`). Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
 iOS/Android. There are three kinds of folder, each explained in the app (the Mac's
 `AddFolderChooser` with an (i) per kind and option; the tray's "What Do These Do?"):
@@ -2225,10 +2248,32 @@ gets in the way, rebuild it from a retail ISO (CrystalFetch) with the same answe
 **Sync invariants** (otc-sync `engine`, the Mac's `SyncModel` + `SyncPaths.swift`). A two-way
 device entry is used only under the folder's prefix and through `safeRelative` (no empty, `.` or
 `..` component, no NUL; the Mac checks by UTF-8 bytes, since a combining mark after `/` hides it from
-a Character split). Hidden paths and `.otc-part` files stay out of two-way sync and the backup
-watcher on both sides (`notSynced` / `isExcludedFromSync`). Two-way actions run local deletes first
-and re-check the local file's size and mtime just before acting (`stillAsScanned` /
-`localMatches`). The device has no empty folders, so the folders a pass's local deletions emptied
+a Character split). What is never synced, either way, is one list (`engine/skip.go` /
+`SyncPaths.isExcludedFromSync`): hidden paths (a `.` component; also Finder-hidden on the Mac, the
+Hidden and System attributes on Windows), `.otc-part` files, and Office's and Explorer's scratch
+files (`~$*`, desktop.ini, Thumbs.db, ehthumbs.db, ehthumbs_vista.db, any case). Paths are keyed
+in NFC (`pathKey` / `SyncPaths.key`, records too): what the device has is addressed by its own
+bytes, a new file goes up in NFC, so an NFD path the Mac sent before is never renamed or deleted
+for it, and of two device entries differing only in normalization the NFC one is synced, the
+other left alone. Two-way actions run local deletes first and re-check the local file's size and
+mtime just before acting (`stillAsScanned` / `localMatches`), and the device's file right before
+an upload replaces it (before LinkFile and FinishUpload) or a delete removes it, by listing that
+one path (`deviceStillAsListed`): changed since the listing, it is left for the next pass, which
+keeps both versions. A sync record (`synced/<id>.json`: `{"v": 2, "device": {"domain", "pin"},
+"files"}`) names the device it was made with - its home-network certificate pin when known, else
+the address (`recordDevice`); one of another device counts as none (that pass deletes nothing), an
+older bare map as the configured device's. The mass-deletion guard doesn't count deletes whose
+content the device lists at a new path (a move there). A folder whose own folder is missing waits
+("Folder not found - reconnect the drive"), untouched on both sides, and resumes once it is back
+(the Mac resolves its bookmark again and follows a move; one that didn't resolve at launch stays
+listed); it is never removed. Downloads go to a temp name of their own (`name.<random>.otc-part`),
+synced before the rename. Two folders' passes run at a time (`passSlot`; the loops start at once),
+the others say "Waiting for <folder>". A file that changes while it is sent is a busy file, left
+for 2 minutes, doubling up to an hour. The hash cache also checks the change time (not on
+Windows, which has none without a handle per file) and is saved every 5 minutes during a pass and
+at Stop / quit. Both WSClients ping every 20 s and drop a connection silent for 45 s (a send under
+way has its own deadline); small requests wait 2 minutes, listings and transfers 10; otc-sync
+takes a clock jump between its 5 s network checks for a wake. The device has no empty folders, so the folders a pass's local deletions emptied
 are removed after it (`removeEmptiedDirs` / `SyncPaths.removeEmptiedFolders`): up to, never including,
 the synced folder, only while they hold nothing but a `.DS_Store`, with rmdir semantics. An unreadable directory is never a deleted one: paths under it keep their baseline
 and get no action (otc-sync reports "N file(s) could not be read"). Backups run one pass per

@@ -126,6 +126,8 @@ func statusMsg(status string) (i18n.Msg, bool) {
 		return i18n.DeskMainStatusWrongPassword(), true
 	case StatusMissingSettings:
 		return i18n.DeskMainStatusMissingSettings(), true
+	case StatusWaitingPassword:
+		return i18n.DeskMainStatusWaitingPassword(), true
 	case StatusSyncNotRunning:
 		return i18n.DeskMainStatusSyncNotRunning(), true
 	}
@@ -239,12 +241,18 @@ func (e *Engine) watchNetwork(stop <-chan struct{}) {
 	}
 	t := time.NewTicker(networkCheckInterval)
 	defer t.Stop()
+	prev := time.Now()
 	for {
 		select {
 		case <-stop:
 			return
 		case <-t.C:
 		}
+		now := time.Now()
+		if slept(now.Sub(prev), now.Round(0).Sub(prev.Round(0))) {
+			e.woke()
+		}
+		prev = now
 		ifs, err := listInterfaces()
 		if err != nil {
 			continue
@@ -254,6 +262,33 @@ func (e *Engine) watchNetwork(stop <-chan struct{}) {
 			e.networkChanged()
 		}
 	}
+}
+
+// wakeGap: a network check that comes this much later than due means the
+// computer slept.
+const wakeGap = 20 * time.Second
+
+// slept says whether the time between two network checks, by the
+// monotonic clock and by the wall clock, is a sleep: Linux's monotonic
+// clock stops while the computer sleeps and the wall clock doesn't;
+// Windows' moves on with it.
+func slept(mono, wall time.Duration) bool {
+	due := networkCheckInterval + wakeGap
+
+	return mono > due || wall > due
+}
+
+// woke is the Mac's wake (SyncModel.scheduleRouteCheck(wake: true)): the
+// computer may be home again, or away. Nothing while the connection is
+// the home one - it is fine, or its pings find it dead and it dials again
+// (wsclient's keep-alive) -; otherwise the route is chosen again, as for a
+// network change.
+func (e *Engine) woke() {
+	log.Printf("the computer woke up")
+	if e.ws.Route() == wsclient.RouteLocal {
+		return
+	}
+	e.networkChanged()
 }
 
 // networkChanged chooses the route again - the computer may have come

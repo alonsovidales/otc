@@ -612,6 +612,100 @@
         }
       }
     },
+    "desk.main.change_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort ändern…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Password…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiar contraseña…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le mot de passe…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia password…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord wijzigen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterar palavra-passe…"
+          }
+        }
+      }
+    },
+    "desk.main.change_password_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Passwort des Geräts erneut eingeben – deine Ordner bleiben, wie sie sind"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the device's password again - your folders stay as they are"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a introducir la contraseña del dispositivo: tus carpetas se quedan como están"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir de nouveau le mot de passe de l’appareil : vos dossiers restent tels quels"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci di nuovo la password del dispositivo: le tue cartelle restano come sono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het wachtwoord van het apparaat opnieuw invoeren – je mappen blijven zoals ze zijn"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduzir novamente a palavra-passe do dispositivo: as tuas pastas ficam como estão"
+          }
+        }
+      }
+    },
     "desk.main.checking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -847,6 +941,100 @@
         }
       }
     },
+    "desk.main.config_unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einstellungen sind nicht lesbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The settings can't be read"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pueden leer los ajustes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire les paramètres"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere le impostazioni"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan de instellingen niet lezen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é possível ler as definições"
+          }
+        }
+      }
+    },
+    "desk.main.connect_connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit dem Gerät %1$@ verbunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected to %1$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado al dispositivo %1$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté à l’appareil %1$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connesso al dispositivo %1$@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbonden met het apparaat %1$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligado ao dispositivo %1$@."
+          }
+        }
+      }
+    },
     "desk.main.connect_menu" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -890,6 +1078,147 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ligar a um dispositivo…"
+          }
+        }
+      }
+    },
+    "desk.main.connect_still_trying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Verbindung mit dem Gerät %1$@ wird noch hergestellt. otc-sync versucht es weiter; das Menü zeigt an, sobald die Verbindung steht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still connecting to %1$@. otc-sync keeps trying; the menu shows when it is connected."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La conexión con el dispositivo %1$@ aún está en curso. otc-sync sigue intentándolo; el menú indicará cuándo esté conectado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion à l’appareil %1$@ toujours en cours. otc-sync continue d’essayer ; le menu indique quand la connexion est établie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione al dispositivo %1$@ ancora in corso. otc-sync continua a provare; il menu mostra quando è connesso."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er wordt nog verbinding gemaakt met het apparaat %1$@. otc-sync blijft het proberen; het menu laat zien wanneer de verbinding er is."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda a ligar ao dispositivo %1$@. O otc-sync continua a tentar; o menu mostra quando estiver ligado."
+          }
+        }
+      }
+    },
+    "desk.main.connect_unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät %1$@ ist gerade nicht erreichbar. otc-sync versucht es weiter und beginnt mit der Synchronisierung, sobald das Gerät antwortet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ can't be reached right now. otc-sync keeps trying and starts syncing once it answers."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo %1$@ no está accesible ahora mismo. otc-sync sigue intentándolo y empezará a sincronizar en cuanto el dispositivo responda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil %1$@ est injoignable pour le moment. otc-sync continue d’essayer et commencera à synchroniser dès que l’appareil répondra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo %1$@ non è raggiungibile in questo momento. otc-sync continua a provare e inizierà a sincronizzare appena il dispositivo risponderà."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat %1$@ is nu niet bereikbaar. otc-sync blijft het proberen en begint met synchroniseren zodra het apparaat antwoordt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo %1$@ está inacessível neste momento. O otc-sync continua a tentar e começa a sincronizar assim que o dispositivo responder."
+          }
+        }
+      }
+    },
+    "desk.main.connect_wrong_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät %1$@ hat das Passwort abgelehnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ turned the password down."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo %1$@ ha rechazado la contraseña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil %1$@ a refusé le mot de passe."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo %1$@ ha rifiutato la password."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat %1$@ heeft het wachtwoord geweigerd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo %1$@ recusou a palavra-passe."
           }
         }
       }
@@ -1787,6 +2116,53 @@
         }
       }
     },
+    "desk.main.folder_not_found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner nicht gefunden – Laufwerk neu verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder not found - reconnect the drive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carpeta no encontrada: reconecta el disco"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier introuvable : reconnectez le disque"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartella non trovata: ricollega il disco"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map niet gevonden – sluit de schijf weer aan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasta não encontrada: volta a ligar o disco"
+          }
+        }
+      }
+    },
     "desk.main.folder_offline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1830,6 +2206,194 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dispositivo offline: vai retomar"
+          }
+        }
+      }
+    },
+    "desk.main.folder_overlap_holds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner „%1$@“ enthält den Ordner „%2$@“, der bereits synchronisiert wird."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” holds “%2$@”, which is already synced."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta “%1$@” contiene “%2$@”, que ya está sincronizada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier « %1$@ » contient « %2$@ », qui est déjà synchronisé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella “%1$@” contiene “%2$@”, che è già sincronizzata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map “%1$@” bevat “%2$@”, die al wordt gesynchroniseerd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta «%1$@» contém «%2$@», que já está sincronizada."
+          }
+        }
+      }
+    },
+    "desk.main.folder_overlap_inside" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner „%1$@“ liegt im Ordner „%2$@“, der bereits synchronisiert wird."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” is inside “%2$@”, which is already synced."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta “%1$@” está dentro de “%2$@”, que ya está sincronizada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier « %1$@ » se trouve dans « %2$@ », qui est déjà synchronisé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella “%1$@” si trova dentro “%2$@”, che è già sincronizzata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map “%1$@” staat in “%2$@”, die al wordt gesynchroniseerd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta «%1$@» está dentro de «%2$@», que já está sincronizada."
+          }
+        }
+      }
+    },
+    "desk.main.folder_overlap_same" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner „%1$@“ wird bereits synchronisiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%1$@” is already synced."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta “%1$@” ya está sincronizada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier « %1$@ » est déjà synchronisé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella “%1$@” è già sincronizzata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map “%1$@” wordt al gesynchroniseerd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta «%1$@» já está sincronizada."
+          }
+        }
+      }
+    },
+    "desk.main.folder_overlap_why" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Ordner kann nur einmal synchronisiert werden: Läge er in einem anderen synchronisierten Ordner oder enthielte er einen, würden seine Dateien doppelt synchronisiert, und jede Synchronisierung würde die Änderungen der anderen rückgängig machen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carpeta solo se puede sincronizar una vez: si estuviera dentro de otra carpeta sincronizada, o si contuviera una, sus archivos se sincronizarían dos veces y cada sincronización desharía los cambios de la otra."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un dossier ne peut être synchronisé qu’une seule fois : s’il se trouvait dans un autre dossier synchronisé, ou s’il en contenait un, ses fichiers seraient synchronisés deux fois, et chaque synchronisation annulerait les modifications de l’autre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una cartella può essere sincronizzata una sola volta: se si trovasse dentro un’altra cartella sincronizzata, o se ne contenesse una, i suoi file verrebbero sincronizzati due volte e ogni sincronizzazione annullerebbe le modifiche dell’altra."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een map kan maar één keer worden gesynchroniseerd: als die in een andere gesynchroniseerde map stond of er zelf een bevatte, zouden de bestanden erin twee keer worden gesynchroniseerd en zou elke synchronisatie de wijzigingen van de andere ongedaan maken."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma pasta só pode ser sincronizada uma vez: se estivesse dentro de outra pasta sincronizada, ou se contivesse uma, os seus ficheiros seriam sincronizados duas vezes e cada sincronização desfaria as alterações da outra."
           }
         }
       }
@@ -3009,6 +3573,53 @@
         }
       }
     },
+    "desk.main.remove_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner wird aus dieser App entfernt. Seine Dateien bleiben auf diesem Computer und auf dem Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder is taken out of this app. Its files stay on this computer and on the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta se quita de esta app. Sus archivos siguen en este ordenador y en el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier est retiré de cette app. Ses fichiers restent sur cet ordinateur et sur l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella viene rimossa da questa app. I suoi file restano su questo computer e sul dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map wordt uit deze app verwijderd. De bestanden erin blijven op deze computer en op het apparaat staan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta é removida desta app. Os seus ficheiros ficam neste computador e no dispositivo."
+          }
+        }
+      }
+    },
     "desk.main.remove_tip" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3052,6 +3663,194 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deixar de sincronizar esta pasta (nada é eliminado)"
+          }
+        }
+      }
+    },
+    "desk.main.remove_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner „%1$@“ nicht mehr synchronisieren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop syncing “%1$@”?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dejar de sincronizar la carpeta “%1$@”?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter de synchroniser « %1$@ » ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrompere la sincronizzazione di “%1$@”?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map “%1$@” niet meer synchroniseren?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixar de sincronizar a pasta «%1$@»?"
+          }
+        }
+      }
+    },
+    "desk.main.reset_settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen zurücksetzen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Settings…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer ajustes…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser les paramètres…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripristina impostazioni…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instellingen resetten…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repor definições…"
+          }
+        }
+      }
+    },
+    "desk.main.reset_settings_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync kann seine Einstellungen nicht lesen:\n\n%1$@\n\nNach dem Zurücksetzen beginnt otc-sync von vorn, ohne Gerät und ohne Ordner. Die unlesbare Datei bleibt neben der neuen erhalten, und es wird keine Datei gelöscht, weder auf diesem Computer noch auf dem Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync can't read its settings:\n\n%1$@\n\nResetting starts over with no device and no folders. The unreadable file is kept next to the new one, and no file is deleted, on this computer or on the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync no puede leer sus ajustes:\n\n%1$@\n\nAl restablecerlos, se empieza de cero, sin dispositivo ni carpetas. El archivo ilegible se conserva junto al nuevo, y no se elimina ningún archivo, ni en este ordenador ni en el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync ne peut pas lire ses paramètres :\n\n%1$@\n\nLa réinitialisation repart de zéro, sans appareil ni dossiers. Le fichier illisible est conservé à côté du nouveau, et aucun fichier n’est supprimé, ni sur cet ordinateur ni sur l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync non riesce a leggere le sue impostazioni:\n\n%1$@\n\nIl ripristino riparte da zero, senza dispositivo né cartelle. Il file illeggibile viene conservato accanto a quello nuovo e nessun file viene eliminato, né su questo computer né sul dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otc-sync kan zijn instellingen niet lezen:\n\n%1$@\n\nBij het resetten begint alles opnieuw, zonder apparaat en zonder mappen. Het onleesbare bestand blijft naast het nieuwe bewaard en er wordt geen enkel bestand verwijderd, niet op deze computer en niet op het apparaat."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O otc-sync não consegue ler as suas definições:\n\n%1$@\n\nAo repor as definições, o otc-sync recomeça do zero, sem dispositivo nem pastas. O ficheiro ilegível é mantido junto do novo e nenhum ficheiro é eliminado, nem neste computador nem no dispositivo."
+          }
+        }
+      }
+    },
+    "desk.main.reset_settings_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einstellungen von otc-sync zurücksetzen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset otc-sync's settings?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Restablecer los ajustes de otc-sync?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser les paramètres d’otc-sync ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ripristinare le impostazioni di otc-sync?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De instellingen van otc-sync resetten?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repor as definições do otc-sync?"
           }
         }
       }
@@ -3334,6 +4133,147 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Off The Cloud — Definições"
+          }
+        }
+      }
+    },
+    "desk.main.show_log" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protokoll anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Log"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar registro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le journal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra log"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logboek tonen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar registo"
+          }
+        }
+      }
+    },
+    "desk.main.show_log_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Protokoll konnte nicht geöffnet werden:\n\n%1$@\n\nEs befindet sich unter %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The log could not be opened:\n\n%1$@\n\nIt is at %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido abrir el registro:\n\n%1$@\n\nEstá en %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’ouvrir le journal :\n\n%1$@\n\nIl se trouve à l’emplacement %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile aprire il log:\n\n%1$@\n\nSi trova in %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het logboek kon niet worden geopend:\n\n%1$@\n\nHet staat op %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível abrir o registo:\n\n%1$@\n\nEstá em %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.show_log_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was otc-sync getan hat – um herauszufinden, was schiefgelaufen ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What otc-sync has done, to find out what went wrong"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que ha hecho otc-sync, para averiguar qué ha fallado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qu’a fait otc-sync, pour comprendre ce qui s’est mal passé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ciò che ha fatto otc-sync, per capire cosa è andato storto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wat otc-sync heeft gedaan, om uit te zoeken wat er misging"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que o otc-sync fez, para perceber o que correu mal"
           }
         }
       }
@@ -3714,6 +4654,53 @@
         }
       }
     },
+    "desk.main.status_waiting_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten auf das Passwort – entsperre den Schlüsselbund"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the password - unlock the keyring"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando la contraseña: desbloquea el llavero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente du mot de passe : déverrouillez le trousseau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa della password: sblocca il portachiavi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachten op het wachtwoord – ontgrendel de sleutelbos"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À espera da palavra-passe: desbloqueia o porta-chaves"
+          }
+        }
+      }
+    },
     "desk.main.status_wrong_password" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4043,6 +5030,301 @@
         }
       }
     },
+    "desk.main.switch_device_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trennen und verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect and Connect"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectar y conectar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecter et connecter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnetti e connetti"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loskoppelen en verbinden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligar e ligar"
+          }
+        }
+      }
+    },
+    "desk.main.switch_device_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Dieser Computer synchronisiert %arg Ordner mit dem Gerät %2$@. Beim Verbinden mit einem anderen Gerät wird er zuerst aus dieser App entfernt, damit er nicht versehentlich mit dem neuen Gerät synchronisiert wird. Seine Dateien bleiben auf diesem Computer und auf %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Dieser Computer synchronisiert %arg Ordner mit dem Gerät %2$@. Beim Verbinden mit einem anderen Gerät werden sie zuerst aus dieser App entfernt, damit keiner davon versehentlich mit dem neuen Gerät synchronisiert wird. Ihre Dateien bleiben auf diesem Computer und auf %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "This computer syncs %arg folder with %2$@. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this computer and on %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "This computer syncs %arg folders with %2$@. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this computer and on %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este ordenador sincroniza %arg carpeta con el dispositivo %2$@. Al conectarte a otro dispositivo, primero se quita de esta app, para que no empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este ordenador y en %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este ordenador sincroniza %arg carpetas con el dispositivo %2$@. Al conectarte a otro dispositivo, primero se quitan de esta app, para que ninguna empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este ordenador y en %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Cet ordinateur synchronise %arg dossier avec l’appareil %2$@. Se connecter à un autre appareil le retire d’abord de cette app, pour qu’il ne se mette pas par erreur à se synchroniser avec le nouvel appareil. Ses fichiers restent sur cet ordinateur et sur %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Cet ordinateur synchronise %arg dossiers avec l’appareil %2$@. Se connecter à un autre appareil les retire d’abord de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec le nouvel appareil. Leurs fichiers restent sur cet ordinateur et sur %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Questo computer sincronizza %arg cartella con il dispositivo %2$@. La connessione a un altro dispositivo la rimuove prima da questa app, così non inizia per errore a sincronizzarsi con il nuovo dispositivo. I suoi file restano su questo computer e su %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Questo computer sincronizza %arg cartelle con il dispositivo %2$@. La connessione a un altro dispositivo le rimuove prima da questa app, così nessuna inizia per errore a sincronizzarsi con il nuovo dispositivo. I loro file restano su questo computer e su %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Deze computer synchroniseert %arg map met het apparaat %2$@. Als je verbinding maakt met een ander apparaat, wordt die map eerst uit deze app verwijderd, zodat die niet per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze computer en op %2$@ staan."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Deze computer synchroniseert %arg mappen met het apparaat %2$@. Als je verbinding maakt met een ander apparaat, worden ze eerst uit deze app verwijderd, zodat geen enkele map per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze computer en op %2$@ staan."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este computador sincroniza %arg pasta com o dispositivo %2$@. Ligar a outro dispositivo remove-a primeiro desta app, para que não comece a sincronizar com o novo dispositivo por engano. Os seus ficheiros ficam neste computador e em %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este computador sincroniza %arg pastas com o dispositivo %2$@. Ligar a outro dispositivo remove-as primeiro desta app, para que nenhuma comece a sincronizar com o novo dispositivo por engano. Os seus ficheiros ficam neste computador e em %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "desk.main.switch_device_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit dem Gerät %1$@ verbinden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to %1$@?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Conectar al dispositivo %1$@?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à l’appareil %1$@ ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connettersi al dispositivo %1$@?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden met het apparaat %1$@?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligar ao dispositivo %1$@?"
+          }
+        }
+      }
+    },
     "desk.main.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4133,6 +5415,147 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Off The Cloud — %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.unencrypted_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trotzdem verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Anyway"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar de todos modos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter quand même"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connetti comunque"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toch verbinden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligar mesmo assim"
+          }
+        }
+      }
+    },
+    "desk.main.unencrypted_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse %1$@ ist nicht verschlüsselt: Jeder in einem Netzwerk zwischen diesem Computer und dem Gerät könnte deine Dateien lesen und dein Passwort stehlen. Verwende eine Adresse mit ws:// nur für ein Gerät in deinem Heimnetz und eine mit wss:// für alles andere."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is not encrypted: anyone on a network between this computer and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección %1$@ no está cifrada: cualquiera que esté en una red entre este ordenador y el dispositivo podría leer tus archivos y robar tu contraseña. Usa una dirección ws:// solo para un dispositivo de tu red doméstica, y una wss:// para todo lo demás."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse %1$@ n’est pas chiffrée : toute personne sur un réseau entre cet ordinateur et l’appareil pourrait lire vos fichiers et s’emparer de votre mot de passe. N’utilisez une adresse ws:// que pour un appareil de votre réseau domestique, et une adresse wss:// pour tout le reste."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’indirizzo %1$@ non è crittografato: chiunque si trovi su una rete tra questo computer e il dispositivo potrebbe leggere i tuoi file e rubare la tua password. Usa un indirizzo ws:// solo per un dispositivo sulla tua rete domestica, e un indirizzo wss:// per tutto il resto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het adres %1$@ is niet versleuteld: iedereen op een netwerk tussen deze computer en het apparaat zou je bestanden kunnen lezen en je wachtwoord kunnen stelen. Gebruik een adres met ws:// alleen voor een apparaat op je thuisnetwerk, en een adres met wss:// voor al het andere."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O endereço %1$@ não está encriptado: qualquer pessoa numa rede entre este computador e o dispositivo poderia ler os teus ficheiros e roubar a tua palavra-passe. Usa um endereço ws:// só para um dispositivo na tua rede doméstica, e um wss:// para tudo o resto."
+          }
+        }
+      }
+    },
+    "desk.main.unencrypted_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Verschlüsselung verbinden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect without encryption?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Conectar sin cifrado?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter sans chiffrement ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connettersi senza crittografia?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden zonder versleuteling?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligar sem encriptação?"
           }
         }
       }
@@ -4885,6 +6308,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ TB de %2$@ GB"
+          }
+        }
+      }
+    },
+    "desk.main.waiting_for" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten auf %1$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando a %1$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente de %1$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa di %1$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachten op %1$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À espera de %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.wrong_password_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät hat das Passwort abgelehnt – klicke, um es erneut einzugeben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device turned the password down - click to enter it again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo ha rechazado la contraseña: haz clic para volver a introducirla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil a refusé le mot de passe : cliquez pour le saisir de nouveau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo ha rifiutato la password: fai clic per inserirla di nuovo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat heeft het wachtwoord geweigerd – klik om het opnieuw in te voeren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo recusou a palavra-passe: clica para a introduzires novamente"
           }
         }
       }

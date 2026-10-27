@@ -16,6 +16,12 @@ func openFolder(path string) error {
 	return shellExecute("explore", path)
 }
 
+// openFile asks the shell to open a text file of ours (OpenFile checked
+// that it is one): Notepad, or the app set for .log files.
+func openFile(path string) error {
+	return shellExecute("open", path)
+}
+
 func shellExecute(verb, target string) error {
 	v, err := windows.UTF16PtrFromString(verb)
 	if err != nil {

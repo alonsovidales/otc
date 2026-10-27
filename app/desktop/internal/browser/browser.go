@@ -49,3 +49,25 @@ func OpenFolder(path string) error {
 // launchFolder hands a checked folder to the desktop (browser_*.go); the
 // tests replace it.
 var launchFolder = openFolder
+
+// OpenFile opens a text file of ours - otc-sync's log (the tray's Show
+// Log) - in the app the desktop has for it (Notepad, the text editor).
+// path must be absolute and a regular file whose name ends in ".log": a
+// program or a script is never handed to the shell.
+func OpenFile(path string) error {
+	if path == "" || !filepath.IsAbs(path) || filepath.Ext(path) != ".log" {
+		return fmt.Errorf("not a log file: %q", path) // i18n-ignore: never shown: the tray only opens its own log
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a file: %w", path, fs.ErrNotExist) // i18n-ignore: never shown: the tray only opens its own log
+	}
+
+	return launchFile(filepath.Clean(path))
+}
+
+// launchFile hands a checked file to the desktop (browser_*.go).
+var launchFile = openFile

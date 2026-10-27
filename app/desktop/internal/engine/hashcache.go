@@ -24,7 +24,15 @@ type hashCacheFile struct {
 	Size    int64  `json:"size"`
 	ModNano int64  `json:"mod_nano"`
 	Hash    string `json:"hash"`
+	// CtimeNano is the change time the hash was taken at (changeTime;
+	// absent where it isn't read, and in an older version's file).
+	CtimeNano int64 `json:"ctime_nano,omitempty"`
 }
+
+// hashCacheSaveEvery: a pass that hashes for longer than this writes the
+// cache as it goes, so an otc-sync stopped (or killed) during a long first
+// pass doesn't read everything again at the next start.
+const hashCacheSaveEvery = 5 * time.Minute
 
 func hashCachePath(folderID string) (string, error) {
 	dir, err := config.Dir()
@@ -60,15 +68,17 @@ func (e *Engine) loadHashCacheLocked(folderID string) {
 	}
 	m := make(map[string]hashEntry, len(stored))
 	for path, v := range stored {
-		m[path] = hashEntry{size: v.Size, modTime: time.Unix(0, v.ModNano), hash: v.Hash}
+		m[path] = hashEntry{size: v.Size, modTime: time.Unix(0, v.ModNano), ctime: v.CtimeNano, hash: v.Hash}
 	}
 	e.hashCache[folderID] = m
 }
 
-// saveHashCache writes the folder's cache if this pass changed it; called
-// at the end of every reconcile pass. The dirty check comes first: most
-// passes change nothing, and copying a large cache under e.mu for nothing
-// held up everything else that needs the lock.
+// saveHashCache writes the folder's cache if it changed: at the end of
+// every pass, every hashCacheSaveEvery during a long one
+// (saveHashCacheEvery), and when the engine stops (saveAllHashCaches). The
+// dirty check comes first: most passes change nothing, and copying a large
+// cache under e.mu for nothing held up everything else that needs the
+// lock.
 func (e *Engine) saveHashCache(folderID string) {
 	e.mu.Lock()
 	if !e.hashDirty[folderID] {
@@ -77,9 +87,13 @@ func (e *Engine) saveHashCache(folderID string) {
 		return
 	}
 	delete(e.hashDirty, folderID)
+	if e.hashSavedAt == nil {
+		e.hashSavedAt = map[string]time.Time{}
+	}
+	e.hashSavedAt[folderID] = time.Now()
 	stored := make(map[string]hashCacheFile, len(e.hashCache[folderID]))
 	for path, v := range e.hashCache[folderID] {
-		stored[path] = hashCacheFile{Size: v.size, ModNano: v.modTime.UnixNano(), Hash: v.hash}
+		stored[path] = hashCacheFile{Size: v.size, ModNano: v.modTime.UnixNano(), CtimeNano: v.ctime, Hash: v.hash}
 	}
 	e.mu.Unlock()
 	p, err := hashCachePath(folderID)
@@ -90,11 +104,47 @@ func (e *Engine) saveHashCache(folderID string) {
 	if err != nil {
 		return
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil { // perms: rw-------
-		return
+	if err := config.WriteFileAtomic(p, data, 0o600); err != nil {
+		// Still to be written: the next save tries again.
+		e.mu.Lock()
+		e.hashDirty[folderID] = true
+		e.mu.Unlock()
 	}
-	_ = os.Rename(tmp, p)
+}
+
+// saveHashCacheEvery saves the folder's cache during a pass, at most every
+// hashCacheSaveEvery (the clock starts at its first call).
+func (e *Engine) saveHashCacheEvery(folderID string) {
+	e.mu.Lock()
+	if e.hashSavedAt == nil {
+		e.hashSavedAt = map[string]time.Time{}
+	}
+	at, seen := e.hashSavedAt[folderID]
+	if !seen {
+		e.hashSavedAt[folderID] = time.Now()
+	}
+	due := seen && e.hashDirty[folderID] && time.Since(at) >= hashCacheSaveEvery
+	e.mu.Unlock()
+	if due {
+		e.saveHashCache(folderID)
+	}
+}
+
+// saveAllHashCaches writes every changed cache: the engine is stopping
+// (the tray's Quit, the service stopped) - possibly in the middle of a
+// pass, whose hashing would otherwise be lost.
+func (e *Engine) saveAllHashCaches() {
+	e.mu.Lock()
+	var ids []string
+	for id := range e.hashDirty {
+		if e.backupConfiguredLocked(id) || e.remoteConfiguredLocked(id) {
+			ids = append(ids, id)
+		}
+	}
+	e.mu.Unlock()
+	for _, id := range ids {
+		e.saveHashCache(id)
+	}
 }
 
 // pruneHashCache drops the entries of files that are no longer in the

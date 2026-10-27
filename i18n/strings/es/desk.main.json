@@ -55,6 +55,14 @@
     "text": "no se puede vigilar: {detail}",
     "en": "cannot watch: {detail}"
   },
+  "desk.main.change_password": {
+    "text": "Cambiar contraseña…",
+    "en": "Change Password…"
+  },
+  "desk.main.change_password_tip": {
+    "text": "Volver a introducir la contraseña del dispositivo: tus carpetas se quedan como están",
+    "en": "Enter the device's password again - your folders stay as they are"
+  },
   "desk.main.checking": {
     "text": "Comprobando…",
     "en": "Checking…"
@@ -75,9 +83,29 @@
     "text": "config.json no es válido: {detail}",
     "en": "config.json is not valid: {detail}"
   },
+  "desk.main.config_unreadable": {
+    "text": "No se pueden leer los ajustes",
+    "en": "The settings can't be read"
+  },
+  "desk.main.connect_connected": {
+    "text": "Conectado al dispositivo {device}.",
+    "en": "Connected to {device}."
+  },
   "desk.main.connect_menu": {
     "text": "Conectar a un dispositivo…",
     "en": "Connect to a Device…"
+  },
+  "desk.main.connect_still_trying": {
+    "text": "La conexión con el dispositivo {device} aún está en curso. otc-sync sigue intentándolo; el menú indicará cuándo esté conectado.",
+    "en": "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is connected."
+  },
+  "desk.main.connect_unreachable": {
+    "text": "El dispositivo {device} no está accesible ahora mismo. otc-sync sigue intentándolo y empezará a sincronizar en cuanto el dispositivo responda.",
+    "en": "{device} can't be reached right now. otc-sync keeps trying and starts syncing once it answers."
+  },
+  "desk.main.connect_wrong_password": {
+    "text": "El dispositivo {device} ha rechazado la contraseña.",
+    "en": "{device} turned the password down."
   },
   "desk.main.connected_home": {
     "text": "Conectado a través de tu red doméstica",
@@ -158,9 +186,29 @@
     "text": "La carpeta “{name}” ya no está en {path}: puede que se haya movido, renombrado o eliminado.",
     "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
   },
+  "desk.main.folder_not_found": {
+    "text": "Carpeta no encontrada: reconecta el disco",
+    "en": "Folder not found - reconnect the drive"
+  },
   "desk.main.folder_offline": {
     "text": "Dispositivo sin conexión: se reanudará",
     "en": "Device offline - will resume"
+  },
+  "desk.main.folder_overlap_holds": {
+    "text": "La carpeta “{name}” contiene “{other}”, que ya está sincronizada.",
+    "en": "“{name}” holds “{other}”, which is already synced."
+  },
+  "desk.main.folder_overlap_inside": {
+    "text": "La carpeta “{name}” está dentro de “{other}”, que ya está sincronizada.",
+    "en": "“{name}” is inside “{other}”, which is already synced."
+  },
+  "desk.main.folder_overlap_same": {
+    "text": "La carpeta “{name}” ya está sincronizada.",
+    "en": "“{name}” is already synced."
+  },
+  "desk.main.folder_overlap_why": {
+    "text": "Una carpeta solo se puede sincronizar una vez: si estuviera dentro de otra carpeta sincronizada, o si contuviera una, sus archivos se sincronizarían dos veces y cada sincronización desharía los cambios de la otra.",
+    "en": "A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes."
   },
   "desk.main.folder_synced": {
     "text": "Sincronizada",
@@ -267,9 +315,33 @@
     "text": "{percent} %",
     "en": "{percent}%"
   },
+  "desk.main.remove_message": {
+    "text": "La carpeta se quita de esta app. Sus archivos siguen en este ordenador y en el dispositivo.",
+    "en": "The folder is taken out of this app. Its files stay on this computer and on the device.",
+    "reviewed": "claude-backtranslation 2026-10-27 #793ff891"
+  },
   "desk.main.remove_tip": {
     "text": "Dejar de sincronizar esta carpeta (no se elimina nada)",
     "en": "Stop syncing this folder (nothing is deleted)"
+  },
+  "desk.main.remove_title": {
+    "text": "¿Dejar de sincronizar la carpeta “{name}”?",
+    "en": "Stop syncing “{name}”?",
+    "reviewed": "claude-backtranslation 2026-10-27 #1cc6da79"
+  },
+  "desk.main.reset_settings": {
+    "text": "Restablecer ajustes…",
+    "en": "Reset Settings…"
+  },
+  "desk.main.reset_settings_message": {
+    "text": "otc-sync no puede leer sus ajustes:\n\n{detail}\n\nAl restablecerlos, se empieza de cero, sin dispositivo ni carpetas. El archivo ilegible se conserva junto al nuevo, y no se elimina ningún archivo, ni en este ordenador ni en el dispositivo.",
+    "en": "otc-sync can't read its settings:\n\n{detail}\n\nResetting starts over with no device and no folders. The unreadable file is kept next to the new one, and no file is deleted, on this computer or on the device.",
+    "reviewed": "claude-backtranslation 2026-10-27 #ca73ec6c"
+  },
+  "desk.main.reset_settings_title": {
+    "text": "¿Restablecer los ajustes de otc-sync?",
+    "en": "Reset otc-sync's settings?",
+    "reviewed": "claude-backtranslation 2026-10-27 #afd355b0"
   },
   "desk.main.restored_files": {
     "text": "{files} archivos habían desaparecido del dispositivo: se han restaurado desde este ordenador en lugar de eliminarlos aquí",
@@ -294,6 +366,18 @@
   "desk.main.settings_title": {
     "text": "Off The Cloud — Ajustes",
     "en": "Off The Cloud — Settings"
+  },
+  "desk.main.show_log": {
+    "text": "Mostrar registro",
+    "en": "Show Log"
+  },
+  "desk.main.show_log_failed": {
+    "text": "No se ha podido abrir el registro:\n\n{detail}\n\nEstá en {path}",
+    "en": "The log could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.show_log_tip": {
+    "text": "Lo que ha hecho otc-sync, para averiguar qué ha fallado",
+    "en": "What otc-sync has done, to find out what went wrong"
   },
   "desk.main.signature_malformed": {
     "text": "la firma de {url} está mal formada: {detail}",
@@ -328,6 +412,10 @@
     "text": "Demasiados intentos: reintentando en {seconds} s",
     "en": "Too many attempts - retrying in {seconds}s"
   },
+  "desk.main.status_waiting_password": {
+    "text": "Esperando la contraseña: desbloquea el llavero",
+    "en": "Waiting for the password - unlock the keyring"
+  },
   "desk.main.status_wrong_password": {
     "text": "Contraseña incorrecta",
     "en": "Wrong password"
@@ -356,6 +444,27 @@
     "text": "{percent} % en uso",
     "en": "{percent}% used"
   },
+  "desk.main.switch_device_button": {
+    "text": "Desconectar y conectar",
+    "en": "Disconnect and Connect",
+    "reviewed": "claude-backtranslation 2026-10-27 #62c7a32f"
+  },
+  "desk.main.switch_device_message": {
+    "text": {
+      "one": "Este ordenador sincroniza {count} carpeta con el dispositivo {current}. Al conectarte a otro dispositivo, primero se quita de esta app, para que no empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este ordenador y en {current}.",
+      "other": "Este ordenador sincroniza {count} carpetas con el dispositivo {current}. Al conectarte a otro dispositivo, primero se quitan de esta app, para que ninguna empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este ordenador y en {current}."
+    },
+    "en": {
+      "one": "This computer syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this computer and on {current}.",
+      "other": "This computer syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this computer and on {current}."
+    },
+    "reviewed": "claude-backtranslation 2026-10-27 #4252f684"
+  },
+  "desk.main.switch_device_title": {
+    "text": "¿Conectar al dispositivo {device}?",
+    "en": "Connect to {device}?",
+    "reviewed": "claude-backtranslation 2026-10-27 #8ca23e7a"
+  },
   "desk.main.title": {
     "text": "Off The Cloud — Sincronización",
     "en": "Off The Cloud — Sync"
@@ -363,6 +472,21 @@
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",
     "en": "Off The Cloud — {status}"
+  },
+  "desk.main.unencrypted_button": {
+    "text": "Conectar de todos modos",
+    "en": "Connect Anyway",
+    "reviewed": "claude-backtranslation 2026-10-27 #1fbc0737"
+  },
+  "desk.main.unencrypted_message": {
+    "text": "La dirección {address} no está cifrada: cualquiera que esté en una red entre este ordenador y el dispositivo podría leer tus archivos y robar tu contraseña. Usa una dirección ws:// solo para un dispositivo de tu red doméstica, y una wss:// para todo lo demás.",
+    "en": "{address} is not encrypted: anyone on a network between this computer and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.",
+    "reviewed": "claude-backtranslation 2026-10-27 #3d3822e1"
+  },
+  "desk.main.unencrypted_title": {
+    "text": "¿Conectar sin cifrado?",
+    "en": "Connect without encryption?",
+    "reviewed": "claude-backtranslation 2026-10-27 #0e9c29c2"
   },
   "desk.main.update_available": {
     "text": "Actualización {version} del dispositivo disponible",
@@ -428,5 +552,13 @@
   "desk.main.used_tb_of_total_gb": {
     "text": "{used} TB de {total} GB",
     "en": "{used} TB of {total} GB"
+  },
+  "desk.main.waiting_for": {
+    "text": "Esperando a {name}",
+    "en": "Waiting for {name}"
+  },
+  "desk.main.wrong_password_tip": {
+    "text": "El dispositivo ha rechazado la contraseña: haz clic para volver a introducirla",
+    "en": "The device turned the password down - click to enter it again"
   }
 }

@@ -46,6 +46,11 @@ type fakeDevice struct {
 	onRead     func()                 // runs on each ReadFile, as if the user did something meanwhile
 	modTime    *timestamppb.Timestamp // the files' date, when set
 	onHas      func()                 // runs on each HasFile (the start of an upload)
+	// afterList runs once a recursive listing has been answered, as if the
+	// device's files changed right after (a phone, during a long pass).
+	afterList func()
+	// pointLists counts the listings of one file's path (deviceStillAsListed).
+	pointLists int
 	// SetUploadOnly requests answered, and whether they are refused.
 	uploadOnly       int
 	refuseUploadOnly bool
@@ -127,6 +132,14 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 			}
 		}
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: files}}
+		if !p.ReqListFiles.Recursive && !strings.HasSuffix(p.ReqListFiles.Path, "/") {
+			d.pointLists++
+		}
+		if p.ReqListFiles.Recursive && d.afterList != nil {
+			hook := d.afterList
+			d.afterList = nil
+			hook()
+		}
 	case *pb.ReqEnvelope_ReqSetOutOfImages:
 		d.events = append(d.events, "images")
 		d.imagesSet = append(d.imagesSet, p.ReqSetOutOfImages)
@@ -288,8 +301,8 @@ func TestChunkedUploadAndDownloadRoundTrip(t *testing.T) {
 	if !bytes.Equal(got, content) {
 		t.Fatal("downloaded bytes differ from the original")
 	}
-	if _, err := os.Stat(dest + ".otc-part"); !os.IsNotExist(err) {
-		t.Error("temporary file left behind")
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(dest), "*.otc-part")); len(left) > 0 {
+		t.Errorf("temporary file left behind: %v", left)
 	}
 }
 
@@ -304,8 +317,8 @@ func TestChunkedDownloadRefusesAnotherHash(t *testing.T) {
 	if _, err := os.Stat(dest); !os.IsNotExist(err) {
 		t.Error("the file was written")
 	}
-	if _, err := os.Stat(dest + ".otc-part"); !os.IsNotExist(err) {
-		t.Error("temporary file left behind")
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(dest), "*.otc-part")); len(left) > 0 {
+		t.Errorf("temporary file left behind: %v", left)
 	}
 }
 

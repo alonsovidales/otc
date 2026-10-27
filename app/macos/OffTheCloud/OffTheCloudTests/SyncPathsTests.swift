@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import Foundation
 import Testing
 @testable import OffTheCloud
 
@@ -128,5 +129,100 @@ struct SyncPathsTests {
         // Spelled differently by FSEvents: the file name decides.
         #expect(!SyncPaths.isSkippedBackupPath("/private/var/x/report.pdf", root: "/var/x"))
         #expect(SyncPaths.isSkippedBackupPath("/private/var/x/.DS_Store", root: "/var/x"))
+    }
+
+    // MARK: The scratch files neither client syncs
+
+    @Test func scratchFilesAreNotSynced() {
+        #expect(SyncPaths.isExcludedFromSync("~$report.docx"))
+        #expect(SyncPaths.isExcludedFromSync("sub/~$book.xlsx"))
+        #expect(SyncPaths.isExcludedFromSync("Thumbs.db"))
+        #expect(SyncPaths.isExcludedFromSync("x/DESKTOP.INI"))
+        #expect(SyncPaths.isExcludedFromSync("ehthumbs.db"))
+        #expect(!SyncPaths.isExcludedFromSync("report~$.docx"))
+        #expect(!SyncPaths.isExcludedFromSync("thumbs.db.txt"))
+        #expect(SyncPaths.isSkippedBackupPath("/Users/me/Docs/~$cv.docx", root: "/Users/me/Docs"))
+    }
+
+    // MARK: One name, two normalizations
+
+    @Test func keysAreNFCAndBytesAreCompared() {
+        let nfd = "Re\u{301}sume\u{301}.pdf", nfc = "R\u{E9}sum\u{E9}.pdf"
+        #expect(SyncPaths.sameBytes(SyncPaths.key(nfd), nfc))
+        #expect(nfd == nfc)  // what Swift's String says
+        #expect(!SyncPaths.sameBytes(nfd, nfc))  // what the device says
+        #expect(SyncPaths.prefers(nfc, over: nfd, key: nfc))
+        #expect(!SyncPaths.prefers(nfd, over: nfc, key: nfc))
+        // A combining mark never makes a "/" or a "." out of nothing.
+        #expect(SyncPaths.isSafeRelative(SyncPaths.key("a/..\u{301}/b")))
+    }
+
+    // MARK: A record names its device
+
+    @Test func recordsMatchTheirDevice() {
+        let a = SyncPaths.RecordDevice(domain: "cala.off-the.cloud", pin: "aa")
+        #expect(SyncPaths.recordMatches(a, .init(domain: "ws://192.168.1.2:8080/ws", pin: "aa")))
+        #expect(!SyncPaths.recordMatches(a, .init(domain: "cala.off-the.cloud", pin: "bb")))
+        #expect(SyncPaths.recordMatches(a, .init(domain: "cala.off-the.cloud", pin: nil)))
+        #expect(!SyncPaths.recordMatches(a, .init(domain: "pit.off-the.cloud", pin: nil)))
+        #expect(SyncPaths.sameDevice("cala.off-the.cloud", "Cala.off-the.cloud"))
+        #expect(SyncPaths.sameDevice("cala.off-the.cloud", "wss://cala.off-the.cloud/ws"))
+        #expect(SyncPaths.sameDevice("ws://192.168.1.2:8080/ws", "WS://192.168.1.2:8080/ws/"))
+        #expect(!SyncPaths.sameDevice("cala.off-the.cloud", "pit.off-the.cloud"))
+    }
+
+    @Test func recordFiles() throws {
+        let device = SyncPaths.RecordDevice(domain: "d", pin: nil)
+        let data = try #require(SyncPaths.encodeRecord(files: ["a": "h"], device: device))
+        let read = try #require(SyncPaths.parseRecord(data))
+        #expect(read.files == ["a": "h"] && read.device == device)
+        // An older version's bare map: no device, as it always was.
+        let old = try #require(SyncPaths.parseRecord(Data(#"{"v": "h1", "device": "h2"}"#.utf8)))
+        #expect(old.device == nil && old.files["v"] == "h1" && old.files["device"] == "h2")
+        #expect(SyncPaths.parseRecord(Data("not json".utf8)) == nil)
+        // The same file otc-sync writes.
+        let go = try #require(SyncPaths.parseRecord(Data(#"{"v":2,"device":{"domain":"cala.off-the.cloud","pin":"ab"},"files":{"x.txt":"h"}}"#.utf8)))
+        #expect(go.device == SyncPaths.RecordDevice(domain: "cala.off-the.cloud", pin: "ab") && go.files == ["x.txt": "h"])
+        // A Swift dictionary can't even hold both spellings (a literal with
+        // both traps): an NFD key comes out in NFC bytes.
+        let keys = SyncPaths.normalized(["Re\u{301}sume\u{301}.pdf": "h"])
+        #expect(keys.count == 1 && SyncPaths.sameBytes(keys.keys.first!, "R\u{E9}sum\u{E9}.pdf"))
+        // A file with both, from another program, reads as one entry.
+        let twins = try #require(SyncPaths.parseRecord(Data(#"{"R\u00e9sum\u00e9.pdf": "nfc", "Re\u0301sume\u0301.pdf": "nfd"}"#.utf8)))
+        #expect(twins.files.count == 1)
+    }
+
+    // MARK: A move on the device is no mass deletion
+
+    @Test func movedHashesAreTheNewPaths() {
+        let moved = SyncPaths.movedHashes(listed: ["Archive/a": "h1", "b": "h2", "lost": ""], record: ["Projects/a": "h1", "b": "h2"])
+        #expect(moved == ["h1"])
+    }
+
+    // MARK: A folder is synced once
+
+    @Test func foldersOverlap() {
+        let synced = [(path: "/Users/me/Photos", name: "Photos"), (path: "/Volumes/R\u{E9}sum\u{E9}s/", name: "R\u{E9}sum\u{E9}s")]
+        #expect(SyncPaths.overlap("/Users/me/Photos/", with: synced, ignoringCase: true) == .same("Photos"))
+        #expect(SyncPaths.overlap("/Users/me/photos/2024", with: synced, ignoringCase: true) == .inside("Photos"))
+        #expect(SyncPaths.overlap("/Users/me/photos/2024", with: synced, ignoringCase: false) == nil)
+        #expect(SyncPaths.overlap("/Users/me", with: synced, ignoringCase: true) == .holds("Photos"))
+        #expect(SyncPaths.overlap("/Users/me/Photos2", with: synced, ignoringCase: true) == nil)
+        #expect(SyncPaths.overlap("/Volumes/Re\u{301}sume\u{301}s/cv", with: synced, ignoringCase: true) == .inside("R\u{E9}sum\u{E9}s"))
+        #expect(SyncPaths.overlap("/", with: synced, ignoringCase: true) == .holds("Photos"))
+    }
+
+    // MARK: ws:// is for the home network
+
+    @Test func unencryptedAddresses() {
+        for local in ["ws://192.168.1.10:8080/ws", "ws://10.0.0.2/ws", "ws://172.20.0.5/ws", "ws://127.0.0.1:8080/ws",
+                      "ws://[::1]:8080/ws", "ws://[fd12::5]/ws", "ws://169.254.3.4/ws", "ws://nas.local:8080/ws",
+                      "ws://otc/ws", "ws://otc.lan/ws", "ws://otc.home.arpa/ws", "ws://localhost:8080/ws",
+                      "wss://otc.example.com/ws", "cala.off-the.cloud"] {
+            #expect(!SyncPaths.isUnencryptedRemote(local), "\(local)")
+        }
+        for remote in ["ws://203.0.113.7:8080/ws", "ws://otc.example.com/ws", "WS://[2001:db8::1]/ws"] {
+            #expect(SyncPaths.isUnencryptedRemote(remote), "\(remote)")
+        }
     }
 }

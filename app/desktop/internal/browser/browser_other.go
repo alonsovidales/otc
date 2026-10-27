@@ -24,6 +24,11 @@ func openFolder(path string) error {
 	return start(path)
 }
 
+// openFile opens a file the same way, in the app the desktop has for it.
+func openFile(path string) error {
+	return start(path)
+}
+
 // start runs the desktop's opener on arg. An early failure - no browser
 // or file manager set up, say - is reported; what it opens isn't waited
 // for, since xdg-open may run it in the foreground until it is closed.

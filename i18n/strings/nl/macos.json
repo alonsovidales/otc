@@ -187,6 +187,11 @@
     "text": "{path} openen in de Finder",
     "en": "Open {path} in Finder"
   },
+  "macos.folders.remove_message": {
+    "text": "De map wordt uit deze app verwijderd. De bestanden erin blijven op deze Mac en op het apparaat staan.",
+    "en": "The folder is taken out of this app. Its files stay on this Mac and on the device.",
+    "reviewed": "claude-backtranslation 2026-10-27 #0e4eafa5"
+  },
   "macos.folders.restored_files": {
     "text": "{files} bestanden waren van het apparaat verdwenen – ze zijn vanaf deze Mac hersteld in plaats van hier te worden verwijderd",
     "en": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here"
@@ -276,6 +281,22 @@
   "macos.settings.retry": {
     "text": "Opnieuw",
     "en": "Retry"
+  },
+  "macos.settings.switch_device_message": {
+    "text": {
+      "one": "Deze Mac synchroniseert {count} map met het apparaat {current}. Als je verbinding maakt met een ander apparaat, wordt die map eerst uit deze app verwijderd, zodat die niet per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze Mac en op {current} staan.",
+      "other": "Deze Mac synchroniseert {count} mappen met het apparaat {current}. Als je verbinding maakt met een ander apparaat, worden ze eerst uit deze app verwijderd, zodat geen enkele map per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze Mac en op {current} staan."
+    },
+    "en": {
+      "one": "This Mac syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this Mac and on {current}.",
+      "other": "This Mac syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this Mac and on {current}."
+    },
+    "reviewed": "claude-backtranslation 2026-10-27 #414039b2"
+  },
+  "macos.settings.unencrypted_message": {
+    "text": "Het adres {address} is niet versleuteld: iedereen op een netwerk tussen deze Mac en het apparaat zou je bestanden kunnen lezen en je wachtwoord kunnen stelen. Gebruik een adres met ws:// alleen voor een apparaat op je thuisnetwerk, en een adres met wss:// voor al het andere.",
+    "en": "{address} is not encrypted: anyone on a network between this Mac and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.",
+    "reviewed": "claude-backtranslation 2026-10-27 #b0fb5d83"
   },
   "macos.setup.bad_hash": {
     "text": "De gedownloade image komt niet overeen met de ondertekende controlesom en is daarom verwijderd. Probeer het opnieuw.",

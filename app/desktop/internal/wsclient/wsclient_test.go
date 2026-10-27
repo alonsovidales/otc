@@ -307,3 +307,65 @@ func TestAuthFailureIsReportedFirst(t *testing.T) {
 		c.Disconnect()
 	}
 }
+
+// A connection that goes silent - the device or the network gone
+// without a word - is dropped and dialled again within deadAfter, rather
+// than looking alive until TCP gives up.
+func TestSilentConnectionIsDialledAgain(t *testing.T) {
+	var conns atomic.Int32
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	up := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		n := conns.Add(1)
+		// The first connection signs in, then answers nothing - not even a
+		// ping: the handler drops them.
+		if n == 1 {
+			c.SetPingHandler(func(string) error { return nil })
+		}
+		for {
+			_, data, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			req := &pb.ReqEnvelope{}
+			if proto.Unmarshal(data, req) != nil {
+				return
+			}
+			resp := &pb.RespEnvelope{Id: req.Id}
+			switch req.Payload.(type) {
+			case *pb.ReqEnvelope_ReqGetPubKey:
+				resp.Payload = &pb.RespEnvelope_RespPubKey{RespPubKey: &pb.PubKey{PublicKey: pubDER}}
+			case *pb.ReqEnvelope_ReqAuth:
+				resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			case *pb.ReqEnvelope_ReqGetLocalEndpoint:
+				resp.Error, resp.ErrorCode = true, "unknown_payload"
+			default:
+				continue
+			}
+			b, _ := proto.Marshal(resp)
+			_ = c.WriteMessage(websocket.BinaryMessage, b)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := New()
+	c.pingEvery, c.deadAfter = 200*time.Millisecond, 2*time.Second
+	connected := make(chan struct{}, 4)
+	c.OnConnect = func() { connected <- struct{}{} }
+	c.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
+	c.Connect()
+	t.Cleanup(c.Disconnect)
+	for i := 0; i < 2; i++ {
+		select {
+		case <-connected:
+		case <-time.After(15 * time.Second):
+			t.Fatalf("connection %d never came (%d dialled)", i+1, conns.Load())
+		}
+	}
+}

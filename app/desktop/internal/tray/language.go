@@ -105,14 +105,15 @@ func (u *ui) watchLanguage(m *languageMenu, stop chan struct{}) {
 // chooseLanguage records code ("" Automatic) as the choice made here.
 func (u *ui) chooseLanguage(code string) {
 	defer Refresh()
-	cfg := u.editConfig()
-	if cfg == nil || cfg.Language == code {
-		return
-	}
-	pickLanguage(cfg, code, u.c.Snapshot(), time.Now())
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(err.Error(), dlgTitle("Off The Cloud"))
-	}
+	st, now := u.c.Snapshot(), time.Now()
+	u.edit(func(cfg *config.Config) (bool, error) {
+		if cfg.Language == code {
+			return false, nil
+		}
+		pickLanguage(cfg, code, st, now)
+
+		return true, nil
+	})
 }
 
 // pickLanguage records code in cfg, pending, against the device's value

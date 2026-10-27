@@ -519,6 +519,9 @@ func TestOutOfImagesAnswerOfAnotherDeviceIgnored(t *testing.T) {
 func TestMigrateFoldersCarriesOutOfImages(t *testing.T) {
 	withConfigDir(t)
 	cfg := &config.Config{Folders: []config.Folder{{ID: "f1", Path: "/home/ana/Scans", OutOfImages: ptr(true)}}}
+	if err := cfg.Save(); err != nil { // as the tray or `otc-sync add` left it
+		t.Fatal(err)
+	}
 	New(cfg, "", nil)
 	if len(cfg.RemoteFolders) != 1 || cfg.RemoteFolders[0].OutOfImages == nil || !*cfg.RemoteFolders[0].OutOfImages {
 		t.Fatalf("migrated to %+v", cfg.RemoteFolders)

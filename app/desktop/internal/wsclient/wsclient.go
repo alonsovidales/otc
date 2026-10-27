@@ -34,6 +34,26 @@ const (
 // handshakeTO is how long a dial may take (a var for the tests).
 var handshakeTO = 20 * time.Second
 
+// The client's own keep-alive: a ping every pingEvery, and a
+// connection that has received nothing - no answer, no pong - for
+// deadAfter while nothing is being sent is taken for dead and dialled
+// again. A connection that died without a word (the computer asleep, the
+// Wi-Fi changed, a router that forgot it) used to look alive until TCP
+// gave up, or a request's own timeout ran out - half an hour. While a
+// message is being written the pong can't come back before it is out: a
+// write has its own deadline instead (writeTimeout).
+const (
+	pingEvery = 20 * time.Second
+	deadAfter = 45 * time.Second
+)
+
+// writeTimeout bounds writing one message of n bytes: half a minute, and
+// as long again as the bytes take at 32 KiB/s (a 4 MiB piece of a file:
+// about two and a half minutes more).
+func writeTimeout(n int) time.Duration {
+	return 30*time.Second + time.Duration(n)*time.Second/(32<<10)
+}
+
 // ErrNotConnected is what a request gets while the socket is down. A
 // folder's line in the tray says so in the user's language (MsgError).
 var ErrNotConnected error = &MsgError{M: i18n.DeskMainNotConnectedError()}
@@ -96,6 +116,12 @@ type Client struct {
 	backoff   time.Duration
 	gen       int64 // bumped on every connect, so a stale loop can tell it is stale
 	writeMu   sync.Mutex
+	// The keep-alive's view of the socket (keepAlive): when something last
+	// came in or a write last ended, and how many writes are under way.
+	lastSeen atomic.Int64
+	writing  atomic.Int32
+	// pingEvery and deadAfter, per client (a test makes them short).
+	pingEvery, deadAfter time.Duration
 	// lang is ReqEnvelope.lang, the language otc-sync shows (SetLang).
 	lang string
 }
@@ -103,7 +129,8 @@ type Client struct {
 // New makes an unconfigured client, sending the computer's language
 // until SetLang says otherwise.
 func New() *Client {
-	return &Client{waiters: map[int32]chan *pb.RespEnvelope{}, backoff: initialBackoff, lang: oslang.System()}
+	return &Client{waiters: map[int32]chan *pb.RespEnvelope{}, backoff: initialBackoff, lang: oslang.System(),
+		pingEvery: pingEvery, deadAfter: deadAfter}
 }
 
 // SetLang sets the language every request carries as ReqEnvelope.lang:
@@ -243,6 +270,12 @@ func (c *Client) dial(gen int64) {
 // run signs in on a fresh socket and, once it is in, announces it.
 func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 	conn.SetReadLimit(maxMessageSize)
+	c.seen()
+	conn.SetPongHandler(func(string) error {
+		c.seen()
+
+		return nil
+	})
 
 	c.mu.Lock()
 	if gen != c.gen || !c.autoRecon {
@@ -257,6 +290,7 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 	c.mu.Unlock()
 
 	go c.readLoop(conn, gen)
+	go c.keepAlive(conn, gen)
 
 	ctx := context.Background()
 	if route == RouteLocal {
@@ -443,6 +477,38 @@ type AuthError struct {
 
 func (e *AuthError) Error() string { return e.Message }
 
+// seen notes that the socket is alive: something came in, or a write ended.
+func (c *Client) seen() { c.lastSeen.Store(time.Now().UnixNano()) }
+
+// keepAlive pings the device (or the bridge in front of it) every
+// pingEvery and closes conn once it has been silent for deadAfter while
+// nothing was being written: the read loop then reports the drop and
+// dials again. It ends with the connection.
+func (c *Client) keepAlive(conn *websocket.Conn, gen int64) {
+	every, dead := c.pingEvery, c.deadAfter
+	check := time.NewTicker(min(time.Second, every))
+	defer check.Stop()
+	lastPing := time.Now()
+	for range check.C {
+		if !c.current(gen, conn) {
+			return
+		}
+		if time.Since(lastPing) >= every {
+			lastPing = time.Now()
+			// WriteControl may go out between the frames of a message
+			// being written; one that can't is left for the next.
+			_ = conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second))
+		}
+		quiet := time.Since(time.Unix(0, c.lastSeen.Load()))
+		if c.writing.Load() == 0 && quiet > dead {
+			log.Printf("no answer from the device for %s - connecting again", quiet.Round(time.Second))
+			_ = conn.Close()
+
+			return
+		}
+	}
+}
+
 func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 	for {
 		_, data, err := conn.ReadMessage()
@@ -465,6 +531,7 @@ func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 
 			return
 		}
+		c.seen()
 		resp := &pb.RespEnvelope{}
 		if err := proto.Unmarshal(data, resp); err != nil {
 			continue
@@ -547,7 +614,11 @@ func (c *Client) Request(ctx context.Context, build func(*pb.ReqEnvelope)) (*pb.
 		return nil, err
 	}
 	c.writeMu.Lock()
+	c.writing.Add(1)
+	_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout(len(data))))
 	err = conn.WriteMessage(websocket.BinaryMessage, data)
+	c.writing.Add(-1)
+	c.seen()
 	c.writeMu.Unlock()
 	if err != nil {
 		c.dropWaiter(id)

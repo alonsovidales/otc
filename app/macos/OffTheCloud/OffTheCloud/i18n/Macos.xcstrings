@@ -2210,6 +2210,53 @@
         }
       }
     },
+    "macos.folders.remove_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner wird aus dieser App entfernt. Seine Dateien bleiben auf diesem Mac und auf dem Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder is taken out of this app. Its files stay on this Mac and on the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta se quita de esta app. Sus archivos siguen en este Mac y en el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier est retiré de cette app. Ses fichiers restent sur ce Mac et sur l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella viene rimossa da questa app. I suoi file restano su questo Mac e sul dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map wordt uit deze app verwijderd. De bestanden erin blijven op deze Mac en op het apparaat staan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta é removida desta app. Os seus ficheiros ficam neste Mac e no dispositivo."
+          }
+        }
+      }
+    },
     "macos.folders.restored_files" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3240,6 +3287,254 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Repetir"
+          }
+        }
+      }
+    },
+    "macos.settings.switch_device_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Dieser Mac synchronisiert %arg Ordner mit dem Gerät %2$@. Beim Verbinden mit einem anderen Gerät wird er zuerst aus dieser App entfernt, damit er nicht versehentlich mit dem neuen Gerät synchronisiert wird. Seine Dateien bleiben auf diesem Mac und auf %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Dieser Mac synchronisiert %arg Ordner mit dem Gerät %2$@. Beim Verbinden mit einem anderen Gerät werden sie zuerst aus dieser App entfernt, damit keiner davon versehentlich mit dem neuen Gerät synchronisiert wird. Ihre Dateien bleiben auf diesem Mac und auf %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "This Mac syncs %arg folder with %2$@. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this Mac and on %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "This Mac syncs %arg folders with %2$@. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this Mac and on %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este Mac sincroniza %arg carpeta con el dispositivo %2$@. Al conectarte a otro dispositivo, primero se quita de esta app, para que no empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este Mac y en %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este Mac sincroniza %arg carpetas con el dispositivo %2$@. Al conectarte a otro dispositivo, primero se quitan de esta app, para que ninguna empiece a sincronizarse con el dispositivo nuevo por error. Sus archivos siguen en este Mac y en %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Ce Mac synchronise %arg dossier avec l’appareil %2$@. Se connecter à un autre appareil le retire d’abord de cette app, pour qu’il ne se mette pas par erreur à se synchroniser avec le nouvel appareil. Ses fichiers restent sur ce Mac et sur %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Ce Mac synchronise %arg dossiers avec l’appareil %2$@. Se connecter à un autre appareil les retire d’abord de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec le nouvel appareil. Leurs fichiers restent sur ce Mac et sur %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Questo Mac sincronizza %arg cartella con il dispositivo %2$@. La connessione a un altro dispositivo la rimuove prima da questa app, così non inizia per errore a sincronizzarsi con il nuovo dispositivo. I suoi file restano su questo Mac e su %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Questo Mac sincronizza %arg cartelle con il dispositivo %2$@. La connessione a un altro dispositivo le rimuove prima da questa app, così nessuna inizia per errore a sincronizzarsi con il nuovo dispositivo. I loro file restano su questo Mac e su %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Deze Mac synchroniseert %arg map met het apparaat %2$@. Als je verbinding maakt met een ander apparaat, wordt die map eerst uit deze app verwijderd, zodat die niet per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze Mac en op %2$@ staan."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Deze Mac synchroniseert %arg mappen met het apparaat %2$@. Als je verbinding maakt met een ander apparaat, worden ze eerst uit deze app verwijderd, zodat geen enkele map per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden erin blijven op deze Mac en op %2$@ staan."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este Mac sincroniza %arg pasta com o dispositivo %2$@. Ligar a outro dispositivo remove-a primeiro desta app, para que não comece a sincronizar com o novo dispositivo por engano. Os seus ficheiros ficam neste Mac e em %2$@."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Este Mac sincroniza %arg pastas com o dispositivo %2$@. Ligar a outro dispositivo remove-as primeiro desta app, para que nenhuma comece a sincronizar com o novo dispositivo por engano. Os seus ficheiros ficam neste Mac e em %2$@."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "macos.settings.unencrypted_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse %1$@ ist nicht verschlüsselt: Jeder in einem Netzwerk zwischen diesem Mac und dem Gerät könnte deine Dateien lesen und dein Passwort stehlen. Verwende eine Adresse mit ws:// nur für ein Gerät in deinem Heimnetz und eine mit wss:// für alles andere."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is not encrypted: anyone on a network between this Mac and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección %1$@ no está cifrada: cualquiera que esté en una red entre este Mac y el dispositivo podría leer tus archivos y robar tu contraseña. Usa una dirección ws:// solo para un dispositivo de tu red doméstica, y una wss:// para todo lo demás."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse %1$@ n’est pas chiffrée : toute personne sur un réseau entre ce Mac et l’appareil pourrait lire vos fichiers et s’emparer de votre mot de passe. N’utilisez une adresse ws:// que pour un appareil de votre réseau domestique, et une adresse wss:// pour tout le reste."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’indirizzo %1$@ non è crittografato: chiunque si trovi su una rete tra questo Mac e il dispositivo potrebbe leggere i tuoi file e rubare la tua password. Usa un indirizzo ws:// solo per un dispositivo sulla tua rete domestica, e un indirizzo wss:// per tutto il resto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het adres %1$@ is niet versleuteld: iedereen op een netwerk tussen deze Mac en het apparaat zou je bestanden kunnen lezen en je wachtwoord kunnen stelen. Gebruik een adres met ws:// alleen voor een apparaat op je thuisnetwerk, en een adres met wss:// voor al het andere."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O endereço %1$@ não está encriptado: qualquer pessoa numa rede entre este Mac e o dispositivo poderia ler os teus ficheiros e roubar a tua palavra-passe. Usa um endereço ws:// só para um dispositivo na tua rede doméstica, e um wss:// para tudo o resto."
           }
         }
       }

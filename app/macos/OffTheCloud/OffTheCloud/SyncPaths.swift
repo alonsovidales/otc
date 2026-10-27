@@ -81,27 +81,232 @@ enum SyncPaths {
         return !(length == 0 || (dots == length && dots <= 2))
     }
 
-    /// Left out of a two-way pass on both sides: what the local scan never
-    /// sees (a component starting with ".", as .skipsHiddenFiles) and
-    /// downloads in progress. A dotfile listed on the device used to come
-    /// down, look deleted here on the next pass, and be deleted there.
-    /// As otc-sync's notSynced.
+    /// Left out of every pass, both ways and on both sides - the same list
+    /// as otc-sync's (engine/skip.go), written down in CLAUDE.md ("Sync
+    /// invariants"): what the local scan never sees (a component starting
+    /// with ".", as .skipsHiddenFiles, which also leaves out what Finder
+    /// hides), downloads in progress, and the scratch files of Office and of
+    /// Windows' Explorer (skippedName). A dotfile listed on the device used
+    /// to come down, look deleted here on the next pass, and be deleted
+    /// there.
     static func isExcludedFromSync(_ relative: String) -> Bool {
         relative.hasSuffix(".otc-part") || hasHiddenComponent(relative)
+            || skippedName((relative as NSString).lastPathComponent)
+    }
+
+    /// Office's owner files ("~$report.docx": an open document's, made and
+    /// deleted as Word and Excel please) and Explorer's desktop.ini,
+    /// Thumbs.db, ehthumbs.db and ehthumbs_vista.db, in any case.
+    static let skippedNames: Set<String> = ["desktop.ini", "thumbs.db", "ehthumbs.db", "ehthumbs_vista.db"]
+
+    static func skippedName(_ name: String) -> Bool {
+        name.hasPrefix("~$") || skippedNames.contains(name.lowercased())
     }
 
     /// A backup's watcher skips what its reconcile never sends: a hidden
-    /// path below the folder (.DS_Store, .git/...) or a partial download.
-    /// Judged below `root` only, as .skipsHiddenFiles: a backup of
-    /// ~/.dotfiles is still watched.
+    /// path below the folder (.DS_Store, .git/...), a partial download, a
+    /// scratch file. Judged below `root` only, as .skipsHiddenFiles: a
+    /// backup of ~/.dotfiles is still watched.
     static func isSkippedBackupPath(_ path: String, root: String) -> Bool {
-        if path.hasSuffix(".otc-part") { return true }
+        if path.hasSuffix(".otc-part") || skippedName((path as NSString).lastPathComponent) { return true }
         if path.hasPrefix(root + "/") {
             return hasHiddenComponent(String(path.dropFirst(root.count + 1)))
         }
         // FSEvents spelled the path differently (/private/var vs /var):
         // judge the file's own name only.
         return hasHiddenComponent((path as NSString).lastPathComponent)
+    }
+
+    // MARK: Normalization
+
+    /// A relative path as passes and records key it: its NFC form (otc-sync's
+    /// pathKey). The device keeps paths byte for byte, as clients sent them -
+    /// this Mac's file system hands out NFD, a phone sends NFC - so one name
+    /// could be two entries there; Swift's == takes them for one String,
+    /// which made Dictionary(uniqueKeysWithValues:) trap at every launch.
+    /// New files go up under their key; a file the device has is always
+    /// addressed by the device's own bytes, never renamed to NFC.
+    static func key(_ relative: String) -> String { relative.precomposedStringWithCanonicalMapping }
+
+    /// The same bytes - what the device compares - not merely the same
+    /// String: "é" and "e\u{301}" are equal Strings.
+    static func sameBytes(_ a: String, _ b: String) -> Bool { a.utf8.elementsEqual(b.utf8) }
+
+    /// Of two device entries whose keys are equal, the one to sync: the one
+    /// already spelled as its key. The other stays on the device as it is.
+    static func prefers(_ candidate: String, over current: String, key: String) -> Bool {
+        sameBytes(candidate, key) && !sameBytes(current, key)
+    }
+
+    // MARK: Sync records
+
+    /// The device a two-way sync record was made with (otc-sync's
+    /// recordDevice): the configured address (deviceDomainKey) and, when the
+    /// device gave one, the hex SHA-256 of its home-network certificate -
+    /// made once and kept on its storage, so it names that device whatever
+    /// address reaches it, and a device set up again from scratch gets a new
+    /// one.
+    struct RecordDevice: Codable, Equatable {
+        var domain: String
+        var pin: String?
+    }
+
+    /// A record made with `record` is one of `device`: by the pin when both
+    /// have one, else by the address. One of another device is no record:
+    /// that pass only copies what one side lacks, and deletes nothing.
+    static func recordMatches(_ record: RecordDevice, _ device: RecordDevice) -> Bool {
+        if let a = record.pin, !a.isEmpty, let b = device.pin, !b.isEmpty { return a == b }
+        return record.domain == device.domain
+    }
+
+    /// A configured address as records compare it: a bridge name in any
+    /// spelling ("Cala.off-the.cloud", "wss://cala.off-the.cloud/ws") is
+    /// its bare host; anything else the trimmed address in lower case. As
+    /// otc-sync's deviceDomainKey (and SettingsStore.bridgeName).
+    static func deviceDomainKey(_ domain: String) -> String {
+        var d = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let bridge = "off-the.cloud"
+        var bare = d
+        if bare.hasPrefix("wss://") {
+            bare.removeFirst("wss://".count)
+            if bare.hasSuffix("/ws") { bare.removeLast("/ws".count) }
+            bare = bare.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+        if !bare.contains("://"), !bare.contains("/"), !bare.contains(":"), bare.hasSuffix("." + bridge) {
+            let name = String(bare.dropLast(bridge.count + 1))
+            if !name.isEmpty, !name.contains(".") { return name + "." + bridge }
+        }
+        while d.hasSuffix("/") { d.removeLast() }
+        return d
+    }
+
+    /// The same device as far as the two addresses say.
+    static func sameDevice(_ a: String, _ b: String) -> Bool { deviceDomainKey(a) == deviceDomainKey(b) }
+
+    static let recordVersion = 2
+
+    private struct RecordFile: Codable {
+        let v: Int
+        let device: RecordDevice
+        let files: [String: String]
+    }
+
+    /// A record file: this version's ({"v": 2, "device": …, "files": …}) or
+    /// an older one's bare map (device nil, taken as the configured
+    /// device's, as it always was). Keys in NFC (key); nil when it can't be
+    /// read - no record, so nothing is deleted. Same file as otc-sync's.
+    static func parseRecord(_ data: Data) -> (files: [String: String], device: RecordDevice?)? {
+        if let rec = try? JSONDecoder().decode(RecordFile.self, from: data), rec.v == recordVersion {
+            return (normalized(rec.files), rec.device)
+        }
+        guard let map = try? JSONDecoder().decode([String: String].self, from: data) else { return nil }
+        return (normalized(map), nil)
+    }
+
+    static func encodeRecord(files: [String: String], device: RecordDevice) -> Data? {
+        try? JSONEncoder().encode(RecordFile(v: recordVersion, device: device, files: files))
+    }
+
+    /// `files` keyed by key(); of two spellings, the NFC one wins.
+    static func normalized(_ files: [String: String]) -> [String: String] {
+        var out: [String: String] = [:]
+        out.reserveCapacity(files.count)
+        for (k, v) in files {
+            let nk = key(k)
+            if out[nk] != nil, !sameBytes(k, nk) { continue }
+            out[nk] = v
+        }
+        return out
+    }
+
+    // MARK: The mass-deletion guard
+
+    /// The hashes of the device's files at paths the record doesn't have:
+    /// new there, or moved or renamed there. A local delete whose content is
+    /// among them is a move, not a loss, and doesn't count for the guard.
+    static func movedHashes(listed: [String: String], record: [String: String]) -> Set<String> {
+        var moved = Set<String>()
+        for (relative, hash) in listed where record[relative] == nil && !hash.isEmpty {
+            moved.insert(hash)
+        }
+        return moved
+    }
+
+    // MARK: Folders synced once
+
+    /// Why a folder can't be added next to the ones synced: it is one of
+    /// them, inside one, or holds one (the other's name).
+    enum Overlap: Equatable {
+        case same(String)
+        case inside(String)
+        case holds(String)
+    }
+
+    /// `path` against `others` (path and name each), both local paths or
+    /// both device paths; case-insensitive when `ignoringCase` (this Mac's
+    /// disks, and otc-sync's on Windows). Paths compare in NFC, without a
+    /// trailing slash. As otc-sync's config.Overlap.
+    static func overlap(_ path: String, with others: [(path: String, name: String)], ignoringCase: Bool) -> Overlap? {
+        func norm(_ p: String) -> String {
+            var s = key(p)
+            if ignoringCase { s = s.lowercased() }
+            while s.count > 1, s.hasSuffix("/") { s.removeLast() }
+            return s
+        }
+        func under(_ p: String, _ dir: String) -> Bool {
+            dir == "/" ? p != "/" : p.utf8.starts(with: (dir + "/").utf8)
+        }
+        let mine = norm(path)
+        for other in others {
+            let theirs = norm(other.path)
+            if mine.utf8.elementsEqual(theirs.utf8) { return .same(other.name) }
+            if under(mine, theirs) { return .inside(other.name) }
+            if under(theirs, mine) { return .holds(other.name) }
+        }
+        return nil
+    }
+
+    // MARK: Unencrypted addresses
+
+    /// `domain` is a ws:// address (not encrypted) for a device that isn't on
+    /// this network: the Settings form warns before using it. Not for
+    /// loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7) or
+    /// link-local addresses, a .local, .lan, .home.arpa or .internal name,
+    /// or a single-label one ("nas"). As otc-sync's config.Unencrypted.
+    static func isUnencryptedRemote(_ domain: String) -> Bool {
+        let d = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard d.lowercased().hasPrefix("ws://"), let host = URLComponents(string: d)?.host?.lowercased(), !host.isEmpty else {
+            return false
+        }
+        var h = host
+        if h.hasPrefix("[") && h.hasSuffix("]") { h = String(h.dropFirst().dropLast()) }
+        if h == "localhost" || h.hasSuffix(".localhost") { return false }
+        if let b = ipv4(h) {
+            let local = b[0] == 127 || b[0] == 10 || (b[0] == 172 && b[1] & 0xf0 == 16) || (b[0] == 192 && b[1] == 168)
+                || (b[0] == 169 && b[1] == 254)
+            return !local
+        }
+        if h.contains(":") {
+            // IPv6: loopback, unique local (fc00::/7), link-local (fe80::/10).
+            if h == "::1" { return false }
+            let first = h.split(separator: ":", omittingEmptySubsequences: false).first.map(String.init) ?? ""
+            if let v = UInt16(first, radix: 16), v & 0xfe00 == 0xfc00 || v & 0xffc0 == 0xfe80 { return false }
+            return true
+        }
+        if !h.contains(".") { return false }
+        for suffix in [".local", ".lan", ".home.arpa", ".internal"] where h.hasSuffix(suffix) { return false }
+        return true
+    }
+
+    private static func ipv4(_ s: String) -> [UInt8]? {
+        let parts = s.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return nil }
+        var out: [UInt8] = []
+        for p in parts {
+            guard !p.isEmpty, p.count <= 3, p.allSatisfy(\.isASCII), let v = UInt8(p) else { return nil }
+            out.append(v)
+        }
+        return out
     }
 
     /// After a two-way pass, the folders its local deletions left empty go

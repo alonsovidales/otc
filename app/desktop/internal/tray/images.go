@@ -117,17 +117,8 @@ func (u *ui) toggleImages(fi *folderItem) {
 		dlgCancel(i18n.CommonCancel().Render(l))) != nil {
 		return
 	}
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	if !cfg.SetOutOfImagesRequest(fi.id, keepOut) {
-		return // removed meanwhile
-	}
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
-	}
-	Refresh()
+	// false: removed meanwhile.
+	u.edit(func(cfg *config.Config) (bool, error) { return cfg.SetOutOfImagesRequest(fi.id, keepOut), nil })
 }
 
 // addImagesItems adds a folder's checkbox and the line under it to its

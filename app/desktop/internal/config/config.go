@@ -7,7 +7,11 @@
 // write the same thing.
 //
 //	config.json  - device address, the folders, autostart, the language (0600)
-//	secret       - the password, only when no keyring is available (0600)
+//	config.json.bak - the config.json before the last save, read when
+//	               config.json can't be (Load)
+//	config.lock  - held while a process edits config.json (Edit)
+//	secret       - the password, only when no keyring is available or the
+//	               user chose the file (0600)
 //	local.json   - where the device answers on the home network (0600)
 //	state.json   - written by whichever process runs the sync engine, read
 //	               by `otc-sync status` and by a tray that isn't the engine
@@ -15,16 +19,21 @@
 package config
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/zalando/go-keyring"
 
 	"github.com/alonsovidales/otc/i18n"
@@ -191,6 +200,11 @@ type Config struct {
 	// app isn't overwritten. nil when the process that made the change
 	// hadn't seen one (expected is then left out).
 	LanguageExpected *string `json:"language_expected,omitempty"`
+	// PasswordInFile: the password is kept in the 0600 secret file, not the
+	// keyring - the user's choice at `otc-sync service install`, for a
+	// service that starts at boot, before any keyring unlocks.
+	PasswordInFile bool `json:"password_in_file,omitempty"`
+
 	// LanguageNextDevice: the pending change is for the device otc-sync
 	// signs in to next - made with no device set up (Domain empty), with
 	// no value of the device set up seen (SetLanguage's expected nil: the
@@ -318,6 +332,12 @@ func path(name string) (string, error) {
 }
 
 // Load reads config.json; a missing file is an empty config, not an error.
+// One that isn't valid - left empty or cut short by a power cut before its
+// writes reached the disk, or edited by hand - is replaced by the copy kept
+// at the last save (config.json.bak), when that one is valid: the next
+// save writes config.json again. A file that can't be read at all (a
+// permission, another process renaming over it on Windows) is an error,
+// never the older copy, which would bring back what the last save changed.
 func Load() (*Config, error) {
 	p, err := path("config.json")
 	if err != nil {
@@ -332,6 +352,15 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(raw, cfg); err != nil {
+		if bak, berr := os.ReadFile(p + ".bak"); berr == nil {
+			prev := &Config{}
+			if json.Unmarshal(bak, prev) == nil {
+				log.Printf("config.json is not valid (%v) - using the copy from before its last save, config.json.bak", err)
+
+				return prev, nil
+			}
+		}
+
 		return nil, &InvalidError{Err: err}
 	}
 
@@ -350,8 +379,11 @@ func (e *InvalidError) Msg() i18n.Msg { return i18n.DeskMainConfigInvalid(e.Err.
 
 func (e *InvalidError) Unwrap() error { return e.Err }
 
-// Save writes config.json atomically, so a daemon watching it never reads
-// a half-written file.
+// Save writes config.json atomically and durably (WriteFileAtomic), so a
+// process watching it never reads a half-written file and a power cut
+// never leaves an empty one. The file it replaces, when valid, is kept as
+// config.json.bak first (Load's fallback). An edit - read, change, save -
+// goes through Edit, which holds the lock other processes' edits take.
 func (c *Config) Save() error {
 	p, err := path("config.json")
 	if err != nil {
@@ -361,12 +393,85 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil { // perms: rw-------
-		return err
+	if cur, err := os.ReadFile(p); err == nil && !bytes.Equal(cur, raw) {
+		var probe Config
+		if json.Unmarshal(cur, &probe) == nil {
+			if err := WriteFileAtomic(p+".bak", cur, 0o600); err != nil { // perms: rw-------
+				log.Printf("could not keep a copy of config.json: %v", err)
+			}
+		}
 	}
 
-	return os.Rename(tmp, p)
+	return WriteFileAtomic(p, raw, 0o600) // perms: rw-------
+}
+
+// editLockTimeout is how long Edit waits for another process's edit.
+var editLockTimeout = 10 * time.Second
+
+// Edit is a change to config.json: read just before, changed by edit, and
+// saved when edit says it changed something - all under config.lock, which
+// every otc-sync process takes for its edits (the tray, the service's
+// engine, the command line; flock on Linux, LockFileEx on Windows). Two
+// edits at once used to read the same file and save over each other, and
+// wrote through the same "config.json.tmp". A read that races another
+// process's rename-over (Windows) is tried again. Never call Edit from
+// inside edit: the lock isn't reentrant.
+func Edit(edit func(*Config) (changed bool, err error)) (*Config, error) {
+	return EditSaving(edit, (*Config).Save)
+}
+
+// EditSaving is Edit with the save given (a test makes it fail).
+func EditSaving(edit func(*Config) (changed bool, err error), save func(*Config) error) (*Config, error) {
+	lp, err := path("config.lock")
+	if err != nil {
+		return nil, err
+	}
+	l := flock.New(lp)
+	ctx, cancel := context.WithTimeout(context.Background(), editLockTimeout)
+	defer cancel()
+	ok, err := l.TryLockContext(ctx, 25*time.Millisecond)
+	if err != nil || !ok {
+		return nil, fmt.Errorf("another otc-sync is changing the settings - try again (%v)", err) // i18n-ignore: an error the tray shows as it is; rare
+	}
+	defer func() { _ = l.Unlock() }()
+	var cfg *Config
+	for try := 0; try < 3; try++ {
+		if try > 0 {
+			time.Sleep(50 * time.Millisecond)
+		}
+		if cfg, err = Load(); err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	changed, err := edit(cfg)
+	if err != nil || !changed {
+		return cfg, err
+	}
+
+	return cfg, save(cfg)
+}
+
+// Reset puts config.json (and its copy) aside, renamed with the time -
+// kept, never deleted - so the next Load starts over with no device and no
+// folders: the tray's "Reset Settings…", for a config.json that can't be
+// read. Returns the name it was given.
+func Reset(now time.Time) (string, error) {
+	p, err := path("config.json")
+	if err != nil {
+		return "", err
+	}
+	aside := p + ".unreadable-" + now.Format("20060102-150405")
+	if err := os.Rename(p, aside); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if err := os.Rename(p+".bak", aside+".bak"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+
+	return aside, nil
 }
 
 // AutostartEnabled says whether the user asked to start at login; no
@@ -408,13 +513,25 @@ func Ready(cfg *Config, password string) bool {
 
 // ---- the password ------------------------------------------------------
 
+// ErrKeyringLocked: the keyring could not be asked - locked, or not running
+// yet, as for a service started at boot - and no file holds the password.
+// The daemon says so ("Waiting for the password") and asks again.
+var ErrKeyringLocked = errors.New("the keyring can't be read yet (locked?) and no password file is kept") // i18n-ignore: the tray words the status; the command line prints it
+
 // LoadPassword reads the password from the OS keyring (Windows Credential
 // Manager, the Secret Service on a Linux desktop), or from the 0600 fallback
 // file a headless install has to use - a service started at boot has no
-// keyring to ask.
+// keyring to ask - or that the user chose (PasswordInFile).
 func LoadPassword() (string, error) {
-	if pw, err := keyring.Get(keyringService, keyringUser); err == nil && !noKeyring() {
-		return pw, nil
+	var keyringErr error
+	if !PasswordFileOnly() {
+		pw, err := keyring.Get(keyringService, keyringUser)
+		if err == nil {
+			return pw, nil
+		}
+		if !errors.Is(err, keyring.ErrNotFound) {
+			keyringErr = err
+		}
 	}
 	p, err := path("secret")
 	if err != nil {
@@ -422,6 +539,10 @@ func LoadPassword() (string, error) {
 	}
 	raw, err := os.ReadFile(p)
 	if errors.Is(err, os.ErrNotExist) {
+		if keyringErr != nil {
+			return "", fmt.Errorf("%w: %v", ErrKeyringLocked, keyringErr)
+		}
+
 		return "", nil
 	}
 	if err != nil {
@@ -436,6 +557,47 @@ func LoadPassword() (string, error) {
 // at login, or a developer's Mac where the keyring item would collide with
 // the native app's own.
 func noKeyring() bool { return os.Getenv("OTC_SYNC_NO_KEYRING") == "1" }
+
+// PasswordFileOnly: the password lives in the 0600 file only
+// (OTC_SYNC_NO_KEYRING=1, or the user's choice, Config.PasswordInFile).
+func PasswordFileOnly() bool {
+	if noKeyring() {
+		return true
+	}
+	cfg, err := Load()
+
+	return err == nil && cfg.PasswordInFile
+}
+
+// PasswordPath is the 0600 file the password is kept in without a keyring.
+func PasswordPath() (string, error) { return path("secret") }
+
+// InKeyring: a password is stored in the keyring now.
+func InKeyring() bool {
+	_, err := keyring.Get(keyringService, keyringUser)
+
+	return err == nil
+}
+
+// MovePasswordToFile keeps pw in the 0600 file from now on, and takes it
+// out of the keyring: `otc-sync service install`'s offer, so a service
+// started at boot can read it.
+func MovePasswordToFile(pw string) error {
+	if _, err := Edit(func(c *Config) (bool, error) {
+		changed := !c.PasswordInFile
+		c.PasswordInFile = true
+
+		return changed, nil
+	}); err != nil {
+		return err
+	}
+	if err := SavePassword(pw); err != nil {
+		return err
+	}
+	_ = keyring.Delete(keyringService, keyringUser)
+
+	return nil
+}
 
 // SavePassword stores it in the keyring when there is one, else in the
 // fallback file. Never logged.
@@ -452,7 +614,7 @@ func SavePassword(pw string) error {
 
 		return nil
 	}
-	if !noKeyring() {
+	if !PasswordFileOnly() {
 		if err := keyring.Set(keyringService, keyringUser, pw); err == nil {
 			// A stale fallback copy must not outlive the move to the keyring.
 			if p, err := path("secret"); err == nil {
@@ -467,7 +629,7 @@ func SavePassword(pw string) error {
 		return err
 	}
 
-	return os.WriteFile(p, []byte(pw+"\n"), 0o600) // perms: rw-------
+	return WriteFileAtomic(p, []byte(pw+"\n"), 0o600) // perms: rw-------
 }
 
 // ---- the engine's status, for the CLI and a viewer tray ----------------
@@ -583,12 +745,7 @@ func SaveState(st *State) error {
 	if err != nil {
 		return err
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil { // perms: rw-------
-		return err
-	}
-
-	return os.Rename(tmp, p)
+	return WriteFileAtomic(p, raw, 0o600) // perms: rw-------
 }
 
 // LockPath is the file the engine holds a lock on while it runs.
@@ -703,12 +860,8 @@ func SaveLocalEndpoint(ep *LocalEndpoint) error {
 	if err != nil {
 		return err
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil { // perms: rw-------
-		return err
-	}
 
-	return os.Rename(tmp, p)
+	return WriteFileAtomic(p, raw, 0o600) // perms: rw-------
 }
 
 // ClearLocalEndpoint forgets it: the device said it has none, or it was

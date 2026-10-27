@@ -225,6 +225,12 @@
     "args": [["path", "user"]],
     "note": "Mac app: tooltip and VoiceOver hint of a folder's icon and name in the panel; a click shows that folder in a Finder window. {path} is the folder's full path on this Mac (for example /Users/ana/Photos). Write Finder as Apple does in your language (en el Finder, dans le Finder, im Finder)."
   },
+  "macos.folders.remove_message": {
+    "text": "The folder is taken out of this app. Its files stay on this Mac and on the device.",
+    "note": "Mac app: the text under desk.main.remove_title, inside a folder's row, before the folder is removed from the app; its buttons are Cancel and Remove.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #1db954f9"
+  },
   "macos.folders.restored_files": {
     "text": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here",
     "args": [["files", "text"]],
@@ -331,6 +337,23 @@
     "text": "Retry",
     "note": "Mac app: small button in Settings, shown while not connected, that tries to connect again now.",
     "max": 16
+  },
+  "macos.settings.switch_device_message": {
+    "text": {
+      "one": "This Mac syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this Mac and on {current}.",
+      "other": "This Mac syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this Mac and on {current}."
+    },
+    "args": [["count", "count"], ["current", "text"]],
+    "note": "Mac app, Settings: the text of the warning titled desk.main.switch_device_title, shown when another device is entered while folders are synced. {count} is how many folders are synced; {current} is the address of the device they sync with now. Nothing is deleted.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #5134eb97"
+  },
+  "macos.settings.unencrypted_message": {
+    "text": "{address} is not encrypted: anyone on a network between this Mac and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.",
+    "args": [["address", "text"]],
+    "note": "Mac app, Settings: the text of the warning titled desk.main.unencrypted_title. {address} is the address entered (it starts with ws://). Keep ws:// and wss:// as they are.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #3b6f9086"
   },
   "macos.setup.bad_hash": {
     "text": "The downloaded image does not match its signed checksum, so it was deleted. Try again.",

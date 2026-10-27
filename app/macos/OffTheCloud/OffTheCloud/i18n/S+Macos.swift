@@ -253,6 +253,11 @@ extension S {
         L("macos.folders.open_tip", table: "Macos", L10n.isolate(path))
     }
 
+    /// The folder is taken out of this app. Its files stay on this Mac and on the device.
+    ///
+    /// Mac app: the text under desk.main.remove_title, inside a folder's row, before the folder is removed from the app; its buttons are Cancel and Remove.
+    static var macosFoldersRemoveMessage: String { L("macos.folders.remove_message", table: "Macos") }
+
     /// {files} files had disappeared from the device - restored them from this Mac instead of deleting them here
     ///
     /// Mac app: a two-way folder's note after many of its files vanished from the device at once: the app uploaded them again instead of deleting them on this Mac. {files} is how many (always more than 20), written as plain digits.
@@ -366,6 +371,21 @@ extension S {
     ///
     /// Mac app: small button in Settings, shown while not connected, that tries to connect again now.
     static var macosSettingsRetry: String { L("macos.settings.retry", table: "Macos") }
+
+    /// one: This Mac syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this Mac and on {current}.
+    /// other: This Mac syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this Mac and on {current}.
+    ///
+    /// Mac app, Settings: the text of the warning titled desk.main.switch_device_title, shown when another device is entered while folders are synced. {count} is how many folders are synced; {current} is the address of the device they sync with now. Nothing is deleted.
+    static func macosSettingsSwitchDeviceMessage(count: Int, current: String) -> String {
+        L("macos.settings.switch_device_message", table: "Macos", count, current)
+    }
+
+    /// {address} is not encrypted: anyone on a network between this Mac and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.
+    ///
+    /// Mac app, Settings: the text of the warning titled desk.main.unencrypted_title. {address} is the address entered (it starts with ws://). Keep ws:// and wss:// as they are.
+    static func macosSettingsUnencryptedMessage(address: String) -> String {
+        L("macos.settings.unencrypted_message", table: "Macos", address)
+    }
 
     /// The downloaded image does not match its signed checksum, so it was deleted. Try again.
     ///

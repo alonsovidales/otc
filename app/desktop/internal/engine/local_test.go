@@ -237,7 +237,7 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 	waitFor("the RAID poll", func() bool { return held.Load() >= 1 })
 	cut := make(chan error, 1)
 	go func() {
-		_, err := e.request(func(r *pb.ReqEnvelope) { r.Payload = &pb.ReqEnvelope_ReqGetStatus{ReqGetStatus: &pb.GetStatus{}} })
+		_, err := e.requestWithin(smallRequest, func(r *pb.ReqEnvelope) { r.Payload = &pb.ReqEnvelope_ReqGetStatus{ReqGetStatus: &pb.GetStatus{}} })
 		cut <- err
 	}()
 	waitFor("the request", func() bool { return held.Load() >= 2 })
@@ -260,5 +260,23 @@ func TestNetworkChangeWaitsForTransfers(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 	if conns.Load() != 2 {
 		t.Fatalf("reconnected without a home-network route: %d connections", conns.Load())
+	}
+}
+
+// A network check that comes late by either clock is a wake.
+func TestSlept(t *testing.T) {
+	for _, tc := range []struct {
+		mono, wall time.Duration
+		want       bool
+	}{
+		{5 * time.Second, 5 * time.Second, false},
+		{6 * time.Second, 5 * time.Second, false},  // a busy moment
+		{5 * time.Second, 2 * time.Hour, true},     // Linux: the monotonic clock stopped
+		{2 * time.Hour, 2 * time.Hour, true},       // Windows: both moved on
+		{5 * time.Second, -time.Hour, false},       // the clock set back
+	} {
+		if got := slept(tc.mono, tc.wall); got != tc.want {
+			t.Errorf("slept(%v, %v) = %v, want %v", tc.mono, tc.wall, got, tc.want)
+		}
 	}
 }

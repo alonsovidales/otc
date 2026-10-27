@@ -70,6 +70,15 @@
     "args": [["detail", "text"]],
     "note": "otc-sync: a folder's state in the tray menu when the app can't watch the folder for changes. {detail} is the system's own reason, in English. Lowercase, as it follows a warning sign."
   },
+  "desk.main.change_password": {
+    "text": "Change Password…",
+    "note": "Both apps: the Mac's button in Settings and otc-sync's tray menu item that ask for the device's password again - after it was changed, or a wrong one - keeping the device and every folder. Title Case.",
+    "max": 30
+  },
+  "desk.main.change_password_tip": {
+    "text": "Enter the device's password again - your folders stay as they are",
+    "note": "otc-sync: tooltip of the tray's Change Password… item (desk.main.change_password)."
+  },
   "desk.main.checking": {
     "text": "Checking…",
     "note": "Both apps: a folder's state while the app compares it with the device, before it knows which file it is on.",
@@ -96,10 +105,35 @@
     "args": [["detail", "text"]],
     "note": "otc-sync: error dialog when its settings file can't be read. config.json is the file's name, never translated; {detail} is the system's own reason, in English."
   },
+  "desk.main.config_unreadable": {
+    "text": "The settings can't be read",
+    "note": "otc-sync: the tray menu's line, after a warning sign, when otc-sync can't read its settings file; Reset Settings… is under it.",
+    "max": 48
+  },
+  "desk.main.connect_connected": {
+    "text": "Connected to {device}.",
+    "args": [["device", "text"]],
+    "note": "otc-sync: dialog after Connect to a Device…, once the device accepted the password. {device} is the device's address (for example cala.off-the.cloud)."
+  },
   "desk.main.connect_menu": {
     "text": "Connect to a Device…",
     "note": "otc-sync: tray menu item shown while no device is set; opens the dialogs that ask for the device and its password. Title Case.",
     "max": 30
+  },
+  "desk.main.connect_still_trying": {
+    "text": "Still connecting to {device}. otc-sync keeps trying; the menu shows when it is connected.",
+    "args": [["device", "text"]],
+    "note": "otc-sync: dialog after Connect to a Device… when there is no answer yet after a while. {device} is the device's address (for example cala.off-the.cloud). otc-sync is the program's name, never translated."
+  },
+  "desk.main.connect_unreachable": {
+    "text": "{device} can't be reached right now. otc-sync keeps trying and starts syncing once it answers.",
+    "args": [["device", "text"]],
+    "note": "otc-sync: dialog after Connect to a Device…, when the device is offline or doesn't answer. {device} is the device's address (for example cala.off-the.cloud). otc-sync is the program's name, never translated."
+  },
+  "desk.main.connect_wrong_password": {
+    "text": "{device} turned the password down.",
+    "args": [["device", "text"]],
+    "note": "otc-sync: error dialog after Connect to a Device… or Change Password…, when the device refused the password; its buttons are Try Again and Cancel. {device} is the device's address (for example cala.off-the.cloud)."
   },
   "desk.main.connected_home": {
     "text": "Connected over your home network",
@@ -200,10 +234,34 @@
     "args": [["name", "user"], ["path", "user"]],
     "note": "Both apps: a folder was clicked to open it (on the Mac its name in the panel, shown as an orange caption under its row; in otc-sync Open in its submenu, shown in an error dialog), but it is no longer on this computer. {name} is the folder's name, {path} the full path where the app expects it. Nothing is changed: the folder stays in the app."
   },
+  "desk.main.folder_not_found": {
+    "text": "Folder not found - reconnect the drive",
+    "note": "Both apps: a folder's state when its folder on this computer isn't there - a disk unplugged, a network share not mounted, the folder moved or renamed. The app waits, changes nothing on either side, and carries on by itself once the folder is back. Shown after a warning sign.",
+    "max": 48
+  },
   "desk.main.folder_offline": {
     "text": "Device offline - will resume",
     "note": "Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.",
     "max": 40
+  },
+  "desk.main.folder_overlap_holds": {
+    "text": "“{name}” holds “{other}”, which is already synced.",
+    "args": [["name", "user"], ["other", "user"]],
+    "note": "Both apps: why a folder being added was refused - a folder the app already syncs is inside it (on this computer or on the device). {name} is the folder being added, {other} the folder already synced inside it. Followed by desk.main.folder_overlap_why."
+  },
+  "desk.main.folder_overlap_inside": {
+    "text": "“{name}” is inside “{other}”, which is already synced.",
+    "args": [["name", "user"], ["other", "user"]],
+    "note": "Both apps: why a folder being added was refused - it is inside a folder the app already syncs (on this computer or on the device). {name} is the folder being added, {other} the folder already synced. Followed by desk.main.folder_overlap_why."
+  },
+  "desk.main.folder_overlap_same": {
+    "text": "“{name}” is already synced.",
+    "args": [["name", "user"]],
+    "note": "Both apps: why a folder being added was refused - it is already in the app. {name} is the folder's name. Shown with desk.main.folder_overlap_why after it (the Mac: under the folder list; otc-sync: an error dialog)."
+  },
+  "desk.main.folder_overlap_why": {
+    "text": "A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes.",
+    "note": "Both apps: the explanation after desk.main.folder_overlap_same, _inside or _holds, when a folder being added is refused."
   },
   "desk.main.folder_synced": {
     "text": "Synced",
@@ -339,9 +397,42 @@
     "note": "Both apps: a percentage on its own. Mac app: how far a folder's pass has got, next to its progress bar, and the device's processor use in the storage line's pop-up. otc-sync: a folder's progress in the tray menu, before the file it is on (\"42% · 12/340 · photo.jpg\"). {percent} is a whole number from 0 to 100. Write the percentage as your language does.",
     "max": 12
   },
+  "desk.main.remove_message": {
+    "text": "The folder is taken out of this app. Its files stay on this computer and on the device.",
+    "note": "otc-sync: the text of the dialog before a folder is removed from the app (desk.main.remove_title). The Mac's says “this Mac” (macos.folders.remove_message).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #1c5fe081"
+  },
   "desk.main.remove_tip": {
     "text": "Stop syncing this folder (nothing is deleted)",
     "note": "otc-sync: tooltip of Remove in a folder's submenu of the tray menu."
+  },
+  "desk.main.remove_title": {
+    "text": "Stop syncing “{name}”?",
+    "args": [["name", "user"]],
+    "note": "Both apps: the question before a folder is removed from the app (the Mac: inside its row; otc-sync: a dialog). {name} is the folder's name. Nothing is deleted.",
+    "max": 80,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #571ccb04"
+  },
+  "desk.main.reset_settings": {
+    "text": "Reset Settings…",
+    "note": "otc-sync: tray menu item, shown only while the settings file can't be read, that asks before starting over with no device and no folders. Title Case.",
+    "max": 30
+  },
+  "desk.main.reset_settings_message": {
+    "text": "otc-sync can't read its settings:\n\n{detail}\n\nResetting starts over with no device and no folders. The unreadable file is kept next to the new one, and no file is deleted, on this computer or on the device.",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: the text of the question titled desk.main.reset_settings_title. {detail} is why the file can't be read, in English. otc-sync is the program's name, never translated. Keep the blank lines.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #0a7eab39"
+  },
+  "desk.main.reset_settings_title": {
+    "text": "Reset otc-sync's settings?",
+    "note": "otc-sync: title of the question before Reset Settings… starts over. otc-sync is the program's name, never translated.",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #3bafbe13"
   },
   "desk.main.restored_files": {
     "text": "{files} files had disappeared from the device - restored them from this computer instead of deleting them here",
@@ -370,6 +461,20 @@
     "text": "Off The Cloud — Settings",
     "note": "otc-sync: title of the dialog that asks which device to connect to.",
     "max": 40
+  },
+  "desk.main.show_log": {
+    "text": "Show Log",
+    "note": "otc-sync: tray menu item that opens otc-sync's log file, what it has done, to find out what went wrong. Title Case.",
+    "max": 30
+  },
+  "desk.main.show_log_failed": {
+    "text": "The log could not be opened:\n\n{detail}\n\nIt is at {path}",
+    "args": [["detail", "text"], ["path", "user"]],
+    "note": "otc-sync: error dialog when Show Log can't open the log file. {detail} is the system's own reason, in English; {path} is the file's full path, for the user to open by hand. Keep the blank lines."
+  },
+  "desk.main.show_log_tip": {
+    "text": "What otc-sync has done, to find out what went wrong",
+    "note": "otc-sync: tooltip of the tray's Show Log item (desk.main.show_log). otc-sync is the program's name, never translated."
   },
   "desk.main.signature_malformed": {
     "text": "the signature of {url} is malformed: {detail}",
@@ -414,6 +519,11 @@
     "note": "Both apps: connection status when the device locked this computer out for a while after too many password attempts. {seconds} is the number of seconds until the app tries again; \"s\" is the abbreviation for seconds.",
     "max": 50
   },
+  "desk.main.status_waiting_password": {
+    "text": "Waiting for the password - unlock the keyring",
+    "note": "otc-sync: connection status while a device is set but its password can't be read yet - the system's keyring is locked, as it is at boot before anyone logs in. The service tries again every half a minute.",
+    "max": 60
+  },
   "desk.main.status_wrong_password": {
     "text": "Wrong password",
     "note": "Both apps: connection status when the device refused the password; the app stops trying until the password is changed or Retry is pressed.",
@@ -451,6 +561,31 @@
     "note": "Both apps: how full the device's storage is, after the storage line (\"Storage healthy · 15% used\"). {percent} is a whole number from 0 to 100.",
     "max": 20
   },
+  "desk.main.switch_device_button": {
+    "text": "Disconnect and Connect",
+    "note": "Both apps: the button of the warning titled desk.main.switch_device_title, which removes every folder from the app and connects to the new device. Title Case.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #da972d50"
+  },
+  "desk.main.switch_device_message": {
+    "text": {
+      "one": "This computer syncs {count} folder with {current}. Connecting to another device removes it from this app first, so it doesn't start syncing with the new device by mistake. Its files stay on this computer and on {current}.",
+      "other": "This computer syncs {count} folders with {current}. Connecting to another device removes them from this app first, so none of them starts syncing with the new device by mistake. Their files stay on this computer and on {current}."
+    },
+    "args": [["count", "count"], ["current", "text"]],
+    "note": "otc-sync: the text of the warning titled desk.main.switch_device_title. {count} is how many folders are synced; {current} is the address of the device they sync with now. Nothing is deleted. The Mac's says “this Mac” (macos.settings.switch_device_message).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #0173960c"
+  },
+  "desk.main.switch_device_title": {
+    "text": "Connect to {device}?",
+    "args": [["device", "text"]],
+    "note": "Both apps: title of the warning shown when another device is entered while folders are synced with the one set up (the Mac: inside Settings; otc-sync: a dialog). {device} is the new device's address (for example cala.off-the.cloud).",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #fcea0d8d"
+  },
   "desk.main.title": {
     "text": "Off The Cloud — Sync",
     "note": "Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. \"Off The Cloud\" is the product name; \"Sync\" names this app, the sync client.",
@@ -460,6 +595,27 @@
     "text": "Off The Cloud — {status}",
     "args": [["status", "text"]],
     "note": "otc-sync: the tray icon's tooltip. {status} is the connection status, already worded (for example \"Connected over your home network\")."
+  },
+  "desk.main.unencrypted_button": {
+    "text": "Connect Anyway",
+    "note": "Both apps: the button of the warning titled desk.main.unencrypted_title that uses the unencrypted address all the same. Title Case.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #e9990330"
+  },
+  "desk.main.unencrypted_message": {
+    "text": "{address} is not encrypted: anyone on a network between this computer and the device could read your files and take your password. Use a ws:// address only for a device on your home network, and a wss:// one for anything else.",
+    "args": [["address", "text"]],
+    "note": "otc-sync: the text of the warning titled desk.main.unencrypted_title. {address} is the address entered (it starts with ws://). Keep ws:// and wss:// as they are. The Mac's says “this Mac” (macos.settings.unencrypted_message).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #38ab2643"
+  },
+  "desk.main.unencrypted_title": {
+    "text": "Connect without encryption?",
+    "note": "Both apps: title of the warning shown when a ws:// address (not encrypted) is entered for a device that isn't on this network (the Mac: inside Settings; otc-sync: a dialog).",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #f6c80f3d"
   },
   "desk.main.update_available": {
     "text": "Device update {version} available",
@@ -545,5 +701,15 @@
     "args": [["used", "text"], ["total", "text"]],
     "note": "Both apps: storage used, in terabytes, out of a total in gigabytes - only when the device reports more used than its size. {used} and {total} are numbers, already formatted.",
     "max": 30
+  },
+  "desk.main.waiting_for": {
+    "text": "Waiting for {name}",
+    "args": [["name", "user"]],
+    "note": "Both apps: a folder's state while its sync waits for another folder's to finish (a few folders sync at a time). {name} is the name of the folder it waits for.",
+    "max": 60
+  },
+  "desk.main.wrong_password_tip": {
+    "text": "The device turned the password down - click to enter it again",
+    "note": "otc-sync: tooltip of the tray's status line while it says Wrong password; clicking it asks for the password (desk.main.change_password)."
   }
 }

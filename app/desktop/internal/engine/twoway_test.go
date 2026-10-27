@@ -3,7 +3,6 @@
 package engine
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,6 +22,9 @@ func withConfigDir(t *testing.T) {
 func TestMigrateFoldersToTwoWay(t *testing.T) {
 	withConfigDir(t)
 	cfg := &config.Config{Folders: []config.Folder{{ID: "f1", Path: "/home/ana/Docs"}}}
+	if err := cfg.Save(); err != nil { // as the tray or `otc-sync add` left it
+		t.Fatal(err)
+	}
 	e := New(cfg, "", nil)
 	if len(cfg.Folders) != 0 || len(cfg.RemoteFolders) != 1 {
 		t.Fatalf("folders %v remote %v", cfg.Folders, cfg.RemoteFolders)
@@ -49,6 +51,9 @@ func TestMigrateKeepsBackups(t *testing.T) {
 		{ID: "b1", Path: "/home/ana/Photos", OneWay: true},
 		{ID: "f1", Path: "/home/ana/Docs"},
 	}}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
 	New(cfg, "", nil)
 	if len(cfg.Folders) != 1 || cfg.Folders[0].ID != "b1" || !cfg.Folders[0].OneWay {
 		t.Fatalf("backups after migration: %+v", cfg.Folders)
@@ -101,8 +106,8 @@ func TestSyncedRecordEmptiedAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got map[string]string
-	if err := json.Unmarshal(data, &got); err != nil || got == nil || len(got) != 0 {
-		t.Fatalf("record on disk is %s (%v), want an empty one", data, err)
+	got, device, ok := parseRecord(data)
+	if !ok || device == nil || got == nil || len(got) != 0 {
+		t.Fatalf("record on disk is %s, want an empty one", data)
 	}
 }

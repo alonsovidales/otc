@@ -27,6 +27,8 @@ struct PopoverView: View {
     // options of the one picked - inline, for the same reason as the
     // remote picker below.
     @State private var showAddChooser = false
+    /// Settings opens on its password field.
+    @State private var changePassword = false
     // Issue #184: the new-device wizard lives in its own window.
     @Environment(\.openWindow) private var openWindow
 
@@ -91,6 +93,15 @@ struct PopoverView: View {
                     .foregroundStyle(.secondary)
                     // Its width first: the storage line wraps instead.
                     .layoutPriority(1)
+                // A password turned down is a way to enter it again.
+                if sync.overallStatus == .wrongPassword {
+                    Button(S.deskMainChangePassword) {
+                        showSettings = true
+                        changePassword = true
+                    }
+                    .buttonStyle(.link)
+                    .font(.subheadline)
+                }
                 Spacer()
                 // Issue #69: the icon in words, for anyone who noticed
                 // it change colour.
@@ -106,7 +117,12 @@ struct PopoverView: View {
 
             // Nothing configured: the settings are the first thing shown.
             if showSettings || !settings.ready {
-                SettingsInlineView(onSetUpDevice: openSetupWizard)
+                SettingsInlineView(onSetUpDevice: openSetupWizard, changePassword: $changePassword)
+            }
+
+            // Why the folder just picked wasn't added.
+            if let refused = sync.refusedFolder {
+                RefusedFolderNote(refused: refused) { sync.refusedFolder = nil }
             }
 
             // Folders list — no ScrollView: the panel itself grows to fit
@@ -287,6 +303,8 @@ struct FolderRow: View {
     let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
     @State private var confirmImages = false
+    /// The minus asks first, in the row.
+    @State private var confirmRemove = false
     /// Issue #197: when a click found the folder gone (FolderMissingNote).
     @State private var missingAt: Date?
 
@@ -316,12 +334,17 @@ struct FolderRow: View {
                 FolderStateView(state: folder.state, watchingLabel: S.deskMainFolderBackedUp)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
-                    remove()
+                    confirmRemove = true
                 } label: {
                     Image(systemName: "minus.circle")
                 }.buttonStyle(.plain)
             }
             FolderMissingNote(url: folder.url, missingAt: $missingAt)
+            if confirmRemove {
+                RemoveFolderConfirmation(name: folder.url.lastPathComponent,
+                                         onCancel: { confirmRemove = false },
+                                         onConfirm: { confirmRemove = false; remove() })
+            }
             if confirmImages {
                 OutOfImagesConfirmation(name: folder.url.lastPathComponent, keepOut: !images.isKeptOut,
                                         onCancel: { confirmImages = false },
@@ -350,6 +373,8 @@ struct RemoteFolderRow: View {
     let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
     @State private var confirmImages = false
+    /// As FolderRow's.
+    @State private var confirmRemove = false
     /// Issue #197: as FolderRow's.
     @State private var missingAt: Date?
 
@@ -384,12 +409,17 @@ struct RemoteFolderRow: View {
                 UploadOnlyBadge(state: uploadOnly, note: uploadOnlyNote)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
-                    remove()
+                    confirmRemove = true
                 } label: {
                     Image(systemName: "minus.circle")
                 }.buttonStyle(.plain)
             }
             FolderMissingNote(url: folder.localURL, missingAt: $missingAt)
+            if confirmRemove {
+                RemoveFolderConfirmation(name: folder.localURL.lastPathComponent,
+                                         onCancel: { confirmRemove = false },
+                                         onConfirm: { confirmRemove = false; remove() })
+            }
             if confirmImages {
                 OutOfImagesConfirmation(name: folder.localURL.lastPathComponent, keepOut: !images.isKeptOut,
                                         onCancel: { confirmImages = false },
@@ -449,8 +479,8 @@ struct FolderOpenArea<Content: View>: View {
 /// Issue #197: under a folder's row, for 6 s after a click found the folder
 /// gone - or until the next click on it -, where it was expected. Inline,
 /// never an alert, which would close the popover. Nothing else changes
-/// here: the next pass already takes a two-way folder whose folder is gone
-/// off the list, leaving the device alone.
+/// here: the folder's passes wait for it ("Folder not found - reconnect the
+/// drive"), leaving both sides alone.
 struct FolderMissingNote: View {
     let url: URL
     @Binding var missingAt: Date?
@@ -579,6 +609,79 @@ struct OutOfImagesButton: View {
     }
 }
 
+/// Removing a folder asks first, inside its row (never an .alert(),
+/// which closes the popover): the folder leaves the app, its files stay.
+/// otc-sync's tray asks the same in a dialog.
+struct RemoveFolderConfirmation: View {
+    let name: String
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(S.deskMainRemoveTitle(name: name))
+                .font(.callout.bold())
+                .fixedSize(horizontal: false, vertical: true)
+            Text(S.macosFoldersRemoveMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button(S.commonCancel, action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button(S.commonRemove, role: .destructive, action: onConfirm)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+            }
+            .controlSize(.small)
+        }
+    }
+}
+
+/// Why the folder just picked wasn't added - it is synced already,
+/// inside one that is, or holds one (SyncModel.refusedFolder) - above the
+/// folder list until dismissed or for 12 s. otc-sync says it in a dialog.
+struct RefusedFolderNote: View {
+    let refused: SyncModel.RefusedFolder
+    let dismiss: () -> Void
+
+    private var reason: String {
+        switch refused.overlap {
+        case .same: return S.deskMainFolderOverlapSame(name: refused.name)
+        case .inside(let other): return S.deskMainFolderOverlapInside(name: refused.name, other: other)
+        case .holds(let other): return S.deskMainFolderOverlapHolds(name: refused.name, other: other)
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(reason).font(.callout)
+                Text(S.deskMainFolderOverlapWhy)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button(action: dismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(S.commonClose)
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .task(id: refused) {
+            try? await Task.sleep(for: .seconds(12))
+            dismiss()
+        }
+    }
+}
+
 /// Asked inside the row, not as an .alert(): an alert takes key status from
 /// the MenuBarExtra(.window) popover, which then closes (as Settings'
 /// Disconnect confirmation). Keeping a folder out deletes the tags and
@@ -698,6 +801,18 @@ struct FolderStateView: View {
                     .frame(maxWidth: 170, alignment: .trailing)
                 }
             }
+        case .waiting(let name):
+            // Its pass waits for another folder's (a few run at a time).
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(S.deskMainWaitingFor(name: name))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 170, alignment: .trailing)
+            }
         case .watching:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
@@ -733,6 +848,9 @@ struct FolderStateView: View {
 /// (only once more than English ships), at the left.
 struct SettingsInlineView: View {
     var onSetUpDevice: () -> Void
+    /// The password field is open (the popover's "Change Password…"
+    /// after "Wrong password" opens Settings on it).
+    @Binding var changePassword: Bool
 
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var sync = SyncModel.shared
@@ -740,10 +858,17 @@ struct SettingsInlineView: View {
     // Edited locally and applied with the Connect button - not bound to
     // the store, which would reconnect on every keystroke and spend one
     // of the device's five password attempts per minute per character
-    // typed (issue #117's lock-out, seen live as "Wrong password").
-    @State private var domain = ""
+    // typed (issue #117's lock-out, seen live as "Wrong password"). The
+    // device starts as the one set, if any: a password lost from the
+    // Keychain is entered again for it, not for an empty field.
+    @State private var domain = SettingsStore.shared.domain
     @State private var password = ""
+    @State private var newPassword = ""
     @State private var confirmDisconnect = false
+    /// Asked inside Settings before Connect goes ahead: another
+    /// device while folders sync with this one, an unencrypted address.
+    @State private var confirmSwitch = false
+    @State private var confirmUnencrypted = false
 
     private var deviceLabel: String {
         SettingsStore.bridgeName(fromDomain: settings.domain).map { "\($0).\(SettingsStore.bridgeDomain)" } ?? settings.domain
@@ -757,8 +882,14 @@ struct SettingsInlineView: View {
             }
             if settings.ready && confirmDisconnect {
                 disconnectConfirmation
+            } else if settings.ready && changePassword {
+                passwordForm
             } else if settings.ready {
                 connected
+            } else if confirmUnencrypted {
+                unencryptedConfirmation
+            } else if confirmSwitch {
+                switchConfirmation
             } else {
                 connectForm
             }
@@ -829,9 +960,117 @@ struct SettingsInlineView: View {
                 Button(S.macosSettingsRetry) { sync.reconnectNow() }
                     .controlSize(.small)
             }
-            Button(S.macosSettingsDisconnectButton) { confirmDisconnect = true }
-                .controlSize(.small)
+            Menu {
+                // The password again - after it was changed, or turned
+                // down - keeping the device and every folder.
+                Button(S.deskMainChangePassword) { changePassword = true }
+                Button(S.macosSettingsDisconnectButton) { confirmDisconnect = true }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .controlSize(.small)
         }
+    }
+
+    /// A new password for the device set; the folders stay. The status
+    /// line shows how it went (Connecting…, Connected, Wrong password).
+    private var passwordForm: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(deviceLabel).font(.callout)
+            SecureField(S.commonPassword, text: $newPassword)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { savePassword() }
+            HStack {
+                Text(sync.connectionStatus)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(S.commonCancel) {
+                    newPassword = ""
+                    changePassword = false
+                }
+                .keyboardShortcut(.cancelAction)
+                Button(S.commonSave) { savePassword() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(newPassword.isEmpty)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private func savePassword() {
+        guard !newPassword.isEmpty else { return }
+        // The same device: SyncModel reconnects with it, the folders stay.
+        settings.apply(domain: settings.domain, password: newPassword)
+        newPassword = ""
+        changePassword = false
+    }
+
+    /// The folders synced now are taken out of the app before another
+    /// device is connected - they would start syncing with it, or deleting
+    /// on it. As otc-sync's tray.
+    private var switchConfirmation: some View {
+        let target = Self.trimmed(domain)
+        let count = sync.folders.count + sync.remoteFolders.count
+        return VStack(alignment: .leading, spacing: 8) {
+            Label(S.deskMainSwitchDeviceTitle(device: Self.label(target)), systemImage: "exclamationmark.triangle.fill")
+                .font(.callout.bold())
+                .foregroundStyle(.orange)
+            Text(S.macosSettingsSwitchDeviceMessage(count: count, current: deviceLabel))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button(S.commonCancel) { confirmSwitch = false }
+                    .keyboardShortcut(.cancelAction)
+                Button(S.deskMainSwitchDeviceButton, role: .destructive) {
+                    confirmSwitch = false
+                    let pw = password
+                    password = ""
+                    // Disconnect (folders, address, password), then the new pair.
+                    sync.disconnect()
+                    settings.apply(domain: target, password: pw)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    /// An unencrypted address (ws://) for a device that isn't on this
+    /// network: anyone in between could read the files and take the
+    /// password.
+    private var unencryptedConfirmation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(S.deskMainUnencryptedTitle, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout.bold())
+                .foregroundStyle(.orange)
+            Text(S.macosSettingsUnencryptedMessage(address: Self.trimmed(domain)))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button(S.commonCancel) { confirmUnencrypted = false }
+                    .keyboardShortcut(.cancelAction)
+                Button(S.deskMainUnencryptedButton) {
+                    confirmUnencrypted = false
+                    connect(unencryptedConfirmed: true)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private static func trimmed(_ d: String) -> String { d.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private static func label(_ domain: String) -> String {
+        SettingsStore.bridgeName(fromDomain: domain).map { "\($0).\(SettingsStore.bridgeDomain)" } ?? domain
     }
 
     private var connectForm: some View {
@@ -857,8 +1096,20 @@ struct SettingsInlineView: View {
 
     private var canConnect: Bool { !domain.isEmpty && !password.isEmpty }
 
-    private func connect() {
-        settings.apply(domain: domain, password: password)
+    private func connect(unencryptedConfirmed: Bool = false) {
+        let target = Self.trimmed(domain)
+        let same = SyncPaths.sameDevice(target, settings.domain)
+        if !unencryptedConfirmed, !same, SyncPaths.isUnencryptedRemote(target) {
+            confirmUnencrypted = true
+            return
+        }
+        // Folders kept from a device set before (its password lost from
+        // the Keychain, say) must not sync with another one.
+        if !settings.domain.isEmpty, !same, !(sync.folders.isEmpty && sync.remoteFolders.isEmpty) {
+            confirmSwitch = true
+            return
+        }
+        settings.apply(domain: target, password: password)
     }
 }
 

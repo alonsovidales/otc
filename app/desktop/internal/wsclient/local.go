@@ -236,6 +236,20 @@ func (c *Client) HasLocalEndpoint() bool {
 	return c.local != nil
 }
 
+// LocalPin is the certificate pin of the home-network endpoint held for
+// the configured device, nil when there is none: the device's own identity
+// (it keeps the certificate on its storage), which sync records are bound
+// to (engine.recordDevice).
+func (c *Client) LocalPin() []byte {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.local == nil {
+		return nil
+	}
+
+	return bytes.Clone(c.local.Pin)
+}
+
 // Route is the way the signed-in connection goes; RouteNone when there
 // is none.
 func (c *Client) Route() Route {
