@@ -22,7 +22,13 @@ set -euo pipefail
 
 WORK=${WORK:-/home/otc/image-build}
 SRC_REPO=${SRC_REPO:-/home/otc/otc}
-BASE_URL=${BASE_URL:-https://downloads.raspberrypi.com/raspios_lite_arm64_latest}
+# The base: one dated Raspberry Pi OS Lite (64-bit) release, pinned with
+# the SHA-256 Raspberry Pi publishes beside it (its .sha256 file), checked
+# before anything is unpacked - not raspios_lite_arm64_latest, whatever
+# that redirects to on the day. A newer base is chosen here, by hand:
+# https://downloads.raspberrypi.com/raspios_lite_arm64/images/ lists them.
+BASE_URL=${BASE_URL:-https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-10-06/2026-10-06-raspios-trixie-arm64-lite.img.xz}
+BASE_SHA256=${BASE_SHA256:-483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843}
 XZ_LEVEL=${XZ_LEVEL:--6}
 NAME=${NAME:-off-the-cloud-rpi-lite-arm64}
 # The hostname the image boots with: with mDNS that makes the wizard
@@ -47,8 +53,18 @@ echo "=== Building $NAME ==="
 echo "=== [1/7] Download base image (cached in $IMG_XZ) ==="
 # Downloaded to a temporary name and renamed only once complete, so an
 # interrupted download can't be mistaken for the cached base next time.
+# A cached base is used only if it is the pinned one: one from an earlier
+# pin (or a broken download) is fetched again, and a download that doesn't
+# match stops the build before anything is unpacked.
+base_ok() { [ "$(sha256sum "$1" | awk '{print $1}')" = "$BASE_SHA256" ]; }
+if [ -f "$IMG_XZ" ] && ! base_ok "$IMG_XZ"; then
+    echo "the cached base isn't the pinned one ($BASE_SHA256): downloading it again"
+    rm -f "$IMG_XZ"
+fi
 if [ ! -f "$IMG_XZ" ]; then
-    curl -fL --retry 3 -o "$IMG_XZ.part" "$BASE_URL"
+    rm -f "$IMG_XZ.part"
+    curl -fL --retry 3 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$IMG_XZ.part" "$BASE_URL"
+    base_ok "$IMG_XZ.part" || { rm -f "$IMG_XZ.part"; echo "$BASE_URL does not match its pinned SHA-256 ($BASE_SHA256)"; exit 1; }
     mv "$IMG_XZ.part" "$IMG_XZ"
 fi
 
