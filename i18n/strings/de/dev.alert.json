@@ -189,6 +189,33 @@
     "text": "Sept.",
     "en": "Sep"
   },
+  "dev.alert.raid.not_added_detail": {
+    "text": "Das Gerät fügt ein Laufwerk nur dann von selbst zur Spiegelung hinzu, wenn sich gar nichts darauf befindet. Dieses enthält etwas (eine Partitionstabelle, ein Dateisystem oder andere Daten) oder kann nicht gelesen werden, deshalb wurde es so gelassen, wie es ist. Deine Dateien liegen weiterhin nur auf einem Laufwerk: Um dieses für die Spiegelung zu verwenden, lösche es an einem Computer vollständig und schließe es wieder an, oder schließe ein leeres, mindestens gleich großes Laufwerk an. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #90cf6ae9"
+  },
+  "dev.alert.raid.not_added_title": {
+    "text": "Ein Laufwerk wurde angeschlossen, aber nicht zur Spiegelung hinzugefügt",
+    "en": "A disk was plugged in but not added to the mirror"
+  },
+  "dev.alert.raid.replace_detail": {
+    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "reviewed": "claude-backtranslation 2026-10-27 #d0374291"
+  },
+  "dev.alert.raid.replace_detail_disk": {
+    "text": "Deine Dateien sind auf dem anderen Laufwerk sicher, werden aber nicht mehr gespiegelt. Ersetze das ausgefallene Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #ea94a1e8"
+  },
+  "dev.alert.raid.replace_detail_working_bottom": {
+    "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
+  "dev.alert.raid.replace_detail_working_top": {
+    "text": "Das Laufwerk im oberen blauen USB-Anschluss funktioniert noch und enthält alle deine Dateien, sie werden aber nicht mehr gespiegelt. Ersetze das andere Laufwerk durch eine leere, mindestens gleich große Karte, auf der sich gar nichts befindet (eine neue Karte muss meist zuerst an einem Computer vollständig gelöscht werden): Das Gerät fügt sie hinzu und kopiert alles von selbst darauf.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
   "dev.alert.raid.stopped_bottom": {
     "text": "Das Laufwerk im unteren blauen USB-Anschluss funktioniert nicht mehr",
     "en": "The disk in the bottom blue USB port stopped working"

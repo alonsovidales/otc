@@ -12,8 +12,11 @@ Features
       - Source (up-to-date) member -> blink green.
       - Target (rebuilding) member -> blink red.
 - Auto-repair (optional):
-  * When degraded and a new disk appears, partition it as a single Linux RAID member
-    and mdadm --add it to /dev/md0 to start rebuild.
+  * When degraded and a disk appears that is blank (no partition table, no
+    filesystem or other signature, first and last MiB empty) or was a member
+    of this very mirror, mdadm --add it to /dev/md0 to start the rebuild. Any
+    other disk is left alone: it is logged once and the device raises an
+    Alert (raidwatch, from /run/otc-raid-watch/not-added.json).
 
 Wiring
 - Two bi-color LEDs with *separate* Red and Green pins per LED (common cathode to GND).
@@ -78,8 +81,11 @@ CONFIG = {
     # Blink period (seconds) – half period ON, half period OFF
     "blink_period_s": 0.1,
 
-    # Auto-repair (DANGEROUS): when degraded and a new disk of similar size appears,
-    # wipe and add it automatically to md0 (will DESTROY data on the new disk).
+    # Auto-repair: when degraded and a disk of similar size appears, add it
+    # to md0 (which overwrites it) - only a blank disk, or one that was a
+    # member of md0 itself (see judge_disk). A plugged-in backup drive is
+    # never taken: Raspberry Pi OS Lite mounts nothing by itself, so an
+    # unmounted disk says nothing about whether it holds data.
     "auto_repair_enable": True,
 
     # Minimum capacity ratio the candidate disk must have relative to the existing member
@@ -101,6 +107,7 @@ CONFIG = {
         "sgdisk": "/usr/sbin/sgdisk",  # optional
         "lsblk": "/bin/lsblk",
         "wipefs": "/sbin/wipefs",
+        "blkid": "/sbin/blkid",
         "blockdev": "/sbin/blockdev",
         "dumpe2fs": "/sbin/dumpe2fs",
         "resize2fs": "/sbin/resize2fs",
@@ -218,6 +225,33 @@ def mdadm_detail(raid_dev):
 
     return info
 
+# mdadm --detail is a fork every poll (0.5 s) for the device's whole life.
+# What it reports comes from md's sysfs, which costs no fork to read: the
+# poll reads that, and runs mdadm only when it changed, or every
+# MDADM_EVERY_S whatever happens.
+MDADM_EVERY_S = 30
+# array_state flips between these with every write ("clean"/"active", as
+# mdadm's State does - see array_condition): one running array to the
+# fingerprint, or every write burst would fork mdadm again.
+_RUNNING_STATES = ("clean", "active", "write-pending", "active-idle")
+
+def md_fingerprint(raid_name, sys_root="/sys"):
+    """What of /sys/block/<md>/md mdadm --detail's answer depends on: the
+    array's state (running or not), degraded, sync_action, raid_disks, and
+    each member's name, slot and state. None when it can't be read (then
+    mdadm is asked every poll, as before)."""
+    base = os.path.join(sys_root, "block", raid_name, "md")
+    try:
+        names = sorted(e for e in os.listdir(base) if e.startswith("dev-"))
+    except OSError:
+        return None
+    state = _read(os.path.join(base, "array_state"))
+    parts = ["running" if state in _RUNNING_STATES else state]
+    parts += [_read(os.path.join(base, f)) for f in ("degraded", "sync_action", "raid_disks")]
+    for name in names:
+        parts.append(f"{name}:{_read(os.path.join(base, name, 'slot'))}:{_read(os.path.join(base, name, 'state'))}")
+    return tuple(parts)
+
 def mdadm_examine(dev):
     """Return metadata: Events (int), Update Time (str), Array UUID (str)."""
     out = run([CONFIG["paths"]["mdadm"], "--examine", dev]).stdout
@@ -308,15 +342,20 @@ def root_base_disk() -> str | None:
         return base_disk(src)
     return None
 
-def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=None, why=None):
+def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=None, why=None, judge=None, refused=None):
     """Pick a disk not in md array, large enough, and not the root disk.
     `skip` holds (disk, size) pairs whose last add failed and are waiting
     out their backoff - filtered here, so one of those can't hide another,
     valid disk. `disks` is list_block_disks() when the caller has it.
     `why`, a dict, gets each disk left out that isn't the mirror's own, with
-    the reason in words, for the storage log."""
+    the reason in words, for the storage log. `judge(disk, size)` says
+    whether a disk that passed every other check may be added (judge_disk's
+    ("add"|"refuse", why)); without one, none is. `refused`, a list, gets
+    the disks the judge refused."""
     if why is None:
         why = {}
+    if judge is None:
+        judge = lambda d, sz: ("refuse", "it wasn't checked")
     # Disks present
     if disks is None:
         disks = list_block_disks()  # list of ("/dev/sdX", size)
@@ -362,6 +401,16 @@ def pick_candidate_disk(existing_member_size, detail, skip=frozenset(), disks=No
             why[d] = f"too small: {human_size(sz)}, and the working disk is {human_size(existing_member_size)}"
             continue
 
+        # Never a disk that may hold something: only a blank one, or one
+        # that was this mirror's (judge_disk).
+        verdict, reason = judge(d, sz)
+        if verdict != "add":
+            why[d] = (f"{reason} - it was left alone. To use it for the mirror, erase it on a computer "
+                      "(its partitions too) and plug it in again, or plug in a blank disk")
+            if refused is not None:
+                refused.append(d)
+            continue
+
         candidates.append((d, sz))
 
     if not candidates:
@@ -392,6 +441,192 @@ def prepare_disk_for_raid(disk):
 
 def add_member(raid_dev, new_dev):
     return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev])
+
+# ----------------------------
+# Which disk may be added (and wiped)
+# ----------------------------
+# A disk is added to the degraded mirror by itself only when it is blank -
+# no partition table, no filesystem or other signature (blkid -p, wipefs),
+# and its first and last MiB read back empty - or when it was a member of
+# this very mirror (its md superblock carries md0's UUID) and hasn't run
+# without the disk the mirror runs on now (a split copy holds changes the
+# mirror lacks: it is left for the owner). The same rule as docker/mirror's
+# otc-mirror, which also never takes a disk that can't be read; "empty" is
+# all zero bytes, or all 0xFF (an erased flash card can read either way).
+# Anything else - a plugged-in backup drive, a card fresh from the shop with
+# its filesystem, another array's disk - is left alone, logged once, and
+# reported in NOT_ADDED_FILE for the device's Alert.
+ENDS_SPAN = 1 << 20
+
+def tool(name):
+    """The command `name`: CONFIG's path when it is there, else from PATH."""
+    path = CONFIG["paths"].get(name)
+    if path and os.path.exists(path):
+        return path
+    import shutil
+    return shutil.which(name) or path or name
+
+def kv_lines(text):
+    """KEY=VALUE lines (blkid -o export, mdadm --export) as a dict."""
+    out = {}
+    for line in (text or "").splitlines():
+        k, sep, v = line.strip().partition("=")
+        if sep:
+            out[k] = v
+    return out
+
+def has_partitions(dev, sys_root="/sys"):
+    """The kernel found a partition table on the disk (sdb1... in sysfs)."""
+    name = os.path.basename(dev)
+    try:
+        return any(e.startswith(name) and e != name for e in os.listdir(os.path.join(sys_root, "block", name)))
+    except OSError:
+        return False
+
+def signatures(dev):
+    """What blkid -p and wipefs find on dev: "" for nothing, else a few
+    words; None when they can't read it."""
+    r = run([tool("blkid"), "-p", "-o", "export", dev])
+    if r.returncode == 0:
+        found = kv_lines(r.stdout)
+        found.pop("DEVNAME", None)
+        parts = []
+        if found.get("PTTYPE"):
+            parts.append(f"a {found['PTTYPE']} partition table")
+        if found.get("TYPE"):
+            parts.append(found["TYPE"] + (f" labelled {found['LABEL']!r}" if found.get("LABEL") else ""))
+        return " and ".join(parts) or "signatures blkid can't tell apart"
+    if r.returncode == 8:  # several signatures
+        return "several signatures"
+    if r.returncode != 2:  # 2: nothing found
+        return None
+    r = run([tool("wipefs"), "--no-act", "--noheadings", dev])
+    if r.returncode != 0:
+        return None
+    first = (r.stdout or "").strip().splitlines()
+    return f"signatures wipefs lists ({' '.join(first[0].split())})" if first else ""
+
+def read_ends(dev):
+    """dev's first and last MiB, read straight from the disk (O_DIRECT, so
+    a read error isn't hidden by the page cache) and only when nothing holds
+    it (O_EXCL: no mount, no array, no volume). Returns (first, last) or
+    raises OSError."""
+    import mmap
+    flags = os.O_RDONLY | os.O_EXCL | getattr(os, "O_DIRECT", 0) | getattr(os, "O_CLOEXEC", 0)
+    fd = os.open(dev, flags)
+    try:
+        size = os.lseek(fd, 0, os.SEEK_END)
+        ends = []
+        for at in (0, max(0, (size - ENDS_SPAN) & ~4095)):
+            buf = mmap.mmap(-1, ENDS_SPAN)  # page-aligned, as O_DIRECT wants
+            try:
+                n = os.preadv(fd, [buf], at)
+                ends.append(bytes(buf[:n]))
+            finally:
+                buf.close()
+        return ends[0], ends[1]
+    finally:
+        os.close(fd)
+
+def uniform(data):
+    """No data in it: all zero bytes, or all 0xFF."""
+    return bool(data) and (data.count(0) == len(data) or data.count(0xFF) == len(data))
+
+ARRAY_STATE = re.compile(r"^\s*Array State\s*:\s*([A-Za-z.]+)", re.M)
+
+def diverged(dev, members):
+    """The disk's own superblock says it last ran without a disk the mirror
+    runs on now (docker/mirror's diverged): each copy then holds changes the
+    other lacks. True/False, or None when the superblock can't be read. A
+    disk that only dropped out while the other went on still shows both
+    slots active: it is behind, and a re-add catches it up."""
+    r = run([CONFIG["paths"]["mdadm"], "--examine", dev])
+    m = ARRAY_STATE.search(r.stdout or "") if r.returncode == 0 else None
+    if not m:
+        return None
+    state = m.group(1)
+    for slot, member in members.items():
+        if "active sync" not in member.get("state", "") and "in_sync" not in member.get("state", ""):
+            continue
+        if slot >= len(state) or state[slot] == ".":
+            return True
+    return False
+
+def judge_disk(dev, array_uuid, members):
+    """Whether dev may be added to the degraded mirror: ("add", why) for a
+    blank disk or a former member of this mirror, ("refuse", why) for any
+    other, why being words for the storage log."""
+    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev])
+    sb = kv_lines(r.stdout) if r.returncode == 0 else {}
+    if sb.get("MD_UUID"):
+        if array_uuid and sb["MD_UUID"].lower() == array_uuid.lower():
+            split = diverged(dev, members)
+            if split is None:
+                return "refuse", "it was a member of this mirror, but its superblock can't be read"
+            if split:
+                return "refuse", ("it was a member of this mirror but ran on its own since, so it holds changes "
+                                  "the mirror lacks (copy what you need off it first)")
+            return "add", "it was a member of this mirror"
+        return "refuse", "it holds part of another disk array"
+    if r.returncode != 0 and "No md superblock" not in (r.stderr or "") + (r.stdout or ""):
+        return "refuse", "it can't be read (mdadm --examine failed)"
+    if has_partitions(dev):
+        return "refuse", "it has partitions"
+    found = signatures(dev)
+    if found is None:
+        return "refuse", "it can't be read (blkid/wipefs failed)"
+    if found:
+        return "refuse", f"it holds {found}"
+    try:
+        first, last = read_ends(dev)
+    except OSError as e:
+        return "refuse", f"it can't be read ({e.strerror or e})"
+    if not (uniform(first) and uniform(last)):
+        return "refuse", "it holds data (no filesystem this device knows)"
+    return "add", "it is blank"
+
+def array_uuid_of(raid_dev):
+    """md0's UUID (mdadm --detail --export), or "" when it can't be read."""
+    r = run([CONFIG["paths"]["mdadm"], "--detail", "--export", raid_dev])
+    return kv_lines(r.stdout).get("MD_UUID", "") if r.returncode == 0 else ""
+
+# The disks left alone, for the device (raidwatch reads it every minute
+# and raises one Alert per disk plugged in): root's directory on the /run
+# tmpfs, which the service may read and nothing but root may write.
+NOT_ADDED_FILE = "/run/otc-raid-watch/not-added.json"
+_not_added_written = {}
+
+def write_not_added(entries, path=None):
+    """Writes the disks left alone ([{"id", "disk"}], [] for none) when that
+    changed: a temp file beside it, renamed over it."""
+    path = path or NOT_ADDED_FILE
+    data = json.dumps({"disks": entries}, sort_keys=True)
+    if _not_added_written.get(path) == data:
+        return
+    try:
+        with open(path, "rb") as f:
+            if f.read() == data.encode():
+                _not_added_written[path] = data
+                return
+    except OSError:
+        if not entries:  # nothing to say, and nothing said before
+            _not_added_written[path] = data
+            return
+    try:
+        os.makedirs(os.path.dirname(path), mode=0o755, exist_ok=True)
+        tmp = f"{path}.tmp.{os.getpid()}"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+        try:
+            os.write(fd, data.encode())
+        finally:
+            os.close(fd)
+        os.replace(tmp, path)
+        _not_added_written[path] = data
+    except OSError as e:
+        # Once per content: the next change tries again.
+        if _not_added_written.get(path) != ("failed", data):
+            print(f"[raid-watch] could not write {path}: {e}")
+        _not_added_written[path] = ("failed", data)
 
 # ----------------------------
 # Growing onto bigger cards
@@ -501,18 +736,167 @@ def _safe_to_wipe(dev):
     if any(m for m in mounts if m.strip()):
         _fail_bootstrap(f"{dev} (or a partition on it) is already mounted, refusing to wipe it")
         return False
+    # Only a disk with nothing on it: the setup's storage step never said
+    # the disks it lists are erased, so one holding a filesystem, a
+    # partition table or part of an array (a backup drive, a card fresh from
+    # the shop) is refused rather than wiped. The same checks as a disk
+    # added to a degraded mirror (judge_disk), less the empty ends.
+    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev])
+    if r.returncode == 0 and kv_lines(r.stdout).get("MD_UUID"):
+        _fail_bootstrap(f"{dev} holds part of a disk array, refusing to wipe it")
+        return False
+    if has_partitions(dev):
+        _fail_bootstrap(f"{dev} has partitions, refusing to wipe it: erase it on a computer first, or choose a blank disk")
+        return False
+    found = signatures(dev)
+    if found is None:
+        _fail_bootstrap(f"{dev} can't be read (blkid/wipefs failed)")
+        return False
+    if found:
+        _fail_bootstrap(f"{dev} holds {found}, refusing to wipe it: erase it on a computer first, or choose a blank disk")
+        return False
     return True
 
-def _append_fstab(dev, mount_point):
-    # nosuid,nodev: nothing on the data disks is ever a program to run as
-    # root, nor a device node.
-    if "\n" in dev or "\n" in mount_point:
-        raise ValueError("bad fstab entry")
-    line = f"{dev}   {mount_point}   ext4   defaults,nosuid,nodev   0   0"
-    fstab = Path("/etc/fstab").read_text()
-    if dev not in fstab:
-        with open("/etc/fstab", "a") as f:
-            f.write(line + "\n")
+def _storage_holds_data(mount_point):
+    """What the storage directory already holds that a new disk mounted
+    over it would hide (its first such entry), or "". Hidden names are the
+    service's own bookkeeping, made at its first start; an empty
+    unencrypted/ and lost+found hold nothing."""
+    try:
+        entries = sorted(os.listdir(mount_point))
+    except FileNotFoundError:
+        return ""
+    except OSError as e:
+        return f"{mount_point} (it can't be listed: {e.strerror or e})"
+    unenc = CONFIG["unenc_subdir"]
+    for name in entries:
+        if name.startswith(".") or name == "lost+found":
+            continue
+        path = os.path.join(mount_point, name)
+        if name == unenc and os.path.isdir(path) and not os.path.islink(path):
+            try:
+                if not os.listdir(path):
+                    continue
+            except OSError:
+                pass
+        return path
+    return ""
+
+def _fstab_has(mount_point, fstab="/etc/fstab"):
+    """A line of fstab (not a comment) mounts something on mount_point."""
+    try:
+        lines = Path(fstab).read_text().splitlines()
+    except OSError:
+        return False
+    for line in lines:
+        fields = line.split()
+        if fields and not fields[0].startswith("#") and len(fields) >= 2 and fields[1] == mount_point:
+            return True
+    return False
+
+def _fs_uuid(dev):
+    r = run([tool("blkid"), "-s", "UUID", "-o", "value", dev])
+    uuid = (r.stdout or "").strip()
+    return uuid if r.returncode == 0 and re.fullmatch(r"[0-9A-Fa-f-]{8,64}", uuid) else ""
+
+# What install.sh writes: nofail, so a disk missing or slow at boot no
+# longer stops the boot in emergency mode, and the drop-ins that keep the
+# service and MariaDB from starting on the empty directory under the mount
+# point (nofail no longer orders the mount before local-fs.target).
+STORAGE_MOUNT_OPTS = "defaults,nosuid,nodev,nofail,x-systemd.device-timeout=3min"
+STORAGE_DROPINS = ("otc", "mariadb")
+
+def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
+    """Adds the storage's line - by its filesystem's UUID, which stays with
+    the disk whatever sdX it gets - written beside fstab, flushed and
+    renamed over it. False when the line can't be made or written."""
+    uuid = _fs_uuid(dev)
+    if not uuid or "\n" in mount_point:
+        _fail_bootstrap(f"could not read the new filesystem's UUID on {dev}")
+        return False
+    try:
+        text = Path(fstab).read_text()
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += f"UUID={uuid}   {mount_point}   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
+        tmp = f"{fstab}.otc.{os.getpid()}"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+        try:
+            os.write(fd, text.encode())
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.replace(tmp, fstab)
+    except OSError as e:
+        _fail_bootstrap(f"could not write {fstab}: {e}")
+        return False
+    for unit in STORAGE_DROPINS:
+        d = f"/etc/systemd/system/{unit}.service.d"
+        try:
+            os.makedirs(d, mode=0o755, exist_ok=True)
+            with open(os.path.join(d, "otc-storage.conf"), "w") as f:
+                f.write("# Off The Cloud: start only with the storage mounted (fstab has nofail).\n"
+                        f"[Unit]\nRequiresMountsFor={mount_point}\n")
+        except OSError as e:
+            print(f"[raid-watch] could not write the {unit} storage drop-in: {e}")
+    run(["systemctl", "daemon-reload"])
+    return True
+
+def _own_storage(mount_point, unenc_path):
+    """The new filesystem's root and unencrypted/ as install.sh leaves
+    them: the service's (a new filesystem's root is root's, and uploads
+    failed), 0750, the root also o+x (MariaDB passes through it when its
+    datadir is on the storage)."""
+    import pwd
+    try:
+        otc = pwd.getpwnam("otc")
+    except KeyError:
+        print("[raid-watch] no otc user: the new storage keeps root's ownership")
+        return
+    os.makedirs(unenc_path, exist_ok=True)
+    for path, mode in ((mount_point, 0o751), (unenc_path, 0o750)):
+        os.lchown(path, otc.pw_uid, otc.pw_gid)
+        os.chmod(path, mode)
+
+# The largest request the service writes (storage.RequestSetup).
+MAX_REQUEST_BYTES = 4096
+
+def read_setup_request(path):
+    """The storage setup request at path as a dict, or None. Opened without
+    following a symlink and without blocking on a FIFO, and only a regular
+    file of at most MAX_REQUEST_BYTES is read: /var/lib/otc is the otc
+    user's directory, and this runs as root."""
+    try:
+        fd = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_REQUEST_BYTES:
+            return None
+        data = os.read(fd, MAX_REQUEST_BYTES + 1)
+        if len(data) > MAX_REQUEST_BYTES:
+            return None
+        request = json.loads(data.decode("utf-8"))
+        return request if isinstance(request, dict) else None
+    except (OSError, ValueError):
+        return None
+    finally:
+        os.close(fd)
+
+def drop_setup_request(path):
+    """Removes the request, whatever was put there: a directory too
+    (removed without following links), so it can't stop this loop."""
+    import shutil
+    try:
+        if os.path.isdir(str(path)) and not os.path.islink(str(path)):
+            shutil.rmtree(str(path), ignore_errors=True)
+        else:
+            os.unlink(str(path))
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        print(f"[raid-watch] could not remove the storage setup request: {type(e).__name__}")
 
 def _run_step(cmd):
     """Like run(), but returns True/False and logs on failure — run()
@@ -533,31 +917,53 @@ def perform_pending_storage_setup():
     (leaving the request file in place for inspection/retry) at the first
     failed step rather than pushing on into further destructive commands
     against a disk that's now in an unknown state. Returns False only then,
-    so the caller can back off before retrying."""
+    so the caller can back off before retrying. A request refused before
+    anything was touched (the storage already holds files, a disk holds
+    something) is removed: asking again changes nothing."""
     req_path = Path(CONFIG["setup_request_file"])
-    if not req_path.exists():
+    if not os.path.lexists(str(req_path)):
         return True
 
     mount_point = CONFIG["mount_point"]
     unenc_path = os.path.join(mount_point, CONFIG["unenc_subdir"])
     raid_dev = CONFIG["raid_dev"]
 
-    try:
-        request = json.loads(req_path.read_text())
-        # `or []` (not just a .get default) because a present-but-null
-        # "device_paths" key — e.g. a Go nil slice marshaled to JSON `null`
-        # — parses to None, which .get()'s default never catches since the
-        # key *was* there.
-        device_paths = request.get("device_paths") or []
-    except Exception as e:
-        _fail_bootstrap(f"could not parse {req_path}: {e}")
-        req_path.unlink(missing_ok=True)
+    request = read_setup_request(req_path)
+    if request is None:
+        _fail_bootstrap(f"could not read {req_path} (not a small regular file of JSON)")
+        drop_setup_request(req_path)
+        return True
+    # `or []` (not just a .get default) because a present-but-null
+    # "device_paths" key — e.g. a Go nil slice marshaled to JSON `null`
+    # — parses to None, which .get()'s default never catches since the
+    # key *was* there.
+    device_paths = request.get("device_paths") or []
+    if not isinstance(device_paths, list) or not all(isinstance(d, str) for d in device_paths):
+        _fail_bootstrap(f"{req_path} does not list device paths")
+        drop_setup_request(req_path)
         return True
 
     if os.path.ismount(mount_point):
         print(f"[raid-watch] {mount_point} is already mounted — treating storage setup as already done.")
-        req_path.unlink(missing_ok=True)
+        drop_setup_request(req_path)
         return True
+
+    if device_paths:
+        # A disk mounted over the storage directory hides what is in it:
+        # only a device that has stored nothing there yet (the setup's
+        # first sign-in) gets new storage. And never over storage fstab
+        # already names but that isn't mounted now (a disk missing): that
+        # is this device's storage, not a place for new disks.
+        held = _storage_holds_data(mount_point)
+        if held:
+            _fail_bootstrap(f"{mount_point} already holds files ({held}): new disks mounted over it would hide them")
+            drop_setup_request(req_path)
+            return True
+        if _fstab_has(mount_point):
+            _fail_bootstrap(f"/etc/fstab already mounts storage on {mount_point}, which isn't mounted now - "
+                            "reconnect that disk instead")
+            drop_setup_request(req_path)
+            return True
 
     print(f"[raid-watch] Applying storage setup request: {device_paths}")
 
@@ -568,7 +974,8 @@ def perform_pending_storage_setup():
     elif len(device_paths) == 1:
         dev = device_paths[0]
         if not _safe_to_wipe(dev):
-            return False
+            drop_setup_request(req_path)
+            return True
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", dev]):
             return False
         if not _run_step(["mkfs.ext4", "-F", dev]):
@@ -576,14 +983,19 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", dev, mount_point]):
             return False
-        os.makedirs(unenc_path, exist_ok=True)
-        _append_fstab(dev, mount_point)
-        print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk).")
+        _own_storage(mount_point, unenc_path)
+        if not _add_fstab(dev, mount_point):
+            return False
+        print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk); "
+              "MariaDB's database stays where it was, on the system disk.")
 
     elif len(device_paths) == 2:
         d1, d2 = device_paths
-        if not _safe_to_wipe(d1) or not _safe_to_wipe(d2):
-            return False
+        if d1 == d2 or not _safe_to_wipe(d1) or not _safe_to_wipe(d2):
+            if d1 == d2:
+                _fail_bootstrap(f"{d1} was chosen twice: the mirror needs two different disks")
+            drop_setup_request(req_path)
+            return True
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d1]):
             return False
         if not _run_step([CONFIG["paths"].get("wipefs", "wipefs"), "-a", d2]):
@@ -596,19 +1008,22 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", raid_dev, mount_point]):
             return False
-        os.makedirs(unenc_path, exist_ok=True)
+        _own_storage(mount_point, unenc_path)
         scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])
         with open("/etc/mdadm/mdadm.conf", "a") as f:
             f.write(scan.stdout)
         run(["update-initramfs", "-u"])
-        _append_fstab(raid_dev, mount_point)
-        print(f"[raid-watch] RAID1 built on {raid_dev} from {d1}+{d2}, mounted at {mount_point}.")
+        if not _add_fstab(raid_dev, mount_point):
+            return False
+        print(f"[raid-watch] RAID1 built on {raid_dev} from {d1}+{d2}, mounted at {mount_point}; "
+              "MariaDB's database stays where it was, on the system disk.")
 
     else:
         _fail_bootstrap(f"expected 0, 1, or 2 device paths, got {len(device_paths)}")
-        return False
+        drop_setup_request(req_path)
+        return True
 
-    req_path.unlink(missing_ok=True)
+    drop_setup_request(req_path)
     return True
 
 def raid_name_from_dev(raid_dev):
@@ -625,7 +1040,7 @@ def request_key(path):
     """What identifies one storage-setup request: a re-submit from the
     wizard rewrites the file, which changes this."""
     try:
-        st = os.stat(path)
+        st = os.lstat(path)  # a symlink is a request too: read_setup_request drops it
     except OSError:
         return None
     return (st.st_mtime_ns, st.st_size)
@@ -902,7 +1317,11 @@ def main():
     # rebuild has got (every PROGRESS_EVERY_S).
     DISKS_EVERY_S, KERNEL_EVERY_S, PROGRESS_EVERY_S = 5, 30, 600
     seen = {"disks": None, "disks_at": 0.0, "kernel": None, "kernel_at": 0.0,
-            "kernel_failed": False, "why": {}, "progress_at": 0.0}
+            "kernel_failed": False, "why": {}, "progress_at": 0.0, "repair_at": -DISKS_EVERY_S}
+    # (disk, size, model, port) -> judge_disk's verdict, while it is plugged in.
+    verdicts = {}
+    # The last mdadm --detail, the sysfs it was read with, and when.
+    md_cache = {"fp": None, "at": 0.0, "detail": None}
 
     def kernel_lines():
         lines, seen["kernel"] = kernel_disk_lines(seen["kernel"])
@@ -934,7 +1353,16 @@ def main():
             mdst = mdstat()
             array_present = array_in_mdstat(mdst, raid_name)
             # The fallback is what a failed `mdadm --detail` parses to.
-            detail = mdadm_detail(raid_dev) if array_present else {"state": "", "members": {}, "other_devices": set()}
+            # mdadm only when md's sysfs changed, or every MDADM_EVERY_S.
+            if array_present:
+                fp, mono_md = md_fingerprint(raid_name), time.monotonic()
+                if fp is None or fp != md_cache["fp"] or md_cache["detail"] is None \
+                        or mono_md - md_cache["at"] >= MDADM_EVERY_S:
+                    md_cache.update(fp=fp, at=mono_md, detail=mdadm_detail(raid_dev))
+                detail = md_cache["detail"]
+            else:
+                md_cache.update(fp=None, at=0.0, detail=None)
+                detail = {"state": "", "members": {}, "other_devices": set()}
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})
             # Log only when the picture changes: this runs every poll_s,
@@ -1025,10 +1453,14 @@ def main():
             # Apply LED states (updates blinkers)
             led.apply()
 
-            # Auto-repair path
+            # Auto-repair path. Looked at every DISKS_EVERY_S, and at once
+            # when the disks or the mirror change: it forks lsblk per disk,
+            # and a disk's verdict (judge_disk) is kept while it stays.
+            repair_due = changed[0] or disks_changed or mono - seen["repair_at"] >= DISKS_EVERY_S
             if CONFIG["auto_repair_enable"] and array_present:
                 # If degraded and exactly one member present, try to find a candidate
-                if ("degraded" in state) or (len(members) < 2):
+                if (("degraded" in state) or (len(members) < 2)) and repair_due:
+                    seen["repair_at"] = mono
                     # Determine size of existing member to filter candidates
                     sizes = []
                     for m in members.values():
@@ -1040,15 +1472,41 @@ def main():
                     present = {(d, sz) for d, sz in disks if sz}
                     for k in [k for k in failed_adds if k not in present]:
                         del failed_adds[k]
+                    # ...and its verdict: what is plugged in next is judged anew.
+                    for k in [k for k in verdicts if (k[0], k[1]) not in present]:
+                        del verdicts[k]
+                    seen_by_name = {"/dev/" + name: (model, where) for name, _sz, model, where in (seen["disks"] or disks_seen())}
+                    uuid = []
+
+                    def judge(d, sz):
+                        key = (d, sz) + seen_by_name.get(d, ("", ""))
+                        if key not in verdicts:
+                            if not uuid:
+                                uuid.append(array_uuid_of(raid_dev))
+                            verdicts[key] = judge_disk(d, uuid[0], members)
+                        return verdicts[key]
+
                     mono = time.monotonic()
                     waiting = {k for k, v in failed_adds.items() if mono < v["next_try"]}
                     why = {}
-                    candidate = pick_candidate_disk(existing_size, detail, skip=waiting, disks=disks, why=why)
+                    refused = []
+                    candidate = pick_candidate_disk(existing_size, detail, skip=waiting, disks=disks, why=why,
+                                                    judge=judge, refused=refused)
                     if why != seen["why"]:
                         for d, reason in sorted(why.items()):
                             if seen["why"].get(d) != reason:
                                 print(f"[raid-watch] {d} is not added to the mirror: {reason}")
                         seen["why"] = why
+                    # For the device's Alert: one per disk plugged in.
+                    sizes_now = dict(disks)
+                    not_added = []
+                    for d in refused:
+                        model, where = seen_by_name.get(d, ("", ""))
+                        sz = sizes_now.get(d, 0)
+                        extra = ", ".join(x for x in (model, where) if x)
+                        not_added.append({"id": f"{os.path.basename(d)}|{sz}|{model}|{where}",
+                                          "disk": f"{os.path.basename(d)} {human_size(sz)}" + (f" ({extra})" if extra else "")})
+                    write_not_added(not_added)
                     if candidate:
                         add_key = (candidate, dict(disks).get(candidate, 0))
                         retrying = add_key in failed_adds
@@ -1069,11 +1527,17 @@ def main():
                         else:
                             failed_adds.pop(add_key, None)
                             print("[raid-watch] Member added, rebuild should start automatically.")
-                else:
+                elif not (("degraded" in state) or (len(members) < 2)):
                     failed_adds.clear()
+                    verdicts.clear()
                     seen["why"] = {}
+                    write_not_added([])
             else:
                 failed_adds.clear()
+                verdicts.clear()
+                if seen["why"]:
+                    seen["why"] = {}
+                write_not_added([])
 
             if rebuilding and mono - seen["progress_at"] >= PROGRESS_EVERY_S:
                 seen["progress_at"] = mono
@@ -1215,7 +1679,159 @@ def selftest():
     assert pick is None, pick
     assert why == {"/dev/sdb": "no card in it",
                    "/dev/sdc": "too small: 128.0 GB, and the working disk is 512.0 GB"}, why
+    selftest_disks()
     print("selftest ok")
+
+def selftest_disks():
+    """Which disk may join the mirror (judge_disk, pick_candidate_disk), the
+    storage setup's own checks, and the file the device's Alert reads."""
+    import tempfile
+    global run, read_ends, has_partitions
+    real = (run, read_ends, has_partitions)
+    uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
+    members = {0: {"device": "/dev/sda", "state": "active sync"}}
+    # What each disk shows: mdadm --examine --export, --examine, blkid -p,
+    # wipefs, its partitions and its two ends (or the error reading them).
+    disks = {
+        "/dev/sdb": {"export": f"MD_LEVEL=raid1\nMD_UUID={uuid}\n", "examine": "   Array State : AA ('A' == active)\n"},
+        "/dev/sdc": {"export": f"MD_LEVEL=raid1\nMD_UUID={uuid}\n", "examine": "   Array State : .A ('A' == active)\n"},
+        "/dev/sdd": {"export": "MD_LEVEL=raid1\nMD_UUID=9999eeee:0000ffff:1212abab:3434cdcd\n"},
+        "/dev/sde": {"parts": True},
+        "/dev/sdf": {"blkid": (0, "DEVNAME=/dev/sdf\nTYPE=exfat\nLABEL=Untitled\n")},
+        "/dev/sdg": {},
+        "/dev/sdh": {"ends": (b"\xff" * 64, b"\xff" * 64)},
+        "/dev/sdi": {"ends": (b"\0" * 63 + b"x", b"\0" * 64)},
+        "/dev/sdj": {"ends": OSError(5, "Input/output error")},
+        "/dev/sdk": {"wipefs": "0x438 ext4 53ef\n"},
+        "/dev/sdl": {"blkid": (8, "")},
+    }
+
+    def fake_run(cmd, **_kw):
+        name, dev = os.path.basename(cmd[0]), cmd[-1]
+        d = disks.get(dev, {})
+        if name == "mdadm" and "--export" in cmd:
+            out = d.get("export", "")
+            return subprocess.CompletedProcess(cmd, 0 if out else 1, out, "" if out else f"mdadm: No md superblock detected on {dev}.")
+        if name == "mdadm":
+            return subprocess.CompletedProcess(cmd, 0 if "examine" in d else 1, d.get("examine", ""), "")
+        if name == "blkid":
+            code, out = d.get("blkid", (2, ""))
+            return subprocess.CompletedProcess(cmd, code, out, "")
+        if name == "wipefs":
+            return subprocess.CompletedProcess(cmd, 0, d.get("wipefs", ""), "")
+        raise AssertionError(cmd)
+
+    def fake_ends(dev):
+        e = disks[dev].get("ends", (b"\0" * 64, b"\0" * 64))
+        if isinstance(e, Exception):
+            raise e
+        return e
+
+    run, read_ends, has_partitions = fake_run, fake_ends, lambda dev, sys_root="/sys": disks[dev].get("parts", False)
+    try:
+        got = {d: judge_disk(d, uuid, members) for d in disks}
+    finally:
+        run, read_ends, has_partitions = real
+    want = {
+        "/dev/sdb": ("add", "it was a member of this mirror"),
+        "/dev/sdc": ("refuse", "it was a member of this mirror but ran on its own since, so it holds changes the mirror lacks (copy what you need off it first)"),
+        "/dev/sdd": ("refuse", "it holds part of another disk array"),
+        "/dev/sde": ("refuse", "it has partitions"),
+        "/dev/sdf": ("refuse", "it holds exfat labelled 'Untitled'"),
+        "/dev/sdg": ("add", "it is blank"),
+        "/dev/sdh": ("add", "it is blank"),
+        "/dev/sdi": ("refuse", "it holds data (no filesystem this device knows)"),
+        "/dev/sdj": ("refuse", "it can't be read (Input/output error)"),
+        "/dev/sdk": ("refuse", "it holds signatures wipefs lists (0x438 ext4 53ef)"),
+        "/dev/sdl": ("refuse", "it holds several signatures"),
+    }
+    for d in disks:
+        assert got[d] == want[d], (d, got[d])
+    assert uniform(b"\0" * 8) and uniform(b"\xff" * 8) and not uniform(b"\0\xff") and not uniform(b"")
+
+    # The judge decides once the other checks pass: the blank disk is
+    # taken, the one with data is left alone, said why and listed.
+    why, refused = {}, []
+    verdicts = {"/dev/sdb": ("refuse", "it holds exfat"), "/dev/sdc": ("add", "it is blank")}
+    pick = pick_candidate_disk(500, {"members": members}, disks=[("/dev/sda", 500), ("/dev/sdb", 900), ("/dev/sdc", 600)],
+                               why=why, judge=lambda d, sz: verdicts[d], refused=refused)
+    assert pick == "/dev/sdc" and refused == ["/dev/sdb"], (pick, refused)
+    assert why["/dev/sdb"].startswith("it holds exfat - it was left alone. To use it for the mirror, erase it"), why
+    assert pick_candidate_disk(500, {"members": members}, disks=[("/dev/sdb", 900)], why={}) is None
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # The storage directory: bookkeeping and an empty unencrypted/ hold
+        # nothing; a blob, or a file in unencrypted/, is the owner's.
+        st = os.path.join(tmp, "storage")
+        os.makedirs(os.path.join(st, "unencrypted"))
+        os.makedirs(os.path.join(st, ".lan-tls"))
+        Path(st, ".storage-log-read").write_text("{}")
+        assert _storage_holds_data(st) == "", _storage_holds_data(st)
+        assert _storage_holds_data(os.path.join(tmp, "none")) == ""
+        Path(st, "unencrypted", "a.txt").write_text("x")
+        assert _storage_holds_data(st) == os.path.join(st, "unencrypted")
+        os.remove(os.path.join(st, "unencrypted", "a.txt"))
+        Path(st, "ab" * 32).write_text("blob")
+        assert _storage_holds_data(st) == os.path.join(st, "ab" * 32)
+
+        fstab = os.path.join(tmp, "fstab")
+        Path(fstab).write_text("# /dev/md0 /mnt/storage ext4 defaults 0 0\nLABEL=root / ext4 defaults 0 1\n")
+        assert not _fstab_has("/mnt/storage", fstab)
+        Path(fstab).write_text("UUID=abc   /mnt/storage   ext4   defaults,nofail   0   0\n")
+        assert _fstab_has("/mnt/storage", fstab)
+
+        # The request: a small regular file only, never through a symlink
+        # or from a FIFO (which would block a plain open).
+        req = os.path.join(tmp, "req.json")
+        Path(req).write_text('{"device_paths": ["/dev/sda"]}')
+        assert read_setup_request(req) == {"device_paths": ["/dev/sda"]}
+        link = os.path.join(tmp, "link.json")
+        os.symlink(req, link)
+        assert read_setup_request(link) is None
+        fifo = os.path.join(tmp, "fifo.json")
+        os.mkfifo(fifo)
+        assert read_setup_request(fifo) is None
+        drop_setup_request(fifo)
+        drop_setup_request(link)
+        assert not os.path.lexists(fifo) and not os.path.lexists(link) and os.path.exists(req)
+        Path(req).write_text(" " * (MAX_REQUEST_BYTES + 1))
+        assert read_setup_request(req) is None
+        os.makedirs(os.path.join(tmp, "dir.json", "inside"))
+        drop_setup_request(os.path.join(tmp, "dir.json"))
+        assert not os.path.lexists(os.path.join(tmp, "dir.json"))
+
+        # md's sysfs as the poll reads it: a write (clean/active) changes
+        # nothing, a member that fails or a rebuild that ends does.
+        md = os.path.join(tmp, "sys", "block", "md0", "md")
+        def put(rel, value):
+            os.makedirs(os.path.dirname(os.path.join(md, rel)), exist_ok=True)
+            Path(md, rel).write_text(value + "\n")
+        for rel, value in (("array_state", "clean"), ("degraded", "0"), ("sync_action", "idle"), ("raid_disks", "2"),
+                           ("dev-sda/slot", "0"), ("dev-sda/state", "in_sync"), ("dev-sdb/slot", "1"), ("dev-sdb/state", "in_sync")):
+            put(rel, value)
+        sys_root = os.path.join(tmp, "sys")
+        first = md_fingerprint("md0", sys_root)
+        put("array_state", "active")
+        assert md_fingerprint("md0", sys_root) == first
+        put("dev-sdb/state", "faulty")
+        put("degraded", "1")
+        failed = md_fingerprint("md0", sys_root)
+        assert failed != first
+        put("dev-sdb/slot", "none")
+        assert md_fingerprint("md0", sys_root) != failed
+        put("array_state", "inactive")
+        assert md_fingerprint("md0", sys_root)[0] == "inactive"
+        assert md_fingerprint("md1", sys_root) is None
+
+        # The Alert's file: written when it changes, an empty list when
+        # nothing is left alone.
+        na = os.path.join(tmp, "otc-raid-watch", "not-added.json")
+        write_not_added([], na)
+        assert not os.path.exists(na)
+        write_not_added([{"id": "sdb|9|M|P", "disk": "sdb 9 MB (M, P)"}], na)
+        assert json.loads(Path(na).read_text()) == {"disks": [{"disk": "sdb 9 MB (M, P)", "id": "sdb|9|M|P"}]}
+        write_not_added([], na)
+        assert json.loads(Path(na).read_text()) == {"disks": []}
 
 if __name__ == "__main__":
     if "--selftest" in sys.argv:

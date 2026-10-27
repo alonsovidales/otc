@@ -497,6 +497,12 @@ func soleFaultyNamed(a array) (Member, bool) {
 
 func check(storagePath string, n Notify) {
 	t := watched()
+	// A Raspberry Pi's disks that raid_watch.py left out of the mirror
+	// (notadded.go). In a container otc-mirror adds a disk only when .env
+	// names it, and says why not in the start-up log.
+	if !t.named() {
+		checkNotAdded(storagePath, n)
+	}
 	a, ok := readArray(t)
 	if !ok {
 		return
@@ -598,7 +604,7 @@ func stoppedAlert(missing []Member, f failure) alerttext.Alert {
 	}
 	if len(f.ports) != 1 || len(known) > 1 {
 		title := capitalize(f.label) + " stopped working" // i18n-ignore: English only, for several missing disks, which no key names
-		detail := alerttext.EnglishOf(i18n.DevAlertRaidStoppedDetail())
+		detail := alerttext.EnglishOf(i18n.DevAlertRaidReplaceDetail())
 		for _, k := range known {
 			detail += " (" + k + ")"
 		}
@@ -611,17 +617,20 @@ func stoppedAlert(missing []Member, f failure) alerttext.Alert {
 	case PortBottom:
 		title = i18n.DevAlertRaidStoppedBottom()
 	}
-	// Which one stopped isn't known: which one to keep is.
+	// Which one stopped isn't known: which one to keep is. The details say
+	// the replacement must be blank: raid_watch.py adds nothing else by
+	// itself (the stopped_detail keys before them promised it would erase
+	// whatever card was plugged in).
 	switch f.working {
 	case PortTop:
-		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailWorkingTop())
+		return alerttext.New(title, i18n.DevAlertRaidReplaceDetailWorkingTop())
 	case PortBottom:
-		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailWorkingBottom())
+		return alerttext.New(title, i18n.DevAlertRaidReplaceDetailWorkingBottom())
 	}
 	if len(known) == 1 {
-		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailDisk(known[0]))
+		return alerttext.New(title, i18n.DevAlertRaidReplaceDetailDisk(known[0]))
 	}
-	return alerttext.New(title, i18n.DevAlertRaidStoppedDetail())
+	return alerttext.New(title, i18n.DevAlertRaidReplaceDetail())
 }
 
 // namedStoppedAlert is stoppedAlert for the container's mirror, whose

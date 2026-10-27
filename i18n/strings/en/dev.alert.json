@@ -250,6 +250,44 @@
     "max": 6,
     "stored": true
   },
+  "dev.alert.raid.not_added_detail": {
+    "text": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert dev.alert.raid.not_added_title. The device never erases a disk that may hold someone's files (a backup drive plugged in by mistake, say): it only adds one with nothing at all on it, not even a partition table, which most new cards and disks have, so they need a full erase first. {disk} identifies the disk for a technician: its system name, size, model and USB port, such as \"sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #6366db11"
+  },
+  "dev.alert.raid.not_added_title": {
+    "text": "A disk was plugged in but not added to the mirror",
+    "note": "Title of an alert in Alerts: one of the device's two storage disks had stopped working (the mirror, where each disk holds a copy of every file, runs on one disk), a disk was plugged in, and the device didn't add it to the mirror because it isn't blank. Its detail is dev.alert.raid.not_added_detail.",
+    "stored": true
+  },
+  "dev.alert.raid.replace_detail": {
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working (dev.alert.raid.stopped_top, _bottom, _unknown). A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have; any other is left alone (dev.alert.raid.not_added_title).",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #5405e54d"
+  },
+  "dev.alert.raid.replace_detail_disk": {
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working, when the device knows which disk it was. A card is the storage card (an SD card in a USB reader) the disk is; the device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have. {disk} identifies the disk for a technician: its system name, serial number and USB port, such as \"sdb 0123456789 xhci-hcd.1 usb4 4-1\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #bb5cea98"
+  },
+  "dev.alert.raid.replace_detail_working_bottom": {
+    "text": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the bottom of its two blue USB ports, one above the other. The owner replaces the other disk, in the top port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have.",
+    "stored": true
+  },
+  "dev.alert.raid.replace_detail_working_top": {
+    "text": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "note": "Detail of the alert dev.alert.raid.stopped_unknown (one of the device's two storage disks, a mirror where each holds a copy of every file, stopped working and the device can't tell which) when it can tell which disk still works: the one in the top of its two blue USB ports, one above the other. The owner replaces the other disk, in the bottom port. A card is the storage card (an SD card in a USB reader) the disk is. The device adds a replacement by itself only when nothing at all is on it, not even a partition table, which most new cards have.",
+    "stored": true
+  },
   "dev.alert.raid.stopped_bottom": {
     "text": "The disk in the bottom blue USB port stopped working",
     "note": "Title of an alert in Alerts: one of the device's two storage disks (a mirror: each holds a copy of every file) stopped working. The device has two blue USB ports, one above the other; this disk is in the bottom one.",

@@ -33,8 +33,12 @@ func everyAlertKey() map[string]struct {
 		upload  = ". Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
 		logs    = " If this keeps happening, send the logs from Settings > Logs."
 		mirror  = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
-		restart = " Restart the device from Settings, or connect it to your router with an Ethernet cable."
-		disk    = "ata-WDC_WD40EFRX-68N32N0_WD-WCC7K2222222"
+		// Since release 143 a replacement is added only when blank.
+		blank    = "a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+		replace  = "Your files are safe on the other disk, but they are no longer mirrored. Replace it with " + blank
+		notAdded = "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large."
+		restart  = " Restart the device from Settings, or connect it to your router with an Ethernet cable."
+		disk     = "ata-WDC_WD40EFRX-68N32N0_WD-WCC7K2222222"
 	)
 	type c = struct {
 		m    i18n.Msg
@@ -82,6 +86,12 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.raid.stopped_detail_disk":           {i18n.DevAlertRaidStoppedDetailDisk("sdb BBB xhci-hcd.1 usb4 4-1"), mirror + " (" + "sdb BBB xhci-hcd.1 usb4 4-1" + ")"},
 		"dev.alert.raid.stopped_detail_working_top":    {i18n.DevAlertRaidStoppedDetailWorkingTop(), "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
 		"dev.alert.raid.stopped_detail_working_bottom": {i18n.DevAlertRaidStoppedDetailWorkingBottom(), "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."},
+		"dev.alert.raid.replace_detail":                {i18n.DevAlertRaidReplaceDetail(), replace},
+		"dev.alert.raid.replace_detail_disk":           {i18n.DevAlertRaidReplaceDetailDisk("sdb BBB xhci-hcd.1 usb4 4-1"), replace + " (" + "sdb BBB xhci-hcd.1 usb4 4-1" + ")"},
+		"dev.alert.raid.replace_detail_working_top":    {i18n.DevAlertRaidReplaceDetailWorkingTop(), "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with " + blank},
+		"dev.alert.raid.replace_detail_working_bottom": {i18n.DevAlertRaidReplaceDetailWorkingBottom(), "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with " + blank},
+		"dev.alert.raid.not_added_title":               {i18n.DevAlertRaidNotAddedTitle(), "A disk was plugged in but not added to the mirror"},
+		"dev.alert.raid.not_added_detail":              {i18n.DevAlertRaidNotAddedDetail("sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)"), notAdded + " (sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1))"},
 		"dev.alert.raid.working_title":                 {i18n.DevAlertRaidWorkingTitle(), "Both storage disks are working again"},
 		"dev.alert.raid.working_detail":                {i18n.DevAlertRaidWorkingDetail(), "The mirror is complete: every file is on both disks again."},
 		// New with the container's mirror (no older English).

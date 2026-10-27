@@ -189,6 +189,33 @@
     "text": "sep.",
     "en": "Sep"
   },
+  "dev.alert.raid.not_added_detail": {
+    "text": "Het apparaat voegt een schijf alleen zelf aan de spiegel toe als er helemaal niets op staat, en op deze staat iets (een partitietabel, een bestandssysteem of andere gegevens) of hij kan niet worden gelezen, dus hij is gelaten zoals hij is. Je bestanden staan nog steeds op maar één schijf: wil je deze voor de spiegel gebruiken, wis hem dan volledig op een computer en sluit hem opnieuw aan, of sluit een lege schijf aan die minstens even groot is. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #be77620a"
+  },
+  "dev.alert.raid.not_added_title": {
+    "text": "Er is een schijf aangesloten, maar die is niet aan de spiegel toegevoegd",
+    "en": "A disk was plugged in but not added to the mirror"
+  },
+  "dev.alert.raid.replace_detail": {
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "reviewed": "claude-backtranslation 2026-10-27 #95841173"
+  },
+  "dev.alert.raid.replace_detail_disk": {
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #c7d17cd6"
+  },
+  "dev.alert.raid.replace_detail_working_bottom": {
+    "text": "De schijf in de onderste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
+  "dev.alert.raid.replace_detail_working_top": {
+    "text": "De schijf in de bovenste blauwe USB-poort werkt nog en bevat al je bestanden, maar die worden niet meer gespiegeld. Vervang de andere schijf door een lege kaart die minstens even groot is, waar helemaal niets op staat (een nieuwe kaart moet meestal eerst volledig worden gewist op een computer): het apparaat voegt die toe en kopieert er zelf alles naartoe.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
   "dev.alert.raid.stopped_bottom": {
     "text": "De schijf in de onderste blauwe USB-poort werkt niet meer",
     "en": "The disk in the bottom blue USB port stopped working"

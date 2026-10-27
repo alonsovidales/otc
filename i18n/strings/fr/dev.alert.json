@@ -189,6 +189,33 @@
     "text": "sept.",
     "en": "Sep"
   },
+  "dev.alert.raid.not_added_detail": {
+    "text": "L’appareil n’ajoute de lui-même un disque au miroir que s’il ne contient absolument rien. Celui-ci contient quelque chose (une table de partitions, un système de fichiers ou d’autres données) ou ne peut pas être lu : il a donc été laissé tel quel. Vos fichiers ne sont toujours que sur un seul disque : pour utiliser celui-ci dans le miroir, effacez-le entièrement sur un ordinateur et rebranchez-le, ou branchez un disque vierge au moins aussi grand. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #baf2c87c"
+  },
+  "dev.alert.raid.not_added_title": {
+    "text": "Un disque a été branché mais n’a pas été ajouté au miroir",
+    "en": "A disk was plugged in but not added to the mirror"
+  },
+  "dev.alert.raid.replace_detail": {
+    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "reviewed": "claude-backtranslation 2026-10-27 #1aeca1f8"
+  },
+  "dev.alert.raid.replace_detail_disk": {
+    "text": "Vos fichiers sont en sécurité sur l’autre disque, mais ils ne sont plus en miroir. Remplacez le disque défaillant par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #8925dadb"
+  },
+  "dev.alert.raid.replace_detail_working_bottom": {
+    "text": "Le disque du port USB bleu du bas fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
+  "dev.alert.raid.replace_detail_working_top": {
+    "text": "Le disque du port USB bleu du haut fonctionne toujours et contient tous vos fichiers, mais ils ne sont plus en miroir. Remplacez l’autre disque par une carte vierge au moins aussi grande, sur laquelle il n’y a absolument rien (une carte neuve doit généralement d’abord être entièrement effacée sur un ordinateur) : l’appareil l’ajoute et y copie tout de lui-même.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
   "dev.alert.raid.stopped_bottom": {
     "text": "Le disque du port USB bleu du bas ne fonctionne plus",
     "en": "The disk in the bottom blue USB port stopped working"

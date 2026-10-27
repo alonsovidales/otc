@@ -199,6 +199,36 @@ func DevAlertMonthSep() Msg {
 	return Msg{Key: "dev.alert.month.sep"}
 }
 
+// DevAlertRaidNotAddedDetail is dev.alert.raid.not_added_detail: "The device adds a disk to the mirror by itself only when nothing at all is on it…".
+func DevAlertRaidNotAddedDetail(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.not_added_detail", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidNotAddedTitle is dev.alert.raid.not_added_title: "A disk was plugged in but not added to the mirror".
+func DevAlertRaidNotAddedTitle() Msg {
+	return Msg{Key: "dev.alert.raid.not_added_title"}
+}
+
+// DevAlertRaidReplaceDetail is dev.alert.raid.replace_detail: "Your files are safe on the other disk, but they are no longer mirrored. Replace …".
+func DevAlertRaidReplaceDetail() Msg {
+	return Msg{Key: "dev.alert.raid.replace_detail"}
+}
+
+// DevAlertRaidReplaceDetailDisk is dev.alert.raid.replace_detail_disk: "Your files are safe on the other disk, but they are no longer mirrored. Replace …".
+func DevAlertRaidReplaceDetailDisk(disk string) Msg {
+	return Msg{Key: "dev.alert.raid.replace_detail_disk", Args: map[string]any{"disk": disk}}
+}
+
+// DevAlertRaidReplaceDetailWorkingBottom is dev.alert.raid.replace_detail_working_bottom: "The disk in the bottom blue USB port still works and holds all your files, but t…".
+func DevAlertRaidReplaceDetailWorkingBottom() Msg {
+	return Msg{Key: "dev.alert.raid.replace_detail_working_bottom"}
+}
+
+// DevAlertRaidReplaceDetailWorkingTop is dev.alert.raid.replace_detail_working_top: "The disk in the top blue USB port still works and holds all your files, but they…".
+func DevAlertRaidReplaceDetailWorkingTop() Msg {
+	return Msg{Key: "dev.alert.raid.replace_detail_working_top"}
+}
+
 // DevAlertRaidStoppedBottom is dev.alert.raid.stopped_bottom: "The disk in the bottom blue USB port stopped working".
 func DevAlertRaidStoppedBottom() Msg {
 	return Msg{Key: "dev.alert.raid.stopped_bottom"}

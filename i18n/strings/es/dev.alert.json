@@ -189,6 +189,33 @@
     "text": "sept.",
     "en": "Sep"
   },
+  "dev.alert.raid.not_added_detail": {
+    "text": "El dispositivo solo añade por su cuenta un disco al espejo cuando no tiene absolutamente nada, y este contiene algo (una tabla de particiones, un sistema de archivos u otros datos) o no se puede leer, así que se ha dejado tal como está. Tus archivos siguen en un solo disco: para usar este en el espejo, bórralo por completo en un ordenador y vuelve a conectarlo, o conecta un disco vacío al menos igual de grande. ({disk})",
+    "en": "The device adds a disk to the mirror by itself only when nothing at all is on it, and this one holds something (a partition table, a filesystem or other data) or can't be read, so it was left as it is. Your files are still on one disk only: to use this one for the mirror, erase it fully on a computer and plug it in again, or plug in a blank disk at least as large. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #18336b6a"
+  },
+  "dev.alert.raid.not_added_title": {
+    "text": "Se ha conectado un disco, pero no se ha añadido al espejo",
+    "en": "A disk was plugged in but not added to the mirror"
+  },
+  "dev.alert.raid.replace_detail": {
+    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself.",
+    "reviewed": "claude-backtranslation 2026-10-27 #3845c12a"
+  },
+  "dev.alert.raid.replace_detail_disk": {
+    "text": "Tus archivos están a salvo en el otro disco, pero ya no están en espejo. Sustitúyelo por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-27 #3200d266"
+  },
+  "dev.alert.raid.replace_detail_working_bottom": {
+    "text": "El disco del puerto USB azul inferior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
+    "en": "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
+  "dev.alert.raid.replace_detail_working_top": {
+    "text": "El disco del puerto USB azul superior sigue funcionando y guarda todos tus archivos, pero ya no están en espejo. Sustituye el otro por una tarjeta vacía al menos igual de grande, sin absolutamente nada (una tarjeta nueva suele tener que borrarse por completo en un ordenador antes): el dispositivo la añade y lo copia todo en ella automáticamente.",
+    "en": "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with a blank card at least as large, with nothing at all on it (a new card usually has to be fully erased on a computer first): the device adds it and copies everything onto it by itself."
+  },
   "dev.alert.raid.stopped_bottom": {
     "text": "El disco del puerto USB azul inferior ha dejado de funcionar",
     "en": "The disk in the bottom blue USB port stopped working"
