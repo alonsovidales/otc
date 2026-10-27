@@ -165,6 +165,14 @@ tar -xzf "$work/release/src.tar.gz" -C "$work/src" --strip-components=1
 tar -xzf "$work/release/web-dist.tar.gz" -C "$work/web"
 [ -f "$work/src/docker/Dockerfile" ] || die "release $release has no docker/Dockerfile"
 [ -d "$work/src/docker/mirror" ] || die "release $release predates the disk mirror (docker/mirror): its image can't pass the mirror test"
+# The image's build context is an allowlist (docker/Dockerfile.dockerignore):
+# a package the device's build needs and the list leaves out fails the
+# build itself, far into it (release 143's diskspace and storagewatch).
+# proto is generated inside the image.
+missing=$(cd "$work/src" && { go list -e -deps ./bin/otc.go; go list -e -deps ./docker/mirror; } 2>/dev/null \
+    | sed -n 's#^github.com/alonsovidales/otc/\([^/]*\).*#\1#p' | sort -u \
+    | while read -r d; do [ "$d" = proto ] || grep -qx "!$d/" docker/Dockerfile.dockerignore || echo "$d"; done | tr '\n' ' ')
+[ -z "$missing" ] || die "docker/Dockerfile.dockerignore leaves out packages the device needs: $missing"
 # The build file, the test and the sign-in client, as committed.
 git archive HEAD docker/docker-bake.hcl docker/compose.yaml docker/compose.mirror.yaml docker/smoke go.mod go.sum proto/messages.proto \
     | tar -x -C "$work/tools"
