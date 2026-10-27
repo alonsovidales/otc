@@ -174,6 +174,31 @@ func SiteAccountFieldSurname() Msg {
 	return Msg{Key: "site.account.field.surname"}
 }
 
+// SiteAccountFieldErrorCountryInvalid is site.account.field_error.country_invalid: "Choose a country from the list".
+func SiteAccountFieldErrorCountryInvalid() Msg {
+	return Msg{Key: "site.account.field_error.country_invalid"}
+}
+
+// SiteAccountFieldErrorCountryRequired is site.account.field_error.country_required: "Choose your country of residence".
+func SiteAccountFieldErrorCountryRequired() Msg {
+	return Msg{Key: "site.account.field_error.country_required"}
+}
+
+// SiteAccountFieldErrorNameRequired is site.account.field_error.name_required: "Enter your name".
+func SiteAccountFieldErrorNameRequired() Msg {
+	return Msg{Key: "site.account.field_error.name_required"}
+}
+
+// SiteAccountFieldErrorSurnameRequired is site.account.field_error.surname_required: "Enter your surname".
+func SiteAccountFieldErrorSurnameRequired() Msg {
+	return Msg{Key: "site.account.field_error.surname_required"}
+}
+
+// SiteAccountFieldErrorTextInvalid is site.account.field_error.text_invalid: "Use at most {max} characters, without angle brackets".
+func SiteAccountFieldErrorTextInvalid(max int) Msg {
+	return Msg{Key: "site.account.field_error.text_invalid", Args: map[string]any{"max": int64(max)}}
+}
+
 // SiteAccountFooterPrivacy is site.account.footer.privacy: "Privacy".
 func SiteAccountFooterPrivacy() Msg {
 	return Msg{Key: "site.account.footer.privacy"}
@@ -217,6 +242,11 @@ func SiteAccountHomeSummary(registered int, max int, date string) Rich {
 // SiteAccountIdentityYours is site.account.identity.yours: "<b>{domain}</b> is yours. Copy this now — it is not shown again:".
 func SiteAccountIdentityYours(domain string) Rich {
 	return Rich{Key: "site.account.identity.yours", Args: map[string]any{"domain": domain}}
+}
+
+// SiteAccountLinkSendNew is site.account.link.send_new: "Send me a new link".
+func SiteAccountLinkSendNew() Msg {
+	return Msg{Key: "site.account.link.send_new"}
 }
 
 // SiteAccountLoading is site.account.loading: "Loading…".
@@ -564,6 +594,11 @@ func SiteAccountVerifyFailed() Msg {
 	return Msg{Key: "site.account.verify.failed"}
 }
 
+// SiteAccountVerifyLinkInvalid is site.account.verify.link_invalid: "That link is no longer valid.".
+func SiteAccountVerifyLinkInvalid() Msg {
+	return Msg{Key: "site.account.verify.link_invalid"}
+}
+
 // SiteAccountVerifyPrompt is site.account.verify.prompt: "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — unti…".
 func SiteAccountVerifyPrompt(email string) Rich {
 	return Rich{Key: "site.account.verify.prompt", Args: map[string]any{"email": email}}
@@ -582,4 +617,24 @@ func SiteAccountVerifyResend() Msg {
 // SiteAccountVerifyResent is site.account.verify.resent: "Sent — check your inbox (and the spam folder).".
 func SiteAccountVerifyResent() Msg {
 	return Msg{Key: "site.account.verify.resent"}
+}
+
+// SiteAccountWaitAttempts is site.account.wait.attempts: "Too many attempts.".
+func SiteAccountWaitAttempts() Msg {
+	return Msg{Key: "site.account.wait.attempts"}
+}
+
+// SiteAccountWaitEmails is site.account.wait.emails: "Too many emails asked for from this address.".
+func SiteAccountWaitEmails() Msg {
+	return Msg{Key: "site.account.wait.emails"}
+}
+
+// SiteAccountWaitRetry is site.account.wait.retry: "Try again in {count} minutes.".
+func SiteAccountWaitRetry(count int) Msg {
+	return Msg{Key: "site.account.wait.retry", Args: map[string]any{"count": int64(count)}}
+}
+
+// SiteAccountWaitSignups is site.account.wait.signups: "Too many sign-ups from this address.".
+func SiteAccountWaitSignups() Msg {
+	return Msg{Key: "site.account.wait.signups"}
 }

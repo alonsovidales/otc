@@ -146,6 +146,26 @@
     "text": "Nachname",
     "en": "Surname"
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Wähle ein Land aus der Liste",
+    "en": "Choose a country from the list"
+  },
+  "site.account.field_error.country_required": {
+    "text": "Wähle dein Wohnsitzland",
+    "en": "Choose your country of residence"
+  },
+  "site.account.field_error.name_required": {
+    "text": "Gib deinen Vornamen ein",
+    "en": "Enter your name"
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Gib deinen Nachnamen ein",
+    "en": "Enter your surname"
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Höchstens {max} Zeichen, ohne spitze Klammern",
+    "en": "Use at most {max} characters, without angle brackets"
+  },
   "site.account.footer.privacy": {
     "text": "Datenschutz",
     "en": "Privacy"
@@ -183,6 +203,10 @@
     "text": "<b>{domain}</b> gehört jetzt dir. Kopiere das jetzt – es wird nicht noch einmal angezeigt:",
     "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "reviewed": "claude-backtranslation 2026-10-27 #96386221"
+  },
+  "site.account.link.send_new": {
+    "text": "Neuen Link senden",
+    "en": "Send me a new link"
   },
   "site.account.loading": {
     "text": "Wird geladen…",
@@ -471,6 +495,10 @@
     "text": "Die E-Mail-Adresse konnte nicht bestätigt werden",
     "en": "Could not confirm the email"
   },
+  "site.account.verify.link_invalid": {
+    "text": "Dieser Link ist nicht mehr gültig.",
+    "en": "That link is no longer valid."
+  },
   "site.account.verify.prompt": {
     "text": "Wir haben einen Link an <b>{email}</b> gesendet. Öffne ihn, um zu bestätigen, dass die Adresse dir gehört – bis dahin kann dieses Konto keine Gerätenamen registrieren und keine Einrichtungscodes ausgeben.",
     "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
@@ -486,5 +514,27 @@
   "site.account.verify.resent": {
     "text": "Gesendet – sieh in deinem Posteingang (und im Spam-Ordner) nach.",
     "en": "Sent — check your inbox (and the spam folder)."
+  },
+  "site.account.wait.attempts": {
+    "text": "Zu viele Versuche.",
+    "en": "Too many attempts."
+  },
+  "site.account.wait.emails": {
+    "text": "Von dieser Adresse wurden zu viele E-Mails angefordert.",
+    "en": "Too many emails asked for from this address."
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Versuche es in {count} Minute erneut.",
+      "other": "Versuche es in {count} Minuten erneut."
+    },
+    "en": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    }
+  },
+  "site.account.wait.signups": {
+    "text": "Zu viele Registrierungen von dieser Adresse.",
+    "en": "Too many sign-ups from this address."
   }
 }

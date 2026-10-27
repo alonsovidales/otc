@@ -67,7 +67,8 @@
     small{color:var(--mist-dim)}
     .code{font-family:'JetBrains Mono',monospace;font-size:2rem;letter-spacing:.18em;text-align:center;padding:16px;border:1px dashed var(--gold);border-radius:12px;margin:12px 0 6px;user-select:all}
     .secret{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-all;user-select:all;margin-top:10px}
-    .banner{border:1px solid rgba(242,139,130,.5);color:var(--bad);border-radius:10px;padding:10px 12px;margin-bottom:18px}
+    .banner{border:1px solid rgba(242,139,130,.5);color:var(--bad);border-radius:10px;padding:10px 12px;margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+    .banner > span{flex:1 1 16em}
     .muted{color:var(--mist-dim)}
     /* What were style attributes, which the page's Content-Security-Policy
        refuses: each selector outranks the rule it overrides, as the
@@ -80,6 +81,13 @@
     .card.gold{border-color:var(--gold)}
     .row > .fixed{flex:none}
     .banner.ok{color:var(--ok);border-color:rgba(127,209,165,.5)}
+    /* A field the bridge found fault with (markFields): its border, and
+       what is wrong with it right under it. */
+    input.bad,select.bad{border-color:var(--bad)}
+    input[type=checkbox].bad{outline:2px solid var(--bad);outline-offset:2px}
+    .msg.field-msg{margin-top:4px;min-height:0;font-size:13px}
+    .row:has(> div > .field-msg){align-items:flex-start}
+    .msg.field-msg::first-letter{text-transform:uppercase}
     .lang-switch{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
     .lang-switch a[aria-current]{color:var(--mist);text-decoration:none}
   </style>
@@ -134,6 +142,8 @@
     "verifyPrompt" (jsform "site.account.verify.prompt" "email" "text")
     "verifyResend" "site.account.verify.resend"
     "verifyResent" "site.account.verify.resent"
+    "verifyLinkInvalid" "site.account.verify.link_invalid"
+    "sendNewLink" "site.account.link.send_new"
     "sendFailed" "site.account.send_failed"
     "signedOutTitle" "site.account.signed_out.title"
     "signedOutLead" "site.account.signed_out.lead"
@@ -224,9 +234,12 @@
        bridge/api - the API's own words for the code (api.error.*), or the
        page's where it words a code its own way - with the terms' figures
        filled in by the script (fillIn); "signin" for the ?error= a Google
-       or Apple sign-in comes back with (oidc.go's cSignIn* codes). Data
-       only, read with JSON.parse. errorcodes_test.go keeps it in step with
-       the Go side. -->
+       or Apple sign-in comes back with (oidc.go's cSignIn* codes); "wait"
+       and "retry" for a 429 that says when to come back (Retry-After):
+       the code's own first sentence, then "Try again in N minutes." (index
+       N, 0 to 60); "fields" for profile_incomplete's per-field codes
+       (accounts.go's profileFieldCodes). Data only, read with JSON.parse.
+       errorcodes_test.go keeps it in step with the Go side. -->
   <script type="application/json" id="error-text">{"api":{{jstexts
     "invalid_body" "api.error.invalid_body"
     "not_signed_in" "api.error.not_signed_in"
@@ -269,17 +282,34 @@
     "cancelled" "site.account.signin_error.cancelled"
     "expired" "site.account.signin_error.expired"
     "failed" "site.account.signin_error.failed"
-    "no_email" "site.account.signin_error.no_email"}}}</script>
+    "no_email" "site.account.signin_error.no_email"}},"wait":{{jstexts
+    "too_many_attempts" "site.account.wait.attempts"
+    "too_many_signups" "site.account.wait.signups"
+    "too_many_emails" "site.account.wait.emails"}},"retry":{{series "site.account.wait.retry" "count" 0 60}},"fields":{{jstexts
+    "name_required" "site.account.field_error.name_required"
+    "name_invalid" (jsform "site.account.field_error.text_invalid" "max" "int")
+    "surname_required" "site.account.field_error.surname_required"
+    "surname_invalid" (jsform "site.account.field_error.text_invalid" "max" "int")
+    "country_required" "site.account.field_error.country_required"
+    "country_invalid" "site.account.field_error.country_invalid"}}}</script>
   <script nonce="{{.Nonce}}">
   // Issue #124: the account page. Everything here talks to /api/account/*
   // with the session cookie; the shape of each answer is documented next
   // to its handler in bridge/accounts and bridge/api.
   const $ = (s) => document.querySelector(s);
   const params = new URLSearchParams(location.search);
+  // A refusal for a while (429) says in Retry-After when to come back:
+  // seconds, as the bridge writes it, or a date.
+  const waitSeconds = (v) => {
+    const s = String(v ?? '').trim();
+    if (/^\d+$/.test(s)) return Number(s);
+    const at = s ? Date.parse(s) : NaN;
+    return isNaN(at) ? 0 : Math.max(0, Math.ceil((at - Date.now()) / 1000));
+  };
   const api = async (method, path, body) => {
     const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin', cache: 'no-store' });
     let j = {}; try { j = await r.json(); } catch (e) {}
-    return { ok: r.ok, status: r.status, ...j };
+    return { ok: r.ok, status: r.status, retryAfter: r.status === 429 ? waitSeconds(r.headers.get('Retry-After')) : 0, ...j };
   };
   let me = null, domains = [], providers = [], terms = {}, countries = {}, maxDomains = 5;
 
@@ -304,6 +334,8 @@
   // confirming a deletion carries "delete". The word typed to confirm is
   // the page's language's (site.account.delete.word); "delete" works too.
   const MIN_PASSWORD = 8;
+  // The longest name or surname the bridge takes (accounts.go's cNameMax).
+  const NAME_MAX = 150;
   const CONFIRM_WORD = 'delete';
   const CONFIRM_BODY = '{"confirm": "delete"}';
   const HOME_ADDRESS = 'http://otc.local:8080';
@@ -370,7 +402,62 @@
     const out = fill(text, vars, state);
     return state.missing ? '' : out;
   }
-  const errText = (r, fallback) => fillIn(lookUp(errorTable.api, r.code)) || r.error || fallback;
+  // A 429 that says when to come back is worded with it: the code's own
+  // first sentence, then how long, in whole minutes rounded up - "Too many
+  // attempts. Try again in 4 minutes." Without Retry-After (or a wait over
+  // an hour), the code's words as before.
+  function waitText(r) {
+    if (!r || r.status !== 429 || !(r.retryAfter > 0)) return '';
+    const minutes = Math.max(1, Math.ceil(r.retryAfter / 60));
+    const retry = Array.isArray(errorTable.retry) && minutes < errorTable.retry.length ? String(errorTable.retry[minutes]) : '';
+    const cause = lookUp(errorTable.wait, r.code);
+    return cause && retry ? cause + ' ' + retry : '';
+  }
+  const errText = (r, fallback) => waitText(r) || fillIn(lookUp(errorTable.api, r.code)) || r.error || fallback;
+  // Which field each code that isn't profile_incomplete's is about, by the
+  // end of the field's id (su-email, c-terms...).
+  const FIELD_OF = { invalid_email: 'email', email_taken: 'email', password_too_short: 'pass', terms_required: 'terms' };
+  // unmark takes the marks of markFields off the fields whose ids start
+  // with prefix.
+  function unmark(prefix) {
+    document.querySelectorAll('.field-msg').forEach((e) => { if (e.dataset.for && e.dataset.for.startsWith(prefix)) e.remove(); });
+    document.querySelectorAll('input.bad, select.bad').forEach((e) => {
+      if (!e.id || !e.id.startsWith(prefix)) return;
+      e.classList.remove('bad'); e.removeAttribute('aria-invalid'); e.removeAttribute('aria-describedby');
+    });
+  }
+  // markFields marks the fields of the form whose ids start with prefix
+  // that an error answer r finds fault with, each with what is wrong right
+  // under it: profile_incomplete's fields, each by its own code (the
+  // bridge's "fields"; one from before them names none), and the field
+  // another code is about. The first gets the focus. It reports whether it
+  // marked any; when it didn't, the caller shows the error as before.
+  function markFields(prefix, r) {
+    unmark(prefix);
+    const found = [];
+    if (r.code === 'profile_incomplete' && r.fields && typeof r.fields === 'object') {
+      for (const f of ['name', 'surname', 'country']) {
+        const code = hasOwn(r.fields, f) ? r.fields[f] : '';
+        const text = code ? fill(lookUp(errorTable.fields, code), { max: NAME_MAX }) : '';
+        if (text) found.push([f, text]);
+      }
+    } else if (hasOwn(FIELD_OF, r.code)) {
+      found.push([FIELD_OF[r.code], errText(r, '')]);
+    }
+    let first = null;
+    for (const [f, text] of found) {
+      const el = document.getElementById(prefix + f);
+      if (!el || !text) continue;
+      const msg = h('div', { class: 'msg bad field-msg', id: el.id + '-problem', 'data-for': el.id }, text); // i18n-ignore: CSS classes
+      el.classList.add('bad');
+      el.setAttribute('aria-invalid', 'true');
+      el.setAttribute('aria-describedby', msg.id);
+      (el.type === 'checkbox' ? el.closest('label') || el : el).after(msg);
+      first = first || el;
+    }
+    if (first) first.focus();
+    return first !== null;
+  }
   // An unknown sign-in code gets the general "could not be completed".
   const signInErrorText = (code) => lookUp(errorTable.signin, code) || lookUp(errorTable.signin, 'failed');
 
@@ -393,7 +480,22 @@
       .sort((a, b) => ENGLISH ? a[1].localeCompare(b[1]) : a[1].localeCompare(b[1], PAGE.tag))
       .map(([c, n]) => h('option', { value: c, selected: c === sel }, n))];
 
-  function banner(text, kind) { $('#banner').replaceChildren(...(text ? [h('div', { class: kind === 'ok' ? 'banner ok' : 'banner' }, text)] : [])); }
+  // banner shows text at the top of the page, red or (kind 'ok') green,
+  // with extra (a button) after it; no text, no banner.
+  function banner(text, kind, ...extra) { $('#banner').replaceChildren(...(text ? [h('div', { class: kind === 'ok' ? 'banner ok' : 'banner' }, h('span', {}, text), extra)] : [])); }
+  // resendBanner is banner(text) with Send me a new link: a new email
+  // confirmation for the signed-in account, at once; a refusal is shown
+  // the same way, so it can be asked again.
+  function resendBanner(text) {
+    const go = h('button', { class: 'btn ghost small', id: 'bn-resend' }, t('sendNewLink')); // i18n-ignore: CSS classes
+    banner(text, '', go);
+    go.onclick = async () => {
+      go.disabled = true;
+      const r = await api('POST', '/api/account/resend-verification');
+      if (r.ok) { banner(t('verifyResent'), 'ok'); return; }
+      resendBanner(errText(r, t('sendFailed')));
+    };
+  }
 
   // The links in our emails carry their token in the fragment (#verify=,
   // #reset=), which the browser never sends anywhere: it is read here and
@@ -414,10 +516,16 @@
     $('#who').replaceChildren();
     paint(h('h1', {}, t('resetTitle')),
       h('div', { class: 'grid' }, h('div', { class: 'card' }, h('h2', {}, t('resetCard')),
-        h('label', {}, rich('newPasswordLabel', { min_chars: MIN_PASSWORD })), h('input', { id: 'rs-pass', type: 'password', autocomplete: 'new-password' }),
-        h('label', {}, t('repeatPasswordLabel')), h('input', { id: 'rs-pass2', type: 'password', autocomplete: 'new-password' }), ' ',
-        h('button', { class: 'btn', id: 'rs-go' }, t('resetSet')), h('div', { class: 'msg', id: 'rs-msg' }),
-        h('p', { class: 'hint mt12' }, t('resetSignsOut')))));
+        h('div', { id: 'rs-form' },
+          h('label', {}, rich('newPasswordLabel', { min_chars: MIN_PASSWORD })), h('input', { id: 'rs-pass', type: 'password', autocomplete: 'new-password' }),
+          h('label', {}, t('repeatPasswordLabel')), h('input', { id: 'rs-pass2', type: 'password', autocomplete: 'new-password' }), ' ',
+          h('button', { class: 'btn', id: 'rs-go' }, t('resetSet'))),
+        h('div', { class: 'msg', id: 'rs-msg' }),
+        // A link that no longer works: a new one, for the account's email.
+        h('div', { id: 'rs-new', hidden: true },
+          h('label', {}, t('forgotEmail')), h('input', { id: 'rs-email', type: 'email', autocomplete: 'email' }), ' ',
+          h('button', { class: 'btn ghost', id: 'rs-new-go' }, t('sendNewLink')), h('div', { class: 'msg', id: 'rs-new-msg' })),
+        h('p', { class: 'hint mt12', id: 'rs-hint' }, t('resetSignsOut')))));
     $('#rs-pass').focus();
     $('#rs-pass2').onkeydown = (e) => { if (e.key === 'Enter') $('#rs-go').click(); };
     $('#rs-go').onclick = async () => {
@@ -426,18 +534,32 @@
       $('#rs-go').disabled = true;
       const r = await api('POST', '/api/account/reset', { token, password: $('#rs-pass').value });
       $('#rs-go').disabled = false;
-      if (!r.ok) { m.textContent = errText(r, t('resetFailed')); m.className = 'msg bad'; return; }
+      if (!r.ok) {
+        m.textContent = errText(r, t('resetFailed')); m.className = 'msg bad';
+        if (r.code === 'reset_link_invalid') { $('#rs-form').hidden = true; $('#rs-hint').hidden = true; $('#rs-new').hidden = false; $('#rs-email').focus(); }
+        return;
+      }
       banner(t('resetDone'), 'ok');
       load();
+    };
+    $('#rs-email').onkeydown = (e) => { if (e.key === 'Enter') $('#rs-new-go').click(); };
+    $('#rs-new-go').onclick = async () => {
+      const m = $('#rs-new-msg'); m.textContent = ''; m.className = 'msg'; $('#rs-new-go').disabled = true;
+      const r = await api('POST', '/api/account/forgot', { email: $('#rs-email').value });
+      $('#rs-new-go').disabled = false;
+      if (!r.ok) { m.textContent = errText(r, t('sendFailed')); m.className = 'msg bad'; return; }
+      $('#rs-msg').textContent = '';
+      m.textContent = t('forgotSent');
     };
   }
 
   async function load() {
     if (link && link.kind === 'reset' && !link.used) { link.used = true; await loadLists(); return renderReset(link.token); }
+    let unconfirmed = null;
     if (link && link.kind === 'verify' && !link.used) {
       link.used = true;
       const r = await api('POST', '/api/account/verify', { token: link.token });
-      banner(r.ok ? t('verifyDone') : errText(r, t('verifyFailed')), r.ok ? 'ok' : '');
+      if (r.ok) banner(t('verifyDone'), 'ok'); else unconfirmed = r;
     }
     const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
     providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
@@ -451,6 +573,15 @@
     // - the browser asked for it, as at sign-up, or the person chose it.
     // Never one already set, and never "en": "" keeps meaning "not known".
     if (me && me.lang === '' && !ENGLISH) { me.lang = PAGE.lang; api('PUT', '/api/account/language', { lang: PAGE.lang }).catch(() => {}); }
+    // A confirmation link that didn't work. Signed in: an account already
+    // confirmed hears that it is; one that isn't, that the link is no
+    // longer valid, with a new one a click away. Signed out: the bridge's
+    // words (sign in and ask for a new one).
+    if (unconfirmed) {
+      if (me && me.email_verified) banner(t('verifyDone'), 'ok');
+      else if (me && unconfirmed.code === 'verify_link_invalid') resendBanner(t('verifyLinkInvalid'));
+      else banner(errText(unconfirmed, t('verifyFailed')));
+    }
     if (params.get('error')) banner(signInErrorText(params.get('error')));
     render();
   }
@@ -507,7 +638,7 @@
       m.className = 'msg';
     };
     $('#su-go').onclick = async () => {
-      $('#su-msg').textContent = ''; $('#su-go').disabled = true;
+      $('#su-msg').textContent = ''; unmark('su-'); $('#su-go').disabled = true;
       const body = { name: $('#su-name').value, surname: $('#su-surname').value, country: $('#su-country').value, email: $('#su-email').value, password: $('#su-pass').value, accept_terms: $('#su-terms').checked };
       // The new account's emails come in the language of the page it was
       // made on; English sends nothing, and the bridge goes by the
@@ -515,7 +646,7 @@
       if (!ENGLISH) body.lang = PAGE.lang;
       const r = await api('POST', '/api/account/signup', body);
       $('#su-go').disabled = false;
-      if (!r.ok) { $('#su-msg').textContent = errText(r, t('signUpFailed')); $('#su-msg').className = 'msg bad'; return; }
+      if (!r.ok) { if (!markFields('su-', r)) { $('#su-msg').textContent = errText(r, t('signUpFailed')); $('#su-msg').className = 'msg bad'; } return; }
       location.href = SELF;
     };
   }
@@ -536,10 +667,10 @@
         me.profile_complete ? h('button', { class: 'btn ghost', id: 'c-back' }, t('back')) : null, ' ',
         h('div', { class: 'msg', id: 'c-msg' })));
     $('#c-go').onclick = async () => {
-      $('#c-go').disabled = true;
+      $('#c-msg').textContent = ''; unmark('c-'); $('#c-go').disabled = true;
       const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value, accept_terms: !!($('#c-terms') && $('#c-terms').checked) });
       $('#c-go').disabled = false;
-      if (!r.ok) { $('#c-msg').textContent = errText(r, t('profileSaveFailed')); $('#c-msg').className = 'msg bad'; return; }
+      if (!r.ok) { if (!markFields('c-', r)) { $('#c-msg').textContent = errText(r, t('profileSaveFailed')); $('#c-msg').className = 'msg bad'; } return; }
       if (ret) { location.href = '/api/account/continue?return=' + encodeURIComponent(ret); return; }
       location.href = SELF;
     };

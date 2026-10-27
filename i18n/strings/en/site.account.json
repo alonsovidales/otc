@@ -195,6 +195,32 @@
     "note": "Account page: label of the surname field (sign-up and the account's details).",
     "max": 30
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Choose a country from the list",
+    "note": "Account page: error under the Country of residence field when the country sent is not one the bridge knows (the page's list is out of date; reloading the page fixes it).",
+    "max": 50
+  },
+  "site.account.field_error.country_required": {
+    "text": "Choose your country of residence",
+    "note": "Account page: error under the Country of residence field when creating an account, or saving the account's details, without choosing one.",
+    "max": 50
+  },
+  "site.account.field_error.name_required": {
+    "text": "Enter your name",
+    "note": "Account page: error under the Name field (the first name) when creating an account, or saving the account's details, without one.",
+    "max": 50
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Enter your surname",
+    "note": "Account page: error under the Surname field (the family name) when creating an account, or saving the account's details, without one.",
+    "max": 50
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Use at most {max} characters, without angle brackets",
+    "args": [["max", "int"]],
+    "note": "Account page: error under the Name or the Surname field when what was typed is longer than {max} characters (150) or holds an angle bracket (the less-than or the greater-than sign), which the bridge refuses.",
+    "max": 70
+  },
   "site.account.footer.privacy": {
     "text": "Privacy",
     "note": "Account page: link at the bottom of the page to the privacy notice (which stays in English).",
@@ -245,6 +271,11 @@
     "rich": ["b"],
     "review": "required",
     "reviewed": "claude-backtranslation 2026-10-27 #f166051c"
+  },
+  "site.account.link.send_new": {
+    "text": "Send me a new link",
+    "note": "Account page: button offered when the link of one of our emails (an email confirmation, or a password reset) no longer works: it emails a new link. For a password reset, the account's email is typed into the field above it first.",
+    "max": 30
   },
   "site.account.loading": {
     "text": "Loading…",
@@ -607,6 +638,11 @@
     "note": "Account page: error at the top of the page when the confirmation email's link could not be used and the bridge gave no reason.",
     "max": 60
   },
+  "site.account.verify.link_invalid": {
+    "text": "That link is no longer valid.",
+    "note": "Account page: message at the top of the page, for a signed-in account whose email is not confirmed yet, when the confirmation link the page was opened with no longer works (used already, replaced by a newer email, or more than 48 hours old). The button site.account.link.send_new follows it.",
+    "max": 60
+  },
   "site.account.verify.prompt": {
     "text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes.",
     "args": [["email", "text"]],
@@ -626,5 +662,29 @@
   "site.account.verify.resent": {
     "text": "Sent — check your inbox (and the spam folder).",
     "note": "Account page: message under the Send the link again button once the email is on its way."
+  },
+  "site.account.wait.attempts": {
+    "text": "Too many attempts.",
+    "note": "Account page: the first sentence of the message shown when the bridge refuses, for a while, to check another password from this address (signing in, changing the password or deleting the account) after too many wrong ones. site.account.wait.retry follows it, saying how long to wait.",
+    "max": 60
+  },
+  "site.account.wait.emails": {
+    "text": "Too many emails asked for from this address.",
+    "note": "Account page: the first sentence of the message shown when the bridge refuses, for a while, to send another confirmation or password-reset email asked for from this address (10 an hour). site.account.wait.retry follows it, saying how long to wait.",
+    "max": 70
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    },
+    "args": [["count", "count"]],
+    "note": "Account page: the second sentence of the message that starts with site.account.wait.attempts, site.account.wait.signups or site.account.wait.emails: when the bridge takes the request again. {count} is a whole number of minutes, rounded up (1 to 60).",
+    "max": 50
+  },
+  "site.account.wait.signups": {
+    "text": "Too many sign-ups from this address.",
+    "note": "Account page: the first sentence of the message shown when the bridge refuses, for a while, to create another account from this address (5 an hour). site.account.wait.retry follows it, saying how long to wait.",
+    "max": 70
   }
 }

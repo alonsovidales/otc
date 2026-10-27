@@ -146,6 +146,26 @@
     "text": "Apellidos",
     "en": "Surname"
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Elige un país de la lista",
+    "en": "Choose a country from the list"
+  },
+  "site.account.field_error.country_required": {
+    "text": "Elige tu país de residencia",
+    "en": "Choose your country of residence"
+  },
+  "site.account.field_error.name_required": {
+    "text": "Escribe tu nombre",
+    "en": "Enter your name"
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Escribe tus apellidos",
+    "en": "Enter your surname"
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Usa como máximo {max} caracteres, sin corchetes angulares",
+    "en": "Use at most {max} characters, without angle brackets"
+  },
   "site.account.footer.privacy": {
     "text": "Privacidad",
     "en": "Privacy"
@@ -183,6 +203,10 @@
     "text": "<b>{domain}</b> es tuyo. Copia esto ahora; no se volverá a mostrar:",
     "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "reviewed": "claude-backtranslation 2026-10-27 #f3139008"
+  },
+  "site.account.link.send_new": {
+    "text": "Enviarme un enlace nuevo",
+    "en": "Send me a new link"
   },
   "site.account.loading": {
     "text": "Cargando…",
@@ -471,6 +495,10 @@
     "text": "No se ha podido confirmar el correo electrónico",
     "en": "Could not confirm the email"
   },
+  "site.account.verify.link_invalid": {
+    "text": "Ese enlace ya no es válido.",
+    "en": "That link is no longer valid."
+  },
   "site.account.verify.prompt": {
     "text": "Hemos enviado un enlace a <b>{email}</b>. Ábrelo para confirmar que la dirección es tuya; hasta entonces, esta cuenta no podrá registrar nombres de dispositivos ni generar códigos de configuración.",
     "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
@@ -486,5 +514,27 @@
   "site.account.verify.resent": {
     "text": "Enviado: revisa tu bandeja de entrada (y la carpeta de spam).",
     "en": "Sent — check your inbox (and the spam folder)."
+  },
+  "site.account.wait.attempts": {
+    "text": "Demasiados intentos.",
+    "en": "Too many attempts."
+  },
+  "site.account.wait.emails": {
+    "text": "Se han pedido demasiados correos desde esta dirección.",
+    "en": "Too many emails asked for from this address."
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Vuelve a intentarlo dentro de {count} minuto.",
+      "other": "Vuelve a intentarlo dentro de {count} minutos."
+    },
+    "en": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    }
+  },
+  "site.account.wait.signups": {
+    "text": "Demasiados registros desde esta dirección.",
+    "en": "Too many sign-ups from this address."
   }
 }

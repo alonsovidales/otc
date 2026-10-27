@@ -423,6 +423,40 @@ func validCountry(s string) (string, bool) {
 	return s, ok
 }
 
+// profileFieldCodes are the codes a profile_incomplete answer gives each
+// field at fault (its "fields"): missing, or there but not usable (a name
+// over cNameMax or with an angle bracket, a country code not in
+// Countries). Like every code, never translated or renamed.
+var profileFieldCodes = map[string]struct{ required, invalid string }{
+	"name":    {"name_required", "name_invalid"},
+	"surname": {"surname_required", "surname_invalid"},
+	"country": {"country_required", "country_invalid"},
+}
+
+// profileProblems is what is wrong with a profile's name, surname and
+// country, by field, each with its code (profileFieldCodes); empty when
+// nothing is.
+func profileProblems(name, surname, country string) map[string]string {
+	out := map[string]string{}
+	for field, v := range map[string]string{"name": name, "surname": surname, "country": country} {
+		valid := false
+		if field == "country" {
+			_, valid = validCountry(v)
+		} else {
+			_, valid = validName(v)
+		}
+		if valid {
+			continue
+		}
+		if strings.TrimSpace(v) == "" {
+			out[field] = profileFieldCodes[field].required
+		} else {
+			out[field] = profileFieldCodes[field].invalid
+		}
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------
 // Login throttling, per address, as the admin panel does - except that a
 // sign-in that succeeds clears nothing here: failures only age out of the
@@ -526,6 +560,15 @@ func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]string{"code": code, "error": msg})
 }
 
+// writeFieldsError is writeError for a request some of whose fields won't
+// do: its code and English, what every client from before goes by (the
+// setup wizard words profile_incomplete itself), and fields, each field at
+// fault with a code of its own, for a client that marks them (the account
+// page).
+func writeFieldsError(w http.ResponseWriter, status int, code, msg string, fields map[string]string) {
+	writeJSON(w, status, map[string]any{"code": code, "error": msg, "fields": fields})
+}
+
 // errorText is the "error" of an answer: its text in the catalog
 // (api.error.*), in English for every request (docs/i18n.md) - the
 // clients from before codes show it as it is, and the account page and
@@ -625,7 +668,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	surname, ok2 := validName(body.Surname)
 	country, ok3 := validCountry(body.Country)
 	if !ok1 || !ok2 || !ok3 {
-		writeError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()))
+		writeFieldsError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()), profileProblems(body.Name, body.Surname, body.Country))
 		return
 	}
 	if !body.AcceptTerms {
@@ -792,7 +835,7 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 	surname, ok2 := validName(body.Surname)
 	country, ok3 := validCountry(body.Country)
 	if !ok1 || !ok2 || !ok3 {
-		writeError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()))
+		writeFieldsError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()), profileProblems(body.Name, body.Surname, body.Country))
 		return
 	}
 	if err := a.dao.UpdateAccountProfile(accountID, name, surname, country); err != nil {

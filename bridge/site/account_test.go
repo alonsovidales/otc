@@ -88,8 +88,9 @@ var accountTags = map[string]string{
 // length, "delete", the home address, the identity file) is filled in
 // here with those same values. The differences: the account holder's
 // name in "Hello, {name}" comes between isolation marks, the dashes are
-// the site's (" — "), and the setup code's hint names every way of
-// setting up (2026-10-27).
+// the site's (" — "), the setup code's hint names every way of setting up
+// (2026-10-27), and a link from our emails that no longer works offers a
+// new one (verifyLinkInvalid, sendNewLink: new, 2026-10-27).
 var accountScriptEnglish = map[string]string{
 	"signOut":             "Sign out",
 	"emailLabel":          "Email",
@@ -112,6 +113,8 @@ var accountScriptEnglish = map[string]string{
 	"verifyPrompt":        "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes.",
 	"verifyResend":        "Send the link again",
 	"verifyResent":        "Sent — check your inbox (and the spam folder).",
+	"verifyLinkInvalid":   "That link is no longer valid.",
+	"sendNewLink":         "Send me a new link",
 	"sendFailed":          "Could not send it right now",
 	"signedOutTitle":      "Your Off The Cloud account",
 	"signedOutLead":       "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one.",
@@ -468,5 +471,49 @@ func TestScriptTextIsInert(t *testing.T) {
 	}
 	if got.Plain != hostile || len(got.Rich) != 2 || got.Rich[1] != [2]string{"b", hostile} {
 		t.Errorf("the text doesn't read back: %#v", got)
+	}
+}
+
+// What the page says for a 429 that says when to come back, and for
+// profile_incomplete's per-field codes, in every language: each wait's own
+// first sentence, "Try again in N minutes." for N from 0 to 60 - plural by
+// the language's rules, the number written in it - and a message for each
+// field code, the longest name's {max} left for the script.
+func TestAccountWaitAndFieldTexts(t *testing.T) {
+	for _, l := range i18n.Languages() {
+		out, err := Render(Account, l.Code, testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var table struct {
+			Wait   map[string]string `json:"wait"`
+			Retry  []string          `json:"retry"`
+			Fields map[string]string `json:"fields"`
+		}
+		if err := json.Unmarshal([]byte(jsonBlock(t, out, "error-text")), &table); err != nil {
+			t.Fatal(err)
+		}
+		for _, code := range []string{"too_many_attempts", "too_many_signups", "too_many_emails"} {
+			if strings.TrimSpace(table.Wait[code]) == "" {
+				t.Errorf("%s: no wait text for %s", l.Code, code)
+			}
+		}
+		if len(table.Retry) != 61 {
+			t.Fatalf("%s: %d retry texts, want 61", l.Code, len(table.Retry))
+		}
+		for n, s := range table.Retry {
+			if want := i18n.T(l.Code, "site.account.wait.retry", map[string]any{"count": n}); s != want || !strings.Contains(s, i18n.FormatInt(l.Code, int64(n))) {
+				t.Errorf("%s: retry[%d] = %q, want %q", l.Code, n, s, want)
+			}
+		}
+		for _, code := range []string{"name_required", "name_invalid", "surname_required", "surname_invalid", "country_required", "country_invalid"} {
+			s := table.Fields[code]
+			if strings.TrimSpace(s) == "" || strings.HasSuffix(code, "_invalid") && code != "country_invalid" && !strings.Contains(s, "{max}") {
+				t.Errorf("%s: field code %s: %q", l.Code, code, s)
+			}
+		}
+		if len(table.Fields) != 6 {
+			t.Errorf("%s: %d field codes, want 6", l.Code, len(table.Fields))
+		}
 	}
 }

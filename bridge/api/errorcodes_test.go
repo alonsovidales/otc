@@ -130,7 +130,7 @@ func goErrors(t *testing.T) map[string][]string {
 	quoted := `"(?:[^"\\]|\\.)*"|` + "`[^`]*`"
 	// A text from the catalog: errorText(i18n.ApiErrorX(...)).
 	fromCatalog := `errorText\(i18n\.\w+\([^)]*\)\)`
-	calls := regexp.MustCompile(`(?:writeError|writeJSONErr)\(w, [^,]+, "([^"]*)", (` + quoted + `|` + fromCatalog + `|\w+)`)
+	calls := regexp.MustCompile(`(?:writeError|writeJSONErr|writeFieldsError)\(w, [^,]+, "([^"]*)", (` + quoted + `|` + fromCatalog + `|\w+)`)
 	literals := regexp.MustCompile(`apiError\{"([^"]*)", (` + quoted + `|` + fromCatalog + `|\w+)`)
 	english := catalogEnglish(t)
 	codeOnly := regexp.MustCompile(`\["code"\] = "([^"]*)"`)

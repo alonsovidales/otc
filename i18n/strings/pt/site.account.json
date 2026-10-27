@@ -146,6 +146,26 @@
     "text": "Apelido",
     "en": "Surname"
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Escolhe um país da lista",
+    "en": "Choose a country from the list"
+  },
+  "site.account.field_error.country_required": {
+    "text": "Escolhe o teu país de residência",
+    "en": "Choose your country of residence"
+  },
+  "site.account.field_error.name_required": {
+    "text": "Escreve o teu nome",
+    "en": "Enter your name"
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Escreve o teu apelido",
+    "en": "Enter your surname"
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Usa no máximo {max} caracteres, sem parênteses angulares",
+    "en": "Use at most {max} characters, without angle brackets"
+  },
   "site.account.footer.privacy": {
     "text": "Privacidade",
     "en": "Privacy"
@@ -183,6 +203,10 @@
     "text": "O domínio <b>{domain}</b> é teu. Copia isto agora, porque não volta a ser mostrado:",
     "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "reviewed": "claude-backtranslation 2026-10-27 #0af2102e"
+  },
+  "site.account.link.send_new": {
+    "text": "Enviar-me uma nova ligação",
+    "en": "Send me a new link"
   },
   "site.account.loading": {
     "text": "A carregar…",
@@ -471,6 +495,10 @@
     "text": "Não foi possível confirmar o email",
     "en": "Could not confirm the email"
   },
+  "site.account.verify.link_invalid": {
+    "text": "Essa ligação já não é válida.",
+    "en": "That link is no longer valid."
+  },
   "site.account.verify.prompt": {
     "text": "Enviámos uma ligação para <b>{email}</b>. Abre-a para confirmares que o endereço é teu: até lá, esta conta não pode registar nomes de dispositivos nem gerar códigos de configuração.",
     "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
@@ -486,5 +514,27 @@
   "site.account.verify.resent": {
     "text": "Enviado: verifica a tua caixa de entrada (e a pasta de spam).",
     "en": "Sent — check your inbox (and the spam folder)."
+  },
+  "site.account.wait.attempts": {
+    "text": "Demasiadas tentativas.",
+    "en": "Too many attempts."
+  },
+  "site.account.wait.emails": {
+    "text": "Foram pedidos demasiados emails a partir deste endereço.",
+    "en": "Too many emails asked for from this address."
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Tenta novamente daqui a {count} minuto.",
+      "other": "Tenta novamente daqui a {count} minutos."
+    },
+    "en": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    }
+  },
+  "site.account.wait.signups": {
+    "text": "Demasiados registos a partir deste endereço.",
+    "en": "Too many sign-ups from this address."
   }
 }

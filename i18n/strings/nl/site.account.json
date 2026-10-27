@@ -146,6 +146,26 @@
     "text": "Achternaam",
     "en": "Surname"
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Kies een land uit de lijst",
+    "en": "Choose a country from the list"
+  },
+  "site.account.field_error.country_required": {
+    "text": "Kies je woonland",
+    "en": "Choose your country of residence"
+  },
+  "site.account.field_error.name_required": {
+    "text": "Vul je voornaam in",
+    "en": "Enter your name"
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Vul je achternaam in",
+    "en": "Enter your surname"
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Maximaal {max} tekens, zonder punthaken",
+    "en": "Use at most {max} characters, without angle brackets"
+  },
   "site.account.footer.privacy": {
     "text": "Privacy",
     "en": "Privacy"
@@ -183,6 +203,10 @@
     "text": "<b>{domain}</b> is van jou. Kopieer dit nu, want het wordt niet nog een keer getoond:",
     "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "reviewed": "claude-backtranslation 2026-10-27 #33ff1512"
+  },
+  "site.account.link.send_new": {
+    "text": "Stuur me een nieuwe link",
+    "en": "Send me a new link"
   },
   "site.account.loading": {
     "text": "Laden…",
@@ -471,6 +495,10 @@
     "text": "Kan het e-mailadres niet bevestigen",
     "en": "Could not confirm the email"
   },
+  "site.account.verify.link_invalid": {
+    "text": "Die link is niet meer geldig.",
+    "en": "That link is no longer valid."
+  },
   "site.account.verify.prompt": {
     "text": "We hebben een link gestuurd naar <b>{email}</b>. Open die om te bevestigen dat het adres van jou is; tot die tijd kan dit account geen apparaatnamen registreren of configuratiecodes geven.",
     "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
@@ -486,5 +514,27 @@
   "site.account.verify.resent": {
     "text": "Verstuurd: kijk in je inbox (en in je spammap).",
     "en": "Sent — check your inbox (and the spam folder)."
+  },
+  "site.account.wait.attempts": {
+    "text": "Te veel pogingen.",
+    "en": "Too many attempts."
+  },
+  "site.account.wait.emails": {
+    "text": "Vanaf dit adres zijn te veel e-mails aangevraagd.",
+    "en": "Too many emails asked for from this address."
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Probeer het over {count} minuut opnieuw.",
+      "other": "Probeer het over {count} minuten opnieuw."
+    },
+    "en": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    }
+  },
+  "site.account.wait.signups": {
+    "text": "Te veel registraties vanaf dit adres.",
+    "en": "Too many sign-ups from this address."
   }
 }

@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -195,5 +196,94 @@ func TestAccountPageKnowsEverySignInCode(t *testing.T) {
 	}
 	if strings.Contains(string(b), "banner(params.get('error'))") {
 		t.Error("account.html shows ?error= as it is")
+	}
+}
+
+// A sign-up or a profile whose name, surname or country won't do says
+// which, each field with its own code - in "fields", next to the code and
+// English every client from before goes by, both unchanged.
+func TestProfileAnswersSayWhichFieldIsWrong(t *testing.T) {
+	long := strings.Repeat("x", cNameMax+1)
+	cases := []struct {
+		name, surname, country string
+		want                   map[string]string
+	}{
+		{"", "B", "ES", map[string]string{"name": "name_required"}},
+		{"  ", "B", "ES", map[string]string{"name": "name_required"}},
+		{"A", "", "ES", map[string]string{"surname": "surname_required"}},
+		{"A", long, "ES", map[string]string{"surname": "surname_invalid"}},
+		{"<b>Ann</b>", "B", "", map[string]string{"name": "name_invalid", "country": "country_required"}},
+		{"A", "B", "XX", map[string]string{"country": "country_invalid"}},
+		{"", "", "", map[string]string{"name": "name_required", "surname": "surname_required", "country": "country_required"}},
+	}
+	check := func(what string, w *httptest.ResponseRecorder, want map[string]string) {
+		t.Helper()
+		var out struct {
+			Code, Error string
+			Fields      map[string]string
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != http.StatusBadRequest || out.Code != "profile_incomplete" || out.Error != "name, surname and country of residence are required" ||
+			!maps.Equal(out.Fields, want) {
+			t.Errorf("%s: %d %s, want fields %v", what, w.Code, w.Body.String(), want)
+		}
+	}
+	for _, c := range cases {
+		a, _ := testAccounts(t)
+		body, _ := json.Marshal(map[string]any{"email": "a@b.c", "password": "long-enough", "name": c.name, "surname": c.surname, "country": c.country, "accept_terms": true})
+		w := httptest.NewRecorder()
+		a.Signup(w, httptest.NewRequest("POST", "/api/account/signup", strings.NewReader(string(body))))
+		check("sign-up "+string(body), w, c.want)
+
+		a, mock := testAccounts(t)
+		accountRow(mock, "") // terms accepted: straight to the fields
+		body, _ = json.Marshal(map[string]any{"name": c.name, "surname": c.surname, "country": c.country})
+		w = httptest.NewRecorder()
+		a.UpdateProfile(w, httptest.NewRequest("PUT", "/api/account/me", strings.NewReader(string(body))), "acc1")
+		check("profile "+string(body), w, c.want)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
+	}
+	// Byte for byte, keys in order: what a client from before reads first.
+	a, _ := testAccounts(t)
+	w := httptest.NewRecorder()
+	a.Signup(w, httptest.NewRequest("POST", "/api/account/signup", strings.NewReader(`{"email":"a@b.c","password":"long-enough","name":"A","surname":"B"}`)))
+	if want := `{"code":"profile_incomplete","error":"name, surname and country of residence are required","fields":{"country":"country_required"}}` + "\n"; w.Body.String() != want {
+		t.Errorf("got %s, want %s", w.Body.String(), want)
+	}
+}
+
+// The account page has words for every per-field code and for every code
+// the bridge answers a 429 with that says when to come back.
+func TestAccountPageKnowsEveryFieldAndWaitCode(t *testing.T) {
+	b, err := site.Render(site.Account, site.English(), site.Options{Base: "https://off-the.cloud", Nonce: "n", Now: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, rest, _ := strings.Cut(string(b), `<script type="application/json" id="error-text">`)
+	body, _, _ := strings.Cut(rest, "</script>")
+	var table struct {
+		Wait   map[string]string `json:"wait"`
+		Fields map[string]string `json:"fields"`
+		Retry  []string          `json:"retry"`
+	}
+	if err := json.Unmarshal([]byte(body), &table); err != nil {
+		t.Fatal(err)
+	}
+	var want []string
+	for _, codes := range profileFieldCodes {
+		want = append(want, codes.required, codes.invalid)
+	}
+	if got := slices.Sorted(maps.Keys(table.Fields)); !slices.Equal(got, slices.Sorted(slices.Values(want))) {
+		t.Errorf("account.html words the field codes %v, the bridge sends %v", got, want)
+	}
+	if got := slices.Sorted(maps.Keys(table.Wait)); !slices.Equal(got, []string{"too_many_attempts", "too_many_emails", "too_many_signups"}) {
+		t.Errorf("account.html words the waits of %v", got)
+	}
+	if len(table.Retry) != 61 || table.Retry[1] != "Try again in 1 minute." || table.Retry[4] != "Try again in 4 minutes." {
+		t.Errorf("retry: %d texts, %q", len(table.Retry), table.Retry)
 	}
 }

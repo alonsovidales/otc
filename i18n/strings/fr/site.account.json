@@ -146,6 +146,26 @@
     "text": "Nom",
     "en": "Surname"
   },
+  "site.account.field_error.country_invalid": {
+    "text": "Choisissez un pays dans la liste",
+    "en": "Choose a country from the list"
+  },
+  "site.account.field_error.country_required": {
+    "text": "Choisissez votre pays de résidence",
+    "en": "Choose your country of residence"
+  },
+  "site.account.field_error.name_required": {
+    "text": "Saisissez votre prénom",
+    "en": "Enter your name"
+  },
+  "site.account.field_error.surname_required": {
+    "text": "Saisissez votre nom",
+    "en": "Enter your surname"
+  },
+  "site.account.field_error.text_invalid": {
+    "text": "Utilisez {max} caractères au maximum, sans chevrons",
+    "en": "Use at most {max} characters, without angle brackets"
+  },
   "site.account.footer.privacy": {
     "text": "Confidentialité",
     "en": "Privacy"
@@ -183,6 +203,10 @@
     "text": "<b>{domain}</b> est à vous. Copiez ces informations maintenant, elles ne seront plus affichées :",
     "en": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
     "reviewed": "claude-backtranslation 2026-10-27 #caafab9a"
+  },
+  "site.account.link.send_new": {
+    "text": "M’envoyer un nouveau lien",
+    "en": "Send me a new link"
   },
   "site.account.loading": {
     "text": "Chargement…",
@@ -471,6 +495,10 @@
     "text": "Impossible de confirmer l’adresse e-mail",
     "en": "Could not confirm the email"
   },
+  "site.account.verify.link_invalid": {
+    "text": "Ce lien n’est plus valide.",
+    "en": "That link is no longer valid."
+  },
   "site.account.verify.prompt": {
     "text": "Nous avons envoyé un lien à <b>{email}</b>. Ouvrez-le pour confirmer que l’adresse vous appartient : d’ici là, ce compte ne peut ni enregistrer de noms d’appareils, ni fournir de codes de configuration.",
     "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours — until then this account can't register device names or give setup codes."
@@ -486,5 +514,27 @@
   "site.account.verify.resent": {
     "text": "Envoyé : vérifiez votre boîte de réception (et le dossier des spams).",
     "en": "Sent — check your inbox (and the spam folder)."
+  },
+  "site.account.wait.attempts": {
+    "text": "Trop de tentatives.",
+    "en": "Too many attempts."
+  },
+  "site.account.wait.emails": {
+    "text": "Trop d’e-mails demandés depuis cette adresse.",
+    "en": "Too many emails asked for from this address."
+  },
+  "site.account.wait.retry": {
+    "text": {
+      "one": "Réessayez dans {count} minute.",
+      "other": "Réessayez dans {count} minutes."
+    },
+    "en": {
+      "one": "Try again in {count} minute.",
+      "other": "Try again in {count} minutes."
+    }
+  },
+  "site.account.wait.signups": {
+    "text": "Trop d’inscriptions depuis cette adresse.",
+    "en": "Too many sign-ups from this address."
   }
 }

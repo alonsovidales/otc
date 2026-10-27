@@ -2022,8 +2022,14 @@ and release 127 were turned away until then. The account page is
 `/account` and `/<code>/account` under the nonce CSP, plain JS over `/api/account/*` whose texts
 come as JSON blocks (`site.account.*`, and `api.error.*` for its error table by code) built by the
 `jstexts`/`jsform` template functions (`bridge/site/site.go`), filled in as text nodes only
-(docs/i18n.md "bridge"). Its links (the emails' `#verify=`/`#reset=`, the sign-ins' `?error=`
-and `?complete=1`, BridgePanel's `?delete=1`) all land on `/account`, except that the emails
+(docs/i18n.md "bridge"). A 429 with Retry-After reads as its wait ("Too many attempts. Try again in
+4 minutes.": `site.account.wait.*`, a `series` 0-60); a dead verify link offers "Send me a new link"
+signed in (resend-verification), a dead reset link the email field for one (forgot); and
+`profile_incomplete` (sign-up, profile) carries `fields`, a per-field code each (`name_required`,
+`surname_invalid`, `country_required`...: `profileFieldCodes`), which the page marks under each
+field, its `code` and English unchanged for older pages and the wizard. Its links (the emails'
+`#verify=`/`#reset=`, the sign-ins' `?error=` and `?complete=1`, BridgePanel's `?delete=1`) all
+land on `/account`, except that the emails
 (verification, reset and the inactivity warning) link `/<code>/account` when the account's
 `accounts.lang` is a carried language other than English (`accountPage`/`pageLink` in
 `bridge/accounts/emails.go`; English, `""` and anything else keep `/account`, byte for byte). The wizard's account step
