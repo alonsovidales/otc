@@ -44,7 +44,7 @@ func searchTestDB(tb testing.TB) *sql.DB {
 	if _, err := db.Exec("create temporary table `files` (" +
 		"`hash` varchar(64) not null, `mime` varchar(150) not null, `created` datetime not null, `modified` datetime not null, " +
 		"`path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, `size` bigint not null, `cloud_id` varchar(255) null, " +
-		"key (`hash`), unique (`path`), index using btree (`created`), index using btree (`modified`), index using btree (`size`), index using btree (`cloud_id`)" +
+		"key (`hash`), unique (`path`), index using btree (`created`), index using btree (`cloud_id`)" +
 		") engine=InnoDB"); err != nil {
 		tb.Fatal(err)
 	}

@@ -414,15 +414,60 @@ db_failed() {
     die "$1"
 }
 
+# The memory the device is sized to, in MB, as it reads it itself
+# (container.MemorySizing): the container's memory limit, else
+# OTC_MEMORY_GB, else 8 GB - never more than the machine has. Only the
+# container's own cgroup is read here; the device also follows a limit set
+# on a cgroup above it.
+device_memory_mb() {
+    local machine limit raw gb
+    machine=$(awk '/^MemTotal:/ {print int($2 / 1024)}' /proc/meminfo 2>/dev/null)
+    limit=""
+    if raw=$(cat /sys/fs/cgroup/memory.max 2>/dev/null) || raw=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null); then
+        case "$raw" in
+            ''|max|*[!0-9]*) ;;
+            *) [ "${#raw}" -lt 19 ] && limit=$((raw / 1048576)) ;; # v1 says "no limit" with ~2^63
+        esac
+    fi
+    gb=$(awk -v v="${OTC_MEMORY_GB:-}" 'BEGIN { if (v ~ /^[0-9]+(\.[0-9]+)?$/ && v + 0 > 0) print int(v * 1024) }')
+    local mem=${machine:-0}
+    [ -n "$limit" ] && [ "$limit" -gt 0 ] && { [ "$mem" -eq 0 ] || [ "$limit" -lt "$mem" ]; } && mem=$limit
+    if [ -n "$gb" ]; then
+        { [ "$mem" -eq 0 ] || [ "$gb" -lt "$mem" ]; } && mem=$gb
+    elif [ -z "$limit" ]; then
+        { [ "$mem" -eq 0 ] || [ 8192 -lt "$mem" ]; } && mem=8192
+    fi
+    echo "$mem"
+}
+
+# MariaDB's buffer pool for that memory, in MB, as on a Raspberry Pi
+# (scripts/install.sh, release 143): 256 with 4 GB, 768 with 8 GB, 1024 from
+# 12 GB; under 3 GB MariaDB's own 128.
+buffer_pool_mb() {
+    local mem
+    mem=$(device_memory_mb)
+    if [ "$mem" -lt 3000 ]; then
+        echo 128
+    elif [ "$mem" -lt 6144 ]; then
+        echo 256
+    elif [ "$mem" -lt 12288 ]; then
+        echo 768
+    else
+        echo 1024
+    fi
+}
+
 start_mariadb() {
-    local i out
+    local i out pool
     install -d -o mysql -g mysql -m 0755 /run/mysqld || die "could not create /run/mysqld"
     if [ ! -d "$DATADIR/mysql" ]; then
         log "creating the database in $DATADIR"
         out=$(mariadb-install-db --user=mysql --datadir="$DATADIR" --auth-root-authentication-method=socket --skip-test-db 2>&1) \
             || { echo "$out" | tail -n 30 >&2; die "could not create the database"; }
     fi
-    env --default-signal mariadbd --user=mysql --port="$DB_PORT" &
+    pool=$(buffer_pool_mb)
+    log "MariaDB's buffer pool: $pool MB"
+    env --default-signal mariadbd --user=mysql --port="$DB_PORT" --innodb-buffer-pool-size="${pool}M" &
     DB_PID=$!
     # Recovering after a power cut can take minutes on slow disks: wait as
     # long as MariaDB is at it, up to the 15 minutes Debian's own service

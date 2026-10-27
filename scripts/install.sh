@@ -680,6 +680,47 @@ fi
 
 wiz_step service
 log "[10/10] Database, config, and the systemd service"
+# >>> release 143 (device reliability): MariaDB's buffer pool by memory.
+# InnoDB's buffer pool - MariaDB's default is 128 MB - sized by the device's
+# memory: 256 MB with 4 GB, 768 MB with 8 GB, 1 GB from 12 GB, the default
+# under 3 GB. The same drop-in scripts/updates/143.sh writes on devices
+# installed before; written before MariaDB is (re)started below.
+mariadb_pool_mb() {
+    local mem_kb mem_mb
+    mem_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+    case "$mem_kb" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+    mem_mb=$((mem_kb / 1024))
+    if [ "$mem_mb" -lt 3000 ]; then
+        return 0
+    elif [ "$mem_mb" -lt 6144 ]; then
+        echo 256
+    elif [ "$mem_mb" -lt 12288 ]; then
+        echo 768
+    else
+        echo 1024
+    fi
+}
+mariadb_memory_changed=""
+mariadb_pool="$(mariadb_pool_mb)"
+if [ -n "$mariadb_pool" ] && [ -d /etc/mysql/mariadb.conf.d ]; then
+    mariadb_memory_want="$(printf '%s\n' \
+        "# Off The Cloud (release 143): InnoDB's buffer pool by the device's memory -" \
+        "# 256 MB with 4 GB, 768 MB with 8 GB, 1 GB from 12 GB. Written by the" \
+        "# updates and install.sh; applies from MariaDB's next start." \
+        "[mysqld]" \
+        "innodb_buffer_pool_size = ${mariadb_pool}M")"
+    if [ "$(cat /etc/mysql/mariadb.conf.d/70-otc-memory.cnf 2>/dev/null || true)" != "$mariadb_memory_want" ]; then
+        mariadb_memory_tmp="$(mktemp /etc/mysql/mariadb.conf.d/.70-otc-memory.XXXXXX)"
+        printf '%s\n' "$mariadb_memory_want" > "$mariadb_memory_tmp"
+        chmod 0644 "$mariadb_memory_tmp"
+        mv -f "$mariadb_memory_tmp" /etc/mysql/mariadb.conf.d/70-otc-memory.cnf
+        mariadb_memory_changed=1
+        log "MariaDB's buffer pool: ${mariadb_pool} MB"
+    fi
+fi
+# <<< release 143
 # Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
 # target) before touching it any further below - a recovered array already
 # holding a previous device's /mysql/mysql is used as-is (the rsync is
@@ -701,6 +742,11 @@ if [ "$SKIP_RAID" != "1" ]; then
     fi
 fi
 systemctl enable --now mariadb
+# release 143: a MariaDB no RAID step stopped above takes the buffer pool's
+# drop-in only by a restart.
+if [ -n "$mariadb_memory_changed" ] && [ "$SKIP_RAID" = "1" ]; then
+    systemctl restart mariadb
+fi
 for i in $(seq 1 60); do
     mysqladmin ping >/dev/null 2>&1 && break
     if [ "$i" -eq 60 ]; then wiz_error mariadb; die "mariadb did not come up within 60s — check 'systemctl status mariadb'"; fi
@@ -978,6 +1024,12 @@ SQL
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `msg_args` MEDIUMTEXT NULL;
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `msg_lines` MEDIUMTEXT NULL;
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `update_version` VARCHAR(16) NULL;
+SQL
+    # Release 143 (updates/143.sh): the files table's indexes on modified
+    # and size, which no query uses - dropped in place, quickly; nothing to
+    # do once they are gone.
+    mysql "$db" <<'SQL'
+    ALTER TABLE files DROP INDEX IF EXISTS `modified`, DROP INDEX IF EXISTS `size`;
 SQL
 }
 

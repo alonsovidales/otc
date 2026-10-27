@@ -33,11 +33,13 @@ create table files
   -- asset. NULL for anything else - Android, the sync clients, the web.
   `cloud_id` varchar(255) null,
 
+  -- No index on `modified` or `size` (release 143 dropped them): nothing
+  -- filters or sorts the files by either, and every insert paid for both.
+  -- Nor on (`created`, `path`): `path` alone is InnoDB's whole 3072-byte
+  -- key limit, so MariaDB refuses one (ERROR 1071).
   key (`hash`),
   unique (`path`),
   INDEX USING BTREE (`created`),
-  INDEX USING BTREE (`modified`),
-  INDEX USING BTREE (`size`),
   INDEX USING BTREE (`cloud_id`)
 ) engine=InnoDB;
 
