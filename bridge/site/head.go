@@ -49,7 +49,7 @@ const (
 	logoSize      = 192
 )
 
-var screenshots = []string{"/img/web-1.jpg?v=2", "/img/mobile-1.jpg?v=2", "/img/macos-sync.jpg?v=2"}
+var screenshots = []string{"/img/web-1.jpg?v=2", "/img/mobile-1.jpg?v=2", "/img/macos-sync.jpg?v=3"}
 
 // ogLocales are the carried languages as Open Graph names them (language
 // and territory). A language added to the catalog needs its entry here:
