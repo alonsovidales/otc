@@ -27,8 +27,8 @@ import { useBackLayer } from "./backStack";
 import TourArt from "./TourArt";
 import { useReducedMotion } from "./tourMotion";
 import {
-  boxesOverlap, cCardMargin, cStepSection, cStepTargets, dimPath, holeRadius, holesFor, insideHole, placeCard, roundedBoxPath, scrollToShow,
-  stepAfter, stepBefore, stepPlace, tourSteps, type Box, type CardPlace, type Hole, type TourStepId,
+  boxesOverlap, cStepSection, cStepTargets, dimPath, holeRadius, holesFor, insideHole, planCard, roundedBoxPath, scrollToShow,
+  stepAfter, stepBefore, stepPlace, tourSteps, type Box, type CardPlace, type CardPlan, type Hole, type Size, type TourStepId,
 } from "./tourSteps";
 import "./Tour.css";
 
@@ -63,6 +63,15 @@ const cSheetQuery = "(max-width: 599px)";
 const cScrollSettleMs = 160;
 // Room kept around a control scrolled into view.
 const cBandMargin = 12;
+// The longest the tour's own smooth scroll may take: after it, the card
+// is placed for where the page is.
+const cScrollMs = 1500;
+// What sits still as the page scrolls.
+const cFixedBars = ".topbar, .sb-dock"; // i18n-ignore: CSS selectors
+
+// The card's drawing: as drawn, smaller, or left out (Tour.css: data-art)
+// - smaller before the card's text would ever be cut.
+type ArtSize = "full" | "compact" | "none";
 
 type TitleKey = `web.tour.${TourStepId}.title`;
 
@@ -241,6 +250,67 @@ const boxOf = (el: Element): Box => {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
 };
+
+// The card's whole height with each size of its drawing, the largest
+// first: as it is now, less its drawing as drawn now, plus each size's
+// (TourArt.css: --ta-full, --ta-compact; the step's gap goes with it).
+// And the tallest the card may be (Tour.css): any taller, its text scrolls.
+function cardSizes(card: HTMLElement, body: HTMLElement | null): { arts: ArtSize[]; cards: Size[]; maxHeight: number } {
+  const whole = card.offsetHeight + (body ? body.scrollHeight - body.clientHeight : 0);
+  const stage = card.querySelector<HTMLElement>(".ta-stage");
+  const style = stage ? getComputedStyle(stage) : null;
+  const gap = stage?.parentElement ? Number.parseFloat(getComputedStyle(stage.parentElement).rowGap) || 0 : 0;
+  const drawn = stage && style?.display !== "none" ? stage.offsetHeight + gap : 0;
+  const full = style ? Number.parseFloat(style.getPropertyValue("--ta-full")) || 0 : 0;
+  const compact = Math.min(full, style ? Number.parseFloat(style.getPropertyValue("--ta-compact")) || full : full);
+  const arts: ArtSize[] = [];
+  const cards: Size[] = [];
+  for (const [art, h] of [["full", full], ["compact", compact], ["none", 0]] as const) {
+    if ((art === "full" && h <= 0) || (art === "compact" && (h <= 0 || h >= full))) continue;
+    arts.push(art);
+    cards.push({ width: card.offsetWidth, height: whole - drawn + (h > 0 ? h + gap : 0) });
+  }
+  const maxHeight = Number.parseFloat(getComputedStyle(card).maxHeight);
+  return { arts, cards, maxHeight: Number.isFinite(maxHeight) ? maxHeight : Number.POSITIVE_INFINITY };
+}
+
+// Room at the page's foot (Tour.css: html[data-tour-room]), so a control
+// on a short page can still be scrolled up: how much there is, and set it
+// (null: none).
+function footRoom(): number {
+  const root = document.documentElement;
+  return root.hasAttribute("data-tour-room") ? Number.parseFloat(root.style.getPropertyValue("--tour-room")) || 0 : 0;
+}
+function setFootRoom(px: number | null) {
+  const root = document.documentElement;
+  if (px === null) {
+    root.removeAttribute("data-tour-room");
+    root.style.removeProperty("--tour-room");
+    return;
+  }
+  root.style.setProperty("--tour-room", `${Math.ceil(px)}px`);
+  root.setAttribute("data-tour-room", "");
+}
+
+// From 600px: where the card goes, with which drawing, after what scroll
+// (tourSteps.planCard), found being the step's controls - the scroll only
+// when it may (the step's is still to come, or under way), counting room
+// the page could be given at its foot (as tall as the card): short, how
+// much more room that scroll needs than there is.
+function planFor(card: HTMLElement, body: HTMLElement | null, found: Element[], view: Size, mayScroll: boolean): CardPlan & { arts: ArtSize[]; short: number } {
+  const { arts, cards, maxHeight } = cardSizes(card, body);
+  const fixed: Box[] = [];
+  const moving: Box[] = [];
+  for (const el of found) (el.closest(cFixedBars) ? fixed : moving).push(boxOf(el));
+  const barBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 64;
+  const page = document.scrollingElement ?? document.documentElement;
+  const down = Math.max(0, page.scrollHeight - window.innerHeight - window.scrollY);
+  const more = Math.max(0, Math.ceil(cards[0]?.height ?? 0) + 2 * cBandMargin - footRoom());
+  const scroll = mayScroll ? { up: window.scrollY, down: down + more } : { up: 0, down: 0 };
+  const band = { top: barBottom + cBandMargin, bottom: view.height - cBandMargin };
+  const plan = planCard({ fixed, moving, cards, maxHeight, view, band, scroll });
+  return { ...plan, arts, short: Math.max(0, Math.ceil(plan.scroll - down)) };
+}
 
 const sameHoles = (a: readonly Hole[], b: readonly Hole[]) =>
   a.length === b.length && a.every((h, i) => {
@@ -459,9 +529,13 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
   const [holes, setHoles] = useState<Hole[]>([]);
   const [targets, setTargets] = useState<Element[]>([]);
   const [place, setPlace] = useState<CardPlace | null>(null);
-  // The step whose control was scrolled to (or found in view): once a step.
+  const [art, setArt] = useState<ArtSize>("full");
+  // The step whose controls were scrolled to (or found in view): once a step.
   const scrolledFor = useRef<TourStepId | null>(null);
   const scrollTimer = useRef<number | null>(null);
+  // The tour's own scroll under way: the step's, where it goes, until when at the latest.
+  const scrolling = useRef<{ step: TourStepId; to: number; until: number } | null>(null);
+
   const measure = useCallback(() => {
     const d = dialogRef.current;
     const card = cardRef.current;
@@ -485,20 +559,29 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
     setView((v) => (v.width === width && v.height === height ? v : { width, height }));
     setHoles((h) => (sameHoles(h, next) ? h : next));
     setTargets((was) => (was.length === found.length && was.every((el, i) => el === found[i]) ? was : found));
-    // The card: beside the holes from 600px, else a sheet (Tour.css). Its
-    // whole height, as if its text weren't cut (nor scrolled), within what
-    // the window lets it have.
-    if (asSheet) setPlace(null);
-    else {
-      const body = bodyRef.current;
-      const whole = card.offsetHeight + (body ? body.scrollHeight - body.clientHeight : 0);
-      const size = { width: card.offsetWidth, height: Math.min(whole, height - 2 * cCardMargin) };
-      const at2 = placeCard(next.map((h) => h.box), size, { width, height });
-      setPlace((p) => (p && Math.abs(p.left - at2.left) < 0.5 && Math.abs(p.top - at2.top) < 0.5 && p.maxHeight === at2.maxHeight ? p : at2));
+    // The tour's own scroll: over once there, or after its time.
+    const sc = scrolling.current;
+    if (sc && (sc.step !== at || Math.abs(window.scrollY - sc.to) < 1 || performance.now() > sc.until)) scrolling.current = null;
+    const mayScroll = scrolledFor.current !== at || scrolling.current !== null;
+    if (asSheet) {
+      // A sheet at the foot (Tour.css): the largest drawing that keeps its text whole.
+      const { arts, cards, maxHeight } = cardSizes(card, bodyRef.current);
+      const fit = cards.findIndex((c) => c.height <= maxHeight + 0.5);
+      const want = arts[fit < 0 ? arts.length - 1 : fit] ?? "full";
+      setArt((a) => (a === want ? a : want));
+      setPlace(null);
+    } else {
+      // Beside the holes, whole: the page scrolled first, the drawing made smaller only then.
+      const plan = planFor(card, bodyRef.current, found, { width, height }, mayScroll);
+      const want = plan.arts[plan.art] ?? "full";
+      setArt((a) => (a === want ? a : want));
+      const p2 = plan.place;
+      setPlace((p) => (p && Math.abs(p.left - p2.left) < 0.5 && Math.abs(p.top - p2.top) < 0.5 ? p : p2));
     }
-    // The step's controls out of sight (below the fold, under a phone's
-    // sheet): scrolled into the room left for them - all of them when they
-    // fit, else the first - once a step, after the section settles.
+    // The step's controls scrolled to, once a step, after the section
+    // settles: from 600px as far as the card's plan says (where it fits
+    // whole beside them); on a phone into the room above the sheet - all
+    // of them when they fit, else the first.
     if (found.length && scrolledFor.current !== at && scrollTimer.current === null) {
       scrollTimer.current = window.setTimeout(() => {
         scrollTimer.current = null;
@@ -506,19 +589,36 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
         // A step passed by meanwhile: look again for the one shown now.
         if (now !== at) { measureRef.current(); return; }
         if (scrolledFor.current === at) return;
-        const all = findTargets(at).filter((el) => !el.closest(".topbar, .sb-dock"));
+        const all = findTargets(at);
         scrolledFor.current = at;
+        const behavior = noMotion ? "auto" : "smooth";
+        const c = cardRef.current;
+        const dd = dialogRef.current;
+        if (!s) {
+          if (!c || !dd || !all.length) return;
+          const plan = planFor(c, bodyRef.current, all, { width: dd.clientWidth, height: dd.clientHeight }, true);
+          const delta = Math.round(plan.scroll);
+          // A short page: room at its foot first, for the scroll to reach.
+          if (plan.short > 0) setFootRoom(footRoom() + plan.short + 1);
+          if (Math.abs(delta) >= 1) {
+            scrolling.current = { step: at, to: window.scrollY + delta, until: performance.now() + cScrollMs };
+            window.scrollBy({ top: delta, behavior });
+          }
+          measureRef.current();
+          return;
+        }
         // Nothing in the top bar or the menu moves with the page.
-        if (!all.length) return;
+        const moving = all.filter((el) => !el.closest(cFixedBars));
+        if (!moving.length) return;
         const barBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 64;
-        const cardTop = s ? cardRef.current?.getBoundingClientRect().top ?? window.innerHeight : window.innerHeight;
+        const cardTop = c?.getBoundingClientRect().top ?? window.innerHeight;
         const top = barBottom + cBandMargin;
         const bottom = cardTop - cBandMargin;
         // All of the step's controls when they fit in the room, else the first.
-        const boxes2 = all.map(boxOf);
+        const boxes2 = moving.map(boxOf);
         const together = { left: 0, right: 0, top: Math.min(...boxes2.map((b) => b.top)), bottom: Math.max(...boxes2.map((b) => b.bottom)) };
         const delta = scrollToShow(together.bottom - together.top <= bottom - top ? together : boxes2[0], top, bottom);
-        if (Math.abs(delta) >= 1) window.scrollBy({ top: delta, behavior: noMotion ? "auto" : "smooth" });
+        if (Math.abs(delta) >= 1) window.scrollBy({ top: delta, behavior });
       }, cScrollSettleMs);
     }
   }, []);
@@ -556,22 +656,18 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
 
   // A phone's sheet: the page gets room at its foot as tall as the sheet
   // (Tour.css), so a control on a short page can still be scrolled up
-  // above it. Gone with the tour.
+  // above it. From 600px only when a step's scroll needs it (the timer
+  // above). Gone with the tour.
   useEffect(() => {
     const card = cardRef.current;
     if (!sheet || !card) return;
-    const root = document.documentElement;
-    const room = () => root.style.setProperty("--tour-room", `${Math.ceil(card.getBoundingClientRect().height) + 2 * cBandMargin}px`);
+    const room = () => setFootRoom(card.getBoundingClientRect().height + 2 * cBandMargin);
     room();
-    root.setAttribute("data-tour-room", "");
     const watch = new ResizeObserver(room);
     watch.observe(card);
-    return () => {
-      watch.disconnect();
-      root.removeAttribute("data-tour-room");
-      root.style.removeProperty("--tour-room");
-    };
+    return () => watch.disconnect();
   }, [sheet]);
+  useEffect(() => () => setFootRoom(null), []);
 
   // A step's controls are marked while it shows (Tour.css: a photo's
   // circle shows, as it would under the mouse).
@@ -595,9 +691,7 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
   };
 
   const boxes = holes.map((h) => h.box);
-  const cardStyle = place
-    ? { left: `${place.left}px`, top: `${place.top}px`, ...(place.maxHeight !== null ? { maxHeight: `${place.maxHeight}px` } : {}) }
-    : undefined;
+  const cardStyle = place ? { left: `${place.left}px`, top: `${place.top}px` } : undefined;
 
   return (
     <dialog
@@ -625,7 +719,7 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
         <path className="tour-scrim" fillRule="evenodd" d={dimPath(view.width, view.height, holes)} />
         {holes.map((h, i) => <path key={`${step}-${i}`} className="tour-ring" d={roundedBoxPath(h.box, h.radius)} />)}
       </svg>
-      <div ref={cardRef} className={`tour-card${place ? " placed" : ""}`} style={cardStyle}>
+      <div ref={cardRef} className={`tour-card${place ? " placed" : ""}`} style={cardStyle} data-art={art}>
         <div className="tour-head">
           {/* The count once the Users step is known to be there or not. */}
           <span className="tour-progress">{owner !== null && t("web.tour.progress", { step: index + 1, total: steps.length })}</span>

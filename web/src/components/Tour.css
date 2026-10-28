@@ -3,9 +3,9 @@
 /* The first-run tour (Tour.tsx): a native modal dialog as big as the
    window. It dims the page itself - an SVG under the card, with a hole and
    an ember ring around each of the step's controls - so its ::backdrop
-   stays clear. From 600px the card goes beside the holes (placed: Tour.tsx
-   sets its left and top, tourSteps.placeCard), in the middle when there
-   are none; below that it is a sheet at the foot of the window. Its
+   stays clear. From 600px the card goes beside the holes, whole (placed:
+   Tour.tsx sets its left and top, tourSteps.planCard), in the middle when
+   there are none; below that it is a sheet at the foot of the window. Its
    drawing is TourArt.css. */
 .tour {
   position: fixed;
@@ -63,6 +63,11 @@
   animation: tour-in .2s cubic-bezier(.2, .8, .2, 1);
 }
 
+/* Short of room, the drawing gets smaller, then goes (Tour.tsx: data-art,
+   chosen so the text is never cut). */
+.tour-card[data-art="compact"] .ta-stage { height: min(var(--ta-full), var(--ta-compact)); }
+.tour-card[data-art="none"] .ta-stage { display: none; }
+
 /* Beside the step's controls: moved there, and from one step's place to
    the next. */
 .tour-card.placed {
@@ -87,9 +92,11 @@
   }
 }
 
-/* Room at the page's foot as tall as a phone's sheet (Tour.tsx), so the
-   step's control can be scrolled up above it on a short page. Padding,
-   never an overflow (CLAUDE.md: sticky bars measure from the window). */
+/* Room at the page's foot (Tour.tsx), so the step's control can be
+   scrolled up on a short page: above a phone's sheet (as tall as it), or
+   from 600px high enough for the card to fit whole below it (only when a
+   step needs it). Padding, never an overflow (CLAUDE.md: sticky bars
+   measure from the window). */
 html[data-tour-room] body { padding-bottom: var(--tour-room, 0px); }
 
 /* The step's photo shows its circle, as under the mouse (data-tour-lit:
@@ -125,8 +132,9 @@ html[data-tour-room] body { padding-bottom: var(--tour-room, 0px); }
 }
 .tour-skip:hover { filter: none; background: var(--panel); color: var(--mist); }
 
-/* The text scrolls when the card is as tall as it may be (long German on a
-   short window); the buttons under it never do. */
+/* The text scrolls only when even without its drawing the card would be
+   taller than it may be (a very short window); the buttons under it never
+   do. */
 .tour-body {
   flex: 1 1 auto;
   min-height: 0;

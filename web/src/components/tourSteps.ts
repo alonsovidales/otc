@@ -4,7 +4,8 @@
 // shows each step's section; whether it opens by itself is tourSeen.ts):
 // its steps in order and moving between them, the section each step shows,
 // the real controls it rings there, the holes the dimmed layer leaves
-// around them, and where the card goes so it covers none of them. Pure -
+// around them, and where the card goes so it covers none of them and its
+// text is never cut (after what scroll, with which drawing). Pure -
 // no React, no DOM - so node web/scripts/tour-test.mjs tests it. Loaded
 // with the tour, never in the app's first chunk.
 import type { TabKey } from "./nav";
@@ -239,70 +240,69 @@ export function insideHole(holes: readonly Box[], x: number, y: number): boolean
 export const cCardGap = 16;
 /** Between the card and the window's edges, in px. */
 export const cCardMargin = 16;
-/** The least the card may be cut to (its text then scrolls) to stay beside the controls rather than over them. */
-export const cCardMinHeight = 360;
 
-/** Where the card goes: its top left corner, and the height it is cut to (null: as tall as it is). */
+/** Where the card goes: its top left corner. It is never cut: its text never scrolls where it can help it. */
 export interface CardPlace {
   left: number;
   top: number;
-  maxHeight: number | null;
 }
 
-/**
- * Where the card goes in a window at least 600px wide (a phone's is a
- * sheet at the foot), card being its whole height (its text unscrolled):
- * in the middle when nothing is ringed; else beside the holes - to the
- * right, below, to the left or above them, wherever there is most room
- * for it - so it covers none of them; below or above them cut a little
- * (to cCardMinHeight at the least, its text scrolling) when that is all
- * that keeps it off them; and when no side has the room, the corner or
- * middle of the window that covers the least of them. Never past the
- * window's edges, where it can help it.
- */
-export function placeCard(holes: readonly Box[], card: Size, view: Size): CardPlace {
+// The card's room in the window: kept cCardMargin inside its edges.
+function cardRoom(card: Size, view: Size) {
   const m = cCardMargin;
   const clampLeft = (l: number) => Math.max(m, Math.min(l, view.width - m - card.width));
   const clampTop = (t: number) => Math.max(m, Math.min(t, view.height - m - card.height));
-  const whole = (p: { left: number; top: number }): CardPlace => ({ ...p, maxHeight: null });
-  const middle = { left: clampLeft((view.width - card.width) / 2), top: clampTop((view.height - card.height) / 2) };
-  if (!holes.length) return whole(middle);
-  const u = union(holes);
-  const fits = (p: { left: number; top: number }) =>
+  const fits = (p: CardPlace) =>
     p.left >= m - 0.5 && p.top >= m - 0.5 && p.left + card.width <= view.width - m + 0.5 && p.top + card.height <= view.height - m + 0.5;
-  const boxAt = (p: { left: number; top: number }): Box => ({ left: p.left, top: p.top, right: p.left + card.width, bottom: p.top + card.height });
-  const covered = (p: { left: number; top: number }) => {
-    const b = boxAt(p);
-    return holes.reduce((sum, h) => {
-      const w = Math.min(b.right, h.right) - Math.max(b.left, h.left);
-      const hh = Math.min(b.bottom, h.bottom) - Math.max(b.top, h.top);
-      return sum + (w > 0 && hh > 0 ? w * hh : 0);
-    }, 0);
-  };
+  const middle = { left: clampLeft((view.width - card.width) / 2), top: clampTop((view.height - card.height) / 2) };
+  return { m, clampLeft, clampTop, fits, middle };
+}
+
+// How much of the holes the card covers there, in px².
+function coveredBy(holes: readonly Box[], card: Size, p: CardPlace): number {
+  const b = { left: p.left, top: p.top, right: p.left + card.width, bottom: p.top + card.height };
+  return holes.reduce((sum, h) => {
+    const w = Math.min(b.right, h.right) - Math.max(b.left, h.left);
+    const hh = Math.min(b.bottom, h.bottom) - Math.max(b.top, h.top);
+    return sum + (w > 0 && hh > 0 ? w * hh : 0);
+  }, 0);
+}
+
+/**
+ * The card beside the holes, whole: to the right, below, to the left or
+ * above them - the side the window leaves most room on first - inside the
+ * window and covering none of them. null when no side has the room.
+ */
+export function cardBeside(holes: readonly Box[], card: Size, view: Size): CardPlace | null {
+  if (!holes.length) return null;
+  const { m, clampLeft, clampTop, fits } = cardRoom(card, view);
+  const u = union(holes);
   const midX = (u.left + u.right) / 2;
   const midY = (u.top + u.bottom) / 2;
   // Each side, with the room the window leaves there for the card (as a
   // share of the card's own width or height): the roomiest first.
-  const below = view.height - u.bottom - cCardGap - m;
-  const above = u.top - cCardGap - m;
   const sides = [
     { room: (view.width - u.right - cCardGap - m) / card.width, at: { left: u.right + cCardGap, top: clampTop(midY - card.height / 2) } },
-    { room: below / card.height, at: { left: clampLeft(midX - card.width / 2), top: u.bottom + cCardGap } },
+    { room: (view.height - u.bottom - cCardGap - m) / card.height, at: { left: clampLeft(midX - card.width / 2), top: u.bottom + cCardGap } },
     { room: (u.left - cCardGap - m) / card.width, at: { left: u.left - cCardGap - card.width, top: clampTop(midY - card.height / 2) } },
-    { room: above / card.height, at: { left: clampLeft(midX - card.width / 2), top: u.top - cCardGap - card.height } },
+    { room: (u.top - cCardGap - m) / card.height, at: { left: clampLeft(midX - card.width / 2), top: u.top - cCardGap - card.height } },
   ].sort((a, b) => b.room - a.room);
-  for (const s of sides) if (fits(s.at) && covered(s.at) === 0) return whole(s.at);
-  // Cut to the room below or above them, whichever is more.
-  const cutAt = (room: number, top: number): CardPlace | null => {
-    if (room < cCardMinHeight || room >= card.height) return null;
-    const p = { left: clampLeft(midX - card.width / 2), top, maxHeight: Math.floor(room) };
-    const b = { left: p.left, top: p.top, right: p.left + card.width, bottom: p.top + room };
-    return holes.some((h) => overlaps(b, h)) ? null : p;
-  };
-  const cut = below >= above
-    ? cutAt(below, u.bottom + cCardGap) ?? cutAt(above, m)
-    : cutAt(above, m) ?? cutAt(below, u.bottom + cCardGap);
-  if (cut) return cut;
+  for (const side of sides) if (fits(side.at) && coveredBy(holes, card, side.at) === 0) return side.at;
+  return null;
+}
+
+/**
+ * Where the card goes in a window at least 600px wide (a phone's is a
+ * sheet at the foot), card being its whole height: in the middle when
+ * nothing is ringed; else beside the holes (cardBeside); and when no side
+ * has the room, the corner or middle of the window that covers the least
+ * of them. Never cut, never past the window's edges where it can help it.
+ */
+export function placeCard(holes: readonly Box[], card: Size, view: Size): CardPlace {
+  const { m, clampLeft, clampTop, middle } = cardRoom(card, view);
+  if (!holes.length) return middle;
+  const beside = cardBeside(holes, card, view);
+  if (beside) return beside;
   const right = view.width - m - card.width;
   const bottom = view.height - m - card.height;
   const spots = [
@@ -313,12 +313,120 @@ export function placeCard(holes: readonly Box[], card: Size, view: Size): CardPl
     middle,
   ];
   let best = spots[0];
-  let least = covered(best);
+  let least = coveredBy(holes, card, best);
   for (const p of spots.slice(1)) {
-    const c = covered(p);
+    const c = coveredBy(holes, card, p);
     if (c < least) { best = p; least = c; }
   }
-  return whole(best);
+  return best;
+}
+
+/** What planCard weighs. */
+export interface CardPlanInput {
+  /** The step's controls that stay put as the page scrolls (in the top bar, the menu beside the page). */
+  fixed: readonly Box[];
+  /** The ones that scroll with the page, in the step's order. */
+  moving: readonly Box[];
+  /** The card, whole, with each size of its drawing in turn, the largest first. */
+  cards: readonly Size[];
+  /** The tallest the card may be (Tour.css): any taller and its text would scroll. */
+  maxHeight: number;
+  view: Size;
+  /** Where a control the page is scrolled to may be: below the top bar, above the window's foot. */
+  band: { top: number; bottom: number };
+  /** How far the page can still scroll up and down from where it is, in px (none: it doesn't scroll now). */
+  scroll: { up: number; down: number };
+}
+
+/** Where the card goes, with which drawing, after what scroll. */
+export interface CardPlan {
+  /** Which of the card's sizes (CardPlanInput.cards): its drawing's. */
+  art: number;
+  /** How far to scroll the page first (window.scrollBy's top), 0 for not at all. */
+  scroll: number;
+  /** Where the card goes, once the page has scrolled. */
+  place: CardPlace;
+}
+
+const shiftBox = (b: Box, by: number): Box => ({ left: b.left, right: b.right, top: b.top - by, bottom: b.bottom - by });
+
+// The scrolls that show the step's moving controls in the band - all of
+// them when they fit in it together, else the first - and the one that
+// brings them to its middle (scrollToShow). null: none moves.
+function shownBy(moving: readonly Box[], band: { top: number; bottom: number }): { range: [number, number]; middle: number } | null {
+  if (!moving.length) return null;
+  const all = union(moving);
+  const room = band.bottom - band.top;
+  const need = all.bottom - all.top <= room ? all : moving[0];
+  const middle = need.top - (band.top + (room - (need.bottom - need.top)) / 2);
+  if (need.bottom - need.top >= room) return { range: [need.top - band.top, need.top - band.top], middle: need.top - band.top };
+  return { range: [need.bottom - band.bottom, need.top - band.top], middle };
+}
+
+// Every few px of a range is worth a look, and these besides.
+const cScrollStep = 4;
+
+/**
+ * Where the card goes in a window at least 600px wide, so its text is
+ * never cut: beside the step's controls, whole, with the largest drawing
+ * it can have - first as the page is, then scrolled so the card fits
+ * whole beside them, for example the controls high up and the card below
+ * (the moving controls kept in the band; as little scroll as it takes
+ * when they show already, else as near as it can be to the one that
+ * brings them to the band's middle);
+ * then in a corner that covers none of them; and only then with a
+ * smaller drawing (compact, then none), the same way. When nothing works
+ * the card, with the largest drawing that keeps its text whole, goes
+ * where it covers the least of them, over the dimmed page rather than
+ * cut. Nothing ringed: in the middle.
+ */
+export function planCard(p: CardPlanInput): CardPlan {
+  const { fixed, moving, cards, view, band } = p;
+  const fitsWhole = (c: Size) => c.height <= Math.min(p.maxHeight, view.height - 2 * cCardMargin) + 0.5;
+  const firstWhole = Math.max(0, cards.findIndex(fitsWhole));
+  const largest = cards.findIndex(fitsWhole) < 0 ? cards.length - 1 : firstWhole;
+  if (!fixed.length && !moving.length) return { art: largest, scroll: 0, place: cardRoom(cards[largest], view).middle };
+  // The scrolls worth a look, the least first.
+  const lo0 = -Math.max(0, p.scroll.up);
+  const hi0 = Math.max(0, p.scroll.down);
+  const shown = shownBy(moving, band);
+  let scrolls: number[];
+  if (!shown) scrolls = [0];
+  else {
+    const lo = Math.max(shown.range[0], lo0);
+    const hi = Math.min(shown.range[1], hi0);
+    if (lo > hi) scrolls = [shown.range[1] < lo0 ? lo0 : hi0]; // as near as the page goes
+    else {
+      const set = new Set<number>([lo, hi]);
+      if (lo <= 0 && 0 <= hi) set.add(0);
+      for (let d = Math.ceil(lo / cScrollStep) * cScrollStep; d <= hi; d += cScrollStep) set.add(d);
+      // Exactly where the card just fits below or above them.
+      const u = union(moving);
+      for (const c of cards) {
+        const below = u.bottom + cHolePad + cCardGap + c.height - (view.height - cCardMargin);
+        const above = u.top - cHolePad - cCardGap - c.height - cCardMargin;
+        for (const d of [Math.ceil(below), Math.floor(above)]) if (d >= lo && d <= hi) set.add(d);
+      }
+      // None when they show already, else as near their middle as it can be.
+      const want = lo <= 0 && 0 <= hi ? 0 : Math.max(lo, Math.min(hi, shown.middle));
+      scrolls = [...set].sort((a, b) => Math.abs(a - want) - Math.abs(b - want) || Math.abs(a) - Math.abs(b));
+    }
+  }
+  const holesAt = (d: number) => holesFor([...fixed, ...moving.map((b) => shiftBox(b, d))], view.width, view.height);
+  const nearest = scrolls[0];
+  for (let art = firstWhole; art < cards.length; art++) {
+    const card = cards[art];
+    if (!fitsWhole(card)) continue;
+    for (const d of scrolls) {
+      const beside = cardBeside(holesAt(d), card, view);
+      if (beside) return { art, scroll: d, place: beside };
+    }
+    // Nowhere beside them: a corner (or the middle) that covers none of them.
+    const holes = holesAt(nearest);
+    const spot = placeCard(holes, card, view);
+    if (coveredBy(holes, card, spot) === 0) return { art, scroll: nearest, place: spot };
+  }
+  return { art: largest, scroll: nearest, place: placeCard(holesAt(nearest), cards[largest], view) };
 }
 
 /**

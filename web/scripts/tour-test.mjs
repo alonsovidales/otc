@@ -323,7 +323,7 @@ describe("where the card goes (600px and wider)", () => {
   const cardBox = (p) => box(p.left, p.top, p.left + card.width, p.top + card.height);
   const inside = (p, v = view) => p.left >= 16 && p.top >= 16 && p.left + card.width <= v.width - 16 && p.top + card.height <= v.height - 16;
   test("nothing ringed: in the middle", () => {
-    assert.deepEqual(m.placeCard([], card, view), { left: 430, top: 170, maxHeight: null });
+    assert.deepEqual(m.placeCard([], card, view), { left: 430, top: 170 });
   });
   test("the menu on the left: beside it, to the right, level with its middle", () => {
     const menu = box(2, 58, 262, 798);
@@ -350,18 +350,14 @@ describe("where the card goes (600px and wider)", () => {
     assert.ok(inside(p));
     for (const h of holes) assert.equal(m.boxesOverlap(cardBox(p), h), false);
   });
-  test("just short of room below them: cut to it (its text scrolls), still covering none", () => {
+  test("never cut: just short of room below them, whole where it covers least (planCard scrolls first)", () => {
     // Friends: the address and the field to add one, across the page.
     const holes = [box(312, 114, 1224, 224), box(329, 285, 1207, 339)];
-    const p = m.placeCard(holes, { width: 420, height: 448 }, view);
-    assert.equal(p.top, 339 + m.cCardGap);
-    assert.equal(p.maxHeight, 800 - 16 - (339 + m.cCardGap));
-    assert.ok(p.maxHeight >= m.cCardMinHeight);
-  });
-  test("never cut below the least height: a corner instead", () => {
-    const holes = [box(100, 100, 1180, 500)];
-    const p = m.placeCard(holes, { width: 420, height: 448 }, view);
-    assert.equal(p.maxHeight, null);
+    const c = { width: 420, height: 448 };
+    assert.equal(m.cardBeside(holes, c, view), null);
+    const p = m.placeCard(holes, c, view);
+    assert.deepEqual(Object.keys(p).sort(), ["left", "top"]);
+    assert.ok(p.left >= 16 && p.top >= 16 && p.left + c.width <= 1280 - 16 && p.top + c.height <= 800 - 16);
   });
   test("no side has the room: the corner or middle that covers the least", () => {
     const big = box(200, 100, 1100, 700);
@@ -375,7 +371,112 @@ describe("where the card goes (600px and wider)", () => {
   });
   test("a window too small for it: kept at the margin, top left", () => {
     const p = m.placeCard([box(10, 10, 50, 50)], card, { width: 400, height: 300 });
-    assert.deepEqual(p, { left: 16, top: 16, maxHeight: null });
+    assert.deepEqual(p, { left: 16, top: 16 });
+  });
+});
+
+describe("the card's plan: scrolled first, a smaller drawing only then, never cut", () => {
+  const view = { width: 1280, height: 800 };
+  const band = { top: 76, bottom: 788 };
+  // The card with its drawing as drawn, compact, and none.
+  const cards = [{ width: 420, height: 490 }, { width: 420, height: 442 }, { width: 420, height: 304 }];
+  const plan = (o) => m.planCard({ fixed: [], moving: [], cards, maxHeight: 680, view, band, scroll: { up: 0, down: 0 }, ...o });
+  const cardAt = (p, c) => box(p.place.left, p.place.top, p.place.left + c.width, p.place.top + c.height);
+  const inside = (b) => b.left >= 16 - 0.5 && b.top >= 16 - 0.5 && b.right <= view.width - 16 + 0.5 && b.bottom <= view.height - 16 + 0.5;
+  test("nothing ringed: in the middle, as drawn, no scroll", () => {
+    assert.deepEqual(plan({}), { art: 0, scroll: 0, place: { left: 430, top: 155 } });
+  });
+  test("room beside them as the page is: no scroll", () => {
+    const p = plan({ moving: [box(441, 100, 600, 140)], scroll: { up: 0, down: 2000 } });
+    assert.equal(p.scroll, 0);
+    assert.equal(p.art, 0);
+    assert.equal(p.place.left, 606 + m.cCardGap);
+  });
+  test("Users at 1280x800 without the bridge: scrolled just enough for the whole card below", () => {
+    // Settings › Users' add row across the page, half way down; Settings opens at its top.
+    const row = box(441, 410, 1095, 456);
+    const p = plan({ moving: [row], scroll: { up: 0, down: 600 } });
+    assert.equal(p.art, 0);
+    assert.equal(p.scroll, Math.ceil(456 + 6 + 16 + 490 - 784));
+    assert.equal(p.place.top, 456 - p.scroll + 6 + 16);
+    const c = cardAt(p, cards[0]);
+    assert.ok(inside(c));
+    assert.equal(m.boxesOverlap(c, box(435, 404 - p.scroll, 1101, 462 - p.scroll)), false);
+    // The row stays in view, under the top bar.
+    assert.ok(row.top - p.scroll >= band.top);
+  });
+  test("the least scroll wins, either way: here the page down a little and the card above", () => {
+    const p = plan({ moving: [box(441, 410, 1095, 456)], scroll: { up: 300, down: 600 } });
+    assert.equal(p.art, 0);
+    assert.equal(p.scroll, Math.floor(410 - 6 - 16 - 490 - 16));
+    assert.equal(p.place.top, 16);
+  });
+  test("below the fold, where the middle has no room: the nearest scroll to it that has", () => {
+    // Settings › Users' add row and bridge box, far down the page.
+    const users = box(441, 1368, 1095, 1495);
+    const p = plan({ moving: [users], scroll: { up: 0, down: 3000 } });
+    const middle = m.scrollToShow(users, band.top, band.bottom);
+    assert.equal(p.art, 0);
+    assert.notEqual(p.scroll, middle);
+    const c = cardAt(p, cards[0]);
+    assert.ok(inside(c));
+    assert.equal(m.boxesOverlap(c, box(435, 1362 - p.scroll, 1101, 1501 - p.scroll)), false);
+    assert.ok(users.top - p.scroll >= band.top && users.bottom - p.scroll <= band.bottom);
+    // The nearer of the two: the card above them (they lower down) or below them (higher up).
+    const above = Math.floor(1362 - 16 - 490 - 16);
+    const below = Math.ceil(1501 + 16 + 490 - 784);
+    assert.equal(p.scroll, Math.abs(above - middle) <= Math.abs(below - middle) ? above : below);
+  });
+  test("a page that can't scroll: a smaller drawing rather than a cut card", () => {
+    const p = plan({ moving: [box(441, 410, 1095, 456)] });
+    assert.equal(p.scroll, 0);
+    assert.equal(p.art, 2);
+    const c = cardAt(p, cards[2]);
+    assert.ok(inside(c));
+    assert.equal(m.boxesOverlap(c, box(435, 404, 1101, 462)), false);
+  });
+  test("a page that can scroll only a little: as far as it goes, then the drawing smaller", () => {
+    const p = plan({ moving: [box(441, 410, 1095, 456)], scroll: { up: 0, down: 100 } });
+    assert.ok(p.scroll <= 100);
+    assert.ok(p.art >= 1);
+    assert.ok(inside(cardAt(p, cards[p.art])));
+  });
+  test("a control below the fold: scrolled to the band's middle (as scrollToShow), the card beside it", () => {
+    const control = box(441, 1400, 600, 1440);
+    const p = plan({ moving: [control], scroll: { up: 0, down: 2000 } });
+    assert.equal(p.scroll, m.scrollToShow(control, band.top, band.bottom));
+    assert.equal(p.art, 0);
+    assert.equal(p.place.left, 606 + m.cCardGap);
+  });
+  test("the controls kept in view: all of them when they fit, else the first", () => {
+    const p = plan({ moving: [box(441, 900, 600, 940), box(441, 1000, 600, 1040)], scroll: { up: 0, down: 3000 } });
+    assert.ok(900 - p.scroll >= band.top && 1040 - p.scroll <= band.bottom, String(p.scroll));
+    const tall = plan({ moving: [box(441, 900, 600, 940), box(441, 2000, 600, 2040)], scroll: { up: 0, down: 3000 } });
+    assert.ok(900 - tall.scroll >= band.top && 940 - tall.scroll <= band.bottom, String(tall.scroll));
+  });
+  test("the menu stays put as the page scrolls: the card beside both, covering neither", () => {
+    const menuItem = box(12, 430, 244, 474);
+    const button = box(441, 1300, 571, 1340);
+    const p = plan({ fixed: [menuItem], moving: [button], scroll: { up: 0, down: 2000 } });
+    const c = cardAt(p, cards[p.art]);
+    assert.equal(p.art, 0);
+    assert.ok(inside(c));
+    assert.equal(m.boxesOverlap(c, box(6, 424, 250, 480)), false);
+    assert.equal(m.boxesOverlap(c, box(435, 1294 - p.scroll, 577, 1346 - p.scroll)), false);
+  });
+  test("taller than it may be with any drawing: the smallest, its text scrolling (a very short window)", () => {
+    const p = plan({ maxHeight: 280, moving: [box(441, 100, 600, 140)] });
+    assert.equal(p.art, 2);
+  });
+  test("too tall as drawn for this window: compact from the start", () => {
+    const p = plan({ maxHeight: 450, moving: [box(441, 100, 600, 140)] });
+    assert.equal(p.art, 1);
+  });
+  test("no room anywhere: whole, as drawn, where it covers least - over the dimmed page, never cut", () => {
+    const big = box(40, 40, 1240, 760);
+    const p = plan({ fixed: [big] });
+    assert.equal(p.art, 0);
+    assert.ok(inside(cardAt(p, cards[0])));
   });
 });
 

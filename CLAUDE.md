@@ -1779,12 +1779,18 @@ row's tick and the drop tip, a post's heart and comment field, `+ New post`, the
 friend's field, Settings › Users' add row and bridge box once its list is in, Settings' Show the
 tour - `data-tour="show-tour"` - and the menu's Alerts and Settings) the dimmed layer - an SVG path, evenodd - leaves a hole with an ember ring around each
 (`holesFor`, touching ones merged), found again on every change of the page behind (a
-MutationObserver, once a frame) and scrolled into view once a step (all of them when they fit,
-`scrollToShow`). From 600px the card goes beside the holes (`placeCard`: the roomiest side, a little
-shorter with its text scrolling rather than over them, else the corner that covers least); below
-that it is a sheet at the foot, controls it would cover left out before the holes merge (so one
-above it keeps its ring) and the page given room at its foot
-(`html[data-tour-room]` padding) so a control can be scrolled up above it. A click in a hole ends the
+MutationObserver, once a frame) and scrolled to once a step. The card's text is never cut
+(2026-10-28; `tourSteps.planCard`, from 600px): the card goes whole beside the holes (`cardBeside`,
+the roomiest side) as the page is, else after a scroll that makes the room (the top bar's and the
+menu's controls stay put, the rest stay in the band below the top bar - all of them when they fit,
+else the first; the least scroll when they show already, else the nearest to `scrollToShow`'s
+middle; a short page given room at its foot first), else in a corner that covers none of them; only
+then with a smaller drawing (`data-art` compact, then none; `cardSizes` reads TourArt.css's
+`--ta-full`/`--ta-compact`), and as a last resort whole where it covers least. While the tour's own
+scroll runs the card already sits where it will be; after it, it is placed for where the page is.
+Below 600px it is a sheet at the foot with the largest drawing that keeps its text whole, controls
+it would cover left out before the holes merge (so one above it keeps its ring) and the page given
+room at its foot (`html[data-tour-room]` padding) so a control can be scrolled up above it. A click in a hole ends the
 tour where it is and goes on to the control under it (`elementFromPoint` once the dialog is closed;
 App's `keepSection` makes the section an entry of its own over the one the tour opened on). It
 opens by itself once per browser origin, the first time the signed-in shell shows, however the
