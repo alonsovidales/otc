@@ -27,6 +27,13 @@ create table devices
   -- Issue #139: when a client last reached this device through the bridge
   -- (updated at most once a minute), for the admin panel.
   `last_client_at` datetime default null,
+  -- When the device was last connected to the bridge: stamped as it
+  -- connects, every 10 minutes while it stays connected and as it leaves.
+  -- Counts as use for the inactivity job (issue #176) - a device used only
+  -- at home or over Tailscale has no last_client_at. Also the admin
+  -- panel's "Last online". migrations/012-last-online.sql adds it to an
+  -- existing bridge.
+  `last_online_at` datetime default null,
 
   key (`owner_uuid`),
   unique (`domain`),

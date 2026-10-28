@@ -66,10 +66,18 @@ func (c *optionalColumn) run(table, column string, withCol, withoutCol func() er
 			return err
 		}
 		if c.missingSince.Swap(time.Now().UnixNano()) == 0 {
-			log.Error("dao: the column", table+"."+column, "is missing - run bridge/db/migrations/010-language.sql; going on without it")
+			log.Error("dao: the column", table+"."+column, "is missing - run bridge/db/migrations/"+columnMigration(table, column)+"; going on without it")
 		}
 	}
 	return withoutCol()
+}
+
+// columnMigration is the migration that adds table.column, for the log.
+func columnMigration(table, column string) string {
+	if table == "devices" && column == "last_online_at" {
+		return "012-last-online.sql"
+	}
+	return "010-language.sql"
 }
 
 // isUnknownColumn is whether err is MySQL refusing a statement because it

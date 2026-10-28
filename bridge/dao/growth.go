@@ -46,10 +46,14 @@ type Growth struct {
 // reached it through the bridge in the last 1, 7 or 30 days:
 // devices.last_client_at, which every relayed request stamps (at most once
 // a minute, touchLastClient) - its owner's apps or browser away from home,
-// or a friend's device. That is the only sign of use the bridge has of a
-// device, and it is exact to the minute where device_metrics' hours are
-// not: a device used only on its own network, or online with nobody
+// or a friend's device. That is the only sign the bridge has of a device
+// being used, and it is exact to the minute where device_metrics' hours
+// are not: a device used only on its own network, or online with nobody
 // reaching it, isn't active, and a released name is gone with its row.
+// Deliberately not devices.last_online_at (lastonline.go): a device stays
+// connected whether or not anyone uses it, so "online" would count nearly
+// every device that is switched on - it keeps an account from being
+// removed (inactivity.go), but says nothing of growth in use.
 // NewPerWeek is the names registered in each week of the period (Monday to
 // Sunday, UTC, the first one whole), by devices.created: set by every
 // registration with an account (the setup wizard's claim, the account

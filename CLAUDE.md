@@ -181,8 +181,11 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 **Tests**: most device and bridge packages have `_test.go` files (`face_recognition` needs the
 OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
 `TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestListAdminDevicesMySQL` under
-`ONLY_FULL_GROUP_BY`) skip unless `OTC_TEST_MYSQL_DSN` points at the Lima VM's bridge schema
-(with `&time_zone=%27%2B00%3A00%27`, as the bridge's own DSN). A
+`ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
+points at the Lima VM's bridge schema (with `&time_zone=%27%2B00%3A00%27`, as the bridge's own
+DSN); the ones about an optional column run against both schemas - the VM's `otc` database has
+migrations 010 and 012, `otc_b1_nolang` neither (neither has 011's tables, so `TestGrowthMySQL`
+fails there). A
 package var a test shortens must be restored only after the handlers reading it are done (a plain
 `defer` raced under `-race`): bridge tests use `setVar` with a test bridge that waits for its
 handlers; httptest's `Close` doesn't wait for hijacked websockets. `websocket/write_reply_test.go`'s
@@ -1520,7 +1523,8 @@ values.
 
 Growth tab (`GET /admin/api/growth?days=N`, `dao/growth.go`; migration 011): the site's anonymous
 visit counts and the GitHub download counts, with the device figures (names; active = a client
-relayed in the last 1/7/30 days, `last_client_at`). `serveSite` counts a page someone opened
+relayed in the last 1/7/30 days, `last_client_at` - never `last_online_at`, which nearly every
+device that is switched on has). `serveSite` counts a page someone opened
 (`api/visits.go`: own host, GET, 200, no prefetch, no robot by User-Agent, which is never kept)
 under day, page and source - `ref:<tag>` from `?ref=`/`?utm_source=`, else the Referer's host
 (never a device's address or an IP; nothing but `ref:` for `/account`) - added up in memory and
@@ -1994,8 +1998,18 @@ name both need the terms in force.
 
 Retention (issue #176):
 - **Accounts unused for 6 months are removed.** `accounts/inactivity.go` runs daily on both nodes,
-  and only when email is configured. "Unused" means no account-page sign-in (`last_seen`) and no
-  client reaching any of the account's devices (`devices.last_client_at`). The job:
+  and only when email is configured. "Unused" means no account-page sign-in (`last_seen`), no
+  client reaching any of the account's devices (`devices.last_client_at`) and none of them
+  connected to the bridge (`devices.last_online_at`, migration `012-last-online.sql`): a family
+  using its device only at home or over Tailscale never has a client relayed, but the device stays
+  connected. Each node stamps the devices connected to it (`websocket.Manager.onlineLoop`, never
+  under a pool's lock; `dao/lastonline.go`): as the first connection to the node registers, every
+  `cLastOnlineEvery` (10 min, checked each minute) while connected - one UPDATE for all due - and
+  as the last one closes (at most once a minute), never moving a stamp back. On top, a device
+  connected right now (`IsOnline`, any node) keeps its account from being warned or removed and
+  forgets its warning (`inUseNow`), whatever the stamps say. Without the column (migration not
+  run) nothing is stamped and every query falls back to the one without it (`lastOnlineCol`,
+  like `accounts.lang`). The job:
   - warns by email a month before (`inactivity_warned_at`, migration 009, claimed with a
     conditional update so only one node sends it);
   - unmarks a warning whose email failed, to retry it the next day - unless RCPT TO was refused
@@ -2137,7 +2151,9 @@ claimed by any Android app. "Continue without an account" sets `skip_bridge`, an
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
 for an existing bridge (no updater on the bridge: run it by hand, it is idempotent). Issue #139: the admin
 panel's Devices tab shows each device's owner, whether it is dialled in (`Admin.IsOnline`, set
-from the websocket manager in main), when a client last reached it (`devices.last_client_at`,
+from the websocket manager in main), when it was last connected ("Last online", "online now" while
+it is; `devices.last_online_at`, migration 012), when a client last reached it through the bridge
+("Last used away from home"; `devices.last_client_at`,
 written from Go in UTC at most once a minute per domain by `RecordDeviceActivity`; migration
 `002-last-client.sql`) and relayed traffic over 1 h / 24 h / 30 days from `device_metrics`; an
 Accounts tab lists accounts and opens one with its devices (`/admin/api/accounts[/{id}]`). Test bed: the

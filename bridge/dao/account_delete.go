@@ -123,6 +123,9 @@ type AccountExportDomain struct {
 	Created      *time.Time `json:"created,omitempty"`
 	Disabled     bool       `json:"disabled"`
 	LastClientAt *time.Time `json:"last_client_at,omitempty"`
+	// When the device was last connected to the bridge (lastonline.go);
+	// left out when never recorded.
+	LastOnlineAt *time.Time `json:"last_online_at,omitempty"`
 	PushTokens   int        `json:"push_tokens"`
 	// The language the bridge's own pushes to these phones and browsers
 	// are written in, as the device reported it; "" when not known.
@@ -166,16 +169,18 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 		return nil, err
 	}
 
-	if err := func() error {
-		rows, err := dao.db.Query("select `domain`, `created`, `disabled`, `last_client_at` from `devices` where `account_id` = ?", accountID)
+	// last_online_at too, unless the database has no such column yet.
+	exportDomains := func(online string) error {
+		out.Domains = nil
+		rows, err := dao.db.Query("select `domain`, `created`, `disabled`, `last_client_at`, "+online+" from `devices` where `account_id` = ?", accountID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var d AccountExportDomain
-			var created, last sql.NullTime
-			if err := rows.Scan(&d.Domain, &created, &d.Disabled, &last); err != nil {
+			var created, last, lastOnline sql.NullTime
+			if err := rows.Scan(&d.Domain, &created, &d.Disabled, &last, &lastOnline); err != nil {
 				return err
 			}
 			if created.Valid {
@@ -184,10 +189,18 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 			if last.Valid {
 				d.LastClientAt = &last.Time
 			}
+			if lastOnline.Valid {
+				d.LastOnlineAt = &lastOnline.Time
+			}
 			out.Domains = append(out.Domains, d)
 		}
 		return rows.Err()
-	}(); err != nil {
+	}
+	if err := dao.lastOnlineCol.run("devices", "last_online_at", func() error {
+		return exportDomains("`last_online_at`")
+	}, func() error {
+		return exportDomains("null")
+	}); err != nil {
 		return nil, err
 	}
 

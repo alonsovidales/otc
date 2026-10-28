@@ -73,8 +73,8 @@ func TestExportAccountFailsWhole(t *testing.T) {
 			AddRow("acc", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, nil, nil, "en"))
 	}
 	expectDomain := func(mock sqlmock.Sqlmock) {
-		mock.ExpectQuery("from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"domain", "created", "disabled", "last_client_at"}).
-			AddRow("cala.off-the.cloud", time.Now(), false, nil))
+		mock.ExpectQuery("from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"domain", "created", "disabled", "last_client_at", "last_online_at"}).
+			AddRow("cala.off-the.cloud", time.Now(), false, nil, nil))
 	}
 	db, mock, err := sqlmock.New()
 	if err != nil {

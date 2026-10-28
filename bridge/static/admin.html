@@ -106,6 +106,10 @@
     /* Issue #139: devices with owner/usage, the accounts tab */
     .scroll-x{overflow-x:auto}
     td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    /* A device's last online / last used away from home: a time stays on
+       one line ("2 days ago"), the long headings wrap above it. */
+    td.when{white-space:nowrap}
+    th[title]{cursor:help}
     .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--panel-2);border:1px solid var(--border);vertical-align:1px}
     .dot.on{background:var(--ok);border-color:var(--ok)}
     .tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:11px;border:1px solid var(--border);color:var(--muted)}
@@ -219,11 +223,11 @@
           </div>
           <div class="scroll-x">
             <table>
-              <thead><tr><th>Domain</th><th>Owner</th><th>Last client</th><th class="num" title="The last full hour plus the current one">1 h</th><th class="num">24 h</th><th class="num">30 days</th><th></th></tr></thead>
-              <tbody id="devices-body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+              <thead><tr><th>Domain</th><th>Owner</th><th class="when" title="When the device was last connected to the bridge. Being connected counts as use, so its account isn't removed as unused.">Last online</th><th class="when" title="Only apps, browsers and friends' devices that reached this device through the bridge. Use at home or over Tailscale doesn't pass through the bridge, so it doesn't show here: see Last online.">Last used away from home</th><th class="num" title="The last full hour plus the current one">1 h</th><th class="num">24 h</th><th class="num">30 days</th><th></th></tr></thead>
+              <tbody id="devices-body"><tr><td colspan="8" class="muted">Loading…</td></tr></tbody>
             </table>
           </div>
-          <p class="muted" style="margin:10px 0 0;font-size:12px">Green dot: dialled in to the bridge now. Last client: the last time anyone reached the device through the bridge. Traffic is relayed bytes in + out.</p>
+          <p class="muted" style="margin:10px 0 0;font-size:12px">Green dot: connected to the bridge now. Last online: the last time the device was connected to the bridge, which keeps its account from being removed as unused. Last used away from home: the last time an app, a browser or a friend's device reached it through the bridge - use at home or over Tailscale never passes through the bridge. Traffic is relayed bytes in + out.</p>
         </div>
         <div class="card">
           <h3 style="margin-top:0">Add a device</h3>
@@ -576,9 +580,9 @@
     // ---- Devices ----
     let knownDomains = [];
 
-    // "3 min ago" for a timestamp, "never" for none.
-    function fmtAgo(ts) {
-      if (!ts) return 'never';
+    // "3 min ago" for a timestamp, none (default "never") for none.
+    function fmtAgo(ts, none = 'never') {
+      if (!ts) return none;
       const t = new Date(ts);
       const s = Math.max(0, (Date.now() - t.getTime()) / 1000);
       let rel;
@@ -602,7 +606,8 @@
         <tr>
           <td><span class="dot ${d.Online ? 'on' : ''}" title="${d.Online ? 'Online' : 'Offline'}"></span>${escapeHtml(d.Domain)}${d.Disabled ? '<span class="tag warn">disabled</span>' : ''}</td>
           ${ownerCell}
-          <td>${fmtAgo(d.LastClient)}</td>
+          <td class="when">${d.Online ? 'online now' : fmtAgo(d.LastOnline, '<span class="muted" title="Not connected since the bridge began recording when devices are online">not recorded</span>')}</td>
+          <td class="when">${fmtAgo(d.LastClient)}</td>
           <td class="num">${fmtBytes(d.BytesHour)}</td>
           <td class="num">${fmtBytes(d.BytesDay)}</td>
           <td class="num">${fmtBytes(d.BytesMonth)}</td>
@@ -675,7 +680,7 @@
       const devices = resp.Items;
       const body = document.getElementById('devices-body');
       if (devices.length === 0) {
-        body.innerHTML = emptyRow('devices', 7, 'No devices registered yet.');
+        body.innerHTML = emptyRow('devices', 8, 'No devices registered yet.');
       } else {
         body.innerHTML = devices.map(d => deviceRow(d)).join('');
         body.querySelectorAll('button[data-domain]').forEach(btn => {
@@ -756,7 +761,7 @@
           </dl>
           ${devices.length === 0 ? '<p class="muted" style="margin:0">No devices.</p>' : `
           <div class="scroll-x"><table>
-            <thead><tr><th>Domain</th><th>Last client</th><th class="num">1 h</th><th class="num">24 h</th><th class="num">30 days</th></tr></thead>
+            <thead><tr><th>Domain</th><th class="when" title="When the device was last connected to the bridge. Being connected counts as use, so its account isn't removed as unused.">Last online</th><th class="when" title="Only apps, browsers and friends' devices that reached this device through the bridge. Use at home or over Tailscale doesn't pass through the bridge, so it doesn't show here: see Last online.">Last used away from home</th><th class="num">1 h</th><th class="num">24 h</th><th class="num">30 days</th></tr></thead>
             <tbody>${devices.map(d => deviceRow(d, { owner: false, remove: false })).join('')}</tbody>
           </table></div>`}
         </td>`;

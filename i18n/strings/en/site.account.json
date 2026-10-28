@@ -600,12 +600,12 @@
     "reviewed": "shipped 2026-10-11 #e072070e"
   },
   "site.account.terms.pricing": {
-    "text": "An account for up to {max_domains} domains is <b>free for the first {free_years} years</b>, and after this period will cost {price} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs {extra_domain_eur} euros a year: please contact us at <mail>{contact}</mail>. An account unused for {inactive_months} months (no sign-in here, and no app or friend reaching your devices through the bridge) is removed and its domains released; we email you a month before. Read the full <terms>terms of use</terms> and the <privacy>privacy notice</privacy>.",
+    "text": "An account for up to {max_domains} domains is <b>free for the first {free_years} years</b>, and after this period will cost {price} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs {extra_domain_eur} euros a year: please contact us at <mail>{contact}</mail>. An account unused for {inactive_months} months (no sign-in here, none of your devices connected to the bridge, and no app or friend reaching them through it) is removed and its domains released; we email you a month before. Read the full <terms>terms of use</terms> and the <privacy>privacy notice</privacy>.",
     "args": [["max_domains", "int"], ["free_years", "int"], ["price", "text"], ["extra_domain_eur", "int"], ["contact", "text"], ["inactive_months", "int"]],
     "note": "Account page: second paragraph of the summary of the terms (prices and removal of unused accounts), after the first. {max_domains} (5), {free_years} (2), {extra_domain_eur} (2) and {inactive_months} (6) are numbers; {price} is the yearly price, already written as a number of the page's language (9.99); {contact} is our email address, a link (<mail>). <terms> links to the terms of use and <privacy> to the privacy notice, both in a new tab.",
     "rich": ["b", "mail", "terms", "privacy"],
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #7e630690"
+    "reviewed": "claude-backtranslation 2026-10-28 #2b181731"
   },
   "site.account.terms.prompt": {
     "text": "We have published <terms>terms of use</terms> for accounts and the bridge. Please read and accept them: until then this account can't register device names or give setup codes.",

@@ -39,15 +39,18 @@ func legacyReset(name, tld, link string) (string, string) {
 			"\n\n- Off The Cloud\nhttps://" + tld + "\n"
 }
 
+// legacyInactivity is the inactivity warning in English. Its text changed
+// on 2026-10-28, when a device connected to the bridge began to count as
+// use (dao/lastonline.go); the rest is as it always was.
 func legacyInactivity(name, email, tld string, now time.Time) (string, string) {
 	when := now.Add(cWarnAhead).Format("2 January 2006")
 	greet := "Hello,"
 	if name != "" {
 		greet = "Hello " + name + ","
 	}
-	body := fmt.Sprintf("%s\n\nYour Off The Cloud bridge account (%s) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\n"+
+	body := fmt.Sprintf("%s\n\nYour Off The Cloud bridge account (%s) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\n"+
 		"As our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on %s. Your devices keep working at home.\n\n"+
-		"To keep it, sign in at https://%s/account or use your device through the bridge before then.\n\n"+
+		"To keep it, sign in at https://%s/account or switch on one of your devices with internet access before then.\n\n"+
 		"Off The Cloud\n", greet, email, when, tld)
 	return "Your Off The Cloud account will be removed on " + when, body
 }

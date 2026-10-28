@@ -103,8 +103,8 @@ func main() {
 		cfg.GetStr("otc-api", "ssl-key"))
 
 	// Issue #176: accounts unused for six months are removed (warned a
-	// month before).
-	acc.StartInactivityJob(webSocket.DropDomains)
+	// month before) - never while one of their devices is connected.
+	acc.StartInactivityJob(webSocket.DropDomains, webSocket.IsOnline)
 
 	// The admin panel's Growth tab: the GitHub releases' download counts.
 	dl := downloads.New(dao)

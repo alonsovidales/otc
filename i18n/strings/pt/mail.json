@@ -66,9 +66,9 @@
     "en": "Hello,"
   },
   "mail.inactivity.body": {
-    "text": "A tua conta da ponte Off The Cloud ({email}) não é usada há cinco meses: ninguém iniciou sessão nela e nenhuma app ou amigo acedeu aos teus dispositivos através da ponte.\n\nComo dizem os nossos termos, uma conta sem utilização durante seis meses é removida. Se nada mudar, esta conta e os respetivos nomes de dispositivo serão removidos a {date}. Os teus dispositivos continuam a funcionar em casa.\n\nPara a manteres, inicia sessão em {link} ou usa o teu dispositivo através da ponte antes dessa data.",
-    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
-    "reviewed": "claude-backtranslation 2026-10-11 #c168cd8b"
+    "text": "A tua conta da ponte Off The Cloud ({email}) não é usada há cinco meses: ninguém iniciou sessão nela, nenhum dos teus dispositivos se ligou à ponte e nenhuma app ou amigo acedeu a eles através dela.\n\nComo dizem os nossos termos, uma conta sem utilização durante seis meses é removida. Se nada mudar, esta conta e os respetivos nomes de dispositivo serão removidos a {date}. Os teus dispositivos continuam a funcionar em casa.\n\nPara a manteres, inicia sessão em {link} ou liga um dos teus dispositivos com acesso à internet antes dessa data.",
+    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
+    "reviewed": "claude-backtranslation 2026-10-28 #4f91c52c"
   },
   "mail.inactivity.subject": {
     "text": "A tua conta Off The Cloud será removida a {date}",

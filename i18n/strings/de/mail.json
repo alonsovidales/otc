@@ -66,9 +66,9 @@
     "en": "Hello,"
   },
   "mail.inactivity.body": {
-    "text": "dein Bridge-Konto bei Off The Cloud ({email}) wurde seit fünf Monaten nicht genutzt: Niemand hat sich angemeldet, und weder eine App noch Freunde haben deine Geräte über die Bridge erreicht.\n\nWie in unseren Nutzungsbedingungen festgelegt, wird ein Konto entfernt, das sechs Monate lang nicht genutzt wird. Wenn sich nichts ändert, werden dieses Konto und seine Gerätenamen am {date} entfernt. Deine Geräte funktionieren zu Hause weiter.\n\nUm es zu behalten, melde dich vorher unter {link} an oder nutze dein Gerät über die Bridge.",
-    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
-    "reviewed": "claude-backtranslation 2026-10-11 #3cff1bd9"
+    "text": "dein Bridge-Konto bei Off The Cloud ({email}) wurde seit fünf Monaten nicht genutzt: Niemand hat sich angemeldet, keines deiner Geräte war mit der Bridge verbunden, und weder eine App noch Freunde haben sie über die Bridge erreicht.\n\nWie in unseren Nutzungsbedingungen festgelegt, wird ein Konto entfernt, das sechs Monate lang nicht genutzt wird. Wenn sich nichts ändert, werden dieses Konto und seine Gerätenamen am {date} entfernt. Deine Geräte funktionieren zu Hause weiter.\n\nUm es zu behalten, melde dich vorher unter {link} an oder schalte eines deiner Geräte mit Internetzugang ein.",
+    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
+    "reviewed": "claude-backtranslation 2026-10-28 #4b04d4ea"
   },
   "mail.inactivity.subject": {
     "text": "Dein Konto bei Off The Cloud wird am {date} entfernt",

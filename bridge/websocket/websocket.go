@@ -672,6 +672,19 @@ type Manager struct {
 	// applies them, so a claim and its release are never reordered.
 	cluster *cluster.Cluster
 	dirty   chan string
+
+	// onlineEvents queues the devices whose last_online_at to stamp as
+	// their first connection to this node registers or their last one
+	// closes; onlineLoop writes them, never under a pool's lock. Nil
+	// without a database.
+	onlineEvents chan onlineEvent
+}
+
+// onlineEvent is a device's first connection to this node (left false),
+// or its last one closing (left true).
+type onlineEvent struct {
+	domain string
+	left   bool
 }
 
 // SetCluster makes this bridge one node of c (issue #144): it claims in
@@ -825,10 +838,55 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 		bridges: make(map[string]*bridgePool),
 	}
 	if dao != nil {
+		mg.onlineEvents = make(chan onlineEvent, 4096)
 		go mg.sweepLoop()
+		go mg.onlineLoop(cOnlineTick, nil)
 	}
 
 	return
+}
+
+// cOnlineTick is how often onlineLoop stamps the devices connected to this
+// node; the dao writes each at most every dao.cLastOnlineEvery (10
+// minutes), so a connected device's stamp is at most that and a tick old.
+const cOnlineTick = time.Minute
+
+// onlineLoop keeps devices.last_online_at for the devices connected to
+// this node (dao/lastonline.go): as they connect and leave, and every
+// tick while they stay. A device in use only at home or over Tailscale has
+// nothing else to show it is used, and its account would be removed as
+// unused. It runs until stop is closed (never, outside tests).
+func (mg *Manager) onlineLoop(tick time.Duration, stop <-chan struct{}) {
+	t := time.NewTicker(tick)
+	defer t.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case ev := <-mg.onlineEvents:
+			if ev.left {
+				mg.dao.TouchLastOnlineLeft(ev.domain)
+			} else {
+				mg.dao.TouchLastOnline([]string{ev.domain})
+			}
+		case <-t.C:
+			mg.dao.TouchLastOnline(mg.heldDomains())
+		}
+	}
+}
+
+// queueOnline hands domain's connection or departure to onlineLoop. Never
+// blocks (it runs under the pool's lock): with the queue full, the next
+// tick stamps a connected device, and a departure keeps the last stamp,
+// at most a tick and dao.cLastOnlineEvery old.
+func (mg *Manager) queueOnline(domain string, left bool) {
+	if mg.onlineEvents == nil {
+		return
+	}
+	select {
+	case mg.onlineEvents <- onlineEvent{domain, left}:
+	default:
+	}
 }
 
 // cSweepEvery is how often sweepStale runs.
@@ -1002,6 +1060,7 @@ func (mg *Manager) onDeviceConnectionRegistered(domain string, pool *bridgePool)
 	pool.liveCount++
 	if pool.liveCount == 1 {
 		mg.markDirty(domain)
+		mg.queueOnline(domain, false)
 	}
 	if pool.offlineTimer != nil {
 		pool.offlineTimer.Stop()
@@ -1058,6 +1117,10 @@ func (mg *Manager) onDeviceConnectionDied(domain string, dead *deviceRelay) {
 
 	if pool.liveCount > 0 {
 		pool.liveCount--
+		if pool.liveCount == 0 {
+			// Its last connection here: online until now.
+			mg.queueOnline(domain, true)
+		}
 	}
 	if pool.liveCount == 0 {
 		mg.markDirty(domain)

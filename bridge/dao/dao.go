@@ -104,6 +104,13 @@ type Dao struct {
 	// a database from before migration 010 lacks (language.go).
 	accountLang  optionalColumn
 	pushLanguage optionalColumn
+
+	// devices.last_online_at (lastonline.go), which a database from
+	// before migration 012 lacks, and when this node last wrote it per
+	// domain.
+	lastOnlineCol optionalColumn
+	lastOnlineMu  sync.Mutex
+	lastOnline    map[string]time.Time
 }
 
 // cAuthEventEvery is how often one address may add a row per reason.
@@ -1252,8 +1259,9 @@ func (dao *Dao) touchLastClient(domain string) {
 
 // AdminDevice is one row of the admin panel's device list (issue #139):
 // the device, who owns it, when a client last reached it through the
-// bridge and how much traffic it relayed. Online is filled in by the
-// admin package from the live relay pool.
+// bridge, when it was last connected to the bridge and how much traffic it
+// relayed. Online is filled in by the admin package from the live relay
+// pool.
 type AdminDevice struct {
 	Domain       string
 	OwnerUuid    string
@@ -1263,7 +1271,10 @@ type AdminDevice struct {
 	Disabled     bool
 	Created      *time.Time
 	LastClient   *time.Time
-	Online       bool
+	// LastOnline is devices.last_online_at; nil when never stamped, or on
+	// a database without the column (lastonline.go).
+	LastOnline *time.Time
+	Online     bool
 	// In + out bytes: the last full clock hour plus the current one (the
 	// metrics are hourly buckets), the last 24 hours and the last 30 days.
 	BytesHour  int64
@@ -1290,33 +1301,56 @@ func (dao *Dao) ListAdminDevices(accountID, q string, limit, offset int) (device
 		return nil, 0, err
 	}
 
+	tail, targs := pageClause(limit, offset)
+	args = append(args, targs...)
+	err = dao.lastOnlineCol.run("devices", "last_online_at", func() (err error) {
+		devices, err = dao.listAdminDevices(true, where, tail, args)
+		return err
+	}, func() (err error) {
+		devices, err = dao.listAdminDevices(false, where, tail, args)
+		return err
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return devices, total, nil
+}
+
+// listAdminDevices is ListAdminDevices' page, with each device's
+// last_online_at when withOnline (a database without it: none).
+func (dao *Dao) listAdminDevices(withOnline bool, where, tail string, args []any) ([]AdminDevice, error) {
+	// NULL as `last_online_at` without the column: one query, one scan.
+	online := "null as `last_online_at`"
+	if withOnline {
+		online = "d.`last_online_at`"
+	}
 	// The page is picked first (p), and only its devices' metrics summed:
 	// grouping the whole join before the limit summed 30 days of hourly
 	// rows for every device on each page and keystroke of the search.
-	tail, targs := pageClause(limit, offset)
-	query := "select p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`, " +
+	query := "select p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`, p.`last_online_at`, " +
 		"coalesce(sum(case when m.`hour_bucket` >= date_format(now() - interval 1 hour, '%Y-%m-%d %H:00:00') then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(case when m.`hour_bucket` >= now() - interval 1 day then m.`bytes_in` + m.`bytes_out` end), 0), " +
 		"coalesce(sum(m.`bytes_in` + m.`bytes_out`), 0) " +
 		"from (select d.`domain`, d.`owner_uuid`, coalesce(d.`account_id`, '') as `account_id`, coalesce(a.`email`, '') as `email`, " +
-		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))) as `name`, d.`disabled`, d.`created`, d.`last_client_at` " +
+		"trim(concat(coalesce(a.`name`, ''), ' ', coalesce(a.`surname`, ''))) as `name`, d.`disabled`, d.`created`, d.`last_client_at`, " + online + " " +
 		"from `devices` d left join `accounts` a on a.`id` = d.`account_id`" + where + " order by d.`domain`" + tail + ") p " +
 		"left join `device_metrics` m on m.`domain` = p.`domain` and m.`hour_bucket` >= now() - interval 30 day" +
-		" group by p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`" +
+		" group by p.`domain`, p.`owner_uuid`, p.`account_id`, p.`email`, p.`name`, p.`disabled`, p.`created`, p.`last_client_at`, p.`last_online_at`" +
 		" order by p.`domain`"
-	rows, err := dao.db.Query(query, append(args, targs...)...)
+	rows, err := dao.db.Query(query, args...)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
-	devices = []AdminDevice{}
+	devices := []AdminDevice{}
 	for rows.Next() {
 		var d AdminDevice
-		var created, lastClient sql.NullTime
+		var created, lastClient, lastOnline sql.NullTime
 		if err := rows.Scan(&d.Domain, &d.OwnerUuid, &d.AccountID, &d.AccountEmail, &d.AccountName, &d.Disabled,
-			&created, &lastClient, &d.BytesHour, &d.BytesDay, &d.BytesMonth); err != nil {
-			return nil, 0, err
+			&created, &lastClient, &lastOnline, &d.BytesHour, &d.BytesDay, &d.BytesMonth); err != nil {
+			return nil, err
 		}
 		if created.Valid {
 			d.Created = &created.Time
@@ -1324,10 +1358,13 @@ func (dao *Dao) ListAdminDevices(accountID, q string, limit, offset int) (device
 		if lastClient.Valid {
 			d.LastClient = &lastClient.Time
 		}
+		if lastOnline.Valid {
+			d.LastOnline = &lastOnline.Time
+		}
 		devices = append(devices, d)
 	}
 
-	return devices, total, rows.Err()
+	return devices, rows.Err()
 }
 
 // AllDomains lists every registered domain, for the panel's device pickers.

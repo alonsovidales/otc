@@ -67,11 +67,11 @@
     "max": 30
   },
   "mail.inactivity.body": {
-    "text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
+    "text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
     "args": [["email", "text"], ["date", "text"], ["link", "text"]],
     "note": "Text of the email warning that an unused account will be removed in a month, as the terms of use say. Plain text: keep the empty lines between paragraphs. It follows the greeting (mail.greeting.*) and is signed \"Off The Cloud\" below. {email} is the account's email address, {date} the removal date (written by mail.date.long), {link} the account page's address (https://off-the.cloud/account). The bridge is the service that gives a device its address on the internet; device names are those addresses. The devices themselves, and their files, are not affected.",
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #e20a43eb"
+    "reviewed": "claude-backtranslation 2026-10-28 #d5024dbe"
   },
   "mail.inactivity.subject": {
     "text": "Your Off The Cloud account will be removed on {date}",

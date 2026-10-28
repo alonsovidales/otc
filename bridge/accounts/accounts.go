@@ -149,6 +149,12 @@ type Accounts struct {
 	// oauth_states row.
 	oauthStarts *limits.Rate
 	jwks        jwksCache
+
+	// deviceOnline reports whether a device is connected to the bridge
+	// now, on any node (websocket.Manager.IsOnline): the inactivity job
+	// never warns or removes an account while one of its devices is. Nil
+	// until StartInactivityJob.
+	deviceOnline func(domain string) bool
 }
 
 // Init reads [accounts] from the config: open-registration, and the

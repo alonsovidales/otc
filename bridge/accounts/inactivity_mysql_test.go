@@ -16,6 +16,10 @@ import (
 
 // Issue #176, against a real MySQL with the bridge schema (the Lima VM's
 // test database): OTC_TEST_MYSQL_DSN=user:pass@tcp(127.0.0.1:3306)/otc?parseTime=true
+// - with migration 012 (devices.last_online_at) and without it: run it
+// against both. A device used only at home is connected to the bridge but
+// never reached through it: with the column its stamp keeps the account,
+// without it the live check does (inUseNow).
 func TestInactivityPassMySQL(t *testing.T) {
 	dsn := os.Getenv("OTC_TEST_MYSQL_DSN")
 	if dsn == "" {
@@ -26,10 +30,16 @@ func TestInactivityPassMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	var cols int
+	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and table_name = 'devices' and column_name = 'last_online_at'").Scan(&cols); err != nil {
+		t.Fatal(err)
+	}
+	migrated := cols == 1
+	t.Logf("migration 012 run: %v", migrated)
 	a := &Accounts{dao: dao.NewWithDB(db), tld: "bridge.test"}
 	now := time.Now().UTC()
 	months := func(m int) time.Time { return now.AddDate(0, -m, 0) }
-	ids := []string{"inact-active", "inact-device", "inact-5m", "inact-7m-unwarned", "inact-7m-warned"}
+	ids := []string{"inact-active", "inact-device", "inact-5m", "inact-7m-unwarned", "inact-7m-warned", "inact-home", "inact-home-warned"}
 	cleanup := func() {
 		for _, id := range ids {
 			db.Exec("delete from `devices` where `account_id` = ?", id)
@@ -53,6 +63,27 @@ func TestInactivityPassMySQL(t *testing.T) {
 	add("inact-7m-unwarned", months(7), nil)
 	old := now.Add(-40 * 24 * time.Hour)
 	add("inact-7m-warned", months(7), &old)
+	// Used only at home: no sign-in or relayed client for months, the
+	// device connected to the bridge now (its stamp a few minutes old) -
+	// one of them warned before this counted, and due for removal.
+	add("inact-home", months(8), nil)
+	add("inact-home-warned", months(7), &old)
+	for _, id := range []string{"inact-home", "inact-home-warned"} {
+		if migrated {
+			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `last_online_at`) values (?, 'x', 'y', ?, ?)", id+".bridge.test", id, now.Add(-9*time.Minute))
+		} else {
+			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`) values (?, 'x', 'y', ?)", id+".bridge.test", id)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !migrated {
+		// No stamps to go by: the live connections.
+		a.deviceOnline = func(domain string) bool {
+			return domain == "inact-home.bridge.test" || domain == "inact-home-warned.bridge.test"
+		}
+	}
 
 	warnedAt := func(id string) sql.NullTime {
 		var warned sql.NullTime
@@ -89,15 +120,21 @@ func TestInactivityPassMySQL(t *testing.T) {
 		db.QueryRow("select count(*) from `accounts` where `id` = ?", id).Scan(&n)
 		return n == 1
 	}
-	for id, want := range map[string]bool{"inact-active": true, "inact-device": true, "inact-5m": true, "inact-7m-unwarned": true, "inact-7m-warned": false} {
+	for id, want := range map[string]bool{"inact-active": true, "inact-device": true, "inact-5m": true, "inact-7m-unwarned": true, "inact-7m-warned": false, "inact-home": true, "inact-home-warned": true} {
 		if exists(id) != want {
 			t.Errorf("%s exists = %v, want %v", id, !want, want)
 		}
 	}
-	for id, want := range map[string]int{"inact-active": 0, "inact-device": 0, "inact-5m": 1, "inact-7m-unwarned": 1} {
+	for id, want := range map[string]int{"inact-active": 0, "inact-device": 0, "inact-5m": 1, "inact-7m-unwarned": 1, "inact-home": 0, "inact-home-warned": 0} {
 		if sent[id+"@example.com"] != want {
 			t.Errorf("%s got %d warnings, want %d", id, sent[id+"@example.com"], want)
 		}
+	}
+	if warnedAt("inact-home").Valid {
+		t.Error("an account whose device is online was warned")
+	}
+	if warnedAt("inact-home-warned").Valid {
+		t.Error("the warning of an account whose device is online was kept")
 	}
 	// A second pass (the other node, or the next day) warns nobody again.
 	a.inactivityPass(now, send, nil)
