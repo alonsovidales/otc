@@ -106,6 +106,7 @@ import cloud.offthe.otc.i18n.appPhotosPersonRemovedUnnamed
 import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
 import cloud.offthe.otc.R
 import cloud.offthe.otc.ui.common.TextIOException
+import cloud.offthe.otc.wallpaper.Wallpaper
 
 // SearchPhotos.limit for the request that starts a photo search (no
 // token) on a device not known to leave thumbnails out of pages (before
@@ -815,6 +816,8 @@ class PhotoGalleryViewModel(
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_IMAGE_GROUPS) {
                 val gs = resp.respImageGroups.groupsList
                 _state.update { st -> st.copy(groups = gs, groupsLoaded = true, activeGroup = st.activeGroup?.let { open -> gs.firstOrNull { it.id == open.id } ?: open }) }
+                // The collection shown as wallpaper: renamed or deleted elsewhere, it follows.
+                Wallpaper.collectionsListed(gs)
                 return true
             }
         } catch (e: CancellationException) {
@@ -838,6 +841,7 @@ class PhotoGalleryViewModel(
         if (!ok) { alert(S.appPhotosNoticeRenameFailed()); return }
         val renamed = g.toBuilder().setName(name).build()
         _state.update { st -> st.copy(activeGroup = renamed, groups = st.groups.map { if (it.id == g.id) renamed else it }) }
+        Wallpaper.collectionRenamed(g.id, name)
     }
 
     suspend fun deleteActiveGroup() {
@@ -848,6 +852,8 @@ class PhotoGalleryViewModel(
         } catch (e: Exception) { false }
         if (!ok) { alert(S.appPhotosNoticeDeleteCollectionFailed()); return }
         _state.update { st -> st.copy(groups = st.groups.filter { it.id != g.id }) }
+        // Its wallpaper stops, and the copies on the phone go.
+        Wallpaper.collectionDeleted(g.id)
         leaveGroup()
     }
 
@@ -873,6 +879,7 @@ class PhotoGalleryViewModel(
         if (!ok) { alert(S.appPhotosNoticeAddFailed()); return }
         pickedAway = emptyMap()
         _state.update { it.copy(selected = emptySet()) }
+        Wallpaper.collectionChanged(g.id)
         loadGroups()
         if (_state.value.activeGroup?.id == g.id) restartSearch()
         alert(S.appPhotosNoticeAdded(g.name))
@@ -904,6 +911,7 @@ class PhotoGalleryViewModel(
                     removeDeleted(paths.toSet() + _state.value.items.filter { it.hash in hashes }.map { it.path }, keepThumbs = true)
                     clearSelection()
                     countsChanged()
+                    Wallpaper.collectionChanged(g.id)
                     alert(S.appPhotosNoticeRemoved(g.name))
                 }
                 r != null && r.error && ErrorCodes.isUnknownPayload(r.errorCode, r.errorMessage) -> {

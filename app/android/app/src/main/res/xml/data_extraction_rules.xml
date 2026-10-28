@@ -4,7 +4,9 @@
      decrypted on another phone (their Keystore key never leaves this one),
      and the FCM token, BLE setup key, sync watermark and the photo-hash
      cache (MediaStore ids) all belong to this install. An include list
-     leaves out everything else, including files added later. -->
+     leaves out everything else, including files added later - the copies a
+     collection keeps for the wallpaper (filesDir/wallpaper) and their
+     settings (otc_wallpaper.xml) among them. -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="otc_settings.xml" />

@@ -13,6 +13,7 @@ import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoFolders
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
+import cloud.offthe.otc.wallpaper.Wallpaper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
@@ -58,6 +59,7 @@ class SecretsStore private constructor(
         // A1: the background runs' network follows, and a run that waited
         // for Wi-Fi goes now that it doesn't have to.
         SyncScheduler.wifiOnlyChanged()
+        Wallpaper.wifiOnlyChanged()
         if (!v) PhotoSync.wifiOnlyOff()
     }
     fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persistOptions() }
@@ -125,8 +127,12 @@ class SecretsStore private constructor(
             clearLastDevice()
         }
         // Another device, or another way to it: the home endpoint learnt
-        // through the old one isn't this one's.
-        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) clearHomeEndpoint()
+        // through the old one isn't this one's, and a collection shown as
+        // wallpaper stops (its copies were the other one's photos).
+        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) {
+            clearHomeEndpoint()
+            Wallpaper.deviceChanged(endpointURLString)
+        }
         secure().edit()
             .putString("endpoint", _endpoint.value)
             .putString("password", _password.value)

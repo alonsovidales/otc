@@ -251,6 +251,10 @@ import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptions
 import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptionsUnnamed
 import cloud.offthe.otc.i18n.appPhotosPersonRemoveText
 import cloud.offthe.otc.i18n.commonRemove
+import cloud.offthe.otc.i18n.appPhotosWallpaperMenu
+import cloud.offthe.otc.i18n.appPhotosWallpaperMenuOn
+import androidx.compose.material.icons.outlined.Wallpaper
+import cloud.offthe.otc.wallpaper.Wallpaper
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -319,6 +323,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // selection (the one person whose photos show: State.personShown).
     var confirmNotPerson by remember { mutableStateOf(false) }
     var pickPerson by remember { mutableStateOf(false) }
+    // The open collection as the phone's wallpaper: its box (WallpaperBox.kt).
+    var wallpaperFor by remember { mutableStateOf<ImageGroup?>(null) }
+    val wallpaper by Wallpaper.active.collectAsState()
+    val wallpaperProgress by Wallpaper.progress.collectAsState()
     // The rows of the grid (months, PhotoMonths.kt), with the open
     // collection's or person's header first. Kept here, above the People
     // and Collections pages, so the photos' place stays while those show.
@@ -594,6 +602,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         onRename = { renameGroupName = group.name },
                         onShare = { gallerySource = SharedGallerySource.newBuilder().setGroupId(group.id).build() },
                         onDelete = { confirmDeleteGroup = true },
+                        wallpaperOn = wallpaper?.groupId == group.id,
+                        onWallpaper = { wallpaperFor = group },
+                        wallpaperProgress = wallpaperProgress?.takeIf { it.groupId == group.id && wallpaper?.groupId == group.id },
                     )
                 }
                 if (personHeader) item(key = "head:people", contentType = "head") {
@@ -783,6 +794,18 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         )
     }
     gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
+    wallpaperFor?.let { g -> WallpaperBox(g, onDismiss = { wallpaperFor = null }) }
+    // What the wallpaper says once it started, stopped or failed - only
+    // while fresh (it may have happened in the background meanwhile).
+    val wallpaperNote by Wallpaper.note.collectAsState()
+    wallpaperNote?.let { n ->
+        if (System.currentTimeMillis() - n.at > 120_000L) LaunchedEffect(n) { Wallpaper.noteShown(n) }
+        else AlertDialog(
+            onDismissRequest = { Wallpaper.noteShown(n) },
+            text = { Text(n.text.resolve(), color = if (n.error) MaterialTheme.colorScheme.error else Color.Unspecified) },
+            confirmButton = { TextButton(onClick = { Wallpaper.noteShown(n) }) { Text(S.commonOk().resolve()) } },
+        )
+    }
     if (confirmDeleteGroup) {
         ConfirmDialog(
             S.appPhotosCollectionsDeleteTitle(st.activeGroup?.name ?: "").resolve(), S.appPhotosCollectionsDeleteMessage().resolve(),
@@ -1270,12 +1293,17 @@ private fun MonthTitle(month: String?, oneTile: Boolean, m: GridMetrics, skeleto
 private fun CollectionHeader(
     g: ImageGroup, span: String, compact: Boolean, metrics: GridMetrics,
     onBack: () -> Unit, onRename: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
+    // The phone's wallpaper (WallpaperBox.kt): this collection is it now
+    // ([wallpaperOn]: "Wallpaper settings…", else "Use as wallpaper…"), and
+    // how far its copies are while they are stored.
+    wallpaperOn: Boolean = false, onWallpaper: () -> Unit = {}, wallpaperProgress: Wallpaper.Progress? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val danger = Color(0xFFE53935)
     val rename = S.appPhotosCollectionsRename().resolve()
     val share = S.appShellShareAsGallery().resolve()
     val delete = S.appPhotosCollectionsDelete().resolve()
+    val wallpaper = (if (wallpaperOn) S.appPhotosWallpaperMenuOn() else S.appPhotosWallpaperMenu()).resolve()
     Column(Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp, bottom = 4.dp)) {
         Row(
             Modifier.offset(x = (-8).dp).height(36.dp).clip(CircleShape).clickable(onClick = onBack).padding(start = 8.dp, end = 14.dp),
@@ -1308,12 +1336,18 @@ private fun CollectionHeader(
             }
             if (compact) Row {
                 IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
+                IconButton(onClick = onWallpaper) { Icon(Icons.Outlined.Wallpaper, wallpaper, tint = if (wallpaperOn) colors.primary else colors.onSurfaceVariant) }
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
                     Icon(Icons.Outlined.Public, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(share)
+                }
+                OutlinedButton(onClick = onWallpaper, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
+                    Icon(Icons.Outlined.Wallpaper, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(wallpaper)
                 }
                 OutlinedButton(
                     onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
@@ -1325,6 +1359,8 @@ private fun CollectionHeader(
                 }
             }
         }
+        // Its copies being stored for the wallpaper, or why they weren't.
+        wallpaperProgress?.let { CopiesProgress(it, Modifier.widthIn(max = 480.dp)) }
     }
 }
 

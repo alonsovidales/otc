@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 10-11 (minSdk 29): the same as data_extraction_rules.xml. -->
+<!-- Android 10-11 (minSdk 29): the same as data_extraction_rules.xml (the
+     wallpaper's copies and settings stay out, as everything not listed). -->
 <full-backup-content>
     <include domain="sharedpref" path="otc_settings.xml" />
 </full-backup-content>

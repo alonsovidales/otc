@@ -21,6 +21,7 @@ import cloud.offthe.otc.ui.common.ThumbCache
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.files.FilesNav
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
+import cloud.offthe.otc.wallpaper.Wallpaper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -70,6 +71,9 @@ fun logOut(
             // after the wipe, and the next device would skip the library.
             PhotoSync.cancel()
             AssetSyncCache.clear()
+            // A collection shown as wallpaper stops: its copies were this
+            // device's photos (the wipe below deletes them too).
+            Wallpaper.loggedOut()
             // The thumbnail cache is let go before the wipe deletes it (and
             // its size setting in filesDir) - and again after, in case a grid
             // opened it meanwhile: the next sign-in starts with an empty one.
