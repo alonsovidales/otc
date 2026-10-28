@@ -689,21 +689,21 @@
   },
   "web.social.push.not_now": {
     "text": "Not now",
-    "note": "Button beside Get notified when family posts at the top of the Social feed: hides the card for good. Notifications can still be turned on in Settings.",
+    "note": "Button beside Get notified when your friends post at the top of the Social feed: hides the card for good. Notifications can still be turned on in Settings.",
     "max": 24
   },
   "web.social.push.on": {
     "text": "Notifications are on. You can turn them off in Settings.",
-    "note": "The card at the top of the Social feed for a few seconds after browser notifications were turned on with Get notified when family posts."
+    "note": "The card at the top of the Social feed for a few seconds after browser notifications were turned on with Get notified when your friends post."
   },
   "web.social.push.turn_on": {
-    "text": "Get notified when family posts",
+    "text": "Get notified when your friends post",
     "note": "Button of a card at the top of the Social feed, shown until browser notifications are turned on or refused: pressing it asks the browser's permission to show a notification when a friend posts or comments.",
     "max": 48
   },
   "web.social.push.turning_on": {
     "text": "Turning on…",
-    "note": "The button Get notified when family posts (web.social.push.turn_on) while the browser asks for permission and the device registers this browser.",
+    "note": "The button Get notified when your friends post (web.social.push.turn_on) while the browser asks for permission and the device registers this browser.",
     "max": 40
   },
   "web.social.time.days": {

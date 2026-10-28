@@ -155,7 +155,7 @@
   "web.social.push.failed": "Benachrichtigungen konnten nicht eingeschaltet werden.",
   "web.social.push.not_now": "Nicht jetzt",
   "web.social.push.on": "Benachrichtigungen sind eingeschaltet. Du kannst sie in den Einstellungen ausschalten.",
-  "web.social.push.turn_on": "Bei neuen Beiträgen der Familie benachrichtigen",
+  "web.social.push.turn_on": "Bei neuen Beiträgen von Freunden benachrichtigen",
   "web.social.push.turning_on": "Wird eingeschaltet…",
   "web.social.time.days": "{days} T.",
   "web.social.time.days_ago": "{days} T.",

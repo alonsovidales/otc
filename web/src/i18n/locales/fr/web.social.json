@@ -155,7 +155,7 @@
   "web.social.push.failed": "Impossible d’activer les notifications.",
   "web.social.push.not_now": "Plus tard",
   "web.social.push.on": "Les notifications sont activées. Vous pouvez les désactiver dans Paramètres.",
-  "web.social.push.turn_on": "Être averti des publications de votre famille",
+  "web.social.push.turn_on": "Être averti quand vos amis publient",
   "web.social.push.turning_on": "Activation…",
   "web.social.time.days": "{days} j",
   "web.social.time.days_ago": "{days} j",

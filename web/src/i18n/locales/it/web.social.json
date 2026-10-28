@@ -155,7 +155,7 @@
   "web.social.push.failed": "Impossibile attivare le notifiche.",
   "web.social.push.not_now": "Non ora",
   "web.social.push.on": "Le notifiche sono attive. Puoi disattivarle in Impostazioni.",
-  "web.social.push.turn_on": "Ricevi una notifica per i post della famiglia",
+  "web.social.push.turn_on": "Ricevi una notifica per i post degli amici",
   "web.social.push.turning_on": "Attivazione…",
   "web.social.time.days": "{days} g",
   "web.social.time.days_ago": "{days} g fa",

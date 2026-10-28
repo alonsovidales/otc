@@ -613,8 +613,8 @@
     "en": "Notifications are on. You can turn them off in Settings."
   },
   "web.social.push.turn_on": {
-    "text": "Ricevi una notifica per i post della famiglia",
-    "en": "Get notified when family posts"
+    "text": "Ricevi una notifica per i post degli amici",
+    "en": "Get notified when your friends post"
   },
   "web.social.push.turning_on": {
     "text": "Attivazione…",

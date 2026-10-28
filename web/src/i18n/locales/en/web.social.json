@@ -155,7 +155,7 @@
   "web.social.push.failed": "Notifications couldn't be turned on.",
   "web.social.push.not_now": "Not now",
   "web.social.push.on": "Notifications are on. You can turn them off in Settings.",
-  "web.social.push.turn_on": "Get notified when family posts",
+  "web.social.push.turn_on": "Get notified when your friends post",
   "web.social.push.turning_on": "Turning on…",
   "web.social.time.days": "{days}d",
   "web.social.time.days_ago": "{days}d ago",
