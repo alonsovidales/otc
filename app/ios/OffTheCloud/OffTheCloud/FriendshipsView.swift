@@ -256,6 +256,7 @@ struct FriendshipsView: View {
                             }
                         }
                         .buttonStyle(.borderless)
+                        .tourTarget(.address)
                     }
                 }
 
@@ -324,6 +325,7 @@ struct FriendshipsView: View {
                         Button(S.commonSend) { Task { await vm.sendFriendRequest() } }
                             .disabled(vm.sendingRequest || vm.targetDomain.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
+                    .tourTarget(.addFriend)
                 }
 
                 Section {

@@ -479,7 +479,7 @@ private fun FullItem(s: Section, active: Boolean, count: Int, colors: MenuColors
     val label = s.label.resolve()
     val described = if (count > 0) S.appShellSectionUnread(label, count).resolve() else label
     Row(
-        Modifier.fillMaxWidth().then(inView).heightIn(min = 44.dp).clip(CircleShape)
+        Modifier.fillMaxWidth().then(inView).tourTarget(tourTargetOf(s)).heightIn(min = 44.dp).clip(CircleShape)
             .background(if (active) colors.accentFill else Color.Transparent)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
@@ -553,6 +553,13 @@ private fun RailMenu(
     }
 }
 
+/** The tour's last step points at Alerts and Settings. */
+private fun tourTargetOf(s: Section): TourTarget? = when (s) {
+    Section.Alerts -> TourTarget.ALERTS_SECTION
+    Section.Settings -> TourTarget.SETTINGS_SECTION
+    else -> null
+}
+
 @Composable
 private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, colors: MenuColors, onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
@@ -563,7 +570,7 @@ private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, 
     val label = s.label.resolve()
     val described = if (count > 0) S.appShellSectionUnread(label, count).resolve() else label
     Column(
-        Modifier.fillMaxWidth().then(inView).heightIn(min = if (compact) 52.dp else 56.dp)
+        Modifier.fillMaxWidth().then(inView).tourTarget(tourTargetOf(s)).heightIn(min = if (compact) 52.dp else 56.dp)
             .clickable(interactionSource = press, indication = null, role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 selected = active

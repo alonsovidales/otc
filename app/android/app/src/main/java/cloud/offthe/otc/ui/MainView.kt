@@ -287,6 +287,11 @@ fun MainView(secrets: SecretsStore) {
     var revealStorage by remember { mutableStateOf(false) }
     // Social's composer, opened from the top bar's New post (the feed hands it over).
     var openComposer by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // The first-run tour (Tour.kt) opens the section each step talks about,
+    // and on its way out the one it opened over.
+    val tourShown by TourModel.shown.collectAsState()
+    val tourStep by TourModel.step.collectAsState()
+    var tourFrom by rememberSaveable { mutableStateOf<Int?>(null) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val widthDp = maxWidth.value
@@ -297,6 +302,19 @@ fun MainView(secrets: SecretsStore) {
         // A drawer left open while the window grew (or narrowed past the
         // menu) would otherwise come back on its own.
         LaunchedEffect(canBeWhole, wide) { if (canBeWhole || !wide) drawerOpen = false }
+        // The tour's section: its own tab or page (never the menu's way in,
+        // which would clear a search); the welcome shows the one it opened
+        // over, and so does its end.
+        LaunchedEffect(tourShown, tourStep, wide) {
+            if (tourShown) {
+                val from = tourFrom ?: sectionId.also { tourFrom = it; drawerOpen = false }
+                val s = TourRules.section(tourStep, wide) ?: Section.of(from)
+                if (s != section) go(s)
+            } else {
+                tourFrom?.let { if (it != sectionId) go(Section.of(it)) }
+                tourFrom = null
+            }
+        }
 
         // What the wide layout's top bar and menu need: the search (on the
         // gallery's tags and people, as in Images), and the storage.
@@ -366,7 +384,7 @@ fun MainView(secrets: SecretsStore) {
                     ) {
                         TopSearchField(
                             search, gallery, gst, options,
-                            Modifier.widthIn(max = 720.dp).fillMaxWidth().onGloballyPositioned { fieldBounds = it.boundsInRoot() },
+                            Modifier.widthIn(max = 720.dp).fillMaxWidth().onGloballyPositioned { fieldBounds = it.boundsInRoot() }.tourTarget(TourTarget.SEARCH),
                             onShowPhotos = { if (section != Section.Images) go(Section.Images) },
                             // An open collection is the field's first chip, as on the web.
                             showGroup = true,
@@ -384,14 +402,16 @@ fun MainView(secrets: SecretsStore) {
                 val labelStyle = MaterialTheme.typography.labelMedium
                 val slot = with(LocalDensity.current) { ((maxWidth - TabGap * (tabs.size - 1)) / tabs.size).toPx().toInt() - 1 }
                 val tabStyle = labelStyle.copy(fontSize = tabLabelSize(labels, slot, labelStyle))
-                NavigationBar {
+                NavigationBar(Modifier.tourTarget(TourTarget.SECTIONS)) {
                     tabs.forEachIndexed { i, t ->
                         // The item reads its label only (its icon's words are
                         // cleared): the unread count goes in its name, as the
                         // menu's (Sidebar.kt) and iOS's badge.
                         val unreadName = if (t.section == Section.Alerts && unread > 0) S.appShellSectionUnread(labels[i], unread).resolve() else null
                         NavigationBarItem(
-                            modifier = if (unreadName != null) Modifier.semantics { contentDescription = unreadName } else Modifier,
+                            modifier = (if (unreadName != null) Modifier.semantics { contentDescription = unreadName } else Modifier)
+                                // The tour's last step points at Alerts and Settings.
+                                .tourTarget(when (t.section) { Section.Alerts -> TourTarget.ALERTS_SECTION; Section.Settings -> TourTarget.SETTINGS_SECTION; else -> null }),
                             selected = section.tab == t.section,
                             onClick = {
                                 // Files picked in the tab bar: whatever search
@@ -420,6 +440,7 @@ fun MainView(secrets: SecretsStore) {
                 Row(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                     if (wide) Sidebar(
                         layout, current, faces = faces == true, unread = unread, storage = storage,
+                        modifier = Modifier.tourTarget(TourTarget.SECTIONS),
                         details = storageDetails, onToggleDetails = { storageDetails = !storageDetails },
                         onPick = ::pick,
                         onStorage = {
@@ -570,7 +591,7 @@ private fun WideTopBar(
                     onClick = newPost, border = BorderStroke(1.dp, Ember), shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ember),
                     contentPadding = PaddingValues(horizontal = if (iconOnlyAction) 12.dp else 16.dp),
-                    modifier = Modifier.height(if (iconOnlyAction) 40.dp else 38.dp).semantics { contentDescription = newPostLabel },
+                    modifier = Modifier.height(if (iconOnlyAction) 40.dp else 38.dp).semantics { contentDescription = newPostLabel }.tourTarget(TourTarget.NEW_POST),
                 ) {
                     Text("+", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     if (!iconOnlyAction) Text(" $newPostLabel", fontWeight = FontWeight.SemiBold)

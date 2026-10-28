@@ -61,6 +61,16 @@ struct MainView: View {
     @State private var revealStorage = false
     @StateObject private var storage = StatusViewModel()
     @FocusState private var topSearchFocused: Bool
+    /// The first-run tour (Tour.swift) opens the section each step talks
+    /// about, and on its way out the one it opened over.
+    @ObservedObject private var tour = TourModel.shared
+    @State private var tourFrom: TourOrigin?
+
+    /// Where the tour opened: the tab, and the wide layout's page.
+    private struct TourOrigin {
+        let tab: Int
+        let page: AppSection?
+    }
 
     init(deviceID: String) {
         _gallery = StateObject(wrappedValue: PhotoGalleryVM(deviceID: deviceID, localPhotosFolder: nil))
@@ -114,6 +124,8 @@ struct MainView: View {
             .onChange(of: faces.isOn) { _, on in
                 if !on && page == .people { show(.images) }
             }
+            .onChange(of: tour.shown, initial: true) { _, shown in tourShownChanged(shown) }
+            .onChange(of: tour.step) { _, _ in showTourSection() }
             .modifier(MainChrome(
                 secrets: secrets,
                 notifications: notifications,
@@ -154,6 +166,7 @@ struct MainView: View {
                 ) {
                     TopBarSearchField(vm: gallery, search: search, focused: $topSearchFocused, actions: searchActions)
                         .anchorPreference(key: SearchFieldAnchorKey.self, value: .bounds) { $0 }
+                        .tourTarget(.search)
                 }
                 .zIndex(1)
             } else if let alert = updateAlert.critical {
@@ -165,6 +178,7 @@ struct MainView: View {
             HStack(spacing: 0) {
                 if wide {
                     sideMenu(menu == .full ? .full : .rail)
+                        .tourTarget(.sections)
                         .background(MenuStyle.bar.ignoresSafeArea(edges: [.leading, .bottom]))
                         // The keyboard doesn't squeeze the menu.
                         .ignoresSafeArea(.keyboard)
@@ -461,6 +475,7 @@ struct MainView: View {
     /// stays where it was. A sheet that is a page of the wide layout's menu
     /// becomes that page, and back.
     private func layoutChanged(wide isWide: Bool) {
+        defer { showTourSection() }
         drawerOpen = false
         // The field it belonged to is gone; what was typed stays - on
         // Files, in the field now on screen (FilesSearchHandOff).
@@ -500,6 +515,32 @@ struct MainView: View {
             }
         }
         pollStorage()
+    }
+
+    /// The tour opened (from here) or ended (back to where it opened).
+    private func tourShownChanged(_ shown: Bool) {
+        if shown {
+            tourFrom = TourOrigin(tab: selectedTab, page: page)
+            drawerOpen = false
+            showTourSection()
+        } else if let from = tourFrom {
+            tourFrom = nil
+            page = wide ? from.page : nil
+            selectedTab = from.tab
+        }
+    }
+
+    /// The section the tour's step shows (its own tab or page, never a
+    /// menu's way in, which would clear a search); the welcome shows the
+    /// one it opened over.
+    private func showTourSection() {
+        guard tour.shown else { return }
+        if let s = TourRules.section(tour.step, wide: wide) {
+            show(s)
+        } else if let from = tourFrom {
+            page = wide ? from.page : nil
+            selectedTab = from.tab
+        }
     }
 
     /// The menu's storage, polled while it shows.

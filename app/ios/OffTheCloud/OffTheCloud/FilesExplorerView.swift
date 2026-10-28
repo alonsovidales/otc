@@ -1375,6 +1375,7 @@ struct FilesExplorerView: View {
                                 .autocapitalization(.none)
                             if vm.loading || vm.sorting { ProgressView() }
                             viewOptions
+                                .tourTarget(.viewOptions)
                         }
                         .padding(.horizontal)
                         // Closer under the search field than under the bar.
@@ -1489,6 +1490,8 @@ struct FilesExplorerView: View {
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel(row.uploadOnly ? S.appFilesClearUploadOnly : S.appFilesMakeUploadOnly)
+                                            // The tour's step about uploading: the first folder's lock.
+                                            .tourTarget(row.id == vm.rows.first(where: { $0.path != ".." && $0.isDir })?.id ? .folderLock : nil)
                                         } else if row.uploadOnly {
                                             Button {
                                                 lockInfo = .file

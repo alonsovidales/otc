@@ -69,6 +69,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.text.AnnotatedString
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appShellCollectionCard
 import cloud.offthe.otc.i18n.appShellCollectionUntitled
 import cloud.offthe.otc.i18n.appShellCollectionsEmptyText
@@ -151,7 +153,7 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(st.groups, key = { it.id }) { g ->
-                            CollectionCard(g, cellPx) {
+                            CollectionCard(g, cellPx, Modifier.tourTarget(if (g.id == st.groups.firstOrNull()?.id) TourTarget.FIRST_COLLECTION else null)) {
                                 gallery.openGroup(g)
                                 onOpen()
                             }
@@ -172,7 +174,7 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
 
 /** A collection: its square cover (the icon when it has none), the name and how many items. */
 @Composable
-private fun CollectionCard(g: ImageGroup, coverPx: Int, onClick: () -> Unit) {
+private fun CollectionCard(g: ImageGroup, coverPx: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val name = nameOf(g)
     val spoken = S.appShellCollectionCard(name, g.fileCount).resolve()
@@ -180,7 +182,7 @@ private fun CollectionCard(g: ImageGroup, coverPx: Int, onClick: () -> Unit) {
         if (g.coverThumbnail.isEmpty) null else "g:${g.id}:${g.coverThumbnail.hashCode()}", coverPx,
     ) { g.coverThumbnail.toByteArray() }
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = spoken },
     ) {
         Box(

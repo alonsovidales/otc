@@ -3463,6 +3463,8 @@ struct PhotoGalleryView: View {
                 needThumb: { vm.needThumb(it) }
             )
             .dragSelectItem(i, in: dragFrames, space: Self.gridSpace)
+            // The tour's steps about selecting and opening a photo.
+            .tourTarget(i == 0 ? .firstPhoto : nil)
             .task { await vm.loadMoreIfNeeded(index: i, id: it.id) }
             // Its thumbnail asked for first while it shows (GridThumbLoader).
             .onAppear { vm.tileShown(i) }
@@ -3539,6 +3541,7 @@ struct PhotoGalleryView: View {
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel(S.appShellSectionPeople)
+                    .tourTarget(.peopleButton)
                 }
                 // Issue #115: the collections list.
                 Button {
@@ -3550,6 +3553,7 @@ struct PhotoGalleryView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel(S.appShellSectionCollections)
+                .tourTarget(.collectionsButton)
             }
         }
         .padding(.horizontal, 8)
@@ -3671,6 +3675,7 @@ struct PhotoGalleryView: View {
         .background(Color(.tertiarySystemFill), in: Capsule())
         .contentShape(Capsule())
         .onTapGesture { searchFocused = true }
+        .tourTarget(.search)
     }
 
     /// What the search narrows Images to: the people, then the tags.
@@ -4940,6 +4945,7 @@ private struct PhotoDateScrubber: View {
             .overlay(alignment: .trailing) {
                 Color.clear
                     .frame(width: cScrubberTouchWidth)
+                    .tourTarget(.scrubber)
                     .contentShape(Rectangle())
                     .gesture(
                 DragGesture(minimumDistance: 0)

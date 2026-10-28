@@ -311,6 +311,15 @@ import cloud.offthe.otc.i18n.appTourSettingsFooter
 import cloud.offthe.otc.i18n.appTourSettingsTitle
 import cloud.offthe.otc.i18n.appTourShow
 import cloud.offthe.otc.ui.TourModel
+import cloud.offthe.otc.ui.TourRules
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.TourTargets
+import cloud.offthe.otc.ui.MENU_RAIL_MIN_DP
+import cloud.offthe.otc.ui.tourTarget
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import kotlinx.coroutines.delay
 import cloud.offthe.otc.i18n.commonAdd
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonConnect
@@ -357,8 +366,8 @@ internal fun RowButton(label: String, enabled: Boolean = true, destructive: Bool
 
 // What opens another screen or a web page stays a link.
 @Composable
-private fun RowLink(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) { Text(label, color = MaterialTheme.colorScheme.primary) }
+private fun RowLink(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = modifier) { Text(label, color = MaterialTheme.colorScheme.primary) }
 }
 
 @Composable
@@ -444,8 +453,30 @@ fun SettingsView(secrets: SecretsStore) {
     LaunchedEffect(Unit) { isPrimary = isPrimaryInstance() }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
 
+    // The first-run tour's steps about Settings scroll to what they ring,
+    // where the card leaves it in sight (TourRules.settingsScroll).
+    val scroll = rememberScrollState()
+    var viewport by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    val tourShown by TourModel.shown.collectAsState()
+    val tourStep by TourModel.step.collectAsState()
+    val tourWide = LocalConfiguration.current.screenWidthDp >= MENU_RAIL_MIN_DP
+    LaunchedEffect(tourShown, tourStep, tourWide) {
+        if (!tourShown) return@LaunchedEffect
+        val (target, at) = TourRules.settingsScroll(tourStep, tourWide) ?: return@LaunchedEffect
+        // Laid out first (Users only once the role is known), and again as
+        // the sections above it come in (Status, Users).
+        var rect = TourTargets.rects(target).firstOrNull()
+        repeat(20) { if (rect == null || viewport.height <= 0f) { delay(100); rect = TourTargets.rects(target).firstOrNull() } }
+        for (wait in longArrayOf(150, 500, 800)) {
+            delay(wait)
+            val r = TourTargets.rects(target).firstOrNull() ?: return@LaunchedEffect
+            val delta = r.top - viewport.top - at * viewport.height
+            if (kotlin.math.abs(delta) > 4f) scroll.animateScrollTo((scroll.value + delta).toInt().coerceIn(0, scroll.maxValue))
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+        Column(Modifier.fillMaxSize().onGloballyPositioned { viewport = it.boundsInWindow() }.verticalScroll(scroll).padding(vertical = 8.dp)) {
             ProfileEditorSection()
 
             // The language of every app signed in to the device; only while
@@ -464,7 +495,7 @@ fun SettingsView(secrets: SecretsStore) {
 
             // The first-run tour again, from its first page (Tour.kt).
             Section(S.appTourSettingsTitle().resolve(), S.appTourSettingsFooter().resolve()) {
-                RowLink(S.appTourShow().resolve()) { TourModel.replay() }
+                RowLink(S.appTourShow().resolve(), Modifier.tourTarget(TourTarget.SHOW_TOUR)) { TourModel.replay() }
             }
 
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
@@ -509,7 +540,7 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section(S.appSettingsSyncTitle().resolve()) {
-                ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
+                ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly, Modifier.tourTarget(TourTarget.WIFI_ONLY))
                 ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
                 if (photosAllowed) {
                     Row(
@@ -733,8 +764,8 @@ private fun ThumbnailCacheSection() {
 }
 
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
     }
@@ -1180,7 +1211,7 @@ private fun UsersManagementSection() {
     Section(S.appSettingsUsersTitle().resolve()) {
         Caption(S.appSettingsUsersIntro().resolve())
         st.users.forEach { u -> UserRow(vm, st, u) }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().tourTarget(TourTarget.ADD_USER), verticalAlignment = Alignment.CenterVertically) {
             OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { FitText(S.appSettingsUsersUsername().resolve(), minScale = 0.8f) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
@@ -1189,7 +1220,7 @@ private fun UsersManagementSection() {
             RowButton(S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { vm.askPassword() }
         }
         // Issue #103, as the web app: the address the new user gets on the bridge.
-        ToggleRow(S.appSettingsUsersRequestBridge().resolve(), st.requestBridgeAccess, vm::setRequestBridgeAccess)
+        ToggleRow(S.appSettingsUsersRequestBridge().resolve(), st.requestBridgeAccess, vm::setRequestBridgeAccess, Modifier.tourTarget(TourTarget.BRIDGE_ACCESS))
         val name = st.newUsername.trim()
         val bridgeDomain = st.users.firstOrNull { it.bridgeAccess && it.subdomain.isNotEmpty() }?.subdomain?.substringAfter('.', "") ?: ""
         Caption(((if (name.isNotEmpty() && bridgeDomain.isNotEmpty()) S.appSettingsUsersReachableAt("$name.$bridgeDomain") else S.appSettingsUsersReachableOwn()).resolve()) + " " + S.appSettingsUsersLocalHint().resolve())

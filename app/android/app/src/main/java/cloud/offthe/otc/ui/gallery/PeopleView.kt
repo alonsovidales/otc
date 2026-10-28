@@ -135,6 +135,8 @@ import kotlin.math.min
 import java.text.NumberFormat
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidPhotosPeopleBack
 import cloud.offthe.otc.i18n.androidPhotosPeopleDeleting
@@ -689,7 +691,9 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     ) {
                         items(people, key = { it.id }) { p ->
                             PersonTile(
-                                p, face, name = tidy(st.saving[p.id] ?: p.name), pending = p.id in st.saving,
+                                // The tour's step about People, on the wide layout's page.
+                                modifier = Modifier.tourTarget(if (p.id == people.firstOrNull()?.id) TourTarget.FIRST_FACE else null),
+                                p = p, face = face, name = tidy(st.saving[p.id] ?: p.name), pending = p.id in st.saving,
                                 selecting = selecting, selected = p.id in st.selection, canMerge = people.size > 1,
                                 onTap = {
                                     if (selecting) vm.toggle(p.id)
@@ -838,13 +842,14 @@ private fun BarButton(
 private fun PersonTile(
     p: Person, face: Dp, name: String, pending: Boolean, selecting: Boolean, selected: Boolean, canMerge: Boolean,
     onTap: () -> Unit, onLongPress: () -> Unit, onRename: () -> Unit, onMergeWithOthers: () -> Unit, onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     val label = (if (name.isEmpty()) S.appPhotosPeopleFaceLabelUnnamed(p.faceCount) else S.appPhotosPeopleFaceLabel(name, p.faceCount)).resolve()
     val select = S.commonSelect().resolve()
     val moreOptions = (if (name.isEmpty()) S.appPhotosPeopleMoreOptionsUnnamed() else S.appPhotosPeopleMoreOptions(name)).resolve()
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(face)) {
             // Picked: a ring around a face that steps back a little.
             Box(

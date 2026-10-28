@@ -578,6 +578,8 @@ struct PeopleView: View {
                         onSubmitName: { endRename(editText, fromBlur: false) },
                         onCancelName: { endRename(nil, fromBlur: false) }
                     )
+                    // The tour's step about People, on the wide layout's page.
+                    .tourTarget(p.id == people.first?.id ? .firstFace : nil)
                 }
             }
             .padding(.horizontal, 16)

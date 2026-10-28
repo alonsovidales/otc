@@ -105,10 +105,17 @@ import kotlin.time.Duration.Companion.milliseconds
 // platform"): our own words through the S accessors, the device's as
 // UiText.Raw (it already wrote them in the request's language).
 
-internal suspend fun isPrimaryInstance(): Boolean = try {
+internal suspend fun isPrimaryInstance(): Boolean = askIsPrimary() == true
+
+/**
+ * Whether the account signed in is the device's owner (the primary
+ * instance), which alone has Settings' Users; null when it couldn't be
+ * asked. The tour asks it too, for its step about users.
+ */
+internal suspend fun askIsPrimary(): Boolean? = try {
     val r = OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
-    r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE && r.respInstanceRole.isPrimary
-} catch (e: Exception) { false }
+    if (r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE) r.respInstanceRole.isPrimary else null
+} catch (e: Exception) { null }
 
 private fun RespEnvelope.ackOk() = payloadCase == RespEnvelope.PayloadCase.RESP_ACK && respAck.ok
 private fun RespEnvelope.ackError(default: UiText): UiText =

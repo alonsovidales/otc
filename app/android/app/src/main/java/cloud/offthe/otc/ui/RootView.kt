@@ -124,6 +124,8 @@ fun RootView() {
     val mainVisible = configured && statusCode == null && !connectionFailed
     LaunchedEffect(choicePending, signedIn, mainVisible) { TourModel.evaluate(choicePending, signedIn, mainVisible) }
     val tourShown by TourModel.shown.collectAsState()
+    // While it shows, the controls it rings say where they are (TourTargets).
+    LaunchedEffect(tourShown) { TourTargets.live = tourShown }
 
     if (configured) {
         Box(Modifier.fillMaxSize()) {

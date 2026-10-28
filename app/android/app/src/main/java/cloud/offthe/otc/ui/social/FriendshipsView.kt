@@ -74,6 +74,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidFriendsAskTheirsUnnamed
 import cloud.offthe.otc.i18n.androidFriendsDeleteTheirs
@@ -341,7 +343,7 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                 }
                 item {
                     Text(S.appSocialFriendsAddHeading().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).tourTarget(TourTarget.ADD_FRIEND), verticalAlignment = Alignment.CenterVertically) {
                         // Issue #142: the name only; the suffix is fixed.
                         OTCTextField(
                             value = st.targetDomain, onValueChange = vm::setTarget, singleLine = true,
@@ -387,7 +389,7 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
 @Composable
 private fun OwnAddressRow(address: String, onCopy: () -> Unit, onShare: () -> Unit) {
     FlowRow(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).tourTarget(TourTarget.ADDRESS),
         verticalArrangement = Arrangement.Center, itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         Text(S.appSocialFriendsYourAddress(address).resolve(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))

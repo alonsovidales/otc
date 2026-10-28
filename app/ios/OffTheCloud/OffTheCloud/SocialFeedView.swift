@@ -803,6 +803,7 @@ struct SocialFeedView: View {
                                     let post = box.pub
                                     PostCard(
                                         box: box,
+                                        tourMarks: post.uuid == vm.boxedPosts.first?.pub.uuid,
                                         viewportHeight: feedViewportHeight ?? 0,
                                         isHighlighted: post.uuid == vm.highlightPub,
                                         highlightCommentUuid: post.uuid == vm.highlightPub ? vm.highlightComment : nil,
@@ -921,6 +922,7 @@ struct SocialFeedView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button { showingFriendships = true } label: {
                             Image(systemName: "person.2")
+                                .tourTarget(.friendsButton)
                         }
                         .accessibilityLabel(S.appShellSectionFriends)
                     }
@@ -933,6 +935,7 @@ struct SocialFeedView: View {
                     // action button that wandered up from a corner).
                     Button { showingPicker = true } label: {
                         Image(systemName: "plus.circle")
+                            .tourTarget(wide ? nil : .newPost)
                     }
                     .tint(Color(red: 1.0, green: 0.42, blue: 0.29)) // matches web's --ember (#ff6b4a)
                     .accessibilityLabel(S.appShellNewPost)
@@ -1298,6 +1301,9 @@ private struct FeedVideoPlayer: UIViewRepresentable {
 
 private struct PostCard: View {
     let box: PostBox
+    /// The first post: its heart and comment field are what the tour's
+    /// step about Social rings.
+    var tourMarks = false
     /// The feed's visible height, which rule 1 (see cFeedMaxAspect) keeps
     /// this post's media inside - see SocialFeedView.feedViewportHeight.
     let viewportHeight: CGFloat
@@ -1549,6 +1555,7 @@ private struct PostCard: View {
                 // Liked is said as selected too, as on Android.
                 .accessibilityLabel(post.liked ? S.appSocialPostUnlike : S.appSocialPostLike)
                 .accessibilityAddTraits(post.liked ? .isSelected : [])
+                .tourTarget(tourMarks ? .like : nil)
             }
             .font(.title3)
             .padding(.horizontal, sidePadding)
@@ -1633,6 +1640,7 @@ private struct PostCard: View {
                 .font(.caption)
                 .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            .tourTarget(tourMarks ? .comment : nil)
             .padding(.horizontal, sidePadding)
             .padding(.bottom, 10)
         }

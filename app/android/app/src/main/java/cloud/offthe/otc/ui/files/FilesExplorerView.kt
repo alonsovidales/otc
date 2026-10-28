@@ -34,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidFilesAllowDeletions
 import cloud.offthe.otc.i18n.appFilesCannotRead
@@ -1517,7 +1519,9 @@ fun FilesExplorerView(initialPath: String) {
                             modifier = Modifier.weight(1f),
                         )
                         if (st.loading || st.sorting) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                        ViewOptionsMenu(view = st.view, sort = st.sort, onView = vm::setView, onSort = vm::pickSort)
+                        Box(Modifier.tourTarget(TourTarget.VIEW_OPTIONS)) {
+                            ViewOptionsMenu(view = st.view, sort = st.sort, onView = vm::setView, onSort = vm::pickSort)
+                        }
                     }
                     // Said to TalkBack when it appears or changes.
                     st.error?.let {
@@ -1661,7 +1665,9 @@ fun FilesExplorerView(initialPath: String) {
                                             }
                                         }
                                         if (row.path != ".." && row.isDir) {
-                                            IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
+                                            // The tour's step about uploading: the first folder's lock.
+                                            val firstFolder = row.path == st.rows.firstOrNull { it.path != ".." && it.isDir }?.path
+                                            IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp).tourTarget(if (firstFolder) TourTarget.FOLDER_LOCK else null)) {
                                                 Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
                                                     (if (row.uploadOnly) S.appFilesClearUploadOnly() else S.appFilesMakeUploadOnly()).resolve(),
                                                     tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)

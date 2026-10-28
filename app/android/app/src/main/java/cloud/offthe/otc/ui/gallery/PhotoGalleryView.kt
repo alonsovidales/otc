@@ -191,6 +191,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.compose.ui.platform.LocalResources
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.androidPhotosOpenInMaps
 import cloud.offthe.otc.i18n.appPhotosCollectionsAddTitle
 import cloud.offthe.otc.i18n.appPhotosCollectionsDelete
@@ -354,7 +356,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         // the months it spans - heads the photos.
         if (!wide) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(top = 8.dp, bottom = 8.dp)) {
             Row(Modifier.padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TopSearchField(search, vm, st, options, Modifier.weight(1f), showGroup = true)
+                TopSearchField(search, vm, st, options, Modifier.weight(1f).tourTarget(TourTarget.SEARCH), showGroup = true)
                 // The ways into People and collections, as the web's menu
                 // has them (Images, People, Collections); the tooltips name
                 // the icons for sighted users too.
@@ -362,12 +364,12 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     val people: PeopleViewModel = viewModel(key = "people")
                     val peopleLabel = S.appShellSectionPeople().resolve()
                     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(peopleLabel) } }, state = rememberTooltipState()) {
-                        IconButton(onClick = { people.enter(); onPage(GalleryPage.PEOPLE) }) { Icon(NavIcons.People, peopleLabel) }
+                        IconButton(onClick = { people.enter(); onPage(GalleryPage.PEOPLE) }, Modifier.tourTarget(TourTarget.PEOPLE_BUTTON)) { Icon(NavIcons.People, peopleLabel) }
                     }
                 }
                 val collectionsLabel = S.appShellSectionCollections().resolve()
                 TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(collectionsLabel) } }, state = rememberTooltipState()) {
-                    IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }) { Icon(NavIcons.Collections, collectionsLabel) }
+                    IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }, Modifier.tourTarget(TourTarget.COLLECTIONS_BUTTON)) { Icon(NavIcons.Collections, collectionsLabel) }
                 }
             }
         }
@@ -623,7 +625,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                             val item = st.items[k]
                             PhotoTile(
                                 item, st.thumbKeyOf(item), vm, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
-                                onTap = { vm.open(k) }, onToggle = { vm.toggleSelect(item.path) }, modifier = cell,
+                                onTap = { vm.open(k) }, onToggle = { vm.toggleSelect(item.path) },
+                                // The tour's steps about selecting and opening a photo.
+                                modifier = cell.tourTarget(if (k == 0) TourTarget.FIRST_PHOTO else null),
                             )
                         }
                     }
@@ -1572,7 +1576,7 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
             }
         }
         Box(
-            Modifier.align(Alignment.CenterEnd).width(ScrubberPlacement.GRAB_STRIP.dp).fillMaxHeight().pointerInput(heightPx) {
+            Modifier.align(Alignment.CenterEnd).width(ScrubberPlacement.GRAB_STRIP.dp).fillMaxHeight().tourTarget(TourTarget.SCRUBBER).pointerInput(heightPx) {
                 detectDragGestures(
                     onDragStart = { startY = it.y; engaged = false },
                     onDrag = { change, _ ->

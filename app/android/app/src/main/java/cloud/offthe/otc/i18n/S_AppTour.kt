@@ -6,99 +6,131 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
-/** "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and photo backup.": Text of the tour's page about the Alerts and Settings sections. {alerts} is the Alerts section's name (app.shell.section_alerts) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>). Tags: b. */
-fun S.appTourAlertsText(alerts: String, settings: String): RichText =
-    RichText.Res(R.string.app_tour_alerts_text, listOf(alerts, settings))
+/** "<b>{alerts}</b> counts what's new: likes, comments, friend requests and news from your device. <b>{settings}</b> has your profile, password and language, and <b>{show}</b> to see this again.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the last step. {alerts} and {settings} are the sections' names (app.shell.section_alerts, app.shell.section_settings); Alerts shows the number of new alerts on its tab, and also says when the device needs attention (an update, a disk). {show} is the button in Settings › Getting started that shows this tour again (app.tour.show). All in bold. Tags: b. */
+fun S.appTourAlertsText(alerts: String, settings: String, show: String): RichText =
+    RichText.Res(R.string.app_tour_alerts_text, listOf(alerts, settings, show))
 
-/** "Alerts and Settings": Title of the tour's page about the Alerts and Settings sections: use the same words as their names (app.shell.section_alerts, app.shell.section_settings). */
+/** "Alerts and Settings": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the last step, about the Alerts and Settings sections: use the same words as their names (app.shell.section_alerts, app.shell.section_settings). */
 fun S.appTourAlertsTitle(): UiText =
     UiText.Res(R.string.app_tour_alerts_title)
 
-/** "This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>{settings}</b> › <b>{sync}</b>.": Text of the tour's page about the photo backup. {settings} is the Settings section's name (app.shell.section_settings) and {sync} the heading of its section with the photo sync's options (app.settings.sync.title), both in bold (<b>…</b>); › joins them as a path, Settings first. Tags: b. */
-fun S.appTourBackupText(settings: String, sync: String): RichText =
-    RichText.Res(R.string.app_tour_backup_text, listOf(settings, sync))
+/** "Sunday at the lake": The first-run tour's moving drawings of the app (never a real person or photo): the caption typed for a new post with two photos. */
+fun S.appTourArtCaption(): UiText =
+    UiText.Res(R.string.app_tour_art_caption)
 
-/** "Your phone's photos": Title of the tour's page about this phone copying its own photos and videos to the device (the photo backup). */
+/** "Summer": The first-run tour's moving drawings of the app (never a real person or photo): the name typed for a new collection of photos. */
+fun S.appTourArtCollection(): UiText =
+    UiText.Res(R.string.app_tour_art_collection)
+
+/** "Lovely!": The first-run tour's moving drawings of the app (never a real person or photo): a short comment typed under a friend's photo in Social. */
+fun S.appTourArtComment(): UiText =
+    UiText.Res(R.string.app_tour_art_comment)
+
+/** "Alex": The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of a friend (a face named in People, the author of a post, the friend added in Friends). A short first name common in your language, for anyone, different from app.tour.art.person. */
+fun S.appTourArtFriend(): UiText =
+    UiText.Res(R.string.app_tour_art_friend)
+
+/** "Sam": The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of the person using the app (and of a face in People). A short first name common in your language, for anyone. */
+fun S.appTourArtPerson(): UiText =
+    UiText.Res(R.string.app_tour_art_person)
+
+/** "beach": The first-run tour's moving drawings of the app (never a real person or photo): a thing the device recognises in photos, typed into the drawing of the search and picked as a chip. Not translated: the device's image tagging names things in English, so the real search would find this word in every language. Never translated. */
+fun S.appTourArtThing(): UiText =
+    UiText.Res(R.string.app_tour_art_thing)
+
+/** "This phone copies its photos and videos to your device by itself. Under <b>{sync}</b> you choose what it sends, and <b>{wifi}</b> keeps it off mobile data.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the photo backup, shown over Settings. {sync} is the heading of Settings' section with the backup's options (app.settings.sync.title) and {wifi} its first switch (app.settings.sync.wifi_only): while it is on, nothing is sent over mobile data. Both in bold. Tags: b. */
+fun S.appTourBackupText(sync: String, wifi: String): RichText =
+    RichText.Res(R.string.app_tour_backup_text, listOf(sync, wifi))
+
+/** "Your phone's photos": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about this phone copying its own photos and videos to the device (the photo backup). */
 fun S.appTourBackupTitle(): UiText =
     UiText.Res(R.string.app_tour_backup_title)
 
-/** "Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>{add}</b>.": Text of the tour's Collections page (its title is app.shell.section_collections): collections are our word for named groups of photos - never say album. Images is the photo section (app.shell.section_images). {add} is the selection bar's item that puts the selected photos in a collection (app.shell.add_to_collection), in bold (<b>…</b>). Tags: b. */
-fun S.appTourCollectionsText(add: String): RichText =
-    RichText.Res(R.string.app_tour_collections_text, listOf(add))
+/** "Select photos and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. The button next to the search lists your collections: open one to rename, share or delete it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Collections (never albums) on a phone held upright, where the list of collections opens with a button beside the search field at the top of Images. {add} is the selection bar's button (app.shell.add_to_collection) and {new} the first choice it offers (app.photos.collections.new_item), both in bold. An open collection can be renamed, shared as a gallery (a page anyone with its link can see) or deleted; deleting a collection keeps its photos. Tags: b. */
+fun S.appTourCollectionsText(add: String, new: String): RichText =
+    RichText.Res(R.string.app_tour_collections_text, listOf(add, new))
 
-/** "Your collections open with this button, next to the search in Images.": Under the text of the tour's Collections page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens the collections. */
-fun S.appTourCollectionsWhere(): UiText =
-    UiText.Res(R.string.app_tour_collections_where)
+/** "Select photos in Images and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. Open a collection here to rename it, share it as a gallery or delete it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.collections.text, on a wide screen (a phone on its side, a tablet), where Collections is an item of the menu at the left and is open behind the card. Images is the photo section (app.shell.section_images). Tags: b. */
+fun S.appTourCollectionsTextWide(add: String, new: String): RichText =
+    RichText.Res(R.string.app_tour_collections_text_wide, listOf(add, new))
 
-/** "Your collections are in the menu.": Under the text of the tour's Collections page on a wide screen (a phone on its side, a tablet), where Collections is an item of the left menu. */
-fun S.appTourCollectionsWhereWide(): UiText =
-    UiText.Res(R.string.app_tour_collections_where_wide)
+/** "Make a collection": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about Collections (our word for groups of photos, never albums). */
+fun S.appTourCollectionsTitle(): UiText =
+    UiText.Res(R.string.app_tour_collections_title)
 
-/** "See this tour again any time: tap <b>{show}</b> in <b>{settings}</b>.": Text of the tour's last page. {show} is the button in Settings that shows the tour again (app.tour.show) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>). Tags: b. */
-fun S.appTourDoneText(show: String, settings: String): RichText =
-    RichText.Res(R.string.app_tour_done_text, listOf(show, settings))
+/** "Photos are grouped by month, newest first. Drag your finger down the right edge of the photos to jump to any month: the date shows as you go.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the date scrubber in Images: a thin strip along the right edge of the photos; dragging a finger down it shows the month under the finger in a bubble, and letting go jumps there. */
+fun S.appTourDatesText(): UiText =
+    UiText.Res(R.string.app_tour_dates_text)
 
-/** "You're all set": Title of the tour's last page. */
-fun S.appTourDoneTitle(): UiText =
-    UiText.Res(R.string.app_tour_done_title)
+/** "Jump to a date": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about jumping to a month in Images by dragging along the right edge of the photos. */
+fun S.appTourDatesTitle(): UiText =
+    UiText.Res(R.string.app_tour_dates_title)
 
-/** "Your documents and folders, kept on your device. Tap <b>{upload}</b> at the bottom to add files from this phone, and tap a file to open it.": Text of the tour's Files page (its title is app.shell.section_files). {upload} is the Upload button in the bar at the bottom of Files (common.upload), in bold (<b>…</b>). Tags: b. */
-fun S.appTourFilesText(upload: String): RichText =
-    RichText.Res(R.string.app_tour_files_text, listOf(upload))
+/** "The button beside the folder's path switches between <b>{list}</b>, <b>{grid}</b> and <b>{storage}</b>, which shows what takes up space. Under <b>{sort}</b>, pick an order, and pick it again to reverse it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Files' views and sorting. The button at the right of the field with the open folder's path opens a menu: {list}, {grid} and {storage} are its three views (app.files.view_list, .view_grid, .view_storage; Storage lists what takes the most room in the folder), and {sort} its heading over the orders (app.files.sort_by: name, size, date created, date modified). All in bold. Tags: b. */
+fun S.appTourFilesText(list: String, grid: String, storage: String, sort: String): RichText =
+    RichText.Res(R.string.app_tour_files_text, listOf(list, grid, storage, sort))
 
-/** "A request sent to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.": Second line of the tour's Friends page: answering a friend request. {waiting} is the heading of the Friends screen's section with the requests you received (app.social.friends.waiting_answer) and {accept} the button that accepts one (common.accept), both in bold (<b>…</b>). Tags: b. */
-fun S.appTourFriendsAccept(waiting: String, accept: String): RichText =
-    RichText.Res(R.string.app_tour_friends_accept, listOf(waiting, accept))
+/** "Views and sorting": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the first step about Files: its three views and sorting. */
+fun S.appTourFilesTitle(): UiText =
+    UiText.Res(R.string.app_tour_files_title)
 
-/** "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and tap <b>{send}</b>.": First line of the tour's Friends page (its title is app.shell.section_friends): sending a friend request. {suffix} is the fixed end of every device's address, off-the.cloud, written after the dot. {heading} is the heading of the Friends screen's section for it (app.social.friends.add_heading) and {send} its button (common.send), both in bold (<b>…</b>). Tags: b. */
-fun S.appTourFriendsAdd(suffix: String, heading: String, send: String): RichText =
-    RichText.Res(R.string.app_tour_friends_add, listOf(suffix, heading, send))
+/** "The two-people button at the top opens Friends: share your address there, or type a friend's device name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Friends on a phone held upright, where Friends (app.shell.section_friends) opens with the button showing two people at the top of Social. Its top line is this device's own address, with Copy and Share buttons. {add} is the heading over the field for a friend's device name (app.social.friends.add_heading) and {send} its button (common.send). {waiting} is the heading of the requests waiting for an answer (app.social.friends.waiting_answer) and {accept} their button (common.accept). All in bold. Tags: b. */
+fun S.appTourFriendsText(add: String, send: String, waiting: String, accept: String): RichText =
+    RichText.Res(R.string.app_tour_friends_text, listOf(add, send, waiting, accept))
 
-/** "Friends opens with the two-people button at the top of Social.": Under the lines of the tour's Friends page on a phone held upright: Friends (app.shell.section_friends) opens with the button showing two people at the top of the Social feed (app.shell.section_social). */
-fun S.appTourFriendsWhere(): UiText =
-    UiText.Res(R.string.app_tour_friends_where)
+/** "Share your address so friends can add you, or type their device's name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.friends.text, on a wide screen (a phone on its side, a tablet), where Friends is an item of the menu at the left and is open behind the card. Tags: b. */
+fun S.appTourFriendsTextWide(add: String, send: String, waiting: String, accept: String): RichText =
+    RichText.Res(R.string.app_tour_friends_text_wide, listOf(add, send, waiting, accept))
 
-/** "Friends is in the menu.": Under the lines of the tour's Friends page on a wide screen (a phone on its side, a tablet), where Friends is an item of the left menu. */
-fun S.appTourFriendsWhereWide(): UiText =
-    UiText.Res(R.string.app_tour_friends_where_wide)
+/** "Add friends": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the Friends screen. */
+fun S.appTourFriendsTitle(): UiText =
+    UiText.Res(R.string.app_tour_friends_title)
 
-/** "All your photos and videos, newest first. Search at the top for places and things in your photos.": Text of the tour's page about Images, the library of photos and videos (its title is app.shell.section_images). The search field is at the top of the screen: it finds places (from where the photos were taken) and things seen in them. */
-fun S.appTourImagesText(): UiText =
-    UiText.Res(R.string.app_tour_images_text)
+/** "The button next to the search opens People: tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about People on a phone held upright, where People (app.shell.section_people) opens with a button beside the search field at the top of Images. {name} is the line under a face without a name (app.photos.people.add_name) and {merge} the button that makes several faces one person (app.photos.people.merge), both in bold. A long press selects a face; once one is selected a tap selects another. Tags: b. */
+fun S.appTourPeopleText(name: String, merge: String): RichText =
+    RichText.Res(R.string.app_tour_people_text, listOf(name, merge))
 
-/** "The faces found in your photos, one person each. Tap <b>{name}</b> to name someone, and tap a face to see all their photos.": Text of the tour's People page (its title is app.shell.section_people): the people face recognition found, one face per person. {name} is the tappable line under a face that has no name (app.photos.people.add_name), in bold (<b>…</b>). Tags: b. */
-fun S.appTourPeopleText(name: String): RichText =
-    RichText.Res(R.string.app_tour_people_text, listOf(name))
+/** "Tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.people.text, on a wide screen (a phone on its side, a tablet), where People is an item of the menu at the left and is open behind the card. Tags: b. */
+fun S.appTourPeopleTextWide(name: String, merge: String): RichText =
+    RichText.Res(R.string.app_tour_people_text_wide, listOf(name, merge))
 
-/** "Open People with this button, next to the search in Images.": Under the text of the tour's People page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens People. */
-fun S.appTourPeopleWhere(): UiText =
-    UiText.Res(R.string.app_tour_people_where)
+/** "Faces and names": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about People (shown only while face recognition is on): the faces the device found in the photos. */
+fun S.appTourPeopleTitle(): UiText =
+    UiText.Res(R.string.app_tour_people_title)
 
-/** "People is in the menu.": Under the text of the tour's People page on a wide screen (a phone on its side, a tablet), where People is an item of the left menu. */
-fun S.appTourPeopleWhereWide(): UiText =
-    UiText.Res(R.string.app_tour_people_where_wide)
+/** "Tap <b>+</b>, pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device), write a caption and tap <b>{publish}</b>. It goes from your device to your friends' devices.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about publishing a post. + is the round plus button at the top of Social (on a wide screen, the top bar's + New post); keep the + as it is. {phone} and {synced} are the two halves of the switch at the top of the New Post screen (app.social.compose.source_phone, app.social.compose.source_synced) and {publish} its button (app.social.compose.publish), all in bold. A post needs a caption. Posts travel straight from one device to the others, with no cloud in between. Tags: b. */
+fun S.appTourPostText(phone: String, synced: String, publish: String): RichText =
+    RichText.Res(R.string.app_tour_post_text, listOf(phone, synced, publish))
 
-/** "In Social, tap <b>+</b> at the top.": First numbered step of the tour's page about publishing a post: the plus button at the top of the Social section (app.shell.section_social), in bold (<b>…</b>). Keep the + as it is. Tags: b. */
-fun S.appTourPostStep1(): RichText =
-    RichText.Res(R.string.app_tour_post_step1)
-
-/** "Pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device).": Second numbered step of the tour's page about publishing a post: the switch at the top of the New Post composer. {phone} and {synced} are its two halves (app.social.compose.source_phone, app.social.compose.source_synced), in bold (<b>…</b>). Tags: b. */
-fun S.appTourPostStep2(phone: String, synced: String): RichText =
-    RichText.Res(R.string.app_tour_post_step2, listOf(phone, synced))
-
-/** "Write a caption, then tap <b>{publish}</b>.": Third numbered step of the tour's page about publishing a post: a post needs a caption (the box at the foot of the composer). {publish} is the composer's button (app.social.compose.publish), in bold (<b>…</b>). Tags: b. */
-fun S.appTourPostStep3(publish: String): RichText =
-    RichText.Res(R.string.app_tour_post_step3, listOf(publish))
-
-/** "Publish a post": Title of the tour's page about publishing a post on Social; numbered steps follow (app.tour.post.step1 to step3). */
+/** "Publish a post": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step that shows how to publish a post in Social. */
 fun S.appTourPostTitle(): UiText =
     UiText.Res(R.string.app_tour_post_title)
 
-/** "Step {step} of {total}": At the top of each page of the tour: {step} is the page's number and {total} how many pages the tour has (10 or 11). Also read out by screen readers. */
+/** "Step {step} of {total}": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Line at the top left of the card. {step} is the step shown, {total} how many there are (from 13 to 15: People shows only while face recognition is on, and the step about users only to the device's owner). Also read out by screen readers. */
 fun S.appTourProgress(step: Int, total: Int): UiText =
     UiText.Res(R.string.app_tour_progress, listOf(step, total))
 
-/** "A short tour of the app: your photos, posting to Social, friends and where everything is.": Under the Show the tour button (app.tour.show) in Settings: what the tour covers. Social is the feed section (app.shell.section_social). */
+/** "Type a thing or a place to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the search field at the top of Images, while face recognition is off. It suggests the things and places the device recognised in the photos (a beach, a dog, a city), and the files and folders whose name matches. A thing picked shows as a chip (a small rounded label with an × that removes it). Files is the files section (app.shell.section_files). */
+fun S.appTourSearchText(): UiText =
+    UiText.Res(R.string.app_tour_search_text)
+
+/** "Type a thing, a place or someone's name to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.search.text, while face recognition is on: the search also suggests the people who were given a name in People. */
+fun S.appTourSearchTextFaces(): UiText =
+    UiText.Res(R.string.app_tour_search_text_faces)
+
+/** "Search photos and files": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the search field at the top of Images. */
+fun S.appTourSearchTitle(): UiText =
+    UiText.Res(R.string.app_tour_search_title)
+
+/** "Press and hold a photo, then drag across others to select them too. Then choose <b>{share}</b>, <b>{download}</b>, <b>{add}</b> or <b>{delete}</b> in the bar at the bottom.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about selecting photos in Images: a long press selects a photo, and moving the finger on from it selects the photos it passes over. The bar that then shows at the bottom has these buttons, among others: {share} (common.share), {download} (common.download), {add} (app.shell.add_to_collection) and {delete} (common.delete), in bold. Tags: b. */
+fun S.appTourSelectText(share: String, download: String, add: String, delete: String): RichText =
+    RichText.Res(R.string.app_tour_select_text, listOf(share, download, add, delete))
+
+/** "Select photos": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about selecting photos in Images. */
+fun S.appTourSelectTitle(): UiText =
+    UiText.Res(R.string.app_tour_select_title)
+
+/** "A short tour of how to search, sort and share your photos and files, post to Social and add friends.": Under the Show the tour button (app.tour.show) in Settings: what the tour covers. Social is the feed section (app.shell.section_social). */
 fun S.appTourSettingsFooter(): UiText =
     UiText.Res(R.string.app_tour_settings_footer)
 
@@ -106,22 +138,58 @@ fun S.appTourSettingsFooter(): UiText =
 fun S.appTourSettingsTitle(): UiText =
     UiText.Res(R.string.app_tour_settings_title)
 
-/** "Show the tour": Button in Settings, in the section app.tour.settings.title: shows the app's tour again from its first page. */
+/** "Show the tour": Button in Settings, in the section app.tour.settings.title: shows the app's first-run tour again from its first step. Quoted in app.tour.alerts.text. */
 fun S.appTourShow(): UiText =
     UiText.Res(R.string.app_tour_show)
 
-/** "Skip": Button at the top of every page of the tour: closes it. The tour can be shown again from Settings. */
+/** "Skip": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Button at the top right of the card that ends the tour at once (it can be shown again from Settings). */
 fun S.appTourSkip(): UiText =
     UiText.Res(R.string.app_tour_skip)
 
-/** "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them.": Text of the tour's Social page (its title is app.shell.section_social): the feed of posts shared with friends. The heart is the like button under each post; the comment box is under it too. */
+/** "Your posts and your friends' show here, newest first. Tap the heart to like one, write under it to comment, and tap the number of likes to see who liked it.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the Social feed: the posts of the user and of their friends. The heart under a post likes it; the field under it adds a comment; the line with the number of likes opens the list of who liked it. */
 fun S.appTourSocialText(): UiText =
     UiText.Res(R.string.app_tour_social_text)
 
-/** "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own.": Text of the tour's first page: what Off The Cloud is. The device is the small computer at home that keeps everything. */
+/** "Like and comment": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the Social feed. */
+fun S.appTourSocialTitle(): UiText =
+    UiText.Res(R.string.app_tour_social_title)
+
+/** "<b>{upload}</b> adds files from this phone to the open folder; select some with their circles to <b>{share}</b> a link or <b>{download}</b> them. The lock beside a folder makes it upload only: nothing in it can be deleted and old versions are kept.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about uploading and sharing in Files. {upload}, {share} and {download} are buttons of the bar at the bottom of Files (common.upload, common.share, common.download), in bold: Upload picks files on this phone, Share sends a link to download the selected files, Download downloads them. Every file has a circle that selects it. The lock beside a folder makes it upload only: nothing in it can be deleted, and a file uploaded again under the same name keeps the one before as an older version. Tags: b. */
+fun S.appTourUploadText(upload: String, share: String, download: String): RichText =
+    RichText.Res(R.string.app_tour_upload_text, listOf(upload, share, download))
+
+/** "Upload and share": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the second step about Files: uploading, sharing and upload-only folders. */
+fun S.appTourUploadTitle(): UiText =
+    UiText.Res(R.string.app_tour_upload_title)
+
+/** "Keep <b>{bridge}</b> on to give them their own address.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Second sentence of the step about adding users (after app.tour.users.text), as the web's web.tour.users.bridge. {bridge} is the switch under the name field in Settings › Users (app.settings.users.request_bridge), in bold; it is on from the start. On, the new user gets an address of their own on the bridge, for using the device from anywhere and for friends. Tags: b. */
+fun S.appTourUsersBridge(bridge: String): RichText =
+    RichText.Res(R.string.app_tour_users_bridge, listOf(bridge))
+
+/** "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, tap <b>{add}</b> and set their first password.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Settings › Users, shown only to the device's owner, as the web's web.tour.users.text: each user is a separate account on the same device, with photos, files, posts and friends of their own. {settings} is the Settings section's name (app.shell.section_settings) and {users} the heading of its section (app.settings.users.title), in bold with the › between them (keep it); {add} is the button beside the field for the new user's name (common.add), in bold. The username takes lower-case letters, digits and hyphens; Add then asks for the new user's first password, which the owner gives them to sign in with. app.tour.users.bridge follows it. Tags: b. */
+fun S.appTourUsersText(settings: String, users: String, add: String): RichText =
+    RichText.Res(R.string.app_tour_users_text, listOf(settings, users, add))
+
+/** "Add users": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about Settings › Users, shown only to the device's owner (the first account, who alone can add others): each person at home can have a user of their own on the same device. */
+fun S.appTourUsersTitle(): UiText =
+    UiText.Res(R.string.app_tour_users_title)
+
+/** "Tap a photo to open it, then swipe to go through them. The <b>{info}</b> button (ⓘ) shows when and where it was taken, the camera and a map.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the full-screen viewer: a swipe goes to the next or previous photo. {info} is the name of the viewer's round i button at the top (app.photos.viewer.more_info), in bold; it shows the date taken, the place, the camera and, for photos with a location, a map. Keep the ⓘ. Tags: b. */
+fun S.appTourViewerText(info: String): RichText =
+    RichText.Res(R.string.app_tour_viewer_text, listOf(info))
+
+/** "Open a photo": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the full-screen photo viewer. */
+fun S.appTourViewerTitle(): UiText =
+    UiText.Res(R.string.app_tour_viewer_title)
+
+/** "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the bar at the bottom.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the first step on a phone held upright, where the sections are the tabs of the bar at the bottom of the screen (Alerts, Social, Files, Images, Settings); its drawing goes through them. The device is the Off The Cloud box at home that keeps everything. */
 fun S.appTourWelcomeText(): UiText =
     UiText.Res(R.string.app_tour_welcome_text)
 
-/** "Welcome to Off The Cloud": Title of the tour's first page. The tour is shown once after signing in to a device, and again from Settings. */
+/** "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the menu on the left.": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.welcome.text, on a wide screen (a phone on its side, a tablet), where the sections are the items of the menu at the left of the screen. */
+fun S.appTourWelcomeTextWide(): UiText =
+    UiText.Res(R.string.app_tour_welcome_text_wide)
+
+/** "Welcome to Off The Cloud": The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the first step. */
 fun S.appTourWelcomeTitle(): UiText =
     UiText.Res(R.string.app_tour_welcome_title)

@@ -35,6 +35,9 @@ class MainActivity : AppCompatActivity() {
         // and over the welcome screen (UX 1): RootView asks once, after the
         // first sign-in, saying what they bring (NotificationsAsk.kt).
         if (savedInstanceState == null) openFromPush(intent)
+        // The tour's UI checks of an empty library (a debuggable build only:
+        // Tour.kt's tourNoTargets ignores it otherwise).
+        cloud.offthe.otc.ui.tourNoTargets = intent.getBooleanExtra("otc_tour_no_targets", false) // i18n-ignore: a debug switch's name
         setContent {
             OTCTheme {
                 RootView()

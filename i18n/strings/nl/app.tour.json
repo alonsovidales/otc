@@ -1,87 +1,95 @@
 {
   "app.tour.alerts.text": {
-    "text": "<b>{alerts}</b> houdt je op de hoogte van likes, reacties, vriendschapsverzoeken en je apparaat. In <b>{settings}</b> wijzig je je profiel, je wachtwoord en de reservekopie van je foto’s.",
-    "en": "<b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and photo backup."
+    "text": "<b>{alerts}</b> telt wat er nieuw is: likes, reacties, vriendschapsverzoeken en nieuws van je apparaat. <b>{settings}</b> bevat je profiel, wachtwoord en taal, en <b>{show}</b> om dit opnieuw te zien.",
+    "en": "<b>{alerts}</b> counts what's new: likes, comments, friend requests and news from your device. <b>{settings}</b> has your profile, password and language, and <b>{show}</b> to see this again."
   },
   "app.tour.alerts.title": {
     "text": "Meldingen en Instellingen",
     "en": "Alerts and Settings"
   },
+  "app.tour.art.caption": {
+    "text": "Zondag aan het meer",
+    "en": "Sunday at the lake"
+  },
+  "app.tour.art.collection": {
+    "text": "Zomer",
+    "en": "Summer"
+  },
+  "app.tour.art.comment": {
+    "text": "Prachtig!",
+    "en": "Lovely!"
+  },
+  "app.tour.art.friend": {
+    "text": "Daan",
+    "en": "Alex"
+  },
+  "app.tour.art.person": {
+    "text": "Emma",
+    "en": "Sam"
+  },
   "app.tour.backup.text": {
-    "text": "Deze telefoon kan zijn foto’s en video’s vanzelf naar je apparaat kopiëren. Kies wat hij stuurt in <b>{settings}</b> › <b>{sync}</b>.",
-    "en": "This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>{settings}</b> › <b>{sync}</b>."
+    "text": "Deze telefoon kopieert zijn foto’s en video’s vanzelf naar je apparaat. Onder <b>{sync}</b> kies je wat hij stuurt, en <b>{wifi}</b> houdt hem van mobiele data af.",
+    "en": "This phone copies its photos and videos to your device by itself. Under <b>{sync}</b> you choose what it sends, and <b>{wifi}</b> keeps it off mobile data."
   },
   "app.tour.backup.title": {
     "text": "De foto’s van je telefoon",
     "en": "Your phone's photos"
   },
   "app.tour.collections.text": {
-    "text": "Bewaar foto’s die bij elkaar horen op één plek, zoals van een reis of een verjaardag. Houd foto’s in Afbeeldingen ingedrukt om ze te selecteren en tik dan op <b>{add}</b>.",
-    "en": "Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>{add}</b>."
+    "text": "Selecteer foto’s en kies <b>{add}</b> en dan <b>{new}</b> om ze bij elkaar te houden, zoals die van een reis. De knop naast de zoekbalk toont je collecties: open er een om de naam te wijzigen, hem te delen of te verwijderen.",
+    "en": "Select photos and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. The button next to the search lists your collections: open one to rename, share or delete it."
   },
-  "app.tour.collections.where": {
-    "text": "Je collecties open je met deze knop, naast de zoekbalk in Afbeeldingen.",
-    "en": "Your collections open with this button, next to the search in Images."
+  "app.tour.collections.text_wide": {
+    "text": "Selecteer foto’s in Afbeeldingen en kies <b>{add}</b> en dan <b>{new}</b> om ze bij elkaar te houden, zoals die van een reis. Open hier een collectie om de naam te wijzigen, hem als galerij te delen of te verwijderen.",
+    "en": "Select photos in Images and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. Open a collection here to rename it, share it as a gallery or delete it."
   },
-  "app.tour.collections.where_wide": {
-    "text": "Je collecties staan in het menu.",
-    "en": "Your collections are in the menu."
+  "app.tour.collections.title": {
+    "text": "Een collectie maken",
+    "en": "Make a collection"
   },
-  "app.tour.done.text": {
-    "text": "Bekijk deze rondleiding opnieuw wanneer je wilt: tik op <b>{show}</b> in <b>{settings}</b>.",
-    "en": "See this tour again any time: tap <b>{show}</b> in <b>{settings}</b>."
+  "app.tour.dates.text": {
+    "text": "Foto’s zijn per maand gegroepeerd, de nieuwste eerst. Sleep je vinger langs de rechterrand van de foto’s omlaag om naar elke gewenste maand te springen: de datum verschijnt terwijl je sleept.",
+    "en": "Photos are grouped by month, newest first. Drag your finger down the right edge of the photos to jump to any month: the date shows as you go."
   },
-  "app.tour.done.title": {
-    "text": "Alles staat klaar",
-    "en": "You're all set"
+  "app.tour.dates.title": {
+    "text": "Naar een datum springen",
+    "en": "Jump to a date"
   },
   "app.tour.files.text": {
-    "text": "Je documenten en mappen, bewaard op je apparaat. Tik onderaan op <b>{upload}</b> om bestanden van deze telefoon toe te voegen en tik op een bestand om het te openen.",
-    "en": "Your documents and folders, kept on your device. Tap <b>{upload}</b> at the bottom to add files from this phone, and tap a file to open it."
+    "text": "De knop naast het pad van de map wisselt tussen <b>{list}</b>, <b>{grid}</b> en <b>{storage}</b>, die laat zien wat ruimte inneemt. Kies onder <b>{sort}</b> een volgorde, en kies die nog eens om hem om te keren.",
+    "en": "The button beside the folder's path switches between <b>{list}</b>, <b>{grid}</b> and <b>{storage}</b>, which shows what takes up space. Under <b>{sort}</b>, pick an order, and pick it again to reverse it."
   },
-  "app.tour.friends.accept": {
-    "text": "Een verzoek aan jou wacht onder <b>{waiting}</b>: tik op <b>{accept}</b>.",
-    "en": "A request sent to you waits under <b>{waiting}</b>: tap <b>{accept}</b>."
+  "app.tour.files.title": {
+    "text": "Weergaven en sorteren",
+    "en": "Views and sorting"
   },
-  "app.tour.friends.add": {
-    "text": "Om vrienden toe te voegen, typ je de naam van hun apparaat, het deel vóór .{suffix}, onder <b>{heading}</b> en tik je op <b>{send}</b>.",
-    "en": "To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and tap <b>{send}</b>."
+  "app.tour.friends.text": {
+    "text": "De knop met twee personen bovenaan opent Vrienden: deel daar je adres, of typ de apparaatnaam van een vriend onder <b>{add}</b> en tik op <b>{send}</b>. Verzoeken aan jou wachten onder <b>{waiting}</b>: tik op <b>{accept}</b>.",
+    "en": "The two-people button at the top opens Friends: share your address there, or type a friend's device name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>."
   },
-  "app.tour.friends.where": {
-    "text": "Vrienden open je met de knop met twee personen bovenaan in Social.",
-    "en": "Friends opens with the two-people button at the top of Social."
+  "app.tour.friends.text_wide": {
+    "text": "Deel je adres zodat vrienden je kunnen toevoegen, of typ de naam van hun apparaat onder <b>{add}</b> en tik op <b>{send}</b>. Verzoeken aan jou wachten onder <b>{waiting}</b>: tik op <b>{accept}</b>.",
+    "en": "Share your address so friends can add you, or type their device's name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>."
   },
-  "app.tour.friends.where_wide": {
-    "text": "Vrienden staat in het menu.",
-    "en": "Friends is in the menu."
-  },
-  "app.tour.images.text": {
-    "text": "Al je foto’s en video’s, de nieuwste eerst. Zoek bovenaan naar plaatsen en dingen op je foto’s.",
-    "en": "All your photos and videos, newest first. Search at the top for places and things in your photos."
+  "app.tour.friends.title": {
+    "text": "Vrienden toevoegen",
+    "en": "Add friends"
   },
   "app.tour.people.text": {
-    "text": "De gezichten op je foto’s, één per persoon. Tik op <b>{name}</b> om iemand een naam te geven, en tik op een gezicht om alle foto’s van die persoon te zien.",
-    "en": "The faces found in your photos, one person each. Tap <b>{name}</b> to name someone, and tap a face to see all their photos."
+    "text": "De knop naast de zoekbalk opent Personen: tik op een gezicht om alle foto’s van die persoon te zien, of op <b>{name}</b> onder een gezicht zonder naam. Twee gezichten van dezelfde persoon? Houd er een ingedrukt, tik op het andere en kies <b>{merge}</b>.",
+    "en": "The button next to the search opens People: tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>."
   },
-  "app.tour.people.where": {
-    "text": "Open Personen met deze knop, naast de zoekbalk in Afbeeldingen.",
-    "en": "Open People with this button, next to the search in Images."
+  "app.tour.people.text_wide": {
+    "text": "Tik op een gezicht om alle foto’s van die persoon te zien, of op <b>{name}</b> onder een gezicht zonder naam. Twee gezichten van dezelfde persoon? Houd er een ingedrukt, tik op het andere en kies <b>{merge}</b>.",
+    "en": "Tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>."
   },
-  "app.tour.people.where_wide": {
-    "text": "Personen staat in het menu.",
-    "en": "People is in the menu."
+  "app.tour.people.title": {
+    "text": "Gezichten en namen",
+    "en": "Faces and names"
   },
-  "app.tour.post.step1": {
-    "text": "Tik in Social bovenaan op <b>+</b>.",
-    "en": "In Social, tap <b>+</b> at the top."
-  },
-  "app.tour.post.step2": {
-    "text": "Kies foto’s of video’s uit <b>{phone}</b> (deze telefoon) of <b>{synced}</b> (al op je apparaat).",
-    "en": "Pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device)."
-  },
-  "app.tour.post.step3": {
-    "text": "Schrijf een bijschrift en tik dan op <b>{publish}</b>.",
-    "en": "Write a caption, then tap <b>{publish}</b>."
+  "app.tour.post.text": {
+    "text": "Tik op <b>+</b>, kies foto’s of video’s uit <b>{phone}</b> (deze telefoon) of <b>{synced}</b> (al op je apparaat), schrijf een bijschrift en tik op <b>{publish}</b>. Het bericht gaat van jouw apparaat naar de apparaten van je vrienden.",
+    "en": "Tap <b>+</b>, pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device), write a caption and tap <b>{publish}</b>. It goes from your device to your friends' devices."
   },
   "app.tour.post.title": {
     "text": "Een bericht plaatsen",
@@ -91,9 +99,29 @@
     "text": "Stap {step} van {total}",
     "en": "Step {step} of {total}"
   },
+  "app.tour.search.text": {
+    "text": "Typ een ding of een plaats om foto’s te vinden, of een deel van een bestandsnaam om het bestand in Bestanden te vinden. Elke keuze voor foto’s verschijnt met een ×; tik erop om hem weg te halen.",
+    "en": "Type a thing or a place to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it."
+  },
+  "app.tour.search.text_faces": {
+    "text": "Typ een ding, een plaats of iemands naam om foto’s te vinden, of een deel van een bestandsnaam om het bestand in Bestanden te vinden. Elke keuze voor foto’s verschijnt met een ×; tik erop om hem weg te halen.",
+    "en": "Type a thing, a place or someone's name to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it."
+  },
+  "app.tour.search.title": {
+    "text": "Foto’s en bestanden zoeken",
+    "en": "Search photos and files"
+  },
+  "app.tour.select.text": {
+    "text": "Houd een foto ingedrukt en sleep over andere om die ook te selecteren. Kies daarna <b>{share}</b>, <b>{download}</b>, <b>{add}</b> of <b>{delete}</b> in de balk onderaan.",
+    "en": "Press and hold a photo, then drag across others to select them too. Then choose <b>{share}</b>, <b>{download}</b>, <b>{add}</b> or <b>{delete}</b> in the bar at the bottom."
+  },
+  "app.tour.select.title": {
+    "text": "Foto’s selecteren",
+    "en": "Select photos"
+  },
   "app.tour.settings.footer": {
-    "text": "Een korte rondleiding door de app: je foto’s, berichten plaatsen in Social, vrienden en waar je alles vindt.",
-    "en": "A short tour of the app: your photos, posting to Social, friends and where everything is."
+    "text": "Een korte rondleiding: zoeken, sorteren en delen van je foto’s en bestanden, plaatsen in Social en vrienden toevoegen.",
+    "en": "A short tour of how to search, sort and share your photos and files, post to Social and add friends."
   },
   "app.tour.settings.title": {
     "text": "Aan de slag",
@@ -108,12 +136,48 @@
     "en": "Skip"
   },
   "app.tour.social.text": {
-    "text": "Je privéfeed met familie en vrienden: geef berichten een hartje en reageer erop. Je berichten gaan van jouw apparaat naar de apparaten van je vrienden, en alleen je vrienden zien ze.",
-    "en": "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them."
+    "text": "Hier staan je berichten en die van je vrienden, de nieuwste eerst. Tik op het hartje om een bericht te liken, schrijf eronder om te reageren en tik op het aantal likes om te zien wie het leuk vindt.",
+    "en": "Your posts and your friends' show here, newest first. Tap the heart to like one, write under it to comment, and tap the number of likes to see who liked it."
+  },
+  "app.tour.social.title": {
+    "text": "Liken en reageren",
+    "en": "Like and comment"
+  },
+  "app.tour.upload.text": {
+    "text": "<b>{upload}</b> voegt bestanden van deze telefoon toe aan de open map; selecteer er een paar met hun rondje en kies <b>{share}</b> om een link te sturen, of <b>{download}</b>. Het slotje naast een map zet hem op alleen uploaden: er kan niets uit worden verwijderd en oude versies blijven bewaard.",
+    "en": "<b>{upload}</b> adds files from this phone to the open folder; select some with their circles to <b>{share}</b> a link or <b>{download}</b> them. The lock beside a folder makes it upload only: nothing in it can be deleted and old versions are kept."
+  },
+  "app.tour.upload.title": {
+    "text": "Uploaden en delen",
+    "en": "Upload and share"
+  },
+  "app.tour.users.bridge": {
+    "text": "Laat <b>{bridge}</b> aan staan om ze een eigen adres te geven.",
+    "en": "Keep <b>{bridge}</b> on to give them their own address."
+  },
+  "app.tour.users.text": {
+    "text": "Geef iedereen een eigen Off The Cloud op hetzelfde apparaat: eigen foto’s, bestanden en een privéfeed, los van de jouwe. Typ in <b>{settings} › {users}</b> een gebruikersnaam, tik op <b>{add}</b> en stel een eerste wachtwoord in.",
+    "en": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, tap <b>{add}</b> and set their first password."
+  },
+  "app.tour.users.title": {
+    "text": "Gebruikers toevoegen",
+    "en": "Add users"
+  },
+  "app.tour.viewer.text": {
+    "text": "Tik op een foto om hem te openen en veeg om door de foto’s te bladeren. De knop <b>{info}</b> (ⓘ) toont wanneer en waar hij is gemaakt, de camera en een kaart.",
+    "en": "Tap a photo to open it, then swipe to go through them. The <b>{info}</b> button (ⓘ) shows when and where it was taken, the camera and a map."
+  },
+  "app.tour.viewer.title": {
+    "text": "Een foto openen",
+    "en": "Open a photo"
   },
   "app.tour.welcome.text": {
-    "text": "Je foto’s en bestanden staan op je eigen apparaat, bij je thuis. Deel ze met familie en vrienden in een privénetwerk dat helemaal van jou is.",
-    "en": "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own."
+    "text": "In een minuut zie je hoe je vindt, sorteert en deelt wat er op je apparaat staat. Alle onderdelen van de app staan in de balk onderaan.",
+    "en": "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the bar at the bottom."
+  },
+  "app.tour.welcome.text_wide": {
+    "text": "In een minuut zie je hoe je vindt, sorteert en deelt wat er op je apparaat staat. Alle onderdelen van de app staan in het menu links.",
+    "en": "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the menu on the left."
   },
   "app.tour.welcome.title": {
     "text": "Welkom bij Off The Cloud",

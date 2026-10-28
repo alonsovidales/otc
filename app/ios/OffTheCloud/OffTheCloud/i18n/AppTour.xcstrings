@@ -7,43 +7,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> informiert dich über Likes, Kommentare, Freundschaftsanfragen und dein Gerät. In <b>%2$@</b> änderst du dein Profil, dein Passwort und das Backup deiner Fotos."
+            "value" : "<b>%1$@</b> zählt, was neu ist: Likes, Kommentare, Freundschaftsanfragen und Neues von deinem Gerät. <b>%2$@</b> enthält dein Profil, dein Passwort und die Sprache sowie <b>%3$@</b>, um dies erneut zu sehen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> tells you about likes, comments, friend requests and your device. In <b>%2$@</b> you change your profile, password and photo backup."
+            "value" : "<b>%1$@</b> counts what's new: likes, comments, friend requests and news from your device. <b>%2$@</b> has your profile, password and language, and <b>%3$@</b> to see this again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> te avisa de los Me gusta, los comentarios, las solicitudes de amistad y lo que pasa en tu dispositivo. En <b>%2$@</b> cambias tu perfil, tu contraseña y la copia de seguridad de las fotos."
+            "value" : "<b>%1$@</b> cuenta lo nuevo: Me gusta, comentarios, solicitudes de amistad y avisos de tu dispositivo. <b>%2$@</b> tiene tu perfil, tu contraseña y el idioma, y <b>%3$@</b> para volver a ver esto."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> vous informe des J’aime, des commentaires, des demandes d’ami et de ce qui se passe sur votre appareil. Dans <b>%2$@</b>, vous modifiez votre profil, votre mot de passe et la sauvegarde des photos."
+            "value" : "<b>%1$@</b> compte les nouveautés : « J’aime », commentaires, demandes d’ami et nouvelles de votre appareil. <b>%2$@</b> contient votre profil, votre mot de passe et la langue, et <b>%3$@</b> pour revoir ceci."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> ti informa su Mi piace, commenti, richieste di amicizia e sul tuo dispositivo. In <b>%2$@</b> cambi il profilo, la password e il backup delle foto."
+            "value" : "<b>%1$@</b> conta le novità: Mi piace, commenti, richieste di amicizia e notizie dal tuo dispositivo. <b>%2$@</b> ha il tuo profilo, la password e la lingua, e <b>%3$@</b> per rivedere tutto questo."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> houdt je op de hoogte van likes, reacties, vriendschapsverzoeken en je apparaat. In <b>%2$@</b> wijzig je je profiel, je wachtwoord en de reservekopie van je foto’s."
+            "value" : "<b>%1$@</b> telt wat er nieuw is: likes, reacties, vriendschapsverzoeken en nieuws van je apparaat. <b>%2$@</b> bevat je profiel, wachtwoord en taal, en <b>%3$@</b> om dit opnieuw te zien."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "<b>%1$@</b> informa-te sobre gostos, comentários, pedidos de amizade e o teu dispositivo. Em <b>%2$@</b> alteras o teu perfil, a palavra-passe e a cópia de segurança das fotos."
+            "value" : "<b>%1$@</b> conta o que há de novo: gostos, comentários, pedidos de amizade e notícias do teu dispositivo. <b>%2$@</b> tem o teu perfil, a palavra-passe e o idioma, e <b>%3$@</b> para voltares a ver isto."
           }
         }
       }
@@ -95,49 +95,331 @@
         }
       }
     },
+    "app.tour.art.caption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonntag am See"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunday at the lake"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domingo en el lago"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dimanche au lac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domenica al lago"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zondag aan het meer"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domingo no lago"
+          }
+        }
+      }
+    },
+    "app.tour.art.collection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verano"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Été"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estate"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zomer"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verão"
+          }
+        }
+      }
+    },
+    "app.tour.art.comment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wunderschön!"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lovely!"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¡Qué bonito!"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Magnifique !"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Che bella!"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prachtig!"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que bonito!"
+          }
+        }
+      }
+    },
+    "app.tour.art.friend" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jonas"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alex"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pablo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hugo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marco"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiago"
+          }
+        }
+      }
+    },
+    "app.tour.art.person" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lena"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sam"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lucía"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Léa"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giulia"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emma"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inês"
+          }
+        }
+      }
+    },
+    "app.tour.art.thing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beach"
+          }
+        }
+      }
+    },
     "app.tour.backup.text" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Handy kann seine Fotos und Videos von selbst auf dein Gerät kopieren. Was es sendet, wählst du unter <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Dieses Handy kopiert seine Fotos und Videos von selbst auf dein Gerät. Unter <b>%1$@</b> wählst du, was es sendet, und <b>%2$@</b> hält es von mobilen Daten fern."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "This phone copies its photos and videos to your device by itself. Under <b>%1$@</b> you choose what it sends, and <b>%2$@</b> keeps it off mobile data."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Este teléfono puede copiar sus fotos y vídeos en tu dispositivo por sí solo. Elige qué envía en <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Este teléfono copia sus fotos y vídeos en tu dispositivo por sí solo. En <b>%1$@</b> eliges qué envía, y <b>%2$@</b> evita que use los datos móviles."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ce téléphone peut copier tout seul ses photos et vidéos sur votre appareil. Choisissez ce qu’il envoie dans <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Ce téléphone copie tout seul ses photos et vidéos sur votre appareil. Sous <b>%1$@</b>, vous choisissez ce qu’il envoie, et <b>%2$@</b> l’empêche d’utiliser les données mobiles."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questo telefono può copiare da solo le sue foto e i suoi video sul tuo dispositivo. Scegli cosa invia in <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Questo telefono copia da solo foto e video sul tuo dispositivo. In <b>%1$@</b> scegli cosa invia, e <b>%2$@</b> evita che usi i dati mobili."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deze telefoon kan zijn foto’s en video’s vanzelf naar je apparaat kopiëren. Kies wat hij stuurt in <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Deze telefoon kopieert zijn foto’s en video’s vanzelf naar je apparaat. Onder <b>%1$@</b> kies je wat hij stuurt, en <b>%2$@</b> houdt hem van mobiele data af."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Este telemóvel pode copiar sozinho as suas fotos e vídeos para o teu dispositivo. Escolhe o que envia em <b>%1$@</b> › <b>%2$@</b>."
+            "value" : "Este telemóvel copia sozinho as suas fotos e vídeos para o teu dispositivo. Em <b>%1$@</b> escolhes o que envia, e <b>%2$@</b> evita que use dados móveis."
           }
         }
       }
@@ -195,231 +477,231 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewahre Fotos, die zusammengehören, an einem Ort auf, etwa von einer Reise oder einem Geburtstag. Halte in „Bilder“ Fotos gedrückt, um sie auszuwählen, und tippe dann auf <b>%1$@</b>."
+            "value" : "Wähle Fotos aus und tippe auf <b>%1$@</b> und dann auf <b>%2$@</b>, um sie zusammenzuhalten, etwa die einer Reise. Die Schaltfläche neben der Suche zeigt deine Sammlungen: Öffne eine, um sie umzubenennen, zu teilen oder zu löschen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>%1$@</b>."
+            "value" : "Select photos and choose <b>%1$@</b>, then <b>%2$@</b>, to keep them together, like a trip. The button next to the search lists your collections: open one to rename, share or delete it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reúne en un solo sitio las fotos que van juntas, como las de un viaje o un cumpleaños. Mantén pulsadas fotos en Imágenes para seleccionarlas y luego toca <b>%1$@</b>."
+            "value" : "Selecciona fotos y elige <b>%1$@</b> y luego <b>%2$@</b> para tenerlas juntas, como las de un viaje. El botón junto a la búsqueda muestra tus colecciones: abre una para cambiarle el nombre, compartirla o eliminarla."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rassemblez au même endroit les photos qui vont ensemble, comme celles d’un voyage ou d’un anniversaire. Dans Images, sélectionnez des photos par un appui long, puis touchez <b>%1$@</b>."
+            "value" : "Sélectionnez des photos et choisissez <b>%1$@</b>, puis <b>%2$@</b>, pour les garder ensemble, comme celles d’un voyage. Le bouton à côté de la recherche affiche vos collections : ouvrez-en une pour la renommer, la partager ou la supprimer."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Riunisci in un unico posto le foto che vanno insieme, come quelle di un viaggio o di un compleanno. Tieni premute delle foto in Immagini per selezionarle, poi tocca <b>%1$@</b>."
+            "value" : "Seleziona le foto e scegli <b>%1$@</b>, poi <b>%2$@</b>, per tenerle insieme, come quelle di un viaggio. Il pulsante accanto alla ricerca mostra le tue raccolte: aprine una per rinominarla, condividerla o eliminarla."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewaar foto’s die bij elkaar horen op één plek, zoals van een reis of een verjaardag. Houd foto’s in Afbeeldingen ingedrukt om ze te selecteren en tik dan op <b>%1$@</b>."
+            "value" : "Selecteer foto’s en kies <b>%1$@</b> en dan <b>%2$@</b> om ze bij elkaar te houden, zoals die van een reis. De knop naast de zoekbalk toont je collecties: open er een om de naam te wijzigen, hem te delen of te verwijderen."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Junta num só lugar as fotos que vão juntas, como as de uma viagem ou de um aniversário. Em Imagens, mantém premidas as fotos para as selecionares e toca em <b>%1$@</b>."
+            "value" : "Seleciona fotos e escolhe <b>%1$@</b> e depois <b>%2$@</b> para as manter juntas, como as de uma viagem. O botão junto à pesquisa mostra as tuas coleções: abre uma para lhe mudar o nome, partilhá-la ou eliminá-la."
           }
         }
       }
     },
-    "app.tour.collections.where" : {
+    "app.tour.collections.text_wide" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Sammlungen öffnest du mit dieser Taste neben der Suche in „Bilder“."
+            "value" : "Wähle in „Bilder“ Fotos aus und tippe auf <b>%1$@</b> und dann auf <b>%2$@</b>, um sie zusammenzuhalten, etwa die einer Reise. Öffne hier eine Sammlung, um sie umzubenennen, als Galerie zu teilen oder zu löschen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your collections open with this button, next to the search in Images."
+            "value" : "Select photos in Images and choose <b>%1$@</b>, then <b>%2$@</b>, to keep them together, like a trip. Open a collection here to rename it, share it as a gallery or delete it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus colecciones se abren con este botón, junto a la búsqueda de Imágenes."
+            "value" : "Selecciona fotos en Imágenes y elige <b>%1$@</b> y luego <b>%2$@</b> para tenerlas juntas, como las de un viaje. Abre aquí una colección para cambiarle el nombre, compartirla como galería o eliminarla."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos collections s’ouvrent avec ce bouton, à côté de la recherche dans Images."
+            "value" : "Sélectionnez des photos dans Images et choisissez <b>%1$@</b>, puis <b>%2$@</b>, pour les garder ensemble, comme celles d’un voyage. Ouvrez une collection ici pour la renommer, la partager en galerie ou la supprimer."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le tue raccolte si aprono con questo pulsante, accanto alla ricerca in Immagini."
+            "value" : "Seleziona le foto in Immagini e scegli <b>%1$@</b>, poi <b>%2$@</b>, per tenerle insieme, come quelle di un viaggio. Apri qui una raccolta per rinominarla, condividerla come galleria o eliminarla."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je collecties open je met deze knop, naast de zoekbalk in Afbeeldingen."
+            "value" : "Selecteer foto’s in Afbeeldingen en kies <b>%1$@</b> en dan <b>%2$@</b> om ze bij elkaar te houden, zoals die van een reis. Open hier een collectie om de naam te wijzigen, hem als galerij te delen of te verwijderen."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As tuas coleções abrem-se com este botão, ao lado da pesquisa em Imagens."
+            "value" : "Seleciona fotos em Imagens e escolhe <b>%1$@</b> e depois <b>%2$@</b> para as manter juntas, como as de uma viagem. Abre aqui uma coleção para lhe mudar o nome, partilhá-la como galeria ou eliminá-la."
           }
         }
       }
     },
-    "app.tour.collections.where_wide" : {
+    "app.tour.collections.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Sammlungen findest du im Menü."
+            "value" : "Eine Sammlung anlegen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your collections are in the menu."
+            "value" : "Make a collection"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus colecciones están en el menú."
+            "value" : "Crea una colección"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos collections se trouvent dans le menu."
+            "value" : "Créer une collection"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le tue raccolte si trovano nel menu."
+            "value" : "Crea una raccolta"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je collecties staan in het menu."
+            "value" : "Een collectie maken"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As tuas coleções estão no menu."
+            "value" : "Criar uma coleção"
           }
         }
       }
     },
-    "app.tour.done.text" : {
+    "app.tour.dates.text" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Du kannst diesen Rundgang jederzeit wieder ansehen: Tippe in <b>%2$@</b> auf <b>%1$@</b>."
+            "value" : "Fotos sind nach Monaten gruppiert, die neuesten zuerst. Ziehe den Finger am rechten Rand der Fotos nach unten, um zu einem beliebigen Monat zu springen: Das Datum wird dabei angezeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "See this tour again any time: tap <b>%1$@</b> in <b>%2$@</b>."
+            "value" : "Photos are grouped by month, newest first. Drag your finger down the right edge of the photos to jump to any month: the date shows as you go."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vuelve a ver este recorrido cuando quieras: toca <b>%1$@</b> en <b>%2$@</b>."
+            "value" : "Las fotos se agrupan por meses, de la más reciente a la más antigua. Desliza el dedo hacia abajo por el borde derecho de las fotos para saltar a cualquier mes: la fecha aparece mientras lo haces."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Revoyez cette visite quand vous le souhaitez : touchez <b>%1$@</b> dans <b>%2$@</b>."
+            "value" : "Les photos sont regroupées par mois, des plus récentes aux plus anciennes. Faites glisser le doigt vers le bas le long du bord droit des photos pour aller à n’importe quel mois : la date s’affiche au fur et à mesure."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puoi rivedere questo tour quando vuoi: tocca <b>%1$@</b> in <b>%2$@</b>."
+            "value" : "Le foto sono raggruppate per mese, dalle più recenti. Trascina il dito verso il basso lungo il bordo destro delle foto per andare a qualsiasi mese: la data compare mentre scorri."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bekijk deze rondleiding opnieuw wanneer je wilt: tik op <b>%1$@</b> in <b>%2$@</b>."
+            "value" : "Foto’s zijn per maand gegroepeerd, de nieuwste eerst. Sleep je vinger langs de rechterrand van de foto’s omlaag om naar elke gewenste maand te springen: de datum verschijnt terwijl je sleept."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Volta a ver esta visita guiada quando quiseres: toca em <b>%1$@</b> em <b>%2$@</b>."
+            "value" : "As fotos estão agrupadas por mês, das mais recentes para as mais antigas. Arrasta o dedo para baixo pela margem direita das fotos para ir para qualquer mês: a data aparece enquanto o fazes."
           }
         }
       }
     },
-    "app.tour.done.title" : {
+    "app.tour.dates.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles bereit"
+            "value" : "Zu einem Datum springen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You're all set"
+            "value" : "Jump to a date"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ya está todo listo"
+            "value" : "Salta a una fecha"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tout est prêt"
+            "value" : "Aller à une date"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tutto pronto"
+            "value" : "Vai a una data"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles staat klaar"
+            "value" : "Naar een datum springen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Está tudo pronto"
+            "value" : "Ir para uma data"
           }
         }
       }
@@ -430,278 +712,231 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Dokumente und Ordner, auf deinem Gerät gespeichert. Tippe unten auf <b>%1$@</b>, um Dateien von diesem Handy hinzuzufügen, und tippe auf eine Datei, um sie zu öffnen."
+            "value" : "Die Schaltfläche neben dem Pfad des Ordners wechselt zwischen <b>%1$@</b>, <b>%2$@</b> und <b>%3$@</b>, der zeigt, was Platz belegt. Wähle unter <b>%4$@</b> eine Reihenfolge und wähle sie erneut, um sie umzukehren."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your documents and folders, kept on your device. Tap <b>%1$@</b> at the bottom to add files from this phone, and tap a file to open it."
+            "value" : "The button beside the folder's path switches between <b>%1$@</b>, <b>%2$@</b> and <b>%3$@</b>, which shows what takes up space. Under <b>%4$@</b>, pick an order, and pick it again to reverse it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus documentos y carpetas, guardados en tu dispositivo. Toca <b>%1$@</b> abajo para añadir archivos desde este teléfono y toca un archivo para abrirlo."
+            "value" : "El botón junto a la ruta de la carpeta cambia entre <b>%1$@</b>, <b>%2$@</b> y <b>%3$@</b>, que muestra lo que ocupa espacio. En <b>%4$@</b>, elige un orden, y vuelve a elegirlo para invertirlo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos documents et dossiers, conservés sur votre appareil. Touchez <b>%1$@</b> en bas pour ajouter des fichiers depuis ce téléphone, et touchez un fichier pour l’ouvrir."
+            "value" : "Le bouton à côté du chemin du dossier permet de basculer entre <b>%1$@</b>, <b>%2$@</b> et <b>%3$@</b>, qui montre ce qui prend de la place. Sous <b>%4$@</b>, choisissez un ordre, et choisissez-le de nouveau pour l’inverser."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I tuoi documenti e le tue cartelle, conservati sul tuo dispositivo. Tocca <b>%1$@</b> in basso per aggiungere file da questo telefono e tocca un file per aprirlo."
+            "value" : "Il pulsante accanto al percorso della cartella permette di passare tra <b>%1$@</b>, <b>%2$@</b> e <b>%3$@</b>, che mostra cosa occupa più posto. In <b>%4$@</b>, scegli un ordine, e sceglilo di nuovo per invertirlo."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je documenten en mappen, bewaard op je apparaat. Tik onderaan op <b>%1$@</b> om bestanden van deze telefoon toe te voegen en tik op een bestand om het te openen."
+            "value" : "De knop naast het pad van de map wisselt tussen <b>%1$@</b>, <b>%2$@</b> en <b>%3$@</b>, die laat zien wat ruimte inneemt. Kies onder <b>%4$@</b> een volgorde, en kies die nog eens om hem om te keren."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Os teus documentos e pastas, guardados no teu dispositivo. Toca em <b>%1$@</b> em baixo para adicionares ficheiros deste telemóvel e toca num ficheiro para o abrires."
+            "value" : "O botão junto ao caminho da pasta alterna entre <b>%1$@</b>, <b>%2$@</b> e <b>%3$@</b>, que mostra o que ocupa espaço. Em <b>%4$@</b>, escolhe uma ordem, e escolhe-a outra vez para a inverter."
           }
         }
       }
     },
-    "app.tour.friends.accept" : {
+    "app.tour.files.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine Anfrage an dich wartet unter <b>%1$@</b>: Tippe auf <b>%2$@</b>."
+            "value" : "Ansichten und Sortierung"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A request sent to you waits under <b>%1$@</b>: tap <b>%2$@</b>."
+            "value" : "Views and sorting"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las solicitudes que te envían esperan en <b>%1$@</b>: toca <b>%2$@</b>."
+            "value" : "Vistas y orden"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Une demande qui vous est adressée attend sous <b>%1$@</b> : touchez <b>%2$@</b>."
+            "value" : "Affichages et tri"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le richieste che ricevi ti aspettano sotto <b>%1$@</b>: tocca <b>%2$@</b>."
+            "value" : "Viste e ordinamento"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Een verzoek aan jou wacht onder <b>%1$@</b>: tik op <b>%2$@</b>."
+            "value" : "Weergaven en sorteren"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Os pedidos que te enviam esperam em <b>%1$@</b>: toca em <b>%2$@</b>."
+            "value" : "Vistas e ordenação"
           }
         }
       }
     },
-    "app.tour.friends.add" : {
+    "app.tour.friends.text" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Um Freunde hinzuzufügen, gib unter <b>%2$@</b> den Namen ihres Geräts ein – den Teil vor .%1$@ – und tippe auf <b>%3$@</b>."
+            "value" : "Die Schaltfläche mit zwei Personen oben öffnet „Freunde“: Teile dort deine Adresse oder gib unter <b>%1$@</b> den Namen des Geräts ein, das du hinzufügen möchtest, und tippe auf <b>%2$@</b>. Anfragen an dich warten unter <b>%3$@</b>: Tippe auf <b>%4$@</b>."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To add a friend, type their device's name, the part before .%1$@, under <b>%2$@</b> and tap <b>%3$@</b>."
+            "value" : "The two-people button at the top opens Friends: share your address there, or type a friend's device name under <b>%1$@</b> and tap <b>%2$@</b>. A request to you waits under <b>%3$@</b>: tap <b>%4$@</b>."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para añadir amigos, escribe el nombre de su dispositivo, la parte antes de .%1$@, en el apartado <b>%2$@</b> y toca <b>%3$@</b>."
+            "value" : "El botón de dos personas de arriba abre Amigos: comparte ahí tu dirección o escribe el nombre del dispositivo de un amigo en <b>%1$@</b> y toca <b>%2$@</b>. Las solicitudes que te envían esperan en <b>%3$@</b>: toca <b>%4$@</b>."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pour ajouter des amis, saisissez le nom de leur appareil, la partie avant .%1$@, sous <b>%2$@</b> et touchez <b>%3$@</b>."
+            "value" : "Le bouton à deux personnes, en haut, ouvre Amis : partagez-y votre adresse, ou saisissez le nom de l’appareil d’un ami sous <b>%1$@</b> et touchez <b>%2$@</b>. Les demandes reçues attendent sous <b>%3$@</b> : touchez <b>%4$@</b>."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Per aggiungere amici, digita il nome del loro dispositivo, la parte prima di .%1$@, sotto <b>%2$@</b> e tocca <b>%3$@</b>."
+            "value" : "Il pulsante con due persone in alto apre Amici: condividi lì il tuo indirizzo, o digita il nome del dispositivo di un amico sotto <b>%1$@</b> e tocca <b>%2$@</b>. Le richieste che ricevi compaiono sotto <b>%3$@</b>: tocca <b>%4$@</b>."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Om vrienden toe te voegen, typ je de naam van hun apparaat, het deel vóór .%1$@, onder <b>%2$@</b> en tik je op <b>%3$@</b>."
+            "value" : "De knop met twee personen bovenaan opent Vrienden: deel daar je adres, of typ de apparaatnaam van een vriend onder <b>%1$@</b> en tik op <b>%2$@</b>. Verzoeken aan jou wachten onder <b>%3$@</b>: tik op <b>%4$@</b>."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para adicionar amigos, escreve o nome do dispositivo deles, a parte antes de .%1$@, em <b>%2$@</b> e toca em <b>%3$@</b>."
+            "value" : "O botão com duas pessoas, em cima, abre Amigos: partilha aí o teu endereço, ou escreve o nome do dispositivo de um amigo em <b>%1$@</b> e toca em <b>%2$@</b>. Os pedidos que recebes esperam em <b>%3$@</b>: toca em <b>%4$@</b>."
           }
         }
       }
     },
-    "app.tour.friends.where" : {
+    "app.tour.friends.text_wide" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Freunde öffnest du mit der Taste mit den zwei Personen oben in Social."
+            "value" : "Teile deine Adresse, damit Freunde dich hinzufügen, oder gib unter <b>%1$@</b> den Namen ihres Geräts ein und tippe auf <b>%2$@</b>. Anfragen an dich warten unter <b>%3$@</b>: Tippe auf <b>%4$@</b>."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Friends opens with the two-people button at the top of Social."
+            "value" : "Share your address so friends can add you, or type their device's name under <b>%1$@</b> and tap <b>%2$@</b>. A request to you waits under <b>%3$@</b>: tap <b>%4$@</b>."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amigos se abre con el botón de las dos personas, arriba en Social."
+            "value" : "Comparte tu dirección para que tus amigos te añadan, o escribe el nombre de su dispositivo en <b>%1$@</b> y toca <b>%2$@</b>. Las solicitudes que te envían esperan en <b>%3$@</b>: toca <b>%4$@</b>."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amis s’ouvre avec le bouton aux deux personnes, en haut de Social."
+            "value" : "Partagez votre adresse pour que vos amis vous ajoutent, ou saisissez le nom de leur appareil sous <b>%1$@</b> et touchez <b>%2$@</b>. Les demandes reçues attendent sous <b>%3$@</b> : touchez <b>%4$@</b>."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amici si apre con il pulsante con due persone, in alto in Social."
+            "value" : "Condividi il tuo indirizzo perché i tuoi amici ti aggiungano, o digita il nome del loro dispositivo sotto <b>%1$@</b> e tocca <b>%2$@</b>. Le richieste che ricevi compaiono sotto <b>%3$@</b>: tocca <b>%4$@</b>."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vrienden open je met de knop met twee personen bovenaan in Social."
+            "value" : "Deel je adres zodat vrienden je kunnen toevoegen, of typ de naam van hun apparaat onder <b>%1$@</b> en tik op <b>%2$@</b>. Verzoeken aan jou wachten onder <b>%3$@</b>: tik op <b>%4$@</b>."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amigos abre-se com o botão das duas pessoas, no topo de Social."
+            "value" : "Partilha o teu endereço para os teus amigos te adicionarem, ou escreve o nome do dispositivo deles em <b>%1$@</b> e toca em <b>%2$@</b>. Os pedidos que recebes esperam em <b>%3$@</b>: toca em <b>%4$@</b>."
           }
         }
       }
     },
-    "app.tour.friends.where_wide" : {
+    "app.tour.friends.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Freunde findest du im Menü."
+            "value" : "Freunde hinzufügen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Friends is in the menu."
+            "value" : "Add friends"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amigos está en el menú."
+            "value" : "Añade amigos"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amis se trouve dans le menu."
+            "value" : "Ajouter des amis"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amici si trova nel menu."
+            "value" : "Aggiungi amici"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vrienden staat in het menu."
+            "value" : "Vrienden toevoegen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Amigos está no menu."
-          }
-        }
-      }
-    },
-    "app.tour.images.text" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle deine Fotos und Videos, die neuesten zuerst. Suche oben nach Orten und Dingen auf deinen Fotos."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All your photos and videos, newest first. Search at the top for places and things in your photos."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todas tus fotos y vídeos, de los más recientes a los más antiguos. Busca arriba lugares y cosas que aparecen en tus fotos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toutes vos photos et vidéos, des plus récentes aux plus anciennes. Recherchez en haut des lieux et des choses qui figurent sur vos photos."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tutte le tue foto e i tuoi video, dai più recenti. Cerca in alto luoghi e cose presenti nelle tue foto."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Al je foto’s en video’s, de nieuwste eerst. Zoek bovenaan naar plaatsen en dingen op je foto’s."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todas as tuas fotos e vídeos, dos mais recentes para os mais antigos. Pesquisa no topo locais e coisas que aparecem nas tuas fotos."
+            "value" : "Adicionar amigos"
           }
         }
       }
@@ -712,278 +947,184 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Gesichter auf deinen Fotos, eines pro Person. Tippe auf <b>%1$@</b>, um jemandem einen Namen zu geben, und auf ein Gesicht, um alle Fotos dieser Person zu sehen."
+            "value" : "Die Schaltfläche neben der Suche öffnet „Personen“: Tippe auf ein Gesicht, um alle Fotos dieser Person zu sehen, oder auf <b>%1$@</b> unter einem Gesicht ohne Namen. Zwei Gesichter derselben Person? Halte eines gedrückt, tippe auf das andere und wähle <b>%2$@</b>."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The faces found in your photos, one person each. Tap <b>%1$@</b> to name someone, and tap a face to see all their photos."
+            "value" : "The button next to the search opens People: tap a face to see every photo of that person, or <b>%1$@</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>%2$@</b>."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las caras que aparecen en tus fotos, una por persona. Toca <b>%1$@</b> para ponerle nombre a alguien y toca una cara para ver todas sus fotos."
+            "value" : "El botón junto a la búsqueda abre Personas: toca una cara para ver todas las fotos de esa persona, o <b>%1$@</b> debajo de una cara sin nombre. ¿Dos caras de la misma persona? Mantén pulsada una, toca la otra y elige <b>%2$@</b>."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les visages trouvés sur vos photos, un par personne. Touchez <b>%1$@</b> pour donner un nom à quelqu’un, et touchez un visage pour voir toutes ses photos."
+            "value" : "Le bouton à côté de la recherche ouvre Personnes : touchez un visage pour voir toutes les photos de cette personne, ou <b>%1$@</b> sous un visage sans nom. Deux visages de la même personne ? Appuyez longuement sur l’un, touchez l’autre et choisissez <b>%2$@</b>."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I volti trovati nelle tue foto, uno per persona. Tocca <b>%1$@</b> per dare un nome a qualcuno e tocca un volto per vedere tutte le sue foto."
+            "value" : "Il pulsante accanto alla ricerca apre Persone: tocca un volto per vedere tutte le foto di quella persona, o <b>%1$@</b> sotto un volto senza nome. Due volti della stessa persona? Tieni premuto uno, tocca l’altro e scegli <b>%2$@</b>."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "De gezichten op je foto’s, één per persoon. Tik op <b>%1$@</b> om iemand een naam te geven, en tik op een gezicht om alle foto’s van die persoon te zien."
+            "value" : "De knop naast de zoekbalk opent Personen: tik op een gezicht om alle foto’s van die persoon te zien, of op <b>%1$@</b> onder een gezicht zonder naam. Twee gezichten van dezelfde persoon? Houd er een ingedrukt, tik op het andere en kies <b>%2$@</b>."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Os rostos encontrados nas tuas fotos, um por pessoa. Toca em <b>%1$@</b> para dar um nome a alguém e toca num rosto para ver todas as fotos dessa pessoa."
+            "value" : "O botão junto à pesquisa abre Pessoas: toca numa cara para ver todas as fotos dessa pessoa, ou em <b>%1$@</b> por baixo de uma cara sem nome. Duas caras da mesma pessoa? Mantém uma premida, toca na outra e escolhe <b>%2$@</b>."
           }
         }
       }
     },
-    "app.tour.people.where" : {
+    "app.tour.people.text_wide" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personen öffnest du mit dieser Taste neben der Suche in „Bilder“."
+            "value" : "Tippe auf ein Gesicht, um alle Fotos dieser Person zu sehen, oder auf <b>%1$@</b> unter einem Gesicht ohne Namen. Zwei Gesichter derselben Person? Halte eines gedrückt, tippe auf das andere und wähle <b>%2$@</b>."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open People with this button, next to the search in Images."
+            "value" : "Tap a face to see every photo of that person, or <b>%1$@</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>%2$@</b>."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre Personas con este botón, junto a la búsqueda de Imágenes."
+            "value" : "Toca una cara para ver todas las fotos de esa persona, o <b>%1$@</b> debajo de una cara sin nombre. ¿Dos caras de la misma persona? Mantén pulsada una, toca la otra y elige <b>%2$@</b>."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ouvrez Personnes avec ce bouton, à côté de la recherche dans Images."
+            "value" : "Touchez un visage pour voir toutes les photos de cette personne, ou <b>%1$@</b> sous un visage sans nom. Deux visages de la même personne ? Appuyez longuement sur l’un, touchez l’autre et choisissez <b>%2$@</b>."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apri Persone con questo pulsante, accanto alla ricerca in Immagini."
+            "value" : "Tocca un volto per vedere tutte le foto di quella persona, o <b>%1$@</b> sotto un volto senza nome. Due volti della stessa persona? Tieni premuto uno, tocca l’altro e scegli <b>%2$@</b>."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Personen met deze knop, naast de zoekbalk in Afbeeldingen."
+            "value" : "Tik op een gezicht om alle foto’s van die persoon te zien, of op <b>%1$@</b> onder een gezicht zonder naam. Twee gezichten van dezelfde persoon? Houd er een ingedrukt, tik op het andere en kies <b>%2$@</b>."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre Pessoas com este botão, ao lado da pesquisa em Imagens."
+            "value" : "Toca numa cara para ver todas as fotos dessa pessoa, ou em <b>%1$@</b> por baixo de uma cara sem nome. Duas caras da mesma pessoa? Mantém uma premida, toca na outra e escolhe <b>%2$@</b>."
           }
         }
       }
     },
-    "app.tour.people.where_wide" : {
+    "app.tour.people.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personen findest du im Menü."
+            "value" : "Gesichter und Namen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "People is in the menu."
+            "value" : "Faces and names"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personas está en el menú."
+            "value" : "Caras y nombres"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personnes se trouve dans le menu."
+            "value" : "Visages et noms"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Persone si trova nel menu."
+            "value" : "Volti e nomi"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personen staat in het menu."
+            "value" : "Gezichten en namen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pessoas está no menu."
+            "value" : "Caras e nomes"
           }
         }
       }
     },
-    "app.tour.post.step1" : {
+    "app.tour.post.text" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tippe in Social oben auf <b>+</b>."
+            "value" : "Tippe auf <b>+</b>, wähle unter <b>%1$@</b> (dieses Handy) oder <b>%2$@</b> (schon auf deinem Gerät) Fotos oder Videos aus, schreibe eine Bildunterschrift und tippe auf <b>%3$@</b>. Der Beitrag geht von deinem Gerät auf die Geräte deiner Freunde."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Social, tap <b>+</b> at the top."
+            "value" : "Tap <b>+</b>, pick photos or videos from <b>%1$@</b> (this phone) or <b>%2$@</b> (already on your device), write a caption and tap <b>%3$@</b>. It goes from your device to your friends' devices."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "En Social, toca <b>+</b> arriba."
+            "value" : "Toca <b>+</b>, elige fotos o vídeos de <b>%1$@</b> (este teléfono) o <b>%2$@</b> (ya en tu dispositivo), escribe un pie de foto y toca <b>%3$@</b>. La publicación va de tu dispositivo a los dispositivos de tus amigos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dans Social, touchez <b>+</b> en haut."
+            "value" : "Touchez <b>+</b>, choisissez des photos ou des vidéos dans <b>%1$@</b> (ce téléphone) ou <b>%2$@</b> (déjà sur votre appareil), écrivez une légende et touchez <b>%3$@</b>. La publication va de votre appareil aux appareils de vos amis."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Social, tocca <b>+</b> in alto."
+            "value" : "Tocca <b>+</b>, scegli foto o video da <b>%1$@</b> (questo telefono) o <b>%2$@</b> (già sul tuo dispositivo), scrivi una didascalia e tocca <b>%3$@</b>. Il post va dal tuo dispositivo ai dispositivi dei tuoi amici."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tik in Social bovenaan op <b>+</b>."
+            "value" : "Tik op <b>+</b>, kies foto’s of video’s uit <b>%1$@</b> (deze telefoon) of <b>%2$@</b> (al op je apparaat), schrijf een bijschrift en tik op <b>%3$@</b>. Het bericht gaat van jouw apparaat naar de apparaten van je vrienden."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Em Social, toca em <b>+</b> no topo."
-          }
-        }
-      }
-    },
-    "app.tour.post.step2" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle Fotos oder Videos aus <b>%1$@</b> (dieses Handy) oder <b>%2$@</b> (schon auf deinem Gerät)."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pick photos or videos from <b>%1$@</b> (this phone) or <b>%2$@</b> (already on your device)."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige fotos o vídeos de <b>%1$@</b> (este teléfono) o de <b>%2$@</b> (ya están en tu dispositivo)."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez des photos ou des vidéos dans <b>%1$@</b> (ce téléphone) ou <b>%2$@</b> (déjà sur votre appareil)."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scegli foto o video da <b>%1$@</b> (questo telefono) o da <b>%2$@</b> (già sul tuo dispositivo)."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kies foto’s of video’s uit <b>%1$@</b> (deze telefoon) of <b>%2$@</b> (al op je apparaat)."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolhe fotos ou vídeos em <b>%1$@</b> (este telemóvel) ou <b>%2$@</b> (já no teu dispositivo)."
-          }
-        }
-      }
-    },
-    "app.tour.post.step3" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schreibe eine Bildunterschrift und tippe dann auf <b>%1$@</b>."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Write a caption, then tap <b>%1$@</b>."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escribe un pie de foto y luego toca <b>%1$@</b>."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Écrivez une légende, puis touchez <b>%1$@</b>."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scrivi una didascalia, poi tocca <b>%1$@</b>."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schrijf een bijschrift en tik dan op <b>%1$@</b>."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escreve uma legenda e depois toca em <b>%1$@</b>."
+            "value" : "Toca em <b>+</b>, escolhe fotos ou vídeos de <b>%1$@</b> (este telemóvel) ou <b>%2$@</b> (já no teu dispositivo), escreve uma legenda e toca em <b>%3$@</b>. A publicação vai do teu dispositivo para os dispositivos dos teus amigos."
           }
         }
       }
@@ -1082,49 +1223,284 @@
         }
       }
     },
+    "app.tour.search.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib ein Ding oder einen Ort ein, um Fotos zu finden, oder einen Teil eines Dateinamens, um die Datei in „Dateien“ zu finden. Jede Auswahl für Fotos erscheint mit einem ×; tippe darauf, um sie zu entfernen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a thing or a place to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe una cosa o un lugar para encontrar fotos, o parte del nombre de un archivo para encontrarlo en Archivos. Lo que elijas para las fotos aparece con una ×; tócala para quitarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez une chose ou un lieu pour trouver des photos, ou une partie du nom d’un fichier pour le trouver dans Fichiers. Chaque choix pour les photos s’affiche avec une × ; touchez-la pour le retirer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digita una cosa o un luogo per trovare foto, o parte del nome di un file per trovarlo in File. Ogni scelta per le foto compare con una ×: toccala per toglierla."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typ een ding of een plaats om foto’s te vinden, of een deel van een bestandsnaam om het bestand in Bestanden te vinden. Elke keuze voor foto’s verschijnt met een ×; tik erop om hem weg te halen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escreve uma coisa ou um lugar para encontrar fotos, ou parte do nome de um ficheiro para o encontrar em Ficheiros. Cada escolha para as fotos aparece com um ×: toca nele para a retirar."
+          }
+        }
+      }
+    },
+    "app.tour.search.text_faces" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib ein Ding, einen Ort oder den Namen einer Person ein, um Fotos zu finden, oder einen Teil eines Dateinamens, um die Datei in „Dateien“ zu finden. Jede Auswahl für Fotos erscheint mit einem ×; tippe darauf, um sie zu entfernen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a thing, a place or someone's name to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe una cosa, un lugar o el nombre de alguien para encontrar fotos, o parte del nombre de un archivo para encontrarlo en Archivos. Lo que elijas para las fotos aparece con una ×; tócala para quitarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez une chose, un lieu ou le nom de quelqu’un pour trouver des photos, ou une partie du nom d’un fichier pour le trouver dans Fichiers. Chaque choix pour les photos s’affiche avec une × ; touchez-la pour le retirer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digita una cosa, un luogo o il nome di qualcuno per trovare foto, o parte del nome di un file per trovarlo in File. Ogni scelta per le foto compare con una ×: toccala per toglierla."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typ een ding, een plaats of iemands naam om foto’s te vinden, of een deel van een bestandsnaam om het bestand in Bestanden te vinden. Elke keuze voor foto’s verschijnt met een ×; tik erop om hem weg te halen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escreve uma coisa, um lugar ou o nome de alguém para encontrar fotos, ou parte do nome de um ficheiro para o encontrar em Ficheiros. Cada escolha para as fotos aparece com um ×: toca nele para a retirar."
+          }
+        }
+      }
+    },
+    "app.tour.search.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos und Dateien suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search photos and files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca fotos y archivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher des photos et des fichiers"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca foto e file"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto’s en bestanden zoeken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pesquisar fotos e ficheiros"
+          }
+        }
+      }
+    },
+    "app.tour.select.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halte ein Foto gedrückt und ziehe dann über weitere, um sie ebenfalls auszuwählen. Wähle dann in der Leiste unten <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> oder <b>%4$@</b>."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press and hold a photo, then drag across others to select them too. Then choose <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> or <b>%4$@</b> in the bar at the bottom."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén pulsada una foto y arrastra sobre otras para seleccionarlas también. Luego elige <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> o <b>%4$@</b> en la barra de abajo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appuyez longuement sur une photo, puis faites glisser le doigt sur d’autres pour les sélectionner aussi. Choisissez ensuite <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> ou <b>%4$@</b> dans la barre du bas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuta una foto, poi trascina su altre per selezionare anche quelle. Poi scegli <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> o <b>%4$@</b> nella barra in basso."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd een foto ingedrukt en sleep over andere om die ook te selecteren. Kies daarna <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> of <b>%4$@</b> in de balk onderaan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém uma foto premida e arrasta sobre outras para as selecionar também. Depois escolhe <b>%1$@</b>, <b>%2$@</b>, <b>%3$@</b> ou <b>%4$@</b> na barra em baixo."
+          }
+        }
+      }
+    },
+    "app.tour.select.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos auswählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selecciona fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionner des photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seleziona le foto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto’s selecteren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selecionar fotos"
+          }
+        }
+      }
+    },
     "app.tour.settings.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein kurzer Rundgang durch die App: deine Fotos, wie du in Social postest, Freunde und wo du alles findest."
+            "value" : "Ein kurzer Rundgang: Fotos und Dateien suchen, sortieren und teilen, in Social posten und Freunde hinzufügen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A short tour of the app: your photos, posting to Social, friends and where everything is."
+            "value" : "A short tour of how to search, sort and share your photos and files, post to Social and add friends."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un breve recorrido por la app: tus fotos, cómo publicar en Social, los amigos y dónde está cada cosa."
+            "value" : "Un breve recorrido sobre cómo buscar, ordenar y compartir tus fotos y archivos, publicar en Social y añadir amigos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Une courte visite de l’app : vos photos, publier sur Social, vos amis et où trouver chaque chose."
+            "value" : "Une courte visite guidée : rechercher, trier et partager vos photos et fichiers, publier sur Social et ajouter des amis."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un breve tour dell’app: le tue foto, come pubblicare in Social, gli amici e dove trovare tutto."
+            "value" : "Un breve tour su come cercare, ordinare e condividere foto e file, pubblicare in Social e aggiungere amici."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Een korte rondleiding door de app: je foto’s, berichten plaatsen in Social, vrienden en waar je alles vindt."
+            "value" : "Een korte rondleiding: zoeken, sorteren en delen van je foto’s en bestanden, plaatsen in Social en vrienden toevoegen."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uma breve visita guiada à app: as tuas fotos, como publicar em Social, os amigos e onde está cada coisa."
+            "value" : "Uma visita guiada curta: como pesquisar, ordenar e partilhar as tuas fotos e ficheiros, publicar em Social e adicionar amigos."
           }
         }
       }
@@ -1276,43 +1652,419 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein privater Feed mit Familie und Freunden: Gib Beiträgen mit dem Herzsymbol ein „Gefällt mir“ und kommentiere sie. Deine Beiträge gehen von deinem Gerät auf die Geräte deiner Freunde, und nur deine Freunde sehen sie."
+            "value" : "Hier erscheinen deine Beiträge und die deiner Freunde, die neuesten zuerst. Tippe auf das Herz, um einen zu liken, schreibe darunter, um zu kommentieren, und tippe auf die Zahl der Likes, um zu sehen, wem er gefällt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them."
+            "value" : "Your posts and your friends' show here, newest first. Tap the heart to like one, write under it to comment, and tap the number of likes to see who liked it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu feed privado con tu familia y tus amigos: dale Me gusta a las publicaciones con el corazón y coméntalas. Tus publicaciones van de tu dispositivo a los dispositivos de tus amigos, y solo ellos las ven."
+            "value" : "Aquí aparecen tus publicaciones y las de tus amigos, de la más reciente a la más antigua. Toca el corazón para darle Me gusta a una, escribe debajo para comentar y toca el número de Me gusta para ver a quién le ha gustado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Votre fil privé avec votre famille et vos amis : aimez les publications avec le cœur et commentez-les. Vos publications vont de votre appareil aux appareils de vos amis, et seuls vos amis les voient."
+            "value" : "Vos publications et celles de vos amis s’affichent ici, des plus récentes aux plus anciennes. Touchez le cœur pour en aimer une, écrivez dessous pour commenter, et touchez le nombre de « J’aime » pour voir qui l’a aimée."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il tuo feed privato con familiari e amici: metti Mi piace ai post con il cuore e commentali. I tuoi post vanno dal tuo dispositivo ai dispositivi dei tuoi amici, e solo i tuoi amici li vedono."
+            "value" : "Qui compaiono i tuoi post e quelli dei tuoi amici, dai più recenti. Tocca il cuore per mettere Mi piace, scrivi sotto per commentare e tocca il numero di Mi piace per vedere a chi piace."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je privéfeed met familie en vrienden: geef berichten een hartje en reageer erop. Je berichten gaan van jouw apparaat naar de apparaten van je vrienden, en alleen je vrienden zien ze."
+            "value" : "Hier staan je berichten en die van je vrienden, de nieuwste eerst. Tik op het hartje om een bericht te liken, schrijf eronder om te reageren en tik op het aantal likes om te zien wie het leuk vindt."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O teu feed privado com a família e os amigos: põe Gosto nas publicações com o coração e comenta-as. As tuas publicações vão do teu dispositivo para os dispositivos dos teus amigos, e só eles as veem."
+            "value" : "Aqui aparecem as tuas publicações e as dos teus amigos, das mais recentes para as mais antigas. Toca no coração para pôr Gosto, escreve por baixo para comentar e toca no número de gostos para ver quem gostou."
+          }
+        }
+      }
+    },
+    "app.tour.social.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liken und kommentieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Like and comment"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me gusta y comentarios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aimer et commenter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mi piace e commenti"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liken en reageren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gosto e comentários"
+          }
+        }
+      }
+    },
+    "app.tour.upload.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> fügt dem offenen Ordner Dateien von diesem Handy hinzu; wähle welche über ihren Kreis aus und tippe auf <b>%2$@</b>, um einen Link zu senden, oder auf <b>%3$@</b>. Das Schloss neben einem Ordner stellt ihn auf „Nur hochladen“: Darin lässt sich nichts löschen, alte Versionen bleiben erhalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> adds files from this phone to the open folder; select some with their circles to <b>%2$@</b> a link or <b>%3$@</b> them. The lock beside a folder makes it upload only: nothing in it can be deleted and old versions are kept."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> añade archivos de este teléfono a la carpeta abierta; selecciona algunos con su círculo y elige <b>%2$@</b> para enviar un enlace, o <b>%3$@</b>. El candado junto a una carpeta la deja en solo subida: no se puede eliminar nada y se guardan las versiones anteriores."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> ajoute des fichiers de ce téléphone au dossier ouvert ; sélectionnez-en avec leur cercle et choisissez <b>%2$@</b> pour transmettre un lien, ou <b>%3$@</b>. Le cadenas à côté d’un dossier le met en envoi uniquement : rien ne peut y être supprimé et les anciennes versions sont conservées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> aggiunge alla cartella aperta file da questo telefono; selezionane alcuni con il cerchio e scegli <b>%2$@</b> per inviare un link, o <b>%3$@</b>. Il lucchetto accanto a una cartella la rende di solo caricamento: niente si può eliminare e le versioni precedenti restano."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> voegt bestanden van deze telefoon toe aan de open map; selecteer er een paar met hun rondje en kies <b>%2$@</b> om een link te sturen, of <b>%3$@</b>. Het slotje naast een map zet hem op alleen uploaden: er kan niets uit worden verwijderd en oude versies blijven bewaard."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "<b>%1$@</b> adiciona ficheiros deste telemóvel à pasta aberta; seleciona alguns com o círculo e escolhe <b>%2$@</b> para enviar uma ligação, ou <b>%3$@</b>. O cadeado junto a uma pasta põe-na em apenas carregamento: nada nela pode ser eliminado e as versões antigas ficam guardadas."
+          }
+        }
+      }
+    },
+    "app.tour.upload.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hochladen und teilen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload and share"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sube y comparte"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer et partager"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica e condividi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uploaden en delen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregar e partilhar"
+          }
+        }
+      }
+    },
+    "app.tour.users.bridge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lass <b>%1$@</b> eingeschaltet, dann bekommt die Person eine eigene Adresse."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep <b>%1$@</b> on to give them their own address."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deja activado <b>%1$@</b> para darle su propia dirección."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laissez <b>%1$@</b> activé pour lui donner sa propre adresse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lascia attivo <b>%1$@</b> perché abbia un indirizzo tutto suo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laat <b>%1$@</b> aan staan om ze een eigen adres te geven."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixa <b>%1$@</b> ativado para lhe dar um endereço próprio."
+          }
+        }
+      }
+    },
+    "app.tour.users.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib jeder Person ein eigenes Off The Cloud auf demselben Gerät: eigene Fotos, Dateien und einen privaten Feed, getrennt von deinen. Gib unter <b>%1$@ › %2$@</b> einen Benutzernamen ein, tippe auf <b>%3$@</b> und lege ein erstes Passwort fest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>%1$@ › %2$@</b>, type a username, tap <b>%3$@</b> and set their first password."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da a cada persona su propio Off The Cloud en este mismo dispositivo: sus propias fotos, archivos y feed privado, separados de los tuyos. En <b>%1$@ › %2$@</b>, escribe un nombre de usuario, toca <b>%3$@</b> y establece su primera contraseña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donnez à chaque personne son propre Off The Cloud sur ce même appareil : ses propres photos, fichiers et fil privé, séparés des vôtres. Dans <b>%1$@ › %2$@</b>, saisissez un nom d’utilisateur, touchez <b>%3$@</b> et définissez son premier mot de passe."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dai a ogni persona il suo Off The Cloud su questo stesso dispositivo: le sue foto, i suoi file e il suo feed privato, separati dai tuoi. In <b>%1$@ › %2$@</b>, scrivi un nome utente, tocca <b>%3$@</b> e imposta la sua prima password."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geef iedereen een eigen Off The Cloud op hetzelfde apparaat: eigen foto’s, bestanden en een privéfeed, los van de jouwe. Typ in <b>%1$@ › %2$@</b> een gebruikersnaam, tik op <b>%3$@</b> en stel een eerste wachtwoord in."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dá a cada pessoa o seu próprio Off The Cloud neste mesmo dispositivo: as suas fotos, ficheiros e feed privado, separados dos teus. Em <b>%1$@ › %2$@</b>, escreve um nome de utilizador, toca em <b>%3$@</b> e define a primeira palavra-passe."
+          }
+        }
+      }
+    },
+    "app.tour.users.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzer hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add users"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade usuarios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter des utilisateurs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi utenti"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruikers toevoegen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar utilizadores"
+          }
+        }
+      }
+    },
+    "app.tour.viewer.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe auf ein Foto, um es zu öffnen, und wische, um durch die Fotos zu blättern. Die Schaltfläche <b>%1$@</b> (ⓘ) zeigt, wann und wo es aufgenommen wurde, die Kamera und eine Karte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a photo to open it, then swipe to go through them. The <b>%1$@</b> button (ⓘ) shows when and where it was taken, the camera and a map."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca una foto para abrirla y desliza el dedo para pasar de una a otra. El botón <b>%1$@</b> (ⓘ) muestra cuándo y dónde se hizo, la cámara y un mapa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez une photo pour l’ouvrir, puis balayez pour passer de l’une à l’autre. Le bouton <b>%1$@</b> (ⓘ) indique quand et où elle a été prise, l’appareil photo et une carte."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca una foto per aprirla, poi scorri con il dito per passare da una all’altra. Il pulsante <b>%1$@</b> (ⓘ) mostra quando e dove è stata scattata, la fotocamera e una mappa."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tik op een foto om hem te openen en veeg om door de foto’s te bladeren. De knop <b>%1$@</b> (ⓘ) toont wanneer en waar hij is gemaakt, de camera en een kaart."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca numa foto para a abrir e desliza o dedo para passar de uma para outra. O botão <b>%1$@</b> (ⓘ) mostra quando e onde foi tirada, a câmara e um mapa."
+          }
+        }
+      }
+    },
+    "app.tour.viewer.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Foto öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open a photo"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una foto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir une photo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri una foto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een foto openen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir uma foto"
           }
         }
       }
@@ -1323,43 +2075,90 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Fotos und Dateien liegen auf deinem eigenen Gerät, bei dir zu Hause. Teile sie mit Familie und Freunden in einem privaten Netzwerk, das nur dir gehört."
+            "value" : "In einer Minute siehst du, wie du findest, sortierst und teilst, was auf deinem Gerät ist. Alle Bereiche der App findest du in der Leiste unten."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own."
+            "value" : "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the bar at the bottom."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus fotos y archivos están en tu propio dispositivo, en casa. Compártelos con tu familia y tus amigos en una red privada solo tuya."
+            "value" : "En un minuto verás cómo encontrar, ordenar y compartir lo que hay en tu dispositivo. Todas las partes de la aplicación están en la barra de abajo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vos photos et vos fichiers sont sur votre propre appareil, chez vous. Partagez-les avec votre famille et vos amis dans un réseau privé rien qu’à vous."
+            "value" : "Découvrez en une minute comment trouver, trier et partager ce qui se trouve sur votre appareil. Toutes les parties de l’application sont dans la barre du bas."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le tue foto e i tuoi file si trovano sul tuo dispositivo, a casa tua. Condividili con familiari e amici in una rete privata tutta tua."
+            "value" : "In un minuto vedrai come trovare, ordinare e condividere ciò che c’è sul tuo dispositivo. Tutte le parti dell’app sono nella barra in basso."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je foto’s en bestanden staan op je eigen apparaat, bij je thuis. Deel ze met familie en vrienden in een privénetwerk dat helemaal van jou is."
+            "value" : "In een minuut zie je hoe je vindt, sorteert en deelt wat er op je apparaat staat. Alle onderdelen van de app staan in de balk onderaan."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As tuas fotos e ficheiros estão no teu próprio dispositivo, em casa. Partilha-os com a família e os amigos numa rede privada só tua."
+            "value" : "Num minuto vais ver como encontrar, ordenar e partilhar o que está no teu dispositivo. Todas as partes da aplicação estão na barra em baixo."
+          }
+        }
+      }
+    },
+    "app.tour.welcome.text_wide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In einer Minute siehst du, wie du findest, sortierst und teilst, was auf deinem Gerät ist. Alle Bereiche der App findest du im Menü links."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the menu on the left."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En un minuto verás cómo encontrar, ordenar y compartir lo que hay en tu dispositivo. Todas las partes de la aplicación están en el menú de la izquierda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Découvrez en une minute comment trouver, trier et partager ce qui se trouve sur votre appareil. Toutes les parties de l’application sont dans le menu de gauche."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In un minuto vedrai come trovare, ordinare e condividere ciò che c’è sul tuo dispositivo. Tutte le parti dell’app sono nel menu a sinistra."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In een minuut zie je hoe je vindt, sorteert en deelt wat er op je apparaat staat. Alle onderdelen van de app staan in het menu links."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Num minuto vais ver como encontrar, ordenar e partilhar o que está no teu dispositivo. Todas as partes da aplicação estão no menu à esquerda."
           }
         }
       }

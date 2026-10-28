@@ -55,15 +55,22 @@ final class UsersManagementViewModel: ObservableObject {
     @Published var toast: SettingsText?
 
     func checkRole() async {
-        guard let resp = try? await ws.request({ e in
+        guard let primary = await Self.askIsPrimary() else { return }
+        isPrimary = primary
+        if isPrimary { await loadUsers() }
+    }
+
+    /// Whether the account signed in is the device's owner (the primary
+    /// instance), which alone has this section; nil when it couldn't be
+    /// asked. The tour asks it too, for its step about users.
+    static func askIsPrimary() async -> Bool? {
+        guard let resp = try? await OTCConnection.shared.request({ e in
             var req = ReqEnvelope()
             req.payload = .reqGetInstanceRole(.init())
             e = req
-        }) else { return }
-        if case .respInstanceRole(let r) = resp.payload {
-            isPrimary = r.isPrimary
-            if isPrimary { await loadUsers() }
-        }
+        }) else { return nil }
+        if case .respInstanceRole(let r) = resp.payload { return r.isPrimary }
+        return nil
     }
 
     func loadUsers() async {
@@ -250,6 +257,8 @@ struct UsersManagementSection: View {
                     .buttonStyle(.bordered)
                         .disabled(vm.creating || !usernameValid)
                 }
+                .tourTarget(.addUser)
+                .id(TourTarget.addUser)
 
                 // Issue #103, as the web app: the address the new user
                 // gets on the bridge.
@@ -259,6 +268,7 @@ struct UsersManagementSection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .tourTarget(.bridgeAccess)
             }
         } else {
             // The role check has to run while nothing is shown yet: a

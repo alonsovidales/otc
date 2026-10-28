@@ -422,6 +422,8 @@ struct SideMenu: View {
         row
             .id(s)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { rows.frames[s] = $0 }
+            // The tour's last step points at Alerts and Settings.
+            .tourTarget(s == .alerts ? .alertsSection : s == .settings ? .settingsSection : nil)
     }
 
     // MARK: The whole menu
@@ -826,6 +828,7 @@ struct WideTopBar<Search: View>: View {
                 }
                 .buttonStyle(ActionButtonStyle())
                 .accessibilityLabel(action.label)
+                .tourTarget(.newPost)
             }
         }
         .padding(.leading, 18)
@@ -1079,7 +1082,9 @@ struct CollectionsPage: View {
             } else if vm.groupsLoaded {
                 ScrollView {
                     LazyVGrid(columns: Self.cols, spacing: 24) {
-                        ForEach(vm.groups, id: \.id) { g in card(g) }
+                        ForEach(vm.groups, id: \.id) { g in
+                            card(g).tourTarget(g.id == vm.groups.first?.id ? .firstCollection : nil)
+                        }
                     }
                     .padding(24)
                     .padding(.bottom, 40)

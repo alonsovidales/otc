@@ -6,146 +6,186 @@
 import Foundation
 
 extension S {
-    /// <b>{alerts}</b> tells you about likes, comments, friend requests and your device. In <b>{settings}</b> you change your profile, password and photo backup.
+    /// <b>{alerts}</b> counts what's new: likes, comments, friend requests and news from your device. <b>{settings}</b> has your profile, password and language, and <b>{show}</b> to see this again.
     ///
-    /// Text of the tour's page about the Alerts and Settings sections. {alerts} is the Alerts section's name (app.shell.section_alerts) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>).
-    static func appTourAlertsText(alerts: String, settings: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.alerts.text", table: "AppTour", tags: ["b": b], [.text(alerts), .text(settings)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the last step. {alerts} and {settings} are the sections' names (app.shell.section_alerts, app.shell.section_settings); Alerts shows the number of new alerts on its tab, and also says when the device needs attention (an update, a disk). {show} is the button in Settings › Getting started that shows this tour again (app.tour.show). All in bold.
+    static func appTourAlertsText(alerts: String, settings: String, show: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.alerts.text", table: "AppTour", tags: ["b": b], [.text(alerts), .text(settings), .text(show)])
     }
 
     /// Alerts and Settings
     ///
-    /// Title of the tour's page about the Alerts and Settings sections: use the same words as their names (app.shell.section_alerts, app.shell.section_settings).
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the last step, about the Alerts and Settings sections: use the same words as their names (app.shell.section_alerts, app.shell.section_settings).
     static var appTourAlertsTitle: String { L("app.tour.alerts.title", table: "AppTour") }
 
-    /// This phone can copy its photos and videos to your device by itself. Choose what it sends in <b>{settings}</b> › <b>{sync}</b>.
+    /// Sunday at the lake
     ///
-    /// Text of the tour's page about the photo backup. {settings} is the Settings section's name (app.shell.section_settings) and {sync} the heading of its section with the photo sync's options (app.settings.sync.title), both in bold (<b>…</b>); › joins them as a path, Settings first.
-    static func appTourBackupText(settings: String, sync: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.backup.text", table: "AppTour", tags: ["b": b], [.text(settings), .text(sync)])
+    /// The first-run tour's moving drawings of the app (never a real person or photo): the caption typed for a new post with two photos.
+    static var appTourArtCaption: String { L("app.tour.art.caption", table: "AppTour") }
+
+    /// Summer
+    ///
+    /// The first-run tour's moving drawings of the app (never a real person or photo): the name typed for a new collection of photos.
+    static var appTourArtCollection: String { L("app.tour.art.collection", table: "AppTour") }
+
+    /// Lovely!
+    ///
+    /// The first-run tour's moving drawings of the app (never a real person or photo): a short comment typed under a friend's photo in Social.
+    static var appTourArtComment: String { L("app.tour.art.comment", table: "AppTour") }
+
+    /// Alex
+    ///
+    /// The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of a friend (a face named in People, the author of a post, the friend added in Friends). A short first name common in your language, for anyone, different from app.tour.art.person.
+    static var appTourArtFriend: String { L("app.tour.art.friend", table: "AppTour") }
+
+    /// Sam
+    ///
+    /// The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of the person using the app (and of a face in People). A short first name common in your language, for anyone.
+    static var appTourArtPerson: String { L("app.tour.art.person", table: "AppTour") }
+
+    /// beach
+    ///
+    /// The first-run tour's moving drawings of the app (never a real person or photo): a thing the device recognises in photos, typed into the drawing of the search and picked as a chip. Not translated: the device's image tagging names things in English, so the real search would find this word in every language.
+    static var appTourArtThing: String { L("app.tour.art.thing", table: "AppTour") }
+
+    /// This phone copies its photos and videos to your device by itself. Under <b>{sync}</b> you choose what it sends, and <b>{wifi}</b> keeps it off mobile data.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the photo backup, shown over Settings. {sync} is the heading of Settings' section with the backup's options (app.settings.sync.title) and {wifi} its first switch (app.settings.sync.wifi_only): while it is on, nothing is sent over mobile data. Both in bold.
+    static func appTourBackupText(sync: String, wifi: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.backup.text", table: "AppTour", tags: ["b": b], [.text(sync), .text(wifi)])
     }
 
     /// Your phone's photos
     ///
-    /// Title of the tour's page about this phone copying its own photos and videos to the device (the photo backup).
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about this phone copying its own photos and videos to the device (the photo backup).
     static var appTourBackupTitle: String { L("app.tour.backup.title", table: "AppTour") }
 
-    /// Keep photos that belong together in one place, like a trip or a birthday. Press and hold photos in Images to select them, then tap <b>{add}</b>.
+    /// Select photos and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. The button next to the search lists your collections: open one to rename, share or delete it.
     ///
-    /// Text of the tour's Collections page (its title is app.shell.section_collections): collections are our word for named groups of photos - never say album. Images is the photo section (app.shell.section_images). {add} is the selection bar's item that puts the selected photos in a collection (app.shell.add_to_collection), in bold (<b>…</b>).
-    static func appTourCollectionsText(add: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.collections.text", table: "AppTour", tags: ["b": b], [.text(add)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Collections (never albums) on a phone held upright, where the list of collections opens with a button beside the search field at the top of Images. {add} is the selection bar's button (app.shell.add_to_collection) and {new} the first choice it offers (app.photos.collections.new_item), both in bold. An open collection can be renamed, shared as a gallery (a page anyone with its link can see) or deleted; deleting a collection keeps its photos.
+    static func appTourCollectionsText(add: String, new: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.collections.text", table: "AppTour", tags: ["b": b], [.text(add), .text(new)])
     }
 
-    /// Your collections open with this button, next to the search in Images.
+    /// Select photos in Images and choose <b>{add}</b>, then <b>{new}</b>, to keep them together, like a trip. Open a collection here to rename it, share it as a gallery or delete it.
     ///
-    /// Under the text of the tour's Collections page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens the collections.
-    static var appTourCollectionsWhere: String { L("app.tour.collections.where", table: "AppTour") }
-
-    /// Your collections are in the menu.
-    ///
-    /// Under the text of the tour's Collections page on a wide screen (a phone on its side, a tablet), where Collections is an item of the left menu.
-    static var appTourCollectionsWhereWide: String { L("app.tour.collections.where_wide", table: "AppTour") }
-
-    /// See this tour again any time: tap <b>{show}</b> in <b>{settings}</b>.
-    ///
-    /// Text of the tour's last page. {show} is the button in Settings that shows the tour again (app.tour.show) and {settings} the Settings section's name (app.shell.section_settings), both in bold (<b>…</b>).
-    static func appTourDoneText(show: String, settings: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.done.text", table: "AppTour", tags: ["b": b], [.text(show), .text(settings)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.collections.text, on a wide screen (a phone on its side, a tablet), where Collections is an item of the menu at the left and is open behind the card. Images is the photo section (app.shell.section_images).
+    static func appTourCollectionsTextWide(add: String, new: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.collections.text_wide", table: "AppTour", tags: ["b": b], [.text(add), .text(new)])
     }
 
-    /// You're all set
+    /// Make a collection
     ///
-    /// Title of the tour's last page.
-    static var appTourDoneTitle: String { L("app.tour.done.title", table: "AppTour") }
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about Collections (our word for groups of photos, never albums).
+    static var appTourCollectionsTitle: String { L("app.tour.collections.title", table: "AppTour") }
 
-    /// Your documents and folders, kept on your device. Tap <b>{upload}</b> at the bottom to add files from this phone, and tap a file to open it.
+    /// Photos are grouped by month, newest first. Drag your finger down the right edge of the photos to jump to any month: the date shows as you go.
     ///
-    /// Text of the tour's Files page (its title is app.shell.section_files). {upload} is the Upload button in the bar at the bottom of Files (common.upload), in bold (<b>…</b>).
-    static func appTourFilesText(upload: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.files.text", table: "AppTour", tags: ["b": b], [.text(upload)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the date scrubber in Images: a thin strip along the right edge of the photos; dragging a finger down it shows the month under the finger in a bubble, and letting go jumps there.
+    static var appTourDatesText: String { L("app.tour.dates.text", table: "AppTour") }
+
+    /// Jump to a date
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about jumping to a month in Images by dragging along the right edge of the photos.
+    static var appTourDatesTitle: String { L("app.tour.dates.title", table: "AppTour") }
+
+    /// The button beside the folder's path switches between <b>{list}</b>, <b>{grid}</b> and <b>{storage}</b>, which shows what takes up space. Under <b>{sort}</b>, pick an order, and pick it again to reverse it.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Files' views and sorting. The button at the right of the field with the open folder's path opens a menu: {list}, {grid} and {storage} are its three views (app.files.view_list, .view_grid, .view_storage; Storage lists what takes the most room in the folder), and {sort} its heading over the orders (app.files.sort_by: name, size, date created, date modified). All in bold.
+    static func appTourFilesText(list: String, grid: String, storage: String, sort: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.files.text", table: "AppTour", tags: ["b": b], [.text(list), .text(grid), .text(storage), .text(sort)])
     }
 
-    /// A request sent to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.
+    /// Views and sorting
     ///
-    /// Second line of the tour's Friends page: answering a friend request. {waiting} is the heading of the Friends screen's section with the requests you received (app.social.friends.waiting_answer) and {accept} the button that accepts one (common.accept), both in bold (<b>…</b>).
-    static func appTourFriendsAccept(waiting: String, accept: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.friends.accept", table: "AppTour", tags: ["b": b], [.text(waiting), .text(accept)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the first step about Files: its three views and sorting.
+    static var appTourFilesTitle: String { L("app.tour.files.title", table: "AppTour") }
+
+    /// The two-people button at the top opens Friends: share your address there, or type a friend's device name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Friends on a phone held upright, where Friends (app.shell.section_friends) opens with the button showing two people at the top of Social. Its top line is this device's own address, with Copy and Share buttons. {add} is the heading over the field for a friend's device name (app.social.friends.add_heading) and {send} its button (common.send). {waiting} is the heading of the requests waiting for an answer (app.social.friends.waiting_answer) and {accept} their button (common.accept). All in bold.
+    static func appTourFriendsText(add: String, send: String, waiting: String, accept: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.friends.text", table: "AppTour", tags: ["b": b], [.text(add), .text(send), .text(waiting), .text(accept)])
     }
 
-    /// To add a friend, type their device's name, the part before .{suffix}, under <b>{heading}</b> and tap <b>{send}</b>.
+    /// Share your address so friends can add you, or type their device's name under <b>{add}</b> and tap <b>{send}</b>. A request to you waits under <b>{waiting}</b>: tap <b>{accept}</b>.
     ///
-    /// First line of the tour's Friends page (its title is app.shell.section_friends): sending a friend request. {suffix} is the fixed end of every device's address, off-the.cloud, written after the dot. {heading} is the heading of the Friends screen's section for it (app.social.friends.add_heading) and {send} its button (common.send), both in bold (<b>…</b>).
-    static func appTourFriendsAdd(suffix: String, heading: String, send: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.friends.add", table: "AppTour", tags: ["b": b], [.text(suffix), .text(heading), .text(send)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.friends.text, on a wide screen (a phone on its side, a tablet), where Friends is an item of the menu at the left and is open behind the card.
+    static func appTourFriendsTextWide(add: String, send: String, waiting: String, accept: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.friends.text_wide", table: "AppTour", tags: ["b": b], [.text(add), .text(send), .text(waiting), .text(accept)])
     }
 
-    /// Friends opens with the two-people button at the top of Social.
+    /// Add friends
     ///
-    /// Under the lines of the tour's Friends page on a phone held upright: Friends (app.shell.section_friends) opens with the button showing two people at the top of the Social feed (app.shell.section_social).
-    static var appTourFriendsWhere: String { L("app.tour.friends.where", table: "AppTour") }
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the Friends screen.
+    static var appTourFriendsTitle: String { L("app.tour.friends.title", table: "AppTour") }
 
-    /// Friends is in the menu.
+    /// The button next to the search opens People: tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>.
     ///
-    /// Under the lines of the tour's Friends page on a wide screen (a phone on its side, a tablet), where Friends is an item of the left menu.
-    static var appTourFriendsWhereWide: String { L("app.tour.friends.where_wide", table: "AppTour") }
-
-    /// All your photos and videos, newest first. Search at the top for places and things in your photos.
-    ///
-    /// Text of the tour's page about Images, the library of photos and videos (its title is app.shell.section_images). The search field is at the top of the screen: it finds places (from where the photos were taken) and things seen in them.
-    static var appTourImagesText: String { L("app.tour.images.text", table: "AppTour") }
-
-    /// The faces found in your photos, one person each. Tap <b>{name}</b> to name someone, and tap a face to see all their photos.
-    ///
-    /// Text of the tour's People page (its title is app.shell.section_people): the people face recognition found, one face per person. {name} is the tappable line under a face that has no name (app.photos.people.add_name), in bold (<b>…</b>).
-    static func appTourPeopleText(name: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.people.text", table: "AppTour", tags: ["b": b], [.text(name)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about People on a phone held upright, where People (app.shell.section_people) opens with a button beside the search field at the top of Images. {name} is the line under a face without a name (app.photos.people.add_name) and {merge} the button that makes several faces one person (app.photos.people.merge), both in bold. A long press selects a face; once one is selected a tap selects another.
+    static func appTourPeopleText(name: String, merge: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.people.text", table: "AppTour", tags: ["b": b], [.text(name), .text(merge)])
     }
 
-    /// Open People with this button, next to the search in Images.
+    /// Tap a face to see every photo of that person, or <b>{name}</b> to name them. Two faces of one person? Press and hold one, tap the other and choose <b>{merge}</b>.
     ///
-    /// Under the text of the tour's People page on a phone held upright: the page's picture is the button at the right of the search field at the top of Images (app.shell.section_images) that opens People.
-    static var appTourPeopleWhere: String { L("app.tour.people.where", table: "AppTour") }
-
-    /// People is in the menu.
-    ///
-    /// Under the text of the tour's People page on a wide screen (a phone on its side, a tablet), where People is an item of the left menu.
-    static var appTourPeopleWhereWide: String { L("app.tour.people.where_wide", table: "AppTour") }
-
-    /// In Social, tap <b>+</b> at the top.
-    ///
-    /// First numbered step of the tour's page about publishing a post: the plus button at the top of the Social section (app.shell.section_social), in bold (<b>…</b>). Keep the + as it is.
-    static func appTourPostStep1(b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.post.step1", table: "AppTour", tags: ["b": b], [])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.people.text, on a wide screen (a phone on its side, a tablet), where People is an item of the menu at the left and is open behind the card.
+    static func appTourPeopleTextWide(name: String, merge: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.people.text_wide", table: "AppTour", tags: ["b": b], [.text(name), .text(merge)])
     }
 
-    /// Pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device).
+    /// Faces and names
     ///
-    /// Second numbered step of the tour's page about publishing a post: the switch at the top of the New Post composer. {phone} and {synced} are its two halves (app.social.compose.source_phone, app.social.compose.source_synced), in bold (<b>…</b>).
-    static func appTourPostStep2(phone: String, synced: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.post.step2", table: "AppTour", tags: ["b": b], [.text(phone), .text(synced)])
-    }
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about People (shown only while face recognition is on): the faces the device found in the photos.
+    static var appTourPeopleTitle: String { L("app.tour.people.title", table: "AppTour") }
 
-    /// Write a caption, then tap <b>{publish}</b>.
+    /// Tap <b>+</b>, pick photos or videos from <b>{phone}</b> (this phone) or <b>{synced}</b> (already on your device), write a caption and tap <b>{publish}</b>. It goes from your device to your friends' devices.
     ///
-    /// Third numbered step of the tour's page about publishing a post: a post needs a caption (the box at the foot of the composer). {publish} is the composer's button (app.social.compose.publish), in bold (<b>…</b>).
-    static func appTourPostStep3(publish: String, b: AttributeContainer) -> AttributedString {
-        LRich("app.tour.post.step3", table: "AppTour", tags: ["b": b], [.text(publish)])
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about publishing a post. + is the round plus button at the top of Social (on a wide screen, the top bar's + New post); keep the + as it is. {phone} and {synced} are the two halves of the switch at the top of the New Post screen (app.social.compose.source_phone, app.social.compose.source_synced) and {publish} its button (app.social.compose.publish), all in bold. A post needs a caption. Posts travel straight from one device to the others, with no cloud in between.
+    static func appTourPostText(phone: String, synced: String, publish: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.post.text", table: "AppTour", tags: ["b": b], [.text(phone), .text(synced), .text(publish)])
     }
 
     /// Publish a post
     ///
-    /// Title of the tour's page about publishing a post on Social; numbered steps follow (app.tour.post.step1 to step3).
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step that shows how to publish a post in Social.
     static var appTourPostTitle: String { L("app.tour.post.title", table: "AppTour") }
 
     /// Step {step} of {total}
     ///
-    /// At the top of each page of the tour: {step} is the page's number and {total} how many pages the tour has (10 or 11). Also read out by screen readers.
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Line at the top left of the card. {step} is the step shown, {total} how many there are (from 13 to 15: People shows only while face recognition is on, and the step about users only to the device's owner). Also read out by screen readers.
     static func appTourProgress(step: Int, total: Int) -> String {
         L("app.tour.progress", table: "AppTour", step, total)
     }
 
-    /// A short tour of the app: your photos, posting to Social, friends and where everything is.
+    /// Type a thing or a place to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the search field at the top of Images, while face recognition is off. It suggests the things and places the device recognised in the photos (a beach, a dog, a city), and the files and folders whose name matches. A thing picked shows as a chip (a small rounded label with an × that removes it). Files is the files section (app.shell.section_files).
+    static var appTourSearchText: String { L("app.tour.search.text", table: "AppTour") }
+
+    /// Type a thing, a place or someone's name to find photos, or part of a file's name to find it in Files. Each pick for photos shows as a chip; tap its × to remove it.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.search.text, while face recognition is on: the search also suggests the people who were given a name in People.
+    static var appTourSearchTextFaces: String { L("app.tour.search.text_faces", table: "AppTour") }
+
+    /// Search photos and files
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the search field at the top of Images.
+    static var appTourSearchTitle: String { L("app.tour.search.title", table: "AppTour") }
+
+    /// Press and hold a photo, then drag across others to select them too. Then choose <b>{share}</b>, <b>{download}</b>, <b>{add}</b> or <b>{delete}</b> in the bar at the bottom.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about selecting photos in Images: a long press selects a photo, and moving the finger on from it selects the photos it passes over. The bar that then shows at the bottom has these buttons, among others: {share} (common.share), {download} (common.download), {add} (app.shell.add_to_collection) and {delete} (common.delete), in bold.
+    static func appTourSelectText(share: String, download: String, add: String, delete: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.select.text", table: "AppTour", tags: ["b": b], [.text(share), .text(download), .text(add), .text(delete)])
+    }
+
+    /// Select photos
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about selecting photos in Images.
+    static var appTourSelectTitle: String { L("app.tour.select.title", table: "AppTour") }
+
+    /// A short tour of how to search, sort and share your photos and files, post to Social and add friends.
     ///
     /// Under the Show the tour button (app.tour.show) in Settings: what the tour covers. Social is the feed section (app.shell.section_social).
     static var appTourSettingsFooter: String { L("app.tour.settings.footer", table: "AppTour") }
@@ -157,26 +197,79 @@ extension S {
 
     /// Show the tour
     ///
-    /// Button in Settings, in the section app.tour.settings.title: shows the app's tour again from its first page.
+    /// Button in Settings, in the section app.tour.settings.title: shows the app's first-run tour again from its first step. Quoted in app.tour.alerts.text.
     static var appTourShow: String { L("app.tour.show", table: "AppTour") }
 
     /// Skip
     ///
-    /// Button at the top of every page of the tour: closes it. The tour can be shown again from Settings.
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Button at the top right of the card that ends the tour at once (it can be shown again from Settings).
     static var appTourSkip: String { L("app.tour.skip", table: "AppTour") }
 
-    /// Your private feed with family and friends: like posts with the heart and comment on them. Your posts go from your device to your friends' devices, and only your friends see them.
+    /// Your posts and your friends' show here, newest first. Tap the heart to like one, write under it to comment, and tap the number of likes to see who liked it.
     ///
-    /// Text of the tour's Social page (its title is app.shell.section_social): the feed of posts shared with friends. The heart is the like button under each post; the comment box is under it too.
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the Social feed: the posts of the user and of their friends. The heart under a post likes it; the field under it adds a comment; the line with the number of likes opens the list of who liked it.
     static var appTourSocialText: String { L("app.tour.social.text", table: "AppTour") }
 
-    /// Your photos and files live on your own device, at home. Share them with family and friends in a private network of your own.
+    /// Like and comment
     ///
-    /// Text of the tour's first page: what Off The Cloud is. The device is the small computer at home that keeps everything.
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the Social feed.
+    static var appTourSocialTitle: String { L("app.tour.social.title", table: "AppTour") }
+
+    /// <b>{upload}</b> adds files from this phone to the open folder; select some with their circles to <b>{share}</b> a link or <b>{download}</b> them. The lock beside a folder makes it upload only: nothing in it can be deleted and old versions are kept.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about uploading and sharing in Files. {upload}, {share} and {download} are buttons of the bar at the bottom of Files (common.upload, common.share, common.download), in bold: Upload picks files on this phone, Share sends a link to download the selected files, Download downloads them. Every file has a circle that selects it. The lock beside a folder makes it upload only: nothing in it can be deleted, and a file uploaded again under the same name keeps the one before as an older version.
+    static func appTourUploadText(upload: String, share: String, download: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.upload.text", table: "AppTour", tags: ["b": b], [.text(upload), .text(share), .text(download)])
+    }
+
+    /// Upload and share
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the second step about Files: uploading, sharing and upload-only folders.
+    static var appTourUploadTitle: String { L("app.tour.upload.title", table: "AppTour") }
+
+    /// Keep <b>{bridge}</b> on to give them their own address.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Second sentence of the step about adding users (after app.tour.users.text), as the web's web.tour.users.bridge. {bridge} is the switch under the name field in Settings › Users (app.settings.users.request_bridge), in bold; it is on from the start. On, the new user gets an address of their own on the bridge, for using the device from anywhere and for friends.
+    static func appTourUsersBridge(bridge: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.users.bridge", table: "AppTour", tags: ["b": b], [.text(bridge)])
+    }
+
+    /// Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, tap <b>{add}</b> and set their first password.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about Settings › Users, shown only to the device's owner, as the web's web.tour.users.text: each user is a separate account on the same device, with photos, files, posts and friends of their own. {settings} is the Settings section's name (app.shell.section_settings) and {users} the heading of its section (app.settings.users.title), in bold with the › between them (keep it); {add} is the button beside the field for the new user's name (common.add), in bold. The username takes lower-case letters, digits and hyphens; Add then asks for the new user's first password, which the owner gives them to sign in with. app.tour.users.bridge follows it.
+    static func appTourUsersText(settings: String, users: String, add: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.users.text", table: "AppTour", tags: ["b": b], [.text(settings), .text(users), .text(add)])
+    }
+
+    /// Add users
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about Settings › Users, shown only to the device's owner (the first account, who alone can add others): each person at home can have a user of their own on the same device.
+    static var appTourUsersTitle: String { L("app.tour.users.title", table: "AppTour") }
+
+    /// Tap a photo to open it, then swipe to go through them. The <b>{info}</b> button (ⓘ) shows when and where it was taken, the camera and a map.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the step about the full-screen viewer: a swipe goes to the next or previous photo. {info} is the name of the viewer's round i button at the top (app.photos.viewer.more_info), in bold; it shows the date taken, the place, the camera and, for photos with a location, a map. Keep the ⓘ.
+    static func appTourViewerText(info: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.tour.viewer.text", table: "AppTour", tags: ["b": b], [.text(info)])
+    }
+
+    /// Open a photo
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the step about the full-screen photo viewer.
+    static var appTourViewerTitle: String { L("app.tour.viewer.title", table: "AppTour") }
+
+    /// This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the bar at the bottom.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Text of the first step on a phone held upright, where the sections are the tabs of the bar at the bottom of the screen (Alerts, Social, Files, Images, Settings); its drawing goes through them. The device is the Off The Cloud box at home that keeps everything.
     static var appTourWelcomeText: String { L("app.tour.welcome.text", table: "AppTour") }
+
+    /// This takes a minute and shows how to find, sort and share what's on your device. Every part of the app is in the menu on the left.
+    ///
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. As app.tour.welcome.text, on a wide screen (a phone on its side, a tablet), where the sections are the items of the menu at the left of the screen.
+    static var appTourWelcomeTextWide: String { L("app.tour.welcome.text_wide", table: "AppTour") }
 
     /// Welcome to Off The Cloud
     ///
-    /// Title of the tour's first page. The tour is shown once after signing in to a device, and again from Settings.
+    /// The first-run tour: a card over the dimmed app, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Settings' Show the tour. Title of the first step.
     static var appTourWelcomeTitle: String { L("app.tour.welcome.title", table: "AppTour") }
 }

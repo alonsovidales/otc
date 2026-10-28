@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appShellAddToCollection
 import cloud.offthe.otc.i18n.appShellClearSelection
 import cloud.offthe.otc.i18n.appShellKeepOutOfImages
@@ -136,7 +138,11 @@ fun SelectionActionBar(
             }
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 4.dp) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp, horizontal = fit.side)) {
-                    for (item in items) Item(item, itemStyle, fit.lines, Modifier.weight(1f))
+                    for (item in items) Item(
+                        item, itemStyle, fit.lines,
+                        // Files' Upload: the tour's step about uploading rings it.
+                        Modifier.weight(1f).tourTarget(if (onUpload != null && item.onClick === onUpload) TourTarget.UPLOAD else null),
+                    )
                 }
             }
         }

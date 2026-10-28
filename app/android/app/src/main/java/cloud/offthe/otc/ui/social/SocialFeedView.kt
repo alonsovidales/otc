@@ -100,6 +100,8 @@ import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.TourTarget
+import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appSocialPostDeleteCommentLabel
 import cloud.offthe.otc.i18n.appSocialPostLike
 import cloud.offthe.otc.i18n.appSocialPostLikeComment
@@ -299,8 +301,8 @@ private fun Feed(
             expandedHeight = feedTopBarHeight,
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
-                IconButton(onClick = onFriends) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
-                IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
+                IconButton(onClick = onFriends, Modifier.tourTarget(TourTarget.FRIENDS_BUTTON)) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
+                IconButton(onClick = onNewPost, Modifier.tourTarget(TourTarget.NEW_POST)) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
             },
         )
     }) { pad ->
@@ -346,6 +348,7 @@ private fun Feed(
                             LaunchedEffect(post.uuid) { vm.loadMoreIfNeeded(post) }
                             PostCard(
                                 post = post,
+                                tourMarks = idx == 0,
                                 listState = listState,
                                 index = idx + 1,
                                 cap = postCap,
@@ -448,6 +451,8 @@ private val commentTags = mapOf("b" to RichTag(style = SpanStyle(fontWeight = Fo
 @Composable
 private fun PostCard(
     post: SocialPublication,
+    // The first post: its heart and comment field are what the tour's step about Social rings.
+    tourMarks: Boolean,
     listState: LazyListState,
     index: Int,
     cap: Dp,
@@ -508,7 +513,7 @@ private fun PostCard(
 
         Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             // Liked is said as selected too, as on iOS.
-            IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp).semantics { selected = post.liked }) {
+            IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp).semantics { selected = post.liked }.tourTarget(if (tourMarks) TourTarget.LIKE else null)) {
                 Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (post.liked) S.appSocialPostUnlike() else S.appSocialPostLike()).resolve(), tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
             }
         }
@@ -537,7 +542,7 @@ private fun PostCard(
             }
         }
 
-        Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp).tourTarget(if (tourMarks) TourTarget.COMMENT else null), verticalAlignment = Alignment.CenterVertically) {
             OTCTextField(
                 value = commentText, onValueChange = { commentText = it }, placeholder = { Text(S.appSocialPostCommentPlaceholder().resolve()) }, singleLine = true,
                 // The keyboard's Send posts it, as the button beside it.

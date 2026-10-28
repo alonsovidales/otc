@@ -459,7 +459,7 @@ private fun pick(o: SearchOption, search: TopSearchViewModel, gallery: PhotoGall
 
 // ---- Icons, drawn like NavIcons (TopSearch.tsx's own set) ----
 
-private object SearchIcons {
+internal object SearchIcons {
     val Search: ImageVector by lazy { outlineIcon("Search", circlePath(10.5f, 10.5f, 6f), "m15 15 5 5") }
     /** A page with a magnifier over its corner: search the documents. */
     val DocSearch: ImageVector by lazy {

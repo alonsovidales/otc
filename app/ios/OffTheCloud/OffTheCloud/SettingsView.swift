@@ -329,6 +329,9 @@ struct SettingsView: View {
     @EnvironmentObject var secrets: SecretsStore
     @EnvironmentObject var upload: UploadModel
     @EnvironmentObject var notifications: NotificationsModel
+    /// The first-run tour's steps about Settings scroll to what they ring.
+    @ObservedObject private var tour = TourModel.shared
+    @Environment(\.wideLayout) private var wide
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
     // Settings > Users; its sheet is presented here (usersManagementSheets).
@@ -379,6 +382,8 @@ struct SettingsView: View {
                 // The first-run tour again, from its first page (Tour.swift).
                 Section(header: Text(S.appTourSettingsTitle), footer: Text(S.appTourSettingsFooter)) {
                     Button(S.appTourShow) { TourModel.shared.replay() }
+                        .tourTarget(.showTour)
+                        .id(TourTarget.showTour)
                 }
 
                 Section(header: Text(S.appSettingsStatusTitle)) {
@@ -425,6 +430,8 @@ struct SettingsView: View {
 
                 Section(header: Text(S.appSettingsSyncTitle)) {
                     Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
+                        .tourTarget(.wifiOnly)
+                        .id(TourTarget.wifiOnly)
                     Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
                     Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
                     // The albums whose photos aren't backed up (AlbumsView).
@@ -588,6 +595,11 @@ struct SettingsView: View {
             }
             .onAppear { scrollToUpdatesIfAsked(proxy) }
             .onChange(of: notifications.pendingDeepLink) { _, _ in scrollToUpdatesIfAsked(proxy) }
+            .onAppear { scrollForTour(proxy) }
+            .onChange(of: tour.step) { _, _ in scrollForTour(proxy) }
+            .onChange(of: tour.shown) { _, _ in scrollForTour(proxy) }
+            .onChange(of: users.isPrimary) { _, _ in scrollForTour(proxy) }
+            .onChange(of: users.users.count) { _, _ in scrollForTour(proxy) }
             }
         }
         .task {
@@ -689,6 +701,25 @@ extension SettingsView {
         Task {
             try? await Task.sleep(for: .milliseconds(300))
             withAnimation { proxy.scrollTo(Self.updateSectionID, anchor: .top) }
+        }
+    }
+
+    /// The tour's steps about Settings: what they ring, scrolled to where
+    /// the card leaves it in sight (TourRules.settingsScroll). The short
+    /// wait lets a tab just switched to lay out first.
+    fileprivate func scrollForTour(_ proxy: ScrollViewProxy) {
+        guard tour.shown, let place = TourRules.settingsScroll(tour.step, wide: wide) else { return }
+        let step = tour.step
+        // A Form scrolls a row only to its top, middle or foot.
+        let anchor: UnitPoint = place.at < 0.25 ? .top : place.at < 0.75 ? .center : .bottom
+        Task {
+            // Again as the sections above it come in (Status, Users) and
+            // the rows take their real heights.
+            for wait in [200, 300, 400, 600] {
+                try? await Task.sleep(for: .milliseconds(wait))
+                guard tour.shown, tour.step == step else { return }
+                withAnimation { proxy.scrollTo(place.target, anchor: anchor) }
+            }
         }
     }
 

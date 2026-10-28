@@ -115,6 +115,7 @@ struct SelectionActionBar: View {
             EqualShares {
                 if let onUpload {
                     item(S.commonUpload, symbol: "square.and.arrow.down.on.square", action: onUpload)
+                        .tourTarget(.upload)
                 }
                 item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
                     .disabled(count == 0)
