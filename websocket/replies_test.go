@@ -141,6 +141,13 @@ var headEnglish = []struct {
 	{"dev.files.nothing_to_share", i18n.DevFilesNothingToShare(), "nothing to share"},
 	{"dev.files.nothing_to_stream", i18n.DevFilesNothingToStream(), "nothing to stream"},
 	{"dev.files.out_of_images_list_failed", i18n.DevFilesOutOfImagesListFailed("boom"), fmt.Sprintf("error listing the folders kept out of Images: %s", "boom")},
+	// "Not this person" / "Someone else…": new, so their English is the
+	// catalog's from the start.
+	{"dev.files.person_gone", i18n.DevFilesPersonGone(), "that person is no longer on this device"},
+	{"dev.files.person_missing", i18n.DevFilesPersonMissing(), "no person given"},
+	{"dev.files.person_no_photos", i18n.DevFilesPersonNoPhotos(), "no photos given"},
+	{"dev.files.person_same", i18n.DevFilesPersonSame(), "choose another person to move the photos to"},
+	{"dev.files.person_too_many", i18n.DevFilesPersonTooMany(cMaxRemoveFromPerson), "at most 10,000 photos at a time"},
 	{"dev.files.post_content_unavailable", i18n.DevFilesPostContentUnavailable("ab12", "boom"), fmt.Sprintf("the content of %s is missing or unreadable: %v", "ab12", "boom")},
 	{"dev.files.read_failed", i18n.DevFilesReadFailed("boom"), fmt.Sprintf("error reading file: %s", "boom")},
 	{"dev.files.reprocess_count_failed", i18n.DevFilesReprocessCountFailed("boom"), fmt.Sprintf("counting media for reprocess: %v", "boom")},

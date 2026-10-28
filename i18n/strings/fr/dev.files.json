@@ -161,6 +161,26 @@
     "text": "erreur lors de la lecture de la liste des dossiers hors d’Images : {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_gone": {
+    "text": "cette personne n’est plus sur cet appareil",
+    "en": "that person is no longer on this device"
+  },
+  "dev.files.person_missing": {
+    "text": "aucune personne indiquée",
+    "en": "no person given"
+  },
+  "dev.files.person_no_photos": {
+    "text": "aucune photo indiquée",
+    "en": "no photos given"
+  },
+  "dev.files.person_same": {
+    "text": "choisissez une autre personne vers qui déplacer les photos",
+    "en": "choose another person to move the photos to"
+  },
+  "dev.files.person_too_many": {
+    "text": "{max} photos au maximum à la fois",
+    "en": "at most {max} photos at a time"
+  },
   "dev.files.post_content_unavailable": {
     "text": "le contenu de {hash} est absent ou illisible : {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

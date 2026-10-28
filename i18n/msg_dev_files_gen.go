@@ -204,6 +204,31 @@ func DevFilesOutOfImagesListFailed(detail string) Msg {
 	return Msg{Key: "dev.files.out_of_images_list_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesPersonGone is dev.files.person_gone: "that person is no longer on this device".
+func DevFilesPersonGone() Msg {
+	return Msg{Key: "dev.files.person_gone"}
+}
+
+// DevFilesPersonMissing is dev.files.person_missing: "no person given".
+func DevFilesPersonMissing() Msg {
+	return Msg{Key: "dev.files.person_missing"}
+}
+
+// DevFilesPersonNoPhotos is dev.files.person_no_photos: "no photos given".
+func DevFilesPersonNoPhotos() Msg {
+	return Msg{Key: "dev.files.person_no_photos"}
+}
+
+// DevFilesPersonSame is dev.files.person_same: "choose another person to move the photos to".
+func DevFilesPersonSame() Msg {
+	return Msg{Key: "dev.files.person_same"}
+}
+
+// DevFilesPersonTooMany is dev.files.person_too_many: "at most {max} photos at a time".
+func DevFilesPersonTooMany(max int) Msg {
+	return Msg{Key: "dev.files.person_too_many", Args: map[string]any{"max": int64(max)}}
+}
+
 // DevFilesPostContentUnavailable is dev.files.post_content_unavailable: "the content of {hash} is missing or unreadable: {detail}".
 func DevFilesPostContentUnavailable(hash string, detail string) Msg {
 	return Msg{Key: "dev.files.post_content_unavailable", Args: map[string]any{"hash": hash, "detail": detail}}

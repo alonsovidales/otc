@@ -1198,6 +1198,18 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   `dao.DelFacesByHash`, which also deletes unnamed people left with no face); lock order is always
   the hash lock, then `outOfImagesMu` (issue #192), then `faceRefsMu`, and `processFaces` never takes a hash lock. Only the people who
   lost a reference are reloaded (`faceRefsStale`), the whole set only after a database error.
+  People's "Not this person" / "Someone else…" (`RemoveFromPerson`, envelope 146): the faces of
+  `person_id` in the photos named (`hashes`, at most 10000, `websocket/people.go`) move to
+  `to_person_id`, or to no one - `faces.person_id` `""`. No one's faces are counted, shown as a cover,
+  searched by (`SearchMedia`'s `<> ''`) or matched through by nobody (`ListFaceEmbeddings` skips them,
+  `faceRefs.add` and `matchOrNewPerson` never take `""`), yet the row keeps `HashHasFaces` true, so the
+  photo isn't analysed again; they go with their content like any face, and a Reprocess finds every
+  face afresh. `dao.RemoveFromPerson` is one transaction (the target locked `for update`, gone ->
+  `ErrNoSuchPerson` -> `dev.files.person_gone`): covers among the moved faces are cleared and an
+  unnamed source left with no face is deleted (a named one stays); `filesmanager.RemoveFromPerson`
+  (under `faceRefsMu`) then rebuilds both people's references from their own faces, works their
+  covers out again and calls `noteDelete` (the apps drop the photos from the grid and lower `have`).
+  `DeletePerson("")` and `MergePeople` never touch no one's faces. The demo refuses it.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (on by default, `SetImageTaggingEnabled`, read per file in the slow lane by
   `imageTaggingEnabled`); when off only the place tags from a file's own location data are

@@ -161,6 +161,26 @@
     "text": "errore durante l’elenco delle cartelle fuori da Immagini: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_gone": {
+    "text": "quella persona non è più su questo dispositivo",
+    "en": "that person is no longer on this device"
+  },
+  "dev.files.person_missing": {
+    "text": "nessuna persona indicata",
+    "en": "no person given"
+  },
+  "dev.files.person_no_photos": {
+    "text": "nessuna foto indicata",
+    "en": "no photos given"
+  },
+  "dev.files.person_same": {
+    "text": "scegli un’altra persona a cui spostare le foto",
+    "en": "choose another person to move the photos to"
+  },
+  "dev.files.person_too_many": {
+    "text": "al massimo {max} foto alla volta",
+    "en": "at most {max} photos at a time"
+  },
   "dev.files.post_content_unavailable": {
     "text": "il contenuto di {hash} manca o è illeggibile: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

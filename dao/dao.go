@@ -2382,14 +2382,22 @@ type FaceEmbedding struct {
 // per-person centroids would be (a person's different angles/lighting/
 // expressions are better matched against their nearest individual face
 // than an average of all of them).
+//
+// A face taken off its person and given to no one ("Not this person",
+// person_id "" - see RemoveFromPerson) is left out: matching must never
+// learn from it, nor file a new face under no one through it.
 func (dao *Dao) ListFaceEmbeddings() (faces []FaceEmbedding, err error) {
-	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces`")
+	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` <> ''")
 }
 
 // ListPersonFaceEmbeddings is ListFaceEmbeddings for one person's faces:
 // what files_manager rebuilds a person's matching references from after
-// a delete took one of them, instead of reading every person's.
+// a delete took one of them, instead of reading every person's. The empty
+// id is no one: nothing (see ListFaceEmbeddings).
 func (dao *Dao) ListPersonFaceEmbeddings(personID string) (faces []FaceEmbedding, err error) {
+	if personID == "" {
+		return nil, nil
+	}
 	return dao.faceEmbeddings("select `id`, `person_id`, `embedding` from `faces` where `person_id` = ?", personID)
 }
 
@@ -2479,7 +2487,14 @@ func (dao *Dao) RenamePerson(id, name string) (err error) {
 // them (issue #52: "just click on delete the individual") - see the
 // `faces` table's own doc comment in db.sql for why both are deleted
 // together rather than leaving orphaned face rows behind.
+//
+// The empty id is no one (faces taken off their person, see
+// RemoveFromPerson): deleting it would delete those faces, and the photos
+// they were found in would be analysed again.
 func (dao *Dao) DeletePerson(id string) (err error) {
+	if id == "" {
+		return nil
+	}
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return err
@@ -2500,10 +2515,16 @@ func (dao *Dao) DeletePerson(id string) (err error) {
 // what it does to targetID vs. the sources. targetID itself is filtered
 // out of sourceIDs (merging a person into themselves is a no-op, not an
 // error) so a client doesn't need to de-duplicate before calling this.
+// The empty id is no one (faces taken off their person, see
+// RemoveFromPerson): never merged into, nor merged into someone - that
+// would hand every such face back to a person.
 func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
+	if targetID == "" {
+		return nil
+	}
 	ids := make([]string, 0, len(sourceIDs))
 	for _, id := range sourceIDs {
-		if id != targetID {
+		if id != targetID && id != "" {
 			ids = append(ids, id)
 		}
 	}
@@ -2589,7 +2610,9 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	if len(personIDs) > 0 {
 		ph := strings.Repeat("?,", len(personIDs))
 		ph = ph[:len(ph)-1]
-		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") group by `hash`" +
+		// A face taken off its person ("Not this person", person_id '')
+		// is no one's: an empty id finds no photo.
+		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") and `person_id` <> '' group by `hash`" +
 			fmt.Sprintf(" having count(distinct `person_id`) = %d) as `fc` on `fc`.`hash` = `f`.`hash`", len(personIDs))
 		for _, p := range personIDs {
 			args = append(args, p)

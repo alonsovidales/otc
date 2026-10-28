@@ -115,8 +115,14 @@ func (p *personFaceRefs) identified() []facerecognition.IdentifiedEmbedding {
 }
 
 // add offers a face to personID's references, creating the person's set
-// on first use - see personFaceRefs.add for the selection rule.
+// on first use - see personFaceRefs.add for the selection rule. A face of
+// no one (person_id "", taken off its person - dao.RemoveFromPerson) is
+// never a reference: matching would file new faces under no one, or as
+// a new person each, through it.
 func (fr faceRefs) add(personID, faceID string, emb []float32) bool {
+	if personID == "" {
+		return false
+	}
 	p := fr[personID]
 	if p == nil {
 		p = &personFaceRefs{}

@@ -161,6 +161,26 @@
     "text": "erro ao listar as pastas fora de Imagens: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_gone": {
+    "text": "essa pessoa já não está neste dispositivo",
+    "en": "that person is no longer on this device"
+  },
+  "dev.files.person_missing": {
+    "text": "não foi indicada nenhuma pessoa",
+    "en": "no person given"
+  },
+  "dev.files.person_no_photos": {
+    "text": "não foi indicada nenhuma foto",
+    "en": "no photos given"
+  },
+  "dev.files.person_same": {
+    "text": "escolhe outra pessoa para onde mover as fotos",
+    "en": "choose another person to move the photos to"
+  },
+  "dev.files.person_too_many": {
+    "text": "no máximo {max} fotos de cada vez",
+    "en": "at most {max} photos at a time"
+  },
   "dev.files.post_content_unavailable": {
     "text": "o conteúdo de {hash} está em falta ou ilegível: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

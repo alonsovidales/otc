@@ -531,7 +531,11 @@ create table people
 -- delete the individual") deletes every face row here that pointed to
 -- them, not just the `people` row - see dao.DeletePerson. Keyed by `hash`
 -- like tags and thumbnails, a photo's faces go with its last file or kept
--- version (dao.DelFacesByHash).
+-- version (dao.DelFacesByHash). `person_id` '' is a face taken off its
+-- person and given to no one ("Not this person", dao.RemoveFromPerson): no
+-- person counts, shows or is searched by it, face matching never uses it,
+-- and its row still says the photo's faces were found, so the photo isn't
+-- analysed again.
 create table faces
 (
   `id` varchar(36) not null,

@@ -204,6 +204,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqRenamePerson{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqDeletePerson{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqMergePeople{}):               demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqRemoveFromPerson{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqStartReprocess{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqStopReprocess{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqCreateImageGroup{}):          demoRefuse,

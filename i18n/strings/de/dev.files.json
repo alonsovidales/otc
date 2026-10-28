@@ -161,6 +161,26 @@
     "text": "Fehler beim Auflisten der in „Bilder“ ausgeblendeten Ordner: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_gone": {
+    "text": "diese Person ist nicht mehr auf diesem Gerät",
+    "en": "that person is no longer on this device"
+  },
+  "dev.files.person_missing": {
+    "text": "keine Person angegeben",
+    "en": "no person given"
+  },
+  "dev.files.person_no_photos": {
+    "text": "keine Fotos angegeben",
+    "en": "no photos given"
+  },
+  "dev.files.person_same": {
+    "text": "wähle eine andere Person, zu der die Fotos verschoben werden",
+    "en": "choose another person to move the photos to"
+  },
+  "dev.files.person_too_many": {
+    "text": "höchstens {max} Fotos auf einmal",
+    "en": "at most {max} photos at a time"
+  },
   "dev.files.post_content_unavailable": {
     "text": "der Inhalt von {hash} fehlt oder ist nicht lesbar: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

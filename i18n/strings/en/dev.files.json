@@ -186,6 +186,27 @@
     "args": [["detail", "text"]],
     "note": "Error reply when the list of folders kept out of Images could not be read. Images is the photos section; a folder kept out of it shows no photos there and gets no tags or faces. {detail} is the reason, usually an error in English the device can't translate."
   },
+  "dev.files.person_gone": {
+    "text": "that person is no longer on this device",
+    "note": "Error reply to Someone else… (moving photos from one person found by face recognition to another) when the person picked was deleted, or merged into another, meanwhile - from another phone or browser, for example. Nothing was moved."
+  },
+  "dev.files.person_missing": {
+    "text": "no person given",
+    "note": "Error reply when an app asks to take photos off a person found by face recognition (Not this person), or to move them to another person, without saying which person (an app fault)."
+  },
+  "dev.files.person_no_photos": {
+    "text": "no photos given",
+    "note": "Error reply when an app asks to take photos off a person found by face recognition (Not this person), or to move them to another person, without naming any photo (an app fault)."
+  },
+  "dev.files.person_same": {
+    "text": "choose another person to move the photos to",
+    "note": "Error reply to Someone else… (moving photos from one person found by face recognition to another) when the person picked is the one the photos are taken from (an app fault)."
+  },
+  "dev.files.person_too_many": {
+    "text": "at most {max} photos at a time",
+    "args": [["max", "int"]],
+    "note": "Error reply when an app asks to take more photos off a person found by face recognition (Not this person), or to move more of them to another person, than the device handles in one request (an app fault). {max} is that most (10000)."
+  },
   "dev.files.post_content_unavailable": {
     "text": "the content of {hash} is missing or unreadable: {detail}",
     "args": [["hash", "text"], ["detail", "text"]],

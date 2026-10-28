@@ -130,6 +130,9 @@ func (mg *Manager) hasFaces(hash string) bool {
 func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
 	if mg.faceRefs != nil {
 		for personID := range mg.faceRefsStale {
+			if personID == "" {
+				continue // no one: never in the set
+			}
 			faces, err := mg.dao.ListPersonFaceEmbeddings(personID)
 			if err != nil {
 				log.Error("error listing a person's face embeddings, reading everyone's:", err)
@@ -159,6 +162,9 @@ func (mg *Manager) loadFaceRefsLocked(ses *session.Session) (faceRefs, error) {
 // addStored offers stored faces to their people's references, in order.
 func (fr faceRefs) addStored(ses *session.Session, faces []dao.FaceEmbedding) {
 	for _, e := range faces {
+		if e.PersonID == "" {
+			continue // no one's (faceRefs.add): not even decrypted
+		}
 		// Everything under faces.* is derived straight from the owner's
 		// own photos - a face crop is as much "file content" as the photo
 		// it was cut from, and an embedding is a biometric fingerprint of
@@ -295,7 +301,9 @@ func updatePersonCoverFace(d *dao.Dao, personID string, p *personFaceRefs) {
 
 // matchOrNewPerson returns the person id of whichever reference face is
 // the closest match above face_recognition's same-person threshold, or ""
-// if none clears it - the caller creates a new person in that case. Only
+// if none clears it - the caller creates a new person in that case. It
+// never answers with a face taken off its person (person_id "", see
+// dao.RemoveFromPerson): those are no one's, and never references. Only
 // each person's references are compared (issue #173), not every face ever
 // stored. Pure logic, deliberately separate from processFaces' DB/model
 // plumbing so it's directly unit-testable without a real database or the
@@ -304,6 +312,11 @@ func matchOrNewPerson(embedding []float32, refs faceRefs) string {
 	bestPersonID := ""
 	var bestScore float32
 	for personID, p := range refs {
+		if personID == "" {
+			// No one's faces are never references (faceRefs.add); and ""
+			// here means "no match" - never "the person no one".
+			continue
+		}
 		for _, r := range p.refs {
 			score := facerecognition.CosineSimilarity(embedding, r.emb)
 			if score > bestScore {

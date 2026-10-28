@@ -50,6 +50,7 @@ func TestDemoRefusesChanges(t *testing.T) {
 		{delFileReq("/Phone/a.jpg", nil, ""), "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11, Lang: "es", Payload: &pb.ReqEnvelope_ReqChangeKey{ReqChangeKey: &pb.ChangeKey{}}}, "Este es un dispositivo de demostración: los cambios están desactivados."},
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqRestartDevice{ReqRestartDevice: &pb.RestartDevice{}}}, "This is a demo device: changes are turned off."},
+		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqRemoveFromPerson{ReqRemoveFromPerson: &pb.RemoveFromPerson{PersonId: "p1", Hashes: []string{"A"}}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11, Payload: &pb.ReqEnvelope_ReqFriendshipInterRequest{ReqFriendshipInterRequest: &pb.FriendshipInterRequest{}}}, "This is a demo device: changes are turned off."},
 		{&pb.ReqEnvelope{Id: 11}, "This is a demo device: changes are turned off."},
 	} {

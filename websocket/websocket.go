@@ -3453,6 +3453,35 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqRemoveFromPerson:
+		// People's "Not this person" and "Someone else…": the faces of a
+		// person in the photos named leave them - to no one, or to the
+		// person picked. The photos are never touched.
+		req := p.ReqRemoveFromPerson
+		if req.ToPersonId == "" {
+			log.Info("Not this person:", req.PersonId, len(req.Hashes), "photo(s)")
+		} else {
+			log.Info("Move to another person:", req.PersonId, "to", req.ToPersonId, len(req.Hashes), "photo(s)")
+		}
+		if refusal := removeFromPersonRefusal(req); refusal != nil {
+			resp.Error = true
+			resp.ErrorMessage = refusal.Render(lang)
+			break
+		}
+		if err := ch.mg.filesManager.RemoveFromPerson(ses, req.PersonId, req.Hashes, req.ToPersonId); err != nil {
+			resp.Error = true
+			if errors.Is(err, dao.ErrNoSuchPerson) {
+				// Deleted or merged meanwhile (another app): nothing moved.
+				log.Info("the person picked is gone:", req.ToPersonId)
+				resp.ErrorMessage = i18n.DevFilesPersonGone().Render(lang)
+			} else {
+				log.Error("error removing photos from a person:", err)
+				resp.ErrorMessage = errText(lang, err)
+			}
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
 	case *pb.ReqEnvelope_ReqStartReprocess:
 		log.Info("Start reprocess")
 		if err := ch.mg.filesManager.Reprocess(ses, p.ReqStartReprocess.ForceRestart); err != nil {
