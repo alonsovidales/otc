@@ -252,7 +252,7 @@ final class LanguageSettings: ObservableObject {
          device: Device = .live,
          languages: [L10nLanguage] = L10nLanguage.all,
          system: @escaping () -> [String] = { Locale.preferredLanguages },
-         show: @escaping @MainActor (String) -> Void = { L10n.shared.set($0) },
+         show: @escaping @MainActor (String) -> Void = { L10n.shared.set($0); WallpaperLanguage.share($0) },
          now: @escaping () -> Date = Date.init) {
         self.defaults = defaults
         self.device = device

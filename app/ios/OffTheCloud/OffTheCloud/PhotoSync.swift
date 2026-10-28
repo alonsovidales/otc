@@ -314,6 +314,14 @@ final class PhotoSync: NSObject {
     }
 
     /// Pure, IOS-01: whether "Wi-Fi only" holds the sync on this path.
+    /// What a run leaves out of the new photos: those in the albums turned
+    /// off, and those this app put in the library itself (SavedToPhone: the
+    /// viewer's Save, the wallpaper's album) - copies of the device's own
+    /// photos, never sent back to it.
+    static func leftOut(albums: Set<String>, saved: Set<String>, fresh: Set<String>) -> Set<String> {
+        albums.union(saved.intersection(fresh))
+    }
+
     static func waitsForWifi(wifiOnly: Bool, expensive: Bool) -> Bool {
         wifiOnly && expensive
     }
@@ -966,7 +974,7 @@ final class PhotoSync: NSObject {
         // watermark.
         var byID: [String: PHAsset] = [:]
         for asset in retried + oneOff + fresh { byID[asset.localIdentifier] = asset }
-        let skipped = (secrets.skippedAlbums.isEmpty || byID.isEmpty ? [] : skippedIDs()).union(saved.intersection(freshIDs))
+        let skipped = Self.leftOut(albums: secrets.skippedAlbums.isEmpty || byID.isEmpty ? [] : skippedIDs(), saved: saved, fresh: freshIDs)
         let list = PhotoSources.runList(retried: retried.map(\.localIdentifier), oneOff: oneOff.map(\.localIdentifier),
                                         fresh: fresh.map(\.localIdentifier), skipped: skipped)
         let assets = list.ids.compactMap { byID[$0] }

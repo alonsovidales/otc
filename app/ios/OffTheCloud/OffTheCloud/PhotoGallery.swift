@@ -1302,6 +1302,8 @@ final class PhotoGalleryVM: ObservableObject {
         }
         groups.removeAll { $0.id == g.id }
         leaveGroup()
+        // Used as wallpaper: that stops, and its copies go.
+        await WallpaperModel.shared.collectionDeleted(g.id)
     }
 
     // Both send the selection's paths; the device resolves them to hashes.
@@ -3172,6 +3174,9 @@ struct PhotoGalleryView: View {
     // view itself (the open group's chip), one for the groups sheet, which
     // has to present the flow from inside itself.
     @State private var gallerySource: Msg_SharedGallerySource?
+    /// The open collection's wallpaper screen (WallpaperView.swift).
+    @State private var wallpaperTarget: WallpaperTarget?
+    @ObservedObject private var wallpaper = WallpaperModel.shared
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad instead of the fixed three that only ever made sense on a
@@ -3520,6 +3525,9 @@ struct PhotoGalleryView: View {
             Text(S.appPhotosCollectionsDeleteMessage)
         }
         .sharedGalleryShareFlow(source: $gallerySource)
+        .sheet(item: $wallpaperTarget) { t in
+            WallpaperView(target: t) { wallpaperTarget = nil }
+        }
         .onAppear { vm.onAppearInitial() }
         .confirmationDialog(
             S.appPhotosSelectionDeleteTitle(count: vm.selected.count),
@@ -3803,6 +3811,14 @@ struct PhotoGalleryView: View {
                 gallerySource = .group(g.id)
             } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
             .accessibilityLabel(S.appShellShareAsGalleryMenu)
+            // The collection as the iPhone's wallpaper: its screen, which
+            // first says that the photos are stored on the phone.
+            Button {
+                wallpaperTarget = WallpaperTarget(id: g.id, name: g.name)
+            } label: {
+                Image(systemName: wallpaper.inUse(g.id) ? "photo.artframe.circle.fill" : "photo.artframe").font(.caption)
+            }
+            .accessibilityLabel(wallpaper.inUse(g.id) ? S.appPhotosWallpaperMenuOn : S.appPhotosWallpaperMenu)
             Button {
                 vm.confirmDeleteGroup = true
             } label: { Image(systemName: "trash").font(.caption) }

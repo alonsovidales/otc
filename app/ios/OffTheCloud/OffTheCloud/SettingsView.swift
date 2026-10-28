@@ -820,6 +820,10 @@ enum AppLogOut {
             // or the request below queues behind its uploads and Log Out
             // looks like it does nothing.
             PhotoSync.shared.cancel()
+            // A collection used as wallpaper is this device's: the widget's
+            // copies go, and the album with its copies if the person agrees
+            // (iOS asks).
+            await WallpaperModel.shared.signedOut()
             // Issue #131: tell the device to forget this phone's push
             // token first, best effort - it goes on pushing to a phone
             // that is no longer signed in otherwise. Everything below

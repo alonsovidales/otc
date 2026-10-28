@@ -7,11 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		84C0A0012F0A000100AA0001 /* OffTheCloudWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 84C0A0012F0A000100AA0004 /* OffTheCloudWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8496A7DB2E6F151E00FECA8C /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 8496A7DA2E6F151E00FECA8C /* SwiftProtobuf */; };
 		8496A8222E6F712900FECA8C /* web-dist in Resources */ = {isa = PBXBuildFile; fileRef = 8496A8212E6F712900FECA8C /* web-dist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		84C0A0012F0A000100AA0002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84B801B62E6EE98F007CD7E2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84C0A0012F0A000100AA000B;
+			remoteInfo = OffTheCloudWidgetExtension;
+		};
 		84B801CC2E6EE991007CD7E2 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 84B801B62E6EE98F007CD7E2 /* Project object */;
@@ -28,7 +36,22 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		84C0A0012F0A000100AA0003 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				84C0A0012F0A000100AA0001 /* OffTheCloudWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		84C0A0012F0A000100AA0004 /* OffTheCloudWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OffTheCloudWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8496A8212E6F712900FECA8C /* web-dist */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "web-dist"; sourceTree = "<group>"; };
 		84B801BE2E6EE98F007CD7E2 /* OffTheCloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OffTheCloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84B801CB2E6EE991007CD7E2 /* OffTheCloudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OffTheCloudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -37,6 +60,24 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		84C0A0012F0A000100AA0006 /* Exceptions for "OffTheCloud" folder in "OffTheCloudWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				i18n/Ios.xcstrings,
+				i18n/L10n.swift,
+				i18n/Languages.swift,
+				"i18n/S+Ios.swift",
+				WallpaperShared.swift,
+			);
+			target = 84C0A0012F0A000100AA000B /* OffTheCloudWidgetExtension */;
+		};
+		84C0A0012F0A000100AA0005 /* Exceptions for "OffTheCloudWidget" folder in "OffTheCloudWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 84C0A0012F0A000100AA000B /* OffTheCloudWidgetExtension */;
+		};
 		84B802022E6EF067007CD7E2 /* Exceptions for "OffTheCloud" folder in "OffTheCloud" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -47,10 +88,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		84C0A0012F0A000100AA0007 /* OffTheCloudWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84C0A0012F0A000100AA0005 /* Exceptions for "OffTheCloudWidget" folder in "OffTheCloudWidgetExtension" target */,
+			);
+			path = OffTheCloudWidget;
+			sourceTree = "<group>";
+		};
 		84B801C02E6EE98F007CD7E2 /* OffTheCloud */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				84B802022E6EF067007CD7E2 /* Exceptions for "OffTheCloud" folder in "OffTheCloud" target */,
+				84C0A0012F0A000100AA0006 /* Exceptions for "OffTheCloud" folder in "OffTheCloudWidgetExtension" target */,
 			);
 			path = OffTheCloud;
 			sourceTree = "<group>";
@@ -68,6 +118,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		84C0A0012F0A000100AA0008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84B801BB2E6EE98F007CD7E2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -108,6 +165,7 @@
 				84B801C02E6EE98F007CD7E2 /* OffTheCloud */,
 				84B801CE2E6EE991007CD7E2 /* OffTheCloudTests */,
 				84B801D82E6EE991007CD7E2 /* OffTheCloudUITests */,
+				84C0A0012F0A000100AA0007 /* OffTheCloudWidget */,
 				8496A7D92E6F151E00FECA8C /* Frameworks */,
 				84B801BF2E6EE98F007CD7E2 /* Products */,
 			);
@@ -119,6 +177,7 @@
 				84B801BE2E6EE98F007CD7E2 /* OffTheCloud.app */,
 				84B801CB2E6EE991007CD7E2 /* OffTheCloudTests.xctest */,
 				84B801D52E6EE991007CD7E2 /* OffTheCloudUITests.xctest */,
+				84C0A0012F0A000100AA0004 /* OffTheCloudWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -133,10 +192,12 @@
 				84B801BA2E6EE98F007CD7E2 /* Sources */,
 				84B801BB2E6EE98F007CD7E2 /* Frameworks */,
 				84B801BC2E6EE98F007CD7E2 /* Resources */,
+				84C0A0012F0A000100AA0003 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				84C0A0012F0A000100AA000C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				84B801C02E6EE98F007CD7E2 /* OffTheCloud */,
@@ -195,6 +256,28 @@
 			productReference = 84B801D52E6EE991007CD7E2 /* OffTheCloudUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		84C0A0012F0A000100AA000B /* OffTheCloudWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84C0A0012F0A000100AA000F /* Build configuration list for PBXNativeTarget "OffTheCloudWidgetExtension" */;
+			buildPhases = (
+				84C0A0012F0A000100AA000A /* Sources */,
+				84C0A0012F0A000100AA0008 /* Frameworks */,
+				84C0A0012F0A000100AA0009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				84C0A0012F0A000100AA0007 /* OffTheCloudWidget */,
+			);
+			name = OffTheCloudWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = OffTheCloudWidgetExtension;
+			productReference = 84C0A0012F0A000100AA0004 /* OffTheCloudWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -215,6 +298,9 @@
 					84B801D42E6EE991007CD7E2 = {
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = 84B801BD2E6EE98F007CD7E2;
+					};
+					84C0A0012F0A000100AA000B = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -244,11 +330,19 @@
 				84B801BD2E6EE98F007CD7E2 /* OffTheCloud */,
 				84B801CA2E6EE991007CD7E2 /* OffTheCloudTests */,
 				84B801D42E6EE991007CD7E2 /* OffTheCloudUITests */,
+				84C0A0012F0A000100AA000B /* OffTheCloudWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		84C0A0012F0A000100AA0009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84B801BC2E6EE98F007CD7E2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -274,6 +368,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		84C0A0012F0A000100AA000A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84B801BA2E6EE98F007CD7E2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -298,6 +399,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		84C0A0012F0A000100AA000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84C0A0012F0A000100AA000B /* OffTheCloudWidgetExtension */;
+			targetProxy = 84C0A0012F0A000100AA0002 /* PBXContainerItemProxy */;
+		};
 		84B801CD2E6EE991007CD7E2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 84B801BD2E6EE98F007CD7E2 /* OffTheCloud */;
@@ -311,6 +417,64 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		84C0A0012F0A000100AA000D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OffTheCloudWidget/OffTheCloudWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 20;
+				DEVELOPMENT_TEAM = S7JR3LN436;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OffTheCloudWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Off The Cloud";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = "cloud.off-the.OffTheCloud.Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		84C0A0012F0A000100AA000E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OffTheCloudWidget/OffTheCloudWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 20;
+				DEVELOPMENT_TEAM = S7JR3LN436;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OffTheCloudWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Off The Cloud";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = "cloud.off-the.OffTheCloud.Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		84B801DD2E6EE991007CD7E2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -595,6 +759,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		84C0A0012F0A000100AA000F /* Build configuration list for PBXNativeTarget "OffTheCloudWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84C0A0012F0A000100AA000D /* Debug */,
+				84C0A0012F0A000100AA000E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		84B801B92E6EE98F007CD7E2 /* Build configuration list for PBXProject "OffTheCloud" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

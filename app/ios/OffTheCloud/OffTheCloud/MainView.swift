@@ -604,9 +604,17 @@ private struct MainChrome: ViewModifier {
         // Whether face recognition is on decides whether People shows
         // (FaceRecognition.swift): asked once signed in, and again each
         // time the app comes back, as it may have changed on the web.
-        .task { FaceRecognition.shared.refresh() }
+        .task {
+            FaceRecognition.shared.refresh()
+            // A collection used as wallpaper follows the collection
+            // (Wallpaper.swift), each time the app comes to the front.
+            await WallpaperModel.shared.keepInStep()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { FaceRecognition.shared.refresh() }
+            if phase == .active {
+                FaceRecognition.shared.refresh()
+                Task { await WallpaperModel.shared.keepInStep() }
+            }
         }
         .onChange(of: notifications.pendingDeepLink) { _, link in onDeepLink(link) }
         // Issue #56: covers the tabs rather than sitting inside one of
