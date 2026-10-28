@@ -2680,7 +2680,13 @@ at most 100 screen-sized photo copies: Android (`wallpaper/`: `WallpaperRules`, 
 `Wallpaper`, `ui/gallery/WallpaperBox.kt`) keeps them in `filesDir/wallpaper/<collection>/`, prefs
 `otc_wallpaper`, a WorkManager download job (unmetered under Wi-Fi only) and a periodic one that sets
 lock/home/both with WallpaperManager; Stop, deleting the collection, Log Out and another device delete
-the copies and leave the last photo up.
+the copies and leave the last photo up. iOS can't set wallpapers (`WallpaperView.swift`): the lock screen gets a
+Photos album "Off The Cloud · <name>" for Photo Shuffle (full Photos access; every asset made is in
+`SavedToPhone`, so `PhotoSync.leftOut` keeps it out of the sync and Free Up Space; Stop deletes them in one
+change, iOS asks), and the home screen the `OffTheCloudWidgetExtension` target (`cloud.off-the.OffTheCloud.Widget`,
+App Group `group.cloud.off-the.OffTheCloud`, both registered 2026-10-28; copies <= 1200 px in the group
+container, `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
+24-entry one is refused as too large -, its texts from the app's language through the group).
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
