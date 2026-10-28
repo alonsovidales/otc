@@ -6,7 +6,9 @@
 .sg-empty p { margin: 0; color: var(--mist-dim); }
 
 .sg-head { max-width: 1400px; margin: 0 auto 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
-.sg-title h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.9rem); line-height: 1.2; text-wrap: balance; }
+/* A title is whatever its sender typed: one long word breaks too, or a
+   phone would have to scroll sideways to read it. */
+.sg-title h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.9rem); line-height: 1.2; text-wrap: balance; overflow-wrap: anywhere; }
 .sg-meta { margin: 4px 0 0; color: var(--mist-dim); font-size: 0.92rem; font-variant-numeric: tabular-nums; }
 .sg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .sg-actions .btn, .sg-viewer-bar .btn { background: var(--panel); color: var(--mist); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }

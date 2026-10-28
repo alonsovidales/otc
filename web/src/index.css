@@ -177,6 +177,16 @@ body {
   color: var(--mist);
 }
 
+/* The window's width, whatever is in it: as an item of the body's row
+   above, it would otherwise be as wide as its content. It lived in App.css,
+   which a shared gallery's page doesn't load (main.tsx): there it took the
+   width of the gallery's grid at its widest, 1,430 px, and ran off the
+   screen in one row of tiles. */
+#root {
+  width: 100%;
+  margin: 0 0;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
