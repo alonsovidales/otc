@@ -1753,8 +1753,8 @@ which only the primary instance answers and which fetches the release list from 
 
 The first-run tour on the web (tour 2, 2026-10-27: `components/Tour.tsx`, its drawings `TourArt.tsx`
 + `.css` and their timer `tourMotion.ts`, rules in `tourSteps.ts`, the seen flag in `tourSeen.ts`;
-`node web/scripts/tour-test.mjs`, and `back-stack-test.mjs` for its history; the phones' `TourView`
-is still the first tour, with its own steps and version 1): a card in a native modal `<dialog>` that
+`node web/scripts/tour-test.mjs`, and `back-stack-test.mjs` for its history; the phones have the
+same tour natively, plus a step for their own photo backup - see Native apps): a card in a native modal `<dialog>` that
 teaches one skill a step, by showing it - welcome (the menu), search, dates (the scrubber), select,
 viewer, people (only while face recognition is on: steps are kept by id, so People can come or go
 mid-tour), collections, files (List/Grid/Storage, sorting), upload (drag in, Share, Download ZIP,
@@ -2601,28 +2601,49 @@ view model while the Settings tab lives; Android stops looking in the background
 is left and picks the wait up again on return, reopening the picker on the network tried after a
 wrong password. `DeviceUnreachableView` shows the cable hint (`app.shell.unreachable_wifi_hint`)
 under the device's words and before "still trying", except for a disabled account.
-**The first-run tour** (iOS `Tour.swift` <-> Android `ui/Tour.kt`: `TourStep`, `TourRules`,
-`TourModel`, `TourView`; tests `TourTests.swift` <-> `TourTest.kt`, cases T1-T14; the web's is under
-Frontend): a full-screen pager RootView draws over MainView (iOS `TourOverlay`, Android a `Box` with
-MainView's semantics cleared) rather than a sheet or Dialog, so SyncChoice and every sheet and dialog
-open above it. Pages welcome, images, backup, people (only while `FaceRecognition` is on; pages go by
-id, `TourRules.place` moves one that went to the next, Android's pager is keyed by step),
-collections, files, social, post, friends, alerts, done, texts `app.tour.*` with section titles
-`app.shell.section_*` and every quoted label an argument from its own key; the `where`/`where_wide`
-line follows MainView's layout rule live (`WideLayout.menu`, `menuLayout`). Skip on every page,
-Back from page 2, Next/Done in ember with --ember-ink text; Android Back is Skip; iPad Escape/Return
-are Skip/Next; Reduce Motion (animator scale 0) turns pages without sliding; a page under 440 pt/dp
-shrinks its picture. It opens by itself once: signed in (`OTCConnection.authenticated`), MainView up
-with no card (`statusCode` nil, not `connectionFailed`), SyncChoice answered and the stored version
-below `TourRules.version` (1; raise it only for a rewritten tour) - installs signed in before it came
-included. `evaluate` writes the mark before showing it; a store it can't read or write opens nothing.
-The mark is the phone's alone: iOS defaults suite `cloud.off-the.OffTheCloud.tour` key `seenVersion`
-(outside the domain Log Out removes), Android prefs `otc_tour` key `seen_version` (`commit`; not
-wiped at Log Out, not in the backup rules). Settings › Getting started (after Language, before
-Status) replays it from page 1 and leaves the mark; Log Out only closes it (`reset`). The texts were
-checked against both apps: a post needs a caption, Upload sits in Files' bottom bar, the composer's
-switch is Phone/Synced. Android's welcome logo is `drawable-nodpi/otc_logo_large.webp` (the iOS
-asset at 900 px): `otc_logo` is drawn for the feed's 28dp and blurs at 84dp.
+**The first-run tour** (tour 2, 2026-10-28: iOS `Tour.swift` + `TourArt.swift` <-> Android `ui/Tour.kt` +
+`ui/TourArt.kt`: `TourStep`, `TourTarget`, `TourRules`, `TourModel`, `TourTargets`, `TourView`/`TourLayer`;
+tests `TourTests.swift` <-> `TourTest.kt`, cases T1-T19; the web's is under Frontend): a card RootView lays
+over MainView (iOS `TourOverlay`, Android a `Box` with MainView's semantics cleared), so SyncChoice and every
+sheet and dialog open above it, teaching one thing a step by showing it - welcome (the bottom bar, or the
+menu from 600 pt/dp), search, dates (the scrubber's strip), select, viewer, people (only while
+`FaceRecognition` is on), collections, files (View options: List/Grid/Storage, Sort by), upload (Upload,
+Share/Download, the upload-only lock), social (heart, comment), post (+ / + New post, Phone/Synced,
+caption, Publish), friends, backup (Settings › Sync Options, Wi-Fi only), users (Settings › Users, Add and
+Request bridge access; only for the device's owner, `GetInstanceRole` - iOS
+`UsersManagementViewModel.askIsPrimary`, Android `askIsPrimary`, asked as the tour opens, unknown =
+left out), alerts (Alerts and Settings, Show the tour). Steps go by id (`TourRules.place`), so People and
+Users can come or go mid-tour; texts `app.tour.*`, every quoted label an argument from its own key
+(iOS `TourTexts`, Android `tourBody`). Each step shows its section (`TourRules.section`: MainView follows
+`TourModel.step`, its own tab or page - never a menu's way in, which clears a search; narrow People,
+Collections and Friends stay Images and Social, whose buttons are rung, as their sheets would cover the
+card; never Alerts, which marks every alert read as it opens), and ending it - Skip, Done, Escape, Android
+Back - goes back to where it opened (`tourFrom`). Where a step's controls are on screen
+(`TourRules.targets`, marked with `.tourTarget` / `Modifier.tourTarget`: an iOS `.global` frame from
+`onGeometryChange`, an Android `GlobalPositionAwareModifierNode` with the unclipped window frame - Settings
+scrolls to rows out of sight; the iOS bottom bar is UIKit's, read from its `UITabBar`, `TabBarProbe`) the
+dimmed layer leaves a hole with an ember ring (`TourRules.holes`: padded 6, merged when they touch); the
+layer takes every touch, so the card is all there is to use. The card (`TourRules.cardFrame`) is a sheet at
+the foot of a narrow window, or its top or middle when that covers fewer rings; from 600 it goes beside the
+rings (the roomiest side, else the corner that covers least); its text scrolls when large. Settings scrolls
+to what its steps ring (`settingsScroll`; an iOS Form only to a row's top, middle or foot, again as Status
+and Users come in); narrow, the last step rings the tabs only (Show the tour can't scroll clear of a
+top card). Every step has a small moving drawing (`TourArt`, a 320 x 176 stage scaled to the card: SwiftUI
+shapes and Compose Canvas, each platform's own icons, labels from the real keys with samples
+`app.tour.art.*` - `art.thing` stays English, as RAM++'s tags -, theme colours, gradient tiles and
+outline faces, never a real person; a timer steps through each scene's states, one still state with
+Reduce Motion / ANIMATOR_DURATION_SCALE 0; hidden from VoiceOver and TalkBack), so it teaches an empty
+library too; a debug-only switch rings nothing for that check (iOS env `OTC_TOUR_NO_TARGETS=1`, Android
+extra `--ez otc_tour_no_targets true`, debuggable builds only). It opens by itself once: signed in, MainView
+up with no card, SyncChoice answered and the stored version below `TourRules.version` (2: phones that saw
+the first tour see this one once; raise it only for a rewritten tour). `evaluate` writes the mark before
+showing it; a store it can't read or write opens nothing. The mark is the phone's alone: iOS defaults suite
+`cloud.off-the.OffTheCloud.tour` key `seenVersion` (outside the domain Log Out removes), Android prefs
+`otc_tour` key `seen_version` (`commit`; not wiped at Log Out, not in the backup rules). Settings › Getting
+started replays it from step 1 and leaves the mark; Log Out only closes it (`reset`). Card: Skip at the top,
+Back (from step 2) and Next/Done in ember with --ember-ink text, side by side or stacked at large text;
+iPad Escape/Return are Skip/Next; the card is modal for VoiceOver (escape is Skip) and a polite live region
+on Android; it sends nothing that changes anything (only the reads its sections make).
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
