@@ -64,11 +64,13 @@
     <string name="app_shell_mirror_none">Pas de miroir</string>
     <string name="app_shell_mirror_syncing">Copie du miroir (%1$s %%)</string>
     <string name="app_shell_mirror_unknown">État du miroir inconnu</string>
+    <string name="app_shell_move_to_person">Quelqu’un d’autre…</string>
     <string name="app_shell_new_post">Publier</string>
     <string name="app_shell_no_answer_address">L’appareil ne répond pas. Il est peut-être éteint, ou l’adresse est peut-être incorrecte.</string>
     <string name="app_shell_no_public_key">Impossible d’obtenir la clé publique de la connexion</string>
     <string name="app_shell_not_connected">Non connecté</string>
     <string name="app_shell_not_otc">L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.</string>
+    <string name="app_shell_not_this_person">Pas cette personne</string>
     <string name="app_shell_notifications_continue">Continuer</string>
     <string name="app_shell_notifications_later">Plus tard</string>
     <string name="app_shell_notifications_text">Off The Cloud vous prévient des demandes d’ami, des nouvelles publications, des J’aime et des commentaires, et quand votre appareil a besoin de vous : un disque qui s’est arrêté, l’espace qui vient à manquer ou une mise à jour importante.</string>

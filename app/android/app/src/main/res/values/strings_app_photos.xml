@@ -185,6 +185,39 @@
         <item quantity="other">%1$s photos</item>
     </plurals>
     <string name="app_photos_people_slow_text">People are taking longer than usual to load.</string>
+    <string name="app_photos_person_move_failed">Couldn\'t move them. Try again.</string>
+    <string name="app_photos_person_move_none">No one else has been found yet.</string>
+    <plurals name="app_photos_person_move_title">
+        <item quantity="one">Move this photo to…</item>
+        <item quantity="other">Move %1$s photos to…</item>
+    </plurals>
+    <plurals name="app_photos_person_moved">
+        <item quantity="one">Moved %1$s photo to \u2068%2$s\u2069</item>
+        <item quantity="other">Moved %1$s photos to \u2068%2$s\u2069</item>
+    </plurals>
+    <plurals name="app_photos_person_moved_unnamed">
+        <item quantity="one">Moved %1$s photo to an unnamed person</item>
+        <item quantity="other">Moved %1$s photos to an unnamed person</item>
+    </plurals>
+    <string name="app_photos_person_needs_update">Your device needs an update to change who is in a photo.</string>
+    <string name="app_photos_person_remove_failed">Couldn\'t remove them. Try again.</string>
+    <string name="app_photos_person_remove_text">The photos stay on your device, and face recognition won\'t put them back.</string>
+    <plurals name="app_photos_person_remove_title">
+        <item quantity="one">Remove this photo from \u2068%1$s\u2069?</item>
+        <item quantity="other">Remove %2$s photos from \u2068%1$s\u2069?</item>
+    </plurals>
+    <plurals name="app_photos_person_remove_title_unnamed">
+        <item quantity="one">Remove this photo from this person?</item>
+        <item quantity="other">Remove %1$s photos from this person?</item>
+    </plurals>
+    <plurals name="app_photos_person_removed">
+        <item quantity="one">Removed %1$s photo from \u2068%2$s\u2069</item>
+        <item quantity="other">Removed %1$s photos from \u2068%2$s\u2069</item>
+    </plurals>
+    <plurals name="app_photos_person_removed_unnamed">
+        <item quantity="one">Removed %1$s photo from this person</item>
+        <item quantity="other">Removed %1$s photos from this person</item>
+    </plurals>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” is already in the search.</string>
     <string name="app_photos_search_documents">Search documents for “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
     <string name="app_photos_search_files">Files</string>

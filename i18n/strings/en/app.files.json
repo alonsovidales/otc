@@ -33,6 +33,46 @@
     "note": "Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.",
     "max": 30
   },
+  "app.files.column_created": {
+    "text": "Created",
+    "note": "Files, on a wide screen (a tablet, an open foldable): heading of the list's Created column, as the web app's (web.files.column.created). Tapping it orders the list by it; tapped again, the order reverses.",
+    "max": 20
+  },
+  "app.files.column_modified": {
+    "text": "Modified",
+    "note": "Files, on a wide screen (a tablet, an open foldable): heading of the list's Modified column, as the web app's (web.files.column.modified). Tapping it orders the list by it; tapped again, the order reverses.",
+    "max": 20
+  },
+  "app.files.column_name": {
+    "text": "Name",
+    "note": "Files, on a wide screen (a tablet, an open foldable): heading of the list's Name column, as the web app's (web.files.column.name). Tapping it orders the list by it; tapped again, the order reverses.",
+    "max": 20
+  },
+  "app.files.column_narrower": {
+    "text": "Narrower",
+    "note": "Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column narrower. Agrees with the word column if your language needs it.",
+    "max": 24
+  },
+  "app.files.column_reset": {
+    "text": "Reset width",
+    "note": "Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize), also done by double-tapping the handle: puts the column back to its usual width.",
+    "max": 24
+  },
+  "app.files.column_resize": {
+    "text": "Resize the {column} column",
+    "args": [["column", "text"]],
+    "note": "Files, on a wide screen: accessibility name of the handle at the right edge of a column heading, dragged to change the column's width. {column} is that heading as shown (app.files.column_name, column_size, column_created, column_modified)."
+  },
+  "app.files.column_size": {
+    "text": "Size",
+    "note": "Files, on a wide screen (a tablet, an open foldable): heading of the list's Size column, as the web app's (web.files.column.size). Tapping it orders the list by it; tapped again, the order reverses.",
+    "max": 12
+  },
+  "app.files.column_wider": {
+    "text": "Wider",
+    "note": "Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column wider. Agrees with the word column if your language needs it.",
+    "max": 24
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "Delete {count} item?",

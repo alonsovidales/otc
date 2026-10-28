@@ -237,6 +237,10 @@
     "text": "Estado do espelho desconhecido",
     "en": "Mirror state unknown"
   },
+  "app.shell.move_to_person": {
+    "text": "Outra pessoa…",
+    "en": "Someone else…"
+  },
   "app.shell.new_post": {
     "text": "Nova publicação",
     "en": "New post"
@@ -257,6 +261,10 @@
   "app.shell.not_otc": {
     "text": "O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+  },
+  "app.shell.not_this_person": {
+    "text": "Não é esta pessoa",
+    "en": "Not this person"
   },
   "app.shell.notifications_continue": {
     "text": "Continuar",

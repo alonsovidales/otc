@@ -30,6 +30,38 @@ fun S.appFilesCannotRead(name: String): UiText =
 fun S.appFilesClearUploadOnly(): UiText =
     UiText.Res(R.string.app_files_clear_upload_only)
 
+/** "Created": Files, on a wide screen (a tablet, an open foldable): heading of the list's Created column, as the web app's (web.files.column.created). Tapping it orders the list by it; tapped again, the order reverses. */
+fun S.appFilesColumnCreated(): UiText =
+    UiText.Res(R.string.app_files_column_created)
+
+/** "Modified": Files, on a wide screen (a tablet, an open foldable): heading of the list's Modified column, as the web app's (web.files.column.modified). Tapping it orders the list by it; tapped again, the order reverses. */
+fun S.appFilesColumnModified(): UiText =
+    UiText.Res(R.string.app_files_column_modified)
+
+/** "Name": Files, on a wide screen (a tablet, an open foldable): heading of the list's Name column, as the web app's (web.files.column.name). Tapping it orders the list by it; tapped again, the order reverses. */
+fun S.appFilesColumnName(): UiText =
+    UiText.Res(R.string.app_files_column_name)
+
+/** "Narrower": Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column narrower. Agrees with the word column if your language needs it. */
+fun S.appFilesColumnNarrower(): UiText =
+    UiText.Res(R.string.app_files_column_narrower)
+
+/** "Reset width": Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize), also done by double-tapping the handle: puts the column back to its usual width. */
+fun S.appFilesColumnReset(): UiText =
+    UiText.Res(R.string.app_files_column_reset)
+
+/** "Resize the {column} column": Files, on a wide screen: accessibility name of the handle at the right edge of a column heading, dragged to change the column's width. {column} is that heading as shown (app.files.column_name, column_size, column_created, column_modified). */
+fun S.appFilesColumnResize(column: String): UiText =
+    UiText.Res(R.string.app_files_column_resize, listOf(column))
+
+/** "Size": Files, on a wide screen (a tablet, an open foldable): heading of the list's Size column, as the web app's (web.files.column.size). Tapping it orders the list by it; tapped again, the order reverses. */
+fun S.appFilesColumnSize(): UiText =
+    UiText.Res(R.string.app_files_column_size)
+
+/** "Wider": Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column wider. Agrees with the word column if your language needs it. */
+fun S.appFilesColumnWider(): UiText =
+    UiText.Res(R.string.app_files_column_wider)
+
 /** "Delete {count} items?" (one: "Delete {count} item?"): Title of the confirmation asked before deleting what is selected in Files: files and folders (a folder with everything in it). {count} is how many are selected. Buttons: Delete (common.delete) and Cancel. */
 fun S.appFilesDeleteConfirm(count: Int): UiText =
     UiText.Plural(R.plurals.app_files_delete_confirm, count, listOf(count))

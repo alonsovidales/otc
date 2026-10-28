@@ -61,11 +61,13 @@
     <string name="app_shell_mirror_none">No mirror</string>
     <string name="app_shell_mirror_syncing">Mirror syncing (%1$s%%)</string>
     <string name="app_shell_mirror_unknown">Mirror state unknown</string>
+    <string name="app_shell_move_to_person">Someone else…</string>
     <string name="app_shell_new_post">New post</string>
     <string name="app_shell_no_answer_address">The device isn\'t answering. It may be off, or the address may be wrong.</string>
     <string name="app_shell_no_public_key">Unable to fetch the connection\'s public key</string>
     <string name="app_shell_not_connected">Not connected</string>
     <string name="app_shell_not_otc">The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.</string>
+    <string name="app_shell_not_this_person">Not this person</string>
     <string name="app_shell_notifications_continue">Continue</string>
     <string name="app_shell_notifications_later">Not Now</string>
     <string name="app_shell_notifications_text">Off The Cloud tells you about friend requests, new posts, likes and comments, and when your device needs you: a disk that stopped, space running out or an important update.</string>

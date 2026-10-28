@@ -25,6 +25,38 @@
     "text": "Desactivar solo subida",
     "en": "Clear upload only"
   },
+  "app.files.column_created": {
+    "text": "Creado",
+    "en": "Created"
+  },
+  "app.files.column_modified": {
+    "text": "Modificado",
+    "en": "Modified"
+  },
+  "app.files.column_name": {
+    "text": "Nombre",
+    "en": "Name"
+  },
+  "app.files.column_narrower": {
+    "text": "Más estrecha",
+    "en": "Narrower"
+  },
+  "app.files.column_reset": {
+    "text": "Restablecer el ancho",
+    "en": "Reset width"
+  },
+  "app.files.column_resize": {
+    "text": "Cambiar el ancho de la columna {column}",
+    "en": "Resize the {column} column"
+  },
+  "app.files.column_size": {
+    "text": "Tamaño",
+    "en": "Size"
+  },
+  "app.files.column_wider": {
+    "text": "Más ancha",
+    "en": "Wider"
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "¿Eliminar {count} elemento?",

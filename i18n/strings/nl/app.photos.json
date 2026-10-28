@@ -631,6 +631,96 @@
     "text": "Het laden van personen duurt langer dan normaal.",
     "en": "People are taking longer than usual to load."
   },
+  "app.photos.person.move_failed": {
+    "text": "Ze konden niet worden verplaatst. Probeer het opnieuw.",
+    "en": "Couldn't move them. Try again."
+  },
+  "app.photos.person.move_none": {
+    "text": "Er is nog niemand anders gevonden.",
+    "en": "No one else has been found yet."
+  },
+  "app.photos.person.move_title": {
+    "text": {
+      "one": "Deze foto verplaatsen naar…",
+      "other": "{count} foto’s verplaatsen naar…"
+    },
+    "en": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    }
+  },
+  "app.photos.person.moved": {
+    "text": {
+      "one": "{count} foto naar {name} verplaatst",
+      "other": "{count} foto’s naar {name} verplaatst"
+    },
+    "en": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    }
+  },
+  "app.photos.person.moved_unnamed": {
+    "text": {
+      "one": "{count} foto naar een persoon zonder naam verplaatst",
+      "other": "{count} foto’s naar een persoon zonder naam verplaatst"
+    },
+    "en": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    }
+  },
+  "app.photos.person.needs_update": {
+    "text": "Je apparaat heeft een update nodig om te wijzigen wie er op een foto staat.",
+    "en": "Your device needs an update to change who is in a photo."
+  },
+  "app.photos.person.remove_failed": {
+    "text": "Ze konden niet worden weggehaald. Probeer het opnieuw.",
+    "en": "Couldn't remove them. Try again."
+  },
+  "app.photos.person.remove_text": {
+    "text": "De foto’s blijven op je apparaat en gezichtsherkenning zet ze er niet meer bij.",
+    "en": "The photos stay on your device, and face recognition won't put them back."
+  },
+  "app.photos.person.remove_title": {
+    "text": {
+      "one": "Deze foto bij {name} weghalen?",
+      "other": "{count} foto’s bij {name} weghalen?"
+    },
+    "en": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    }
+  },
+  "app.photos.person.remove_title_unnamed": {
+    "text": {
+      "one": "Deze foto bij deze persoon weghalen?",
+      "other": "{count} foto’s bij deze persoon weghalen?"
+    },
+    "en": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    }
+  },
+  "app.photos.person.removed": {
+    "text": {
+      "one": "{count} foto bij {name} weggehaald",
+      "other": "{count} foto’s bij {name} weggehaald"
+    },
+    "en": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    }
+  },
+  "app.photos.person.removed_unnamed": {
+    "text": {
+      "one": "{count} foto bij deze persoon weggehaald",
+      "other": "{count} foto’s bij deze persoon weggehaald"
+    },
+    "en": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    }
+  },
   "app.photos.search.already": {
     "text": "“{text}” staat al in de zoekopdracht.",
     "en": "“{text}” is already in the search."

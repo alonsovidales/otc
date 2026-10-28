@@ -631,6 +631,96 @@
     "text": "Las personas están tardando más de lo habitual en cargarse.",
     "en": "People are taking longer than usual to load."
   },
+  "app.photos.person.move_failed": {
+    "text": "No se han podido mover. Vuelve a intentarlo.",
+    "en": "Couldn't move them. Try again."
+  },
+  "app.photos.person.move_none": {
+    "text": "Aún no se ha encontrado a nadie más.",
+    "en": "No one else has been found yet."
+  },
+  "app.photos.person.move_title": {
+    "text": {
+      "one": "Mover esta foto a…",
+      "other": "Mover {count} fotos a…"
+    },
+    "en": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    }
+  },
+  "app.photos.person.moved": {
+    "text": {
+      "one": "Se ha movido {count} foto a {name}",
+      "other": "Se han movido {count} fotos a {name}"
+    },
+    "en": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    }
+  },
+  "app.photos.person.moved_unnamed": {
+    "text": {
+      "one": "Se ha movido {count} foto a una persona sin nombre",
+      "other": "Se han movido {count} fotos a una persona sin nombre"
+    },
+    "en": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    }
+  },
+  "app.photos.person.needs_update": {
+    "text": "Tu dispositivo necesita una actualización para cambiar quién aparece en una foto.",
+    "en": "Your device needs an update to change who is in a photo."
+  },
+  "app.photos.person.remove_failed": {
+    "text": "No se han podido quitar. Vuelve a intentarlo.",
+    "en": "Couldn't remove them. Try again."
+  },
+  "app.photos.person.remove_text": {
+    "text": "Las fotos siguen en tu dispositivo y el reconocimiento facial no volverá a asignarlas.",
+    "en": "The photos stay on your device, and face recognition won't put them back."
+  },
+  "app.photos.person.remove_title": {
+    "text": {
+      "one": "¿Quitar esta foto de {name}?",
+      "other": "¿Quitar {count} fotos de {name}?"
+    },
+    "en": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    }
+  },
+  "app.photos.person.remove_title_unnamed": {
+    "text": {
+      "one": "¿Quitar esta foto de esta persona?",
+      "other": "¿Quitar {count} fotos de esta persona?"
+    },
+    "en": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    }
+  },
+  "app.photos.person.removed": {
+    "text": {
+      "one": "Se ha quitado {count} foto de {name}",
+      "other": "Se han quitado {count} fotos de {name}"
+    },
+    "en": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    }
+  },
+  "app.photos.person.removed_unnamed": {
+    "text": {
+      "one": "Se ha quitado {count} foto de esta persona",
+      "other": "Se han quitado {count} fotos de esta persona"
+    },
+    "en": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    }
+  },
   "app.photos.search.already": {
     "text": "“{text}” ya está en la búsqueda.",
     "en": "“{text}” is already in the search."

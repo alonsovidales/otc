@@ -62,11 +62,13 @@
     <string name="app_shell_mirror_none">Keine Spiegelung</string>
     <string name="app_shell_mirror_syncing">Spiegelung läuft (%1$s %%)</string>
     <string name="app_shell_mirror_unknown">Zustand der Spiegelung unbekannt</string>
+    <string name="app_shell_move_to_person">Jemand anderes…</string>
     <string name="app_shell_new_post">Neuer Beitrag</string>
     <string name="app_shell_no_answer_address">Das Gerät antwortet nicht. Vielleicht ist es ausgeschaltet oder die Adresse ist falsch.</string>
     <string name="app_shell_no_public_key">Der öffentliche Schlüssel der Verbindung konnte nicht abgerufen werden</string>
     <string name="app_shell_not_connected">Nicht verbunden</string>
     <string name="app_shell_not_otc">Unter der Adresse hat etwas geantwortet, aber nicht wie ein Gerät von Off The Cloud. Prüfe, ob sie auf /ws endet und auf dein Gerät oder seinen Bridge-Namen zeigt.</string>
+    <string name="app_shell_not_this_person">Nicht diese Person</string>
     <string name="app_shell_notifications_continue">Weiter</string>
     <string name="app_shell_notifications_later">Nicht jetzt</string>
     <string name="app_shell_notifications_text">Off The Cloud informiert dich über Freundschaftsanfragen, neue Beiträge, „Gefällt mir“-Angaben und Kommentare und darüber, wann dein Gerät dich braucht: ein Laufwerk, das ausgefallen ist, knapper Speicherplatz oder ein wichtiges Update.</string>

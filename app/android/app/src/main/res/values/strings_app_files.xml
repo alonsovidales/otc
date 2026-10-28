@@ -7,6 +7,14 @@
     <string name="app_files_back_to_folder">Back to \u2068%1$s\u2069</string>
     <string name="app_files_cannot_read">cannot read \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Clear upload only</string>
+    <string name="app_files_column_created">Created</string>
+    <string name="app_files_column_modified">Modified</string>
+    <string name="app_files_column_name">Name</string>
+    <string name="app_files_column_narrower">Narrower</string>
+    <string name="app_files_column_reset">Reset width</string>
+    <string name="app_files_column_resize">Resize the %1$s column</string>
+    <string name="app_files_column_size">Size</string>
+    <string name="app_files_column_wider">Wider</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">Delete %1$s item?</item>
         <item quantity="other">Delete %1$s items?</item>

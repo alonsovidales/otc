@@ -222,6 +222,10 @@ fun S.appShellMirrorSyncing(percent: String): UiText =
 fun S.appShellMirrorUnknown(): UiText =
     UiText.Res(R.string.app_shell_mirror_unknown)
 
+/** "Someone else…": Item of the bar shown over Images while photos are selected among one person's photos, and of the photo viewer's menu there, next to app.shell.not_this_person: face recognition matched them to the wrong person, and this opens the list of the other people found, to file the photos under the right one. May wrap onto two lines. */
+fun S.appShellMoveToPerson(): UiText =
+    UiText.Res(R.string.app_shell_move_to_person)
+
 /** "New post": Button in the top bar (on a wide screen) on the Social feed, after a plus sign, that opens the composer for a new post. On narrow windows only the plus shows and this is its screen-reader name. */
 fun S.appShellNewPost(): UiText =
     UiText.Res(R.string.app_shell_new_post)
@@ -241,6 +245,10 @@ fun S.appShellNotConnected(): UiText =
 /** "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.": Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is. */
 fun S.appShellNotOtc(): UiText =
     UiText.Res(R.string.app_shell_not_otc)
+
+/** "Not this person": Item of the bar shown over Images while photos are selected among one person's photos (a face opened from People, or a person picked in the search), and of the photo viewer's menu there: face recognition matched them to the wrong person, so this takes them off that person. The photos themselves stay on the device. May wrap onto two lines. */
+fun S.appShellNotThisPerson(): UiText =
+    UiText.Res(R.string.app_shell_not_this_person)
 
 /** "Continue": Button of the question about notifications asked once after the first sign-in (app.shell.notifications_title): goes on to the phone's own question, where notifications are allowed or not. */
 fun S.appShellNotificationsContinue(): UiText =

@@ -734,6 +734,87 @@ extension S {
     /// Under the heading Still waiting for your device (app.shell.collections_slow_title), on the People page after 10 seconds without an answer; a Try again button follows.
     static var appPhotosPeopleSlowText: String { L("app.photos.people.slow_text", table: "AppPhotos") }
 
+    /// Couldn't move them. Try again.
+    ///
+    /// Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person).
+    static var appPhotosPersonMoveFailed: String { L("app.photos.person.move_failed", table: "AppPhotos") }
+
+    /// No one else has been found yet.
+    ///
+    /// In the list opened by Someone else… (app.shell.move_to_person) when face recognition has found no other person to move the photos to.
+    static var appPhotosPersonMoveNone: String { L("app.photos.person.move_none", table: "AppPhotos") }
+
+    /// one: Move this photo to…
+    /// other: Move {count} photos to…
+    ///
+    /// Title of the list of people opened by Someone else… (app.shell.move_to_person): the faces found by face recognition, with their names; picking one files the selected photos under that person instead. {count} is how many photos are selected.
+    static func appPhotosPersonMoveTitle(count: Int) -> String {
+        L("app.photos.person.move_title", table: "AppPhotos", count)
+    }
+
+    /// one: Moved {count} photo to {name}
+    /// other: Moved {count} photos to {name}
+    ///
+    /// Note at the foot of Images once photos were moved to another person (app.shell.move_to_person). {count} is how many, {name} the name of the person they went to.
+    static func appPhotosPersonMoved(count: Int, name: String) -> String {
+        L("app.photos.person.moved", table: "AppPhotos", count, L10n.isolate(name))
+    }
+
+    /// one: Moved {count} photo to an unnamed person
+    /// other: Moved {count} photos to an unnamed person
+    ///
+    /// app.photos.person.moved when the person the photos went to has no name yet. {count} is how many photos.
+    static func appPhotosPersonMovedUnnamed(count: Int) -> String {
+        L("app.photos.person.moved_unnamed", table: "AppPhotos", count)
+    }
+
+    /// Your device needs an update to change who is in a photo.
+    ///
+    /// Title of the message shown when Not this person or Someone else… (app.shell.not_this_person, app.shell.move_to_person) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner.
+    static var appPhotosPersonNeedsUpdate: String { L("app.photos.person.needs_update", table: "AppPhotos") }
+
+    /// Couldn't remove them. Try again.
+    ///
+    /// Error at the foot of Images (or in the confirmation) when the device didn't take the selected photos off the person (app.shell.not_this_person).
+    static var appPhotosPersonRemoveFailed: String { L("app.photos.person.remove_failed", table: "AppPhotos") }
+
+    /// The photos stay on your device, and face recognition won't put them back.
+    ///
+    /// Explanation in the confirmation of Not this person (app.photos.person.remove_title): the photos aren't deleted, and face recognition won't match them to this person (or anyone) again.
+    static var appPhotosPersonRemoveText: String { L("app.photos.person.remove_text", table: "AppPhotos") }
+
+    /// one: Remove this photo from {name}?
+    /// other: Remove {count} photos from {name}?
+    ///
+    /// Title of the confirmation asked after Not this person (app.shell.not_this_person) among a person's photos. {name} is the person's name, {count} how many photos are selected. The explanation is app.photos.person.remove_text. Buttons: Remove (common.remove) and Cancel.
+    static func appPhotosPersonRemoveTitle(name: String, count: Int) -> String {
+        L("app.photos.person.remove_title", table: "AppPhotos", L10n.isolate(name), count)
+    }
+
+    /// one: Remove this photo from this person?
+    /// other: Remove {count} photos from this person?
+    ///
+    /// app.photos.person.remove_title for a person without a name. {count} is how many photos are selected.
+    static func appPhotosPersonRemoveTitleUnnamed(count: Int) -> String {
+        L("app.photos.person.remove_title_unnamed", table: "AppPhotos", count)
+    }
+
+    /// one: Removed {count} photo from {name}
+    /// other: Removed {count} photos from {name}
+    ///
+    /// Note at the foot of Images once photos were taken off a person (app.shell.not_this_person). {count} is how many, {name} the person's name.
+    static func appPhotosPersonRemoved(count: Int, name: String) -> String {
+        L("app.photos.person.removed", table: "AppPhotos", count, L10n.isolate(name))
+    }
+
+    /// one: Removed {count} photo from this person
+    /// other: Removed {count} photos from this person
+    ///
+    /// app.photos.person.removed for a person without a name. {count} is how many photos.
+    static func appPhotosPersonRemovedUnnamed(count: Int) -> String {
+        L("app.photos.person.removed_unnamed", table: "AppPhotos", count)
+    }
+
     /// “{text}” is already in the search.
     ///
     /// Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style.

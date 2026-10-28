@@ -25,6 +25,38 @@
     "text": "Disattiva “Solo caricamento”",
     "en": "Clear upload only"
   },
+  "app.files.column_created": {
+    "text": "Data creazione",
+    "en": "Created"
+  },
+  "app.files.column_modified": {
+    "text": "Data modifica",
+    "en": "Modified"
+  },
+  "app.files.column_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.files.column_narrower": {
+    "text": "Più stretta",
+    "en": "Narrower"
+  },
+  "app.files.column_reset": {
+    "text": "Ripristina la larghezza",
+    "en": "Reset width"
+  },
+  "app.files.column_resize": {
+    "text": "Ridimensiona la colonna {column}",
+    "en": "Resize the {column} column"
+  },
+  "app.files.column_size": {
+    "text": "Dimensioni",
+    "en": "Size"
+  },
+  "app.files.column_wider": {
+    "text": "Più larga",
+    "en": "Wider"
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "Eliminare {count} elemento?",

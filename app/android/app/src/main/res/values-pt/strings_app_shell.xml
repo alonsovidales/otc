@@ -64,11 +64,13 @@
     <string name="app_shell_mirror_none">Sem espelho</string>
     <string name="app_shell_mirror_syncing">Espelho a sincronizar (%1$s%%)</string>
     <string name="app_shell_mirror_unknown">Estado do espelho desconhecido</string>
+    <string name="app_shell_move_to_person">Outra pessoa…</string>
     <string name="app_shell_new_post">Nova publicação</string>
     <string name="app_shell_no_answer_address">O dispositivo não está a responder. Pode estar desligado ou o endereço pode estar errado.</string>
     <string name="app_shell_no_public_key">Não foi possível obter a chave pública da ligação</string>
     <string name="app_shell_not_connected">Sem ligação</string>
     <string name="app_shell_not_otc">O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.</string>
+    <string name="app_shell_not_this_person">Não é esta pessoa</string>
     <string name="app_shell_notifications_continue">Continuar</string>
     <string name="app_shell_notifications_later">Agora não</string>
     <string name="app_shell_notifications_text">O Off The Cloud avisa-te de pedidos de amizade, novas publicações, gostos e comentários, e de quando o teu dispositivo precisa de ti: um disco que deixou de funcionar, pouco espaço livre ou uma atualização importante.</string>

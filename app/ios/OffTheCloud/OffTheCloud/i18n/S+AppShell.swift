@@ -292,6 +292,11 @@ extension S {
     /// Under the storage bar in the left menu (on a wide screen) when the device doesn't say how its mirror (RAID1) is.
     static var appShellMirrorUnknown: String { L("app.shell.mirror_unknown", table: "AppShell") }
 
+    /// Someone else…
+    ///
+    /// Item of the bar shown over Images while photos are selected among one person's photos, and of the photo viewer's menu there, next to app.shell.not_this_person: face recognition matched them to the wrong person, and this opens the list of the other people found, to file the photos under the right one. May wrap onto two lines.
+    static var appShellMoveToPerson: String { L("app.shell.move_to_person", table: "AppShell") }
+
     /// New post
     ///
     /// Button in the top bar (on a wide screen) on the Social feed, after a plus sign, that opens the composer for a new post. On narrow windows only the plus shows and this is its screen-reader name.
@@ -316,6 +321,11 @@ extension S {
     ///
     /// Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is.
     static var appShellNotOtc: String { L("app.shell.not_otc", table: "AppShell") }
+
+    /// Not this person
+    ///
+    /// Item of the bar shown over Images while photos are selected among one person's photos (a face opened from People, or a person picked in the search), and of the photo viewer's menu there: face recognition matched them to the wrong person, so this takes them off that person. The photos themselves stay on the device. May wrap onto two lines.
+    static var appShellNotThisPerson: String { L("app.shell.not_this_person", table: "AppShell") }
 
     /// Continue
     ///

@@ -42,6 +42,48 @@ extension S {
     /// Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
     static var appFilesClearUploadOnly: String { L("app.files.clear_upload_only", table: "AppFiles") }
 
+    /// Created
+    ///
+    /// Files, on a wide screen (a tablet, an open foldable): heading of the list's Created column, as the web app's (web.files.column.created). Tapping it orders the list by it; tapped again, the order reverses.
+    static var appFilesColumnCreated: String { L("app.files.column_created", table: "AppFiles") }
+
+    /// Modified
+    ///
+    /// Files, on a wide screen (a tablet, an open foldable): heading of the list's Modified column, as the web app's (web.files.column.modified). Tapping it orders the list by it; tapped again, the order reverses.
+    static var appFilesColumnModified: String { L("app.files.column_modified", table: "AppFiles") }
+
+    /// Name
+    ///
+    /// Files, on a wide screen (a tablet, an open foldable): heading of the list's Name column, as the web app's (web.files.column.name). Tapping it orders the list by it; tapped again, the order reverses.
+    static var appFilesColumnName: String { L("app.files.column_name", table: "AppFiles") }
+
+    /// Narrower
+    ///
+    /// Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column narrower. Agrees with the word column if your language needs it.
+    static var appFilesColumnNarrower: String { L("app.files.column_narrower", table: "AppFiles") }
+
+    /// Reset width
+    ///
+    /// Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize), also done by double-tapping the handle: puts the column back to its usual width.
+    static var appFilesColumnReset: String { L("app.files.column_reset", table: "AppFiles") }
+
+    /// Resize the {column} column
+    ///
+    /// Files, on a wide screen: accessibility name of the handle at the right edge of a column heading, dragged to change the column's width. {column} is that heading as shown (app.files.column_name, column_size, column_created, column_modified).
+    static func appFilesColumnResize(column: String) -> String {
+        L("app.files.column_resize", table: "AppFiles", column)
+    }
+
+    /// Size
+    ///
+    /// Files, on a wide screen (a tablet, an open foldable): heading of the list's Size column, as the web app's (web.files.column.size). Tapping it orders the list by it; tapped again, the order reverses.
+    static var appFilesColumnSize: String { L("app.files.column_size", table: "AppFiles") }
+
+    /// Wider
+    ///
+    /// Files, on a wide screen: accessibility action of a column's resize handle (app.files.column_resize) that makes the column wider. Agrees with the word column if your language needs it.
+    static var appFilesColumnWider: String { L("app.files.column_wider", table: "AppFiles") }
+
     /// one: Delete {count} item?
     /// other: Delete {count} items?
     ///

@@ -8,6 +8,14 @@
     <string name="app_files_back_to_folder">Terug naar \u2068%1$s\u2069</string>
     <string name="app_files_cannot_read">kan \u2068%1$s\u2069 niet lezen</string>
     <string name="app_files_clear_upload_only">“Alleen uploaden” uitschakelen</string>
+    <string name="app_files_column_created">Gemaakt</string>
+    <string name="app_files_column_modified">Gewijzigd</string>
+    <string name="app_files_column_name">Naam</string>
+    <string name="app_files_column_narrower">Smaller</string>
+    <string name="app_files_column_reset">Breedte herstellen</string>
+    <string name="app_files_column_resize">Breedte van de kolom %1$s aanpassen</string>
+    <string name="app_files_column_size">Grootte</string>
+    <string name="app_files_column_wider">Breder</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">%1$s item verwijderen?</item>
         <item quantity="other">%1$s items verwijderen?</item>

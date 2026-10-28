@@ -8,6 +8,14 @@
     <string name="app_files_back_to_folder">Volver a \u2068%1$s\u2069</string>
     <string name="app_files_cannot_read">no se puede leer \u2068%1$s\u2069</string>
     <string name="app_files_clear_upload_only">Desactivar solo subida</string>
+    <string name="app_files_column_created">Creado</string>
+    <string name="app_files_column_modified">Modificado</string>
+    <string name="app_files_column_name">Nombre</string>
+    <string name="app_files_column_narrower">Más estrecha</string>
+    <string name="app_files_column_reset">Restablecer el ancho</string>
+    <string name="app_files_column_resize">Cambiar el ancho de la columna %1$s</string>
+    <string name="app_files_column_size">Tamaño</string>
+    <string name="app_files_column_wider">Más ancha</string>
     <plurals name="app_files_delete_confirm">
         <item quantity="one">¿Eliminar %1$s elemento?</item>
         <item quantity="many">¿Eliminar %1$s elementos?</item>

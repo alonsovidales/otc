@@ -25,6 +25,38 @@
     "text": "“Alleen uploaden” uitschakelen",
     "en": "Clear upload only"
   },
+  "app.files.column_created": {
+    "text": "Gemaakt",
+    "en": "Created"
+  },
+  "app.files.column_modified": {
+    "text": "Gewijzigd",
+    "en": "Modified"
+  },
+  "app.files.column_name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "app.files.column_narrower": {
+    "text": "Smaller",
+    "en": "Narrower"
+  },
+  "app.files.column_reset": {
+    "text": "Breedte herstellen",
+    "en": "Reset width"
+  },
+  "app.files.column_resize": {
+    "text": "Breedte van de kolom {column} aanpassen",
+    "en": "Resize the {column} column"
+  },
+  "app.files.column_size": {
+    "text": "Grootte",
+    "en": "Size"
+  },
+  "app.files.column_wider": {
+    "text": "Breder",
+    "en": "Wider"
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "{count} item verwijderen?",

@@ -62,11 +62,13 @@
     <string name="app_shell_mirror_none">Geen spiegel</string>
     <string name="app_shell_mirror_syncing">Spiegel opbouwen (%1$s%%)</string>
     <string name="app_shell_mirror_unknown">Spiegelstatus onbekend</string>
+    <string name="app_shell_move_to_person">Iemand anders…</string>
     <string name="app_shell_new_post">Nieuw bericht</string>
     <string name="app_shell_no_answer_address">Het apparaat reageert niet. Misschien staat het uit, of is het adres onjuist.</string>
     <string name="app_shell_no_public_key">Kan de openbare sleutel van de verbinding niet ophalen</string>
     <string name="app_shell_not_connected">Niet verbonden</string>
     <string name="app_shell_not_otc">Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.</string>
+    <string name="app_shell_not_this_person">Niet deze persoon</string>
     <string name="app_shell_notifications_continue">Doorgaan</string>
     <string name="app_shell_notifications_later">Niet nu</string>
     <string name="app_shell_notifications_text">Off The Cloud laat je weten wanneer er vriendschapsverzoeken, nieuwe berichten, vind-ik-leuks en reacties zijn, en wanneer je apparaat je nodig heeft: een schijf die gestopt is, ruimte die opraakt of een belangrijke update.</string>

@@ -186,6 +186,39 @@
         <item quantity="other">%1$s Fotos</item>
     </plurals>
     <string name="app_photos_people_slow_text">Die Personen brauchen länger als sonst zum Laden.</string>
+    <string name="app_photos_person_move_failed">Sie konnten nicht verschoben werden. Versuche es erneut.</string>
+    <string name="app_photos_person_move_none">Noch niemand anderes gefunden.</string>
+    <plurals name="app_photos_person_move_title">
+        <item quantity="one">Dieses Foto verschieben zu…</item>
+        <item quantity="other">%1$s Fotos verschieben zu…</item>
+    </plurals>
+    <plurals name="app_photos_person_moved">
+        <item quantity="one">%1$s Foto zu \u2068%2$s\u2069 verschoben</item>
+        <item quantity="other">%1$s Fotos zu \u2068%2$s\u2069 verschoben</item>
+    </plurals>
+    <plurals name="app_photos_person_moved_unnamed">
+        <item quantity="one">%1$s Foto zu einer Person ohne Namen verschoben</item>
+        <item quantity="other">%1$s Fotos zu einer Person ohne Namen verschoben</item>
+    </plurals>
+    <string name="app_photos_person_needs_update">Dein Gerät braucht ein Update, um zu ändern, wer auf einem Foto ist.</string>
+    <string name="app_photos_person_remove_failed">Sie konnten nicht entfernt werden. Versuche es erneut.</string>
+    <string name="app_photos_person_remove_text">Die Fotos bleiben auf deinem Gerät, und die Gesichtserkennung ordnet sie nicht wieder zu.</string>
+    <plurals name="app_photos_person_remove_title">
+        <item quantity="one">Dieses Foto von \u2068%1$s\u2069 entfernen?</item>
+        <item quantity="other">%2$s Fotos von \u2068%1$s\u2069 entfernen?</item>
+    </plurals>
+    <plurals name="app_photos_person_remove_title_unnamed">
+        <item quantity="one">Dieses Foto von dieser Person entfernen?</item>
+        <item quantity="other">%1$s Fotos von dieser Person entfernen?</item>
+    </plurals>
+    <plurals name="app_photos_person_removed">
+        <item quantity="one">%1$s Foto von \u2068%2$s\u2069 entfernt</item>
+        <item quantity="other">%1$s Fotos von \u2068%2$s\u2069 entfernt</item>
+    </plurals>
+    <plurals name="app_photos_person_removed_unnamed">
+        <item quantity="one">%1$s Foto von dieser Person entfernt</item>
+        <item quantity="other">%1$s Fotos von dieser Person entfernt</item>
+    </plurals>
     <string name="app_photos_search_already">„\u2068%1$s\u2069“ ist bereits in der Suche.</string>
     <string name="app_photos_search_documents">Dokumente nach „&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;“ durchsuchen</string>
     <string name="app_photos_search_files">Dateien</string>

@@ -206,6 +206,46 @@
         <item quantity="other">%1$s photos</item>
     </plurals>
     <string name="app_photos_people_slow_text">Le chargement des personnes prend plus de temps que d’habitude.</string>
+    <string name="app_photos_person_move_failed">Impossible de les déplacer. Réessayez.</string>
+    <string name="app_photos_person_move_none">Personne d’autre n’a encore été trouvé.</string>
+    <plurals name="app_photos_person_move_title">
+        <item quantity="one">Déplacer %1$s photo vers…</item>
+        <item quantity="many">Déplacer %1$s photos vers…</item>
+        <item quantity="other">Déplacer %1$s photos vers…</item>
+    </plurals>
+    <plurals name="app_photos_person_moved">
+        <item quantity="one">%1$s photo déplacée vers \u2068%2$s\u2069</item>
+        <item quantity="many">%1$s photos déplacées vers \u2068%2$s\u2069</item>
+        <item quantity="other">%1$s photos déplacées vers \u2068%2$s\u2069</item>
+    </plurals>
+    <plurals name="app_photos_person_moved_unnamed">
+        <item quantity="one">%1$s photo déplacée vers une personne sans nom</item>
+        <item quantity="many">%1$s photos déplacées vers une personne sans nom</item>
+        <item quantity="other">%1$s photos déplacées vers une personne sans nom</item>
+    </plurals>
+    <string name="app_photos_person_needs_update">Votre appareil doit être mis à jour pour changer qui apparaît sur une photo.</string>
+    <string name="app_photos_person_remove_failed">Impossible de les retirer. Réessayez.</string>
+    <string name="app_photos_person_remove_text">Les photos restent sur votre appareil, et la reconnaissance faciale ne les y remettra pas.</string>
+    <plurals name="app_photos_person_remove_title">
+        <item quantity="one">Retirer %2$s photo de \u2068%1$s\u2069 ?</item>
+        <item quantity="many">Retirer %2$s photos de \u2068%1$s\u2069 ?</item>
+        <item quantity="other">Retirer %2$s photos de \u2068%1$s\u2069 ?</item>
+    </plurals>
+    <plurals name="app_photos_person_remove_title_unnamed">
+        <item quantity="one">Retirer %1$s photo de cette personne ?</item>
+        <item quantity="many">Retirer %1$s photos de cette personne ?</item>
+        <item quantity="other">Retirer %1$s photos de cette personne ?</item>
+    </plurals>
+    <plurals name="app_photos_person_removed">
+        <item quantity="one">%1$s photo retirée de \u2068%2$s\u2069</item>
+        <item quantity="many">%1$s photos retirées de \u2068%2$s\u2069</item>
+        <item quantity="other">%1$s photos retirées de \u2068%2$s\u2069</item>
+    </plurals>
+    <plurals name="app_photos_person_removed_unnamed">
+        <item quantity="one">%1$s photo retirée de cette personne</item>
+        <item quantity="many">%1$s photos retirées de cette personne</item>
+        <item quantity="other">%1$s photos retirées de cette personne</item>
+    </plurals>
     <string name="app_photos_search_already">« \u2068%1$s\u2069 » est déjà dans la recherche.</string>
     <string name="app_photos_search_documents">Rechercher « &lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; » dans les documents</string>
     <string name="app_photos_search_files">Fichiers</string>

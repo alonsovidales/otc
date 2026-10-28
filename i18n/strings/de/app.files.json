@@ -25,6 +25,38 @@
     "text": "„Nur hochladen“ ausschalten",
     "en": "Clear upload only"
   },
+  "app.files.column_created": {
+    "text": "Erstellt",
+    "en": "Created"
+  },
+  "app.files.column_modified": {
+    "text": "Geändert",
+    "en": "Modified"
+  },
+  "app.files.column_name": {
+    "text": "Name",
+    "en": "Name"
+  },
+  "app.files.column_narrower": {
+    "text": "Schmaler",
+    "en": "Narrower"
+  },
+  "app.files.column_reset": {
+    "text": "Breite zurücksetzen",
+    "en": "Reset width"
+  },
+  "app.files.column_resize": {
+    "text": "Breite der Spalte {column} ändern",
+    "en": "Resize the {column} column"
+  },
+  "app.files.column_size": {
+    "text": "Größe",
+    "en": "Size"
+  },
+  "app.files.column_wider": {
+    "text": "Breiter",
+    "en": "Wider"
+  },
   "app.files.delete_confirm": {
     "text": {
       "one": "{count} Element löschen?",

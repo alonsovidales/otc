@@ -261,6 +261,11 @@
     "note": "Under the storage bar in the left menu (on a wide screen) when the device doesn't say how its mirror (RAID1) is.",
     "max": 34
   },
+  "app.shell.move_to_person": {
+    "text": "Someone else…",
+    "note": "Item of the bar shown over Images while photos are selected among one person's photos, and of the photo viewer's menu there, next to app.shell.not_this_person: face recognition matched them to the wrong person, and this opens the list of the other people found, to file the photos under the right one. May wrap onto two lines.",
+    "max": 24
+  },
   "app.shell.new_post": {
     "text": "New post",
     "note": "Button in the top bar (on a wide screen) on the Social feed, after a plus sign, that opens the composer for a new post. On narrow windows only the plus shows and this is its screen-reader name.",
@@ -283,6 +288,11 @@
   "app.shell.not_otc": {
     "text": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.",
     "note": "Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is."
+  },
+  "app.shell.not_this_person": {
+    "text": "Not this person",
+    "note": "Item of the bar shown over Images while photos are selected among one person's photos (a face opened from People, or a person picked in the search), and of the photo viewer's menu there: face recognition matched them to the wrong person, so this takes them off that person. The photos themselves stay on the device. May wrap onto two lines.",
+    "max": 24
   },
   "app.shell.notifications_continue": {
     "text": "Continue",

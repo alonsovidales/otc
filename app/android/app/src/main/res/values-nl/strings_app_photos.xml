@@ -186,6 +186,39 @@
         <item quantity="other">%1$s foto’s</item>
     </plurals>
     <string name="app_photos_people_slow_text">Het laden van personen duurt langer dan normaal.</string>
+    <string name="app_photos_person_move_failed">Ze konden niet worden verplaatst. Probeer het opnieuw.</string>
+    <string name="app_photos_person_move_none">Er is nog niemand anders gevonden.</string>
+    <plurals name="app_photos_person_move_title">
+        <item quantity="one">Deze foto verplaatsen naar…</item>
+        <item quantity="other">%1$s foto’s verplaatsen naar…</item>
+    </plurals>
+    <plurals name="app_photos_person_moved">
+        <item quantity="one">%1$s foto naar \u2068%2$s\u2069 verplaatst</item>
+        <item quantity="other">%1$s foto’s naar \u2068%2$s\u2069 verplaatst</item>
+    </plurals>
+    <plurals name="app_photos_person_moved_unnamed">
+        <item quantity="one">%1$s foto naar een persoon zonder naam verplaatst</item>
+        <item quantity="other">%1$s foto’s naar een persoon zonder naam verplaatst</item>
+    </plurals>
+    <string name="app_photos_person_needs_update">Je apparaat heeft een update nodig om te wijzigen wie er op een foto staat.</string>
+    <string name="app_photos_person_remove_failed">Ze konden niet worden weggehaald. Probeer het opnieuw.</string>
+    <string name="app_photos_person_remove_text">De foto’s blijven op je apparaat en gezichtsherkenning zet ze er niet meer bij.</string>
+    <plurals name="app_photos_person_remove_title">
+        <item quantity="one">Deze foto bij \u2068%1$s\u2069 weghalen?</item>
+        <item quantity="other">%2$s foto’s bij \u2068%1$s\u2069 weghalen?</item>
+    </plurals>
+    <plurals name="app_photos_person_remove_title_unnamed">
+        <item quantity="one">Deze foto bij deze persoon weghalen?</item>
+        <item quantity="other">%1$s foto’s bij deze persoon weghalen?</item>
+    </plurals>
+    <plurals name="app_photos_person_removed">
+        <item quantity="one">%1$s foto bij \u2068%2$s\u2069 weggehaald</item>
+        <item quantity="other">%1$s foto’s bij \u2068%2$s\u2069 weggehaald</item>
+    </plurals>
+    <plurals name="app_photos_person_removed_unnamed">
+        <item quantity="one">%1$s foto bij deze persoon weggehaald</item>
+        <item quantity="other">%1$s foto’s bij deze persoon weggehaald</item>
+    </plurals>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” staat al in de zoekopdracht.</string>
     <string name="app_photos_search_documents">Documenten doorzoeken op “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
     <string name="app_photos_search_files">Bestanden</string>

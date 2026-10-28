@@ -681,6 +681,82 @@
     "text": "People are taking longer than usual to load.",
     "note": "Under the heading Still waiting for your device (app.shell.collections_slow_title), on the People page after 10 seconds without an answer; a Try again button follows."
   },
+  "app.photos.person.move_failed": {
+    "text": "Couldn't move them. Try again.",
+    "note": "Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person)."
+  },
+  "app.photos.person.move_none": {
+    "text": "No one else has been found yet.",
+    "note": "In the list opened by Someone else… (app.shell.move_to_person) when face recognition has found no other person to move the photos to."
+  },
+  "app.photos.person.move_title": {
+    "text": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the list of people opened by Someone else… (app.shell.move_to_person): the faces found by face recognition, with their names; picking one files the selected photos under that person instead. {count} is how many photos are selected."
+  },
+  "app.photos.person.moved": {
+    "text": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Note at the foot of Images once photos were moved to another person (app.shell.move_to_person). {count} is how many, {name} the name of the person they went to."
+  },
+  "app.photos.person.moved_unnamed": {
+    "text": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    },
+    "args": [["count", "count"]],
+    "note": "app.photos.person.moved when the person the photos went to has no name yet. {count} is how many photos."
+  },
+  "app.photos.person.needs_update": {
+    "text": "Your device needs an update to change who is in a photo.",
+    "note": "Title of the message shown when Not this person or Someone else… (app.shell.not_this_person, app.shell.move_to_person) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner."
+  },
+  "app.photos.person.remove_failed": {
+    "text": "Couldn't remove them. Try again.",
+    "note": "Error at the foot of Images (or in the confirmation) when the device didn't take the selected photos off the person (app.shell.not_this_person)."
+  },
+  "app.photos.person.remove_text": {
+    "text": "The photos stay on your device, and face recognition won't put them back.",
+    "note": "Explanation in the confirmation of Not this person (app.photos.person.remove_title): the photos aren't deleted, and face recognition won't match them to this person (or anyone) again."
+  },
+  "app.photos.person.remove_title": {
+    "text": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Title of the confirmation asked after Not this person (app.shell.not_this_person) among a person's photos. {name} is the person's name, {count} how many photos are selected. The explanation is app.photos.person.remove_text. Buttons: Remove (common.remove) and Cancel."
+  },
+  "app.photos.person.remove_title_unnamed": {
+    "text": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    },
+    "args": [["count", "count"]],
+    "note": "app.photos.person.remove_title for a person without a name. {count} is how many photos are selected."
+  },
+  "app.photos.person.removed": {
+    "text": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Note at the foot of Images once photos were taken off a person (app.shell.not_this_person). {count} is how many, {name} the person's name."
+  },
+  "app.photos.person.removed_unnamed": {
+    "text": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    },
+    "args": [["count", "count"]],
+    "note": "app.photos.person.removed for a person without a name. {count} is how many photos."
+  },
   "app.photos.search.already": {
     "text": "“{text}” is already in the search.",
     "args": [["text", "user"]],

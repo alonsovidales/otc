@@ -64,11 +64,13 @@
     <string name="app_shell_mirror_none">Nessun mirror</string>
     <string name="app_shell_mirror_syncing">Sincronizzazione mirror %1$s%%</string>
     <string name="app_shell_mirror_unknown">Stato del mirror sconosciuto</string>
+    <string name="app_shell_move_to_person">Un’altra persona…</string>
     <string name="app_shell_new_post">Nuovo post</string>
     <string name="app_shell_no_answer_address">Il dispositivo non risponde. Potrebbe essere spento, o l’indirizzo potrebbe essere sbagliato.</string>
     <string name="app_shell_no_public_key">Impossibile ottenere la chiave pubblica della connessione</string>
     <string name="app_shell_not_connected">Non connesso</string>
     <string name="app_shell_not_otc">L’indirizzo ha risposto, ma non come un dispositivo Off The Cloud. Controlla che termini con /ws e che punti al tuo dispositivo o al suo nome sul bridge.</string>
+    <string name="app_shell_not_this_person">Non è questa persona</string>
     <string name="app_shell_notifications_continue">Continua</string>
     <string name="app_shell_notifications_later">Non ora</string>
     <string name="app_shell_notifications_text">Off The Cloud ti avvisa di richieste di amicizia, nuovi post, Mi piace e commenti, e di quando il tuo dispositivo ha bisogno di te: un disco che ha smesso di funzionare, lo spazio che sta finendo o un aggiornamento importante.</string>

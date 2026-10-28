@@ -502,6 +502,54 @@ fun S.appPhotosPeoplePhotoCount(count: Int): UiText =
 fun S.appPhotosPeopleSlowText(): UiText =
     UiText.Res(R.string.app_photos_people_slow_text)
 
+/** "Couldn't move them. Try again.": Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person). */
+fun S.appPhotosPersonMoveFailed(): UiText =
+    UiText.Res(R.string.app_photos_person_move_failed)
+
+/** "No one else has been found yet.": In the list opened by Someone else… (app.shell.move_to_person) when face recognition has found no other person to move the photos to. */
+fun S.appPhotosPersonMoveNone(): UiText =
+    UiText.Res(R.string.app_photos_person_move_none)
+
+/** "Move {count} photos to…" (one: "Move this photo to…"): Title of the list of people opened by Someone else… (app.shell.move_to_person): the faces found by face recognition, with their names; picking one files the selected photos under that person instead. {count} is how many photos are selected. */
+fun S.appPhotosPersonMoveTitle(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_person_move_title, count, listOf(count))
+
+/** "Moved {count} photos to {name}" (one: "Moved {count} photo to {name}"): Note at the foot of Images once photos were moved to another person (app.shell.move_to_person). {count} is how many, {name} the name of the person they went to. */
+fun S.appPhotosPersonMoved(count: Int, name: String): UiText =
+    UiText.Plural(R.plurals.app_photos_person_moved, count, listOf(count, name))
+
+/** "Moved {count} photos to an unnamed person" (one: "Moved {count} photo to an unnamed person"): app.photos.person.moved when the person the photos went to has no name yet. {count} is how many photos. */
+fun S.appPhotosPersonMovedUnnamed(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_person_moved_unnamed, count, listOf(count))
+
+/** "Your device needs an update to change who is in a photo.": Title of the message shown when Not this person or Someone else… (app.shell.not_this_person, app.shell.move_to_person) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner. */
+fun S.appPhotosPersonNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_photos_person_needs_update)
+
+/** "Couldn't remove them. Try again.": Error at the foot of Images (or in the confirmation) when the device didn't take the selected photos off the person (app.shell.not_this_person). */
+fun S.appPhotosPersonRemoveFailed(): UiText =
+    UiText.Res(R.string.app_photos_person_remove_failed)
+
+/** "The photos stay on your device, and face recognition won't put them back.": Explanation in the confirmation of Not this person (app.photos.person.remove_title): the photos aren't deleted, and face recognition won't match them to this person (or anyone) again. */
+fun S.appPhotosPersonRemoveText(): UiText =
+    UiText.Res(R.string.app_photos_person_remove_text)
+
+/** "Remove {count} photos from {name}?" (one: "Remove this photo from {name}?"): Title of the confirmation asked after Not this person (app.shell.not_this_person) among a person's photos. {name} is the person's name, {count} how many photos are selected. The explanation is app.photos.person.remove_text. Buttons: Remove (common.remove) and Cancel. */
+fun S.appPhotosPersonRemoveTitle(name: String, count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_person_remove_title, count, listOf(name, count))
+
+/** "Remove {count} photos from this person?" (one: "Remove this photo from this person?"): app.photos.person.remove_title for a person without a name. {count} is how many photos are selected. */
+fun S.appPhotosPersonRemoveTitleUnnamed(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_person_remove_title_unnamed, count, listOf(count))
+
+/** "Removed {count} photos from {name}" (one: "Removed {count} photo from {name}"): Note at the foot of Images once photos were taken off a person (app.shell.not_this_person). {count} is how many, {name} the person's name. */
+fun S.appPhotosPersonRemoved(count: Int, name: String): UiText =
+    UiText.Plural(R.plurals.app_photos_person_removed, count, listOf(count, name))
+
+/** "Removed {count} photos from this person" (one: "Removed {count} photo from this person"): app.photos.person.removed for a person without a name. {count} is how many photos. */
+fun S.appPhotosPersonRemovedUnnamed(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_person_removed_unnamed, count, listOf(count))
+
 /** "“{text}” is already in the search.": Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style. */
 fun S.appPhotosSearchAlready(text: String): UiText =
     UiText.Res(R.string.app_photos_search_already, listOf(text))

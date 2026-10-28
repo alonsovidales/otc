@@ -237,6 +237,10 @@
     "text": "Spiegelstatus onbekend",
     "en": "Mirror state unknown"
   },
+  "app.shell.move_to_person": {
+    "text": "Iemand anders…",
+    "en": "Someone else…"
+  },
   "app.shell.new_post": {
     "text": "Nieuw bericht",
     "en": "New post"
@@ -257,6 +261,10 @@
   "app.shell.not_otc": {
     "text": "Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.",
     "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+  },
+  "app.shell.not_this_person": {
+    "text": "Niet deze persoon",
+    "en": "Not this person"
   },
   "app.shell.notifications_continue": {
     "text": "Doorgaan",
