@@ -1493,6 +1493,23 @@ message MergePeople {
   repeated string source_ids = 2;
 }
 
+// RemoveFromPerson ("Not this person") takes photos off a person - the
+// match only, never the photos. Every face matched to person_id in the
+// photos named by hashes (files' content hashes, as in search results)
+// leaves that person: with to_person_id set, they move to that person;
+// left empty, they stay on record matched to no one, so face recognition
+// neither files them under anyone again nor learns from them, and the
+// photos are not analysed again. A Reprocess finds every face afresh, as
+// it always did. An unnamed person left with no faces goes, as after a
+// delete; a named one keeps their name. Hashes with no face of person_id
+// are ignored, not an error. Answers with the generic Ack; a device from
+// before it answers unknown_payload.
+message RemoveFromPerson {
+  string person_id = 1;
+  repeated string hashes = 2;
+  string to_person_id = 3;
+}
+
 // Issue #115: image groups (albums). cover_thumbnail is one member's
 // thumbnail, chosen at random per listing, so the list can render with
 // a picture per group without a round trip each - same idea as
@@ -2501,6 +2518,9 @@ message ReqEnvelope {
     // mirror. Answers with the generic Ack; devices before it with
     // error_code "unknown_payload".
     UseMirrorDisk req_use_mirror_disk = 145;
+    // People: "Not this person" / "Move to another person". Answers with
+    // the generic Ack; devices before it with error_code "unknown_payload".
+    RemoveFromPerson req_remove_from_person = 146;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

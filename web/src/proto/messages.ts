@@ -1891,6 +1891,25 @@ export interface MergePeople {
 }
 
 /**
+ * RemoveFromPerson ("Not this person") takes photos off a person - the
+ * match only, never the photos. Every face matched to person_id in the
+ * photos named by hashes (files' content hashes, as in search results)
+ * leaves that person: with to_person_id set, they move to that person;
+ * left empty, they stay on record matched to no one, so face recognition
+ * neither files them under anyone again nor learns from them, and the
+ * photos are not analysed again. A Reprocess finds every face afresh, as
+ * it always did. An unnamed person left with no faces goes, as after a
+ * delete; a named one keeps their name. Hashes with no face of person_id
+ * are ignored, not an error. Answers with the generic Ack; a device from
+ * before it answers unknown_payload.
+ */
+export interface RemoveFromPerson {
+  personId: string;
+  hashes: string[];
+  toPersonId: string;
+}
+
+/**
  * Issue #115: image groups (albums). cover_thumbnail is one member's
  * thumbnail, chosen at random per listing, so the list can render with
  * a picture per group without a round trip each - same idea as
@@ -3076,6 +3095,12 @@ export interface ReqEnvelope {
      * error_code "unknown_payload".
      */
     { $case: "reqUseMirrorDisk"; reqUseMirrorDisk: UseMirrorDisk }
+    | //
+    /**
+     * People: "Not this person" / "Move to another person". Answers with
+     * the generic Ack; devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqRemoveFromPerson"; reqRemoveFromPerson: RemoveFromPerson }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -12224,6 +12249,76 @@ export const MergePeople: MessageFns<MergePeople> = {
   },
 };
 
+function createBaseRemoveFromPerson(): RemoveFromPerson {
+  return { personId: "", hashes: [], toPersonId: "" };
+}
+
+export const RemoveFromPerson: MessageFns<RemoveFromPerson> = {
+  encode(message: RemoveFromPerson, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.personId !== "") {
+      writer.uint32(10).string(message.personId);
+    }
+    for (const v of message.hashes) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.toPersonId !== "") {
+      writer.uint32(26).string(message.toPersonId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveFromPerson {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRemoveFromPerson();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.personId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.hashes.push(reader.string());
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.toPersonId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RemoveFromPerson>, I>>(base?: I): RemoveFromPerson {
+    return RemoveFromPerson.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RemoveFromPerson>, I>>(object: I): RemoveFromPerson {
+    const message = createBaseRemoveFromPerson();
+    message.personId = object.personId ?? "";
+    message.hashes = object.hashes?.map((e) => e) || [];
+    message.toPersonId = object.toPersonId ?? "";
+    return message;
+  },
+};
+
 function createBaseImageGroup(): ImageGroup {
   return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0) };
 }
@@ -18066,6 +18161,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqUseMirrorDisk":
         UseMirrorDisk.encode(message.payload.reqUseMirrorDisk, writer.uint32(1162).fork()).join();
         break;
+      case "reqRemoveFromPerson":
+        RemoveFromPerson.encode(message.payload.reqRemoveFromPerson, writer.uint32(1170).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19368,6 +19466,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 146: {
+          if (tag !== 1170) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRemoveFromPerson",
+            reqRemoveFromPerson: RemoveFromPerson.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20573,6 +20682,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqUseMirrorDisk",
             reqUseMirrorDisk: UseMirrorDisk.fromPartial(object.payload.reqUseMirrorDisk),
+          };
+        }
+        break;
+      }
+      case "reqRemoveFromPerson": {
+        if (object.payload?.reqRemoveFromPerson !== undefined && object.payload?.reqRemoveFromPerson !== null) {
+          message.payload = {
+            $case: "reqRemoveFromPerson",
+            reqRemoveFromPerson: RemoveFromPerson.fromPartial(object.payload.reqRemoveFromPerson),
           };
         }
         break;
