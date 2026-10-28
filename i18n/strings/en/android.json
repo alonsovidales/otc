@@ -550,6 +550,83 @@
     "note": "Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol.",
     "max": 20
   },
+  "android.wallpaper_both": {
+    "text": "Both",
+    "note": "Choice under Show on (android.wallpaper_show_on): the lock screen and the home screen (agree with screen if your language needs it).",
+    "max": 28
+  },
+  "android.wallpaper_change": {
+    "text": "Change the photo",
+    "note": "Label over the choice of how often the wallpaper's photo changes (android.wallpaper_every_15, _every_hour, _every_day).",
+    "max": 24
+  },
+  "android.wallpaper_every_15": {
+    "text": "Every 15 minutes",
+    "note": "Choice under Change the photo (android.wallpaper_change).",
+    "max": 28
+  },
+  "android.wallpaper_every_day": {
+    "text": "Every day",
+    "note": "Choice under Change the photo (android.wallpaper_change).",
+    "max": 28
+  },
+  "android.wallpaper_every_hour": {
+    "text": "Every hour",
+    "note": "Choice under Change the photo (android.wallpaper_change).",
+    "max": 28
+  },
+  "android.wallpaper_failed": {
+    "text": "Couldn't set the wallpaper. Try again.",
+    "note": "Error when Android refused to set the wallpaper."
+  },
+  "android.wallpaper_home": {
+    "text": "Home screen",
+    "note": "Choice under Show on (android.wallpaper_show_on): the home screen only.",
+    "max": 28
+  },
+  "android.wallpaper_lock": {
+    "text": "Lock screen",
+    "note": "Choice under Show on (android.wallpaper_show_on): the lock screen only.",
+    "max": 28
+  },
+  "android.wallpaper_replaces": {
+    "text": "This replaces your current wallpaper.",
+    "note": "In the wallpaper box (Android), before starting: the phone's wallpaper of now is replaced (the app can't bring it back later)."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted.",
+    "args": [["other", "user"]],
+    "note": "In the wallpaper box (Android) when another collection is the wallpaper now: only one collection at a time, so starting this one stops that one and deletes the copies of its photos from the phone. {other} is that collection's name. Use this language's quotation marks."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Show on",
+    "note": "Label over the choice of where the collection's photos show: android.wallpaper_lock, android.wallpaper_home or android.wallpaper_both.",
+    "max": 24
+  },
+  "android.wallpaper_start": {
+    "text": "Store photos and start",
+    "note": "Confirming button of the wallpaper box (Android): stores the copies on the phone and starts showing them. Says the photos are stored, on purpose.",
+    "max": 36
+  },
+  "android.wallpaper_started": {
+    "text": "“{name}” is now your wallpaper.",
+    "args": [["name", "user"]],
+    "note": "Note once the collection is the wallpaper (Android). {name} is its name. Use this language's quotation marks."
+  },
+  "android.wallpaper_stop": {
+    "text": "Stop and delete the copies",
+    "note": "Button in the wallpaper settings (Android) while the collection is the wallpaper: stops it and deletes the copies of its photos from the phone.",
+    "max": 36
+  },
+  "android.wallpaper_stop_note": {
+    "text": "Your wallpaper stays as it is until you change it.",
+    "note": "Under android.wallpaper_stop: stopping leaves the photo shown now as the wallpaper."
+  },
+  "android.wallpaper_title": {
+    "text": "Use “{name}” as wallpaper",
+    "args": [["name", "user"]],
+    "note": "Title of the box opened by Use as wallpaper… (app.photos.wallpaper.menu) on Android. {name} is the collection's name. Use this language's quotation marks."
+  },
   "android.ws_connect_timeout": {
     "text": "The device didn't answer the connection in time",
     "note": "Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address)."

@@ -524,6 +524,132 @@ extension S {
     /// Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0).
     static var iosTrimStartHandle: String { L("ios.trim_start_handle", table: "Ios") }
 
+    /// Off The Cloud · {name}
+    ///
+    /// Name of the album the app makes in the iPhone's Photos app for a collection used on the lock screen. {name} is the collection's name. Keep Off The Cloud as it is.
+    static func iosWallpaperAlbumName(name: String) -> String {
+        L("ios.wallpaper_album_name", table: "Ios", L10n.isolate(name))
+    }
+
+    /// one: Album ready with {count} photo
+    /// other: Album ready with {count} photos
+    ///
+    /// Once the album in the Photos app holds the copies. {count} is how many photos it has. Followed by the steps (ios.wallpaper_steps_title).
+    static func iosWallpaperAlbumReady(count: Int) -> String {
+        L("ios.wallpaper_album_ready", table: "Ios", count)
+    }
+
+    /// To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings.
+    ///
+    /// When the app has limited or no access to the iPhone's photos: making the album needs full access, given in the iPhone's Settings app (use its name in your language: Ajustes, Réglages, Einstellungen, Impostazioni, Definições, Instellingen). A button that opens Settings follows.
+    static var iosWallpaperFullAccess: String { L("ios.wallpaper_full_access", table: "Ios") }
+
+    /// Store copies in an album
+    ///
+    /// Button under ios.wallpaper_lock_text: stores the copies in the Photos app album. Says they are stored, on purpose.
+    static var iosWallpaperLockButton: String { L("ios.wallpaper_lock_button", table: "Ios") }
+
+    /// The copies go into an album in the Photos app, “{album}”, and also show in your library there. If iCloud Photos is on, Apple uploads them to iCloud too. Photo Shuffle on the lock screen then rotates them.
+    ///
+    /// Under ios.wallpaper_lock_title, before anything is stored: the copies go into the iPhone's Photos app (and its library), and to iCloud if iCloud Photos is on; the lock screen's Photo Shuffle then shows them. {album} is the album's name (ios.wallpaper_album_name). Use iOS's own names for Photos, iCloud Photos and Photo Shuffle in your language; if unsure, describe them. Use this language's quotation marks.
+    static func iosWallpaperLockText(album: String) -> String {
+        L("ios.wallpaper_lock_text", table: "Ios", L10n.isolate(album))
+    }
+
+    /// On the lock screen
+    ///
+    /// Heading of the lock screen part of the iPhone wallpaper screen (ios.wallpaper_title). Use iOS's word for the lock screen.
+    static var iosWallpaperLockTitle: String { L("ios.wallpaper_lock_title", table: "Ios") }
+
+    /// Touch and hold the lock screen, then tap +.
+    ///
+    /// First step to set the album as the lock screen. Use iOS's own words for touch and hold.
+    static var iosWallpaperStep1: String { L("ios.wallpaper_step1", table: "Ios") }
+
+    /// Tap Photo Shuffle, then Album, and choose “{album}”.
+    ///
+    /// Second step: Photo Shuffle is the lock screen's own option that rotates photos (iOS 17.1 and later can use an album). Use iOS's own name for it in your language; if unsure, describe it. {album} is the album's name (ios.wallpaper_album_name).
+    static func iosWallpaperStep2(album: String) -> String {
+        L("ios.wallpaper_step2", table: "Ios", L10n.isolate(album))
+    }
+
+    /// Pick how often the photo changes, and confirm.
+    ///
+    /// Third step: Photo Shuffle offers on tap, on lock, hourly or daily.
+    static var iosWallpaperStep3: String { L("ios.wallpaper_step3", table: "Ios") }
+
+    /// Now set it on your lock screen
+    ///
+    /// Heading over the three steps that set the album as the lock screen (ios.wallpaper_step1-3): apps can't do it themselves.
+    static var iosWallpaperStepsTitle: String { L("ios.wallpaper_steps_title", table: "Ios") }
+
+    /// Stop and delete the album
+    ///
+    /// Button while the collection has its album in the Photos app: deletes the album and the copies in it.
+    static var iosWallpaperStopAlbum: String { L("ios.wallpaper_stop_album", table: "Ios") }
+
+    /// The album and its copies are deleted from the Photos app; iOS asks you to confirm.
+    ///
+    /// Under ios.wallpaper_stop_album: iOS itself asks before photos are deleted from the Photos app.
+    static var iosWallpaperStopAlbumNote: String { L("ios.wallpaper_stop_album_note", table: "Ios") }
+
+    /// Stop the widget and delete its copies
+    ///
+    /// Button while the collection's copies for the widget are stored: deletes them (the widget then asks for a collection again).
+    static var iosWallpaperStopWidget: String { L("ios.wallpaper_stop_widget", table: "Ios") }
+
+    /// Show “{name}” on your iPhone
+    ///
+    /// Title of the screen opened by Use as wallpaper… (app.photos.wallpaper.menu) on iPhone: two ways to show the collection's photos, on the lock screen (through an album in the Photos app) and in a home screen widget. {name} is the collection's name. Use this language's quotation marks.
+    static func iosWallpaperTitle(name: String) -> String {
+        L("ios.wallpaper_title", table: "Ios", L10n.isolate(name))
+    }
+
+    /// Store copies for the widget
+    ///
+    /// Button under ios.wallpaper_widget_text: stores the copies for the widget. Says they are stored, on purpose.
+    static var iosWallpaperWidgetButton: String { L("ios.wallpaper_widget_button", table: "Ios") }
+
+    /// Ready. Add the widget to your home screen.
+    ///
+    /// Once the widget's copies are stored. Followed by ios.wallpaper_widget_steps.
+    static var iosWallpaperWidgetReady: String { L("ios.wallpaper_widget_ready", table: "Ios") }
+
+    /// Touch and hold the home screen, tap Edit, then Add Widget, choose Off The Cloud, and pick this collection.
+    ///
+    /// Shown once the widget's copies are stored: how to add the widget. Use iOS's own labels (Edit, Add Widget) in your language.
+    static var iosWallpaperWidgetSteps: String { L("ios.wallpaper_widget_steps", table: "Ios") }
+
+    /// The copies stay in Off The Cloud's own space on this iPhone, never in the Photos app. The widget shows a different one every hour.
+    ///
+    /// Under ios.wallpaper_widget_title, before anything is stored: the widget's copies are kept by the app itself (not in the Photos app, not in iCloud); the photo changes every hour.
+    static var iosWallpaperWidgetText: String { L("ios.wallpaper_widget_text", table: "Ios") }
+
+    /// In a home screen widget
+    ///
+    /// Heading of the widget part of the iPhone wallpaper screen (ios.wallpaper_title). Use iOS's word for the home screen.
+    static var iosWallpaperWidgetTitle: String { L("ios.wallpaper_widget_title", table: "Ios") }
+
+    /// Touch and hold to choose a collection.
+    ///
+    /// Inside the widget while no collection is chosen yet (touch and hold the widget, then Edit Widget).
+    static var iosWidgetChoose: String { L("ios.widget_choose", table: "Ios") }
+
+    /// A photo from one of your collections, a different one every hour.
+    ///
+    /// Description of the widget in the iPhone's widget gallery.
+    static var iosWidgetDescription: String { L("ios.widget_description", table: "Ios") }
+
+    /// Collection
+    ///
+    /// Name of the app's home screen widget in the iPhone's widget gallery, and the title of its setting that picks the collection. Our word for a named group of photos.
+    static var iosWidgetName: String { L("ios.widget_name", table: "Ios") }
+
+    /// Open this collection in Off The Cloud and choose “Use as wallpaper…” to store its photos here.
+    ///
+    /// Inside the widget when its collection has no copies stored for it yet (or they were deleted). The quoted part is app.photos.wallpaper.menu, written the same way. Use this language's quotation marks.
+    static var iosWidgetNotStored: String { L("ios.widget_not_stored", table: "Ios") }
+
     /// The device didn't answer the connection in time.
     ///
     /// Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address).

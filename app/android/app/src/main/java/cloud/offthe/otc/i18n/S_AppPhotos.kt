@@ -649,3 +649,43 @@ fun S.appPhotosViewerMoreInfo(): UiText =
 /** "Saving…": Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android). */
 fun S.appPhotosViewerSaving(): UiText =
     UiText.Res(R.string.app_photos_viewer_saving)
+
+/** "This collection has no photos to show.": In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper. */
+fun S.appPhotosWallpaperEmpty(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_empty)
+
+/** "Couldn't store the photos. Try again.": Error when the copies for the wallpaper couldn't be downloaded or saved on the phone. */
+fun S.appPhotosWallpaperFailed(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_failed)
+
+/** "Anyone who sees your lock screen will see these photos.": In the notice before a collection is used as wallpaper, after app.photos.wallpaper.stored_text: the lock screen shows without unlocking the phone. */
+fun S.appPhotosWallpaperLockNote(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_lock_note)
+
+/** "Use as wallpaper…": In the menu of the collection open in Images: shows this collection's photos as the phone's wallpaper (Android) or on the iPhone's lock screen and in a home screen widget (iPhone). It opens a box that first says the photos will be stored on the phone (app.photos.wallpaper.stored_title). */
+fun S.appPhotosWallpaperMenu(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_menu)
+
+/** "Wallpaper settings…": app.photos.wallpaper.menu once the collection open in Images is already shown as wallpaper: opens its settings, where it can also be stopped. */
+fun S.appPhotosWallpaperMenuOn(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_menu_on)
+
+/** "Storing photos: {done} of {total}": Progress while the copies for the wallpaper are downloaded to the phone. {done} is how many are stored so far, {total} how many there are. */
+fun S.appPhotosWallpaperProgress(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_progress, listOf(done, total))
+
+/** "Stopped. The copies stored on this phone were deleted.": Note once a collection is no longer used as wallpaper: the copies of its photos were deleted from the phone (the photos on the user's own device are untouched). */
+fun S.appPhotosWallpaperStopped(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_stopped)
+
+/** "To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper." (one: "To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper."): Under app.photos.wallpaper.stored_title: what is stored and for how long. {count} is how many photos will be copied to the phone (the collection's photos, at most the app's limit), {name} the collection's name. Use this language's quotation marks. */
+fun S.appPhotosWallpaperStoredText(count: Int, name: String): UiText =
+    UiText.Plural(R.plurals.app_photos_wallpaper_stored_text, count, listOf(count, name))
+
+/** "These photos will be stored on this phone": Heading of the notice shown before a collection is used as wallpaper (app.photos.wallpaper.menu), in bold, before anything is stored: copies of the photos will be saved on the phone itself, not only on the user's own device at home. Must be unmistakable. */
+fun S.appPhotosWallpaperStoredTitle(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_stored_title)
+
+/** "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings.": In the wallpaper box while the app's Wi-Fi only setting (app.settings.sync.wifi_only, written the same way) is on: the copies are downloaded only on Wi-Fi. The last word is the app's Settings section (common.settings). */
+fun S.appPhotosWallpaperWifiOnly(): UiText =
+    UiText.Res(R.string.app_photos_wallpaper_wifi_only)

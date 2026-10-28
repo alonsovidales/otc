@@ -275,4 +275,18 @@
     <string name="app_photos_viewer_low_res">Aperçu</string>
     <string name="app_photos_viewer_more_info">Plus d’infos</string>
     <string name="app_photos_viewer_saving">Enregistrement…</string>
+    <string name="app_photos_wallpaper_empty">Cette collection ne contient aucune photo à afficher.</string>
+    <string name="app_photos_wallpaper_failed">Impossible d’enregistrer les photos. Réessayez.</string>
+    <string name="app_photos_wallpaper_lock_note">Toute personne qui voit votre écran verrouillé verra ces photos.</string>
+    <string name="app_photos_wallpaper_menu">Utiliser comme fond d’écran…</string>
+    <string name="app_photos_wallpaper_menu_on">Réglages du fond d’écran…</string>
+    <string name="app_photos_wallpaper_progress">Enregistrement des photos : %1$s sur %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Arrêté. Les copies stockées sur ce téléphone ont été supprimées.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">Pour l’afficher en fond d’écran, une copie de %1$s photo de « \u2068%2$s\u2069 » est enregistrée sur ce téléphone, à la taille de son écran. Elle y reste jusqu’à ce que vous arrêtiez d’utiliser la collection comme fond d’écran.</item>
+        <item quantity="many">Pour les afficher en fond d’écran, des copies de %1$s photos de « \u2068%2$s\u2069 » sont enregistrées sur ce téléphone, à la taille de son écran. Elles y restent jusqu’à ce que vous arrêtiez d’utiliser la collection comme fond d’écran.</item>
+        <item quantity="other">Pour les afficher en fond d’écran, des copies de %1$s photos de « \u2068%2$s\u2069 » sont enregistrées sur ce téléphone, à la taille de son écran. Elles y restent jusqu’à ce que vous arrêtiez d’utiliser la collection comme fond d’écran.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Ces photos seront stockées sur ce téléphone</string>
+    <string name="app_photos_wallpaper_wifi_only">Les photos ne se téléchargent qu’en Wi-Fi, car « Wi-Fi uniquement » est activé dans Paramètres.</string>
 </resources>

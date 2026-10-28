@@ -498,6 +498,70 @@
     "text": "▶ Riproduci taglio",
     "en": "▶ Play cut"
   },
+  "android.wallpaper_both": {
+    "text": "Entrambe",
+    "en": "Both"
+  },
+  "android.wallpaper_change": {
+    "text": "Cambia foto",
+    "en": "Change the photo"
+  },
+  "android.wallpaper_every_15": {
+    "text": "Ogni 15 minuti",
+    "en": "Every 15 minutes"
+  },
+  "android.wallpaper_every_day": {
+    "text": "Ogni giorno",
+    "en": "Every day"
+  },
+  "android.wallpaper_every_hour": {
+    "text": "Ogni ora",
+    "en": "Every hour"
+  },
+  "android.wallpaper_failed": {
+    "text": "Impossibile impostare lo sfondo. Riprova.",
+    "en": "Couldn't set the wallpaper. Try again."
+  },
+  "android.wallpaper_home": {
+    "text": "Schermata Home",
+    "en": "Home screen"
+  },
+  "android.wallpaper_lock": {
+    "text": "Schermata di blocco",
+    "en": "Lock screen"
+  },
+  "android.wallpaper_replaces": {
+    "text": "Questo sostituisce lo sfondo attuale.",
+    "en": "This replaces your current wallpaper."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "Ora lo sfondo è “{other}”. Questa raccolta prende il suo posto e le sue copie vengono eliminate.",
+    "en": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Mostra su",
+    "en": "Show on"
+  },
+  "android.wallpaper_start": {
+    "text": "Salva le foto e inizia",
+    "en": "Store photos and start"
+  },
+  "android.wallpaper_started": {
+    "text": "“{name}” è ora il tuo sfondo.",
+    "en": "“{name}” is now your wallpaper."
+  },
+  "android.wallpaper_stop": {
+    "text": "Interrompi ed elimina le copie",
+    "en": "Stop and delete the copies"
+  },
+  "android.wallpaper_stop_note": {
+    "text": "Lo sfondo resta così finché non lo cambi.",
+    "en": "Your wallpaper stays as it is until you change it."
+  },
+  "android.wallpaper_title": {
+    "text": "Usa “{name}” come sfondo",
+    "en": "Use “{name}” as wallpaper"
+  },
   "android.ws_connect_timeout": {
     "text": "Il dispositivo non ha risposto in tempo alla connessione",
     "en": "The device didn't answer the connection in time"

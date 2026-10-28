@@ -11879,6 +11879,630 @@
           }
         }
       }
+    },
+    "app.photos.wallpaper.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Sammlung enthält keine Fotos zum Anzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This collection has no photos to show."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta colección no tiene fotos que mostrar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette collection ne contient aucune photo à afficher."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa raccolta non contiene foto da mostrare."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze collectie heeft geen foto’s om te tonen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta coleção não tem fotos para mostrar."
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Fotos konnten nicht gespeichert werden. Versuche es erneut."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't store the photos. Try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido guardar las fotos. Vuelve a intentarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer les photos. Réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile salvare le foto. Riprova."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De foto’s konden niet worden opgeslagen. Probeer het opnieuw."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível guardar as fotos. Tenta novamente."
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.lock_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wer deinen Sperrbildschirm sieht, sieht diese Fotos."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anyone who sees your lock screen will see these photos."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quien vea tu pantalla bloqueada verá estas fotos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toute personne qui voit votre écran verrouillé verra ces photos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiunque veda la tua schermata di blocco vedrà queste foto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iedereen die je vergrendelscherm ziet, ziet deze foto’s."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quem vir o teu ecrã bloqueado vai ver estas fotos."
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als Hintergrundbild verwenden…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use as wallpaper…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar como fondo de pantalla…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser comme fond d’écran…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa come sfondo…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als achtergrond gebruiken…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar como papel de parede…"
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.menu_on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hintergrundbild-Einstellungen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallpaper settings…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes del fondo de pantalla…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages du fond d’écran…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni sfondo…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Achtergrondinstellingen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definições do papel de parede…"
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos werden gespeichert: %1$lld von %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storing photos: %1$lld of %2$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardando fotos: %1$lld de %2$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrement des photos : %1$lld sur %2$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salvataggio foto: %1$lld di %2$lld"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto’s opslaan: %1$lld van %2$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A guardar fotos: %1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.stopped" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beendet. Die auf diesem Telefon gespeicherten Kopien wurden gelöscht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped. The copies stored on this phone were deleted."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha detenido. Las copias guardadas en este teléfono se han borrado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêté. Les copies stockées sur ce téléphone ont été supprimées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrotto. Le copie salvate su questo telefono sono state eliminate."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestopt. De kopieën op deze telefoon zijn verwijderd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parado. As cópias guardadas neste telemóvel foram apagadas."
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.stored_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Damit es als Hintergrundbild erscheinen kann, wird eine Kopie des Fotos aus „%2$@“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleibt dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Damit sie als Hintergrundbild erscheinen können, werden Kopien von %arg Fotos aus „%2$@“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleiben dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "To show it as your wallpaper, a copy of the photo in “%2$@” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "To show them as your wallpaper, copies of %arg photos from “%2$@” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Para mostrarla como fondo de pantalla, se guarda en este teléfono una copia de la foto de “%2$@”, a la medida de su pantalla. Se queda ahí hasta que dejes de usar la colección como fondo de pantalla."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Para mostrarlas como fondo de pantalla, se guardan en este teléfono copias de %arg fotos de “%2$@”, a la medida de su pantalla. Se quedan ahí hasta que dejes de usar la colección como fondo de pantalla."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Pour l’afficher en fond d’écran, une copie de %arg photo de « %2$@ » est enregistrée sur ce téléphone, à la taille de son écran. Elle y reste jusqu’à ce que vous arrêtiez d’utiliser la collection comme fond d’écran."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Pour les afficher en fond d’écran, des copies de %arg photos de « %2$@ » sont enregistrées sur ce téléphone, à la taille de son écran. Elles y restent jusqu’à ce que vous arrêtiez d’utiliser la collection comme fond d’écran."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Per mostrarla come sfondo, una copia della foto di “%2$@” viene salvata su questo telefono, nelle dimensioni del suo schermo. Resta lì finché non smetti di usare la raccolta come sfondo."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Per mostrarle come sfondo, le copie di %arg foto di “%2$@” vengono salvate su questo telefono, nelle dimensioni del suo schermo. Restano lì finché non smetti di usare la raccolta come sfondo."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Om de foto als achtergrond te tonen, wordt een kopie van de foto uit “%2$@” op deze telefoon opgeslagen, op het formaat van het scherm. Die blijft daar tot je de collectie niet meer als achtergrond gebruikt."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Om ze als achtergrond te tonen, worden kopieën van %arg foto’s uit “%2$@” op deze telefoon opgeslagen, op het formaat van het scherm. Ze blijven daar tot je de collectie niet meer als achtergrond gebruikt."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Para a mostrar como papel de parede, é guardada neste telemóvel uma cópia da foto de «%2$@», no tamanho do ecrã. Fica lá até deixares de usar a coleção como papel de parede."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "Para as mostrar como papel de parede, são guardadas neste telemóvel cópias de %arg fotos de «%2$@», no tamanho do ecrã. Ficam lá até deixares de usar a coleção como papel de parede."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.stored_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Fotos werden auf diesem Telefon gespeichert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These photos will be stored on this phone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estas fotos se guardarán en este teléfono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ces photos seront stockées sur ce téléphone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queste foto verranno salvate su questo telefono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze foto’s worden op deze telefoon opgeslagen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estas fotos vão ser guardadas neste telemóvel"
+          }
+        }
+      }
+    },
+    "app.photos.wallpaper.wifi_only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Fotos werden nur über WLAN geladen, weil „Nur über WLAN“ in Einstellungen aktiviert ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las fotos solo se descargan con Wi-Fi, porque “Solo con Wi-Fi” está activado en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les photos ne se téléchargent qu’en Wi-Fi, car « Wi-Fi uniquement » est activé dans Paramètres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le foto si scaricano solo con il Wi-Fi, perché “Solo Wi-Fi” è attivo in Impostazioni."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De foto’s worden alleen via wifi gedownload, omdat “Alleen via wifi” aan staat in Instellingen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As fotos só são transferidas por Wi-Fi, porque «Apenas por Wi-Fi» está ativado em Definições."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

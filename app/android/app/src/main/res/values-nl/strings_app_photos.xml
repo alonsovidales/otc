@@ -247,4 +247,17 @@
     <string name="app_photos_viewer_low_res">Voorbeeld</string>
     <string name="app_photos_viewer_more_info">Meer info</string>
     <string name="app_photos_viewer_saving">Opslaan…</string>
+    <string name="app_photos_wallpaper_empty">Deze collectie heeft geen foto’s om te tonen.</string>
+    <string name="app_photos_wallpaper_failed">De foto’s konden niet worden opgeslagen. Probeer het opnieuw.</string>
+    <string name="app_photos_wallpaper_lock_note">Iedereen die je vergrendelscherm ziet, ziet deze foto’s.</string>
+    <string name="app_photos_wallpaper_menu">Als achtergrond gebruiken…</string>
+    <string name="app_photos_wallpaper_menu_on">Achtergrondinstellingen…</string>
+    <string name="app_photos_wallpaper_progress">Foto’s opslaan: %1$s van %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Gestopt. De kopieën op deze telefoon zijn verwijderd.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">Om de foto als achtergrond te tonen, wordt een kopie van de foto uit “\u2068%2$s\u2069” op deze telefoon opgeslagen, op het formaat van het scherm. Die blijft daar tot je de collectie niet meer als achtergrond gebruikt.</item>
+        <item quantity="other">Om ze als achtergrond te tonen, worden kopieën van %1$s foto’s uit “\u2068%2$s\u2069” op deze telefoon opgeslagen, op het formaat van het scherm. Ze blijven daar tot je de collectie niet meer als achtergrond gebruikt.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Deze foto’s worden op deze telefoon opgeslagen</string>
+    <string name="app_photos_wallpaper_wifi_only">De foto’s worden alleen via wifi gedownload, omdat “Alleen via wifi” aan staat in Instellingen.</string>
 </resources>

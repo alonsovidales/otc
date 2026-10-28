@@ -498,6 +498,70 @@
     "text": "▶ Reproduzir corte",
     "en": "▶ Play cut"
   },
+  "android.wallpaper_both": {
+    "text": "Ambos",
+    "en": "Both"
+  },
+  "android.wallpaper_change": {
+    "text": "Mudar de foto",
+    "en": "Change the photo"
+  },
+  "android.wallpaper_every_15": {
+    "text": "A cada 15 minutos",
+    "en": "Every 15 minutes"
+  },
+  "android.wallpaper_every_day": {
+    "text": "Todos os dias",
+    "en": "Every day"
+  },
+  "android.wallpaper_every_hour": {
+    "text": "A cada hora",
+    "en": "Every hour"
+  },
+  "android.wallpaper_failed": {
+    "text": "Não foi possível definir o papel de parede. Tenta novamente.",
+    "en": "Couldn't set the wallpaper. Try again."
+  },
+  "android.wallpaper_home": {
+    "text": "Ecrã principal",
+    "en": "Home screen"
+  },
+  "android.wallpaper_lock": {
+    "text": "Ecrã de bloqueio",
+    "en": "Lock screen"
+  },
+  "android.wallpaper_replaces": {
+    "text": "Isto substitui o teu papel de parede atual.",
+    "en": "This replaces your current wallpaper."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "Agora o teu papel de parede é «{other}». Esta coleção fica no lugar dela e as cópias dela são apagadas.",
+    "en": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Mostrar em",
+    "en": "Show on"
+  },
+  "android.wallpaper_start": {
+    "text": "Guardar fotos e começar",
+    "en": "Store photos and start"
+  },
+  "android.wallpaper_started": {
+    "text": "«{name}» é agora o teu papel de parede.",
+    "en": "“{name}” is now your wallpaper."
+  },
+  "android.wallpaper_stop": {
+    "text": "Parar e apagar as cópias",
+    "en": "Stop and delete the copies"
+  },
+  "android.wallpaper_stop_note": {
+    "text": "O teu papel de parede fica como está até o mudares.",
+    "en": "Your wallpaper stays as it is until you change it."
+  },
+  "android.wallpaper_title": {
+    "text": "Usar «{name}» como papel de parede",
+    "en": "Use “{name}” as wallpaper"
+  },
   "android.ws_connect_timeout": {
     "text": "O dispositivo não respondeu à ligação a tempo",
     "en": "The device didn't answer the connection in time"

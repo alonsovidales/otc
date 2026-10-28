@@ -948,4 +948,59 @@ extension S {
     ///
     /// Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).
     static var appPhotosViewerSaving: String { L("app.photos.viewer.saving", table: "AppPhotos") }
+
+    /// This collection has no photos to show.
+    ///
+    /// In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper.
+    static var appPhotosWallpaperEmpty: String { L("app.photos.wallpaper.empty", table: "AppPhotos") }
+
+    /// Couldn't store the photos. Try again.
+    ///
+    /// Error when the copies for the wallpaper couldn't be downloaded or saved on the phone.
+    static var appPhotosWallpaperFailed: String { L("app.photos.wallpaper.failed", table: "AppPhotos") }
+
+    /// Anyone who sees your lock screen will see these photos.
+    ///
+    /// In the notice before a collection is used as wallpaper, after app.photos.wallpaper.stored_text: the lock screen shows without unlocking the phone.
+    static var appPhotosWallpaperLockNote: String { L("app.photos.wallpaper.lock_note", table: "AppPhotos") }
+
+    /// Use as wallpaper…
+    ///
+    /// In the menu of the collection open in Images: shows this collection's photos as the phone's wallpaper (Android) or on the iPhone's lock screen and in a home screen widget (iPhone). It opens a box that first says the photos will be stored on the phone (app.photos.wallpaper.stored_title).
+    static var appPhotosWallpaperMenu: String { L("app.photos.wallpaper.menu", table: "AppPhotos") }
+
+    /// Wallpaper settings…
+    ///
+    /// app.photos.wallpaper.menu once the collection open in Images is already shown as wallpaper: opens its settings, where it can also be stopped.
+    static var appPhotosWallpaperMenuOn: String { L("app.photos.wallpaper.menu_on", table: "AppPhotos") }
+
+    /// Storing photos: {done} of {total}
+    ///
+    /// Progress while the copies for the wallpaper are downloaded to the phone. {done} is how many are stored so far, {total} how many there are.
+    static func appPhotosWallpaperProgress(done: Int, total: Int) -> String {
+        L("app.photos.wallpaper.progress", table: "AppPhotos", done, total)
+    }
+
+    /// Stopped. The copies stored on this phone were deleted.
+    ///
+    /// Note once a collection is no longer used as wallpaper: the copies of its photos were deleted from the phone (the photos on the user's own device are untouched).
+    static var appPhotosWallpaperStopped: String { L("app.photos.wallpaper.stopped", table: "AppPhotos") }
+
+    /// one: To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.
+    /// other: To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper.
+    ///
+    /// Under app.photos.wallpaper.stored_title: what is stored and for how long. {count} is how many photos will be copied to the phone (the collection's photos, at most the app's limit), {name} the collection's name. Use this language's quotation marks.
+    static func appPhotosWallpaperStoredText(count: Int, name: String) -> String {
+        L("app.photos.wallpaper.stored_text", table: "AppPhotos", count, L10n.isolate(name))
+    }
+
+    /// These photos will be stored on this phone
+    ///
+    /// Heading of the notice shown before a collection is used as wallpaper (app.photos.wallpaper.menu), in bold, before anything is stored: copies of the photos will be saved on the phone itself, not only on the user's own device at home. Must be unmistakable.
+    static var appPhotosWallpaperStoredTitle: String { L("app.photos.wallpaper.stored_title", table: "AppPhotos") }
+
+    /// Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings.
+    ///
+    /// In the wallpaper box while the app's Wi-Fi only setting (app.settings.sync.wifi_only, written the same way) is on: the copies are downloaded only on Wi-Fi. The last word is the app's Settings section (common.settings).
+    static var appPhotosWallpaperWifiOnly: String { L("app.photos.wallpaper.wifi_only", table: "AppPhotos") }
 }

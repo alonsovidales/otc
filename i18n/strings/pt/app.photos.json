@@ -831,5 +831,51 @@
   "app.photos.viewer.saving": {
     "text": "A guardar…",
     "en": "Saving…"
+  },
+  "app.photos.wallpaper.empty": {
+    "text": "Esta coleção não tem fotos para mostrar.",
+    "en": "This collection has no photos to show."
+  },
+  "app.photos.wallpaper.failed": {
+    "text": "Não foi possível guardar as fotos. Tenta novamente.",
+    "en": "Couldn't store the photos. Try again."
+  },
+  "app.photos.wallpaper.lock_note": {
+    "text": "Quem vir o teu ecrã bloqueado vai ver estas fotos.",
+    "en": "Anyone who sees your lock screen will see these photos."
+  },
+  "app.photos.wallpaper.menu": {
+    "text": "Usar como papel de parede…",
+    "en": "Use as wallpaper…"
+  },
+  "app.photos.wallpaper.menu_on": {
+    "text": "Definições do papel de parede…",
+    "en": "Wallpaper settings…"
+  },
+  "app.photos.wallpaper.progress": {
+    "text": "A guardar fotos: {done} de {total}",
+    "en": "Storing photos: {done} of {total}"
+  },
+  "app.photos.wallpaper.stopped": {
+    "text": "Parado. As cópias guardadas neste telemóvel foram apagadas.",
+    "en": "Stopped. The copies stored on this phone were deleted."
+  },
+  "app.photos.wallpaper.stored_text": {
+    "text": {
+      "one": "Para a mostrar como papel de parede, é guardada neste telemóvel uma cópia da foto de «{name}», no tamanho do ecrã. Fica lá até deixares de usar a coleção como papel de parede.",
+      "other": "Para as mostrar como papel de parede, são guardadas neste telemóvel cópias de {count} fotos de «{name}», no tamanho do ecrã. Ficam lá até deixares de usar a coleção como papel de parede."
+    },
+    "en": {
+      "one": "To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.",
+      "other": "To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper."
+    }
+  },
+  "app.photos.wallpaper.stored_title": {
+    "text": "Estas fotos vão ser guardadas neste telemóvel",
+    "en": "These photos will be stored on this phone"
+  },
+  "app.photos.wallpaper.wifi_only": {
+    "text": "As fotos só são transferidas por Wi-Fi, porque «Apenas por Wi-Fi» está ativado em Definições.",
+    "en": "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings."
   }
 }

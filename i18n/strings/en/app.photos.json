@@ -890,5 +890,52 @@
     "text": "Saving…",
     "note": "Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).",
     "max": 30
+  },
+  "app.photos.wallpaper.empty": {
+    "text": "This collection has no photos to show.",
+    "note": "In the wallpaper box when the collection has no photos (empty, or only videos): there is nothing to use as wallpaper."
+  },
+  "app.photos.wallpaper.failed": {
+    "text": "Couldn't store the photos. Try again.",
+    "note": "Error when the copies for the wallpaper couldn't be downloaded or saved on the phone."
+  },
+  "app.photos.wallpaper.lock_note": {
+    "text": "Anyone who sees your lock screen will see these photos.",
+    "note": "In the notice before a collection is used as wallpaper, after app.photos.wallpaper.stored_text: the lock screen shows without unlocking the phone."
+  },
+  "app.photos.wallpaper.menu": {
+    "text": "Use as wallpaper…",
+    "note": "In the menu of the collection open in Images: shows this collection's photos as the phone's wallpaper (Android) or on the iPhone's lock screen and in a home screen widget (iPhone). It opens a box that first says the photos will be stored on the phone (app.photos.wallpaper.stored_title).",
+    "max": 34
+  },
+  "app.photos.wallpaper.menu_on": {
+    "text": "Wallpaper settings…",
+    "note": "app.photos.wallpaper.menu once the collection open in Images is already shown as wallpaper: opens its settings, where it can also be stopped.",
+    "max": 34
+  },
+  "app.photos.wallpaper.progress": {
+    "text": "Storing photos: {done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Progress while the copies for the wallpaper are downloaded to the phone. {done} is how many are stored so far, {total} how many there are."
+  },
+  "app.photos.wallpaper.stopped": {
+    "text": "Stopped. The copies stored on this phone were deleted.",
+    "note": "Note once a collection is no longer used as wallpaper: the copies of its photos were deleted from the phone (the photos on the user's own device are untouched)."
+  },
+  "app.photos.wallpaper.stored_text": {
+    "text": {
+      "one": "To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.",
+      "other": "To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper."
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Under app.photos.wallpaper.stored_title: what is stored and for how long. {count} is how many photos will be copied to the phone (the collection's photos, at most the app's limit), {name} the collection's name. Use this language's quotation marks."
+  },
+  "app.photos.wallpaper.stored_title": {
+    "text": "These photos will be stored on this phone",
+    "note": "Heading of the notice shown before a collection is used as wallpaper (app.photos.wallpaper.menu), in bold, before anything is stored: copies of the photos will be saved on the phone itself, not only on the user's own device at home. Must be unmistakable."
+  },
+  "app.photos.wallpaper.wifi_only": {
+    "text": "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings.",
+    "note": "In the wallpaper box while the app's Wi-Fi only setting (app.settings.sync.wifi_only, written the same way) is on: the copies are downloaded only on Wi-Fi. The last word is the app's Settings section (common.settings)."
   }
 }

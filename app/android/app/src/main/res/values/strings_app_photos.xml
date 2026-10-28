@@ -246,4 +246,17 @@
     <string name="app_photos_viewer_low_res">Low res</string>
     <string name="app_photos_viewer_more_info">More info</string>
     <string name="app_photos_viewer_saving">Saving…</string>
+    <string name="app_photos_wallpaper_empty">This collection has no photos to show.</string>
+    <string name="app_photos_wallpaper_failed">Couldn\'t store the photos. Try again.</string>
+    <string name="app_photos_wallpaper_lock_note">Anyone who sees your lock screen will see these photos.</string>
+    <string name="app_photos_wallpaper_menu">Use as wallpaper…</string>
+    <string name="app_photos_wallpaper_menu_on">Wallpaper settings…</string>
+    <string name="app_photos_wallpaper_progress">Storing photos: %1$s of %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Stopped. The copies stored on this phone were deleted.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">To show it as your wallpaper, a copy of the photo in “\u2068%2$s\u2069” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.</item>
+        <item quantity="other">To show them as your wallpaper, copies of %1$s photos from “\u2068%2$s\u2069” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">These photos will be stored on this phone</string>
+    <string name="app_photos_wallpaper_wifi_only">Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings.</string>
 </resources>

@@ -498,6 +498,70 @@
     "text": "▶ Lire l’extrait",
     "en": "▶ Play cut"
   },
+  "android.wallpaper_both": {
+    "text": "Les deux",
+    "en": "Both"
+  },
+  "android.wallpaper_change": {
+    "text": "Changer de photo",
+    "en": "Change the photo"
+  },
+  "android.wallpaper_every_15": {
+    "text": "Toutes les 15 minutes",
+    "en": "Every 15 minutes"
+  },
+  "android.wallpaper_every_day": {
+    "text": "Tous les jours",
+    "en": "Every day"
+  },
+  "android.wallpaper_every_hour": {
+    "text": "Toutes les heures",
+    "en": "Every hour"
+  },
+  "android.wallpaper_failed": {
+    "text": "Impossible de définir le fond d’écran. Réessayez.",
+    "en": "Couldn't set the wallpaper. Try again."
+  },
+  "android.wallpaper_home": {
+    "text": "Écran d’accueil",
+    "en": "Home screen"
+  },
+  "android.wallpaper_lock": {
+    "text": "Écran de verrouillage",
+    "en": "Lock screen"
+  },
+  "android.wallpaper_replaces": {
+    "text": "Cela remplace votre fond d’écran actuel.",
+    "en": "This replaces your current wallpaper."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "« {other} » est actuellement votre fond d’écran. Cette collection prend sa place et ses copies sont supprimées.",
+    "en": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Afficher sur",
+    "en": "Show on"
+  },
+  "android.wallpaper_start": {
+    "text": "Enregistrer les photos et démarrer",
+    "en": "Store photos and start"
+  },
+  "android.wallpaper_started": {
+    "text": "« {name} » est maintenant votre fond d’écran.",
+    "en": "“{name}” is now your wallpaper."
+  },
+  "android.wallpaper_stop": {
+    "text": "Arrêter et supprimer les copies",
+    "en": "Stop and delete the copies"
+  },
+  "android.wallpaper_stop_note": {
+    "text": "Votre fond d’écran reste tel quel jusqu’à ce que vous le changiez.",
+    "en": "Your wallpaper stays as it is until you change it."
+  },
+  "android.wallpaper_title": {
+    "text": "Utiliser « {name} » comme fond d’écran",
+    "en": "Use “{name}” as wallpaper"
+  },
   "android.ws_connect_timeout": {
     "text": "L’appareil n’a pas répondu à temps à la connexion",
     "en": "The device didn't answer the connection in time"

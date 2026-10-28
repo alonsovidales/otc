@@ -443,6 +443,104 @@
     "text": "Begin van het fragment",
     "en": "Start of the cut"
   },
+  "ios.wallpaper_album_name": {
+    "text": "Off The Cloud · {name}",
+    "en": "Off The Cloud · {name}"
+  },
+  "ios.wallpaper_album_ready": {
+    "text": {
+      "one": "Album klaar met {count} foto",
+      "other": "Album klaar met {count} foto’s"
+    },
+    "en": {
+      "one": "Album ready with {count} photo",
+      "other": "Album ready with {count} photos"
+    }
+  },
+  "ios.wallpaper_full_access": {
+    "text": "Om het album te maken, heeft Off The Cloud toegang tot al je foto’s nodig. Je kunt dat toestaan in Instellingen.",
+    "en": "To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings."
+  },
+  "ios.wallpaper_lock_button": {
+    "text": "Kopieën in een album opslaan",
+    "en": "Store copies in an album"
+  },
+  "ios.wallpaper_lock_text": {
+    "text": "De kopieën komen in een album in de Foto’s-app, “{album}”, en staan ook in je bibliotheek. Als iCloud-foto’s aan staat, zet Apple ze ook in iCloud. ‘Foto’s shuffelen’ op het toegangsscherm wisselt ze daarna af.",
+    "en": "The copies go into an album in the Photos app, “{album}”, and also show in your library there. If iCloud Photos is on, Apple uploads them to iCloud too. Photo Shuffle on the lock screen then rotates them."
+  },
+  "ios.wallpaper_lock_title": {
+    "text": "Op het toegangsscherm",
+    "en": "On the lock screen"
+  },
+  "ios.wallpaper_step1": {
+    "text": "Houd je vinger op het toegangsscherm en tik op +.",
+    "en": "Touch and hold the lock screen, then tap +."
+  },
+  "ios.wallpaper_step2": {
+    "text": "Tik op ‘Foto’s shuffelen’, dan op Album, en kies “{album}”.",
+    "en": "Tap Photo Shuffle, then Album, and choose “{album}”."
+  },
+  "ios.wallpaper_step3": {
+    "text": "Kies hoe vaak de foto wisselt en bevestig.",
+    "en": "Pick how often the photo changes, and confirm."
+  },
+  "ios.wallpaper_steps_title": {
+    "text": "Stel het nu in op je toegangsscherm",
+    "en": "Now set it on your lock screen"
+  },
+  "ios.wallpaper_stop_album": {
+    "text": "Stoppen en album verwijderen",
+    "en": "Stop and delete the album"
+  },
+  "ios.wallpaper_stop_album_note": {
+    "text": "Het album en de kopieën worden uit de Foto’s-app verwijderd; iOS vraagt je dat te bevestigen.",
+    "en": "The album and its copies are deleted from the Photos app; iOS asks you to confirm."
+  },
+  "ios.wallpaper_stop_widget": {
+    "text": "Widget stoppen en kopieën verwijderen",
+    "en": "Stop the widget and delete its copies"
+  },
+  "ios.wallpaper_title": {
+    "text": "“{name}” op je iPhone tonen",
+    "en": "Show “{name}” on your iPhone"
+  },
+  "ios.wallpaper_widget_button": {
+    "text": "Kopieën voor de widget opslaan",
+    "en": "Store copies for the widget"
+  },
+  "ios.wallpaper_widget_ready": {
+    "text": "Klaar. Zet de widget op je beginscherm.",
+    "en": "Ready. Add the widget to your home screen."
+  },
+  "ios.wallpaper_widget_steps": {
+    "text": "Houd je vinger op het beginscherm, tik op Wijzig en dan op Voeg widget toe, kies Off The Cloud en selecteer deze collectie.",
+    "en": "Touch and hold the home screen, tap Edit, then Add Widget, choose Off The Cloud, and pick this collection."
+  },
+  "ios.wallpaper_widget_text": {
+    "text": "De kopieën blijven in de eigen ruimte van Off The Cloud op deze iPhone, nooit in de Foto’s-app. De widget toont elk uur een andere.",
+    "en": "The copies stay in Off The Cloud's own space on this iPhone, never in the Photos app. The widget shows a different one every hour."
+  },
+  "ios.wallpaper_widget_title": {
+    "text": "In een widget op het beginscherm",
+    "en": "In a home screen widget"
+  },
+  "ios.widget_choose": {
+    "text": "Houd je vinger erop om een collectie te kiezen.",
+    "en": "Touch and hold to choose a collection."
+  },
+  "ios.widget_description": {
+    "text": "Een foto uit een van je collecties, elk uur een andere.",
+    "en": "A photo from one of your collections, a different one every hour."
+  },
+  "ios.widget_name": {
+    "text": "Collectie",
+    "en": "Collection"
+  },
+  "ios.widget_not_stored": {
+    "text": "Open deze collectie in Off The Cloud en kies “Als achtergrond gebruiken…” om de foto’s hier op te slaan.",
+    "en": "Open this collection in Off The Cloud and choose “Use as wallpaper…” to store its photos here."
+  },
   "ios.ws_connect_timeout": {
     "text": "Het apparaat heeft niet op tijd op de verbinding gereageerd.",
     "en": "The device didn't answer the connection in time."

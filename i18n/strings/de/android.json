@@ -498,6 +498,70 @@
     "text": "▶ Schnitt abspielen",
     "en": "▶ Play cut"
   },
+  "android.wallpaper_both": {
+    "text": "Beide",
+    "en": "Both"
+  },
+  "android.wallpaper_change": {
+    "text": "Foto wechseln",
+    "en": "Change the photo"
+  },
+  "android.wallpaper_every_15": {
+    "text": "Alle 15 Minuten",
+    "en": "Every 15 minutes"
+  },
+  "android.wallpaper_every_day": {
+    "text": "Täglich",
+    "en": "Every day"
+  },
+  "android.wallpaper_every_hour": {
+    "text": "Stündlich",
+    "en": "Every hour"
+  },
+  "android.wallpaper_failed": {
+    "text": "Das Hintergrundbild konnte nicht festgelegt werden. Versuche es erneut.",
+    "en": "Couldn't set the wallpaper. Try again."
+  },
+  "android.wallpaper_home": {
+    "text": "Startbildschirm",
+    "en": "Home screen"
+  },
+  "android.wallpaper_lock": {
+    "text": "Sperrbildschirm",
+    "en": "Lock screen"
+  },
+  "android.wallpaper_replaces": {
+    "text": "Dein aktuelles Hintergrundbild wird ersetzt.",
+    "en": "This replaces your current wallpaper."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "Gerade ist „{other}“ dein Hintergrundbild. Diese Sammlung ersetzt sie, und ihre Kopien werden gelöscht.",
+    "en": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Anzeigen auf",
+    "en": "Show on"
+  },
+  "android.wallpaper_start": {
+    "text": "Fotos speichern und starten",
+    "en": "Store photos and start"
+  },
+  "android.wallpaper_started": {
+    "text": "„{name}“ ist jetzt dein Hintergrundbild.",
+    "en": "“{name}” is now your wallpaper."
+  },
+  "android.wallpaper_stop": {
+    "text": "Beenden und Kopien löschen",
+    "en": "Stop and delete the copies"
+  },
+  "android.wallpaper_stop_note": {
+    "text": "Dein Hintergrundbild bleibt, bis du es änderst.",
+    "en": "Your wallpaper stays as it is until you change it."
+  },
+  "android.wallpaper_title": {
+    "text": "„{name}“ als Hintergrundbild verwenden",
+    "en": "Use “{name}” as wallpaper"
+  },
   "android.ws_connect_timeout": {
     "text": "Das Gerät hat nicht rechtzeitig auf den Verbindungsaufbau geantwortet",
     "en": "The device didn't answer the connection in time"

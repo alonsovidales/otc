@@ -275,4 +275,18 @@
     <string name="app_photos_viewer_low_res">Anteprima</string>
     <string name="app_photos_viewer_more_info">Altre informazioni</string>
     <string name="app_photos_viewer_saving">Salvataggio…</string>
+    <string name="app_photos_wallpaper_empty">Questa raccolta non contiene foto da mostrare.</string>
+    <string name="app_photos_wallpaper_failed">Impossibile salvare le foto. Riprova.</string>
+    <string name="app_photos_wallpaper_lock_note">Chiunque veda la tua schermata di blocco vedrà queste foto.</string>
+    <string name="app_photos_wallpaper_menu">Usa come sfondo…</string>
+    <string name="app_photos_wallpaper_menu_on">Impostazioni sfondo…</string>
+    <string name="app_photos_wallpaper_progress">Salvataggio foto: %1$s di %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Interrotto. Le copie salvate su questo telefono sono state eliminate.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">Per mostrarla come sfondo, una copia della foto di “\u2068%2$s\u2069” viene salvata su questo telefono, nelle dimensioni del suo schermo. Resta lì finché non smetti di usare la raccolta come sfondo.</item>
+        <item quantity="many">Per mostrarle come sfondo, le copie di %1$s foto di “\u2068%2$s\u2069” vengono salvate su questo telefono, nelle dimensioni del suo schermo. Restano lì finché non smetti di usare la raccolta come sfondo.</item>
+        <item quantity="other">Per mostrarle come sfondo, le copie di %1$s foto di “\u2068%2$s\u2069” vengono salvate su questo telefono, nelle dimensioni del suo schermo. Restano lì finché non smetti di usare la raccolta come sfondo.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Queste foto verranno salvate su questo telefono</string>
+    <string name="app_photos_wallpaper_wifi_only">Le foto si scaricano solo con il Wi-Fi, perché “Solo Wi-Fi” è attivo in Impostazioni.</string>
 </resources>

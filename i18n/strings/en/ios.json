@@ -492,6 +492,114 @@
     "text": "Start of the cut",
     "note": "Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0)."
   },
+  "ios.wallpaper_album_name": {
+    "text": "Off The Cloud · {name}",
+    "args": [["name", "user"]],
+    "note": "Name of the album the app makes in the iPhone's Photos app for a collection used on the lock screen. {name} is the collection's name. Keep Off The Cloud as it is."
+  },
+  "ios.wallpaper_album_ready": {
+    "text": {
+      "one": "Album ready with {count} photo",
+      "other": "Album ready with {count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Once the album in the Photos app holds the copies. {count} is how many photos it has. Followed by the steps (ios.wallpaper_steps_title)."
+  },
+  "ios.wallpaper_full_access": {
+    "text": "To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings.",
+    "note": "When the app has limited or no access to the iPhone's photos: making the album needs full access, given in the iPhone's Settings app (use its name in your language: Ajustes, Réglages, Einstellungen, Impostazioni, Definições, Instellingen). A button that opens Settings follows."
+  },
+  "ios.wallpaper_lock_button": {
+    "text": "Store copies in an album",
+    "note": "Button under ios.wallpaper_lock_text: stores the copies in the Photos app album. Says they are stored, on purpose.",
+    "max": 44
+  },
+  "ios.wallpaper_lock_text": {
+    "text": "The copies go into an album in the Photos app, “{album}”, and also show in your library there. If iCloud Photos is on, Apple uploads them to iCloud too. Photo Shuffle on the lock screen then rotates them.",
+    "args": [["album", "user"]],
+    "note": "Under ios.wallpaper_lock_title, before anything is stored: the copies go into the iPhone's Photos app (and its library), and to iCloud if iCloud Photos is on; the lock screen's Photo Shuffle then shows them. {album} is the album's name (ios.wallpaper_album_name). Use iOS's own names for Photos, iCloud Photos and Photo Shuffle in your language; if unsure, describe them. Use this language's quotation marks."
+  },
+  "ios.wallpaper_lock_title": {
+    "text": "On the lock screen",
+    "note": "Heading of the lock screen part of the iPhone wallpaper screen (ios.wallpaper_title). Use iOS's word for the lock screen.",
+    "max": 40
+  },
+  "ios.wallpaper_step1": {
+    "text": "Touch and hold the lock screen, then tap +.",
+    "note": "First step to set the album as the lock screen. Use iOS's own words for touch and hold."
+  },
+  "ios.wallpaper_step2": {
+    "text": "Tap Photo Shuffle, then Album, and choose “{album}”.",
+    "args": [["album", "user"]],
+    "note": "Second step: Photo Shuffle is the lock screen's own option that rotates photos (iOS 17.1 and later can use an album). Use iOS's own name for it in your language; if unsure, describe it. {album} is the album's name (ios.wallpaper_album_name)."
+  },
+  "ios.wallpaper_step3": {
+    "text": "Pick how often the photo changes, and confirm.",
+    "note": "Third step: Photo Shuffle offers on tap, on lock, hourly or daily."
+  },
+  "ios.wallpaper_steps_title": {
+    "text": "Now set it on your lock screen",
+    "note": "Heading over the three steps that set the album as the lock screen (ios.wallpaper_step1-3): apps can't do it themselves.",
+    "max": 48
+  },
+  "ios.wallpaper_stop_album": {
+    "text": "Stop and delete the album",
+    "note": "Button while the collection has its album in the Photos app: deletes the album and the copies in it.",
+    "max": 36
+  },
+  "ios.wallpaper_stop_album_note": {
+    "text": "The album and its copies are deleted from the Photos app; iOS asks you to confirm.",
+    "note": "Under ios.wallpaper_stop_album: iOS itself asks before photos are deleted from the Photos app."
+  },
+  "ios.wallpaper_stop_widget": {
+    "text": "Stop the widget and delete its copies",
+    "note": "Button while the collection's copies for the widget are stored: deletes them (the widget then asks for a collection again).",
+    "max": 48
+  },
+  "ios.wallpaper_title": {
+    "text": "Show “{name}” on your iPhone",
+    "args": [["name", "user"]],
+    "note": "Title of the screen opened by Use as wallpaper… (app.photos.wallpaper.menu) on iPhone: two ways to show the collection's photos, on the lock screen (through an album in the Photos app) and in a home screen widget. {name} is the collection's name. Use this language's quotation marks."
+  },
+  "ios.wallpaper_widget_button": {
+    "text": "Store copies for the widget",
+    "note": "Button under ios.wallpaper_widget_text: stores the copies for the widget. Says they are stored, on purpose.",
+    "max": 44
+  },
+  "ios.wallpaper_widget_ready": {
+    "text": "Ready. Add the widget to your home screen.",
+    "note": "Once the widget's copies are stored. Followed by ios.wallpaper_widget_steps."
+  },
+  "ios.wallpaper_widget_steps": {
+    "text": "Touch and hold the home screen, tap Edit, then Add Widget, choose Off The Cloud, and pick this collection.",
+    "note": "Shown once the widget's copies are stored: how to add the widget. Use iOS's own labels (Edit, Add Widget) in your language."
+  },
+  "ios.wallpaper_widget_text": {
+    "text": "The copies stay in Off The Cloud's own space on this iPhone, never in the Photos app. The widget shows a different one every hour.",
+    "note": "Under ios.wallpaper_widget_title, before anything is stored: the widget's copies are kept by the app itself (not in the Photos app, not in iCloud); the photo changes every hour."
+  },
+  "ios.wallpaper_widget_title": {
+    "text": "In a home screen widget",
+    "note": "Heading of the widget part of the iPhone wallpaper screen (ios.wallpaper_title). Use iOS's word for the home screen.",
+    "max": 48
+  },
+  "ios.widget_choose": {
+    "text": "Touch and hold to choose a collection.",
+    "note": "Inside the widget while no collection is chosen yet (touch and hold the widget, then Edit Widget)."
+  },
+  "ios.widget_description": {
+    "text": "A photo from one of your collections, a different one every hour.",
+    "note": "Description of the widget in the iPhone's widget gallery."
+  },
+  "ios.widget_name": {
+    "text": "Collection",
+    "note": "Name of the app's home screen widget in the iPhone's widget gallery, and the title of its setting that picks the collection. Our word for a named group of photos.",
+    "max": 20
+  },
+  "ios.widget_not_stored": {
+    "text": "Open this collection in Off The Cloud and choose “Use as wallpaper…” to store its photos here.",
+    "note": "Inside the widget when its collection has no copies stored for it yet (or they were deleted). The quoted part is app.photos.wallpaper.menu, written the same way. Use this language's quotation marks."
+  },
   "ios.ws_connect_timeout": {
     "text": "The device didn't answer the connection in time.",
     "note": "Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address)."

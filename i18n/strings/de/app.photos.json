@@ -831,5 +831,51 @@
   "app.photos.viewer.saving": {
     "text": "Wird gespeichert…",
     "en": "Saving…"
+  },
+  "app.photos.wallpaper.empty": {
+    "text": "Diese Sammlung enthält keine Fotos zum Anzeigen.",
+    "en": "This collection has no photos to show."
+  },
+  "app.photos.wallpaper.failed": {
+    "text": "Die Fotos konnten nicht gespeichert werden. Versuche es erneut.",
+    "en": "Couldn't store the photos. Try again."
+  },
+  "app.photos.wallpaper.lock_note": {
+    "text": "Wer deinen Sperrbildschirm sieht, sieht diese Fotos.",
+    "en": "Anyone who sees your lock screen will see these photos."
+  },
+  "app.photos.wallpaper.menu": {
+    "text": "Als Hintergrundbild verwenden…",
+    "en": "Use as wallpaper…"
+  },
+  "app.photos.wallpaper.menu_on": {
+    "text": "Hintergrundbild-Einstellungen…",
+    "en": "Wallpaper settings…"
+  },
+  "app.photos.wallpaper.progress": {
+    "text": "Fotos werden gespeichert: {done} von {total}",
+    "en": "Storing photos: {done} of {total}"
+  },
+  "app.photos.wallpaper.stopped": {
+    "text": "Beendet. Die auf diesem Telefon gespeicherten Kopien wurden gelöscht.",
+    "en": "Stopped. The copies stored on this phone were deleted."
+  },
+  "app.photos.wallpaper.stored_text": {
+    "text": {
+      "one": "Damit es als Hintergrundbild erscheinen kann, wird eine Kopie des Fotos aus „{name}“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleibt dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest.",
+      "other": "Damit sie als Hintergrundbild erscheinen können, werden Kopien von {count} Fotos aus „{name}“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleiben dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest."
+    },
+    "en": {
+      "one": "To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.",
+      "other": "To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper."
+    }
+  },
+  "app.photos.wallpaper.stored_title": {
+    "text": "Diese Fotos werden auf diesem Telefon gespeichert",
+    "en": "These photos will be stored on this phone"
+  },
+  "app.photos.wallpaper.wifi_only": {
+    "text": "Die Fotos werden nur über WLAN geladen, weil „Nur über WLAN“ in Einstellungen aktiviert ist.",
+    "en": "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings."
   }
 }

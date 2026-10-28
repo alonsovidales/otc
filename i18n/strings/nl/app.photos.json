@@ -831,5 +831,51 @@
   "app.photos.viewer.saving": {
     "text": "Opslaan…",
     "en": "Saving…"
+  },
+  "app.photos.wallpaper.empty": {
+    "text": "Deze collectie heeft geen foto’s om te tonen.",
+    "en": "This collection has no photos to show."
+  },
+  "app.photos.wallpaper.failed": {
+    "text": "De foto’s konden niet worden opgeslagen. Probeer het opnieuw.",
+    "en": "Couldn't store the photos. Try again."
+  },
+  "app.photos.wallpaper.lock_note": {
+    "text": "Iedereen die je vergrendelscherm ziet, ziet deze foto’s.",
+    "en": "Anyone who sees your lock screen will see these photos."
+  },
+  "app.photos.wallpaper.menu": {
+    "text": "Als achtergrond gebruiken…",
+    "en": "Use as wallpaper…"
+  },
+  "app.photos.wallpaper.menu_on": {
+    "text": "Achtergrondinstellingen…",
+    "en": "Wallpaper settings…"
+  },
+  "app.photos.wallpaper.progress": {
+    "text": "Foto’s opslaan: {done} van {total}",
+    "en": "Storing photos: {done} of {total}"
+  },
+  "app.photos.wallpaper.stopped": {
+    "text": "Gestopt. De kopieën op deze telefoon zijn verwijderd.",
+    "en": "Stopped. The copies stored on this phone were deleted."
+  },
+  "app.photos.wallpaper.stored_text": {
+    "text": {
+      "one": "Om de foto als achtergrond te tonen, wordt een kopie van de foto uit “{name}” op deze telefoon opgeslagen, op het formaat van het scherm. Die blijft daar tot je de collectie niet meer als achtergrond gebruikt.",
+      "other": "Om ze als achtergrond te tonen, worden kopieën van {count} foto’s uit “{name}” op deze telefoon opgeslagen, op het formaat van het scherm. Ze blijven daar tot je de collectie niet meer als achtergrond gebruikt."
+    },
+    "en": {
+      "one": "To show it as your wallpaper, a copy of the photo in “{name}” is saved on this phone, sized for its screen. It stays there until you stop using the collection as wallpaper.",
+      "other": "To show them as your wallpaper, copies of {count} photos from “{name}” are saved on this phone, sized for its screen. They stay there until you stop using the collection as wallpaper."
+    }
+  },
+  "app.photos.wallpaper.stored_title": {
+    "text": "Deze foto’s worden op deze telefoon opgeslagen",
+    "en": "These photos will be stored on this phone"
+  },
+  "app.photos.wallpaper.wifi_only": {
+    "text": "De foto’s worden alleen via wifi gedownload, omdat “Alleen via wifi” aan staat in Instellingen.",
+    "en": "Photos download only on Wi-Fi, as “Wi-Fi only” is on in Settings."
   }
 }

@@ -275,4 +275,18 @@
     <string name="app_photos_viewer_low_res">Baja calidad</string>
     <string name="app_photos_viewer_more_info">Más información</string>
     <string name="app_photos_viewer_saving">Guardando…</string>
+    <string name="app_photos_wallpaper_empty">Esta colección no tiene fotos que mostrar.</string>
+    <string name="app_photos_wallpaper_failed">No se han podido guardar las fotos. Vuelve a intentarlo.</string>
+    <string name="app_photos_wallpaper_lock_note">Quien vea tu pantalla bloqueada verá estas fotos.</string>
+    <string name="app_photos_wallpaper_menu">Usar como fondo de pantalla…</string>
+    <string name="app_photos_wallpaper_menu_on">Ajustes del fondo de pantalla…</string>
+    <string name="app_photos_wallpaper_progress">Guardando fotos: %1$s de %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Se ha detenido. Las copias guardadas en este teléfono se han borrado.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">Para mostrarla como fondo de pantalla, se guarda en este teléfono una copia de la foto de “\u2068%2$s\u2069”, a la medida de su pantalla. Se queda ahí hasta que dejes de usar la colección como fondo de pantalla.</item>
+        <item quantity="many">Para mostrarlas como fondo de pantalla, se guardan en este teléfono copias de %1$s fotos de “\u2068%2$s\u2069”, a la medida de su pantalla. Se quedan ahí hasta que dejes de usar la colección como fondo de pantalla.</item>
+        <item quantity="other">Para mostrarlas como fondo de pantalla, se guardan en este teléfono copias de %1$s fotos de “\u2068%2$s\u2069”, a la medida de su pantalla. Se quedan ahí hasta que dejes de usar la colección como fondo de pantalla.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Estas fotos se guardarán en este teléfono</string>
+    <string name="app_photos_wallpaper_wifi_only">Las fotos solo se descargan con Wi-Fi, porque “Solo con Wi-Fi” está activado en Ajustes.</string>
 </resources>

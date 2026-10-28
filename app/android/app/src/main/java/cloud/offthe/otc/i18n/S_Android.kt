@@ -454,6 +454,70 @@ fun S.androidTrimCant(reason: String): UiText =
 fun S.androidTrimPlayCut(): UiText =
     UiText.Res(R.string.android_trim_play_cut)
 
+/** "Both": Choice under Show on (android.wallpaper_show_on): the lock screen and the home screen (agree with screen if your language needs it). */
+fun S.androidWallpaperBoth(): UiText =
+    UiText.Res(R.string.android_wallpaper_both)
+
+/** "Change the photo": Label over the choice of how often the wallpaper's photo changes (android.wallpaper_every_15, _every_hour, _every_day). */
+fun S.androidWallpaperChange(): UiText =
+    UiText.Res(R.string.android_wallpaper_change)
+
+/** "Every 15 minutes": Choice under Change the photo (android.wallpaper_change). */
+fun S.androidWallpaperEvery15(): UiText =
+    UiText.Res(R.string.android_wallpaper_every_15)
+
+/** "Every day": Choice under Change the photo (android.wallpaper_change). */
+fun S.androidWallpaperEveryDay(): UiText =
+    UiText.Res(R.string.android_wallpaper_every_day)
+
+/** "Every hour": Choice under Change the photo (android.wallpaper_change). */
+fun S.androidWallpaperEveryHour(): UiText =
+    UiText.Res(R.string.android_wallpaper_every_hour)
+
+/** "Couldn't set the wallpaper. Try again.": Error when Android refused to set the wallpaper. */
+fun S.androidWallpaperFailed(): UiText =
+    UiText.Res(R.string.android_wallpaper_failed)
+
+/** "Home screen": Choice under Show on (android.wallpaper_show_on): the home screen only. */
+fun S.androidWallpaperHome(): UiText =
+    UiText.Res(R.string.android_wallpaper_home)
+
+/** "Lock screen": Choice under Show on (android.wallpaper_show_on): the lock screen only. */
+fun S.androidWallpaperLock(): UiText =
+    UiText.Res(R.string.android_wallpaper_lock)
+
+/** "This replaces your current wallpaper.": In the wallpaper box (Android), before starting: the phone's wallpaper of now is replaced (the app can't bring it back later). */
+fun S.androidWallpaperReplaces(): UiText =
+    UiText.Res(R.string.android_wallpaper_replaces)
+
+/** "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted.": In the wallpaper box (Android) when another collection is the wallpaper now: only one collection at a time, so starting this one stops that one and deletes the copies of its photos from the phone. {other} is that collection's name. Use this language's quotation marks. */
+fun S.androidWallpaperReplacesOther(other: String): UiText =
+    UiText.Res(R.string.android_wallpaper_replaces_other, listOf(other))
+
+/** "Show on": Label over the choice of where the collection's photos show: android.wallpaper_lock, android.wallpaper_home or android.wallpaper_both. */
+fun S.androidWallpaperShowOn(): UiText =
+    UiText.Res(R.string.android_wallpaper_show_on)
+
+/** "Store photos and start": Confirming button of the wallpaper box (Android): stores the copies on the phone and starts showing them. Says the photos are stored, on purpose. */
+fun S.androidWallpaperStart(): UiText =
+    UiText.Res(R.string.android_wallpaper_start)
+
+/** "“{name}” is now your wallpaper.": Note once the collection is the wallpaper (Android). {name} is its name. Use this language's quotation marks. */
+fun S.androidWallpaperStarted(name: String): UiText =
+    UiText.Res(R.string.android_wallpaper_started, listOf(name))
+
+/** "Stop and delete the copies": Button in the wallpaper settings (Android) while the collection is the wallpaper: stops it and deletes the copies of its photos from the phone. */
+fun S.androidWallpaperStop(): UiText =
+    UiText.Res(R.string.android_wallpaper_stop)
+
+/** "Your wallpaper stays as it is until you change it.": Under android.wallpaper_stop: stopping leaves the photo shown now as the wallpaper. */
+fun S.androidWallpaperStopNote(): UiText =
+    UiText.Res(R.string.android_wallpaper_stop_note)
+
+/** "Use “{name}” as wallpaper": Title of the box opened by Use as wallpaper… (app.photos.wallpaper.menu) on Android. {name} is the collection's name. Use this language's quotation marks. */
+fun S.androidWallpaperTitle(name: String): UiText =
+    UiText.Res(R.string.android_wallpaper_title, listOf(name))
+
 /** "The device didn't answer the connection in time": Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address). */
 fun S.androidWsConnectTimeout(): UiText =
     UiText.Res(R.string.android_ws_connect_timeout)

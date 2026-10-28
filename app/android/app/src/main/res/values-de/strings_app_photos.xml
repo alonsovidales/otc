@@ -247,4 +247,17 @@
     <string name="app_photos_viewer_low_res">Vorschau</string>
     <string name="app_photos_viewer_more_info">Weitere Infos</string>
     <string name="app_photos_viewer_saving">Wird gespeichert…</string>
+    <string name="app_photos_wallpaper_empty">Diese Sammlung enthält keine Fotos zum Anzeigen.</string>
+    <string name="app_photos_wallpaper_failed">Die Fotos konnten nicht gespeichert werden. Versuche es erneut.</string>
+    <string name="app_photos_wallpaper_lock_note">Wer deinen Sperrbildschirm sieht, sieht diese Fotos.</string>
+    <string name="app_photos_wallpaper_menu">Als Hintergrundbild verwenden…</string>
+    <string name="app_photos_wallpaper_menu_on">Hintergrundbild-Einstellungen…</string>
+    <string name="app_photos_wallpaper_progress">Fotos werden gespeichert: %1$s von %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Beendet. Die auf diesem Telefon gespeicherten Kopien wurden gelöscht.</string>
+    <plurals name="app_photos_wallpaper_stored_text">
+        <item quantity="one">Damit es als Hintergrundbild erscheinen kann, wird eine Kopie des Fotos aus „\u2068%2$s\u2069“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleibt dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest.</item>
+        <item quantity="other">Damit sie als Hintergrundbild erscheinen können, werden Kopien von %1$s Fotos aus „\u2068%2$s\u2069“ in Bildschirmgröße auf diesem Telefon gespeichert. Sie bleiben dort, bis du die Sammlung nicht mehr als Hintergrundbild verwendest.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Diese Fotos werden auf diesem Telefon gespeichert</string>
+    <string name="app_photos_wallpaper_wifi_only">Die Fotos werden nur über WLAN geladen, weil „Nur über WLAN“ in Einstellungen aktiviert ist.</string>
 </resources>

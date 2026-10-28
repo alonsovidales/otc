@@ -498,6 +498,70 @@
     "text": "▶ Fragment afspelen",
     "en": "▶ Play cut"
   },
+  "android.wallpaper_both": {
+    "text": "Allebei",
+    "en": "Both"
+  },
+  "android.wallpaper_change": {
+    "text": "Foto wisselen",
+    "en": "Change the photo"
+  },
+  "android.wallpaper_every_15": {
+    "text": "Elke 15 minuten",
+    "en": "Every 15 minutes"
+  },
+  "android.wallpaper_every_day": {
+    "text": "Elke dag",
+    "en": "Every day"
+  },
+  "android.wallpaper_every_hour": {
+    "text": "Elk uur",
+    "en": "Every hour"
+  },
+  "android.wallpaper_failed": {
+    "text": "De achtergrond kon niet worden ingesteld. Probeer het opnieuw.",
+    "en": "Couldn't set the wallpaper. Try again."
+  },
+  "android.wallpaper_home": {
+    "text": "Startscherm",
+    "en": "Home screen"
+  },
+  "android.wallpaper_lock": {
+    "text": "Vergrendelscherm",
+    "en": "Lock screen"
+  },
+  "android.wallpaper_replaces": {
+    "text": "Dit vervangt je huidige achtergrond.",
+    "en": "This replaces your current wallpaper."
+  },
+  "android.wallpaper_replaces_other": {
+    "text": "Nu is “{other}” je achtergrond. Deze collectie neemt de plaats in en de kopieën daarvan worden verwijderd.",
+    "en": "“{other}” is your wallpaper now. This collection takes its place, and its copies are deleted."
+  },
+  "android.wallpaper_show_on": {
+    "text": "Tonen op",
+    "en": "Show on"
+  },
+  "android.wallpaper_start": {
+    "text": "Foto’s opslaan en starten",
+    "en": "Store photos and start"
+  },
+  "android.wallpaper_started": {
+    "text": "“{name}” is nu je achtergrond.",
+    "en": "“{name}” is now your wallpaper."
+  },
+  "android.wallpaper_stop": {
+    "text": "Stoppen en kopieën verwijderen",
+    "en": "Stop and delete the copies"
+  },
+  "android.wallpaper_stop_note": {
+    "text": "Je achtergrond blijft zoals hij is tot je hem wijzigt.",
+    "en": "Your wallpaper stays as it is until you change it."
+  },
+  "android.wallpaper_title": {
+    "text": "“{name}” als achtergrond gebruiken",
+    "en": "Use “{name}” as wallpaper"
+  },
   "android.ws_connect_timeout": {
     "text": "Het apparaat heeft niet op tijd op de verbinding gereageerd",
     "en": "The device didn't answer the connection in time"

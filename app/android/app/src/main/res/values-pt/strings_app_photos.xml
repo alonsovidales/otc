@@ -275,4 +275,18 @@
     <string name="app_photos_viewer_low_res">Baixa res.</string>
     <string name="app_photos_viewer_more_info">Mais informações</string>
     <string name="app_photos_viewer_saving">A guardar…</string>
+    <string name="app_photos_wallpaper_empty">Esta coleção não tem fotos para mostrar.</string>
+    <string name="app_photos_wallpaper_failed">Não foi possível guardar as fotos. Tenta novamente.</string>
+    <string name="app_photos_wallpaper_lock_note">Quem vir o teu ecrã bloqueado vai ver estas fotos.</string>
+    <string name="app_photos_wallpaper_menu">Usar como papel de parede…</string>
+    <string name="app_photos_wallpaper_menu_on">Definições do papel de parede…</string>
+    <string name="app_photos_wallpaper_progress">A guardar fotos: %1$s de %2$s</string>
+    <string name="app_photos_wallpaper_stopped">Parado. As cópias guardadas neste telemóvel foram apagadas.</string>
+    <plurals name="app_photos_wallpaper_stored_text" tools:ignore="ImpliedQuantity">
+        <item quantity="one">Para a mostrar como papel de parede, é guardada neste telemóvel uma cópia da foto de «\u2068%2$s\u2069», no tamanho do ecrã. Fica lá até deixares de usar a coleção como papel de parede.</item>
+        <item quantity="many">Para as mostrar como papel de parede, são guardadas neste telemóvel cópias de %1$s fotos de «\u2068%2$s\u2069», no tamanho do ecrã. Ficam lá até deixares de usar a coleção como papel de parede.</item>
+        <item quantity="other">Para as mostrar como papel de parede, são guardadas neste telemóvel cópias de %1$s fotos de «\u2068%2$s\u2069», no tamanho do ecrã. Ficam lá até deixares de usar a coleção como papel de parede.</item>
+    </plurals>
+    <string name="app_photos_wallpaper_stored_title">Estas fotos vão ser guardadas neste telemóvel</string>
+    <string name="app_photos_wallpaper_wifi_only">As fotos só são transferidas por Wi-Fi, porque «Apenas por Wi-Fi» está ativado em Definições.</string>
 </resources>

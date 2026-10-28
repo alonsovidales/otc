@@ -162,8 +162,8 @@
     {"en": "Nearby devices", "text": "Appareils à proximité", "note": "Android’s permission for finding Bluetooth devices, quoted as the system names it (AOSP core/res permgrouplab_nearby_devices).", "enforce": false}
   ],
   "forbidden": [
-    {"text": "album", "note": "Groups of images are collections. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer"]},
-    {"text": "albums", "note": "Groups of images are collections. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer"]},
+    {"text": "album", "note": "Groups of images are collections. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer", "ios.wallpaper_lock_text", "ios.wallpaper_lock_button", "ios.wallpaper_album_name", "ios.wallpaper_album_ready", "ios.wallpaper_steps_title", "ios.wallpaper_step2", "ios.wallpaper_full_access", "ios.wallpaper_stop_album", "ios.wallpaper_stop_album_note"]},
+    {"text": "albums", "note": "Groups of images are collections. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer", "ios.wallpaper_lock_text", "ios.wallpaper_lock_button", "ios.wallpaper_album_name", "ios.wallpaper_album_ready", "ios.wallpaper_steps_title", "ios.wallpaper_step2", "ios.wallpaper_full_access", "ios.wallpaper_stop_album", "ios.wallpaper_stop_album_note"]},
     {"text": "tu", "note": "We address the user as vous."},
     {"text": "toi", "note": "We address the user as vous."},
     {"text": "ton", "note": "We address the user as vous (votre)."},

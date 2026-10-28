@@ -443,6 +443,104 @@
     "text": "Início do corte",
     "en": "Start of the cut"
   },
+  "ios.wallpaper_album_name": {
+    "text": "Off The Cloud · {name}",
+    "en": "Off The Cloud · {name}"
+  },
+  "ios.wallpaper_album_ready": {
+    "text": {
+      "one": "Álbum pronto com {count} foto",
+      "other": "Álbum pronto com {count} fotos"
+    },
+    "en": {
+      "one": "Album ready with {count} photo",
+      "other": "Album ready with {count} photos"
+    }
+  },
+  "ios.wallpaper_full_access": {
+    "text": "Para criar o álbum, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições.",
+    "en": "To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings."
+  },
+  "ios.wallpaper_lock_button": {
+    "text": "Guardar cópias num álbum",
+    "en": "Store copies in an album"
+  },
+  "ios.wallpaper_lock_text": {
+    "text": "As cópias vão para um álbum da app Fotografias, «{album}», e também aparecem na tua fototeca. Se Fotografias em iCloud estiver ativado, a Apple também as envia para a iCloud. Depois, a opção de fotos aleatórias do ecrã bloqueado vai alternando-as.",
+    "en": "The copies go into an album in the Photos app, “{album}”, and also show in your library there. If iCloud Photos is on, Apple uploads them to iCloud too. Photo Shuffle on the lock screen then rotates them."
+  },
+  "ios.wallpaper_lock_title": {
+    "text": "No ecrã bloqueado",
+    "en": "On the lock screen"
+  },
+  "ios.wallpaper_step1": {
+    "text": "Mantém premido o ecrã bloqueado e toca em +.",
+    "en": "Touch and hold the lock screen, then tap +."
+  },
+  "ios.wallpaper_step2": {
+    "text": "Toca na opção de fotos aleatórias, depois em Álbum, e escolhe «{album}».",
+    "en": "Tap Photo Shuffle, then Album, and choose “{album}”."
+  },
+  "ios.wallpaper_step3": {
+    "text": "Escolhe de quanto em quanto tempo a foto muda e confirma.",
+    "en": "Pick how often the photo changes, and confirm."
+  },
+  "ios.wallpaper_steps_title": {
+    "text": "Agora define-o no ecrã bloqueado",
+    "en": "Now set it on your lock screen"
+  },
+  "ios.wallpaper_stop_album": {
+    "text": "Parar e apagar o álbum",
+    "en": "Stop and delete the album"
+  },
+  "ios.wallpaper_stop_album_note": {
+    "text": "O álbum e as cópias são apagados da app Fotografias; o iOS pede-te para confirmar.",
+    "en": "The album and its copies are deleted from the Photos app; iOS asks you to confirm."
+  },
+  "ios.wallpaper_stop_widget": {
+    "text": "Parar o widget e apagar as cópias",
+    "en": "Stop the widget and delete its copies"
+  },
+  "ios.wallpaper_title": {
+    "text": "Mostrar «{name}» no teu iPhone",
+    "en": "Show “{name}” on your iPhone"
+  },
+  "ios.wallpaper_widget_button": {
+    "text": "Guardar cópias para o widget",
+    "en": "Store copies for the widget"
+  },
+  "ios.wallpaper_widget_ready": {
+    "text": "Pronto. Adiciona o widget ao ecrã principal.",
+    "en": "Ready. Add the widget to your home screen."
+  },
+  "ios.wallpaper_widget_steps": {
+    "text": "Mantém premido o ecrã principal, toca em Editar e depois em Adicionar widget, escolhe Off The Cloud e seleciona esta coleção.",
+    "en": "Touch and hold the home screen, tap Edit, then Add Widget, choose Off The Cloud, and pick this collection."
+  },
+  "ios.wallpaper_widget_text": {
+    "text": "As cópias ficam no espaço do Off The Cloud neste iPhone, nunca na app Fotografias. O widget mostra uma diferente a cada hora.",
+    "en": "The copies stay in Off The Cloud's own space on this iPhone, never in the Photos app. The widget shows a different one every hour."
+  },
+  "ios.wallpaper_widget_title": {
+    "text": "Num widget do ecrã principal",
+    "en": "In a home screen widget"
+  },
+  "ios.widget_choose": {
+    "text": "Mantém premido para escolher uma coleção.",
+    "en": "Touch and hold to choose a collection."
+  },
+  "ios.widget_description": {
+    "text": "Uma foto de uma das tuas coleções, diferente a cada hora.",
+    "en": "A photo from one of your collections, a different one every hour."
+  },
+  "ios.widget_name": {
+    "text": "Coleção",
+    "en": "Collection"
+  },
+  "ios.widget_not_stored": {
+    "text": "Abre esta coleção no Off The Cloud e escolhe «Usar como papel de parede…» para guardar aqui as fotos.",
+    "en": "Open this collection in Off The Cloud and choose “Use as wallpaper…” to store its photos here."
+  },
   "ios.ws_connect_timeout": {
     "text": "O dispositivo não respondeu à ligação a tempo.",
     "en": "The device didn't answer the connection in time."
