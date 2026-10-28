@@ -4,22 +4,24 @@
 // part of its own - lazyPart.ts - with its drawings, TourArt.tsx): a card
 // over the dimmed page, one skill at a time - searching, jumping to a
 // date, selecting, the viewer, people, collections, Files' views and
-// sharing, liking and posting, adding friends - each with a small moving
-// drawing of the real controls (their own labels, the theme's colours),
-// so it teaches even an empty library. Each step shows its section (App
-// moves there, onSection) and, where the step's control is on screen,
-// the dimmed layer leaves a hole with an ember ring around it, the card
-// beside it (a sheet at the foot on a phone, the control scrolled into
+// sharing, liking and posting, adding friends and (the device's owner
+// only) users - each with a small moving drawing of the real controls
+// (their own labels, the theme's colours), so it teaches even an empty
+// library. Each step shows its section (App moves there, onSection)
+// and, where the step's control is on screen, the dimmed layer leaves a
+// hole with an ember ring around it, the card beside it (a sheet at the foot on a phone, the control scrolled into
 // the room above it). A click in a hole ends the tour where it is and goes
 // on to that control; Skip, Done, Esc, Back or the dimmed layer end it
 // and App shows the section it opened over. A native modal <dialog>: the
 // page behind is inert, and the card draws above the top bar, banners,
-// notices and tooltips. It sends nothing and opens nothing of its own.
+// notices and tooltips. It changes nothing and opens nothing of its own:
+// it only asks whether this is the device's owner (useOwner).
 // App keeps its step, so it comes back where it was after the
 // device-unreachable screen.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans, useT } from "../i18n";
+import { useWS } from "../net/useWS";
 import type { TabKey } from "./nav";
 import { useBackLayer } from "./backStack";
 import TourArt from "./TourArt";
@@ -64,10 +66,48 @@ const cBandMargin = 12;
 
 type TitleKey = `web.tour.${TourStepId}.title`;
 
+// Whether the signed-in person is the device's owner, who alone adds
+// users: the primary instance's (Settings › Users is there only,
+// UsersPanel; every other user has an instance of their own). Asked as
+// the tour opens and, once answered, kept for the page - its instance
+// is the page's own; null until then (the Users step and the count wait).
+// For the owner, also whether the device is on the bridge, as UsersPanel
+// asks: only then does Settings › Users offer an address of their own
+// (Request bridge access); unanswered, it does.
+let knownOwner: boolean | null = null;
+
+function useOwner(): { owner: boolean | null; bridge: boolean } {
+  const [owner, setOwner] = useState(knownOwner);
+  const [bridge, setBridge] = useState(true);
+  useEffect(() => {
+    if (owner !== null) return;
+    let live = true;
+    // Unanswered: not the owner, this time (Settings › Users wouldn't show either).
+    useWS.request((e) => { e.payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} }; }).then(
+      (resp) => {
+        if (resp.payload?.$case === "respInstanceRole") knownOwner = resp.payload.respInstanceRole.isPrimary;
+        if (live) setOwner(knownOwner ?? false);
+      },
+      () => { if (live) setOwner(false); },
+    );
+    return () => { live = false; };
+  }, [owner]);
+  useEffect(() => {
+    if (!owner) return;
+    let live = true;
+    useWS.request((e) => { e.payload = { $case: "reqGetBridgeAccess", reqGetBridgeAccess: {} }; }).then(
+      (resp) => { if (live && resp.payload?.$case === "respBridgeAccess" && !resp.payload.respBridgeAccess.enabled) setBridge(false); },
+      () => {},
+    );
+    return () => { live = false; };
+  }, [owner]);
+  return { owner, bridge };
+}
+
 // A label quoted in a step's text, from that label's own key, in bold.
 const bold = (s: string) => <strong>{s}</strong>;
 
-function StepText({ id, faces }: { id: TourStepId; faces: boolean | null }) {
+function StepText({ id, faces, bridge }: { id: TourStepId; faces: boolean | null; bridge: boolean }) {
   const t = useT();
   const b = { b: bold };
   switch (id) {
@@ -142,6 +182,18 @@ function StepText({ id, faces }: { id: TourStepId; faces: boolean | null }) {
             }}
             parts={b}
           />
+        </p>
+      );
+    case "users":
+      return (
+        <p>
+          <Trans
+            k="web.tour.users.text"
+            args={{ settings: t("web.shell.menu.settings"), users: t("web.settings.users.title"), add: t("web.settings.users.add") }}
+            parts={b}
+          />
+          {/* The box is there only on the bridge (UsersPanel). */}
+          {bridge && <>{" "}<Trans k="web.tour.users.bridge" args={{ bridge: t("web.settings.users.request_bridge") }} parts={b} /></>}
         </p>
       );
     case "alerts":
@@ -245,7 +297,8 @@ function useMedia(query: string): boolean {
 
 export default function Tour({ step: wanted, faces, onStep, onSection, onClose }: Props) {
   const t = useT();
-  const steps = useMemo(() => tourSteps(faces), [faces]);
+  const { owner, bridge } = useOwner();
+  const steps = useMemo(() => tourSteps(faces, owner), [faces, owner]);
   const step = stepPlace(wanted, steps);
   const index = steps.indexOf(step);
   const last = index === steps.length - 1;
@@ -419,9 +472,10 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
     const found = findTargets(at);
     const boxes = found.map(boxOf);
     // A phone's sheet covers what is under it: no ring there (the page is
-    // scrolled to bring the controls above it, below).
+    // scrolled to bring the controls above it, below) - a control under it
+    // left out before the holes are merged, so one above it keeps its own.
     const sheetBox = asSheet ? boxOf(card) : null;
-    const next = holesFor(boxes, width, height)
+    const next = holesFor(sheetBox ? boxes.filter((b) => !boxesOverlap(b, sheetBox)) : boxes, width, height)
       .filter((box) => !sheetBox || !boxesOverlap(box, sheetBox))
       .map((box) => ({
         box,
@@ -573,14 +627,15 @@ export default function Tour({ step: wanted, faces, onStep, onSection, onClose }
       </svg>
       <div ref={cardRef} className={`tour-card${place ? " placed" : ""}`} style={cardStyle}>
         <div className="tour-head">
-          <span className="tour-progress">{t("web.tour.progress", { step: index + 1, total: steps.length })}</span>
+          {/* The count once the Users step is known to be there or not. */}
+          <span className="tour-progress">{owner !== null && t("web.tour.progress", { step: index + 1, total: steps.length })}</span>
           <button type="button" className="tour-skip" onClick={end}>{t("web.tour.skip")}</button>
         </div>
         <div ref={bodyRef} className="tour-body">
           <div key={step} className="tour-step">
-            <TourArt step={step} faces={faces === true} />
+            <TourArt step={step} faces={faces === true} bridge={bridge} />
             <h2 id={titleId} className="tour-title">{title}</h2>
-            <div ref={textRef} id={textId} className="tour-text"><StepText id={step} faces={faces} /></div>
+            <div ref={textRef} id={textId} className="tour-text"><StepText id={step} faces={faces} bridge={bridge} /></div>
           </div>
         </div>
         <div className="tour-foot">

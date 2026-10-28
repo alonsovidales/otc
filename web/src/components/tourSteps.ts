@@ -23,16 +23,21 @@ export type TourStepId =
   | "social"
   | "post"
   | "friends"
+  | "users"
   | "alerts";
 
 // Every step, in the order shown.
 const cAllSteps: readonly TourStepId[] = [
-  "welcome", "search", "dates", "select", "viewer", "people", "collections", "files", "upload", "social", "post", "friends", "alerts",
+  "welcome", "search", "dates", "select", "viewer", "people", "collections", "files", "upload", "social", "post", "friends", "users", "alerts",
 ];
 
-/** The steps shown: People only while face recognition is on (as the menu's item; unknown means hidden). */
-export function tourSteps(faces: boolean | null): TourStepId[] {
-  return cAllSteps.filter((id) => id !== "people" || faces === true);
+/**
+ * The steps shown: People only while face recognition is on (as the
+ * menu's item), Users only to the device's owner - the primary instance's,
+ * the one Settings › Users shows to (UsersPanel). Unknown means hidden.
+ */
+export function tourSteps(faces: boolean | null, owner: boolean | null): TourStepId[] {
+  return cAllSteps.filter((id) => (id !== "people" || faces === true) && (id !== "users" || owner === true));
 }
 
 const orderOf = (id: TourStepId) => cAllSteps.indexOf(id);
@@ -74,6 +79,7 @@ export const cStepSection: Readonly<Record<TourStepId, TabKey | null>> = {
   social: "Social",
   post: "Social",
   friends: "Friends",
+  users: "Settings",
   alerts: "Settings",
 };
 
@@ -103,6 +109,9 @@ export const cStepTargets: Readonly<Record<TourStepId, readonly (readonly string
   social: [[".sv-post .sv-actions .sv-btn", ".sv-post .sv-newcomment"]], // i18n-ignore: CSS selectors
   post: [['[data-tour="new-post"]'], [".sv-empty-new"]],
   friends: [[".fr-address", ".add-friend"], [".add-friend"]],
+  // The name field and Add User, and the bridge box under them - once the
+  // list above them is in, so they don't move after the scroll.
+  users: [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"]], // i18n-ignore: CSS selectors
   alerts: [['[data-tour="show-tour"]', '.sb-dock [data-tour="Notifications"]', '.sb-dock [data-tour="Settings"]'], ['[data-tour="show-tour"]']],
 };
 

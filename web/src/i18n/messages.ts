@@ -1008,6 +1008,7 @@ export type MessageKey =
   | "web.tour.art.collection"
   | "web.tour.art.comment"
   | "web.tour.art.friend"
+  | "web.tour.art.member"
   | "web.tour.art.person"
   | "web.tour.art.thing"
   | "web.tour.collections.title"
@@ -1029,6 +1030,7 @@ export type MessageKey =
   | "web.tour.social.text"
   | "web.tour.social.title"
   | "web.tour.upload.title"
+  | "web.tour.users.title"
   | "web.tour.viewer.title"
   | "web.tour.welcome.text"
   | "web.tour.welcome.title";
@@ -1072,6 +1074,8 @@ export type RichKey =
   | "web.tour.post.text"
   | "web.tour.select.text"
   | "web.tour.upload.text"
+  | "web.tour.users.bridge"
+  | "web.tour.users.text"
   | "web.tour.viewer.text";
 
 /** Each key's arguments by name; undefined when it takes none. */
@@ -2054,6 +2058,7 @@ export interface MessageArgs {
   "web.tour.art.collection": undefined;
   "web.tour.art.comment": undefined;
   "web.tour.art.friend": undefined;
+  "web.tour.art.member": undefined;
   "web.tour.art.person": undefined;
   "web.tour.art.thing": undefined;
   "web.tour.collections.text": { add: string };
@@ -2082,6 +2087,9 @@ export interface MessageArgs {
   "web.tour.social.title": undefined;
   "web.tour.upload.text": { share: string; zip: string };
   "web.tour.upload.title": undefined;
+  "web.tour.users.bridge": { bridge: string };
+  "web.tour.users.text": { settings: string; users: string; add: string };
+  "web.tour.users.title": undefined;
   "web.tour.viewer.text": { info: string };
   "web.tour.viewer.title": undefined;
   "web.tour.welcome.text": undefined;
@@ -2127,6 +2135,8 @@ export interface RichTags {
   "web.tour.post.text": "b";
   "web.tour.select.text": "b";
   "web.tour.upload.text": "b";
+  "web.tour.users.bridge": "b";
+  "web.tour.users.text": "b";
   "web.tour.viewer.text": "b";
 }
 

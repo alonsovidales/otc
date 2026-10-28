@@ -285,6 +285,7 @@ export default function UsersPanel() {
         </ul>
       )}
 
+      {/* The tour's Users step rings this row and the box under it (tourSteps.ts). */}
       <div className="up-add-row">
         <input
           className="sf-input"

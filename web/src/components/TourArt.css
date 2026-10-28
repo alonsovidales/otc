@@ -947,6 +947,49 @@
 .ta-status { flex: none; padding: 1px 6px; border-radius: 99px; background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold); font-size: 9px; }
 .ta-status.ok { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); }
 
+/* ---- users -------------------------------------------------------------- */
+/* The section is 104px tall, in the middle, and laid out in px from its
+   top, so the pointer (UsersArt's cUsersHalf) finds the controls at every
+   height the drawing has; the dialog opens over it, 6px down. */
+.ta-users { position: absolute; left: 6%; right: 6%; top: calc(50% - 52px); height: 104px; display: flex; flex-direction: column; gap: 5px; font-size: 10.5px; }
+.ta-users > strong { flex: none; font-size: 12px; line-height: 14px; }
+.ta-users-list { flex: none; display: flex; align-items: center; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; }
+.ta-users-row { display: flex; flex-direction: column; min-width: 0; line-height: 12px; animation: ta-drop .45s ease-out; }
+.ta-users .ta-addrow { flex: none; }
+.ta-users .ta-input { border-radius: 6px; }
+.ta-input.focus { border-color: var(--ember); }
+.ta-users-port { flex: 0 1 22%; }
+.ta-users .ta-addrow .ta-btn { max-width: 40%; }
+.ta-users-box { flex: none; display: flex; align-items: flex-start; gap: 6px; }
+.ta-users-box .ta-check { margin-top: 1px; transition: background .15s, border-color .15s, box-shadow .2s; }
+.ta-check.lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 35%, transparent); }
+.ta-users-box-text { display: flex; flex-direction: column; min-width: 0; line-height: 13px; }
+.ta-scrim { position: absolute; z-index: 5; inset: 0; background: rgba(0, 0, 0, .45); opacity: 0; transition: opacity .25s; }
+.ta-scrim.on { opacity: 1; }
+.ta-users-dialog {
+  position: absolute;
+  z-index: 6;
+  left: 10%;
+  right: 10%;
+  top: calc(50% - 46px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ink-3);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
+  font-size: 10.5px;
+  opacity: 0;
+  transform: scale(.94);
+  transition: opacity .25s, transform .25s;
+}
+.ta-users-dialog.on { opacity: 1; transform: none; }
+.ta-users-dialog > strong { flex: none; line-height: 13px; }
+.ta-users-dialog .ta-input { flex: none; height: 18px; border-radius: 6px; }
+.ta-users-actions { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 6px; height: 18px; }
+
 /* ---- alerts and settings ------------------------------------------------ */
 .ta-amenu { position: absolute; left: 0; top: 0; bottom: 0; width: 37%; border-right: 1px solid var(--line); }
 .ta-badge {

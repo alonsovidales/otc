@@ -23,6 +23,10 @@
     "text": "Hugo",
     "en": "Alex"
   },
+  "web.tour.art.member": {
+    "text": "Chloé",
+    "en": "Robin"
+  },
   "web.tour.art.person": {
     "text": "Léa",
     "en": "Sam"
@@ -130,6 +134,18 @@
   "web.tour.upload.title": {
     "text": "Envoyer et partager",
     "en": "Upload and share"
+  },
+  "web.tour.users.bridge": {
+    "text": "Laissez <b>{bridge}</b> coché pour lui donner sa propre adresse.",
+    "en": "Keep <b>{bridge}</b> ticked to give them their own address."
+  },
+  "web.tour.users.text": {
+    "text": "Donnez à chaque personne son propre Off The Cloud sur ce même appareil : ses propres photos, fichiers et fil privé, séparés des vôtres. Dans <b>{settings} › {users}</b>, saisissez un nom d’utilisateur, choisissez <b>{add}</b> et définissez son premier mot de passe.",
+    "en": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, choose <b>{add}</b> and set their first password."
+  },
+  "web.tour.users.title": {
+    "text": "Ajouter des utilisateurs",
+    "en": "Add users"
   },
   "web.tour.viewer.text": {
     "text": "Cliquez sur une photo pour l’ouvrir, puis passez de l’une à l’autre avec les flèches, les touches fléchées ou en balayant. <b>{info}</b> indique quand et où elle a été prise, l’appareil photo et une carte.",

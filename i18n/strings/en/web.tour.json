@@ -31,6 +31,11 @@
     "note": "The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of a friend (a face named in People, the author of a post, the friend added in Friends). A short first name common in your language, for anyone, different from web.tour.art.person.",
     "max": 16
   },
+  "web.tour.art.member": {
+    "text": "Robin",
+    "note": "The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of someone at home the owner adds as a user of the device (a partner, a child), shown as the username typed in Settings › Users. A short first name common in your language, for anyone, different from web.tour.art.person and web.tour.art.friend.",
+    "max": 16
+  },
   "web.tour.art.person": {
     "text": "Sam",
     "note": "The first-run tour's moving drawings of the app (never a real person or photo): the made-up first name of the person using the app (and of a face named in People). A short first name common in your language, for anyone.",
@@ -115,7 +120,7 @@
   "web.tour.progress": {
     "text": "Step {step} of {total}",
     "args": [["step", "int"], ["total", "int"]],
-    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Line at the top left of the card. {step} is the step shown, {total} how many there are (12, or 13 while face recognition is on).",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Line at the top left of the card. {step} is the step shown, {total} how many there are (12 to 14: People shows only while face recognition is on, and Users only to the device's owner).",
     "max": 32
   },
   "web.tour.search.text": {
@@ -185,6 +190,25 @@
   "web.tour.upload.title": {
     "text": "Upload and share",
     "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Title of the second step about Files: uploading, sharing and upload-only folders.",
+    "max": 48
+  },
+  "web.tour.users.bridge": {
+    "text": "Keep <b>{bridge}</b> ticked to give them their own address.",
+    "args": [["bridge", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Second sentence of the step about adding users (after web.tour.users.text), shown only on a device on the bridge. {bridge} is the checkbox under the name field in Settings › Users (web.settings.users.request_bridge), in bold; it is ticked from the start. Ticked, the new user gets an address of their own on the bridge (robin.off-the.cloud), for using it from anywhere and for friends.",
+    "max": 120,
+    "rich": ["b"]
+  },
+  "web.tour.users.text": {
+    "text": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, choose <b>{add}</b> and set their first password.",
+    "args": [["settings", "text"], ["users", "text"], ["add", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Text of the step about adding users, shown only to the device's owner. Each user the owner adds runs as a fully separate instance on the same device: their own photos, files and Social feed, which nobody else sees, apart from the owner's. {settings} is the menu's item (web.shell.menu.settings) and {users} the section of Settings (web.settings.users.title), in bold with the › between them (keep it); {add} is the section's button (web.settings.users.add), in bold. The username takes lower-case letters, digits and hyphens; Add User then asks for the new user's first password, which the owner gives them to sign in with. web.tour.users.bridge follows it on a device on the bridge.",
+    "max": 280,
+    "rich": ["b"]
+  },
+  "web.tour.users.title": {
+    "text": "Add users",
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Title of the step about Settings › Users, shown only to the device's owner: adding a user for each person in the household, each with their own separate space on the same device.",
     "max": 48
   },
   "web.tour.viewer.text": {

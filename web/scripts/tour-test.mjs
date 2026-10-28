@@ -41,8 +41,11 @@ before(async () => {
 });
 after(() => server?.close());
 
-const withFaces = ["welcome", "search", "dates", "select", "viewer", "people", "collections", "files", "upload", "social", "post", "friends", "alerts"];
-const withoutFaces = withFaces.filter((s) => s !== "people");
+// Every step: face recognition on, and the device's owner.
+const all = ["welcome", "search", "dates", "select", "viewer", "people", "collections", "files", "upload", "social", "post", "friends", "users", "alerts"];
+const withoutFaces = all.filter((s) => s !== "people");
+const withoutUsers = all.filter((s) => s !== "users");
+const neither = all.filter((s) => s !== "people" && s !== "users");
 
 // A localStorage stand-in: a Map, with getItem/setItem that can be made to throw.
 function storage(initial = {}, { getThrows = false, setThrows = false } = {}) {
@@ -63,27 +66,37 @@ function storage(initial = {}, { getThrows = false, setThrows = false } = {}) {
 const box = (left, top, right, bottom) => ({ left, top, right, bottom });
 
 describe("the steps", () => {
-  test("thirteen with face recognition on, People after the viewer", () => {
-    assert.deepEqual(m.tourSteps(true), withFaces);
+  test("fourteen with face recognition on, to the owner: People after the viewer, Users before the last", () => {
+    assert.deepEqual(m.tourSteps(true, true), all);
+    assert.equal(all.indexOf("users"), all.length - 2);
   });
-  test("twelve with it off, and while it isn't known yet (People hidden, as in the menu)", () => {
-    assert.deepEqual(m.tourSteps(false), withoutFaces);
-    assert.deepEqual(m.tourSteps(null), withoutFaces);
+  test("People only with it on, and not while it isn't known yet (hidden, as in the menu)", () => {
+    assert.deepEqual(m.tourSteps(false, true), withoutFaces);
+    assert.deepEqual(m.tourSteps(null, true), withoutFaces);
+  });
+  test("Users only to the device's owner: not to a user, nor while it isn't known yet", () => {
+    assert.deepEqual(m.tourSteps(true, false), withoutUsers);
+    assert.deepEqual(m.tourSteps(true, null), withoutUsers);
+  });
+  test("twelve with neither", () => {
+    assert.deepEqual(m.tourSteps(false, false), neither);
+    assert.deepEqual(m.tourSteps(null, null), neither);
+    assert.equal(neither.length, 12);
   });
   test("each call is a new list", () => {
-    const a = m.tourSteps(true);
+    const a = m.tourSteps(true, true);
     a.pop();
-    assert.equal(m.tourSteps(true).length, 13);
+    assert.equal(m.tourSteps(true, true).length, 14);
   });
 });
 
 describe("moving between steps", () => {
-  const all = withFaces;
   test("Next goes to the following step, none after the last", () => {
     assert.equal(m.stepAfter("welcome", all), "search");
     assert.equal(m.stepAfter("viewer", all), "people");
     assert.equal(m.stepAfter("files", all), "upload");
-    assert.equal(m.stepAfter("friends", all), "alerts");
+    assert.equal(m.stepAfter("friends", all), "users");
+    assert.equal(m.stepAfter("users", all), "alerts");
     assert.equal(m.stepAfter("alerts", all), null);
   });
   test("Back goes to the one before, none before the first", () => {
@@ -95,19 +108,28 @@ describe("moving between steps", () => {
     assert.equal(m.stepAfter("viewer", withoutFaces), "collections");
     assert.equal(m.stepBefore("collections", withoutFaces), "viewer");
   });
+  test("without Users, Friends and the last step are next to each other", () => {
+    assert.equal(m.stepAfter("friends", withoutUsers), "alerts");
+    assert.equal(m.stepBefore("alerts", withoutUsers), "friends");
+    assert.equal(m.stepBefore("alerts", all), "users");
+  });
   test("from a step that went, they go on from where it was", () => {
     assert.equal(m.stepAfter("people", withoutFaces), "collections");
     assert.equal(m.stepBefore("people", withoutFaces), "viewer");
+    assert.equal(m.stepAfter("users", withoutUsers), "alerts");
+    assert.equal(m.stepBefore("users", withoutUsers), "friends");
   });
 });
 
 describe("where the tour stands", () => {
   test("a step that is there stays", () => {
-    for (const s of withFaces) assert.equal(m.stepPlace(s, withFaces), s);
-    for (const s of withoutFaces) assert.equal(m.stepPlace(s, withoutFaces), s);
+    for (const steps of [all, withoutFaces, withoutUsers, neither]) for (const s of steps) assert.equal(m.stepPlace(s, steps), s);
   });
   test("People, once face recognition is turned off, moves on to the next step", () => {
     assert.equal(m.stepPlace("people", withoutFaces), "collections");
+  });
+  test("Users, where the owner isn't known (an unanswered question), moves on to the last step", () => {
+    assert.equal(m.stepPlace("users", withoutUsers), "alerts");
   });
   test("a last step that went falls back to the one before, and an empty list to the first", () => {
     assert.equal(m.stepPlace("alerts", ["welcome", "search"]), "search");
@@ -117,7 +139,7 @@ describe("where the tour stands", () => {
 
 describe("the section each step shows", () => {
   test("every step has one; the welcome stays where the tour opened", () => {
-    assert.deepEqual(Object.keys(m.cStepSection).sort(), [...withFaces].sort());
+    assert.deepEqual(Object.keys(m.cStepSection).sort(), [...all].sort());
     assert.equal(m.cStepSection.welcome, null);
   });
   test("the search and the photo steps show Images; each section's steps show it", () => {
@@ -129,6 +151,7 @@ describe("the section each step shows", () => {
     assert.equal(m.cStepSection.social, "Social");
     assert.equal(m.cStepSection.post, "Social");
     assert.equal(m.cStepSection.friends, "Friends");
+    assert.equal(m.cStepSection.users, "Settings");
   });
   test("never Alerts, which marks every alert read as it opens: the last step shows Settings", () => {
     assert.equal(m.cStepSection.alerts, "Settings");
@@ -188,14 +211,14 @@ describe("opening by itself (the seen flag)", () => {
 
 describe("what each step rings", () => {
   test("every step has its entry, each with something to look for", () => {
-    assert.deepEqual(Object.keys(m.cStepTargets).sort(), [...withFaces].sort());
-    for (const s of withFaces) {
+    assert.deepEqual(Object.keys(m.cStepTargets).sort(), [...all].sort());
+    for (const s of all) {
       assert.ok(m.cStepTargets[s].length > 0, s);
       for (const group of m.cStepTargets[s]) assert.ok(group.length > 0, s);
     }
   });
   test("the menu's items only in the menu beside the page, never the closed drawer", () => {
-    for (const s of withFaces) {
+    for (const s of all) {
       for (const group of m.cStepTargets[s]) {
         for (const sel of group) if (/data-tour="(PhotoGallery|People|Collections|AdminPannel|Social|Friends|Notifications|Settings)"/.test(sel)) assert.match(sel, /^\.sb-dock /, `${s}: ${sel}`);
       }
@@ -204,7 +227,7 @@ describe("what each step rings", () => {
   test("the welcome: the menu beside the page first, else the menu button", () => {
     assert.deepEqual(m.cStepTargets.welcome, [['.sb-dock[data-tour="menu"]'], ['[data-tour="menu-button"]']]);
   });
-  test("the controls the steps teach: the search, the dates, a photo, Files' views, + New post, the friend's field, Show the tour", () => {
+  test("the controls the steps teach: the search, the dates, a photo, Files' views, + New post, the friend's field, adding a user, Show the tour", () => {
     const all = (s) => m.cStepTargets[s].flat();
     assert.ok(all("search").includes(".ts-field"));
     assert.ok(all("dates").some((sel) => sel.includes(".ds-root")));
@@ -212,6 +235,8 @@ describe("what each step rings", () => {
     assert.ok(m.cStepTargets.files.every((g) => g[0] === ".fb-viewmode"));
     assert.deepEqual(m.cStepTargets.post[0], ['[data-tour="new-post"]']);
     assert.ok(m.cStepTargets.friends.every((g) => g.includes(".add-friend")));
+    // Settings › Users' name field and Add User, and the bridge box, once its list is in (UsersPanel).
+    assert.deepEqual(m.cStepTargets.users, [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"]]);
     assert.ok(m.cStepTargets.alerts.every((g) => g[0] === '[data-tour="show-tour"]'));
   });
 });

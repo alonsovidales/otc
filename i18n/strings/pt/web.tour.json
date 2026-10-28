@@ -23,6 +23,10 @@
     "text": "Tiago",
     "en": "Alex"
   },
+  "web.tour.art.member": {
+    "text": "Rita",
+    "en": "Robin"
+  },
   "web.tour.art.person": {
     "text": "Inês",
     "en": "Sam"
@@ -130,6 +134,18 @@
   "web.tour.upload.title": {
     "text": "Carregar e partilhar",
     "en": "Upload and share"
+  },
+  "web.tour.users.bridge": {
+    "text": "Deixa <b>{bridge}</b> assinalado para lhe dar um endereço próprio.",
+    "en": "Keep <b>{bridge}</b> ticked to give them their own address."
+  },
+  "web.tour.users.text": {
+    "text": "Dá a cada pessoa o seu próprio Off The Cloud neste mesmo dispositivo: as suas fotos, ficheiros e feed privado, separados dos teus. Em <b>{settings} › {users}</b>, escreve um nome de utilizador, escolhe <b>{add}</b> e define a primeira palavra-passe.",
+    "en": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, choose <b>{add}</b> and set their first password."
+  },
+  "web.tour.users.title": {
+    "text": "Adicionar utilizadores",
+    "en": "Add users"
   },
   "web.tour.viewer.text": {
     "text": "Clica numa foto para a abrir e passa de uma para outra com as setas, as teclas de seta ou deslizando o dedo. <b>{info}</b> mostra quando e onde foi tirada, a câmara e um mapa.",

@@ -1758,8 +1758,12 @@ is still the first tour, with its own steps and version 1): a card in a native m
 teaches one skill a step, by showing it - welcome (the menu), search, dates (the scrubber), select,
 viewer, people (only while face recognition is on: steps are kept by id, so People can come or go
 mid-tour), collections, files (List/Grid/Storage, sorting), upload (drag in, Share, Download ZIP,
-the lock and versions), social (like, comment), post, friends, alerts (Alerts and Settings, and
-where to replay it) - with Skip on every step. Each step shows its section (`cStepSection`: Tour
+the lock and versions), social (like, comment), post, friends, users (2026-10-28, owner only: a
+user for each person, their own Off The Cloud on the device - Settings › Users, Add User, the first
+password, and the sentence on Request bridge access only on the bridge; Tour's `useOwner` asks
+`GetInstanceRole` as the tour opens and keeps a reply for the page, the owner's `GetBridgeAccess`
+too; the count waits for it), alerts (Alerts and Settings, and where to replay it) - with Skip on
+every step. Each step shows its section (`cStepSection`: Tour
 calls App's `tourShow`, a correction of the tour's own history entry, so Back is Skip; never
 Alerts, which marks every alert read as it opens - the last step shows Settings), and ending it -
 Skip, Done, Esc, Back, the dimmed layer - shows the section it opened over (`tourFrom`, noted at the
@@ -1772,13 +1776,14 @@ teaches an empty library; every label a text quotes is an argument from its own 
 step's real control is on screen (`cStepTargets`: the search field, the scrubber, the first photo -
 its circle shown, `data-tour-lit` -, a face, a card, Files' view switch and a heading or Sort by, a
 row's tick and the drop tip, a post's heart and comment field, `+ New post`, the address and the
-friend's field, Settings' Show the tour - `data-tour="show-tour"` - and the menu's Alerts and
-Settings) the dimmed layer - an SVG path, evenodd - leaves a hole with an ember ring around each
+friend's field, Settings › Users' add row and bridge box once its list is in, Settings' Show the
+tour - `data-tour="show-tour"` - and the menu's Alerts and Settings) the dimmed layer - an SVG path, evenodd - leaves a hole with an ember ring around each
 (`holesFor`, touching ones merged), found again on every change of the page behind (a
 MutationObserver, once a frame) and scrolled into view once a step (all of them when they fit,
 `scrollToShow`). From 600px the card goes beside the holes (`placeCard`: the roomiest side, a little
 shorter with its text scrolling rather than over them, else the corner that covers least); below
-that it is a sheet at the foot, rings it would cover dropped and the page given room at its foot
+that it is a sheet at the foot, controls it would cover left out before the holes merge (so one
+above it keeps its ring) and the page given room at its foot
 (`html[data-tour-room]` padding) so a control can be scrolled up above it. A click in a hole ends the
 tour where it is and goes on to the control under it (`elementFromPoint` once the dialog is closed;
 App's `keepSection` makes the section an entry of its own over the one the tour opened on). It
@@ -1796,7 +1801,8 @@ are asked for from the feed's card). Its keydown listener stops every key (arrow
 the card; the explicit `role="dialog"` is for Files' capture-phase Escape), wheel and one-finger
 touch moves are cancelled unless the card's text scrolls, the focus goes back to the opener if it had
 keyboard focus, else the account button, and a polite live region reads each new step. It sends
-nothing that changes anything (only the reads its sections make), so the demo needs nothing.
+nothing that changes anything (only the reads its sections make, and its own `GetInstanceRole`/
+`GetBridgeAccess`), so the demo needs nothing.
 
 Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in appEntry.tsx: shown at
 once on hover and on keyboard focus, in a portal), not `title`, whose tip waits about a second. An

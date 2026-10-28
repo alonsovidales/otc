@@ -23,6 +23,10 @@
     "text": "Daan",
     "en": "Alex"
   },
+  "web.tour.art.member": {
+    "text": "Lotte",
+    "en": "Robin"
+  },
   "web.tour.art.person": {
     "text": "Emma",
     "en": "Sam"
@@ -130,6 +134,18 @@
   "web.tour.upload.title": {
     "text": "Uploaden en delen",
     "en": "Upload and share"
+  },
+  "web.tour.users.bridge": {
+    "text": "Laat <b>{bridge}</b> aangevinkt om ze een eigen adres te geven.",
+    "en": "Keep <b>{bridge}</b> ticked to give them their own address."
+  },
+  "web.tour.users.text": {
+    "text": "Geef iedereen een eigen Off The Cloud op hetzelfde apparaat: eigen foto’s, bestanden en een privéfeed, los van de jouwe. Typ in <b>{settings} › {users}</b> een gebruikersnaam, kies <b>{add}</b> en stel een eerste wachtwoord in.",
+    "en": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In <b>{settings} › {users}</b>, type a username, choose <b>{add}</b> and set their first password."
+  },
+  "web.tour.users.title": {
+    "text": "Gebruikers toevoegen",
+    "en": "Add users"
   },
   "web.tour.viewer.text": {
     "text": "Klik op een foto om hem te openen en blader met de pijlen, de pijltoetsen of door te vegen. <b>{info}</b> toont wanneer en waar hij is gemaakt, de camera en een kaart.",

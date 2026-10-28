@@ -4,7 +4,8 @@
 // a small moving mock of the controls the step teaches - the search typed
 // into, the dates dragged, photos selected and the bar sliding in, Files
 // switching views and sorting, a post liked, one composed and published,
-// a friend added - so the tour teaches with nothing in the library yet.
+// a friend added, a user added - so the tour teaches with nothing in the
+// library yet.
 // Plain React and CSS (TourArt.css): every label is the real control's
 // own key, so it reads in the language the app shows; colours are the
 // theme's variables; "photos" are gradient tiles, faces a plain outline,
@@ -127,6 +128,11 @@ function Face({ hue, className, children }: { hue: number; className?: string; c
 
 // Text in place of a label not worth reading (a file's name, a date).
 const Bar = ({ w, className }: { w: number; className?: string }) => <span className={cls("ta-bar", className)} style={{ width: pct(w) }} />;
+
+// What a scene is told: face recognition on (People in the menu, a named
+// face in the search); the device on the bridge (a new user gets an
+// address of their own).
+type SceneProps = { faces: boolean; bridge: boolean };
 
 // The mouse (or, on a touch screen, a finger) doing what the step says.
 // x and y: a share of the drawing (a number, %) or any CSS length (a calc
@@ -867,6 +873,88 @@ function FriendsArt() {
   );
 }
 
+// ---- users: one added, with an address of their own ---------------------
+
+// rest, the name field, the name typed, the box (ticked already), Add User
+// pressed, the password, again, Create User pressed, the new user listed
+const cUsersTimes = [700, 500, 1100, 900, 300, 1000, 1000, 300, 2200];
+const cPasswordDots = "\u2022".repeat(10);
+// The port a first user gets: the next after the owner's 8080.
+const cUserPort = "8081";
+// Half the section's height (TourArt.css, .ta-users).
+const cUsersHalf = 52;
+
+function UsersArt({ bridge }: SceneProps) {
+  const t = useT();
+  const at = useScene(cUsersTimes, 8);
+  // A name as Settings › Users takes it (lower-case letters, digits, dashes).
+  const name = deviceName(t("web.tour.art.member"));
+  const address = `${name}.${FRIEND_TLD}`;
+  // The name stays in the field until the user is created, then it is cleared.
+  const typed = at >= 2 && at <= 7;
+  const dialog = at >= 5 && at <= 7;
+  const added = at >= 8;
+  // The add row's controls keep its ends, the dialog's buttons its right
+  // edge; down from the top of the section (TourArt.css: in the middle).
+  const y = (px: number) => `calc(50% - ${cUsersHalf}px + ${px}px)`;
+  const field = { x: "calc(6% + 40px)", y: y(64) };
+  const pointer: { x: At; y: At } = [
+    { x: 64, y: 94 }, field, field, bridge ? { x: "calc(6% + 6px)", y: y(91) } : field, { x: "calc(94% - 26px)", y: y(64) },
+    { x: 40, y: y(40) }, { x: 50, y: y(62) }, { x: "calc(90% - 34px)", y: y(84) }, { x: 64, y: 94 },
+  ][at];
+  return (
+    <>
+      <div className="ta-users">
+        <strong className="ta-ellip">{t("web.settings.users.title")}</strong>
+        <span className="ta-users-list">
+          {added ? (
+            <span className="ta-users-row">
+              <strong className="ta-ellip">{name}</strong>
+              <small className="ta-ellip">
+                {bridge ? t("web.settings.users.port_address", { port: cUserPort, address }) : t("web.settings.users.port_local", { port: cUserPort })}
+              </small>
+            </span>
+          ) : <small className="ta-ellip">{t("web.settings.users.none")}</small>}
+        </span>
+        <span className="ta-addrow">
+          <span className={cls("ta-input ta-ellip", (at === 1 || at === 2) && "focus")}>
+            {typed ? <Typed text={name} on /> : <span className="ta-placeholder ta-ellip">{t("web.settings.users.username")}</span>}
+            {(at === 1 || at === 2) && <span className="ta-caret" />}
+          </span>
+          <span className="ta-input ta-users-port ta-ellip"><span className="ta-placeholder ta-ellip">{t("web.settings.users.port")}</span></span>
+          <span className={cls("ta-btn primary ta-ellip", typed && "ready", at === 4 && "lit")}>{t("web.settings.users.add")}</span>
+        </span>
+        {bridge && (
+          <span className="ta-users-box">
+            <span className={cls("ta-check on", at === 3 && "lit")}><CheckIcon size={8} /></span>
+            <span className="ta-users-box-text">
+              <span className="ta-ellip">{t("web.settings.users.request_bridge")}</span>
+              <small className="ta-ellip">{t("web.settings.users.reachable_own")}</small>
+            </span>
+          </span>
+        )}
+      </div>
+      <span className={cls("ta-scrim", dialog && "on")} />
+      <div className={cls("ta-users-dialog", dialog && "on")}>
+        <strong className="ta-ellip">{t("web.settings.users.password_title", { name })}</strong>
+        <span className="ta-input ta-ellip">
+          {at >= 5 ? <Typed text={cPasswordDots} on /> : <span className="ta-placeholder ta-ellip">{t("web.settings.users.password")}</span>}
+          {at === 5 && <span className="ta-caret" />}
+        </span>
+        <span className="ta-input ta-ellip">
+          {at >= 6 ? <Typed text={cPasswordDots} on /> : <span className="ta-placeholder ta-ellip">{t("web.settings.users.password_confirm")}</span>}
+          {at === 6 && <span className="ta-caret" />}
+        </span>
+        <span className="ta-users-actions">
+          <span className="ta-btn small ta-ellip">{t("common.cancel")}</span>
+          <span className={cls("ta-btn primary small ta-ellip", at >= 6 && "ready", at === 7 && "lit")}>{t("web.settings.users.create")}</span>
+        </span>
+      </div>
+      <Pointer x={pointer.x} y={pointer.y} down={at === 1 || at === 4 || at === 6 || at === 7} />
+    </>
+  );
+}
+
 // ---- alerts and settings ------------------------------------------------
 
 // to Alerts, its list, read, to Settings, Settings, Show the tour
@@ -907,7 +995,7 @@ function AlertsArt() {
   );
 }
 
-const cScenes: Record<TourStepId, (p: { faces: boolean }) => ReactNode> = {
+const cScenes: Record<TourStepId, (p: SceneProps) => ReactNode> = {
   welcome: WelcomeArt,
   search: SearchArt,
   dates: DatesArt,
@@ -920,15 +1008,16 @@ const cScenes: Record<TourStepId, (p: { faces: boolean }) => ReactNode> = {
   social: SocialArt,
   post: PostArt,
   friends: FriendsArt,
+  users: UsersArt,
   alerts: AlertsArt,
 };
 
 /** The step's drawing: what the step teaches, moving (still with reduced motion). */
-export default function TourArt({ step, faces }: { step: TourStepId; faces: boolean }) {
+export default function TourArt({ step, faces, bridge }: { step: TourStepId } & SceneProps) {
   const Scene = cScenes[step];
   return (
     <div className={cls("ta-stage", `ta-scene-${step}`)} aria-hidden="true">
-      <Scene faces={faces} />
+      <Scene faces={faces} bridge={bridge} />
     </div>
   );
 }
