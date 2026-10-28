@@ -228,6 +228,48 @@
     "other": "\u2068{first}\u2069, \u2068{second}\u2069 \u0026 {count} others",
     "arg": "count"
   },
+  "web.images.person.move_failed": "Couldn't move them. Try again.",
+  "web.images.person.move_find": "Find by name",
+  "web.images.person.move_no_match": "No one has that name.",
+  "web.images.person.move_none": "No one else has been found yet.",
+  "web.images.person.move_title": {
+    "one": "Move this photo to…",
+    "other": "Move {count} photos to…",
+    "arg": "count"
+  },
+  "web.images.person.moved": {
+    "one": "Moved {count} photo to \u2068{name}\u2069",
+    "other": "Moved {count} photos to \u2068{name}\u2069",
+    "arg": "count"
+  },
+  "web.images.person.moved_unnamed": {
+    "one": "Moved {count} photo to an unnamed person",
+    "other": "Moved {count} photos to an unnamed person",
+    "arg": "count"
+  },
+  "web.images.person.remove_failed": "Couldn't remove them. Try again.",
+  "web.images.person.remove_text": "The photos stay on your device, and face recognition won't put them back.",
+  "web.images.person.remove_title": {
+    "one": "Remove this photo from \u2068{name}\u2069?",
+    "other": "Remove {count} photos from \u2068{name}\u2069?",
+    "arg": "count"
+  },
+  "web.images.person.remove_title_unnamed": {
+    "one": "Remove this photo from this person?",
+    "other": "Remove {count} photos from this person?",
+    "arg": "count"
+  },
+  "web.images.person.removed": {
+    "one": "Removed {count} photo from \u2068{name}\u2069",
+    "other": "Removed {count} photos from \u2068{name}\u2069",
+    "arg": "count"
+  },
+  "web.images.person.removed_unnamed": {
+    "one": "Removed {count} photo from this person",
+    "other": "Removed {count} photos from this person",
+    "arg": "count"
+  },
+  "web.images.person.removing": "Removing…",
   "web.images.person.two": "\u2068{first}\u2069 \u0026 \u2068{second}\u2069",
   "web.images.picker.all": "All photos",
   "web.images.picker.empty": "No photos here yet.",
@@ -260,6 +302,8 @@
     "arg": "count"
   },
   "web.images.select.label": "Selected photos",
+  "web.images.select.move_to_person": "Someone else…",
+  "web.images.select.not_this_person": "Not this person",
   "web.images.select.post": "Social Post",
   "web.images.select.uncollect": "Remove from Collection",
   "web.images.share.copied": "Link copied",

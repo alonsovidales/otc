@@ -5,9 +5,10 @@
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download, and Delete where the caller allows it
-// (issue #199). The apps do the same with ImageModal. Loaded when first
-// opened (lazyPart.ts: Images and Files wrap it in a layer's Part); Back
-// closes it.
+// (issue #199) - and, opened on one person's photos, Not this person and
+// Someone else… (personFix.tsx). The apps do the same with ImageModal.
+// Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
+// layer's Part); Back closes it.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
@@ -24,6 +25,8 @@ import type { UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
 import { useBackLayer } from "./backStack";
+import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
+import type { PersonFixDone } from "./personFixDone";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -146,7 +149,7 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -168,6 +171,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   /** Opened inside a collection: the confirmation says the item goes
    *  from the device, not just from the collection. */
   inCollection?: boolean;
+  /** Opened on one person's photos: with onPersonFixed, the header has Not
+   *  this person and Someone else… for the item on screen (one with a
+   *  hash). Called once the device took it off the person: the caller
+   *  takes it out of `items` and moves `index` on, as after onDeleted. */
+  personId?: string;
+  onPersonFixed?: (done: PersonFixDone) => void;
 }) {
   const t = useT();
   // Back closes the viewer (backStack.ts), as its × does.
@@ -408,6 +417,15 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // inside the viewer's box, so a click in it never reaches the backdrop
   // that closes the viewer.
   const [asking, setAsking] = useState<ViewerItem | null>(null);
+  // Not this person's question, or Someone else…'s list, about the item on
+  // screen when it opened: like the delete question, drawn inside the box,
+  // and its keys are its own.
+  const [fixing, setFixing] = useState<{ kind: "remove" | "move"; item: ViewerItem } | null>(null);
+  const canFix = !!personId && !!onPersonFixed && !!item?.hash;
+  const askFix = (kind: "remove" | "move") => {
+    const it = items[index];
+    if (canFix && it && !refuseOnDemo()) setFixing({ kind, item: it });
+  };
   const blockedWhy = item && deleteBlocked ? deleteBlocked(item) : null;
   const canDelete = !!onDeleted && !!item && !blockedWhy;
   const askDelete = useCallback(() => {
@@ -439,16 +457,27 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     onDeletedRef.current?.(it);
     return null;
   };
+  // Not this person or Someone else… done: one update with the caller's,
+  // as after a delete (the next item, or the viewer closed).
+  const onPersonFixedRef = useRef(onPersonFixed);
+  useLayoutEffect(() => { onPersonFixedRef.current = onPersonFixed; });
+  const personFixed = (done: PersonFixDone) => {
+    if (!mountedRef.current) return;
+    if (itemsRef.current.every((x) => x.hash != null && done.hashes.has(x.hash))) restoreFocusRef.current = false;
+    setFixing(null);
+    onPersonFixedRef.current?.(done);
+  };
   // The question gone, the viewer has the focus again if it fell out of it
   // (a click on Delete leaves it on nothing once the dialog goes).
+  const dialogOpen = asking != null || fixing != null;
   const wasAskingRef = useRef(false);
   useEffect(() => {
     const was = wasAskingRef.current;
-    wasAskingRef.current = asking != null;
-    if (!was || asking) return;
+    wasAskingRef.current = dialogOpen;
+    if (!was || dialogOpen) return;
     const box = boxRef.current;
     if (box && !box.contains(document.activeElement)) box.focus({ preventScroll: true });
-  }, [asking]);
+  }, [dialogOpen]);
 
   // The viewer's Tab stops, in order (cFocusable), without the guard.
   const guardRef = useRef<HTMLSpanElement>(null);
@@ -479,10 +508,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
   // Keyboard: Escape closes, arrows page, Delete (or the Mac's delete
   // key, Backspace) asks to delete, Tab stays in the viewer. None of it
-  // while the delete question shows: its keys are its own.
+  // while a question or a list shows: its keys are its own.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (asking) return;
+      if (dialogOpen) return;
       const box = boxRef.current;
       const active = document.activeElement;
       const inVideo = keysRef.current && active instanceof HTMLVideoElement && !!box?.contains(active);
@@ -518,7 +547,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, items.length, onIndexChange, onClose, stops, asking, canDelete, askDelete]);
+  }, [index, items.length, onIndexChange, onClose, stops, dialogOpen, canDelete, askDelete]);
 
   // Swipe to page (issue #18) and pinch to zoom (issue #36): a two-finger
   // pinch on touch devices, ctrl+wheel (a trackpad pinch) on desktop.
@@ -584,6 +613,31 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
           <span className="pg-modal-title">{name}</span>
           {/* The original file, under its own name. */}
           <DownloadButton save={save} onClick={download} what={name ?? ""} />
+          {/* Opened on one person's photos: this one isn't them, or is
+              someone else (personFix.tsx). */}
+          {canFix && (
+            <>
+              <button
+                type="button"
+                className="pg-modal-act"
+                data-tip={t("web.images.select.not_this_person")}
+                aria-label={t("web.images.select.not_this_person")}
+                onClick={() => askFix("remove")}
+              >
+                <NotThisPersonIcon size={18} />
+              </button>
+              <button
+                type="button"
+                className="pg-modal-act"
+                data-tip={t("web.images.select.move_to_person")}
+                aria-label={t("web.images.select.move_to_person")}
+                aria-haspopup="dialog"
+                onClick={() => askFix("move")}
+              >
+                <SomeoneElseIcon size={18} />
+              </button>
+            </>
+          )}
           {/* Issue #199: where the caller allows it. Greyed out, with
               the reason as its tooltip, where the device would refuse;
               still a stop for the keyboard, so the reason can be read. */}
@@ -818,6 +872,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             />
           );
         })()}
+        {fixing && personId && fixing.item.hash && (fixing.kind === "remove" ? (
+          <RemoveFromPersonDialog personId={personId} hashes={[fixing.item.hash]} onCancel={() => setFixing(null)} onDone={personFixed} />
+        ) : (
+          <MoveToPersonDialog personId={personId} hashes={[fixing.item.hash]} onCancel={() => setFixing(null)} onDone={personFixed} />
+        ))}
         {/* Last of all: see onGuardFocus. */}
         <span ref={guardRef} className="pg-modal-sr" tabIndex={0} onFocus={onGuardFocus} />
       </div>

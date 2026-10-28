@@ -228,6 +228,48 @@
     "other": "\u2068{first}\u2069, \u2068{second}\u2069 en nog {count} personen",
     "arg": "count"
   },
+  "web.images.person.move_failed": "Ze konden niet worden verplaatst. Probeer het opnieuw.",
+  "web.images.person.move_find": "Zoeken op naam",
+  "web.images.person.move_no_match": "Niemand heeft die naam.",
+  "web.images.person.move_none": "Er is nog niemand anders gevonden.",
+  "web.images.person.move_title": {
+    "one": "Deze foto verplaatsen naar…",
+    "other": "{count} foto’s verplaatsen naar…",
+    "arg": "count"
+  },
+  "web.images.person.moved": {
+    "one": "{count} foto naar \u2068{name}\u2069 verplaatst",
+    "other": "{count} foto’s naar \u2068{name}\u2069 verplaatst",
+    "arg": "count"
+  },
+  "web.images.person.moved_unnamed": {
+    "one": "{count} foto naar een persoon zonder naam verplaatst",
+    "other": "{count} foto’s naar een persoon zonder naam verplaatst",
+    "arg": "count"
+  },
+  "web.images.person.remove_failed": "Ze konden niet worden weggehaald. Probeer het opnieuw.",
+  "web.images.person.remove_text": "De foto’s blijven op je apparaat en gezichtsherkenning zet ze er niet meer bij.",
+  "web.images.person.remove_title": {
+    "one": "Deze foto bij \u2068{name}\u2069 weghalen?",
+    "other": "{count} foto’s bij \u2068{name}\u2069 weghalen?",
+    "arg": "count"
+  },
+  "web.images.person.remove_title_unnamed": {
+    "one": "Deze foto bij deze persoon weghalen?",
+    "other": "{count} foto’s bij deze persoon weghalen?",
+    "arg": "count"
+  },
+  "web.images.person.removed": {
+    "one": "{count} foto bij \u2068{name}\u2069 weggehaald",
+    "other": "{count} foto’s bij \u2068{name}\u2069 weggehaald",
+    "arg": "count"
+  },
+  "web.images.person.removed_unnamed": {
+    "one": "{count} foto bij deze persoon weggehaald",
+    "other": "{count} foto’s bij deze persoon weggehaald",
+    "arg": "count"
+  },
+  "web.images.person.removing": "Bezig met weghalen…",
   "web.images.person.two": "\u2068{first}\u2069 en \u2068{second}\u2069",
   "web.images.picker.all": "Alle foto’s",
   "web.images.picker.empty": "Hier staan nog geen foto’s.",
@@ -260,6 +302,8 @@
     "arg": "count"
   },
   "web.images.select.label": "Geselecteerde foto’s",
+  "web.images.select.move_to_person": "Iemand anders…",
+  "web.images.select.not_this_person": "Niet deze persoon",
   "web.images.select.post": "Plaatsen in Social",
   "web.images.select.uncollect": "Uit collectie halen",
   "web.images.share.copied": "Link gekopieerd",

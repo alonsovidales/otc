@@ -228,6 +228,48 @@
     "other": "\u2068{first}\u2069, \u2068{second}\u2069 e altre {count} persone",
     "arg": "count"
   },
+  "web.images.person.move_failed": "Impossibile spostarle. Riprova.",
+  "web.images.person.move_find": "Cerca per nome",
+  "web.images.person.move_no_match": "Nessuno ha questo nome.",
+  "web.images.person.move_none": "Non è stato ancora trovato nessun altro.",
+  "web.images.person.move_title": {
+    "one": "Sposta questa foto a…",
+    "other": "Sposta {count} foto a…",
+    "arg": "count"
+  },
+  "web.images.person.moved": {
+    "one": "{count} foto spostata a \u2068{name}\u2069",
+    "other": "{count} foto spostate a \u2068{name}\u2069",
+    "arg": "count"
+  },
+  "web.images.person.moved_unnamed": {
+    "one": "{count} foto spostata a una persona senza nome",
+    "other": "{count} foto spostate a una persona senza nome",
+    "arg": "count"
+  },
+  "web.images.person.remove_failed": "Impossibile toglierle. Riprova.",
+  "web.images.person.remove_text": "Le foto restano sul tuo dispositivo e il riconoscimento facciale non le rimetterà qui.",
+  "web.images.person.remove_title": {
+    "one": "Togliere questa foto da \u2068{name}\u2069?",
+    "other": "Togliere {count} foto da \u2068{name}\u2069?",
+    "arg": "count"
+  },
+  "web.images.person.remove_title_unnamed": {
+    "one": "Togliere questa foto da questa persona?",
+    "other": "Togliere {count} foto da questa persona?",
+    "arg": "count"
+  },
+  "web.images.person.removed": {
+    "one": "{count} foto tolta da \u2068{name}\u2069",
+    "other": "{count} foto tolte da \u2068{name}\u2069",
+    "arg": "count"
+  },
+  "web.images.person.removed_unnamed": {
+    "one": "{count} foto tolta da questa persona",
+    "other": "{count} foto tolte da questa persona",
+    "arg": "count"
+  },
+  "web.images.person.removing": "Rimozione…",
   "web.images.person.two": "\u2068{first}\u2069 e \u2068{second}\u2069",
   "web.images.picker.all": "Tutte le foto",
   "web.images.picker.empty": "Ancora nessuna foto qui.",
@@ -260,6 +302,8 @@
     "arg": "count"
   },
   "web.images.select.label": "Foto selezionate",
+  "web.images.select.move_to_person": "Un’altra persona…",
+  "web.images.select.not_this_person": "Non è questa persona",
   "web.images.select.post": "Pubblica in Social",
   "web.images.select.uncollect": "Rimuovi dalla raccolta",
   "web.images.share.copied": "Link copiato",

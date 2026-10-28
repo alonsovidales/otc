@@ -723,6 +723,104 @@
       "other": "{first}, {second} & {count} others"
     }
   },
+  "web.images.person.move_failed": {
+    "text": "Ze konden niet worden verplaatst. Probeer het opnieuw.",
+    "en": "Couldn't move them. Try again."
+  },
+  "web.images.person.move_find": {
+    "text": "Zoeken op naam",
+    "en": "Find by name"
+  },
+  "web.images.person.move_no_match": {
+    "text": "Niemand heeft die naam.",
+    "en": "No one has that name."
+  },
+  "web.images.person.move_none": {
+    "text": "Er is nog niemand anders gevonden.",
+    "en": "No one else has been found yet."
+  },
+  "web.images.person.move_title": {
+    "text": {
+      "one": "Deze foto verplaatsen naar…",
+      "other": "{count} foto’s verplaatsen naar…"
+    },
+    "en": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    }
+  },
+  "web.images.person.moved": {
+    "text": {
+      "one": "{count} foto naar {name} verplaatst",
+      "other": "{count} foto’s naar {name} verplaatst"
+    },
+    "en": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    }
+  },
+  "web.images.person.moved_unnamed": {
+    "text": {
+      "one": "{count} foto naar een persoon zonder naam verplaatst",
+      "other": "{count} foto’s naar een persoon zonder naam verplaatst"
+    },
+    "en": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    }
+  },
+  "web.images.person.remove_failed": {
+    "text": "Ze konden niet worden weggehaald. Probeer het opnieuw.",
+    "en": "Couldn't remove them. Try again."
+  },
+  "web.images.person.remove_text": {
+    "text": "De foto’s blijven op je apparaat en gezichtsherkenning zet ze er niet meer bij.",
+    "en": "The photos stay on your device, and face recognition won't put them back."
+  },
+  "web.images.person.remove_title": {
+    "text": {
+      "one": "Deze foto bij {name} weghalen?",
+      "other": "{count} foto’s bij {name} weghalen?"
+    },
+    "en": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    }
+  },
+  "web.images.person.remove_title_unnamed": {
+    "text": {
+      "one": "Deze foto bij deze persoon weghalen?",
+      "other": "{count} foto’s bij deze persoon weghalen?"
+    },
+    "en": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    }
+  },
+  "web.images.person.removed": {
+    "text": {
+      "one": "{count} foto bij {name} weggehaald",
+      "other": "{count} foto’s bij {name} weggehaald"
+    },
+    "en": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    }
+  },
+  "web.images.person.removed_unnamed": {
+    "text": {
+      "one": "{count} foto bij deze persoon weggehaald",
+      "other": "{count} foto’s bij deze persoon weggehaald"
+    },
+    "en": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    }
+  },
+  "web.images.person.removing": {
+    "text": "Bezig met weghalen…",
+    "en": "Removing…"
+  },
   "web.images.person.two": {
     "text": "{first} en {second}",
     "en": "{first} & {second}"
@@ -840,6 +938,14 @@
   "web.images.select.label": {
     "text": "Geselecteerde foto’s",
     "en": "Selected photos"
+  },
+  "web.images.select.move_to_person": {
+    "text": "Iemand anders…",
+    "en": "Someone else…"
+  },
+  "web.images.select.not_this_person": {
+    "text": "Niet deze persoon",
+    "en": "Not this person"
   },
   "web.images.select.post": {
     "text": "Plaatsen in Social",

@@ -723,6 +723,104 @@
       "other": "{first}, {second} & {count} others"
     }
   },
+  "web.images.person.move_failed": {
+    "text": "No se han podido mover. Vuelve a intentarlo.",
+    "en": "Couldn't move them. Try again."
+  },
+  "web.images.person.move_find": {
+    "text": "Buscar por nombre",
+    "en": "Find by name"
+  },
+  "web.images.person.move_no_match": {
+    "text": "Nadie tiene ese nombre.",
+    "en": "No one has that name."
+  },
+  "web.images.person.move_none": {
+    "text": "Aún no se ha encontrado a nadie más.",
+    "en": "No one else has been found yet."
+  },
+  "web.images.person.move_title": {
+    "text": {
+      "one": "Mover esta foto a…",
+      "other": "Mover {count} fotos a…"
+    },
+    "en": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    }
+  },
+  "web.images.person.moved": {
+    "text": {
+      "one": "Se ha movido {count} foto a {name}",
+      "other": "Se han movido {count} fotos a {name}"
+    },
+    "en": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    }
+  },
+  "web.images.person.moved_unnamed": {
+    "text": {
+      "one": "Se ha movido {count} foto a una persona sin nombre",
+      "other": "Se han movido {count} fotos a una persona sin nombre"
+    },
+    "en": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    }
+  },
+  "web.images.person.remove_failed": {
+    "text": "No se han podido quitar. Vuelve a intentarlo.",
+    "en": "Couldn't remove them. Try again."
+  },
+  "web.images.person.remove_text": {
+    "text": "Las fotos siguen en tu dispositivo y el reconocimiento facial no volverá a asignarlas.",
+    "en": "The photos stay on your device, and face recognition won't put them back."
+  },
+  "web.images.person.remove_title": {
+    "text": {
+      "one": "¿Quitar esta foto de {name}?",
+      "other": "¿Quitar {count} fotos de {name}?"
+    },
+    "en": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    }
+  },
+  "web.images.person.remove_title_unnamed": {
+    "text": {
+      "one": "¿Quitar esta foto de esta persona?",
+      "other": "¿Quitar {count} fotos de esta persona?"
+    },
+    "en": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    }
+  },
+  "web.images.person.removed": {
+    "text": {
+      "one": "Se ha quitado {count} foto de {name}",
+      "other": "Se han quitado {count} fotos de {name}"
+    },
+    "en": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    }
+  },
+  "web.images.person.removed_unnamed": {
+    "text": {
+      "one": "Se ha quitado {count} foto de esta persona",
+      "other": "Se han quitado {count} fotos de esta persona"
+    },
+    "en": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    }
+  },
+  "web.images.person.removing": {
+    "text": "Quitando…",
+    "en": "Removing…"
+  },
   "web.images.person.two": {
     "text": "{first} y {second}",
     "en": "{first} & {second}"
@@ -840,6 +938,14 @@
   "web.images.select.label": {
     "text": "Fotos seleccionadas",
     "en": "Selected photos"
+  },
+  "web.images.select.move_to_person": {
+    "text": "Otra persona…",
+    "en": "Someone else…"
+  },
+  "web.images.select.not_this_person": {
+    "text": "No es esta persona",
+    "en": "Not this person"
   },
   "web.images.select.post": {
     "text": "Publicar en Social",

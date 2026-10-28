@@ -12,7 +12,9 @@
 // the code says group where it talks to the device. After a jump to a date
 // the photos newer than it load above as the page is scrolled up (issue
 // #194, newerPhotos.ts), and deleting a photo the device holds at several
-// paths asks about its other copies (issue #201, photoCopies.ts).
+// paths asks about its other copies (issue #201, photoCopies.ts). Among one
+// person's photos the bar and the viewer also take photos off that person,
+// or move them to someone else (personFix.tsx).
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
@@ -38,9 +40,11 @@ import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
-import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
+import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
 import { openWaitingTab } from "./zipTab";
+import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
+import { personFixText, uniqueHashes, type PersonFixDone } from "./personFixDone";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
@@ -330,6 +334,9 @@ type DialogState =
   | { kind: "collect" }
   | { kind: "delete" }
   | { kind: "deleteCollection" }
+  // Not this person, and Someone else… (personFix.tsx).
+  | { kind: "notPerson" }
+  | { kind: "movePerson" }
   // The share link, when the clipboard refused it (a browser that only
   // allows a copy right after a click, and making the link took longer).
   | { kind: "link"; link: string };
@@ -348,6 +355,16 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   const dateOrdered = isDateOrdered(filter);
   // Below this the selection bar shows icons only, each with a tooltip.
   const compact = useMedia("(max-width: 899px)");
+  // Exactly one person in the filter (a face opened from People, or one
+  // person in the search; tags may narrow it): the bar and the viewer can
+  // take photos off them, or move them to someone else (personFix.tsx).
+  const onePerson = personIds.length === 1 ? personIds[0] : null;
+  // The bar's actions beyond its four (Post, Add to Collection, Share,
+  // Delete): Remove from Collection in a collection, and those two for one
+  // person. With more, its labels give way to icons on wider windows too
+  // (PhotoGallery.css, .pg-selbar[data-crowd]).
+  const crowd = (group ? 1 : 0) + (onePerson ? 2 : 0);
+  const barCompact = useMedia(crowd >= 3 ? "(max-width: 1439px)" : crowd === 2 ? "(max-width: 1199px)" : "(max-width: 899px)");
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
@@ -1134,13 +1151,36 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // goes on to the one after it - the one before when it was the last -
   // or closes when none is left, as the apps' viewers do. Called with the
   // grid as it is now (MediaViewer keeps the latest of this callback).
-  const onViewerDeleted = (it: ViewerItem) => {
-    const rest = items.filter((f) => f.path !== it.path);
-    dropDeleted(new Set([it.path]));
+  const onViewerDeleted = (it: ViewerItem) => viewerDropped(new Set([it.path]));
+  // The viewer's photo (and any other tile of it) left the grid.
+  const viewerDropped = (gone: Set<string>) => {
+    const rest = items.filter((f) => !gone.has(f.path));
+    dropDeleted(gone);
     if (!rest.length) { closeViewer(); return; }
     const at = openIdxRef.current ?? 0;
-    const before = items.slice(0, at).filter((f) => f.path === it.path).length;
+    const before = items.slice(0, at).filter((f) => gone.has(f.path)).length;
     openAt(Math.min(at - before, rest.length - 1));
+  };
+
+  // Not this person / Someone else… (personFix.tsx) took photos off the
+  // person the grid shows: they leave it, as deleted ones do - every tile
+  // of each (a photo is its content) - and the note says what was done.
+  // From the viewer, it goes on to the next photo, or closes, as after its
+  // Delete. The people are listed again for the header's face and the
+  // search's (a cover may have been one of the faces); People lists them
+  // again when it next shows anyway.
+  const pathsOf = (hashes: ReadonlySet<string>) => new Set(items.filter((f) => hashes.has(f.hash)).map((f) => f.path));
+  const onPersonFixed = (done: PersonFixDone) => {
+    setDialog(null);
+    dropDeleted(pathsOf(done.hashes));
+    clearSel();
+    showToast({ text: (t) => personFixText(t, done) });
+    void reloadPeople().catch(() => {});
+  };
+  const onViewerPersonFixed = (done: PersonFixDone) => {
+    viewerDropped(pathsOf(done.hashes));
+    showToast({ text: (t) => personFixText(t, done) });
+    void reloadPeople().catch(() => {});
   };
 
   // Issue #201: a delete refused because a photo's path holds other content
@@ -1568,7 +1608,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
       {/* First, though it is drawn over the top bar: Tab reaches it before
           the photos, as it would the top bar it covers. */}
       {selecting && (
-        <div className="pg-selbar" role="toolbar" aria-label={t("web.images.select.label")}>
+        <div className="pg-selbar" role="toolbar" aria-label={t("web.images.select.label")} data-crowd={crowd >= 2 ? crowd : undefined}>
           <button
             type="button"
             className="pg-icon-btn"
@@ -1580,26 +1620,42 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
           </button>
           <span className="pg-selbar-count" aria-live="polite">{t("web.images.select.count", { count: sel.length })}</span>
           <div className="pg-selbar-actions">
-            <BarButton compact={compact} label={t("web.images.select.post")} icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
+            <BarButton compact={barCompact} label={t("web.images.select.post")} icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
             <BarButton
-              compact={compact}
+              compact={barCompact}
               label={t("web.images.select.collect")}
               icon={<AddToCollectionIcon size={22} />}
               onClick={() => openDialog({ kind: "collect" })}
             />
             {group && (
               <BarButton
-                compact={compact}
+                compact={barCompact}
                 label={t("web.images.select.uncollect")}
                 icon={uncollecting ? <Spinner /> : <RemoveFromCollectionIcon size={22} />}
                 onClick={() => void removeSelectedFromGroup()}
                 disabled={uncollecting}
               />
             )}
+            {onePerson && (
+              <>
+                <BarButton
+                  compact={barCompact}
+                  label={t("web.images.select.not_this_person")}
+                  icon={<NotThisPersonIcon />}
+                  onClick={() => openDialog({ kind: "notPerson" })}
+                />
+                <BarButton
+                  compact={barCompact}
+                  label={t("web.images.select.move_to_person")}
+                  icon={<SomeoneElseIcon />}
+                  onClick={() => openDialog({ kind: "movePerson" })}
+                />
+              </>
+            )}
             <div className="pg-share-anchor">
               <BarButton
                 ref={shareBtnRef}
-                compact={compact}
+                compact={barCompact}
                 label={t("common.share")}
                 icon={preparing ? <Spinner /> : <ShareIcon size={22} />}
                 onClick={() => setShareOpen((v) => !v)}
@@ -1615,7 +1671,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
                 />
               )}
             </div>
-            <BarButton compact={compact} danger label={t("common.delete")} icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
+            <BarButton compact={barCompact} danger label={t("common.delete")} icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
           </div>
         </div>
       )}
@@ -1722,6 +1778,12 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
         />
       )}
       {dialog?.kind === "link" && <LinkDialog link={dialog.link} onClose={closeDialog} />}
+      {dialog?.kind === "notPerson" && onePerson && (
+        <RemoveFromPersonDialog personId={onePerson} hashes={uniqueHashes(sel)} onCancel={closeDialog} onDone={onPersonFixed} />
+      )}
+      {dialog?.kind === "movePerson" && onePerson && (
+        <MoveToPersonDialog personId={onePerson} hashes={uniqueHashes(sel)} onCancel={closeDialog} onDone={onPersonFixed} />
+      )}
 
       <ToastView toast={toast} onDismiss={dismissToast} beforeAction={swallowSecondClick} />
 
@@ -1744,6 +1806,9 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
             reloadGrid();
           }}
           inCollection={group != null}
+          // Not this person / Someone else… for the photo on screen.
+          personId={onePerson ?? undefined}
+          onPersonFixed={onViewerPersonFixed}
         />
         </Part>
       )}

@@ -585,6 +585,26 @@
   .pg-selbar-count { font-size: 16px; }
   .pg-selbar-actions { gap: 0; }
 }
+/* More actions than the bar has room for with their labels (data-crowd:
+   Not this person and Someone else… among one person's photos, 2, and
+   Remove from Collection too, 3): icons with tooltips on wider windows
+   (PhotoGallery.tsx's barCompact follows the same widths), and narrower
+   buttons on a phone, so the count keeps some room. */
+@media (max-width: 1199px) {
+  .pg-selbar[data-crowd] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar[data-crowd] .pg-bar-label { display: none; }
+}
+@media (max-width: 1439px) {
+  .pg-selbar[data-crowd="3"] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar[data-crowd="3"] .pg-bar-label { display: none; }
+}
+@media (max-width: 599px) {
+  .pg-selbar[data-crowd] .pg-bar-btn { width: 40px; }
+}
+@media (max-width: 379px) {
+  .pg-selbar[data-crowd] .pg-bar-btn { width: 36px; }
+  .pg-selbar[data-crowd] > .pg-icon-btn { width: 40px; }
+}
 
 /* The share menu, under its button. The catcher covers the window under
    the bar's own content (a negative z-index inside the bar's stacking
@@ -841,6 +861,9 @@
 .pg-pick-name { font-size: 15px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-pick-count { font-size: 13px; line-height: 18px; color: var(--mist-dim); }
 .pg-pick .spinner-wrap { flex: none; color: var(--mist-dim); }
+/* Someone else… (personFix.tsx): people as round faces, as in People. */
+.pg-pick-face .pg-pick-cover { border-radius: 50%; }
+.pg-pick-name.unnamed { font-weight: 500; color: var(--mist-dim); }
 .pg-pick-skel { cursor: default; }
 .pg-pick-skel .pg-pick-text { gap: 8px; }
 .pg-pick-skel .pg-pick-text span { display: block; width: 60%; height: 12px; border-radius: 6px; background: var(--ink-3); }
@@ -991,6 +1014,24 @@
 }
 .pg-modal-del[aria-disabled="true"], .pg-modal-del[aria-disabled="true"]:hover {
   background: var(--panel); color: var(--mist); border-color: var(--line); opacity: .45; cursor: not-allowed;
+}
+/* Not this person and Someone else… (personFix.tsx), on one person's
+   photos: round buttons like Delete's, before it, ember under the pointer
+   as Info and Download are. */
+.pg-modal-act {
+  flex: none; box-sizing: border-box; margin: 0; padding: 0;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+  border: 1px solid var(--line); background: var(--panel); color: var(--mist);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pg-modal-act svg { display: block; }
+.pg-modal-act:hover { filter: none; }
+@media (hover: hover) {
+  .pg-modal-act:hover { background: var(--ember); color: var(--ember-ink); border-color: transparent; }
+}
+@media (max-width: 599px) {
+  .pg-modal-hdr { gap: 6px; }
 }
 /* What screen readers hear of a download; nothing on screen. */
 .pg-modal-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

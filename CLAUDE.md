@@ -1558,7 +1558,15 @@ and code keep `ImageGroup`/`groupId`. Inside an open collection the selection ba
 collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the
 file). The web app always has a device that knows it (the device serves it); the phones may not, and turn
 its `unknown_payload` into "needs an update" with an Update button for the primary's owner (`ReqApplyUpdate`)
-or, for a user, who to ask. What Images shows is `photoFilter.ts` (tags, people, open
+or, for a user, who to ask. Among one person's photos (exactly one person in the filter, tags allowed) the
+bar also has **Not this person** and **Someone else…** (`personFix.tsx`, the note in `personFixDone.ts` -
+`node web/scripts/person-fix-test.mjs` -, `RemoveFromPerson`): the first asks (`ConfirmDialog`, ember -
+the photos stay), the second lists the other people (`usePeople`, faces and names, a name field past 8)
+and moves the photos to the one picked; they then leave the grid as deleted ones do (`dropDeleted`), with
+a note, and the people are listed again (the header's face may have been one of them). The viewer has both
+for the photo open (`MediaViewer`'s `personId`/`onPersonFixed`, round buttons before Delete), moving on as
+after its Delete. With them the bar's labels give way to icons below 1200px, 1440px with Remove from
+collection too (`barCompact`, `.pg-selbar[data-crowd]`). What Images shows is `photoFilter.ts` (tags, people, open
 collection; a store the search, People and Collections pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

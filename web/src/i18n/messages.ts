@@ -394,6 +394,20 @@ export type MessageKey =
   | "web.images.people.slow"
   | "web.images.people.title"
   | "web.images.person.more"
+  | "web.images.person.move_failed"
+  | "web.images.person.move_find"
+  | "web.images.person.move_no_match"
+  | "web.images.person.move_none"
+  | "web.images.person.move_title"
+  | "web.images.person.moved"
+  | "web.images.person.moved_unnamed"
+  | "web.images.person.remove_failed"
+  | "web.images.person.remove_text"
+  | "web.images.person.remove_title"
+  | "web.images.person.remove_title_unnamed"
+  | "web.images.person.removed"
+  | "web.images.person.removed_unnamed"
+  | "web.images.person.removing"
   | "web.images.person.two"
   | "web.images.picker.all"
   | "web.images.picker.empty"
@@ -422,6 +436,8 @@ export type MessageKey =
   | "web.images.select.collect"
   | "web.images.select.count"
   | "web.images.select.label"
+  | "web.images.select.move_to_person"
+  | "web.images.select.not_this_person"
   | "web.images.select.post"
   | "web.images.select.uncollect"
   | "web.images.share.copied"
@@ -1423,6 +1439,20 @@ export interface MessageArgs {
   "web.images.people.title": undefined;
   "web.images.people.will_be_called": { name: string };
   "web.images.person.more": { first: string; second: string; count: number };
+  "web.images.person.move_failed": undefined;
+  "web.images.person.move_find": undefined;
+  "web.images.person.move_no_match": undefined;
+  "web.images.person.move_none": undefined;
+  "web.images.person.move_title": { count: number };
+  "web.images.person.moved": { count: number; name: string };
+  "web.images.person.moved_unnamed": { count: number };
+  "web.images.person.remove_failed": undefined;
+  "web.images.person.remove_text": undefined;
+  "web.images.person.remove_title": { name: string; count: number };
+  "web.images.person.remove_title_unnamed": { count: number };
+  "web.images.person.removed": { count: number; name: string };
+  "web.images.person.removed_unnamed": { count: number };
+  "web.images.person.removing": undefined;
   "web.images.person.two": { first: string; second: string };
   "web.images.picker.all": undefined;
   "web.images.picker.empty": undefined;
@@ -1451,6 +1481,8 @@ export interface MessageArgs {
   "web.images.select.collect": undefined;
   "web.images.select.count": { count: number };
   "web.images.select.label": undefined;
+  "web.images.select.move_to_person": undefined;
+  "web.images.select.not_this_person": undefined;
   "web.images.select.post": undefined;
   "web.images.select.uncollect": undefined;
   "web.images.share.copied": undefined;

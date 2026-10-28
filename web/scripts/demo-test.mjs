@@ -93,6 +93,8 @@ describe("a change on a demo device", () => {
     assert.equal(del.errorCode, "demo");
     assert.equal(del.errorMessage, "refused");
     assert.equal(del.payload.respAck.code, "demo");
+    // People's Not this person / Someone else… changes the device too.
+    assert.equal(m.demoRequestReply(req("reqRemoveFromPerson"), "refused").errorCode, "demo");
     const like = m.demoRequestReply(req("reqLikePublication"), "refused");
     assert.equal(like.error, false);
     assert.equal(like.payload.respAck.ok, true);

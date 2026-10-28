@@ -771,6 +771,91 @@
     "args": [["first", "user"], ["second", "user"], ["count", "count"]],
     "note": "Title over Images when three or more people's photos are shown together. {first} and {second} are the first two names, {count} how many more people there are."
   },
+  "web.images.person.move_failed": {
+    "text": "Couldn't move them. Try again.",
+    "note": "Error in the list of people opened by Someone else… (web.images.person.move_title) when the device didn't move the photos to the person picked."
+  },
+  "web.images.person.move_find": {
+    "text": "Find by name",
+    "note": "Placeholder and screen-reader name of the field at the top of the list of people opened by Someone else… (web.images.person.move_title), shown when there are many people: typing narrows the list to the names that match."
+  },
+  "web.images.person.move_no_match": {
+    "text": "No one has that name.",
+    "note": "In the list of people opened by Someone else… (web.images.person.move_title) when no name matches what was typed in its field (web.images.person.move_find)."
+  },
+  "web.images.person.move_none": {
+    "text": "No one else has been found yet.",
+    "note": "In the list opened by Someone else… (web.images.person.move_title) when face recognition has found no other person to move the photos to."
+  },
+  "web.images.person.move_title": {
+    "text": {
+      "one": "Move this photo to…",
+      "other": "Move {count} photos to…"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the list of people opened by Someone else… (web.images.select.move_to_person): the faces found by face recognition, with their names; picking one files the selected photos under that person instead. {count} is how many photos are selected (1 in the photo viewer)."
+  },
+  "web.images.person.moved": {
+    "text": {
+      "one": "Moved {count} photo to {name}",
+      "other": "Moved {count} photos to {name}"
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Message at the bottom of Images once photos were moved to another person (web.images.select.move_to_person). {count} is how many, {name} the name of the person they went to."
+  },
+  "web.images.person.moved_unnamed": {
+    "text": {
+      "one": "Moved {count} photo to an unnamed person",
+      "other": "Moved {count} photos to an unnamed person"
+    },
+    "args": [["count", "count"]],
+    "note": "web.images.person.moved when the person the photos went to has no name yet. {count} is how many photos."
+  },
+  "web.images.person.remove_failed": {
+    "text": "Couldn't remove them. Try again.",
+    "note": "Error in the question of Not this person (web.images.person.remove_title) when the device didn't take the photos off the person."
+  },
+  "web.images.person.remove_text": {
+    "text": "The photos stay on your device, and face recognition won't put them back.",
+    "note": "Explanation in the question of Not this person (web.images.person.remove_title): the photos aren't deleted, and face recognition won't match them to this person (or anyone) again."
+  },
+  "web.images.person.remove_title": {
+    "text": {
+      "one": "Remove this photo from {name}?",
+      "other": "Remove {count} photos from {name}?"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Title of the question asked after Not this person (web.images.select.not_this_person) among a person's photos. {name} is the person's name, {count} how many photos are selected (1 in the photo viewer). The explanation is web.images.person.remove_text. Buttons: Remove (common.remove) and Cancel."
+  },
+  "web.images.person.remove_title_unnamed": {
+    "text": {
+      "one": "Remove this photo from this person?",
+      "other": "Remove {count} photos from this person?"
+    },
+    "args": [["count", "count"]],
+    "note": "web.images.person.remove_title for a person without a name. {count} is how many photos are selected."
+  },
+  "web.images.person.removed": {
+    "text": {
+      "one": "Removed {count} photo from {name}",
+      "other": "Removed {count} photos from {name}"
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Message at the bottom of Images once photos were taken off a person (web.images.select.not_this_person). {count} is how many, {name} the person's name."
+  },
+  "web.images.person.removed_unnamed": {
+    "text": {
+      "one": "Removed {count} photo from this person",
+      "other": "Removed {count} photos from this person"
+    },
+    "args": [["count", "count"]],
+    "note": "web.images.person.removed for a person without a name. {count} is how many photos."
+  },
+  "web.images.person.removing": {
+    "text": "Removing…",
+    "note": "Read out by screen readers while the photos are being taken off a person, on the Remove button of web.images.person.remove_title.",
+    "max": 24
+  },
   "web.images.person.two": {
     "text": "{first} & {second}",
     "args": [["first", "user"], ["second", "user"]],
@@ -901,6 +986,16 @@
   "web.images.select.label": {
     "text": "Selected photos",
     "note": "Screen-reader name of the bar that replaces the top bar while photos are selected in Images (it holds Social Post, Add to Collection, Share and Delete)."
+  },
+  "web.images.select.move_to_person": {
+    "text": "Someone else…",
+    "note": "Button next to web.images.select.not_this_person, in the selection bar of Images and in the photo viewer, while the photos of one person found by face recognition are shown: face recognition matched them to the wrong person, and this opens the list of the other people found (web.images.person.move_title), to file the photos under the right one. Shown as an icon with this as its tooltip on narrow windows and in the viewer.",
+    "max": 24
+  },
+  "web.images.select.not_this_person": {
+    "text": "Not this person",
+    "note": "Button in the selection bar of Images, shown only while the photos of one person found by face recognition are shown (a face opened from People, or one person in the search), and in the photo viewer opened from there: face recognition matched the selected photos (or the photo open) to the wrong person, so this takes them off that person, after a question (web.images.person.remove_title). The photos themselves stay on the device. Shown as an icon with this as its tooltip on narrow windows and in the viewer.",
+    "max": 24
   },
   "web.images.select.post": {
     "text": "Social Post",
