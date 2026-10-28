@@ -351,24 +351,25 @@ struct RemoveFromPersonTests {
         #expect(vm.openPath == "/p/2.jpg")
         // Said over the viewer, which goes on: Images' own alert would
         // take it away.
-        #expect(vm.viewerNotice?.text == S.appPhotosPersonRemoved(count: 1, name: "Ana"))
-        #expect(!vm.showAlert)
-        vm.viewerNotice = nil
+        #expect(vm.notice?.text == S.appPhotosPersonRemoved(count: 1, name: "Ana"))
+        #expect(vm.alertShown(overViewer: true) && !vm.alertShown(overViewer: false))
+        vm.showAlert = false
         // The last one: the one before it.
         vm.askMoveToPerson(from: .viewer)
         await vm.removeFromPerson(try #require(vm.personMoveAsk), to: vm.allPeople[1])
         #expect(device.removes.last?.toPersonID == "p2")
         #expect(vm.items.map(\.path) == ["/p/0.jpg"])
         #expect(vm.openPath == "/p/0.jpg")
-        #expect(vm.viewerNotice?.text == S.appPhotosPersonMoved(count: 1, name: "Leo"))
-        vm.viewerNotice = nil
+        #expect(vm.notice?.text == S.appPhotosPersonMoved(count: 1, name: "Leo"))
+        #expect(vm.alertShown(overViewer: true))
+        vm.showAlert = false
         // None left: closed, and said by Images.
         vm.askNotThisPerson(from: .viewer)
         await vm.removeFromPerson(try #require(vm.personRemoveAsk))
         #expect(vm.items.isEmpty)
         #expect(vm.openIndex == nil)
-        #expect(vm.viewerNotice == nil)
-        #expect(vm.showAlert && vm.notice?.text == S.appPhotosPersonRemoved(count: 1, name: "Ana"))
+        #expect(vm.alertShown(overViewer: false) && !vm.alertShown(overViewer: true))
+        #expect(vm.notice?.text == S.appPhotosPersonRemoved(count: 1, name: "Ana"))
     }
 
     /// A refusal or an older device while the viewer is open: said over it,
@@ -379,16 +380,33 @@ struct RemoveFromPersonTests {
         device.refusal = ("", "no")
         vm.askNotThisPerson(from: .viewer)
         await vm.removeFromPerson(try #require(vm.personRemoveAsk))
-        #expect(vm.viewerNotice?.text == S.appPhotosPersonRemoveFailed)
-        #expect(!vm.showAlert)
+        #expect(vm.notice?.text == S.appPhotosPersonRemoveFailed)
+        #expect(vm.alertShown(overViewer: true) && !vm.alertShown(overViewer: false))
         #expect(vm.openPath == "/p/0.jpg")
         #expect(vm.items.count == 3)
         device.refusal = ("unknown_payload", "")
         vm.askMoveToPerson(from: .viewer)
         await vm.removeFromPerson(try #require(vm.personMoveAsk), to: vm.allPeople[1])
-        #expect(vm.viewerNeedsUpdate?.title == S.appPhotosPersonNeedsUpdate)
-        #expect(vm.needsUpdate == nil)
+        #expect(vm.needsUpdateShown(overViewer: true)?.title == S.appPhotosPersonNeedsUpdate)
+        #expect(vm.needsUpdateShown(overViewer: false) == nil)
         #expect(vm.openPath == "/p/0.jpg")
+    }
+
+    /// Any alert raised while the viewer is open (Save's "Photos access
+    /// denied", a refused delete) shows over it, never from the screen
+    /// under it, which would close the viewer; once it is closed, Images
+    /// shows it.
+    @Test func alertsShowOverTheViewerWhileItIsOpen() async {
+        let (vm, _) = await model()
+        vm.notice = .photosDenied
+        vm.showAlert = true
+        #expect(vm.alertShown(overViewer: false) && !vm.alertShown(overViewer: true))
+        vm.open(index: 0)
+        #expect(vm.alertShown(overViewer: true) && !vm.alertShown(overViewer: false))
+        vm.alertBinding(overViewer: true).wrappedValue = false
+        #expect(!vm.showAlert)
+        vm.closeModal()
+        #expect(!vm.alertShown(overViewer: false))
     }
 
     /// What a pick in Someone else…'s list came to is said once the list

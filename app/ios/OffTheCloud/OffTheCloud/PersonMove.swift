@@ -86,30 +86,6 @@ struct PersonActionsPresenter: ViewModifier {
             )) { ask in
                 PersonMoveSheet(vm: vm, ask: ask)
             }
-            .modifier(ViewerSays(vm: vm, on: from == .viewer))
-    }
-}
-
-/// Over the viewer, what its menu came to (PhotoGalleryVM.viewerNotice and
-/// viewerNeedsUpdate): Images' alerts, presented from under the viewer,
-/// would take it away.
-private struct ViewerSays: ViewModifier {
-    @ObservedObject var vm: PhotoGalleryVM
-    let on: Bool
-
-    func body(content: Content) -> some View {
-        if on {
-            content
-                .alert(vm.viewerNotice?.text ?? "", isPresented: Binding(
-                    get: { vm.viewerNotice != nil },
-                    set: { if !$0 { vm.viewerNotice = nil } }
-                )) {
-                    Button(S.commonOk, role: .cancel) {}
-                }
-                .deviceNeedsUpdate($vm.viewerNeedsUpdate)
-        } else {
-            content
-        }
     }
 }
 

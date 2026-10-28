@@ -562,6 +562,32 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var notice: GalleryNotice?
     /// A device too old for what was just tapped (DeviceNeedsUpdate).
     @Published var needsUpdate: DeviceNeedsUpdate?
+
+    /// Whether the alert (`notice`, `needsUpdate`) shows `overViewer`
+    /// (ImageModal) or over the screen under it (Images, Files): over the
+    /// viewer while it is open. Presented from under the full-screen
+    /// viewer, an alert takes the viewer away - Save's "Photos access
+    /// denied" used to close it.
+    func alertShown(overViewer: Bool) -> Bool {
+        showAlert && (openIndex != nil) == overViewer
+    }
+
+    /// The same for `needsUpdate`.
+    func needsUpdateShown(overViewer: Bool) -> DeviceNeedsUpdate? {
+        (openIndex != nil) == overViewer ? needsUpdate : nil
+    }
+
+    /// The alert's binding for the view that shows it over or under the
+    /// viewer.
+    func alertBinding(overViewer: Bool) -> Binding<Bool> {
+        Binding(get: { [weak self] in self?.alertShown(overViewer: overViewer) ?? false },
+                set: { [weak self] in self?.showAlert = $0 })
+    }
+
+    func needsUpdateBinding(overViewer: Bool) -> Binding<DeviceNeedsUpdate?> {
+        Binding(get: { [weak self] in self?.needsUpdateShown(overViewer: overViewer) },
+                set: { [weak self] in self?.needsUpdate = $0 })
+    }
     // Issue #9: the system share sheet for the currently-open photo. A file
     // URL, not the raw UIImage — handing UIActivityViewController a large
     // in-memory UIImage directly is what made the share sheet visibly slow
@@ -1411,27 +1437,17 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var personRemoveAsk: PersonPhotos?
     /// Someone else…'s list of people, while it is open.
     @Published var personMoveAsk: PersonPhotos?
-    /// What the viewer's menu came to, said over the viewer (ImageModal):
-    /// an alert presented from under it (showAlert, needsUpdate) takes
-    /// the viewer away.
-    @Published var viewerNotice: GalleryNotice?
-    @Published var viewerNeedsUpdate: DeviceNeedsUpdate?
-
     /// Someone else…'s list goes as the person is picked: what came of it
     /// is said once the list has had this long to leave the screen, as an
     /// alert presented while a sheet goes away can be dropped unseen
     /// (DeviceNeedsUpdate's outcome waits too). Tests set 0.
     var sheetCloses: TimeInterval = 0.7
 
-    /// Says `n` where it is seen: over the viewer while it is open for an
-    /// ask made there, else Images' own alert.
-    private func say(_ n: GalleryNotice, from: PersonPhotos.From) {
-        if from == .viewer && openIndex != nil {
-            viewerNotice = n
-        } else {
-            notice = n
-            showAlert = true
-        }
+    /// Says `n`: over the viewer while it is open, else over Images
+    /// (alertShown).
+    private func say(_ n: GalleryNotice) {
+        notice = n
+        showAlert = true
     }
 
     /// What the bar's or the viewer's action would take off the person in
@@ -1492,19 +1508,19 @@ final class PhotoGalleryVM: ObservableObject {
         let failed: GalleryNotice = target == nil ? .personRemoveFailed : .personMoveFailed
         guard let resp = try? await peopleRequest(.reqRemoveFromPerson(r), nil) else {
             await sheetGone()
-            say(failed, from: ask.from)
+            say(failed)
             return
         }
         if resp.error, ErrorCodes.isUnknownPayload(code: resp.errorCode, message: resp.errorMessage) {
             let send = peopleRequest
             let update = await DeviceNeedsUpdate.asking(title: S.appPhotosPersonNeedsUpdate) { try await send($0, nil) }
             await sheetGone()
-            if ask.from == .viewer && openIndex != nil { viewerNeedsUpdate = update } else { needsUpdate = update }
+            needsUpdate = update
             return
         }
         guard case .respAck(let ack) = resp.payload, ack.ok else {
             await sheetGone()
-            say(failed, from: ask.from)
+            say(failed)
             return
         }
         let paths = Set(ask.paths)
@@ -1530,9 +1546,9 @@ final class PhotoGalleryVM: ObservableObject {
         // the search's suggestions have them).
         countsChanged()
         Task { await loadPeople() }
-        // Over the viewer while it goes on; Images' own once it closed.
+        // Over the viewer while it goes on; over Images once it closed.
         await sheetGone()
-        say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name), from: ask.from)
+        say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name))
     }
 
     func togglePerson(_ id: String) {
@@ -3522,8 +3538,9 @@ struct PhotoGalleryView: View {
         } message: {
             if let text = vm.deleteAsk.text { Text(text) }
         }
-        .alert(vm.notice?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
-        .deviceNeedsUpdate($vm.needsUpdate)
+        // Not while the viewer is open: it shows them itself (alertShown).
+        .alert(vm.notice?.text ?? "", isPresented: vm.alertBinding(overViewer: false)) { Button(S.commonOk, role: .cancel) {} }
+        .deviceNeedsUpdate(vm.needsUpdateBinding(overViewer: false))
         // The selection bar's Not this person and Someone else… (the
         // viewer's are its own: PersonMove.swift).
         .modifier(PersonActionsPresenter(vm: vm, from: .selection))
@@ -4538,6 +4555,10 @@ struct ImageModal: View {
         }
         // Its menu's Not this person and Someone else… (PersonMove.swift).
         .modifier(PersonActionsPresenter(vm: vm, from: .viewer))
+        // What happened while it is open (Save, Delete, its menu), over it:
+        // presented from the screen under it, an alert would close it.
+        .alert(vm.notice?.text ?? "", isPresented: vm.alertBinding(overViewer: true)) { Button(S.commonOk, role: .cancel) {} }
+        .deviceNeedsUpdate(vm.needsUpdateBinding(overViewer: true))
     }
 
     /// The delete question and its button: "Delete this video?" and

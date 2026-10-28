@@ -2398,7 +2398,9 @@ private struct ViewerNotice: ViewModifier {
     @ObservedObject var viewer: PhotoGalleryVM
 
     func body(content: Content) -> some View {
-        content.alert(viewer.notice?.text ?? "", isPresented: $viewer.showAlert) {
+        // Once the viewer is closed: while it is open it says them itself
+        // (PhotoGalleryVM.alertShown), and this would close it.
+        content.alert(viewer.notice?.text ?? "", isPresented: viewer.alertBinding(overViewer: false)) {
             Button(S.commonOk, role: .cancel) {}
         }
     }
