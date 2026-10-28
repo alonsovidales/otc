@@ -245,6 +245,15 @@ import cloud.offthe.otc.i18n.appShellSearchUnnamed
 import cloud.offthe.otc.i18n.appShellSectionCollections
 import cloud.offthe.otc.i18n.appShellSectionPeople
 import cloud.offthe.otc.i18n.appShellShareAsGallery
+import cloud.offthe.otc.i18n.appShellMoveToPerson
+import cloud.offthe.otc.i18n.appShellNotThisPerson
+import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptions
+import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptionsUnnamed
+import cloud.offthe.otc.i18n.appPhotosPersonRemoveText
+import cloud.offthe.otc.i18n.commonRemove
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonClose
 import cloud.offthe.otc.i18n.commonCreate
@@ -306,6 +315,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // Issue #180: "Share as gallery" on a group - what is being shared.
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    // Not this person's question, and Someone else…'s list, for the
+    // selection (the one person whose photos show: State.personShown).
+    var confirmNotPerson by remember { mutableStateOf(false) }
+    var pickPerson by remember { mutableStateOf(false) }
     // The rows of the grid (months, PhotoMonths.kt), with the open
     // collection's or person's header first. Kept here, above the People
     // and Collections pages, so the photos' place stays while those show.
@@ -688,6 +701,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     onEngage = { scope.launch { listState.scrollToItem(headerCount) } },
                 )
             }
+            // Not this person and Someone else…: one person's photos, while face recognition is on.
+            val personActions = st.personShown != null && faces == true
             if (st.selected.isNotEmpty()) {
                 // How much of the grid's bottom it floats over: a drag scrolls from above it.
                 Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = it.height }) {
@@ -697,6 +712,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
                         // Only inside a collection: out of it.
                         onUncollect = if (st.activeGroup != null) { { vm.removeSelectionFromGroup() } } else null,
+                        // Only among one person's photos: face recognition was wrong.
+                        onNotThisPerson = if (personActions) { { confirmNotPerson = true } } else null,
+                        onMoveToPerson = if (personActions) { { pickPerson = true } } else null,
                         // Issue #180: the selected photos, as a gallery - no group needed.
                         onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                         // Out of selection mode: a tap opens a photo again.
@@ -804,6 +822,26 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // Issue #201: a delete's refusals, one paragraph per kind.
             text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(it.resolve()); for (m in st.alertMore) Text(m.resolve()) } },
             confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } },
+        )
+    }
+
+    // Not this person: asked first, the photos named by how many and whose.
+    // Gone with the selection or the person (another search) meanwhile.
+    val personShown = st.personShown
+    val personPicks = personShown != null && st.selected.isNotEmpty()
+    LaunchedEffect(personPicks) { if (!personPicks) { confirmNotPerson = false; pickPerson = false } }
+    if (confirmNotPerson && personPicks) {
+        ConfirmDialog(
+            notThisPersonTitle(st.personShownListed, st.selected.size).resolve(), S.appPhotosPersonRemoveText().resolve(), S.commonRemove().resolve(),
+            onConfirm = { confirmNotPerson = false; vm.takeSelectionOffPerson() }, onDismiss = { confirmNotPerson = false },
+        )
+    }
+    if (pickPerson && personPicks && personShown != null) {
+        // Asked again as it opens: whoever was found since is in it.
+        LaunchedEffect(Unit) { vm.loadPeople() }
+        MoveToPersonSheet(
+            st.allPeople, st.peopleLoaded, personShown, st.selected.size,
+            onPick = { p -> pickPerson = false; vm.takeSelectionOffPerson(to = p) }, onDismiss = { pickPerson = false },
         )
     }
 
@@ -1616,7 +1654,23 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // the side column on a rotation: a share or save under way carries on.
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
+    // Not this person's question and Someone else…'s list, for the photo open.
+    var confirmNotPerson by remember { mutableStateOf(false) }
+    var pickPerson by remember { mutableStateOf(false) }
     val idx = st.openIndex ?: return
+    // Among one person's photos (Images only: the Files viewer has none),
+    // while face recognition is on: the menu with Not this person and
+    // Someone else… for the photo open.
+    val faces by FaceRecognition.enabled.collectAsState()
+    val personShown = st.personShown?.takeIf { faces == true }
+    val personMenu: (@Composable () -> Unit)? = personShown?.let {
+        {
+            ViewerPersonMenu(
+                st.personShownListed, enabled = st.preparing == null,
+                onNotThisPerson = { confirmNotPerson = true }, onMoveToPerson = { pickPerson = true },
+            )
+        }
+    }
     val pagerState = rememberPagerState(initialPage = idx) { st.items.size }
     // By the photo, not its place: newer ones landing above it (issue #194) leave it open.
     val pageKey: (Int) -> Any = { st.items.getOrNull(it)?.id ?: it }
@@ -1644,12 +1698,14 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(8.dp)) {
                         ViewerInfoButton(vm)
                         Spacer(Modifier.weight(1f))
+                        personMenu?.invoke()
                         ViewerCloseButton(vm)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth()) {
                         // Leading column: info at the top.
-                        if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+                        if (landscape) Column(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             ViewerInfoButton(vm)
+                            personMenu?.invoke()
                         }
                         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxHeight(), beyondViewportPageCount = 1, key = pageKey) { page ->
                             ViewerPage(vm, st, page, isCurrent = page == idx)
@@ -1688,6 +1744,20 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false },
         )
     }
+    LaunchedEffect(personShown) { if (personShown == null) { confirmNotPerson = false; pickPerson = false } }
+    if (confirmNotPerson && personShown != null) {
+        ConfirmDialog(
+            notThisPersonTitle(st.personShownListed, 1).resolve(), S.appPhotosPersonRemoveText().resolve(), S.commonRemove().resolve(),
+            onConfirm = { confirmNotPerson = false; vm.takeOpenOffPerson() }, onDismiss = { confirmNotPerson = false },
+        )
+    }
+    if (pickPerson && personShown != null) {
+        LaunchedEffect(Unit) { vm.loadPeople() }
+        MoveToPersonSheet(
+            st.allPeople, st.peopleLoaded, personShown, 1,
+            onPick = { p -> pickPerson = false; vm.takeOpenOffPerson(to = p) }, onDismiss = { pickPerson = false },
+        )
+    }
     // Fully open, and scrollable (FileInfoView): half-open, the location
     // map - the last thing in the sheet - sat below the visible part, so
     // it was never drawn nor its tiles fetched.
@@ -1721,6 +1791,31 @@ private fun controlsBeside(width: Dp, height: Dp): Boolean {
 @Composable
 private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
     IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, S.appPhotosViewerMoreInfo().resolve(), tint = Color.White) }
+}
+
+/**
+ * The viewer's menu among one person's photos ([person]: as listed, null
+ * when not): Not this person and Someone else… for the photo open, named
+ * for TalkBack as a face's menu on the People page is.
+ */
+@Composable
+private fun ViewerPersonMenu(person: Person?, enabled: Boolean, onNotThisPerson: () -> Unit, onMoveToPerson: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val name = personName(person)
+    val label = (if (name.isEmpty()) S.appPhotosPeopleMoreOptionsUnnamed() else S.appPhotosPeopleMoreOptions(name)).resolve()
+    Box {
+        IconButton(onClick = { open = true }, enabled = enabled) { Icon(Icons.Default.MoreVert, label, tint = if (enabled) Color.White else Color.White.copy(alpha = 0.4f)) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(S.appShellNotThisPerson().resolve()) }, leadingIcon = { Icon(NavIcons.NotThisPerson, null) },
+                onClick = { open = false; onNotThisPerson() },
+            )
+            DropdownMenuItem(
+                text = { Text(S.appShellMoveToPerson().resolve()) }, leadingIcon = { Icon(NavIcons.MoveToPerson, null) },
+                onClick = { open = false; onMoveToPerson() },
+            )
+        }
+    }
 }
 
 @Composable

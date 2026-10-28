@@ -93,6 +93,16 @@ object NavIcons {
         outlineIcon("RemoveFromCollection", "M7.5 4.5h10a3 3 0 0 1 3 3v10", rectPath(3.5f, 7.5f, 13f, 13f, 2f), "M7 14h6")
     }
 
+    /** Images' "Not this person": a head and shoulders with a cross beside them. */
+    val NotThisPerson: ImageVector by lazy {
+        outlineIcon("NotThisPerson", circlePath(9.5f, 8f, 3.2f), "M3.5 19.5c.7-3.3 3-5.2 6-5.2s5.3 1.9 6 5.2", "m16.5 6.5 4 4M20.5 6.5l-4 4")
+    }
+
+    /** Images' "Someone else…": the same person with an arrow away from them. */
+    val MoveToPerson: ImageVector by lazy {
+        outlineIcon("MoveToPerson", circlePath(9.5f, 8f, 3.2f), "M3.5 19.5c.7-3.3 3-5.2 6-5.2s5.3 1.9 6 5.2", "M15.5 8.5h5.5", "m18.5 6 2.5 2.5-2.5 2.5")
+    }
+
     val Files: ImageVector by lazy {
         outlineIcon("Files", "M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z")
     }

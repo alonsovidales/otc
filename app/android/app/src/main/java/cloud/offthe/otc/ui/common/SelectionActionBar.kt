@@ -56,6 +56,8 @@ import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appShellAddToCollection
 import cloud.offthe.otc.i18n.appShellClearSelection
 import cloud.offthe.otc.i18n.appShellKeepOutOfImages
+import cloud.offthe.otc.i18n.appShellMoveToPerson
+import cloud.offthe.otc.i18n.appShellNotThisPerson
 import cloud.offthe.otc.i18n.appShellRemoveFromCollection
 import cloud.offthe.otc.i18n.appShellSelected
 import cloud.offthe.otc.i18n.appShellShareAsGallery
@@ -66,7 +68,7 @@ import cloud.offthe.otc.i18n.commonShare
 import cloud.offthe.otc.i18n.commonUpload
 
 /** Which action is waiting on the device, if any. */
-enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT }
+enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON }
 
 // One item of the bar, as it is drawn.
 private class BarItem(
@@ -87,6 +89,10 @@ fun SelectionActionBar(
     // Remove from collection: the picked photos out of the collection open
     // in Images - only there.
     onUncollect: (() -> Unit)? = null,
+    // Not this person and Someone else…: the picked photos off the one
+    // person whose photos Images shows (face recognition was wrong) - only there.
+    onNotThisPerson: (() -> Unit)? = null,
+    onMoveToPerson: (() -> Unit)? = null,
     onUpload: (() -> Unit)? = null,
     // Issue #180: "Share as gallery", offered when the selection is one folder.
     onGallery: (() -> Unit)? = null,
@@ -113,6 +119,14 @@ fun SelectionActionBar(
         if (onUncollect != null) add(BarItem(
             S.appShellRemoveFromCollection().resolve(), NavIcons.RemoveFromCollection, count > 0 && busy == null, onUncollect,
             busy = busy == SelectionActionTask.UNCOLLECT,
+        ))
+        if (onNotThisPerson != null) add(BarItem(
+            S.appShellNotThisPerson().resolve(), NavIcons.NotThisPerson, count > 0 && busy == null, onNotThisPerson,
+            busy = busy == SelectionActionTask.NOT_PERSON,
+        ))
+        if (onMoveToPerson != null) add(BarItem(
+            S.appShellMoveToPerson().resolve(), NavIcons.MoveToPerson, count > 0 && busy == null, onMoveToPerson,
+            busy = busy == SelectionActionTask.MOVE_PERSON,
         ))
         add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
     }

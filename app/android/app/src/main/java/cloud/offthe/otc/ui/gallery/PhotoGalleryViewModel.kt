@@ -35,6 +35,7 @@ import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.ListPeople
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.RemoveFromImageGroup
+import cloud.offthe.otc.proto.RemoveFromPerson
 import cloud.offthe.otc.proto.RenameImageGroup
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.ReqPhotoDateBuckets
@@ -93,6 +94,15 @@ import cloud.offthe.otc.i18n.appPhotosNoticeRemoved
 import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeSaved
 import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
+import cloud.offthe.otc.i18n.appPhotosPersonMoveFailed
+import cloud.offthe.otc.i18n.appPhotosPersonMoved
+import cloud.offthe.otc.i18n.appPhotosPersonMovedUnnamed
+import cloud.offthe.otc.i18n.appPhotosPersonNeedsUpdate
+import cloud.offthe.otc.i18n.appPhotosPersonRemoveFailed
+import cloud.offthe.otc.i18n.appPhotosPersonRemoveTitle
+import cloud.offthe.otc.i18n.appPhotosPersonRemoveTitleUnnamed
+import cloud.offthe.otc.i18n.appPhotosPersonRemoved
+import cloud.offthe.otc.i18n.appPhotosPersonRemovedUnnamed
 import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
 import cloud.offthe.otc.R
 import cloud.offthe.otc.ui.common.TextIOException
@@ -308,6 +318,15 @@ class PhotoGalleryViewModel(
     ) {
         /** A tag search is sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
         val dateOrdered get() = chips.isEmpty()
+        /**
+         * The one person whose photos Images shows - a face opened from
+         * People, or one person in the search, tags or a collection with
+         * them or not - whom Not this person and Someone else… take photos
+         * off. Null with nobody or several (and in the Files viewer).
+         */
+        val personShown: String? get() = selectedPeople.singleOrNull()
+        /** [personShown] as the people's list has them (null: not listed, or none). */
+        val personShownListed: Person? get() = personShown?.let { id -> allPeople.firstOrNull { it.id == id } }
         /** Whose date buckets this filter needs: null when it has none (a tag search). */
         val bucketsKeyNow: String? get() = if (dateOrdered) bucketsKeyOf(selectedPeople, activeGroup?.id ?: "") else null
         val bucketsFresh get() = bucketsKeyNow != null && bucketsKey == bucketsKeyNow
@@ -897,6 +916,87 @@ class PhotoGalleryViewModel(
     }
 
     fun dismissNeedsUpdate() = _state.update { it.copy(needsUpdate = null) }
+
+    /**
+     * "Not this person" ([to] null) or "Someone else…" ([to]: the person
+     * picked) on the selection: face recognition filed the picked photos
+     * under the person Images shows ([State.personShown]) by mistake (see
+     * [takeOffPerson]). Done, the selection is left.
+     */
+    fun takeSelectionOffPerson(to: Person? = null) = scope.launch {
+        val st = _state.value
+        val person = st.personShown ?: return@launch
+        if (st.selected.isEmpty() || st.preparing != null || to?.id == person) return@launch
+        val picked = pickedByPath(st.items, pickedAway, st.selected)
+        _state.update { it.copy(preparing = personTask(to)) }
+        try {
+            if (takeOffPerson(person, st.selected, picked.values, to)) clearSelection()
+        } finally { _state.update { it.copy(preparing = null) } }
+    }
+
+    /**
+     * The viewer's Not this person ([to] null) and Someone else… ([to]: the
+     * person picked), for the photo open (see [takeOffPerson]). Done, the
+     * viewer moves on to the next photo, or closes after the last, as after
+     * a delete.
+     */
+    fun takeOpenOffPerson(to: Person? = null) = scope.launch {
+        val st = _state.value
+        val person = st.personShown ?: return@launch
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return@launch
+        if (st.preparing != null || to?.id == person) return@launch
+        _state.update { it.copy(preparing = personTask(to)) }
+        try {
+            val at = st.items.indexOfFirst { it.id == item.id }
+            if (!takeOffPerson(person, setOf(item.path), listOf(item), to)) return@launch
+            // Not if it was closed meanwhile.
+            if (_state.value.openIndex == null) return@launch
+            val left = _state.value.items
+            if (left.isEmpty()) closeModal() else open(minOf(at.coerceAtLeast(0), left.size - 1))
+        } finally { _state.update { it.copy(preparing = null) } }
+    }
+
+    private fun personTask(to: Person?) = if (to == null) SelectionActionTask.NOT_PERSON else SelectionActionTask.MOVE_PERSON
+
+    /**
+     * RemoveFromPerson: [items] (by their content's hash) off [person] - the
+     * match only, the photos stay - moved to [to], or left matched to no one.
+     * True once the device took it: the photos leave the grid at once (every
+     * tile of each, with [paths]: picks off the grid too), as photos taken
+     * out of a collection do, the months' counts follow, the people are
+     * asked again (their counts and covers; the People page asks again as
+     * it shows), and the note says how many went, and where. A device from
+     * before the request answers unknown_payload: it needs an update
+     * (needsUpdate's dialog); anything else is "Couldn't remove/move them".
+     */
+    private suspend fun takeOffPerson(person: String, paths: Set<String>, items: Collection<Item>, to: Person?): Boolean {
+        val hashes = items.mapNotNull { it.hash.ifEmpty { null } }.distinct()
+        val failed = if (to == null) S.appPhotosPersonRemoveFailed() else S.appPhotosPersonMoveFailed()
+        // Nothing to name them by (no device sends photos without their hash now).
+        if (hashes.isEmpty()) { alert(failed); return false }
+        val from = _state.value.personShownListed
+        val r = try {
+            call { it.setReqRemoveFromPerson(removeFromPersonRequest(person, hashes, to?.id)) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { null }
+        when {
+            r != null && r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok -> {
+                val gone = hashes.toSet()
+                removeDeleted(paths + _state.value.items.filter { it.hash in gone }.map { it.path }, keepThumbs = true)
+                countsChanged()
+                scope.launch { loadPeople() }
+                alert(personTakenOffNote(hashes.size, from, to))
+                return true
+            }
+            r != null && r.error && ErrorCodes.isUnknownPayload(r.errorCode, r.errorMessage) -> {
+                val ask = deviceNeedsUpdate(S.appPhotosPersonNeedsUpdate()) { build -> call(build) }
+                _state.update { it.copy(needsUpdate = ask) }
+            }
+            else -> alert(failed)
+        }
+        return false
+    }
 
     fun togglePerson(id: String) {
         _state.update { st -> st.copy(selectedPeople = if (id in st.selectedPeople) st.selectedPeople - id else st.selectedPeople + id) }
@@ -2192,6 +2292,29 @@ fun galleryBody(st: PhotoGalleryViewModel.State): GalleryBody = when {
     st.pageProblem != null -> GalleryBody.PROBLEM
     st.loading || !st.endReached -> GalleryBody.SKELETON
     else -> GalleryBody.EMPTY
+}
+
+/** A person's name as shown: spaces tidied, "" for none (or no person). */
+internal fun personName(p: Person?): String = p?.name?.replace(Regex("\\s+"), " ")?.trim() ?: ""
+
+/** RemoveFromPerson: the photos with [hashes] off [personId], to [toPersonId] (null: matched to no one). */
+internal fun removeFromPersonRequest(personId: String, hashes: List<String>, toPersonId: String?): RemoveFromPerson =
+    RemoveFromPerson.newBuilder().setPersonId(personId).addAllHashes(hashes).also { if (toPersonId != null) it.toPersonId = toPersonId }.build()
+
+/** Not this person's question, for [count] photos off [person] (null: not in the people's list). */
+fun notThisPersonTitle(person: Person?, count: Int): UiText {
+    val name = personName(person)
+    return if (name.isEmpty()) S.appPhotosPersonRemoveTitleUnnamed(count) else S.appPhotosPersonRemoveTitle(name, count)
+}
+
+/** The note once [count] photos left [from]: moved to [to] (named, or not), or taken off them. */
+fun personTakenOffNote(count: Int, from: Person?, to: Person?): UiText {
+    if (to != null) {
+        val name = personName(to)
+        return if (name.isEmpty()) S.appPhotosPersonMovedUnnamed(count) else S.appPhotosPersonMoved(count, name)
+    }
+    val name = personName(from)
+    return if (name.isEmpty()) S.appPhotosPersonRemovedUnnamed(count) else S.appPhotosPersonRemoved(count, name)
 }
 
 /** Why there is nothing to show (the web's three empty states). */

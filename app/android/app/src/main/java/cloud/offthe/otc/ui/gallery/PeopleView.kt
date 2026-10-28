@@ -917,9 +917,9 @@ private fun PersonTile(
     }
 }
 
-/** A person's cover, filling a round box; a head and shoulders when there is none. */
+/** A person's cover, filling a round box; a head and shoulders when there is none (also Someone else…'s list, PersonMove.kt). */
 @Composable
-private fun FacePicture(p: Person, size: Dp) {
+internal fun FacePicture(p: Person, size: Dp) {
     val px = with(LocalDensity.current) { size.roundToPx() }
     // Keyed as the search's PersonPic keys a face (and cached per size).
     val bmp = rememberTileThumb(if (p.coverThumbnail.isEmpty) null else "p:${p.id}:${p.coverThumbnail.hashCode()}", px) { p.coverThumbnail.toByteArray() }
