@@ -101,6 +101,8 @@ export type MessageKey =
   | "web.files.column.created"
   | "web.files.column.modified"
   | "web.files.column.name"
+  | "web.files.column.resize"
+  | "web.files.column.resize_tip"
   | "web.files.column.share"
   | "web.files.column.size"
   | "web.files.gallery.cant_show"
@@ -1115,6 +1117,8 @@ export interface MessageArgs {
   "web.files.column.created": undefined;
   "web.files.column.modified": undefined;
   "web.files.column.name": undefined;
+  "web.files.column.resize": { column: string };
+  "web.files.column.resize_tip": undefined;
   "web.files.column.share": undefined;
   "web.files.column.size": undefined;
   "web.files.gallery.cant_show": undefined;

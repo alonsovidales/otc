@@ -11,6 +11,14 @@
     "text": "Name",
     "en": "Name"
   },
+  "web.files.column.resize": {
+    "text": "Breite der Spalte {column} ändern",
+    "en": "Resize the {column} column"
+  },
+  "web.files.column.resize_tip": {
+    "text": "Ziehe oder nutze die Pfeiltasten, um die Breite zu ändern. Doppelklicke, um sie zurückzusetzen.",
+    "en": "Drag or use the arrow keys to change the width. Double-click to reset it."
+  },
   "web.files.column.share": {
     "text": "Anteil am Ordner",
     "en": "Share of folder"

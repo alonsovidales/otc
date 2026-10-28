@@ -14,6 +14,17 @@
     "note": "Files: column heading in the folder's list and in the search results.",
     "max": 20
   },
+  "web.files.column.resize": {
+    "text": "Resize the {column} column",
+    "args": [["column", "text"]],
+    "note": "Files: accessibility name of the handle at the right edge of a column heading in the folder's list, which changes the column's width (dragged, or with the arrow keys). {column} is that heading as shown: web.files.column.name, .size or .created.",
+    "max": 60
+  },
+  "web.files.column.resize_tip": {
+    "text": "Drag or use the arrow keys to change the width. Double-click to reset it.",
+    "note": "Files: tooltip of the handle at the right edge of a column heading in the folder's list (web.files.column.resize). Dragging it, or the left and right arrow keys while it has the focus, makes the column wider or narrower; a double-click puts the column back to its usual width.",
+    "max": 120
+  },
   "web.files.column.share": {
     "text": "Share of folder",
     "note": "Column heading in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. The column holds each row's bar and percentage. The other columns are Name and Size (web.files.column.name, web.files.column.size).",

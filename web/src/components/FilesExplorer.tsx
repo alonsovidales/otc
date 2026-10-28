@@ -32,6 +32,7 @@ import { sizeText } from "./sizeText";
 import { dateMs, formatOrder, loadOrder, nameCollator, parseOrder, pickOrder, saveOrder, sortEntries, sortKeys, type SortFields, type SortKey, type SortOrder } from "./filesSort";
 import { dragSelection } from "./dragSelect";
 import { useDragSelect } from "./useDragSelect";
+import { useFilesColumns } from "./useFilesColumns";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 import { refusedText } from "./photoCopies";
 import { openWaitingTab } from "./zipTab";
@@ -425,8 +426,10 @@ const FileRow = memo(function FileRow({ r, full, selected, opening, busy, noImg,
         )}
       </div>
       <div className="c c-name" role="cell">
+        {/* A name of more than 10 characters gives way to the icons
+            after it down to 10 (FilesExplorer.css .fb-name-long). */}
         <button
-          className={`${r.isDir ? "link" : "file"}`}
+          className={`${r.isDir ? "link" : "file"}${r.name.length > 10 ? " fb-name-long" : ""}`}
           title={r.name}
           onClick={() => actions.open(r.file)}
           disabled={busy}
@@ -464,7 +467,7 @@ const FileRow = memo(function FileRow({ r, full, selected, opening, busy, noImg,
               <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
             </svg>
-            {t("web.files.versions.count", { count: r.versions })}
+            <span className="fb-versions-label">{t("web.files.versions.count", { count: r.versions })}</span>
           </button>
         )}
       </div>
@@ -1154,6 +1157,22 @@ function FilesExplorerView({
     setSortSaid(next);
   };
   const pickSort = (key: SortKey) => chooseOrder(pickOrder(order, key));
+
+  // The list's column widths (useFilesColumns.ts): their defaults fit a
+  // long size and date in this language, and Created's and Modified's
+  // minimums the date alone.
+  const columnTexts = useMemo(() => {
+    const d = new Date(2026, 11, 28, 22, 58, 58);
+    return {
+      size: fmtBytes(t, 1023 * 1024 * 1024),
+      sizeShort: fmtBytes(t, 1.5 * 1024),
+      date: fmtDate(t.lang, d, dateTimeFields),
+      dateShort: fmtDate(t.lang, d, { year: "numeric", month: "numeric", day: "numeric" }),
+    };
+  }, [t]);
+  const columns = useFilesColumns(columnTexts);
+  // A heading is named by its label alone, not by its handle's width too.
+  const headingId = useId();
   // A heading clicked with its list scrolled down (the headings stuck under
   // the top bar): the new order shows from its first row, right under them,
   // rather than wherever one row of the old order went (the browser's
@@ -1641,9 +1660,9 @@ function FilesExplorerView({
   // from a search's results to the folder - so over the results, the
   // folder's selection underneath goes first. Not while something lies
   // over them (the viewer, a pop-up, the menu's drawer: theirs to close)
-  // or a drag is under way (its Escape takes the drag back), nor when the
-  // key is the top bar's or a field's. Seen before anything else, while
-  // whatever it is still shows.
+  // or a drag is under way (its Escape takes the drag back, a column's
+  // too: useFilesColumns.ts), nor when the key is the top bar's or a
+  // field's. Seen before anything else, while whatever it is still shows.
   const hasSel = selected.length > 0;
   const hasSelRef = useRef(hasSel);
   hasSelRef.current = hasSel;
@@ -1653,7 +1672,7 @@ function FilesExplorerView({
     if (!inResults && !hasSel) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || overlayOpen.current) return;
-      if (document.querySelector(".sb-drawer.open, [data-dragsel]")) return;
+      if (document.querySelector(".sb-drawer.open, [data-dragsel], .fb-col-shield")) return;
       const t = e.target as Element | null;
       if (t?.closest?.(".topbar, input:not([type=checkbox]), textarea, select, [contenteditable='true'], [role='dialog']")) return;
       // Results first: they hide the folder and its selection bar, so
@@ -1771,12 +1790,19 @@ function FilesExplorerView({
     const on = order.key === key;
     return (
       <div className={`c c-${key}`} role={inTable ? "columnheader" : undefined}
-        aria-sort={inTable && on ? (order.dir === "asc" ? "ascending" : "descending") : undefined}>
+        aria-sort={inTable && on ? (order.dir === "asc" ? "ascending" : "descending") : undefined}
+        aria-labelledby={inTable ? `${headingId}-${key}` : undefined}>
         <button type="button" className={`fb-sort-btn${on ? " on" : ""}`} onClick={(e) => sortFromHeading(key, e.currentTarget)}
           data-tip={on ? orderText(t, order) : undefined} tabIndex={inTable ? undefined : -1}>
-          <span className="fb-sort-name">{label}</span>
+          <span className="fb-sort-name" id={inTable ? `${headingId}-${key}` : undefined}>{label}</span>
           {on && <SortArrow dir={order.dir} />}
         </button>
+        {/* The list's columns resize from their headings' right edges
+            (useFilesColumns.ts); Modified, the last, has none. */}
+        {inTable && key !== "modified" && (
+          <span className="fb-col-grip" {...columns.grip(key)}
+            aria-label={t("web.files.column.resize", { column: label })} title={t("web.files.column.resize_tip")} />
+        )}
       </div>
     );
   };
@@ -2220,8 +2246,8 @@ function FilesExplorerView({
       ) : (
       // A table to screen readers too (issue #196): its headings carry
       // aria-sort.
-      <div className="fb-table" role="table">
-        <div className="fb-head" role="row">
+      <div className="fb-table fb-list-table" role="table" ref={columns.ref}>
+        <div className="fb-head" role="row" {...columns.head}>
           <div className="c c-check" role="columnheader"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></div>
           {sortHeading("name", t("web.files.column.name"), true)}
           {sortHeading("size", t("web.files.column.size"), true)}

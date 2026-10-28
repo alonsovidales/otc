@@ -2,6 +2,8 @@
   "web.files.column.created": "Data creazione",
   "web.files.column.modified": "Data modifica",
   "web.files.column.name": "Nome",
+  "web.files.column.resize": "Ridimensiona la colonna {column}",
+  "web.files.column.resize_tip": "Trascina o usa i tasti freccia per cambiare la larghezza. Fai doppio clic per ripristinarla.",
   "web.files.column.share": "Quota della cartella",
   "web.files.column.size": "Dimensioni",
   "web.files.gallery.cant_show": "Questo file non può essere mostrato qui: scaricalo.",

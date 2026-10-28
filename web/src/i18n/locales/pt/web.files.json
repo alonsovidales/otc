@@ -2,6 +2,8 @@
   "web.files.column.created": "Criado",
   "web.files.column.modified": "Modificado",
   "web.files.column.name": "Nome",
+  "web.files.column.resize": "Redimensionar a coluna {column}",
+  "web.files.column.resize_tip": "Arrasta ou usa as teclas de seta para alterar a largura. Faz duplo clique para a repor.",
   "web.files.column.share": "Parte da pasta",
   "web.files.column.size": "Tamanho",
   "web.files.gallery.cant_show": "Não foi possível mostrar este ficheiro aqui: transfere-o.",

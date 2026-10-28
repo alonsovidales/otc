@@ -11,6 +11,14 @@
     "text": "Nome",
     "en": "Name"
   },
+  "web.files.column.resize": {
+    "text": "Redimensionar a coluna {column}",
+    "en": "Resize the {column} column"
+  },
+  "web.files.column.resize_tip": {
+    "text": "Arrasta ou usa as teclas de seta para alterar a largura. Faz duplo clique para a repor.",
+    "en": "Drag or use the arrow keys to change the width. Double-click to reset it."
+  },
   "web.files.column.share": {
     "text": "Parte da pasta",
     "en": "Share of folder"

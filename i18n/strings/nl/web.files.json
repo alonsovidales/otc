@@ -11,6 +11,14 @@
     "text": "Naam",
     "en": "Name"
   },
+  "web.files.column.resize": {
+    "text": "Breedte van de kolom {column} aanpassen",
+    "en": "Resize the {column} column"
+  },
+  "web.files.column.resize_tip": {
+    "text": "Sleep of gebruik de pijltoetsen om de breedte te wijzigen. Dubbelklik om die terug te zetten.",
+    "en": "Drag or use the arrow keys to change the width. Double-click to reset it."
+  },
   "web.files.column.share": {
     "text": "Aandeel in de map",
     "en": "Share of folder"

@@ -2,6 +2,8 @@
   "web.files.column.created": "Gemaakt",
   "web.files.column.modified": "Gewijzigd",
   "web.files.column.name": "Naam",
+  "web.files.column.resize": "Breedte van de kolom {column} aanpassen",
+  "web.files.column.resize_tip": "Sleep of gebruik de pijltoetsen om de breedte te wijzigen. Dubbelklik om die terug te zetten.",
   "web.files.column.share": "Aandeel in de map",
   "web.files.column.size": "Grootte",
   "web.files.gallery.cant_show": "Dit bestand kan hier niet worden getoond: download het in plaats daarvan.",

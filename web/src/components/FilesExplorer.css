@@ -33,6 +33,45 @@
    over the list is seen as it goes. */
 .fb-body .fb-row.selected { background: rgba(255, 107, 74, 0.1); }
 
+/* The folder's list: its columns are one template for the header and every
+   row (--fb-cols), and the ones that don't fit are data-hide - both set by
+   useFilesColumns.ts (filesColumns.ts has the rules). Name takes what the
+   others leave, never under room for 10 characters and its icons; Created
+   goes first as the list narrows, then Modified. The list never scrolls
+   sideways (a scrolling box would unstick the headings). */
+.fb-list-table { position: relative; }
+.fb-list-table :is(.fb-head, .fb-row) { grid-template-columns: var(--fb-cols, 26px minmax(0, 1fr) 100px 190px 190px); }
+.fb-list-table[data-hide~="created"] .c-created,
+.fb-list-table[data-hide~="modified"] .c-modified { display: none; }
+/* A size or a date wider than its column ends in "…", on one line. */
+.fb-list-table .fb-body :is(.c-size, .c-created, .c-modified) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The handle at a heading's right edge, over the gap between two
+   headings (each cell's 12px of padding): a line, the accent's while
+   hovered, pressed or focused. A finger gets the whole gap. */
+.fb-list-table .fb-head > .c { position: relative; }
+.fb-col-grip {
+  position: absolute; top: 0; bottom: 0; right: -8px; z-index: 1; width: 16px;
+  cursor: col-resize; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.fb-col-grip[hidden] { display: none; }
+.fb-col-grip::after {
+  content: ""; position: absolute; top: 30%; bottom: 30%; left: calc(50% - 0.5px); width: 1px; border-radius: 1px;
+  background: var(--line); transition: background-color .12s ease;
+}
+.fb-col-grip:is(:hover, :active, :focus-visible)::after { top: 6px; bottom: 6px; left: calc(50% - 1px); width: 2px; background: var(--ember); }
+.fb-col-grip:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; border-radius: 4px; }
+@media (pointer: coarse) {
+  .fb-col-grip { right: -12px; width: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-col-grip::after { transition: none; }
+}
+/* While a column is dragged: its cursor over the whole page. */
+.fb-col-shield { position: fixed; inset: 0; z-index: 1000; cursor: col-resize; }
+/* Measured, then taken out (useFilesColumns.ts): never seen. */
+.fb-col-probe { position: absolute; top: 0; left: 0; display: flex; visibility: hidden; pointer-events: none; white-space: nowrap; }
+.fb-col-probe > * { flex: none; }
+
 .ico { display: inline-block; width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; background: var(--mist-dim); vertical-align: -2px; }
 .ico.dir { background: var(--gold); }
 .link { border: 0; background: none; color: var(--ember); cursor: pointer; padding: 0; }
@@ -99,10 +138,9 @@
 .fb-spinner { display: inline-block; width: 11px; height: 11px; margin-right: 4px; border: 2px solid var(--line); border-top-color: var(--ember); border-radius: 50%; animation: fb-spin .7s linear infinite; vertical-align: -1px; }
 @keyframes fb-spin { to { transform: rotate(360deg); } }
 
-/* (6) responsive: under 800px show only checkbox, name, size */
+/* A search's results: under 800px only the name and the size. */
 @media (max-width: 800px) {
-  .fb-head, .fb-row { grid-template-columns: 26px 1fr 140px; }
-  .c-created, .c-modified { display: none; }
+  .fb-results-table .c-modified { display: none; }
 }
 
 /* Issue #51: the refresh button beside the path. Same box as the input so
@@ -128,6 +166,20 @@
 .fb-noimg.static { box-sizing: border-box; }
 .fb-lock.static:hover, .fb-noimg.static:hover { border-color: transparent; }
 .fb-versions { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--ink-2); color: var(--mist); font-size: 12px; padding: 1px 8px; cursor: pointer; flex: none; }
+/* A narrow Name column in the folder's list: a long name gives way first,
+   down to 10 characters (--fb-name-text, measured by useFilesColumns.ts),
+   then the versions pill, down to its icon (35px: filesColumns.ts
+   cNameTrail counts on it); a name of up to 10 characters never does.
+   (The name's huge factor leaves the pill nothing to give before that,
+   not even the fraction of a pixel that would put "…" in its label.)
+   Past that (a list too narrow for Name's minimum) the cell cuts off what
+   doesn't fit rather than run over Size. */
+.fb-list-table .c-name > :is(.link, .file) { flex-shrink: 0; }
+.fb-list-table .c-name > .fb-name-long { flex-shrink: 1000000; min-width: min(var(--fb-name-text, 0px), 100%); }
+.fb-list-table .c-name > .fb-versions { flex: 0 1 auto; min-width: 35px; overflow: hidden; }
+.fb-list-table .fb-body .c-name { overflow: clip; }
+.fb-versions > svg { flex: none; }
+.fb-versions-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fb-versions:hover { border-color: var(--ember); color: var(--ember); }
 .fb-versions-body { width: min(560px, 95vw); padding: 16px; }
 .fb-versions-title { margin: 0 36px 4px 0; color: var(--mist); font-size: 16px; }
@@ -170,10 +222,8 @@
 @media (max-width: 560px) {
   .fb-path { flex-basis: 100%; }
   .fb-path-input { width: auto; max-width: none; flex: 1; min-width: 0; }
-  /* A folder's name shares its cell with the lock and the switch for
-     Images (issue #192): the size needs less than 140px, as in a
-     search's results. */
-  .fb-table:not(.fb-results-table, .fb-usage-table) :is(.fb-head, .fb-row) { grid-template-columns: 26px minmax(0, 1fr) 84px; }
+  /* The size at the right edge, as in a search's results (its width is
+     useFilesColumns.ts's, measured with this padding). */
   .fb-table:not(.fb-results-table, .fb-usage-table) .c-size { padding-left: 0; text-align: right; }
 }
 

@@ -2,6 +2,8 @@
   "web.files.column.created": "Created",
   "web.files.column.modified": "Modified",
   "web.files.column.name": "Name",
+  "web.files.column.resize": "Resize the {column} column",
+  "web.files.column.resize_tip": "Drag or use the arrow keys to change the width. Double-click to reset it.",
   "web.files.column.share": "Share of folder",
   "web.files.column.size": "Size",
   "web.files.gallery.cant_show": "This file could not be shown here - download it instead.",

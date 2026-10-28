@@ -11,6 +11,14 @@
     "text": "Nombre",
     "en": "Name"
   },
+  "web.files.column.resize": {
+    "text": "Cambiar el ancho de la columna {column}",
+    "en": "Resize the {column} column"
+  },
+  "web.files.column.resize_tip": {
+    "text": "Arrastra o usa las teclas de flecha para cambiar el ancho. Haz doble clic para restablecerlo.",
+    "en": "Drag or use the arrow keys to change the width. Double-click to reset it."
+  },
   "web.files.column.share": {
     "text": "Parte de la carpeta",
     "en": "Share of folder"

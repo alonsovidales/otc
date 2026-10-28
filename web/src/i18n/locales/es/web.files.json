@@ -2,6 +2,8 @@
   "web.files.column.created": "Creado",
   "web.files.column.modified": "Modificado",
   "web.files.column.name": "Nombre",
+  "web.files.column.resize": "Cambiar el ancho de la columna {column}",
+  "web.files.column.resize_tip": "Arrastra o usa las teclas de flecha para cambiar el ancho. Haz doble clic para restablecerlo.",
   "web.files.column.share": "Parte de la carpeta",
   "web.files.column.size": "Tamaño",
   "web.files.gallery.cant_show": "Este archivo no se puede mostrar aquí: descárgalo.",

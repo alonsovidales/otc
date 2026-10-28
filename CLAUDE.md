@@ -1698,10 +1698,17 @@ months off screen (`.pg-sec` `content-visibility`, room from `--pg-sec-rows`); i
 uploads to `/Uploads/` (`uploadAsNew`: `name (2).jpg` when taken). Files' list rows are memoised
 (`FileRow`, actions behind a ref) in blocks of 100 with `content-visibility` (per row it cost as
 much as it saved), and the grid keeps at most 1,000 thumbnails, the least recently seen going
-first. The composer uploads one file at a time with its progress, stops when some failed to ask
-whether to post the rest or try again, and never sends a file twice. `/shared` fetches the
-thumbnails of the tiles in view, four at a time. The viewer's map loads on Show on map, with no
-Referer and sandboxed.
+first. The list's columns (rules in `filesColumns.ts`, `node web/scripts/files-columns-test.mjs`;
+the page side `useFilesColumns.ts`) are one grid template on the table, `--fb-cols`, with the
+hidden ones in `data-hide` - written to the DOM, never React state, so a drag draws no row. Name
+takes what the others leave and never less than 10 characters plus its icons (a long name gives
+way to them down to that, then the versions pill); as the list narrows Created hides, then
+Modified - it never scrolls sideways, which would unstick the headings. Each heading but the last
+has a handle at its right edge (`role="separator"`: pointer capture, the arrow keys, a double-click
+puts that column back, Name's every column); widths stay in `otc_files_columns`. The composer
+uploads one file at a time with its progress, stops when some failed to ask whether to post the
+rest or try again, and never sends a file twice. `/shared` fetches the thumbnails of the tiles in
+view, four at a time. The viewer's map loads on Show on map, with no Referer and sandboxed.
 
 The second pass. Back (`components/backStack.ts`, `node web/scripts/back-stack-test.mjs`; the only
 file that writes the history - `replaceAddress` for a changed query): a section moved to (App's

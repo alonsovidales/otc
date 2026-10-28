@@ -2,6 +2,8 @@
   "web.files.column.created": "Erstellt",
   "web.files.column.modified": "Geändert",
   "web.files.column.name": "Name",
+  "web.files.column.resize": "Breite der Spalte {column} ändern",
+  "web.files.column.resize_tip": "Ziehe oder nutze die Pfeiltasten, um die Breite zu ändern. Doppelklicke, um sie zurückzusetzen.",
   "web.files.column.share": "Anteil am Ordner",
   "web.files.column.size": "Größe",
   "web.files.gallery.cant_show": "Diese Datei kann hier nicht angezeigt werden – lade sie stattdessen herunter.",
