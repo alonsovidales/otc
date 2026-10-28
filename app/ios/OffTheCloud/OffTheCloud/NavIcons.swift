@@ -26,6 +26,10 @@ enum NavIcon: CaseIterable, Hashable {
     // Images' selection bar: a collection with a plus, and with a minus
     // inside an open collection (PhotoGallery.tsx).
     case addToCollection, removeFromCollection
+    // Images' selection bar among one person's photos, and the viewer's
+    // menu there: a face with a cross (Not this person) and with an arrow
+    // (Someone else…).
+    case notThisPerson, moveToPerson
     // People's selection bar: two lines joining into one (PeopleView.tsx).
     case merge
     // The top bar's search (TopSearch.tsx). A folder is `files` and a
@@ -88,6 +92,20 @@ enum NavIcon: CaseIterable, Hashable {
             return [.path("M7.5 4.5h10a3 3 0 0 1 3 3v10"), .rect(3.5, 7.5, 13, 13, 2), .path("M10 11v6M7 14h6")]
         case .removeFromCollection:
             return [.path("M7.5 4.5h10a3 3 0 0 1 3 3v10"), .rect(3.5, 7.5, 13, 13, 2), .path("M7 14h6")]
+        case .notThisPerson:
+            // The face (`face`) to one side, a cross beside its shoulder.
+            return [
+                .circle(10, 9.5, 3.5),
+                .path("M3.5 19.5c1.1-3.2 3.6-4.8 6.5-4.8 1.2 0 2.3.3 3.3.8"),
+                .path("m16 15 4.5 4.5M20.5 15 16 19.5"),
+            ]
+        case .moveToPerson:
+            // The same face, an arrow out of its shoulder.
+            return [
+                .circle(10, 9.5, 3.5),
+                .path("M3.5 19.5c1.1-3.2 3.6-4.8 6.5-4.8 1.2 0 2.3.3 3.3.8"),
+                .path("M15 17.5h6M18.5 15l2.5 2.5-2.5 2.5"),
+            ]
         case .merge:
             return [
                 .path("M6 20v-3.5a4 4 0 0 1 1.17-2.83L12 9"),

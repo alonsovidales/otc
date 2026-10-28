@@ -28,6 +28,9 @@ enum SelectionActionTask {
     case outOfImages
     /// Taking the picked photos out of the open collection.
     case removeFromGroup
+    /// Taking the picked photos off the person in the filter, or moving
+    /// them to someone else (RemoveFromPerson).
+    case notThisPerson, moveToPerson
 }
 
 struct SelectionActionBar: View {
@@ -50,6 +53,12 @@ struct SelectionActionBar: View {
     /// "Remove from collection": Images inside an open collection only -
     /// the picked photos leave it, and stay on the device.
     var onRemoveFromGroup: (() -> Void)? = nil
+    /// "Not this person" and "Someone else…": Images among one person's
+    /// photos only - face recognition filed them under the wrong person;
+    /// the first takes them off that person, the second files them under
+    /// another. The photos stay on the device.
+    var onNotThisPerson: (() -> Void)? = nil
+    var onMoveToPerson: (() -> Void)? = nil
     /// Issue #180: "Share as gallery" - the selection as a gallery: Images'
     /// and Files' when the selection is one folder (issue #200, as on
     /// Android); absent otherwise.
@@ -77,12 +86,13 @@ struct SelectionActionBar: View {
 
     /// How many items the bar has.
     private var itemCount: Int {
-        3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil, onRemoveFromGroup != nil].filter { $0 }.count
+        3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil, onRemoveFromGroup != nil,
+             onNotThisPerson != nil, onMoveToPerson != nil].filter { $0 }.count
     }
 
-    /// Six items (Files with one folder picked, Images in an open
-    /// collection) take nearly the whole width, as Android's bar does then
-    /// (BarTightInset).
+    /// Six items or more (Files with one folder picked, Images in an open
+    /// collection or among one person's photos) take nearly the whole
+    /// width, as Android's bar does then (BarTightInset).
     private var crowded: Bool { itemCount >= 6 }
 
     var body: some View {
@@ -140,6 +150,18 @@ struct SelectionActionBar: View {
                     // The same drawing with a minus.
                     item(S.appShellRemoveFromCollection, symbol: "", icon: .removeFromCollection,
                          busy: busy == .removeFromGroup, action: onRemoveFromGroup)
+                        .disabled(count == 0)
+                }
+                if let onNotThisPerson {
+                    // A face with a cross: off this person.
+                    item(S.appShellNotThisPerson, symbol: "", icon: .notThisPerson,
+                         busy: busy == .notThisPerson, action: onNotThisPerson)
+                        .disabled(count == 0)
+                }
+                if let onMoveToPerson {
+                    // A face with an arrow: to someone else.
+                    item(S.appShellMoveToPerson, symbol: "", icon: .moveToPerson,
+                         busy: busy == .moveToPerson, action: onMoveToPerson)
                         .disabled(count == 0)
                 }
                 item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)

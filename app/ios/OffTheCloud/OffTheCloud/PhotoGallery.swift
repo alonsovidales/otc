@@ -1358,6 +1358,183 @@ final class PhotoGalleryVM: ObservableObject {
         notice = .removed(g.name); showAlert = true
     }
 
+    // MARK: Not this person / Someone else… (RemoveFromPerson)
+    //
+    // Face recognition sometimes files a photo under the wrong person.
+    // Among one person's photos (a face opened from People, or one person
+    // in the search - tags may be there too) the selection bar and the
+    // viewer's menu take photos off that person: "Not this person" asks
+    // first, then the device forgets the match (face recognition won't put
+    // them back), and "Someone else…" files them under another person. The
+    // photos themselves stay. The same on the web and Android.
+
+    /// The one person whose photos Images shows: exactly one in the filter
+    /// (tags may be combined). nil with none or several, and in Files'
+    /// viewer.
+    var personInFilter: String? {
+        !fixedList && selectedPeople.count == 1 ? selectedPeople[0] : nil
+    }
+
+    /// That person's name as saved; "" without one (or before the list of
+    /// people has come).
+    var personInFilterName: String {
+        guard let pid = personInFilter else { return "" }
+        return allPeople.first { $0.id == pid }.map { PeopleOrder.tidy($0.name) } ?? ""
+    }
+
+    /// Photos to take off the person in the filter, as they were when the
+    /// action was tapped: the picked ones (the selection bar) or the open
+    /// one (the viewer).
+    struct PersonPhotos: Identifiable, Equatable {
+        enum From: Equatable { case selection, viewer }
+        let id = UUID()
+        /// Whom they are taken off.
+        let person: String
+        /// Their name as saved; "" for a person without one (or one the
+        /// list of people doesn't have yet).
+        let name: String
+        let paths: [String]
+        /// Their contents, each once: what RemoveFromPerson names.
+        let hashes: [String]
+        let from: From
+
+        /// How many photos: the questions and the notes count them.
+        var count: Int { paths.count }
+
+        /// Not this person's question: "Remove 3 photos from Ana?".
+        var removeTitle: String {
+            name.isEmpty ? S.appPhotosPersonRemoveTitleUnnamed(count: count) : S.appPhotosPersonRemoveTitle(name: name, count: count)
+        }
+    }
+
+    /// Not this person's question, while it is asked.
+    @Published var personRemoveAsk: PersonPhotos?
+    /// Someone else…'s list of people, while it is open.
+    @Published var personMoveAsk: PersonPhotos?
+    /// What the viewer's menu came to, said over the viewer (ImageModal):
+    /// an alert presented from under it (showAlert, needsUpdate) takes
+    /// the viewer away.
+    @Published var viewerNotice: GalleryNotice?
+    @Published var viewerNeedsUpdate: DeviceNeedsUpdate?
+
+    /// Someone else…'s list goes as the person is picked: what came of it
+    /// is said once the list has had this long to leave the screen, as an
+    /// alert presented while a sheet goes away can be dropped unseen
+    /// (DeviceNeedsUpdate's outcome waits too). Tests set 0.
+    var sheetCloses: TimeInterval = 0.7
+
+    /// Says `n` where it is seen: over the viewer while it is open for an
+    /// ask made there, else Images' own alert.
+    private func say(_ n: GalleryNotice, from: PersonPhotos.From) {
+        if from == .viewer && openIndex != nil {
+            viewerNotice = n
+        } else {
+            notice = n
+            showAlert = true
+        }
+    }
+
+    /// What the bar's or the viewer's action would take off the person in
+    /// the filter; nil when there is no such person or nothing the device
+    /// has (a photo only on this phone has no content hash).
+    func personPhotos(from: PersonPhotos.From) -> PersonPhotos? {
+        guard let pid = personInFilter else { return nil }
+        var its: [Item] = []
+        switch from {
+        case .selection:
+            let picked = pickedItems()
+            its = selected.sorted().compactMap { picked[$0] }
+        case .viewer:
+            if let i = openIndex, items.indices.contains(i) { its = [items[i]] }
+        }
+        its = its.filter { !$0.hash.isEmpty }
+        guard !its.isEmpty else { return nil }
+        var seen = Set<String>()
+        let hashes = its.map(\.hash).filter { seen.insert($0).inserted }
+        return PersonPhotos(person: pid, name: personInFilterName, paths: its.map(\.path), hashes: hashes, from: from)
+    }
+
+    /// Not this person: asks first (personRemoveAsk).
+    func askNotThisPerson(from: PersonPhotos.From) {
+        guard preparing == nil else { return }
+        personRemoveAsk = personPhotos(from: from)
+    }
+
+    /// Someone else…: the list of the other people (personMoveAsk), asked
+    /// for again meanwhile so it has the faces found since.
+    func askMoveToPerson(from: PersonPhotos.From) {
+        guard preparing == nil, let ask = personPhotos(from: from) else { return }
+        personMoveAsk = ask
+        Task { await loadPeople() }
+    }
+
+    /// Takes `ask`'s photos off its person - to `target` when given (Someone
+    /// else…), to no one otherwise (Not this person). Once the device says
+    /// so they leave the grid at once, every tile of each; the viewer goes
+    /// on to the next photo or closes, as after a delete, and the people's
+    /// counts and covers are asked for again. A device from before it
+    /// answers unknown_payload: it needs an update (DeviceNeedsUpdate).
+    func removeFromPerson(_ ask: PersonPhotos, to target: Msg_Person? = nil) async {
+        guard preparing == nil, target?.id != ask.person else { return }
+        personRemoveAsk = nil
+        personMoveAsk = nil
+        preparing = target == nil ? .notThisPerson : .moveToPerson
+        defer { preparing = nil }
+        let began = Date()
+        let sheetGone = { [sheetCloses] in
+            let left = target == nil ? 0 : sheetCloses - Date().timeIntervalSince(began)
+            if left > 0 { try? await Task.sleep(nanoseconds: UInt64(left * 1_000_000_000)) }
+        }
+        var r = Msg_RemoveFromPerson()
+        r.personID = ask.person
+        r.hashes = ask.hashes
+        r.toPersonID = target?.id ?? ""
+        let failed: GalleryNotice = target == nil ? .personRemoveFailed : .personMoveFailed
+        guard let resp = try? await peopleRequest(.reqRemoveFromPerson(r), nil) else {
+            await sheetGone()
+            say(failed, from: ask.from)
+            return
+        }
+        if resp.error, ErrorCodes.isUnknownPayload(code: resp.errorCode, message: resp.errorMessage) {
+            let send = peopleRequest
+            let update = await DeviceNeedsUpdate.asking(title: S.appPhotosPersonNeedsUpdate) { try await send($0, nil) }
+            await sheetGone()
+            if ask.from == .viewer && openIndex != nil { viewerNeedsUpdate = update } else { needsUpdate = update }
+            return
+        }
+        guard case .respAck(let ack) = resp.payload, ack.ok else {
+            await sheetGone()
+            say(failed, from: ask.from)
+            return
+        }
+        let paths = Set(ask.paths)
+        let hashes = Set(ask.hashes)
+        let gone = { (it: Item) in paths.contains(it.path) || (!it.hash.isEmpty && hashes.contains(it.hash)) }
+        // The viewer's place among the photos that stay.
+        let openAt = ask.from == .viewer ? openIndex.map { at in items.prefix(at).filter { !gone($0) }.count } : nil
+        items.removeAll(where: gone)
+        switch ask.from {
+        case .selection:
+            clearSelection()
+        case .viewer:
+            selected.subtract(paths)
+            pickedAway = pickedAway.filter { !paths.contains($0.key) }
+            if items.isEmpty {
+                closeModal()
+            } else if openIndex != nil, let openAt {
+                open(index: min(openAt, items.count - 1))
+            }
+        }
+        // The months' counts and the person's, as after a delete; the
+        // people's counts and covers (People asks again when shown, and
+        // the search's suggestions have them).
+        countsChanged()
+        Task { await loadPeople() }
+        // Over the viewer while it goes on; Images' own once it closed.
+        await sheetGone()
+        say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name), from: ask.from)
+    }
+
     func togglePerson(_ id: String) {
         if let idx = selectedPeople.firstIndex(of: id) {
             selectedPeople.remove(at: idx)
@@ -2910,6 +3087,12 @@ enum GalleryNotice {
     case added(String)
     /// Taken out of the collection of this name.
     case removed(String)
+    /// Not this person / Someone else… didn't go through.
+    case personRemoveFailed, personMoveFailed
+    /// This many photos taken off the person of this name ("": unnamed).
+    case personRemoved(Int, String)
+    /// This many photos moved to the person of this name ("": unnamed).
+    case personMoved(Int, String)
     case notLoaded, photosDenied, saved, noShareLink, noDownloadLink
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
     /// The device refused a delete: its own explanation.
@@ -2928,6 +3111,12 @@ enum GalleryNotice {
         case .created(let name): return S.appPhotosNoticeCreated(name: name)
         case .added(let name): return S.appPhotosNoticeAdded(name: name)
         case .removed(let name): return S.appPhotosNoticeRemoved(name: name)
+        case .personRemoveFailed: return S.appPhotosPersonRemoveFailed
+        case .personMoveFailed: return S.appPhotosPersonMoveFailed
+        case .personRemoved(let n, let name):
+            return name.isEmpty ? S.appPhotosPersonRemovedUnnamed(count: n) : S.appPhotosPersonRemoved(count: n, name: name)
+        case .personMoved(let n, let name):
+            return name.isEmpty ? S.appPhotosPersonMovedUnnamed(count: n) : S.appPhotosPersonMoved(count: n, name: name)
         case .notLoaded: return S.appPhotosNoticeNotLoaded
         case .photosDenied: return S.iosPhotosAccessDenied
         case .saved: return S.appPhotosNoticeSaved
@@ -3180,6 +3369,10 @@ struct PhotoGalleryView: View {
                         onRemoveFromGroup: vm.activeGroup == nil ? nil : {
                             Task { await vm.removeSelectionFromGroup() }
                         },
+                        // Among one person's photos: face recognition got
+                        // them wrong - off that person, or to someone else.
+                        onNotThisPerson: vm.personInFilter == nil ? nil : { vm.askNotThisPerson(from: .selection) },
+                        onMoveToPerson: vm.personInFilter == nil ? nil : { vm.askMoveToPerson(from: .selection) },
                         // Issue #180: the selected photos, as a gallery -
                         // no group needed.
                         onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
@@ -3331,6 +3524,9 @@ struct PhotoGalleryView: View {
         }
         .alert(vm.notice?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
         .deviceNeedsUpdate($vm.needsUpdate)
+        // The selection bar's Not this person and Someone else… (the
+        // viewer's are its own: PersonMove.swift).
+        .modifier(PersonActionsPresenter(vm: vm, from: .selection))
         // Presented once and left up while paging: the previous sheet was
         // keyed by the index, so every swipe dismissed it and presented a
         // new one - the "closes and reopens" the viewer used to do. Full
@@ -4340,6 +4536,8 @@ struct ImageModal: View {
         .sheet(isPresented: $vm.infoOpen) {
             FileInfoView(loading: vm.infoLoading, info: vm.infoData)
         }
+        // Its menu's Not this person and Someone else… (PersonMove.swift).
+        .modifier(PersonActionsPresenter(vm: vm, from: .viewer))
     }
 
     /// The delete question and its button: "Delete this video?" and
@@ -4425,9 +4623,46 @@ struct ImageModal: View {
                 Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
             }
             .accessibilityLabel(S.commonDelete)
+            // Among one person's photos: face recognition filed this one
+            // under the wrong person - off them, or to someone else.
+            if vm.personInFilter != nil {
+                personMenu(side: side)
+            }
         }
         .font(.title2)
         .foregroundStyle(.white)
+    }
+
+    /// Not this person and Someone else… for the open photo, in a menu
+    /// named by the person it is about; a spinner while the device answers.
+    private func personMenu(side: CGFloat?) -> some View {
+        let busy = vm.preparing == .notThisPerson || vm.preparing == .moveToPerson
+        return Menu {
+            Button {
+                vm.askNotThisPerson(from: .viewer)
+            } label: {
+                Label { Text(S.appShellNotThisPerson) } icon: { NavIcon.notThisPerson.image() }
+            }
+            Button {
+                vm.askMoveToPerson(from: .viewer)
+            } label: {
+                Label { Text(S.appShellMoveToPerson) } icon: { NavIcon.moveToPerson.image() }
+            }
+        } label: {
+            Group {
+                if busy {
+                    ProgressView().tint(.white)
+                } else {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+            .frame(width: side, height: side)
+            .contentShape(Rectangle())
+        }
+        // As the selection bar has them, whichever way the menu opens.
+        .menuOrder(.fixed)
+        .disabled(vm.preparing != nil)
+        .accessibilityLabel(PersonMove.menuLabel(name: vm.personInFilterName))
     }
 
     /// The previous, open and next photos side by side, slid by a drag.
