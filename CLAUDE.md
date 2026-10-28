@@ -2664,6 +2664,23 @@ started replays it from step 1 and leaves the mark; Log Out only closes it (`res
 Back (from step 2) and Next/Done in ember with --ember-ink text, side by side or stacked at large text;
 iPad Escape/Return are Skip/Next; the card is modal for VoiceOver (escape is Skip) and a polite live region
 on Android; it sends nothing that changes anything (only the reads its sections make).
+**People fixes, Files' columns, wallpaper (2026-10-28).** With exactly one person in Images' filter
+(tags may join), the selection bar and the viewer's ⋮/… menu add Not this person (asks first) and
+Someone else… (a sheet of the other people, a name filter past 8; iOS `PersonMove.swift`, Android
+`ui/gallery/PersonMove.kt`): `RemoveFromPerson`, the tiles leave at once, People reloads,
+`unknown_payload` -> DeviceNeedsUpdate (`app.photos.person.needs_update`). Files' List view on a wide
+window (the 600 dp/pt wide layout; iOS also needs `FilesColumns.fits`) has Name/Size/Created/Modified
+headings, a port of web `filesColumns.ts` (iOS `FilesColumns.swift` + `FilesColumnsView.swift`, Android
+`ui/files/FilesColumns.kt` + `FilesColumnsView.kt`): a heading tap is `pickSort`, an edge handle drags
+and double-taps to reset, widths kept in iOS defaults `files.columns`, Android `otc_settings`
+`files_columns`; narrow rows are unchanged. iOS alerts raised while the viewer is open show over it
+(`ImageModal`), never closing it. A collection as wallpaper (`app.photos.wallpaper.*`) always starts
+with the notice that copies are stored on the phone (stored_title in bold first, the count, the name),
+at most 100 screen-sized photo copies: Android (`wallpaper/`: `WallpaperRules`, `WallpaperFetch`,
+`Wallpaper`, `ui/gallery/WallpaperBox.kt`) keeps them in `filesDir/wallpaper/<collection>/`, prefs
+`otc_wallpaper`, a WorkManager download job (unmetered under Wi-Fi only) and a periodic one that sets
+lock/home/both with WallpaperManager; Stop, deleting the collection, Log Out and another device delete
+the copies and leave the last photo up.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
