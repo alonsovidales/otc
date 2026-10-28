@@ -178,8 +178,8 @@ object FilesSort {
 }
 
 /** A date the device sent, in ms; null when it sent none. */
-private val PbFile.createdMs: Long? get() = if (hasCreated()) created.seconds * 1000 + created.nanos / 1_000_000 else null
-private val PbFile.modifiedMs: Long? get() = if (hasModified()) modified.seconds * 1000 + modified.nanos / 1_000_000 else null
+internal val PbFile.createdMs: Long? get() = if (hasCreated()) created.seconds * 1000 + created.nanos / 1_000_000 else null
+internal val PbFile.modifiedMs: Long? get() = if (hasModified()) modified.seconds * 1000 + modified.nanos / 1_000_000 else null
 
 val FileRow.sortFields: FilesSortFields get() = FilesSortFields(name, path, isDir, size, raw.createdMs, raw.modifiedMs)
 
