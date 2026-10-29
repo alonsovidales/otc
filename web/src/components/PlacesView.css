@@ -1,7 +1,8 @@
-/* Places: the map fills the page under the top bar, beside the menu. */
+/* Places: the map fills the page under the top bar and any banner
+   (--pl-top, measured by PlacesView), beside the menu. */
 .pl-root {
   position: relative;
-  height: calc(100dvh - var(--topbar-h));
+  height: calc(100dvh - var(--pl-top, var(--topbar-h)));
   min-height: 320px;
   overflow: hidden;
   background: #1c1e1d;

@@ -16,7 +16,7 @@
 // holds (placesData.ts). The arithmetic is placesMath.ts; the phones
 // follow the same rules.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AttributionControl, Map as MapLibre, Marker, addProtocol, setWorkerUrl } from "maplibre-gl";
 import type { MapOptions } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -171,6 +171,25 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
 
   // The map chooses the area: one left from Images (Back) goes.
   useEffect(() => { leaveArea(); }, []);
+
+  // The map ends at the window's foot. A banner under the top bar (the
+  // demo's, an update's) pushes it down, so its height is what is left
+  // below where it starts.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    const body = el?.closest(".app-body");
+    if (!el || !body) return;
+    const fit = () => el.style.setProperty("--pl-top", `${el.getBoundingClientRect().top + window.scrollY}px`);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(body);
+    window.addEventListener("resize", fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", fit);
+    };
+  }, []);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibre | null>(null);
@@ -533,7 +552,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
         : null;
 
   return (
-    <div className="pl-root">
+    <div ref={rootRef} className="pl-root">
       <div ref={boxRef} className="pl-map" />
       <div className="pl-head">
         <h1 className="pl-title">{t("web.shell.menu.places")}</h1>
