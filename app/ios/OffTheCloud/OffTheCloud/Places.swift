@@ -156,6 +156,30 @@ enum PlaceTiles {
 
     /// About a town across: the width zoom 11 shows on a phone.
     static var townWidth: Double { worldWidth / Double(1 << 11) * 1.5 }
+
+    /// Where a map opens on photos in `area`: framed on them, unless that
+    /// takes about the whole world - more than the web's quarter zoom
+    /// above its least, 2^-0.25 of the world's width. Then the world,
+    /// its middle at `middle`'s longitude (the biggest place of zoom 0,
+    /// which is at a photo; else 10° E) and 25° N: the smallest area
+    /// holding photos from Tokyo to Mexico City runs across the Pacific,
+    /// and framing it cut Europe in two at the edges.
+    static func opening(_ area: Msg_PlaceArea, middle: Double?, minWidth: Double) -> MKMapRect {
+        let framed = framing(area, minWidth: minWidth)
+        guard framed.size.width > worldWidth * pow(2, -0.25) else { return framed }
+        let mid = MKMapPoint(CLLocationCoordinate2D(latitude: 25, longitude: middle ?? 10))
+        let h = MKMapSize.world.height / 2
+        // x within the world: past its east edge is how a rect runs
+        // across the antimeridian.
+        var x = mid.x - worldWidth / 2
+        if x < 0 { x += worldWidth }
+        return MKMapRect(x: x, y: max(0, min(MKMapSize.world.height - h, mid.y - h / 2)), width: worldWidth, height: h)
+    }
+
+    /// The longitude of the biggest of zoom 0's places (nil: none).
+    static func middle(of world: [Msg_PhotoPlace]) -> Double? {
+        world.max { a, b in a.count != b.count ? a.count < b.count : a.longitude > b.longitude }?.longitude
+    }
 }
 
 // MARK: - What the map shows
@@ -599,6 +623,13 @@ final class PlacesModel: ObservableObject {
         return PlaceTiles.zoom(viewWidth: view.width, lonSpan: PlaceTiles.lonSpan(of: view.rect))
     }
 
+    /// Where a map of the whole world has its middle: the longitude of the
+    /// biggest of zoom 0's places for the search shown, the tile asked for
+    /// first (nil until it came).
+    func worldMiddle() -> Double? {
+        cache.places(in: PlaceTileKey(zoom: 0, x: 0, y: 0), for: filter).flatMap(PlaceTiles.middle)
+    }
+
     /// The map came on screen, for this search. A map left a minute ago or
     /// more asks again for what it shows, keeping it drawn until then.
     func appeared(filter f: PlacesFilter) {
@@ -878,7 +909,7 @@ struct PlacesMapView: View {
         if let saved = places.savedRect, places.savedFor == f {
             target = saved
         } else if let e = places.extent {
-            target = e.area.map { PlaceTiles.framing($0, minWidth: PlaceTiles.townWidth) } ?? .world
+            target = e.area.map { PlaceTiles.opening($0, middle: places.worldMiddle(), minWidth: PlaceTiles.townWidth) } ?? .world
         } else {
             return
         }

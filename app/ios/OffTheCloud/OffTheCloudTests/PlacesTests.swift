@@ -117,6 +117,30 @@ struct PlaceTilesTests {
         #expect(abs(f.size.width - PlaceTiles.townWidth) < 1)
         #expect(f.contains(MKMapPoint(CLLocationCoordinate2D(latitude: 40.4, longitude: -3.7))))
     }
+
+    /// Photos all over the world open on the world, its middle where most
+    /// of them are - not on the smallest area holding them, which runs
+    /// across the Pacific.
+    @Test func photosAllOverTheWorldOpenOnTheWorldWhereMostAre() {
+        // Tokyo eastwards to Nairobi, across the antimeridian: 258°.
+        let wide = area(-34.6, 139.7, 64.1, 36.8)
+        let world = [place(40.4, -3.7, count: 200, cover: nil, zoom: 0), place(35.7, 139.7, count: 15, cover: nil, zoom: 0)]
+        let middle = PlaceTiles.middle(of: world)
+        #expect(middle == -3.7)
+        let r = PlaceTiles.opening(wide, middle: middle, minWidth: PlaceTiles.townWidth)
+        #expect(abs(r.size.width - MKMapSize.world.width) < 1)
+        let centre = MKMapPoint(x: r.midX.truncatingRemainder(dividingBy: MKMapSize.world.width), y: r.midY).coordinate
+        #expect(abs(centre.longitude - -3.7) < 1e-6)
+        #expect(abs(centre.latitude - 25) < 1e-6)
+        #expect(r.minX >= 0 && r.minX < MKMapSize.world.width)
+        // Before zoom 0's answer: 10° E.
+        let early = PlaceTiles.opening(wide, middle: nil, minWidth: PlaceTiles.townWidth)
+        #expect(abs(MKMapPoint(x: early.midX, y: early.midY).coordinate.longitude - 10) < 1e-6)
+        // A continent is framed as before.
+        let europe = area(36, -9.5, 64.2, 37.6)
+        #expect(MKMapRectEqualToRect(PlaceTiles.opening(europe, middle: middle, minWidth: PlaceTiles.townWidth), PlaceTiles.framing(europe, minWidth: PlaceTiles.townWidth)))
+        #expect(PlaceTiles.middle(of: []) == nil)
+    }
 }
 
 // MARK: - Pins and taps
@@ -162,9 +186,9 @@ struct PlacePinTests {
         // across zooms while its cover stays the newest.
         #expect(merged.cover?.hash == "b")
         #expect(merged.id == b.id)
-        // Between the two, nearer the bigger one.
-        #expect(merged.latitude > 40.4168 && merged.latitude < 40.4170)
-        #expect(abs(merged.latitude - 40.4168) > abs(merged.latitude - 40.4170))
+        // At one of them, never between: the bigger one, nearer their
+        // weighted mean (the mean can be where no photo was taken).
+        #expect(merged.latitude == b.latitude && merged.longitude == b.longitude)
         // The area holding both.
         #expect(merged.area.south == a.area.south && merged.area.north == b.area.north)
         #expect(merged.area.west == a.area.west && merged.area.east == b.area.east)

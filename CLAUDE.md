@@ -2809,7 +2809,11 @@ switch in Images' search row (`vm.showMap`; MainView moves one to the other as t
 The map shows what Images would show (`PlacesFilter`: tags, people, collection, videos always), on
 Apple's map (SwiftUI `Map`, muted, no points of interest, pan and zoom only), opening where it was
 left for the same search or framed on `located_area` (a single spot about a town across; the world
-with "No photos with a location yet" when none has one). `PlacesModel` (one for the session,
+with "No photos with a location yet" when none has one). Photos all over the world open on the
+world, as the web's (`PlaceTiles.opening`: when framing them takes more than 2^-0.25 of the world's
+width, the world centred at 25° N on zoom 0's biggest place, else 10° E): the smallest area holding
+photos from Tokyo to Mexico City runs across the Pacific, and framing it cut Europe in two at the
+edges. Android's map must do the same. `PlacesModel` (one for the session,
 `PhotoGalleryVM.places`) asks only while the map shows, once the camera rests 200 ms, for the screen's tiles and one around
 them at `PlaceTiles.zoom` (log2(width·360/(256·lonSpan)) rounded down, 0-20) - 64 a request, the
 extent first (zoom 0, the world's tile), the next zoom's after 600 ms more -, keeps answers per
