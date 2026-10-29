@@ -2689,7 +2689,8 @@ already have?" and links the hash instead of downloading the asset from iCloud t
 has no equivalent (MediaStore ids are one phone's row numbers, and the originals are local files
 anyway), so it leaves `cloud_id` empty; the device attaches an id to every row of a hash whenever
 any client names it (`HasFile.cloud_id`), so content uploaded from Android still gets one the
-first time an iPhone sees the same asset. The EXIF panel's map is osmdroid (OpenStreetMap, no API key), and it
+first time an iPhone sees the same asset. The EXIF panel's map is Places' (MapLibre on OpenFreeMap, `LocationMap` in
+`PlacesMap.kt`, still, a dot at the point), and it
 only ever has something to show because `PhotoSync.readData` asks the MediaStore for the
 original bytes under `ACCESS_MEDIA_LOCATION` - since Android 10 a photo read through a plain
 content URI comes back with its GPS tags blanked to 0/0, which the device used to report as
@@ -2837,10 +2838,9 @@ Settings shows the section's header and a spinner with `common.loading` (iOS `Lo
 per section, a blank box on a slow connection). A request with no answer leaves a section as it was:
 the unanswered ones are asked again after 5 s, doubling to a minute, while Settings shows, and all of
 them whenever Settings shows and at each wake.
-**Places, the map in Images** (2026-10-29; iOS `Places.swift`; Android follows on Google Maps - the
-Maps SDK, its key kept out of the repo like `google-services.json` - and isn't built yet: it has the
-shared texts, `app.settings.places.*` and `app.photos.places.*`, and must gate on the switch the same
-way). Only while Places is on - the user's switch, off by default, as the device keeps where each photo
+**Places, the map in Images** (2026-10-29; iOS `Places.swift`; Android `Places.kt`, `PlacesModel.kt`,
+`PlacesMap.kt` - its own paragraph below; the shared texts are `app.settings.places.*` and
+`app.photos.places.*`). Only while Places is on - the user's switch, off by default, as the device keeps where each photo
 was taken unencrypted only then (`PlacesSupport`: `GetSettings`' `places_enabled`, absent on a device
 before Places = off, asked on every connection from `OTCConnection.connected`, the last answer kept in
 defaults `placesOn` so it doesn't come and go at launch, reset at Log Out; Settings' Places section
@@ -2876,6 +2876,34 @@ VoiceOver reads a tile's label for one photo, `app.photos.places.pin` for a grou
 fit its area, at least twice as close; from zoom 16, or photos within 25 m, it opens in Images with
 `SearchPhotos.area` and the month counts' `area` (`vm.activeArea`, the "Map area" chip: tap for the
 map where it was, × for every place). Tests: `PlacesTests.swift`.
+**Places on Android** (2026-10-29, owner: "let's use these maps in the android app too so we don't depend
+on Google"): the web's map, MapLibre Native (`org.maplibre.gl:android-sdk-opengl`, pinned - the plain
+`android-sdk` is the Vulkan build, which Play would offer only to phones with Vulkan 1.0) on OpenFreeMap,
+no key and no Google services. Its styles ship in `assets/places/` (`style-dark.json`, the web's
+recolouring of OpenFreeMap's dark, and `style-light.json`, Positron the same way - the theme picks;
+`app/android/scripts/places-style.mjs` writes both from OpenFreeMap's, its colours the web's
+`cColours`: change them together), with no sprite, place names `name:<the app's language>`; tiles,
+TileJSON and glyphs come from tiles.openfreemap.org, nothing asks for the phone's position (the
+manifest removes MapLibre's location permissions: `tools:node`). The same rules as iOS's, ported case for
+case (`PlacesTest.kt`, `PlacesModelTest.kt`, on a square world 1 across - `WorldPoint`/`WorldRect` for
+MKMapPoint): `PlacesSupport` (Settings' `places_enabled`, from the same `GetSettings` answer as
+`FaceRecognition.watch`, from Settings' load, and off on `places_off`/`unknown_payload`; kept in
+`otc_device_state`, reset at Log Out), Settings' Places section after People (only when the device's
+Settings carry the field), `PlacesModel` (one for the session, `PhotoGalleryViewModel.places`: extent
+first, the screen's tiles and one around 200 ms after the camera rests, 64 a request, the next zoom's
+600 ms later, `PlacesCache` 5 minutes or 15 s while reading, `PinMerge` at 54 dp, retries 1 s doubling
+to 10 s, thumbnails by hash from `ThumbStore` else `GridThumbFetcher`), `PlaceTap` and
+`PlaceTiles.opening`. `Section.Places` is the wide menu's page after Collections (`menuGroups(faces,
+places)`; Images with a map area marks it); on a narrow window the same section shows the map in the
+grid's place, with the switch in Images' search row and Back to the grid. A group opened in Images is
+`State.activeArea` (`SearchPhotos.area`, the month counts, the upward pages; `bucketsKeyOf` keys it)
+and the "Map area" chip in the search field (`onShowMap`: back to the map, × `leaveArea`; hidden
+while the map shows). The pins are Compose over the map (`PlacesMap.kt`): laid out - not composed
+again - from the camera's own numbers as it moves (`MapCamera`, MapLibre's zoom counting 512-point
+tiles, the device's 256: one more), in a TextureView map so they move with it; they take no touches
+(the map keeps every gesture), a tap is the map's click against the pins' frames (`pinAt`), and
+TalkBack reaches each one by its label and action. One photo opens in a viewer of its own
+(`showFiles`), as Files opens one.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

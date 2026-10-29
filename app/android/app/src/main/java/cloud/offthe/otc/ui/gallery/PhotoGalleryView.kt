@@ -64,6 +64,9 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.PlacesSupport
+import cloud.offthe.otc.i18n.appPhotosPlacesShowGrid
+import cloud.offthe.otc.i18n.appPhotosPlacesShowMap
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.proto.SharedGallerySource
 import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
@@ -275,17 +278,19 @@ import cloud.offthe.otc.i18n.commonShare
 // adaptive grid with long-press selection (a drag from there selects the
 // photos it passes, issue #200), the date scrubber overlay,
 // the selection bar and the full-screen viewer with share/save/delete
-// and the EXIF panel (issue #41).
+// and the EXIF panel (issue #41). While Places is on, a switch in the
+// search row shows the same photos on a map in the grid's place
+// (PlacesMap.kt).
 //
 // The wide layout (MainView, a window 600dp or more across) has the search
-// in its top bar and People and Collections in its menu: Images there is
-// the grid alone (with an open collection's bar), and People and
-// Collections are pages of their own in its place (CollectionsView.kt) -
+// in its top bar and People, Collections and Places in its menu: Images
+// there is the grid alone (with an open collection's bar), and People,
+// Collections and Places are pages of their own in its place (CollectionsView.kt) -
 // still drawn from here, so the grid and its scroll stay put under them,
 // and a rotation or a fold between the two layouts keeps both.
 
-/** What the Images section shows: the photos, or the People or Collections page over them. */
-enum class GalleryPage { PHOTOS, PEOPLE, COLLECTIONS }
+/** What the Images section shows: the photos, the People or Collections page over them, or the map (Places). */
+enum class GalleryPage { PHOTOS, PEOPLE, COLLECTIONS, PLACES }
 
 // Full size: the viewer's placeholder, until the full image arrives. Tiles
 // use rememberTileThumb (decoded off the main thread, to the tile's size).
@@ -346,6 +351,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     val faces by FaceRecognition.enabled.collectAsState()
     val showPeople = page == GalleryPage.PEOPLE
     LaunchedEffect(faces) { if (faces != true && showPeople) onPage(GalleryPage.PHOTOS) }
+    // Places (the map): only while the device says it is on; it goes with it.
+    val placesOn by PlacesSupport.enabled.collectAsState()
+    val showMap = page == GalleryPage.PLACES && placesOn == true
+    LaunchedEffect(placesOn) { if (placesOn != true && page == GalleryPage.PLACES) onPage(GalleryPage.PHOTOS) }
 
     LaunchedEffect(Unit) { vm.onAppearInitial() }
     // The selection outlives a jump and a filter change, as on the web, but
@@ -366,18 +375,28 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             onOpen = { onPage(GalleryPage.PHOTOS); scope.launch { listState.scrollToItem(0) } },
             onShowPhotos = { onPage(GalleryPage.PHOTOS) },
         )
+    } else if (showMap && wide) {
+        // The Places page: the map alone (the search is in the top bar). A
+        // group opened from it shows in Images.
+        PlacesMapView(vm, st, onShowInImages = { onPage(GalleryPage.PHOTOS); scope.launch { listState.scrollToItem(0) } })
     } else Column(Modifier.fillMaxSize()) {
         // Back: the selection goes first, as the pill's × does (the web's
         // selection bar has its ✕ too). An open search panel's own Back
         // comes before it, and the viewer's and dialogs' (their windows).
         BackHandler(enabled = st.selected.isNotEmpty() && !search.open) { vm.clearSelection() }
+        // The map in the grid's place: Back is the grid again.
+        BackHandler(enabled = showMap && !search.open) { onPage(GalleryPage.PHOTOS) }
         // Wide, the search is in the top bar and People and Collections in
         // the menu. An open collection is the field's first chip either way
         // (its x closes it), as on the web, and its header - name, count,
         // the months it spans - heads the photos.
         if (!wide) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(top = 8.dp, bottom = 8.dp)) {
             Row(Modifier.padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TopSearchField(search, vm, st, options, Modifier.weight(1f).tourTarget(TourTarget.SEARCH), showGroup = true)
+                TopSearchField(
+                    search, vm, st, options, Modifier.weight(1f).tourTarget(TourTarget.SEARCH), showGroup = true,
+                    // The map's area: its chip goes back to the map (hidden while the map shows).
+                    onShowMap = if (showMap) null else { { onPage(GalleryPage.PLACES) } },
+                )
                 // The ways into People and collections, as the web's menu
                 // has them (Images, People, Collections); the tooltips name
                 // the icons for sighted users too.
@@ -392,9 +411,24 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(collectionsLabel) } }, state = rememberTooltipState()) {
                     IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }, Modifier.tourTarget(TourTarget.COLLECTIONS_BUTTON)) { Icon(NavIcons.Collections, collectionsLabel) }
                 }
+                // Places: the grid or the map of the same photos.
+                if (placesOn == true) {
+                    val mapLabel = (if (showMap) S.appPhotosPlacesShowGrid() else S.appPhotosPlacesShowMap()).resolve()
+                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(mapLabel) } }, state = rememberTooltipState()) {
+                        IconButton(onClick = { onPage(if (showMap) GalleryPage.PHOTOS else GalleryPage.PLACES) }) {
+                            Icon(if (showMap) NavIcons.Images else NavIcons.Places, mapLabel)
+                        }
+                    }
+                }
             }
         }
 
+        // Places: the map in the grid's place, the same search (PlacesMap.kt),
+        // under the search's panel.
+        if (showMap) Box(Modifier.weight(1f).fillMaxWidth()) {
+            PlacesMapView(vm, st, onShowInImages = { onPage(GalleryPage.PHOTOS); scope.launch { listState.scrollToItem(0) } })
+            TopSearchPanel(search, vm, st, options)
+        } else { // the grid, below to the end of this block
         // Grid + scrubber + selection bar. Issue #198: where it stops short
         // of the screen's sides is where the date scrubber goes.
         var gridGaps by remember { mutableStateOf(GridGaps()) }
@@ -736,6 +770,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // Wide, the panel hangs from the top bar's field (MainView).
             if (!wide) TopSearchPanel(search, vm, st, options)
         }
+        } // the grid
     }
 
     // Sheets & dialogs
@@ -2016,9 +2051,9 @@ private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
                 if (loc.isNotEmpty()) InfoRow(S.appPhotosViewerInfoLocation().resolve(), loc)
                 if (info.hasGps) {
                     // Issue #127: the same 0.05° region around the point the iOS
-                    // panel shows, on OpenStreetMap; a tap on the caption opens
-                    // the point in the phone's maps app.
-                    LocationMap(info.latitude, info.longitude)
+                    // panel shows, on Places' map (PlacesMap.kt); a tap on the
+                    // caption opens the point in the phone's maps app.
+                    LocationMap(info.latitude, info.longitude, Modifier.fillMaxWidth().height(200.dp))
                     TextButton(onClick = { Share.openInBrowser(context, "geo:${info.latitude},${info.longitude}?q=${info.latitude},${info.longitude}") }) {
                         Text(S.androidPhotosOpenInMaps("%.5f".format(info.latitude), "%.5f".format(info.longitude)).resolve())
                     }
@@ -2028,35 +2063,4 @@ private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
         }
         Spacer(Modifier.height(24.dp))
     }
-}
-
-/** An OpenStreetMap view centred on the photo's position with a marker (issue #127). */
-@Composable
-private fun LocationMap(latitude: Double, longitude: Double) {
-    val context = LocalContext.current
-    AndroidView(
-        factory = { ctx ->
-            org.osmdroid.config.Configuration.getInstance().apply {
-                userAgentValue = ctx.packageName
-                osmdroidBasePath = ctx.cacheDir
-                osmdroidTileCache = java.io.File(ctx.cacheDir, "osmdroid-tiles")
-            }
-            org.osmdroid.views.MapView(ctx).apply {
-                setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-                setMultiTouchControls(true)
-                zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
-                val point = org.osmdroid.util.GeoPoint(latitude, longitude)
-                // Zoom 13 spans roughly 0.05° of latitude on a phone-width map.
-                controller.setZoom(13.0)
-                controller.setCenter(point)
-                overlays.add(org.osmdroid.views.overlay.Marker(this).apply {
-                    position = point
-                    setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
-                })
-                // OpenStreetMap's tile policy asks for the credit on the map.
-                overlays.add(org.osmdroid.views.overlay.CopyrightOverlay(ctx))
-            }
-        },
-        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
-    )
 }

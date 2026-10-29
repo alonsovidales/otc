@@ -90,6 +90,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.R
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
@@ -203,6 +204,8 @@ fun MainView(secrets: SecretsStore) {
     val lastError by OTCConnection.lastError.collectAsState()
     val connectionFailed by OTCConnection.connectionFailed.collectAsState()
     val faces by FaceRecognition.enabled.collectAsState()
+    // Places (the map in Images), as People: only while the device says it is on.
+    val placesOn by PlacesSupport.enabled.collectAsState()
     val deviceId by secrets.deviceId.collectAsState()
 
     // Issue #151: one failed attempt is not a connection problem - at
@@ -248,6 +251,8 @@ fun MainView(secrets: SecretsStore) {
     // when it is off.
     LaunchedEffect(Unit) { FaceRecognition.watch() }
     LaunchedEffect(faces, section) { if (faces == false && section == Section.People) go(Section.Images) }
+    // And the map gives way to Images when Places is off (FaceRecognition.watch asks for it too).
+    LaunchedEffect(placesOn, section) { if (placesOn != true && section == Section.Places) go(Section.Images) }
     // The search sent something to Files (a folder, a file in it, or the
     // documents searched for a word): Files shows and takes it.
     val filesRequest by FilesNav.pending.collectAsState()
@@ -343,7 +348,7 @@ fun MainView(secrets: SecretsStore) {
         val statusError = statusState.errorText?.resolve()
         val storage = remember(statusState, statusError) { summarizeStorage(statusState.status, statusError) }
         val gst = gallery?.state?.collectAsState()?.value
-        val current = menuCurrent(section, gst?.activeGroup != null)
+        val current = menuCurrent(section, gst?.activeGroup != null, gst?.activeArea != null)
 
         fun pick(s: Section) {
             when (s) {
@@ -388,6 +393,8 @@ fun MainView(secrets: SecretsStore) {
                             onShowPhotos = { if (section != Section.Images) go(Section.Images) },
                             // An open collection is the field's first chip, as on the web.
                             showGroup = true,
+                            // The map's area: its chip goes back to the Places page (none while it shows).
+                            onShowMap = if (section == Section.Places) null else { { go(Section.Places) } },
                         )
                     }
                 }
@@ -439,7 +446,7 @@ fun MainView(secrets: SecretsStore) {
                 // is kept clear of; the menu takes the room at the left.
                 Row(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                     if (wide) Sidebar(
-                        layout, current, faces = faces == true, unread = unread, storage = storage,
+                        layout, current, faces = faces == true, places = placesOn == true, unread = unread, storage = storage,
                         modifier = Modifier.tourTarget(TourTarget.SECTIONS),
                         details = storageDetails, onToggleDetails = { storageDetails = !storageDetails },
                         onPick = ::pick,
@@ -473,12 +480,14 @@ fun MainView(secrets: SecretsStore) {
                                 page = when (section) {
                                     Section.People -> GalleryPage.PEOPLE
                                     Section.Collections -> GalleryPage.COLLECTIONS
+                                    Section.Places -> GalleryPage.PLACES
                                     else -> GalleryPage.PHOTOS
                                 },
                                 onPage = { p ->
                                     go(when (p) {
                                         GalleryPage.PEOPLE -> Section.People
                                         GalleryPage.COLLECTIONS -> Section.Collections
+                                        GalleryPage.PLACES -> Section.Places
                                         GalleryPage.PHOTOS -> Section.Images
                                     })
                                 },
@@ -490,7 +499,7 @@ fun MainView(secrets: SecretsStore) {
                 }
                 if (wide && layout == MenuLayout.RAIL && !canBeWhole) {
                     MenuDrawer(
-                        open = drawerOpen, onClose = { drawerOpen = false }, current = current, faces = faces == true, unread = unread,
+                        open = drawerOpen, onClose = { drawerOpen = false }, current = current, faces = faces == true, places = placesOn == true, unread = unread,
                         storage = storage, details = storageDetails, onToggleDetails = { storageDetails = !storageDetails }, onPick = ::pick,
                         revealStorage = revealStorage, onStorageRevealed = { revealStorage = false },
                     )

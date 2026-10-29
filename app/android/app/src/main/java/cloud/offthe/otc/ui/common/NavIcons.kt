@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
 // shape on the web and here (and in iOS's NavIcons) together.
 //
 // All in use: the wide layout's menu and top bar (Sidebar.kt, MainView),
-// Images' People and Collections buttons, and the People and Collections pages.
+// Images' People, Collections and map buttons, the People and Collections
+// pages, and the Map area chip.
 
 /** The stroke the menu's icons are drawn with, in 24ths of their size. */
 const val NAV_STROKE = 1.8f
@@ -81,6 +82,11 @@ object NavIcons {
             circlePath(8f, 11.5f, 1.3f),
             "m4 19 4-4 3 3 2-2 3.5 3.5",
         )
+    }
+
+    /** A map pin: where the photos were taken (Places). */
+    val Places: ImageVector by lazy {
+        outlineIcon("Places", "M12 20.5s-6.5-5.4-6.5-10.5a6.5 6.5 0 0 1 13 0c0 5.1-6.5 10.5-6.5 10.5Z", circlePath(12f, 10f, 2.4f))
     }
 
     /** Images' "Add to collection" (PhotoGallery.tsx's AddToCollectionIcon): the same stack with a plus. */

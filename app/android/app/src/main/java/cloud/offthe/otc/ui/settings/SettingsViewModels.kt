@@ -32,7 +32,9 @@ import cloud.offthe.otc.proto.RestartDevice
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
+import cloud.offthe.otc.proto.SetPlacesEnabled
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
@@ -189,6 +191,10 @@ class DeviceSettingsViewModel : ViewModel() {
         val toast: UiText? = null,
         val faceRecognitionEnabled: Boolean = false, val savingFaceRecognition: Boolean = false,
         val imageTaggingEnabled: Boolean = true, val savingImageTagging: Boolean = false,
+        // Places, the map in Images: off unless turned on - the device keeps
+        // where each photo was taken, unencrypted, only while it is on. null:
+        // a device before Places (or not answered yet), with no switch.
+        val placesEnabled: Boolean? = null, val savingPlaces: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
@@ -245,9 +251,17 @@ class DeviceSettingsViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
-                state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled, imageTaggingEnabled = resp.respSettings.imageTaggingEnabled) }
+                val s = resp.respSettings
+                state.update {
+                    it.copy(
+                        faceRecognitionEnabled = s.faceRecognitionEnabled, imageTaggingEnabled = s.imageTaggingEnabled,
+                        placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
+                    )
+                }
                 // The one place the rest of the app reads it from (People in the search).
-                FaceRecognition.set(resp.respSettings.faceRecognitionEnabled)
+                FaceRecognition.set(s.faceRecognitionEnabled)
+                // Places likewise (PlacesSupport), on a device that has it.
+                PlacesSupport.set(PlacesSupport.verdict(s))
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
             }
         } catch (_: Exception) {}
@@ -262,6 +276,24 @@ class DeviceSettingsViewModel : ViewModel() {
             else FaceRecognition.set(enabled)
         } catch (e: Exception) { state.update { it.copy(faceRecognitionEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
         finally { state.update { it.copy(savingFaceRecognition = false) } }
+    }
+
+    /**
+     * Places' switch. Off deletes the positions the device kept before it
+     * answers; the map comes and goes at once (PlacesSupport). The demo
+     * device refuses it, with its own words.
+     */
+    suspend fun togglePlaces(enabled: Boolean) {
+        state.update { it.copy(savingPlaces = true, placesEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetPlacesEnabled(SetPlacesEnabled.newBuilder().setEnabled(enabled)) }
+            if (resp.ackOk()) PlacesSupport.set(enabled)
+            else {
+                state.update { it.copy(placesEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
+        } catch (e: Exception) { state.update { it.copy(placesEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(savingPlaces = false) } }
     }
 
     /** Issue #181: the tagging model, like face recognition, can be off. */

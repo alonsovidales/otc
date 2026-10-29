@@ -35,6 +35,18 @@ class SidebarTest {
         assertEquals(7, off.size)
     }
 
+    @Test fun placesAfterCollectionsOnlyWhileItIsOn() {
+        val on = menuGroups(faces = true, places = true).first().items
+        assertEquals(listOf(Section.Images, Section.People, Section.Collections, Section.Places, Section.Files), on)
+        assertFalse(Section.Places in menuGroups(faces = true).flatMap { it.items })
+        assertEquals("Places", Section.Places.label.english())
+        // A narrow window shows it in Images' place.
+        assertEquals(Section.Images, Section.Places.tab)
+        // The map's area open in Images is Places in the menu.
+        assertEquals(Section.Places, menuCurrent(Section.Images, collectionOpen = false, areaOpen = true))
+        assertEquals(Section.Collections, menuCurrent(Section.Images, collectionOpen = true, areaOpen = true))
+    }
+
     @Test fun narrowTabsShowTheMenusOwnSections() {
         assertEquals(Section.Images, Section.People.tab)
         assertEquals(Section.Images, Section.Collections.tab)

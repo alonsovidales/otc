@@ -167,6 +167,8 @@ import cloud.offthe.otc.i18n.appSettingsConnectionSave
 import cloud.offthe.otc.i18n.appSettingsConnectionTitle
 import cloud.offthe.otc.i18n.appSettingsFacesFooter
 import cloud.offthe.otc.i18n.appSettingsFacesTitle
+import cloud.offthe.otc.i18n.appSettingsPlacesFooter
+import cloud.offthe.otc.i18n.appSettingsPlacesTitle
 import cloud.offthe.otc.i18n.appSettingsFacesToggle
 import cloud.offthe.otc.i18n.appSettingsLanguage
 import cloud.offthe.otc.i18n.appSettingsLinksTitle
@@ -640,6 +642,18 @@ fun SettingsView(secrets: SecretsStore) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(S.appSettingsFacesToggle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
+                }
+            }
+
+            // Places, the map in Images: only on a device that has it, off
+            // unless turned on (the footer says the positions are kept
+            // unencrypted, and that turning it off deletes them).
+            dst.placesEnabled?.let { on ->
+                Section(S.appSettingsPlacesTitle().resolve(), S.appSettingsPlacesFooter().resolve()) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(S.appSettingsPlacesTitle().resolve(), Modifier.weight(1f))
+                        Switch(checked = on, enabled = !dst.savingPlaces, onCheckedChange = { v -> scope.launch { device.togglePlaces(v) } })
+                    }
                 }
             }
 

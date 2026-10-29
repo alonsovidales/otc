@@ -127,6 +127,9 @@ import cloud.offthe.otc.i18n.appPhotosSearchPeople
 import cloud.offthe.otc.i18n.appPhotosSearchThings
 import cloud.offthe.otc.i18n.appShellSearchClear
 import cloud.offthe.otc.i18n.appShellSearchCloseCollection
+import cloud.offthe.otc.i18n.appPhotosPlacesAreaChip
+import cloud.offthe.otc.i18n.appPhotosPlacesBackToMap
+import cloud.offthe.otc.i18n.appPhotosPlacesCloseArea
 import cloud.offthe.otc.i18n.appShellSearchField
 import cloud.offthe.otc.i18n.appShellSearchPerson
 import cloud.offthe.otc.i18n.appShellSearchRemove
@@ -514,8 +517,8 @@ private fun marked(text: String, span: Span?, markColor: Color? = null): Annotat
 @Composable
 fun TopSearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
-    modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {}, showGroup: Boolean = false,
-) = SearchField(search, gallery, st, options, modifier, onShowPhotos, showGroup, S.appShellSearchField())
+    modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {}, showGroup: Boolean = false, onShowMap: (() -> Unit)? = null,
+) = SearchField(search, gallery, st, options, modifier, onShowPhotos, showGroup, S.appShellSearchField(), onShowMap)
 
 /**
  * Files' own search field, in the narrow layout (FilesExplorerView): the
@@ -536,6 +539,7 @@ fun FilesSearchField(search: TopSearchViewModel, options: SearchOptions, modifie
 private fun SearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel?, st: PhotoGalleryViewModel.State?, options: SearchOptions,
     modifier: Modifier, onShowPhotos: () -> Unit, showGroup: Boolean, placeholderText: UiText,
+    onShowMap: (() -> Unit)? = null,
 ) {
     val placeholder = placeholderText.resolve()
     val focus = LocalFocusManager.current
@@ -548,10 +552,13 @@ private fun SearchField(
     val people = if (faces == true && st != null) st.selectedPeople else emptyList()
     val chips = st?.chips.orEmpty()
     val group = st?.activeGroup?.takeIf { showGroup }
+    // Places: the map's area open in Images, while the map doesn't show
+    // ([onShowMap] goes back to it, where it was).
+    val area = st?.activeArea?.takeIf { onShowMap != null }
     // Tags and people: what the clear button takes away. An open
-    // collection is a chip too, which only its own x closes.
+    // collection is a chip too, which only its own x closes; so is the map's area.
     val searched = people.size + chips.size
-    val chipCount = searched + (if (group != null) 1 else 0)
+    val chipCount = searched + (if (group != null) 1 else 0) + (if (area != null) 1 else 0)
     val colors = MaterialTheme.colorScheme
 
     fun dismiss() {
@@ -643,6 +650,16 @@ private fun SearchField(
                             Icon(NavIcons.Collections, null, Modifier.size(18.dp), tint = gold)
                         }
                     }
+                    // The map's area, as the collection's chip: its name goes back
+                    // to the map, its x shows every place's photos again.
+                    if (area != null && onShowMap != null) {
+                        val gold = menuColors().accent
+                        SearchChip(
+                            label = S.appPhotosPlacesAreaChip().resolve(), removeLabel = S.appPhotosPlacesCloseArea().resolve(),
+                            onRemove = { gallery.leaveArea() }, leadingPad = 8.dp,
+                            onClick = onShowMap, clickLabel = S.appPhotosPlacesBackToMap().resolve(),
+                        ) { Icon(NavIcons.Places, null, Modifier.size(18.dp), tint = gold) }
+                    }
                     val byId = st.allPeople.associateBy { it.id }
                     people.forEach { pid ->
                         val p = byId[pid]
@@ -719,12 +736,13 @@ private fun SearchField(
 @Composable
 private fun SearchChip(
     label: String, removeLabel: String, onRemove: () -> Unit, dim: Boolean = false,
-    leadingPad: Dp = 3.dp, leading: (@Composable () -> Unit)? = null,
+    leadingPad: Dp = 3.dp, onClick: (() -> Unit)? = null, clickLabel: String? = null, leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     Row(
         Modifier.height(32.dp).widthIn(max = 168.dp).clip(RoundedCornerShape(8.dp))
             .background(colors.primary.copy(alpha = 0.12f)).border(1.dp, colors.primary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .let { if (onClick != null) it.clickable(onClickLabel = clickLabel, onClick = onClick) else it }
             .padding(start = if (leading != null) leadingPad else 12.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

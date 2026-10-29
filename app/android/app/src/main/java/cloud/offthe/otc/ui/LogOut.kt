@@ -7,6 +7,7 @@ import android.content.Intent
 import cloud.offthe.otc.MainActivity
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.i18n.LanguageSettings
@@ -56,6 +57,7 @@ fun logOut(
         TourModel.reset()
         NotificationsModel.reset()
         FaceRecognition.reset()
+        PlacesSupport.reset()
         FilesNav.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()

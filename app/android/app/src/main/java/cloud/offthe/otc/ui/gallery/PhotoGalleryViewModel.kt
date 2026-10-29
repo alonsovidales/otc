@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ErrorCodes
@@ -34,6 +35,7 @@ import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.ListPeople
 import cloud.offthe.otc.proto.Person
+import cloud.offthe.otc.proto.PlaceArea
 import cloud.offthe.otc.proto.RemoveFromImageGroup
 import cloud.offthe.otc.proto.RemoveFromPerson
 import cloud.offthe.otc.proto.RenameImageGroup
@@ -245,6 +247,11 @@ class PhotoGalleryViewModel(
         // A list of collections came (the Collections page's skeleton until then).
         val groupsLoaded: Boolean = false,
         val activeGroup: ImageGroup? = null,
+        // Places: a group of the map's photos opened in Images, by its area
+        // (SearchPhotos.area, the "Map area" chip) - one more filter on the
+        // same search, as a collection is. Set only from the map, so only on
+        // a device that answers GetPhotoPlaces.
+        val activeArea: PlaceArea? = null,
         // Photo counts per month (issue #77), newest first, for the
         // scrubber, the headers' count and span, the room the last month
         // takes and the grey tiles of a month that hasn't loaded - and
@@ -329,7 +336,9 @@ class PhotoGalleryViewModel(
         /** [personShown] as the people's list has them (null: not listed, or none). */
         val personShownListed: Person? get() = personShown?.let { id -> allPeople.firstOrNull { it.id == id } }
         /** Whose date buckets this filter needs: null when it has none (a tag search). */
-        val bucketsKeyNow: String? get() = if (dateOrdered) bucketsKeyOf(selectedPeople, activeGroup?.id ?: "") else null
+        val bucketsKeyNow: String? get() = if (dateOrdered) bucketsKeyOf(selectedPeople, activeGroup?.id ?: "", activeArea) else null
+        /** What the map shows: the search as the grid has it, but the map's own area. */
+        val placesFilter: PlacesFilter get() = PlacesFilter(chips, selectedPeople, activeGroup?.id ?: "")
         val bucketsFresh get() = bucketsKeyNow != null && bucketsKey == bucketsKeyNow
         val freshBuckets: List<DateBucket> get() = if (bucketsFresh) dateBuckets else emptyList()
         val totalPhotos get() = freshBuckets.lastOrNull()?.end ?: 0
@@ -359,6 +368,17 @@ class PhotoGalleryViewModel(
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state
+
+    /** The map's places (PlacesModel.kt): one for the session, so the map comes back where it was left. */
+    val places: PlacesModel by lazy {
+        PlacesModel(
+            this.scope,
+            request = { r -> ask("places", OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetPhotoPlaces(r) } },
+            thumbs = thumbs,
+            sendThumbs = { b -> ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } },
+            pause = pause,
+        )
+    }
     private var token: String? = null
     private var searchGeneration = 0
     // A jump's cutoff (epoch ms), for the search it started: a first page
@@ -453,6 +473,7 @@ class PhotoGalleryViewModel(
     fun onAppearInitial() = scope.launch {
         watchThumbnailClears()
         watchFaceRecognition()
+        watchPlaces()
         watchImagesChanged()
         watchWake()
         listsAsked = true
@@ -473,6 +494,7 @@ class PhotoGalleryViewModel(
         if (listsAsked) return
         listsAsked = true
         watchFaceRecognition()
+        watchPlaces()
         watchImagesChanged()
         scope.launch {
             loadTags()
@@ -487,9 +509,41 @@ class PhotoGalleryViewModel(
      */
     fun showAll() {
         val st = _state.value
-        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeGroup == null) return
-        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = null) }
+        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeGroup == null && st.activeArea == null) return
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = null, activeArea = null) }
         restartSearch()
+    }
+
+    // ---- Places' map area ----
+
+    /** A group of the map's photos too close together to split, in the grid: the search as it was, narrowed to their area. */
+    fun showArea(area: PlaceArea) {
+        _state.update { it.copy(activeArea = area) }
+        restartSearch()
+    }
+
+    /** The Map area chip's x: every place's photos again. */
+    fun leaveArea() {
+        if (_state.value.activeArea == null) return
+        _state.update { it.copy(activeArea = null) }
+        restartSearch()
+    }
+
+    // Places shows only while the device says it is on (PlacesSupport):
+    // turned off - here, on another app, or a device without it - the area
+    // filter goes (the device would ignore it) and so does what the map
+    // held. Started once, by the Images grid or the wide top bar's search.
+    private var watchingPlaces = false
+    private fun watchPlaces() {
+        if (watchingPlaces) return
+        watchingPlaces = true
+        scope.launch {
+            PlacesSupport.enabled.collect { on ->
+                if (on == true) return@collect
+                leaveArea()
+                places.clear()
+            }
+        }
     }
 
     // People in the search exist only while face recognition is on
@@ -590,6 +644,8 @@ class PhotoGalleryViewModel(
     private fun imagesChanged() {
         listsFetchedAt = System.currentTimeMillis()
         restartSearch()
+        // The map's places hold what left Images.
+        places.libraryChanged()
         scope.launch {
             loadTags()
             if (FaceRecognition.enabled.value == true && loadPeople()) {
@@ -692,16 +748,20 @@ class PhotoGalleryViewModel(
         val key = st.bucketsKeyNow ?: run { _state.update { it.copy(dateBuckets = emptyList(), bucketsKey = null) }; return }
         val people = st.selectedPeople
         val group = st.activeGroup?.id ?: ""
+        val area = st.activeArea
         retryWithBackoff(stillWanted = { gen == bucketGeneration && _state.value.bucketsKeyNow == key }, sleep = pause) {
-            loadDateBucketsOnce(people, group, key, gen)
+            loadDateBucketsOnce(people, group, area, key, gen)
         }
     }
 
     /** One ask for the buckets: false when it failed and is worth asking again. */
-    private suspend fun loadDateBucketsOnce(people: List<String>, group: String, key: String, gen: Int): Boolean {
+    private suspend fun loadDateBucketsOnce(people: List<String>, group: String, area: PlaceArea?, key: String, gen: Int): Boolean {
         val resp = try {
             ask("buckets", OTCConnection.LIST_TIMEOUT_MS) {
-                it.setReqPhotoDateBuckets(ReqPhotoDateBuckets.newBuilder().addAllPersonIds(people).setGroupId(group).setIncludeVideos(true))
+                val b = ReqPhotoDateBuckets.newBuilder().addAllPersonIds(people).setGroupId(group).setIncludeVideos(true)
+                // Places' map area.
+                if (area != null) b.area = area
+                it.setReqPhotoDateBuckets(b)
             }
         } catch (e: CancellationException) {
             throw e
@@ -827,7 +887,7 @@ class PhotoGalleryViewModel(
     }
 
     /** A collection's photos: a new search, the tags and people gone (the web's openGroup). */
-    fun openGroup(g: ImageGroup) { _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = g) }; restartSearch() }
+    fun openGroup(g: ImageGroup) { _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = g, activeArea = null) }; restartSearch() }
     fun leaveGroup() { _state.update { it.copy(activeGroup = null) }; restartSearch() }
 
     suspend fun renameActiveGroup(newName: String) {
@@ -1013,7 +1073,7 @@ class PhotoGalleryViewModel(
 
     /** One person's photos, from the People page: a new search (the web's showPerson). */
     fun showPerson(id: String) {
-        _state.update { it.copy(chips = emptyList(), selectedPeople = listOf(id), activeGroup = null) }
+        _state.update { it.copy(chips = emptyList(), selectedPeople = listOf(id), activeGroup = null, activeArea = null) }
         restartSearch()
     }
 
@@ -1194,6 +1254,7 @@ class PhotoGalleryViewModel(
             resp = ask("page", OTCConnection.PAGE_TIMEOUT_MS) { e ->
                 val sp = SearchPhotos.newBuilder().addAllTags(st0.chips).addAllPersonIds(st0.selectedPeople).setGroupId(st0.activeGroup?.id ?: "")
                     .setIncludeVideos(true).setToken(tok).setHave(have).setSmallThumbnails(true).setOmitThumbnails(true)
+                st0.activeArea?.let { sp.area = it }
                 sp.limit = if (tok.isEmpty()) firstLimit else NEXT_PAGE_LIMIT_WITHOUT_THUMBS
                 // On every page of it, retries too; never `before`.
                 sp.newerThan = timestampOf(cutoff)
@@ -1384,6 +1445,7 @@ class PhotoGalleryViewModel(
             val tags = st0.chips
             val people = st0.selectedPeople
             val group = st0.activeGroup?.id ?: ""
+            val area = st0.activeArea
             val requestToken = overrideToken ?: token ?: ""
             // What this search brought, not what the grid holds: photos
             // above a jump came from another one (issue #194).
@@ -1409,6 +1471,8 @@ class PhotoGalleryViewModel(
                         // page (release 113; an older device sends them).
                         val sp = SearchPhotos.newBuilder().addAllTags(tags).addAllPersonIds(people).setGroupId(group).setIncludeVideos(true).setToken(tok).setHave(have)
                             .setSmallThumbnails(true).setOmitThumbnails(true)
+                        // Places: a group of the map's photos, by its area.
+                        if (area != null) sp.area = area
                         // A search starting here (opening, a filter, the
                         // scrubber's jump) gets a first page of its own size;
                         // scrolling on, a bigger one.
@@ -1922,6 +1986,8 @@ class PhotoGalleryViewModel(
     private fun contentChanged() {
         if (_state.value.openIndex != null) closeModal()
         if (fixedList) { onDeleted?.invoke(); return }
+        // The map's places hold what was deleted.
+        places.libraryChanged()
         val jump = jumpBefore
         if (jump != null) {
             searchJob?.cancel()
@@ -1956,6 +2022,7 @@ class PhotoGalleryViewModel(
     // scrubber) and the open collection's count follow.
     private fun countsChanged() {
         if (fixedList) return
+        places.libraryChanged()
         refillIfEmptied()
         reloadDateBuckets()
         if (_state.value.activeGroup != null) scope.launch { loadGroups() }
@@ -2109,8 +2176,9 @@ class PhotoGalleryViewModel(
         // thousands of views (the web's cMaxPlaceholders).
         const val MAX_PLACEHOLDERS = 300
 
-        /** Whose date buckets: the people and the open collection (tags never change them). */
-        fun bucketsKeyOf(people: List<String>, groupId: String) = "${people.joinToString(",")}|$groupId"
+        /** Whose date buckets: the people, the open collection and the map's area (tags never change them). */
+        fun bucketsKeyOf(people: List<String>, groupId: String, area: PlaceArea? = null) =
+            "${people.joinToString(",")}|$groupId" + (area?.let { "|${it.south},${it.west},${it.north},${it.east}" } ?: "")
     }
 }
 
@@ -2329,7 +2397,7 @@ fun personTakenOffNote(count: Int, from: Person?, to: Person?): UiText {
 enum class EmptyKind { COLLECTION, NO_MATCH, NO_PHOTOS }
 
 fun emptyKind(st: PhotoGalleryViewModel.State): EmptyKind = when {
-    st.chips.isNotEmpty() || st.selectedPeople.isNotEmpty() -> EmptyKind.NO_MATCH
+    st.chips.isNotEmpty() || st.selectedPeople.isNotEmpty() || st.activeArea != null -> EmptyKind.NO_MATCH
     st.activeGroup != null -> EmptyKind.COLLECTION
     else -> EmptyKind.NO_PHOTOS
 }

@@ -126,8 +126,11 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.8.0")
     // Issue #190: video from the device itself at home, over OkHttp pinned to its certificate.
     implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
-    // Issue #127: the EXIF panel's map - OpenStreetMap through osmdroid, no API key.
-    implementation("org.osmdroid:osmdroid-android:6.1.20")
+    // Places (the map in Images) and the viewer's info panel map: MapLibre
+    // with OpenFreeMap's tiles, the web's map (PlacesView.tsx) - no key, no
+    // Google services. Its styles are app/src/main/assets/places/
+    // (scripts/places-style.mjs).
+    implementation("org.maplibre.gl:android-sdk-opengl:13.7.1")
     implementation("androidx.media3:media3-ui-compose:1.8.0")
     // Issue #125: push notifications through Firebase Cloud Messaging.
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))

@@ -112,6 +112,7 @@ import cloud.offthe.otc.i18n.appShellSectionFiles
 import cloud.offthe.otc.i18n.appShellSectionFriends
 import cloud.offthe.otc.i18n.appShellSectionImages
 import cloud.offthe.otc.i18n.appShellSectionPeople
+import cloud.offthe.otc.i18n.appShellSectionPlaces
 import cloud.offthe.otc.i18n.appShellSectionSocial
 import cloud.offthe.otc.i18n.appShellSectionUnread
 import cloud.offthe.otc.i18n.appShellStorage
@@ -142,7 +143,7 @@ import java.util.Locale
 // layout (MainView, a window 600dp or more across - a phone turned
 // sideways, an unfolded Fold, a tablet). Grouped like a photo library -
 // what is stored (Images, People while face recognition is on,
-// Collections, Files), what is shared (Social, Friends), the device
+// Collections, Places while it is on, Files), what is shared (Social, Friends), the device
 // (Alerts, Settings) - with the storage at its foot. Beside the page it is
 // the whole menu (FULL: pill rows under headings, the storage bar) or a
 // rail (RAIL: an icon in a pill with its label under it, a hairline
@@ -164,7 +165,9 @@ enum class Section(val id: Int) {
     Settings(5),
     People(6),
     Collections(7),
-    Friends(8);
+    Friends(8),
+    /** The map in Images (PlacesMap.kt): a page of the wide menu, and on a narrow window the map in place of Images' grid. */
+    Places(9);
 
     /** Its name in the menu and the bottom bar, resolved where it is shown. */
     val label: UiText get() = when (this) {
@@ -176,11 +179,12 @@ enum class Section(val id: Int) {
         People -> S.appShellSectionPeople()
         Collections -> S.appShellSectionCollections()
         Friends -> S.appShellSectionFriends()
+        Places -> S.appShellSectionPlaces()
     }
 
     /** The bottom bar's tab that shows this section on a narrow window. */
     val tab: Section get() = when (this) {
-        People, Collections -> Images
+        People, Collections, Places -> Images
         Friends -> Social
         else -> this
     }
@@ -194,6 +198,7 @@ enum class Section(val id: Int) {
         People -> NavIcons.People
         Collections -> NavIcons.Collections
         Friends -> NavIcons.Friends
+        Places -> NavIcons.Places
     }
 
     companion object {
@@ -219,16 +224,19 @@ fun menuLayout(widthDp: Float, menuOpen: Boolean): MenuLayout = when {
 /** A group of the menu: a heading (none for the first) over its sections. */
 data class MenuGroup(val heading: UiText?, val items: List<Section>)
 
-/** The menu's groups; People only while face recognition is on. */
-fun menuGroups(faces: Boolean): List<MenuGroup> = listOf(
-    MenuGroup(null, listOfNotNull(Section.Images, Section.People.takeIf { faces }, Section.Collections, Section.Files)),
+/** The menu's groups; People only while face recognition is on, Places only while it is. */
+fun menuGroups(faces: Boolean, places: Boolean = false): List<MenuGroup> = listOf(
+    MenuGroup(null, listOfNotNull(Section.Images, Section.People.takeIf { faces }, Section.Collections, Section.Places.takeIf { places }, Section.Files)),
     MenuGroup(S.appShellMenuSharing(), listOf(Section.Social, Section.Friends)),
     MenuGroup(S.appShellMenuDevice(), listOf(Section.Alerts, Section.Settings)),
 )
 
-/** The open section, as the menu marks it: a collection open in Images is still Collections. */
-fun menuCurrent(section: Section, collectionOpen: Boolean): Section =
-    if (section == Section.Images && collectionOpen) Section.Collections else section
+/** The open section, as the menu marks it: a collection open in Images is still Collections, and the map's area Places. */
+fun menuCurrent(section: Section, collectionOpen: Boolean, areaOpen: Boolean = false): Section = when {
+    section == Section.Images && collectionOpen -> Section.Collections
+    section == Section.Images && areaOpen -> Section.Places
+    else -> section
+}
 
 // ---- storage ----
 
@@ -353,12 +361,12 @@ internal fun menuColors(): MenuColors {
 @Composable
 fun Sidebar(
     layout: MenuLayout, current: Section, faces: Boolean, unread: Int, storage: StorageSummary,
-    details: Boolean, onToggleDetails: () -> Unit, onPick: (Section) -> Unit, onStorage: () -> Unit,
+    details: Boolean, onToggleDetails: () -> Unit, onPick: (Section) -> Unit, onStorage: () -> Unit, places: Boolean = false,
     compact: Boolean, revealStorage: Boolean = false, onStorageRevealed: () -> Unit = {}, modifier: Modifier = Modifier,
 ) {
     if (layout == MenuLayout.NONE) return
     val colors = menuColors()
-    val groups = remember(faces) { menuGroups(faces) }
+    val groups = remember(faces, places) { menuGroups(faces, places) }
     val sections = S.androidMenuSections().resolve()
     Box(
         modifier.fillMaxHeight().width(if (layout == MenuLayout.FULL) SIDEBAR_WIDTH else RAIL_WIDTH).background(colors.surface)
@@ -377,11 +385,11 @@ fun Sidebar(
 @Composable
 fun MenuDrawer(
     open: Boolean, onClose: () -> Unit, current: Section, faces: Boolean, unread: Int, storage: StorageSummary,
-    details: Boolean, onToggleDetails: () -> Unit, onPick: (Section) -> Unit,
+    details: Boolean, onToggleDetails: () -> Unit, onPick: (Section) -> Unit, places: Boolean = false,
     revealStorage: Boolean = false, onStorageRevealed: () -> Unit = {},
 ) {
     val colors = menuColors()
-    val groups = remember(faces) { menuGroups(faces) }
+    val groups = remember(faces, places) { menuGroups(faces, places) }
     val sections = S.androidMenuSections().resolve()
     // Registered as it opens, so it comes before the page under it
     // (People's, Collections', Friends' own back, registered later than an
