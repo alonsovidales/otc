@@ -105,8 +105,6 @@ import kotlin.time.Duration.Companion.milliseconds
 // platform"): our own words through the S accessors, the device's as
 // UiText.Raw (it already wrote them in the request's language).
 
-internal suspend fun isPrimaryInstance(): Boolean = askIsPrimary() == true
-
 /**
  * Whether the account signed in is the device's owner (the primary
  * instance), which alone has Settings' Users; null when it couldn't be
@@ -115,6 +113,19 @@ internal suspend fun isPrimaryInstance(): Boolean = askIsPrimary() == true
 internal suspend fun askIsPrimary(): Boolean? = try {
     val r = OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
     if (r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE) r.respInstanceRole.isPrimary else null
+} catch (e: Exception) { null }
+
+/**
+ * The role as Settings' sections take it: whether this is the primary
+ * instance - a reply that isn't the role (an error) counts as not - or null
+ * when no answer came, so a section that doesn't know yet keeps its spinner
+ * and is asked again (LoadingSection).
+ */
+internal suspend fun answeredRole(): Boolean? = try {
+    val r = OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
+    r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE && r.respInstanceRole.isPrimary
+} catch (e: CancellationException) {
+    throw e
 } catch (e: Exception) { null }
 
 private fun RespEnvelope.ackOk() = payloadCase == RespEnvelope.PayloadCase.RESP_ACK && respAck.ok
@@ -337,6 +348,8 @@ class StatusViewModel : ViewModel() {
 /** Issue #94: in-place updates, primary instance only. */
 class UpdateViewModel : ViewModel() {
     data class State(
+        // answered: the role is known and, on the primary, the first check came back.
+        val answered: Boolean = false,
         val isPrimary: Boolean = false, val currentVersion: Int = 0, val latestVersion: Int = 0, val pending: List<UpdateRelease> = emptyList(),
         val currentLabel: String = "", val latestLabel: String = "",
         // message: the device's own words about the update in progress; startedHere: it was just
@@ -363,10 +376,12 @@ class UpdateViewModel : ViewModel() {
     val state = MutableStateFlow(State())
     private var poll: Job? = null
 
+    /** The role, then on the primary the update check; with no answer the section stays as it was. */
     suspend fun load() {
-        val primary = isPrimaryInstance()
+        val primary = answeredRole() ?: return
         state.update { it.copy(isPrimary = primary) }
         if (primary) check()
+        state.update { it.copy(answered = true) }
     }
 
     suspend fun check() {
@@ -459,6 +474,8 @@ class UpdateViewModel : ViewModel() {
 /** Issue #80: Tailscale Funnel as an alternative to the bridge, primary only. */
 class TailscaleViewModel : ViewModel() {
     data class State(
+        // answered: the role is known and, on the primary, the status asked once.
+        val answered: Boolean = false,
         val isPrimary: Boolean = false, val installed: Boolean = false, val loggedIn: Boolean = false, val funnelOn: Boolean = false,
         val publicUrl: String = "", val loginUrl: String = "", val authKey: String = "", val busy: Boolean = false, val note: UiText? = null, val error: UiText? = null,
     )
@@ -466,10 +483,12 @@ class TailscaleViewModel : ViewModel() {
 
     fun setAuthKey(v: String) = state.update { it.copy(authKey = v) }
 
+    /** The role, then on the primary Funnel's status; with no answer the section stays as it was. */
     suspend fun load() {
-        val primary = isPrimaryInstance()
+        val primary = answeredRole() ?: return
         state.update { it.copy(isPrimary = primary) }
         if (primary) refresh()
+        state.update { it.copy(answered = true) }
     }
 
     suspend fun refresh() {
@@ -524,6 +543,8 @@ class TailscaleViewModel : ViewModel() {
 /** Issue #82: additional users on one device, primary only. */
 class UsersManagementViewModel : ViewModel() {
     data class State(
+        // answered: the role is known and, on the primary, the users asked once.
+        val answered: Boolean = false,
         val isPrimary: Boolean = false, val users: List<User> = emptyList(), val loading: Boolean = false, val metrics: Map<String, RespUserMetrics> = emptyMap(),
         val newUsername: String = "", val newPort: String = "", val creating: Boolean = false,
         // Issue #103: an address on the bridge for the new user, on by default as in the web app.
@@ -553,10 +574,12 @@ class UsersManagementViewModel : ViewModel() {
     fun toggleDeleteTarget(uuid: String) = state.update { it.copy(deleteTargetUuid = if (it.deleteTargetUuid == uuid) null else uuid, deleteConfirmText = "") }
     fun dismissToast() = state.update { it.copy(toast = null) }
 
+    /** The role, then on the primary the users; with no answer the section stays as it was. */
     suspend fun checkRole() {
-        val primary = isPrimaryInstance()
+        val primary = answeredRole() ?: return
         state.update { it.copy(isPrimary = primary) }
         if (primary) loadUsers()
+        state.update { it.copy(answered = true) }
     }
 
     suspend fun loadUsers() {
@@ -637,6 +660,8 @@ class WifiViewModel : ViewModel() {
 
     data class State(
         val visible: Boolean = false,
+        // Shown or hidden, as the device answered; until then Settings shows a spinner.
+        val answered: Boolean = false,
         // The device's network now.
         val ssid: String = "", val signal: Int = 0, val wired: Boolean = false,
         // The picker: what the device sees, open after Change Network.
@@ -714,7 +739,7 @@ class WifiViewModel : ViewModel() {
             WifiFlow.Load.SHOW -> {
                 val st = resp.respWifiStatus
                 current(st)
-                state.update { it.copy(visible = true) }
+                state.update { it.copy(visible = true, answered = true) }
                 WifiFlow.resumeID(st)?.let { startWaiting(it, st.lastJoin.ssid) }
             }
         }
@@ -897,7 +922,7 @@ class WifiViewModel : ViewModel() {
     private fun current(s: WifiStatus) = state.update { it.copy(ssid = s.ssid, signal = s.signal, wired = s.wired) }
 
     private fun hide() = state.update {
-        it.copy(visible = false, picking = false, chosen = null, name = "", password = "", confirming = false, networks = emptyList(), note = null, error = null,
+        it.copy(visible = false, answered = true, picking = false, chosen = null, name = "", password = "", confirming = false, networks = emptyList(), note = null, error = null,
             tried = null, triedName = "")
     }
 }
@@ -916,6 +941,8 @@ fun localEndpoint(address: String) = if (address.isEmpty()) LOCAL_DEVICE_ENDPOIN
  */
 class BridgeAccountViewModel : ViewModel() {
     data class State(
+        // answered: the device has said whether the section is this account's.
+        val answered: Boolean = false,
         val visible: Boolean = false, val enabled: Boolean = false, val domain: String = "", val bridge: String = "off-the.cloud",
         val pending: Boolean = false, val leftReason: String = "", val localAddress: String = "", val busy: Boolean = false, val note: UiText? = null, val error: UiText? = null,
     )
@@ -925,10 +952,14 @@ class BridgeAccountViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqGetBridgeAccess(ReqGetBridgeAccess.getDefaultInstance()) }
             // An additional user's instance answers with an error: not theirs.
-            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_BRIDGE_ACCESS) { state.update { it.copy(visible = false) }; return }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_BRIDGE_ACCESS) { state.update { it.copy(visible = false, answered = true) }; return }
             apply(resp.respBridgeAccess)
-            state.update { it.copy(visible = true) }
-        } catch (_: Exception) { state.update { it.copy(visible = false) } }
+            state.update { it.copy(visible = true, answered = true) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // No answer: what is shown stays as it is, and it is asked again.
+        }
     }
 
     private fun apply(a: cloud.offthe.otc.proto.RespBridgeAccess) = state.update {
@@ -954,5 +985,20 @@ class BridgeAccountViewModel : ViewModel() {
             state.update { it.copy(error = e.shownText() ?: S.appSettingsBridgeLeaveFailed()) }
             return false
         } finally { state.update { it.copy(busy = false) } }
+    }
+}
+
+/**
+ * Settings > Logs' row, the primary instance only: whether to show it, as
+ * the device answered (iOS's LogsSectionViewModel). A view model, so a
+ * known answer stays while Settings comes and goes, as the other sections'.
+ */
+class LogsSectionViewModel : ViewModel() {
+    data class State(val answered: Boolean = false, val isPrimary: Boolean = false)
+    val state = MutableStateFlow(State())
+
+    suspend fun load() {
+        val primary = answeredRole() ?: return
+        state.update { State(answered = true, isPrimary = primary) }
     }
 }

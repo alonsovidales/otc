@@ -320,12 +320,16 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import cloud.offthe.otc.net.retryWaitMs
+import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.i18n.commonAdd
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonConnect
 import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonDelete
 import cloud.offthe.otc.i18n.commonDeleting
+import cloud.offthe.otc.i18n.commonLoading
 import cloud.offthe.otc.i18n.commonOk
 import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.i18n.commonPause
@@ -349,6 +353,59 @@ private fun Section(title: String, footer: String? = null, content: @Composable 
         Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
         footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) }
+    }
+}
+
+/**
+ * A section the device hasn't answered for yet (Users, Device version,
+ * Wi-Fi, Tailscale, the bridge, Logs): its header and a spinner, so it is
+ * there from the start, and gone only once the device says it has none (an
+ * additional user's account, an older device). As iOS's LoadingSection.
+ */
+@Composable
+private fun LoadingSection(title: String) {
+    Section(title) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(8.dp))
+            Caption(S.commonLoading().resolve())
+        }
+    }
+}
+
+/**
+ * A section's questions to the device: asked as Settings shows it (unless
+ * the section asks for itself, [askFirst] false), and while the device
+ * hasn't answered, again 5 s later doubling to a minute - at once at a wake
+ * (signed in again, a network up, the app back in front) - never while the
+ * app is in the background.
+ */
+@Composable
+private fun AskDevice(answered: Boolean, askFirst: Boolean = true, ask: suspend () -> Unit) {
+    val unanswered by rememberUpdatedState(!answered)
+    val latest by rememberUpdatedState(ask)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        if (askFirst) latest()
+        var failures = 0
+        while (unanswered) {
+            sleepOrWake(retryWaitMs(++failures, firstMs = 5_000, maxMs = 60_000))
+            lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.STARTED) }
+            if (unanswered) latest()
+        }
+    }
+}
+
+/** Settings > Logs, the primary instance only. */
+@Composable
+private fun LogsSection(onOpen: () -> Unit) {
+    val vm: LogsSectionViewModel = viewModel()
+    val st by vm.state.collectAsState()
+    AskDevice(st.answered) { vm.load() }
+    if (!st.answered) { LoadingSection(S.appSettingsLogsTitle().resolve()); return }
+    if (!st.isPrimary) return
+    Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
+        RowLink(S.appSettingsLogsTitle().resolve()) { onOpen() }
     }
 }
 
@@ -435,7 +492,6 @@ fun SettingsView(secrets: SecretsStore) {
     // recreates the Activity and the screen stays open through it.
     var showLanguage by rememberSaveable { mutableStateOf(false) }
     val language by LanguageSettings.choice.collectAsState()
-    var isPrimary by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         device.loadSettings()
@@ -450,7 +506,6 @@ fun SettingsView(secrets: SecretsStore) {
             try { awaitCancellation() } finally { status.stop() }
         }
     }
-    LaunchedEffect(Unit) { isPrimary = isPrimaryInstance() }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
 
     // The first-run tour's steps about Settings scroll to what they ring,
@@ -657,11 +712,7 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            if (isPrimary) {
-                Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
-                    RowLink(S.appSettingsLogsTitle().resolve()) { showLogs = true }
-                }
-            }
+            LogsSection { showLogs = true }
             Spacer(Modifier.height(24.dp))
         }
         Toast(dst.toast?.resolve(), Modifier.align(Alignment.TopCenter))
@@ -875,7 +926,8 @@ private fun UpdateSection() {
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     var confirmRestart by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.load() }
+    AskDevice(st.answered) { vm.load() }
+    if (!st.answered) { LoadingSection(S.appSettingsUpdateTitle().resolve()); return }
     if (!st.isPrimary) return
     Section(S.appSettingsUpdateTitle().resolve()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -937,15 +989,16 @@ private fun TailscaleSection() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
-    LaunchedEffect(Unit) { vm.load() }
+    AskDevice(st.answered) { vm.load() }
     // Authorising happens in the browser, so coming back is when the device has news.
     DisposableEffect(lifecycle) {
         val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME && vm.state.value.isPrimary) scope.launch { vm.refresh() } }
         lifecycle.lifecycle.addObserver(obs)
         onDispose { lifecycle.lifecycle.removeObserver(obs) }
     }
+    if (!st.answered) { LoadingSection(TAILSCALE_FUNNEL); return }
     if (!st.isPrimary) return
-    Section("Tailscale Funnel") {
+    Section(TAILSCALE_FUNNEL) {
         if (st.funnelOn) Caption(S.appSettingsTailscaleServed(st.publicUrl).resolve())
         if (st.installed) {
             Caption(S.appSettingsTailscaleIntro().resolve())
@@ -971,6 +1024,9 @@ private fun TailscaleSection() {
         st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }
 }
+
+/** The Tailscale section's header: the product's name, in every language. */
+private const val TAILSCALE_FUNNEL = "Tailscale Funnel" // i18n-ignore: a product name
 
 /** A limitation of Tailscale Funnel after a bullet, as plain text (its lead is bold on the iPhone). */
 @Composable
@@ -1006,7 +1062,12 @@ private fun WifiSection() {
     }
     // Leaving Settings: no more looks, and nothing typed is kept.
     DisposableEffect(Unit) { onDispose { vm.leave() } }
-    if (!st.visible) return
+    // Asked again while the device hasn't said whether it shows.
+    AskDevice(st.answered, askFirst = false) { vm.load() }
+    if (!st.visible) {
+        if (!st.answered) LoadingSection(S.appSettingsWifiTitle().resolve())
+        return
+    }
     Section(S.appSettingsWifiTitle().resolve(), S.appSettingsWifiIntro().resolve()) {
         Caption((if (st.ssid.isNotEmpty()) S.appSettingsWifiOnWifi(st.ssid, WifiFlow.percent(st.signal).resolve()) else S.appSettingsWifiNoWifi()).resolve())
         if (st.wired) Caption(S.appSettingsWifiOnCable().resolve())
@@ -1166,8 +1227,11 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
     val context = LocalContext.current
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.load() }
-    if (!st.visible) return
+    AskDevice(st.answered) { vm.load() }
+    if (!st.visible) {
+        if (!st.answered) LoadingSection(S.appSettingsBridgeTitle().resolve())
+        return
+    }
     fun open(path: String) = Share.openInBrowser(context, "https://${st.bridge}/$path")
     Section(S.appSettingsBridgeTitle().resolve(), if (st.enabled) S.appSettingsBridgeFooter(st.localAddress.ifEmpty { "otc.local:8080" }).resolve() else null) {
         if (st.enabled) {
@@ -1205,7 +1269,8 @@ private fun UsersManagementSection() {
     val vm: UsersManagementViewModel = viewModel()
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) { vm.checkRole() }
+    AskDevice(st.answered) { vm.checkRole() }
+    if (!st.answered) { LoadingSection(S.appSettingsUsersTitle().resolve()); return }
     if (!st.isPrimary) return
     val usernameValid = st.newUsername.trim().let { it.isNotEmpty() && Regex("^[a-z0-9-]+$").matches(it) }
     Section(S.appSettingsUsersTitle().resolve()) {
