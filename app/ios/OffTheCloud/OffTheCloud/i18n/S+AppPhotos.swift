@@ -815,6 +815,54 @@ extension S {
         L("app.photos.person.removed_unnamed", table: "AppPhotos", count)
     }
 
+    /// Map area
+    ///
+    /// Chip over the grid in Images once a group of photos on the map was opened: the grid shows only the photos and videos taken in that area of the map. Tapping it shows the map again; its × shows the photos of every place again (app.photos.places.close_area).
+    static var appPhotosPlacesAreaChip: String { L("app.photos.places.area_chip", table: "AppPhotos") }
+
+    /// Back to the map
+    ///
+    /// Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was.
+    static var appPhotosPlacesBackToMap: String { L("app.photos.places.back_to_map", table: "AppPhotos") }
+
+    /// Close the map area
+    ///
+    /// Screen-reader name of the × on the Map area chip (app.photos.places.area_chip): the grid shows every photo again, not only those taken in that area.
+    static var appPhotosPlacesCloseArea: String { L("app.photos.places.close_area", table: "AppPhotos") }
+
+    /// Couldn't load the photos on the map
+    ///
+    /// Small banner over the map (Places) while the device hasn't answered for the photos to draw there. They are asked for again by themselves; the banner's button is common.try_again.
+    static var appPhotosPlacesFailed: String { L("app.photos.places.failed", table: "AppPhotos") }
+
+    /// No photos with a location yet
+    ///
+    /// Over the map in Images (Places) when no photo or video has a position: a phone records one when the camera may use the location.
+    static var appPhotosPlacesNone: String { L("app.photos.places.none", table: "AppPhotos") }
+
+    /// None of these photos has a location
+    ///
+    /// Over the map in Images (Places) when a search, a person or a collection is picked and none of the photos and videos it shows has a position.
+    static var appPhotosPlacesNoneFiltered: String { L("app.photos.places.none_filtered", table: "AppPhotos") }
+
+    /// one: {count} item here
+    /// other: {count} items here
+    ///
+    /// Screen-reader name of a group of photos on the map (Places): a round thumbnail with a count, drawn at the place they were taken. {count} is how many photos and videos it holds, always 2 or more (a single photo is read as app.photos.grid.tile_photo_on). Tapping it zooms in, or opens them in Images.
+    static func appPhotosPlacesPin(count: Int) -> String {
+        L("app.photos.places.pin", table: "AppPhotos", count)
+    }
+
+    /// Show as a grid
+    ///
+    /// Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos.
+    static var appPhotosPlacesShowGrid: String { L("app.photos.places.show_grid", table: "AppPhotos") }
+
+    /// Show on the map
+    ///
+    /// Screen-reader name of the button at the top of Images on a narrow phone screen, next to the People and Collections buttons: shows the photos and videos on a map, at the places they were taken, in place of the grid of photos.
+    static var appPhotosPlacesShowMap: String { L("app.photos.places.show_map", table: "AppPhotos") }
+
     /// “{text}” is already in the search.
     ///
     /// Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style.

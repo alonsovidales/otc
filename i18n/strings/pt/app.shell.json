@@ -487,6 +487,10 @@
     "text": "Pessoas",
     "en": "People"
   },
+  "app.shell.section_places": {
+    "text": "Locais",
+    "en": "Places"
+  },
   "app.shell.section_settings": {
     "text": "Definições",
     "en": "Settings"

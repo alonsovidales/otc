@@ -721,6 +721,48 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "app.photos.places.area_chip": {
+    "text": "Zona della mappa",
+    "en": "Map area"
+  },
+  "app.photos.places.back_to_map": {
+    "text": "Torna alla mappa",
+    "en": "Back to the map"
+  },
+  "app.photos.places.close_area": {
+    "text": "Chiudi la zona della mappa",
+    "en": "Close the map area"
+  },
+  "app.photos.places.failed": {
+    "text": "Impossibile caricare le foto sulla mappa",
+    "en": "Couldn't load the photos on the map"
+  },
+  "app.photos.places.none": {
+    "text": "Ancora nessuna foto con posizione",
+    "en": "No photos with a location yet"
+  },
+  "app.photos.places.none_filtered": {
+    "text": "Nessuna di queste foto ha una posizione",
+    "en": "None of these photos has a location"
+  },
+  "app.photos.places.pin": {
+    "text": {
+      "one": "{count} elemento qui",
+      "other": "{count} elementi qui"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "app.photos.places.show_grid": {
+    "text": "Mostra come griglia",
+    "en": "Show as a grid"
+  },
+  "app.photos.places.show_map": {
+    "text": "Mostra sulla mappa",
+    "en": "Show on the map"
+  },
   "app.photos.search.already": {
     "text": "“{text}” è già nella ricerca.",
     "en": "“{text}” is already in the search."

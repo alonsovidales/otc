@@ -466,6 +466,10 @@ fun S.appShellSectionImages(): UiText =
 fun S.appShellSectionPeople(): UiText =
     UiText.Res(R.string.app_shell_section_people)
 
+/** "Places": Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen, right after Collections, and the Places page's name: a map with the photos and videos at the places they were taken (from the position the camera recorded in them). */
+fun S.appShellSectionPlaces(): UiText =
+    UiText.Res(R.string.app_shell_section_places)
+
 /** "Settings": Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's and the app's settings. Kept short: the rail cuts longer labels. */
 fun S.appShellSectionSettings(): UiText =
     UiText.Res(R.string.app_shell_section_settings)

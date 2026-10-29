@@ -218,6 +218,18 @@
         <item quantity="one">Removed %1$s photo from this person</item>
         <item quantity="other">Removed %1$s photos from this person</item>
     </plurals>
+    <string name="app_photos_places_area_chip">Map area</string>
+    <string name="app_photos_places_back_to_map">Back to the map</string>
+    <string name="app_photos_places_close_area">Close the map area</string>
+    <string name="app_photos_places_failed">Couldn\'t load the photos on the map</string>
+    <string name="app_photos_places_none">No photos with a location yet</string>
+    <string name="app_photos_places_none_filtered">None of these photos has a location</string>
+    <plurals name="app_photos_places_pin">
+        <item quantity="one">%1$s item here</item>
+        <item quantity="other">%1$s items here</item>
+    </plurals>
+    <string name="app_photos_places_show_grid">Show as a grid</string>
+    <string name="app_photos_places_show_map">Show on the map</string>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” is already in the search.</string>
     <string name="app_photos_search_documents">Search documents for “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
     <string name="app_photos_search_files">Files</string>

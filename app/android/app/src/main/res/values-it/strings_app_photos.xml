@@ -246,6 +246,19 @@
         <item quantity="many">%1$s foto tolte da questa persona</item>
         <item quantity="other">%1$s foto tolte da questa persona</item>
     </plurals>
+    <string name="app_photos_places_area_chip">Zona della mappa</string>
+    <string name="app_photos_places_back_to_map">Torna alla mappa</string>
+    <string name="app_photos_places_close_area">Chiudi la zona della mappa</string>
+    <string name="app_photos_places_failed">Impossibile caricare le foto sulla mappa</string>
+    <string name="app_photos_places_none">Ancora nessuna foto con posizione</string>
+    <string name="app_photos_places_none_filtered">Nessuna di queste foto ha una posizione</string>
+    <plurals name="app_photos_places_pin">
+        <item quantity="one">%1$s elemento qui</item>
+        <item quantity="many">%1$s elementi qui</item>
+        <item quantity="other">%1$s elementi qui</item>
+    </plurals>
+    <string name="app_photos_places_show_grid">Mostra come griglia</string>
+    <string name="app_photos_places_show_map">Mostra sulla mappa</string>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” è già nella ricerca.</string>
     <string name="app_photos_search_documents">Cerca “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;” nei documenti</string>
     <string name="app_photos_search_files">File</string>

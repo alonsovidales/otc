@@ -219,6 +219,18 @@
         <item quantity="one">%1$s Foto von dieser Person entfernt</item>
         <item quantity="other">%1$s Fotos von dieser Person entfernt</item>
     </plurals>
+    <string name="app_photos_places_area_chip">Kartenbereich</string>
+    <string name="app_photos_places_back_to_map">Zurück zur Karte</string>
+    <string name="app_photos_places_close_area">Kartenbereich schließen</string>
+    <string name="app_photos_places_failed">Die Fotos auf der Karte konnten nicht geladen werden</string>
+    <string name="app_photos_places_none">Noch keine Fotos mit Ort</string>
+    <string name="app_photos_places_none_filtered">Keines dieser Fotos hat einen Ort</string>
+    <plurals name="app_photos_places_pin">
+        <item quantity="one">%1$s Element hier</item>
+        <item quantity="other">%1$s Elemente hier</item>
+    </plurals>
+    <string name="app_photos_places_show_grid">Als Raster zeigen</string>
+    <string name="app_photos_places_show_map">Auf der Karte zeigen</string>
     <string name="app_photos_search_already">„\u2068%1$s\u2069“ ist bereits in der Suche.</string>
     <string name="app_photos_search_documents">Dokumente nach „&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;“ durchsuchen</string>
     <string name="app_photos_search_files">Dateien</string>

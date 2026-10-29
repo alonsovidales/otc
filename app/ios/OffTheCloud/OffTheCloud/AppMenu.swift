@@ -18,11 +18,13 @@
 //      ring), and the menu button lays the whole menu over the page.
 //
 //  The sections are the web's: Images, People (only while face
-//  recognition is on), Collections, Files | Sharing: Social, Friends |
-//  Device: Alerts, Settings. People, Collections and Friends are pages of
-//  their own here; on a narrow window they are sheets over Images and
-//  Social, and MainView moves one between the two when the window
-//  changes. Narrower than 600 the app keeps its bottom bar, unchanged.
+//  recognition is on), Collections, Places (only on a device that has the
+//  map, PlacesSupport), Files | Sharing: Social, Friends | Device: Alerts,
+//  Settings. People, Collections, Places and Friends are pages of their
+//  own here; on a narrow window they are sheets over Images and Social
+//  (Places the switch to the map at Images' top), and MainView moves one
+//  between the two when the window changes. Narrower than 600 the app
+//  keeps its bottom bar, unchanged.
 //
 //  Colours: the web's, in the phone's light or dark - its gold marks the
 //  open section (darker in light mode, to be read on white), its ember
@@ -35,16 +37,17 @@ import UIKit
 // MARK: - Sections and widths
 
 /// A section of the app as the wide layout's menu lists it. Most are a
-/// tab of the bottom bar; People, Collections and Friends are pages that
-/// a narrow window opens as sheets from Images and Social.
+/// tab of the bottom bar; People, Collections, Places and Friends are
+/// pages that a narrow window opens from Images and Social.
 enum AppSection: String, CaseIterable, Hashable {
-    case images, people, collections, files, social, friends, alerts, settings
+    case images, people, collections, places, files, social, friends, alerts, settings
 
     var label: String {
         switch self {
         case .images: return S.appShellSectionImages
         case .people: return S.appShellSectionPeople
         case .collections: return S.appShellSectionCollections
+        case .places: return S.appShellSectionPlaces
         case .files: return S.appShellSectionFiles
         case .social: return S.appShellSectionSocial
         case .friends: return S.appShellSectionFriends
@@ -58,6 +61,7 @@ enum AppSection: String, CaseIterable, Hashable {
         case .images: return .images
         case .people: return .people
         case .collections: return .collections
+        case .places: return .places
         case .files: return .files
         case .social: return .social
         case .friends: return .friends
@@ -73,13 +77,13 @@ enum AppSection: String, CaseIterable, Hashable {
         case .alerts: return 0
         case .social, .friends: return 1
         case .files: return 3
-        case .images, .people, .collections: return 4
+        case .images, .people, .collections, .places: return 4
         case .settings: return 5
         }
     }
 
     /// A page of its own only in the wide layout: a sheet otherwise.
-    var isPage: Bool { self == .people || self == .collections || self == .friends }
+    var isPage: Bool { self == .people || self == .collections || self == .places || self == .friends }
 
     /// The section a bottom bar tab shows.
     static func forTab(_ tab: Int) -> AppSection {
@@ -93,11 +97,13 @@ enum AppSection: String, CaseIterable, Hashable {
     }
 
     /// The menu's groups, as the web's Sidebar: what is stored, what is
-    /// shared, then the device. People only while face recognition is on.
-    /// Made at each render, so the headings are in the language shown.
-    static func menu(faces: Bool) -> [MenuGroup] {
-        [
-            MenuGroup(heading: nil, items: faces ? [.images, .people, .collections, .files] : [.images, .collections, .files]),
+    /// shared, then the device. People only while face recognition is on,
+    /// Places only on a device that has the map. Made at each render, so
+    /// the headings are in the language shown.
+    static func menu(faces: Bool, places: Bool = false) -> [MenuGroup] {
+        let stored: [AppSection] = [.images] + (faces ? [.people] : []) + [.collections] + (places ? [.places] : []) + [.files]
+        return [
+            MenuGroup(heading: nil, items: stored),
             MenuGroup(heading: S.appShellMenuSharing, items: [.social, .friends]),
             MenuGroup(heading: S.appShellMenuDevice, items: [.alerts, .settings]),
         ]

@@ -922,6 +922,7 @@ enum AppLogOut {
             UploadModel.shared.reset()
             SocialFeedViewModel.shared.reset()
             FaceRecognition.shared.reset()
+            PlacesSupport.shared.reset()
             FilesNav.shared.reset()
             OTCConnection.shared.reset()
             MediaStream.reset()

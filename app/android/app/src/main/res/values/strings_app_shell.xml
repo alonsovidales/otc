@@ -122,6 +122,7 @@
     <string name="app_shell_section_friends">Friends</string>
     <string name="app_shell_section_images">Images</string>
     <string name="app_shell_section_people">People</string>
+    <string name="app_shell_section_places">Places</string>
     <string name="app_shell_section_settings">Settings</string>
     <string name="app_shell_section_social">Social</string>
     <plurals name="app_shell_section_unread">

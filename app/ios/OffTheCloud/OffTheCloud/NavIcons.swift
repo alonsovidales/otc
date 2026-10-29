@@ -22,7 +22,7 @@ import UIKit
 
 enum NavIcon: CaseIterable, Hashable {
     // The web's menu (NavIcons.tsx).
-    case menu, images, people, collections, files, social, friends, alerts, settings, storage, chevron
+    case menu, images, people, collections, places, files, social, friends, alerts, settings, storage, chevron
     // Images' selection bar: a collection with a plus, and with a minus
     // inside an open collection (PhotoGallery.tsx).
     case addToCollection, removeFromCollection
@@ -59,6 +59,9 @@ enum NavIcon: CaseIterable, Hashable {
                 .circle(8, 11.5, 1.3),
                 .path("m4 19 4-4 3 3 2-2 3.5 3.5"),
             ]
+        case .places:
+            // A map pin: where the photos were taken.
+            return [.path("M12 20.5s-6-5.4-6-10.5a6 6 0 0 1 12 0c0 5.1-6 10.5-6 10.5Z"), .circle(12, 10, 2.3)]
         case .files:
             return [.path("M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z")]
         case .social:

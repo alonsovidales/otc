@@ -721,6 +721,48 @@
       "other": "Removed {count} photos from this person"
     }
   },
+  "app.photos.places.area_chip": {
+    "text": "Kaartgebied",
+    "en": "Map area"
+  },
+  "app.photos.places.back_to_map": {
+    "text": "Terug naar de kaart",
+    "en": "Back to the map"
+  },
+  "app.photos.places.close_area": {
+    "text": "Kaartgebied sluiten",
+    "en": "Close the map area"
+  },
+  "app.photos.places.failed": {
+    "text": "De foto’s op de kaart konden niet worden geladen",
+    "en": "Couldn't load the photos on the map"
+  },
+  "app.photos.places.none": {
+    "text": "Nog geen foto’s met een locatie",
+    "en": "No photos with a location yet"
+  },
+  "app.photos.places.none_filtered": {
+    "text": "Geen van deze foto’s heeft een locatie",
+    "en": "None of these photos has a location"
+  },
+  "app.photos.places.pin": {
+    "text": {
+      "one": "{count} item hier",
+      "other": "{count} items hier"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "app.photos.places.show_grid": {
+    "text": "Als raster tonen",
+    "en": "Show as a grid"
+  },
+  "app.photos.places.show_map": {
+    "text": "Op de kaart tonen",
+    "en": "Show on the map"
+  },
   "app.photos.search.already": {
     "text": "“{text}” staat al in de zoekopdracht.",
     "en": "“{text}” is already in the search."

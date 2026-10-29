@@ -550,6 +550,42 @@ fun S.appPhotosPersonRemoved(count: Int, name: String): UiText =
 fun S.appPhotosPersonRemovedUnnamed(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_person_removed_unnamed, count, listOf(count))
 
+/** "Map area": Chip over the grid in Images once a group of photos on the map was opened: the grid shows only the photos and videos taken in that area of the map. Tapping it shows the map again; its × shows the photos of every place again (app.photos.places.close_area). */
+fun S.appPhotosPlacesAreaChip(): UiText =
+    UiText.Res(R.string.app_photos_places_area_chip)
+
+/** "Back to the map": Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was. */
+fun S.appPhotosPlacesBackToMap(): UiText =
+    UiText.Res(R.string.app_photos_places_back_to_map)
+
+/** "Close the map area": Screen-reader name of the × on the Map area chip (app.photos.places.area_chip): the grid shows every photo again, not only those taken in that area. */
+fun S.appPhotosPlacesCloseArea(): UiText =
+    UiText.Res(R.string.app_photos_places_close_area)
+
+/** "Couldn't load the photos on the map": Small banner over the map (Places) while the device hasn't answered for the photos to draw there. They are asked for again by themselves; the banner's button is common.try_again. */
+fun S.appPhotosPlacesFailed(): UiText =
+    UiText.Res(R.string.app_photos_places_failed)
+
+/** "No photos with a location yet": Over the map in Images (Places) when no photo or video has a position: a phone records one when the camera may use the location. */
+fun S.appPhotosPlacesNone(): UiText =
+    UiText.Res(R.string.app_photos_places_none)
+
+/** "None of these photos has a location": Over the map in Images (Places) when a search, a person or a collection is picked and none of the photos and videos it shows has a position. */
+fun S.appPhotosPlacesNoneFiltered(): UiText =
+    UiText.Res(R.string.app_photos_places_none_filtered)
+
+/** "{count} items here" (one: "{count} item here"): Screen-reader name of a group of photos on the map (Places): a round thumbnail with a count, drawn at the place they were taken. {count} is how many photos and videos it holds, always 2 or more (a single photo is read as app.photos.grid.tile_photo_on). Tapping it zooms in, or opens them in Images. */
+fun S.appPhotosPlacesPin(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_places_pin, count, listOf(count))
+
+/** "Show as a grid": Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos. */
+fun S.appPhotosPlacesShowGrid(): UiText =
+    UiText.Res(R.string.app_photos_places_show_grid)
+
+/** "Show on the map": Screen-reader name of the button at the top of Images on a narrow phone screen, next to the People and Collections buttons: shows the photos and videos on a map, at the places they were taken, in place of the grid of photos. */
+fun S.appPhotosPlacesShowMap(): UiText =
+    UiText.Res(R.string.app_photos_places_show_map)
+
 /** "“{text}” is already in the search.": Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style. */
 fun S.appPhotosSearchAlready(text: String): UiText =
     UiText.Res(R.string.app_photos_search_already, listOf(text))

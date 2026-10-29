@@ -123,6 +123,7 @@
     <string name="app_shell_section_friends">Vrienden</string>
     <string name="app_shell_section_images">Afbeeldingen</string>
     <string name="app_shell_section_people">Personen</string>
+    <string name="app_shell_section_places">Plaatsen</string>
     <string name="app_shell_section_settings">Instellingen</string>
     <string name="app_shell_section_social">Social</string>
     <plurals name="app_shell_section_unread">

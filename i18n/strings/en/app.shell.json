@@ -544,6 +544,11 @@
     "note": "Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the people found by face recognition; shown only while face recognition is on.",
     "max": 12
   },
+  "app.shell.section_places": {
+    "text": "Places",
+    "note": "Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen, right after Collections, and the Places page's name: a map with the photos and videos at the places they were taken (from the position the camera recorded in them).",
+    "max": 12
+  },
   "app.shell.section_settings": {
     "text": "Settings",
     "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's and the app's settings. Kept short: the rail cuts longer labels.",

@@ -27,6 +27,10 @@ struct WideLayoutTests {
         let off = AppSection.menu(faces: false)
         #expect(off[0].items == [.images, .collections, .files])
         #expect(!off.flatMap(\.items).contains(.people))
+        // Places after Collections, only on a device that has the map.
+        #expect(!on.flatMap(\.items).contains(.places))
+        #expect(AppSection.menu(faces: true, places: true)[0].items == [.images, .people, .collections, .places, .files])
+        #expect(AppSection.menu(faces: false, places: true)[0].items == [.images, .collections, .places, .files])
     }
 
     @Test func eachSectionHasItsTab() {
@@ -36,9 +40,10 @@ struct WideLayoutTests {
         // The pages open over the tab whose sheet they are on a narrow window.
         #expect(AppSection.people.tab == AppSection.images.tab)
         #expect(AppSection.collections.tab == AppSection.images.tab)
+        #expect(AppSection.places.tab == AppSection.images.tab)
         #expect(AppSection.friends.tab == AppSection.social.tab)
-        #expect(AppSection.allCases.filter(\.isPage) == [.people, .collections, .friends])
-        #expect(AppSection.allCases.map(\.label) == ["Images", "People", "Collections", "Files", "Social", "Friends", "Alerts", "Settings"])
+        #expect(AppSection.allCases.filter(\.isPage) == [.people, .collections, .places, .friends])
+        #expect(AppSection.allCases.map(\.label) == ["Images", "People", "Collections", "Places", "Files", "Social", "Friends", "Alerts", "Settings"])
     }
 }
 

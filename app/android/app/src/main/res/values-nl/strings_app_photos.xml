@@ -219,6 +219,18 @@
         <item quantity="one">%1$s foto bij deze persoon weggehaald</item>
         <item quantity="other">%1$s foto’s bij deze persoon weggehaald</item>
     </plurals>
+    <string name="app_photos_places_area_chip">Kaartgebied</string>
+    <string name="app_photos_places_back_to_map">Terug naar de kaart</string>
+    <string name="app_photos_places_close_area">Kaartgebied sluiten</string>
+    <string name="app_photos_places_failed">De foto’s op de kaart konden niet worden geladen</string>
+    <string name="app_photos_places_none">Nog geen foto’s met een locatie</string>
+    <string name="app_photos_places_none_filtered">Geen van deze foto’s heeft een locatie</string>
+    <plurals name="app_photos_places_pin">
+        <item quantity="one">%1$s item hier</item>
+        <item quantity="other">%1$s items hier</item>
+    </plurals>
+    <string name="app_photos_places_show_grid">Als raster tonen</string>
+    <string name="app_photos_places_show_map">Op de kaart tonen</string>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” staat al in de zoekopdracht.</string>
     <string name="app_photos_search_documents">Documenten doorzoeken op “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
     <string name="app_photos_search_files">Bestanden</string>

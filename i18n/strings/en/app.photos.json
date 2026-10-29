@@ -757,6 +757,50 @@
     "args": [["count", "count"]],
     "note": "app.photos.person.removed for a person without a name. {count} is how many photos."
   },
+  "app.photos.places.area_chip": {
+    "text": "Map area",
+    "note": "Chip over the grid in Images once a group of photos on the map was opened: the grid shows only the photos and videos taken in that area of the map. Tapping it shows the map again; its × shows the photos of every place again (app.photos.places.close_area).",
+    "max": 24
+  },
+  "app.photos.places.back_to_map": {
+    "text": "Back to the map",
+    "note": "Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was."
+  },
+  "app.photos.places.close_area": {
+    "text": "Close the map area",
+    "note": "Screen-reader name of the × on the Map area chip (app.photos.places.area_chip): the grid shows every photo again, not only those taken in that area."
+  },
+  "app.photos.places.failed": {
+    "text": "Couldn't load the photos on the map",
+    "note": "Small banner over the map (Places) while the device hasn't answered for the photos to draw there. They are asked for again by themselves; the banner's button is common.try_again.",
+    "max": 60
+  },
+  "app.photos.places.none": {
+    "text": "No photos with a location yet",
+    "note": "Over the map in Images (Places) when no photo or video has a position: a phone records one when the camera may use the location.",
+    "max": 60
+  },
+  "app.photos.places.none_filtered": {
+    "text": "None of these photos has a location",
+    "note": "Over the map in Images (Places) when a search, a person or a collection is picked and none of the photos and videos it shows has a position.",
+    "max": 60
+  },
+  "app.photos.places.pin": {
+    "text": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of a group of photos on the map (Places): a round thumbnail with a count, drawn at the place they were taken. {count} is how many photos and videos it holds, always 2 or more (a single photo is read as app.photos.grid.tile_photo_on). Tapping it zooms in, or opens them in Images."
+  },
+  "app.photos.places.show_grid": {
+    "text": "Show as a grid",
+    "note": "Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos."
+  },
+  "app.photos.places.show_map": {
+    "text": "Show on the map",
+    "note": "Screen-reader name of the button at the top of Images on a narrow phone screen, next to the People and Collections buttons: shows the photos and videos on a map, at the places they were taken, in place of the grid of photos."
+  },
   "app.photos.search.already": {
     "text": "“{text}” is already in the search.",
     "args": [["text", "user"]],

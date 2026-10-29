@@ -43,12 +43,15 @@ struct MainView: View {
     @StateObject private var fileSearch = TopSearchModel(scope: .files)
     @State private var filesHandOff = FilesSearchHandOff()
     @ObservedObject private var faces = FaceRecognition.shared
+    /// Places: the menu's page, only on a device that has the map.
+    @ObservedObject private var placesSupport = PlacesSupport.shared
     /// The window's size, safe areas included.
     @State private var windowSize: CGSize
     /// Whether the keyboard shows: the search's panel may rise over its field.
     @State private var keyboardUp = false
-    /// People, Collections or Friends shown as a page over the tabs (a wide
-    /// window only; a narrow one has them as sheets).
+    /// People, Collections, Places or Friends shown as a page over the tabs
+    /// (a wide window only; a narrow one has them as sheets, and the map in
+    /// Images' place).
     @State private var page: AppSection?
     /// Social's Friends sheet - here so that it can become the Friends page.
     @State private var friendsSheet = false
@@ -123,6 +126,17 @@ struct MainView: View {
             // Face recognition turned off: no People page.
             .onChange(of: faces.isOn) { _, on in
                 if !on && page == .people { show(.images) }
+            }
+            // A device without the map: no Places page.
+            .onChange(of: placesSupport.isOn) { _, on in
+                if !on && page == .places { show(.images) }
+            }
+            // The map asked for from Images (the Map area chip): a wide
+            // window has it as its page.
+            .onChange(of: gallery.showMap) { _, map in
+                guard map && wide else { return }
+                gallery.showMap = false
+                page = .places
             }
             .onChange(of: tour.shown, initial: true) { _, shown in tourShownChanged(shown) }
             .onChange(of: tour.step) { _, _ in showTourSection() }
@@ -287,10 +301,13 @@ struct MainView: View {
 
     // MARK: The wide layout (AppMenu.swift)
 
-    /// People, Collections and Friends as pages of their own.
+    /// People, Collections, Places and Friends as pages of their own.
     @ViewBuilder
     private func pageView(_ p: AppSection) -> some View {
         switch p {
+        case .places:
+            // A group opened from the map shows in Images.
+            PlacesMapView(vm: gallery, onShowInImages: { show(.images) })
         case .people:
             NavigationStack {
                 PeopleView(vm: gallery, onOpenPhotos: { show(.images) })
@@ -307,17 +324,18 @@ struct MainView: View {
     }
 
     /// The section the menu marks: a collection open in Images is still
-    /// the Collections section, as on the web.
+    /// the Collections section, as on the web, and the map's area Places.
     private var currentSection: AppSection {
         if let page { return page }
         if selectedTab == AppSection.images.tab && gallery.activeGroup != nil { return .collections }
+        if selectedTab == AppSection.images.tab && gallery.activeArea != nil { return .places }
         return AppSection.forTab(selectedTab)
     }
 
     private func sideMenu(_ layout: WideLayout.Menu) -> some View {
         SideMenu(
             layout: layout,
-            groups: AppSection.menu(faces: faces.isOn),
+            groups: AppSection.menu(faces: faces.isOn, places: placesSupport.isOn),
             current: currentSection,
             unread: notifications.unacknowledgedCount,
             storage: StorageSummary(status: storage.status, error: storage.errorText),
@@ -493,6 +511,10 @@ struct MainView: View {
             } else if gallery.showGroups {
                 gallery.showGroups = false
                 page = .collections
+            } else if gallery.showMap {
+                // The map carries on as the page, where it was.
+                gallery.showMap = false
+                page = .places
             }
         } else if let p = page {
             // The sheet carries on with what the page was doing.
@@ -507,6 +529,8 @@ struct MainView: View {
                 case .collections:
                     Task { await gallery.loadGroups() }
                     gallery.showGroups = true
+                case .places:
+                    gallery.showMap = placesSupport.isOn
                 case .friends:
                     friendsSheet = true
                 default:

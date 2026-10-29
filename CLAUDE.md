@@ -2770,6 +2770,33 @@ Settings shows the section's header and a spinner with `common.loading` (iOS `Lo
 per section, a blank box on a slow connection). A request with no answer leaves a section as it was:
 the unanswered ones are asked again after 5 s, doubling to a minute, while Settings shows, and all of
 them whenever Settings shows and at each wake.
+**Places, the map in Images** (2026-10-29; iOS `Places.swift`; Android follows on Google Maps - the
+Maps SDK, its key kept out of the repo like `google-services.json` - and isn't built yet). Only on a
+device that answered `GetPhotoPlaces` (`PlacesSupport`: asked on every connection from
+`OTCConnection.connected`, the last answer kept in defaults `placesSupported` so it doesn't come and
+go at launch, reset at Log Out; `unknown_payload` hides it and drops the area filter): the wide
+layout's menu has Places after Collections (`AppSection.places`, a page), a narrow window a grid/map
+switch in Images' search row (`vm.showMap`; MainView moves one to the other as the window changes).
+The map shows what Images would show (`PlacesFilter`: tags, people, collection, videos always), on
+Apple's map (SwiftUI `Map`, muted, no points of interest, pan and zoom only), opening where it was
+left for the same search or framed on `located_area` (a single spot about a town across; the world
+with "No photos with a location yet" when none has one). `PlacesModel` (one for the session,
+`PhotoGalleryVM.places`) asks only while the map shows, once the camera rests 200 ms, for the screen's tiles and one around
+them at `PlaceTiles.zoom` (log2(width·360/(256·lonSpan)) rounded down, 0-20) - 64 a request, the
+extent first (zoom 0, the world's tile), the next zoom's after 600 ms more -, keeps answers per
+(filter, zoom, x, y) for 5 minutes or until the library changes (`PlacesCache`; a delete, a folder
+kept out, the map shown again after a minute), draws kept tiles at once and the pins drawn before for
+a tile on its way, retries with the pages' backoff (a "Couldn't load the photos on the map" banner
+with Try again meanwhile), and merges places closer than 54 points on the screen (`PinMerge`: the
+biggest first, the newest cover and its id, so a pin keeps its place across zooms; again until no
+two are that close, as a merged pin moves). A pin
+(`PlacePinView`) is the cover's small thumbnail (`GridThumbLoader` at 48 pt, by hash, the pins on the
+screen first) in a white rounded frame with an ember count, fading in (not with Reduce Motion);
+VoiceOver reads a tile's label for one photo, `app.photos.places.pin` for a group. A tap
+(`PlaceTap`): one photo opens in the viewer (`ImageModal` on a fixed list, as Files'); a group zooms to
+fit its area, at least twice as close; from zoom 16, or photos within 25 m, it opens in Images with
+`SearchPhotos.area` and the month counts' `area` (`vm.activeArea`, the "Map area" chip: tap for the
+map where it was, × for every place). Tests: `PlacesTests.swift`.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

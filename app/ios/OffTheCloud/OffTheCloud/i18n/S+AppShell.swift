@@ -605,6 +605,11 @@ extension S {
     /// Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the people found by face recognition; shown only while face recognition is on.
     static var appShellSectionPeople: String { L("app.shell.section_people", table: "AppShell") }
 
+    /// Places
+    ///
+    /// Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen, right after Collections, and the Places page's name: a map with the photos and videos at the places they were taken (from the position the camera recorded in them).
+    static var appShellSectionPlaces: String { L("app.shell.section_places", table: "AppShell") }
+
     /// Settings
     ///
     /// Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's and the app's settings. Kept short: the rail cuts longer labels.

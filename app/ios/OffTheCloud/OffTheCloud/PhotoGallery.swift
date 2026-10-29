@@ -111,6 +111,24 @@ final class PhotoGalleryVM: ObservableObject {
     @Published private(set) var groupsLoaded = false
     @Published var activeGroup: Msg_ImageGroup? = nil
     @Published var showGroups = false
+    /// Places: a group of the map's photos opened in Images, by its area
+    /// (SearchPhotos.area, the "Map area" chip) - one more filter on the
+    /// same search, as a collection is. Set only from the map, so only on
+    /// a device that answers GetPhotoPlaces.
+    @Published var activeArea: Msg_PlaceArea? = nil
+    /// A narrow window's Images shows the map in the grid's place (the
+    /// switch at its top); a wide one has the map as the Places page, and
+    /// MainView moves one to the other as the window changes.
+    @Published var showMap = false
+    /// The map's places (Places.swift): one for the session, so the map
+    /// comes back where it was left.
+    lazy var places = PlacesModel()
+    /// What the map shows: the search as the grid has it, but the map's
+    /// own area.
+    var placesFilter: PlacesFilter {
+        PlacesFilter(tags: chips, people: selectedPeople, group: activeGroup?.id ?? "")
+    }
+    private var placesWatch: AnyCancellable?
     /// The People page as a sheet over Images (a narrow window; a wide
     /// one's menu shows it as a page of its own). Here rather than in the
     /// view so that turning the phone can move it between the two.
@@ -146,7 +164,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// What the date buckets count for the current filter; nil out of date
     /// order (a tag search), which has none.
     private var bucketKeyNow: String? {
-        chips.isEmpty ? "\(selectedPeople.joined(separator: ","))|\(activeGroup?.id ?? "")" : nil
+        chips.isEmpty ? "\(selectedPeople.joined(separator: ","))|\(activeGroup?.id ?? "")|\(activeArea.map(PhotoGalleryVM.areaKey) ?? "")" : nil
     }
     /// The date buckets are the current filter's (the web's bucketsFresh).
     var bucketsFresh: Bool { bucketsKey != nil && bucketsKey == bucketKeyNow }
@@ -397,7 +415,7 @@ final class PhotoGalleryVM: ObservableObject {
     enum EmptyKind: Equatable { case collection, noMatch, noPhotos }
 
     var emptyKind: EmptyKind {
-        if !chips.isEmpty || !selectedPeople.isEmpty { return .noMatch }
+        if !chips.isEmpty || !selectedPeople.isEmpty || activeArea != nil { return .noMatch }
         if activeGroup != nil { return .collection }
         return .noPhotos
     }
@@ -643,6 +661,10 @@ final class PhotoGalleryVM: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.wake() }
+        placesWatch = PlacesSupport.shared.$supported
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] on in self?.placesSupportChanged(on) }
         watchCacheCleared()
     }
 
@@ -778,6 +800,7 @@ final class PhotoGalleryVM: ObservableObject {
         }
         if groupsLoaded || activeGroup != nil { Task { await loadGroups() } }
         if photosAsked { restartSearch() }
+        places.libraryChanged()
     }
 
     /// One request to the device. `kind`: what a screen waits on (a page,
@@ -944,21 +967,23 @@ final class PhotoGalleryVM: ObservableObject {
         guard let key = bucketKeyNow else { return }
         let people = selectedPeople // snapshot - see fetchPage's own doc comment on why
         let group = activeGroup?.id ?? ""
-        if await loadDateBucketsOnce(people: people, group: group, key: key, gen: gen) { return }
+        let area = activeArea
+        if await loadDateBucketsOnce(people: people, group: group, area: area, key: key, gen: gen) { return }
         bucketRetry.keepAsking(wanted: { [weak self] in
             guard let self else { return false }
             return gen == self.bucketGeneration && self.bucketKeyNow == key
         }) { [weak self] in
-            await self?.loadDateBucketsOnce(people: people, group: group, key: key, gen: gen) ?? true
+            await self?.loadDateBucketsOnce(people: people, group: group, area: area, key: key, gen: gen) ?? true
         }
     }
 
     /// One ask for the month counts: false when it failed and is worth
     /// asking again.
-    private func loadDateBucketsOnce(people: [String], group: String, key: String, gen: Int) async -> Bool {
+    private func loadDateBucketsOnce(people: [String], group: String, area: Msg_PlaceArea?, key: String, gen: Int) async -> Bool {
         var b = Msg_ReqPhotoDateBuckets()
         b.personIds = people
         b.groupID = group // issue #115
+        if let area { b.area = area } // Places' map area
         b.includeVideos = true // issue #106: same set the grid shows
         guard let resp = try? await ask(.buckets, .reqPhotoDateBuckets(b), via: photoRequest) else { return false }
         // A newer filter asked for its own meanwhile: nothing left to do here.
@@ -1107,10 +1132,11 @@ final class PhotoGalleryVM: ObservableObject {
     /// web's showAll - whatever was searched for, and an open collection,
     /// are left.
     func showAll() {
-        guard !chips.isEmpty || !selectedPeople.isEmpty || activeGroup != nil else { return }
+        guard !chips.isEmpty || !selectedPeople.isEmpty || activeGroup != nil || activeArea != nil else { return }
         chips = []
         selectedPeople = []
         activeGroup = nil
+        activeArea = nil
         restartSearch()
     }
 
@@ -1120,6 +1146,7 @@ final class PhotoGalleryVM: ObservableObject {
         chips = []
         selectedPeople = [id]
         activeGroup = nil
+        activeArea = nil
         restartSearch()
     }
 
@@ -1260,12 +1287,45 @@ final class PhotoGalleryVM: ObservableObject {
         chips = []
         selectedPeople = []
         activeGroup = g
+        activeArea = nil
         restartSearch()
     }
 
     func leaveGroup() {
         activeGroup = nil
         restartSearch()
+    }
+
+    // MARK: Places' map area
+
+    /// A group of the map's photos too close together to split, in the
+    /// grid: the search as it was, narrowed to their area. A narrow
+    /// window's Images shows its grid again.
+    func showArea(_ area: Msg_PlaceArea) {
+        showMap = false
+        activeArea = area
+        restartSearch()
+    }
+
+    /// The Map area chip's ×: every place's photos again.
+    func leaveArea() {
+        guard activeArea != nil else { return }
+        activeArea = nil
+        restartSearch()
+    }
+
+    /// An area as the date buckets' key holds it.
+    nonisolated static func areaKey(_ a: Msg_PlaceArea) -> String {
+        "\(a.south),\(a.west),\(a.north),\(a.east)"
+    }
+
+    /// A device that turned GetPhotoPlaces down (signed in to another one):
+    /// no map, and no area filter it would ignore. Not known yet (nil)
+    /// changes nothing: the map shows only once it is.
+    private func placesSupportChanged(_ on: Bool?) {
+        guard on == false else { return }
+        showMap = false
+        leaveArea()
     }
 
     func renameActiveGroup() async {
@@ -1766,6 +1826,7 @@ final class PhotoGalleryVM: ObservableObject {
         var sp = SearchPhotosMsg()
         sp.personIds = selectedPeople
         sp.groupID = activeGroup?.id ?? ""
+        if let area = activeArea { sp.area = area }
         sp.includeVideos = true
         sp.newerThan = SwiftProtobuf.Google_Protobuf_Timestamp(date: cutoff)
         let tok = upToken
@@ -2002,6 +2063,7 @@ final class PhotoGalleryVM: ObservableObject {
         let tags = chips
         let people = selectedPeople
         let group = activeGroup?.id ?? ""
+        let area = activeArea
         let requestToken = token ?? ""
         // Issue #194: only what this (downward) search brought - not the
         // photos put above a jump by the upward one - those it brought
@@ -2020,6 +2082,8 @@ final class PhotoGalleryVM: ObservableObject {
             sp.tags = tags
             sp.personIds = people
             sp.groupID = group // issue #115: inside a group, only its members
+            // Places: a group of the map's photos, by its area.
+            if let area { sp.area = area }
             // Issue #106: videos belong in the Images section. They
             // were excluded when this flag arrived (issue #60, where
             // only the composer opted in), which left a device's
@@ -2164,7 +2228,7 @@ final class PhotoGalleryVM: ObservableObject {
         // filter's results coming back mixed with a pile of unrelated
         // photos (a previous unfiltered browse's local files, not a stale
         // server response as first suspected).
-        guard chips.isEmpty && selectedPeople.isEmpty else { return }
+        guard chips.isEmpty && selectedPeople.isEmpty && activeArea == nil else { return }
         let remotePaths = Set(items.map(\.path))
         let locals = scanLocalFiles()
         var adds: [Item] = []
@@ -3034,6 +3098,8 @@ final class PhotoGalleryVM: ObservableObject {
         Task { await loadDateBuckets() }
         // Asked again in the background until it comes (loadGroups).
         if activeGroup != nil { Task { await loadGroups() } }
+        // The map's places hold what was deleted.
+        places.libraryChanged()
     }
 
     /// Share, as the Files tab means it: a link to the selection, handed
@@ -3161,6 +3227,8 @@ struct PhotoGalleryView: View {
     @ObservedObject var search: TopSearchModel
     @ObservedObject private var faces = FaceRecognition.shared
     @ObservedObject private var filesNav = FilesNav.shared
+    /// Places: the map's switch, only on a device that has them.
+    @ObservedObject private var placesSupport = PlacesSupport.shared
     // A wide window: the search is in the top bar and People and
     // Collections are in the menu, so this view shows neither - only an
     // open collection's chip, and the photos.
@@ -3220,190 +3288,196 @@ struct PhotoGalleryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The search (TopSearch.swift), its chips, and the open
-            // collection - only the last on a wide window.
-            if !wide || vm.activeGroup != nil {
+            // The search (TopSearch.swift), its chips, the open collection
+            // and the map's area - only the last two on a wide window.
+            if !wide || vm.activeGroup != nil || areaChipShown {
                 header
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
             }
 
-            // Grid - in date order the photos stand under month titles, and
-            // months short of a row sit side by side (PhotoMonths.swift, the
-            // web's PhotoGallery.tsx). While the date scrubber has a target
-            // bucket (dragging, or the jump it triggered still in flight),
-            // grey tiles under that month's title stand in for the real
-            // grid rather than showing whatever was scrolled to before the
-            // jump started, and the photos land where they were. Capped at
-            // 300 - a month with thousands of photos doesn't need that many
-            // real views just to convey "this is a lot of squares".
-            // Wrapped in ScrollViewReader (issue #77) to reset the scroll
-            // position to the top once a jump starts - the page doesn't
-            // otherwise know to, since `items` being reset doesn't itself
-            // move an already-scrolled ScrollView - and to keep the photo
-            // at the top there when the width changes.
-            ScrollViewReader { proxy in
-                let layout = vm.gridLayout(metrics)
-                // The scroll-to-top anchor is a plain (zero-height) sibling
-                // of the grid inside the ScrollView: as the grid's own first
-                // child it was a cell, pushing every photo over by one. A
-                // VStack wrapping the *ScrollView* itself (tried briefly)
-                // made the grid's very first load render blank until a
-                // scroll gesture forced SwiftUI to lay it out.
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // A new search comes back to the page's top (the
-                        // web's scrollTo(0, 0)); the scrubber to the
-                        // grid's, past the person's header (its
-                        // gridRef.scrollIntoView).
-                        Color.clear.frame(height: 0).id("photoPageTop")
-                        if let person = vm.personFilter {
-                            PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
-                        }
-                        Color.clear.frame(height: 0).id("photoGridTop")
-                        gridMessage
-                        // One row per line of the grid, lazily: a big
-                        // month's title spans the row over its own rows of
-                        // tiles; months sharing a line are one row.
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(layout.rows) { row in
-                                gridRow(row, layout: layout)
-                                    .padding(.top, row.top)
-                                    // Issue #194: where it is on the screen.
-                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { anchor.record(row.id, $0) }
-                                    .onDisappear { anchor.gone(row.id) }
+            if showsMap {
+                // Places: the map in the grid's place, the same search
+                // (Places.swift).
+                PlacesMapView(vm: vm)
+            } else {
+                // Grid - in date order the photos stand under month titles, and
+                // months short of a row sit side by side (PhotoMonths.swift, the
+                // web's PhotoGallery.tsx). While the date scrubber has a target
+                // bucket (dragging, or the jump it triggered still in flight),
+                // grey tiles under that month's title stand in for the real
+                // grid rather than showing whatever was scrolled to before the
+                // jump started, and the photos land where they were. Capped at
+                // 300 - a month with thousands of photos doesn't need that many
+                // real views just to convey "this is a lot of squares".
+                // Wrapped in ScrollViewReader (issue #77) to reset the scroll
+                // position to the top once a jump starts - the page doesn't
+                // otherwise know to, since `items` being reset doesn't itself
+                // move an already-scrolled ScrollView - and to keep the photo
+                // at the top there when the width changes.
+                ScrollViewReader { proxy in
+                    let layout = vm.gridLayout(metrics)
+                    // The scroll-to-top anchor is a plain (zero-height) sibling
+                    // of the grid inside the ScrollView: as the grid's own first
+                    // child it was a cell, pushing every photo over by one. A
+                    // VStack wrapping the *ScrollView* itself (tried briefly)
+                    // made the grid's very first load render blank until a
+                    // scroll gesture forced SwiftUI to lay it out.
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // A new search comes back to the page's top (the
+                            // web's scrollTo(0, 0)); the scrubber to the
+                            // grid's, past the person's header (its
+                            // gridRef.scrollIntoView).
+                            Color.clear.frame(height: 0).id("photoPageTop")
+                            if let person = vm.personFilter {
+                                PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
+                            }
+                            Color.clear.frame(height: 0).id("photoGridTop")
+                            gridMessage
+                            // One row per line of the grid, lazily: a big
+                            // month's title spans the row over its own rows of
+                            // tiles; months sharing a line are one row.
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(layout.rows) { row in
+                                    gridRow(row, layout: layout)
+                                        .padding(.top, row.top)
+                                        // Issue #194: where it is on the screen.
+                                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { anchor.record(row.id, $0) }
+                                        .onDisappear { anchor.gone(row.id) }
+                                }
+                            }
+                            .scrollTargetLayout()
+                            // Issue #200: a long press selects a photo, and a
+                            // drag on from it every photo up to the finger.
+                            .coordinateSpace(.named(Self.gridSpaceName))
+                            .gesture(dragSelect(layout))
+                            if layout.placeholder == .none && !vm.items.isEmpty {
+                                gridFooter
                             }
                         }
-                        .scrollTargetLayout()
-                        // Issue #200: a long press selects a photo, and a
-                        // drag on from it every photo up to the finger.
-                        .coordinateSpace(.named(Self.gridSpaceName))
-                        .gesture(dragSelect(layout))
-                        if layout.placeholder == .none && !vm.items.isEmpty {
-                            gridFooter
+                        .padding(.horizontal, layout.metrics.pad)
+                        .padding(.bottom, 8)
+                    }
+                    // Issue #194: scrolled up (not at the jump, which lands at the
+                    // top): the newer photos above may come.
+                    .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
+                        guard PhotoPaging.scrolledUp(from: old, to: new), !vm.upEnd, !vm.upArmed else { return }
+                        vm.armNewer()
+                        newerIfNearTop()
+                    }
+                    // Where its rows show.
+                    .onScrollGeometryChange(for: GridAnchor.Viewport.self) { g in
+                        GridAnchor.Viewport(height: g.containerSize.height, top: g.contentInsets.top, bottom: g.contentInsets.bottom)
+                    } action: { _, v in anchor.viewport = v }
+                    // Issue #194: photos put above the grid - the row that was
+                    // at the top of the screen goes back where it was.
+                    .onChange(of: vm.aboveChanges) { _, _ in
+                        if let kept = anchor.taken() {
+                            proxy.scrollTo(kept.id, anchor: kept.unitPoint)
+                        }
+                        // Still near the top once that is done (the top month's
+                        // grey tiles on the screen): the next page.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { newerIfNearTop() }
+                    }
+                    .onAppear {
+                        vm.willChangeAbove = { [anchor, vm] in
+                            let now = vm.gridLayout(metrics)
+                            anchor.take(first: now.rows.first?.id, grows: now.metrics.lineGap - now.metrics.top)
                         }
                     }
-                    .padding(.horizontal, layout.metrics.pad)
-                    .padding(.bottom, 8)
-                }
-                // Issue #194: scrolled up (not at the jump, which lands at the
-                // top): the newer photos above may come.
-                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
-                    guard PhotoPaging.scrolledUp(from: old, to: new), !vm.upEnd, !vm.upArmed else { return }
-                    vm.armNewer()
-                    newerIfNearTop()
-                }
-                // Where its rows show.
-                .onScrollGeometryChange(for: GridAnchor.Viewport.self) { g in
-                    GridAnchor.Viewport(height: g.containerSize.height, top: g.contentInsets.top, bottom: g.contentInsets.bottom)
-                } action: { _, v in anchor.viewport = v }
-                // Issue #194: photos put above the grid - the row that was
-                // at the top of the screen goes back where it was.
-                .onChange(of: vm.aboveChanges) { _, _ in
-                    if let kept = anchor.taken() {
-                        proxy.scrollTo(kept.id, anchor: kept.unitPoint)
+                    // The newer photos on their way, or that they failed (with
+                    // Try again), over the grid's first row - laid over it, so
+                    // nothing under it moves.
+                    .overlay(alignment: .top) {
+                        if atGridTop && layout.placeholder == .none {
+                            newerStatus.padding(.top, 8)
+                        }
                     }
-                    // Still near the top once that is done (the top month's
-                    // grey tiles on the screen): the next page.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { newerIfNearTop() }
-                }
-                .onAppear {
-                    vm.willChangeAbove = { [anchor, vm] in
-                        let now = vm.gridLayout(metrics)
-                        anchor.take(first: now.rows.first?.id, grows: now.metrics.lineGap - now.metrics.top)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { w in
+                        widthChanged(to: w, proxy: proxy)
+                    }
+                    // Issue #198: how far the grid stops short of the screen's
+                    // trailing side (the safe area's band down a phone on its
+                    // side), and how far its ends are from the screen's top
+                    // and bottom - where the scrubber goes (ScrubberPlacement).
+                    .onGeometryChange(for: ScrubberPlacement.Gaps.self) { g in
+                        ScrubberPlacement.Gaps(
+                            trailing: g.safeAreaInsets.trailing,
+                            top: g.frame(in: .global).minY,
+                            bottom: g.safeAreaInsets.bottom
+                        )
+                    } action: { scrubberGaps = $0 }
+                    // And which way round the phone is: the band beside a
+                    // notch is not crossed.
+                    .background(InterfaceOrientationReader { interfaceOrientation = $0 })
+                    .onChange(of: vm.searchStarts) { _, _ in
+                        proxy.scrollTo("photoPageTop", anchor: .top)
+                    }
+                    // The row at the top, as the grid scrolls - kept aside, not
+                    // in state: nothing needs drawing again for it.
+                    .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.5) { ids in
+                        scrollMemo.visible(ids)
+                        let top = layout.rows.first.map { ids.contains($0.id) } ?? false
+                        if top != atGridTop { atGridTop = top }
+                        newerIfNearTop()
+                    }
+                    // The first page is slow to come (a slow link, a busy
+                    // device): over the grey tiles, that it is still on its way.
+                    .overlay(alignment: .bottom) {
+                        if showsStillWaiting {
+                            StillWaitingPill()
+                                .padding(.bottom, vm.selected.isEmpty ? 24 : 104)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(.default, value: showsStillWaiting)
+                    .overlay(alignment: .trailing) {
+                        // Issue #77: Google-Photos-style date scrubber -
+                        // overlaid directly on the grid's own right edge
+                        // (like Google Photos' own does) rather than
+                        // reserving dedicated layout space for it, so it
+                        // can't push a fixed 3-column grid past the screen's
+                        // actual width. Ticks/tooltip only show while
+                        // actively dragging - see PhotoDateScrubber. On a
+                        // phone on its side it reaches on past that edge to
+                        // the screen's - beside a notch only to the notch
+                        // (issue #198, ScrubberPlacement).
+                        if vm.showScrubber {
+                            PhotoDateScrubber(vm: vm, scrollProxy: proxy, placement: scrubberPlacement)
+                        }
                     }
                 }
-                // The newer photos on their way, or that they failed (with
-                // Try again), over the grid's first row - laid over it, so
-                // nothing under it moves.
-                .overlay(alignment: .top) {
-                    if atGridTop && layout.placeholder == .none {
-                        newerStatus.padding(.top, 8)
-                    }
-                }
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { w in
-                    widthChanged(to: w, proxy: proxy)
-                }
-                // Issue #198: how far the grid stops short of the screen's
-                // trailing side (the safe area's band down a phone on its
-                // side), and how far its ends are from the screen's top
-                // and bottom - where the scrubber goes (ScrubberPlacement).
-                .onGeometryChange(for: ScrubberPlacement.Gaps.self) { g in
-                    ScrubberPlacement.Gaps(
-                        trailing: g.safeAreaInsets.trailing,
-                        top: g.frame(in: .global).minY,
-                        bottom: g.safeAreaInsets.bottom
-                    )
-                } action: { scrubberGaps = $0 }
-                // And which way round the phone is: the band beside a
-                // notch is not crossed.
-                .background(InterfaceOrientationReader { interfaceOrientation = $0 })
-                .onChange(of: vm.searchStarts) { _, _ in
-                    proxy.scrollTo("photoPageTop", anchor: .top)
-                }
-                // The row at the top, as the grid scrolls - kept aside, not
-                // in state: nothing needs drawing again for it.
-                .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.5) { ids in
-                    scrollMemo.visible(ids)
-                    let top = layout.rows.first.map { ids.contains($0.id) } ?? false
-                    if top != atGridTop { atGridTop = top }
-                    newerIfNearTop()
-                }
-                // The first page is slow to come (a slow link, a busy
-                // device): over the grey tiles, that it is still on its way.
                 .overlay(alignment: .bottom) {
-                    if showsStillWaiting {
-                        StillWaitingPill()
-                            .padding(.bottom, vm.selected.isEmpty ? 24 : 104)
-                            .transition(.opacity)
-                    }
-                }
-                .animation(.default, value: showsStillWaiting)
-                .overlay(alignment: .trailing) {
-                    // Issue #77: Google-Photos-style date scrubber -
-                    // overlaid directly on the grid's own right edge
-                    // (like Google Photos' own does) rather than
-                    // reserving dedicated layout space for it, so it
-                    // can't push a fixed 3-column grid past the screen's
-                    // actual width. Ticks/tooltip only show while
-                    // actively dragging - see PhotoDateScrubber. On a
-                    // phone on its side it reaches on past that edge to
-                    // the screen's - beside a notch only to the notch
-                    // (issue #198, ScrubberPlacement).
-                    if vm.showScrubber {
-                        PhotoDateScrubber(vm: vm, scrollProxy: proxy, placement: scrubberPlacement)
-                    }
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if !vm.selected.isEmpty {
-                    SelectionActionBar(
-                        count: vm.selected.count,
-                        busy: vm.preparing,
-                        onShare: vm.shareSelected,
-                        onDownload: vm.downloadZip,
-                        onDelete: { vm.askDeleteSelected() },
-                        onClear: vm.clearSelection,
-                        onGroup: {
-                            Task { await vm.loadGroups() }
-                            vm.showGroupPicker = true
-                        },
-                        onRemoveFromGroup: vm.activeGroup == nil ? nil : {
-                            Task { await vm.removeSelectionFromGroup() }
-                        },
-                        // Among one person's photos: face recognition got
-                        // them wrong - off that person, or to someone else.
-                        onNotThisPerson: vm.personInFilter == nil ? nil : { vm.askNotThisPerson(from: .selection) },
-                        onMoveToPerson: vm.personInFilter == nil ? nil : { vm.askMoveToPerson(from: .selection) },
-                        // Issue #180: the selected photos, as a gallery -
-                        // no group needed.
-                        onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
-                    )
-                    .transition(.move(edge: .bottom))
-                    .sheet(isPresented: Binding(
-                        get: { vm.selectionShareURL != nil },
-                        set: { if !$0 { vm.selectionShareURL = nil } }
-                    )) {
-                        if let url = vm.selectionShareURL { ActivityView(items: [url]) }
+                    if !vm.selected.isEmpty {
+                        SelectionActionBar(
+                            count: vm.selected.count,
+                            busy: vm.preparing,
+                            onShare: vm.shareSelected,
+                            onDownload: vm.downloadZip,
+                            onDelete: { vm.askDeleteSelected() },
+                            onClear: vm.clearSelection,
+                            onGroup: {
+                                Task { await vm.loadGroups() }
+                                vm.showGroupPicker = true
+                            },
+                            onRemoveFromGroup: vm.activeGroup == nil ? nil : {
+                                Task { await vm.removeSelectionFromGroup() }
+                            },
+                            // Among one person's photos: face recognition got
+                            // them wrong - off that person, or to someone else.
+                            onNotThisPerson: vm.personInFilter == nil ? nil : { vm.askNotThisPerson(from: .selection) },
+                            onMoveToPerson: vm.personInFilter == nil ? nil : { vm.askMoveToPerson(from: .selection) },
+                            // Issue #180: the selected photos, as a gallery -
+                            // no group needed.
+                            onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
+                        )
+                        .transition(.move(edge: .bottom))
+                        .sheet(isPresented: Binding(
+                            get: { vm.selectionShareURL != nil },
+                            set: { if !$0 { vm.selectionShareURL = nil } }
+                        )) {
+                            if let url = vm.selectionShareURL { ActivityView(items: [url]) }
+                        }
                     }
                 }
             }
@@ -3721,6 +3795,12 @@ struct PhotoGalleryView: View {
 
     // MARK: The header
 
+    /// A narrow window switched to the map (a wide one has it as a page).
+    private var showsMap: Bool { vm.showMap && !wide && placesSupport.isOn }
+
+    /// A group of the map's photos is open in the grid.
+    private var areaChipShown: Bool { vm.activeArea != nil && !showsMap }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !wide {
@@ -3734,6 +3814,11 @@ struct PhotoGalleryView: View {
             // keeps working inside it.
             if let g = vm.activeGroup {
                 collectionChip(g)
+            }
+            // Places: the photos of one area of the map - tap to go back
+            // to the map, × for every place again.
+            if areaChipShown {
+                areaChip
             }
         }
         .padding(.vertical, 8)
@@ -3775,8 +3860,37 @@ struct PhotoGalleryView: View {
                 }
                 .accessibilityLabel(S.appShellSectionCollections)
                 .tourTarget(.collectionsButton)
+                // Places: the grid or the map of the same photos.
+                if placesSupport.isOn {
+                    Button {
+                        vm.showMap.toggle()
+                    } label: {
+                        NavIconView(vm.showMap ? .images : .places, size: 24)
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel(vm.showMap ? S.appPhotosPlacesShowGrid : S.appPhotosPlacesShowMap)
+                }
             }
         }
+        .padding(.horizontal, 8)
+    }
+
+    /// The map's area open in the grid, as the collection's chip: its name
+    /// goes back to the map, where it was; × leaves it.
+    private var areaChip: some View {
+        HStack(spacing: 6) {
+            NavIconView(.places, size: 16)
+            Button(S.appPhotosPlacesAreaChip) { vm.showMap = true }
+                .buttonStyle(.plain)
+                .lineLimit(1)
+                .accessibilityHint(S.appPhotosPlacesBackToMap)
+            Button("×") { vm.leaveArea() }
+                .accessibilityLabel(S.appPhotosPlacesCloseArea)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(Color.orange.opacity(0.15))
+        .clipShape(Capsule())
         .padding(.horizontal, 8)
     }
 

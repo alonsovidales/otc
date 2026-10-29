@@ -638,6 +638,8 @@ final class OTCConnection: ObservableObject {
         // What the device was found not to do is asked again: it may have
         // been updated (issues #194, #195).
         DeviceSupport.shared.signedIn()
+        // Places: whether this device has the map (release 148), asked again.
+        PlacesSupport.shared.connected()
         authenticated = true
         homeLink = home
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil

@@ -125,6 +125,7 @@
     <string name="app_shell_section_friends">Amici</string>
     <string name="app_shell_section_images">Immagini</string>
     <string name="app_shell_section_people">Persone</string>
+    <string name="app_shell_section_places">Luoghi</string>
     <string name="app_shell_section_settings">Impostazioni</string>
     <string name="app_shell_section_social">Social</string>
     <plurals name="app_shell_section_unread">
