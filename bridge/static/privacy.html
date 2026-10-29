@@ -46,7 +46,7 @@
   </header>
   <main>
     <h1>Privacy</h1>
-    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 28 October 2026.</p>
+    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 29 October 2026.</p>
 
     <div class="key">
       <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. A device without a name here, used only at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel, never talks to us once it is set up; while it is being set up, it does (see the setup check-in below).</p>
@@ -79,7 +79,7 @@
 
     <h2 id="relay">How the relay works</h2>
     <p>Devices sit behind home routers, so the apps and browsers connect to the bridge and the bridge passes the connection to your device. The connection to the bridge is encrypted (HTTPS/TLS), and so is the device's own connection to it, but <b>the bridge itself decrypts and re-encrypts the traffic</b>: it is not end-to-end encrypted. While a request passes through, its content is in the bridge's memory. It is not stored or logged, and only the traffic counts above are kept.</p>
-    <p>Your device password never crosses the bridge in readable form: the apps encrypt it with a key only your device holds. Everything on your device is encrypted at rest with a key derived from that password.</p>
+    <p>Your device password never crosses the bridge in readable form: the apps encrypt it with a key only your device holds. Everything on your device is encrypted at rest with a key derived from that password. The one exception is Places, the map of your photos, which is off unless you turn it on: while it is on, your device keeps where each photo and video was taken, read from its location data, unencrypted so the map opens quickly, and turning it off deletes those locations.</p>
     <p>If you would rather nothing passed through us, use your device at home, through Tailscale Funnel, or with a bridge of your own; the bridge is open source too.</p>
 
     <h2>Who else is involved</h2>
@@ -97,7 +97,7 @@
     <p>You can complain to a data protection authority. In the Netherlands it is the <a href="https://autoriteitpersoonsgegevens.nl">Autoriteit Persoonsgegevens</a>; you can also go to the one where you live.</p>
 
     <h2>The apps</h2>
-    <p>The Off The Cloud apps talk to your device, through the bridge when you are away. The iPhone and Android apps send your photos and videos to your device and keep your device password in the phone's secure storage. The map in a photo's details comes from OpenStreetMap in the web app and on Android, and from Apple Maps on iPhone, which receive the map area being shown. The apps contain no analytics or advertising.</p>
+    <p>The Off The Cloud apps talk to your device, through the bridge when you are away. The iPhone and Android apps send your photos and videos to your device and keep your device password in the phone's secure storage. The maps come from map services, which receive the map area being shown and never your photos: Places comes from OpenFreeMap in the web app and on Android, and from Apple Maps on iPhone; the map in a photo's details comes from OpenStreetMap in the web app, OpenFreeMap on Android and Apple Maps on iPhone. The apps contain no analytics or advertising.</p>
 
     <h2>Age</h2>
     <p>Accounts are for people aged 16 and over.</p>
