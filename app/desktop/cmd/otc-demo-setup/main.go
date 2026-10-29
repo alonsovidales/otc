@@ -2,13 +2,17 @@
 
 // otc-demo-setup finishes the demo device (docs/demo-device.md, step 5)
 // once its library is uploaded (otc-put) and processed, from the content
-// directory's JSON files (docs/demo-device/content): the profile, a name for
-// each person the device found - the one most of its photos list in
+// directory's JSON files (docs/demo-device/content): Places turned on (the
+// map in Images, off on every other device until its user turns it on;
+// the demo's photos are sample photos), the profile, a name for each
+// person the device found - the one most of its photos list in
 // manifest.json - and the collections and posts. A person no name fits
 // (the dog's face, a stranger in the background) is deleted. Run it with
-// demo mode still off.
+// demo mode still off. -places-only turns Places on and stops: for a demo
+// device set up before Places.
 //
 //	echo "$PASSWORD" | otc-demo-setup -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
+//	echo "$PASSWORD" | otc-demo-setup -places-only -address ws://127.0.0.1:8080/ws
 package main
 
 import (
@@ -36,13 +40,28 @@ type manifestEntry struct {
 func main() {
 	address := flag.String("address", "", "the device's address (ws://127.0.0.1:8080/ws)")
 	dryRun := flag.Bool("n", false, "say what would be done, change nothing")
+	placesOnly := flag.Bool("places-only", false, "turn Places on and stop (a demo set up before Places)")
 	flag.Parse()
-	if *address == "" || flag.NArg() != 1 {
+	if *address == "" || (flag.NArg() != 1 && !*placesOnly) {
 		fmt.Fprintln(os.Stderr, "usage: otc-demo-setup [-n] -address <ws-url> <content-dir>   (password on stdin)")
+		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -places-only -address <ws-url>")
 		os.Exit(2)
 	}
 	pw, _ := io.ReadAll(io.LimitReader(os.Stdin, 1024))
-	if err := run(*address, strings.TrimRight(string(pw), "\r\n"), flag.Arg(0), *dryRun); err != nil {
+	password := strings.TrimRight(string(pw), "\r\n")
+	if *placesOnly {
+		c, done, err := signIn(*address, password)
+		if err == nil {
+			err = placesOn(c, *dryRun)
+			done()
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if err := run(*address, password, flag.Arg(0), *dryRun); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
@@ -77,6 +96,36 @@ func (c client) do(build func(*pb.ReqEnvelope)) (*pb.RespEnvelope, error) {
 		return resp, errors.New(a.RespAck.ErrorMsg)
 	}
 	return resp, nil
+}
+
+// signIn connects to the device at address and signs in; done
+// disconnects.
+func signIn(address, password string) (c client, done func(), err error) {
+	wc := wsclient.New()
+	wc.Configure(address, "otc-demo-setup", password)
+	wc.Connect()
+	for deadline := time.Now().Add(time.Minute); !wc.IsConnected(); time.Sleep(200 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			wc.Disconnect()
+			return client{}, nil, errors.New("could not connect and sign in")
+		}
+	}
+	return client{wc}, wc.Disconnect, nil
+}
+
+// placesOn turns Places on: the demo shows its photos on the map, and the
+// device reads where they were taken in the background.
+func placesOn(c client, dryRun bool) error {
+	fmt.Println("places: on")
+	if dryRun {
+		return nil
+	}
+	if _, err := c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqSetPlacesEnabled{ReqSetPlacesEnabled: &pb.SetPlacesEnabled{Enabled: true}}
+	}); err != nil {
+		return fmt.Errorf("places: %w", err)
+	}
+	return nil
 }
 
 func run(address, password, dir string, dryRun bool) error {
@@ -117,16 +166,15 @@ func run(address, password, dir string, dryRun bool) error {
 		return err
 	}
 
-	wc := wsclient.New()
-	wc.Configure(address, "otc-demo-setup", password)
-	wc.Connect()
-	defer wc.Disconnect()
-	for deadline := time.Now().Add(time.Minute); !wc.IsConnected(); time.Sleep(200 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			return errors.New("could not connect and sign in")
-		}
+	c, done, err := signIn(address, password)
+	if err != nil {
+		return err
 	}
-	c := client{wc}
+	defer done()
+
+	if err := placesOn(c, dryRun); err != nil {
+		return err
+	}
 
 	// The profile.
 	avatar, err := os.ReadFile(filepath.Join(dir, profile.Avatar))

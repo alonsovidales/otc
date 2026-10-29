@@ -3,13 +3,14 @@
 #
 # Release 148: Places, the map in Images.
 #
-# One new table and one settings column - see db.sql's photo_locations and
-# settings.locations_backfilled for the shape. The device fills the table
-# as it processes photos and videos, and once in the background reads the
-# positions of what it held before, then sets the column. Until they exist
-# the device reads "no photo has a position" and its map is empty.
+# One new table and two settings columns - see db.sql's photo_locations,
+# settings.locations_backfilled and settings.places_enabled for the shape.
+# Places is off on every device after this (places_enabled 0): only once a
+# user turns it on does the device fill the table, as it processes photos
+# and videos and once in the background for what it held before, then set
+# locations_backfilled. Until they exist the device reads Places as off.
 #
-# Idempotent: IF NOT EXISTS on both, so a device that already has them (a
+# Idempotent: IF NOT EXISTS on each, so a device that already has them (a
 # fresh install, where db.sql created them) does nothing here.
 #
 # Run as root by scripts/update.sh, on the primary database and on every
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS photo_locations (
   PRIMARY KEY (`hash`)
 ) ENGINE=InnoDB;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS locations_backfilled TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS places_enabled TINYINT(1) NOT NULL DEFAULT 0;
 SQL
 }
 
@@ -47,4 +49,4 @@ for db in $(mysql -N -B -e "SELECT db_name FROM users" otc 2>/dev/null || true);
     apply_to "$db"
 done
 
-echo "release 148 applied: photo_locations, settings.locations_backfilled"
+echo "release 148 applied: photo_locations, settings.locations_backfilled, settings.places_enabled"

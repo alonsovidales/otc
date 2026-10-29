@@ -901,10 +901,11 @@ export interface SearchPhotos {
    * people and collection as they combine with each other, and pages,
    * jumps (before, newer_than) and resumes like any search - send it on
    * every page, as they are; a photo without a position is never inside
-   * one. Unset is the whole library.
+   * one. Unset is the whole library. While Places is off nothing is inside
+   * an area: the device keeps no positions.
    * Devices before Places ignore it and answer the whole library: offer
    * it only to a device that answered GetPhotoPlaces, never to one that
-   * answered it with error_code "unknown_payload".
+   * answered it with error_code "unknown_payload", nor while Places is off.
    */
   area?: PlaceArea | undefined;
 }
@@ -1009,6 +1010,9 @@ export interface PlaceTile {
  * background for what it held before), grouped for the tiles a map shows
  * at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
  * SearchPhotos; devices before Places answer error_code "unknown_payload".
+ * While Places is off (Settings.places_enabled) the device keeps no
+ * position and answers error_code "places_off": hide the map, as when
+ * Settings says it is off.
  *
  * Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
  * cell holding a photo is one place: the photos the same search would
@@ -1097,6 +1101,14 @@ export interface PhotoPlaces {
     | undefined;
   /** The zoom the places are for (the one asked, within 0 to 20). */
   zoom: number;
+  /**
+   * The device is still reading where the photos it held when Places was
+   * turned on were taken: some are missing from the map for now, and come
+   * as it reads them (ask again in a while). False once it has read them
+   * all, and once a reading that couldn't read some has ended (those are
+   * read again when the device restarts).
+   */
+  reading: boolean;
 }
 
 export interface File {
@@ -1862,7 +1874,20 @@ export interface Settings {
    * Automatic (each app follows its system language). Always set by devices
    * that know it; absent means the device predates localization.
    */
-  language?: string | undefined;
+  language?:
+    | string
+    | undefined;
+  /**
+   * Places, the map in Images: off unless the user turns it on
+   * (SetPlacesEnabled), for their own library. Only while it is on does
+   * the device keep where each photo and video was taken - read from its
+   * GPS tags, kept unencrypted so the map opens quickly - and only then do
+   * the apps show the map (GetPhotoPlaces answers error_code "places_off"
+   * while it is off). The city and country search tags (issue #42) don't
+   * depend on it. Always set by devices that have Places; absent means the
+   * device predates it, and the apps show neither the map nor the switch.
+   */
+  placesEnabled?: boolean | undefined;
 }
 
 /**
@@ -1949,6 +1974,21 @@ export interface SetSocialStorageLimit {
  * missing backfill feature.
  */
 export interface SetFaceRecognitionEnabled {
+  enabled: boolean;
+}
+
+/**
+ * Places: turns the map in Images on or off for the user's own library
+ * (Settings.places_enabled). On, the device reads in the background where
+ * each photo and video it holds was taken, from its metadata
+ * (PhotoPlaces.reading until that is done), and keeps the position of
+ * every one it processes from then on. Off, it deletes every position it
+ * kept before it answers, and keeps none until it is turned on again.
+ * Answers with the generic Ack. Owner and user sessions, as
+ * SetFaceRecognitionEnabled; a demo device refuses it (error_code
+ * "demo"), and devices before Places answer error_code "unknown_payload".
+ */
+export interface SetPlacesEnabled {
   enabled: boolean;
 }
 
@@ -3250,6 +3290,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqGetPhotoPlaces"; reqGetPhotoPlaces: GetPhotoPlaces }
     | //
+    /**
+     * Places' switch. Answers with the generic Ack; devices before it with
+     * error_code "unknown_payload".
+     */
+    { $case: "reqSetPlacesEnabled"; reqSetPlacesEnabled: SetPlacesEnabled }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3288,7 +3334,8 @@ export interface RespEnvelope {
    * whole, because one of the copies, maybe the path asked for, is in an
    * upload-only folder; nothing was deleted, and the message names that
    * folder), "changed" (issue #201: a DelFile whose hash is no longer the
-   * content at its path; nothing was deleted - refresh and ask again).
+   * content at its path; nothing was deleted - refresh and ask again),
+   * "places_off" (GetPhotoPlaces while Places is off: hide the map).
    */
   errorCode: string;
   payload?:
@@ -7167,7 +7214,7 @@ export const PhotoPlace: MessageFns<PhotoPlace> = {
 };
 
 function createBasePhotoPlaces(): PhotoPlaces {
-  return { places: [], locatedTotal: 0, locatedArea: undefined, zoom: 0 };
+  return { places: [], locatedTotal: 0, locatedArea: undefined, zoom: 0, reading: false };
 }
 
 export const PhotoPlaces: MessageFns<PhotoPlaces> = {
@@ -7183,6 +7230,9 @@ export const PhotoPlaces: MessageFns<PhotoPlaces> = {
     }
     if (message.zoom !== 0) {
       writer.uint32(32).int32(message.zoom);
+    }
+    if (message.reading !== false) {
+      writer.uint32(40).bool(message.reading);
     }
     return writer;
   },
@@ -7226,6 +7276,14 @@ export const PhotoPlaces: MessageFns<PhotoPlaces> = {
           message.zoom = reader.int32();
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.reading = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7246,6 +7304,7 @@ export const PhotoPlaces: MessageFns<PhotoPlaces> = {
       ? PlaceArea.fromPartial(object.locatedArea)
       : undefined;
     message.zoom = object.zoom ?? 0;
+    message.reading = object.reading ?? false;
     return message;
   },
 };
@@ -11680,6 +11739,7 @@ function createBaseSettings(): Settings {
     socialStorageUsedBytes: 0n,
     imageTaggingEnabled: false,
     language: undefined,
+    placesEnabled: undefined,
   };
 }
 
@@ -11708,6 +11768,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.language !== undefined) {
       writer.uint32(58).string(message.language);
+    }
+    if (message.placesEnabled !== undefined) {
+      writer.uint32(64).bool(message.placesEnabled);
     }
     return writer;
   },
@@ -11775,6 +11838,14 @@ export const Settings: MessageFns<Settings> = {
           message.language = reader.string();
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.placesEnabled = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11796,6 +11867,7 @@ export const Settings: MessageFns<Settings> = {
     message.socialStorageUsedBytes = object.socialStorageUsedBytes ?? 0n;
     message.imageTaggingEnabled = object.imageTaggingEnabled ?? false;
     message.language = object.language ?? undefined;
+    message.placesEnabled = object.placesEnabled ?? undefined;
     return message;
   },
 };
@@ -12452,6 +12524,52 @@ export const SetFaceRecognitionEnabled: MessageFns<SetFaceRecognitionEnabled> = 
   },
   fromPartial<I extends Exact<DeepPartial<SetFaceRecognitionEnabled>, I>>(object: I): SetFaceRecognitionEnabled {
     const message = createBaseSetFaceRecognitionEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetPlacesEnabled(): SetPlacesEnabled {
+  return { enabled: false };
+}
+
+export const SetPlacesEnabled: MessageFns<SetPlacesEnabled> = {
+  encode(message: SetPlacesEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetPlacesEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetPlacesEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetPlacesEnabled>, I>>(base?: I): SetPlacesEnabled {
+    return SetPlacesEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetPlacesEnabled>, I>>(object: I): SetPlacesEnabled {
+    const message = createBaseSetPlacesEnabled();
     message.enabled = object.enabled ?? false;
     return message;
   },
@@ -18803,6 +18921,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetPhotoPlaces":
         GetPhotoPlaces.encode(message.payload.reqGetPhotoPlaces, writer.uint32(1178).fork()).join();
         break;
+      case "reqSetPlacesEnabled":
+        SetPlacesEnabled.encode(message.payload.reqSetPlacesEnabled, writer.uint32(1186).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -20127,6 +20248,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 148: {
+          if (tag !== 1186) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetPlacesEnabled",
+            reqSetPlacesEnabled: SetPlacesEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21350,6 +21482,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqGetPhotoPlaces",
             reqGetPhotoPlaces: GetPhotoPlaces.fromPartial(object.payload.reqGetPhotoPlaces),
+          };
+        }
+        break;
+      }
+      case "reqSetPlacesEnabled": {
+        if (object.payload?.reqSetPlacesEnabled !== undefined && object.payload?.reqSetPlacesEnabled !== null) {
+          message.payload = {
+            $case: "reqSetPlacesEnabled",
+            reqSetPlacesEnabled: SetPlacesEnabled.fromPartial(object.payload.reqSetPlacesEnabled),
           };
         }
         break;

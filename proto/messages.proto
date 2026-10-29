@@ -657,10 +657,11 @@ message SearchPhotos {
   // people and collection as they combine with each other, and pages,
   // jumps (before, newer_than) and resumes like any search - send it on
   // every page, as they are; a photo without a position is never inside
-  // one. Unset is the whole library.
+  // one. Unset is the whole library. While Places is off nothing is inside
+  // an area: the device keeps no positions.
   // Devices before Places ignore it and answer the whole library: offer
   // it only to a device that answered GetPhotoPlaces, never to one that
-  // answered it with error_code "unknown_payload".
+  // answered it with error_code "unknown_payload", nor while Places is off.
   PlaceArea area = 12;
 }
 
@@ -744,6 +745,9 @@ message PlaceTile {
 // background for what it held before), grouped for the tiles a map shows
 // at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
 // SearchPhotos; devices before Places answer error_code "unknown_payload".
+// While Places is off (Settings.places_enabled) the device keeps no
+// position and answers error_code "places_off": hide the map, as when
+// Settings says it is off.
 //
 // Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
 // cell holding a photo is one place: the photos the same search would
@@ -811,6 +815,12 @@ message PhotoPlaces {
   PlaceArea located_area = 3;
   // The zoom the places are for (the one asked, within 0 to 20).
   int32 zoom = 4;
+  // The device is still reading where the photos it held when Places was
+  // turned on were taken: some are missing from the map for now, and come
+  // as it reads them (ask again in a while). False once it has read them
+  // all, and once a reading that couldn't read some has ended (those are
+  // read again when the device restarts).
+  bool reading = 5;
 }
 
 message File {
@@ -1456,6 +1466,15 @@ message Settings {
   // Automatic (each app follows its system language). Always set by devices
   // that know it; absent means the device predates localization.
   optional string language = 7;
+  // Places, the map in Images: off unless the user turns it on
+  // (SetPlacesEnabled), for their own library. Only while it is on does
+  // the device keep where each photo and video was taken - read from its
+  // GPS tags, kept unencrypted so the map opens quickly - and only then do
+  // the apps show the map (GetPhotoPlaces answers error_code "places_off"
+  // while it is off). The city and country search tags (issue #42) don't
+  // depend on it. Always set by devices that have Places; absent means the
+  // device predates it, and the apps show neither the map nor the switch.
+  optional bool places_enabled = 8;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -1532,6 +1551,19 @@ message SetSocialStorageLimit {
 // comment in db.sql for why that's a deliberate design choice, not a
 // missing backfill feature.
 message SetFaceRecognitionEnabled {
+  bool enabled = 1;
+}
+
+// Places: turns the map in Images on or off for the user's own library
+// (Settings.places_enabled). On, the device reads in the background where
+// each photo and video it holds was taken, from its metadata
+// (PhotoPlaces.reading until that is done), and keeps the position of
+// every one it processes from then on. Off, it deletes every position it
+// kept before it answers, and keeps none until it is turned on again.
+// Answers with the generic Ack. Owner and user sessions, as
+// SetFaceRecognitionEnabled; a demo device refuses it (error_code
+// "demo"), and devices before Places answer error_code "unknown_payload".
+message SetPlacesEnabled {
   bool enabled = 1;
 }
 
@@ -2634,6 +2666,9 @@ message ReqEnvelope {
     // Places, the map in Images. Answers with resp_photo_places; devices
     // before it with error_code "unknown_payload".
     GetPhotoPlaces req_get_photo_places = 147;
+    // Places' switch. Answers with the generic Ack; devices before it with
+    // error_code "unknown_payload".
+    SetPlacesEnabled req_set_places_enabled = 148;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2666,7 +2701,8 @@ message RespEnvelope {
   // whole, because one of the copies, maybe the path asked for, is in an
   // upload-only folder; nothing was deleted, and the message names that
   // folder), "changed" (issue #201: a DelFile whose hash is no longer the
-  // content at its path; nothing was deleted - refresh and ask again).
+  // content at its path; nothing was deleted - refresh and ask again),
+  // "places_off" (GetPhotoPlaces while Places is off: hide the map).
   string error_code = 4;
   oneof payload {
     Status resp_status = 10;

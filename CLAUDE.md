@@ -410,14 +410,40 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   halves are the plain search, each photo once at the same copy; websocket's
   `TestSearchPhotosNewerThanAnswersOldestFirst` (a child process) checks the handler.
 - Places, the map in Images (2026-10-29, device side; release 148's `updates/148.sh`):
+  - The switch (owner, 2026-10-29: "Since we are extracting the coordinates from the Metadata and
+    leaving them unencrypted, this feature should be behind a feature flag in the settings").
+    `settings.places_enabled` is off by default and on every device after the update; each user
+    turns it on for their own library (`SetPlacesEnabled` = 148, Ack; `Settings.places_enabled` 8,
+    `optional`: absent = a device before Places). `files_manager/places_switch.go`:
+    - Off, nothing is kept: `storeLocation` and the backfill write only through `placesWrite`,
+      which checks the switch under `placesSwitch.mu`'s read lock; `GetPhotoPlaces` answers
+      `error_code "places_off"` (`ErrPlacesOff`, `dev.files.places_off`); an area holds nothing
+      (`placesArea`).
+    - Turning it off takes the write lock, so it waits for a write under way, and in one transaction
+      clears the switch and `locations_backfilled` and deletes every row (`dao.SetPlacesEnabled`);
+      `places.reset()` drops the index and masks (an index read before is never put back:
+      `floor`). A failed turn off changes nothing.
+    - Turning it on starts `BackfillLocations` at once with the request's session. One runs at a
+      time (`backfillMu`); `turn` counts the turns, and a run of an earlier one stops at its next
+      photo and writes nothing more. `PhotoPlaces.reading` (5) is on and not all read, until this
+      turn's run ends (one that couldn't read some ends too: those wait for the next start).
+    - Read once from the database (`loadPlaces`); a database before the column reads as off.
+    - A demo device refuses the switch; `otc-demo-setup` turns it on (`-places-only` for a demo
+      set up before Places, with demo mode off).
+    - The city and country search tags (issue #42, `locationTags`, in `file_tags`) don't depend
+      on it: they are written as before.
+    - Tests: `places_switch_test.go` (read once, off keeps nothing, off deletes, a failed off, off
+      waits for a write under way, on starts the backfill), dao's `TestPlacesSwitchMySQL`,
+      websocket's `TestPlacesOffRequests`.
   - Storage. `photo_locations` keeps where each photo or video was taken, by content hash (`lat`
     and `lon` in degrees). A row with NULL in both is content that was read and has no position.
-    Rows are written by `processMedia` from the metadata it already reads, in either lane, after
-    the thumbnail, so Reprocess refreshes them. A row goes with the content's last path or kept
+    Rows are written while Places is on, by `processMedia` from the metadata it already reads, in
+    either lane, after the thumbnail, so Reprocess refreshes them. A row goes with the content's last path or kept
     version (`removeBlobIfUnused`, `dropIfOrphaned`).
-  - Backfill. `BackfillLocations` (`location_backfill.go`) fills in what was stored before Places,
-    once per database: it runs after `FitStoredThumbnails` in websocket's `startBackfillOnce`,
-    because it needs the key, and sets `settings.locations_backfilled` when done.
+  - Backfill. `BackfillLocations` (`location_backfill.go`) fills in what was stored before Places
+    was turned on, once per turn on: it runs after `FitStoredThumbnails` in websocket's
+    `startBackfillOnce`, because it needs the key, and when Places is turned on, and sets
+    `settings.locations_backfilled` when done.
     - It reads only content that has a thumbnail and no row (`MediaWithoutLocation`), and only the
       metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream.
     - It pauses 20 ms after each photo and 250 ms after each video.
@@ -460,7 +486,7 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     - A place's area with the same filters gives exactly its photos, because the cell boxes don't
       overlap.
     - Devices before Places ignore the field, so clients send it only to a device that answered
-      `GetPhotoPlaces`.
+      `GetPhotoPlaces`, and only while Places is on.
   - Tests:
     - `places_test.go`: the tile formula at zoom 0-20 against the slippy formula, the poles and the
       antimeridian, grouping, the cache's rebuild and masks, the answer over sqlmock, timing.

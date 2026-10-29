@@ -181,6 +181,10 @@
     "text": "maximaal {max} foto’s tegelijk",
     "en": "at most {max} photos at a time"
   },
+  "dev.files.places_off": {
+    "text": "Plaatsen staat uit: zet het aan in Instellingen om je foto's op een kaart te zien",
+    "en": "Places is off: turn it on in Settings to see your photos on a map"
+  },
   "dev.files.post_content_unavailable": {
     "text": "de inhoud van {hash} ontbreekt of is onleesbaar: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

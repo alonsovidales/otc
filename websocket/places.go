@@ -9,6 +9,19 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
+// cCodePlacesOff is RespEnvelope.error_code on GetPhotoPlaces while Places
+// is off: the apps hide the map.
+const cCodePlacesOff = "places_off"
+
+// placesArea is mediaArea, and while Places is off an area nothing is in:
+// the device keeps no positions then (and turning it off deleted them).
+func (ch *connHandler) placesArea(a *pb.PlaceArea) *dao.MediaArea {
+	if a != nil && !ch.mg.filesManager.PlacesEnabled() {
+		return &dao.MediaArea{South: 1, North: -1}
+	}
+	return mediaArea(a)
+}
+
 // mediaArea is SearchPhotos.area (and ReqPhotoDateBuckets.area) as the
 // search takes it: nil for none, the whole library. A bound that isn't a
 // number makes an area nothing is in (south above north), never the whole

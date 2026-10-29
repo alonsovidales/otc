@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "geen foto’s opgegeven"},
   "dev.files.person_same": {"text": "kies een andere persoon om de foto’s naartoe te verplaatsen"},
   "dev.files.person_too_many": {"text": "maximaal {max} foto’s tegelijk"},
+  "dev.files.places_off": {"text": "Plaatsen staat uit: zet het aan in Instellingen om je foto's op een kaart te zien"},
   "dev.files.post_content_unavailable": {"text": "de inhoud van {hash} ontbreekt of is onleesbaar: {detail}"},
   "dev.files.read_failed": {"text": "fout bij het lezen van het bestand: {detail}"},
   "dev.files.reprocess_count_failed": {"text": "fout bij het tellen van de media om opnieuw te verwerken: {detail}"},

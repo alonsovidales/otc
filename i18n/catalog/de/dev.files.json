@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "keine Fotos angegeben"},
   "dev.files.person_same": {"text": "wähle eine andere Person, zu der die Fotos verschoben werden"},
   "dev.files.person_too_many": {"text": "höchstens {max} Fotos auf einmal"},
+  "dev.files.places_off": {"text": "Orte ist ausgeschaltet: Schalte es in den Einstellungen ein, um deine Fotos auf einer Karte zu sehen"},
   "dev.files.post_content_unavailable": {"text": "der Inhalt von {hash} fehlt oder ist nicht lesbar: {detail}"},
   "dev.files.read_failed": {"text": "Fehler beim Lesen der Datei: {detail}"},
   "dev.files.reprocess_count_failed": {"text": "beim Zählen der Medien für die Neuverarbeitung: {detail}"},

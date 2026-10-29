@@ -164,6 +164,7 @@ var headEnglish = []struct {
 	{"dev.files.upload_failed", i18n.DevFilesUploadFailed("boom"), fmt.Sprintf("error trying to upload file: %s", "boom")},
 	{"dev.files.upload_finish_failed", i18n.DevFilesUploadFinishFailed("boom"), fmt.Sprintf("error finishing the upload: %s", "boom")},
 	{"dev.files.upload_incomplete", i18n.DevFilesUploadIncomplete(10, 900), fmt.Sprintf("upload incomplete: %d of %d bytes", 10, 900)},
+	{"dev.files.places_off", i18n.DevFilesPlacesOff(), "Places is off: turn it on in Settings to see your photos on a map"},
 	{"dev.files.upload_only", i18n.DevFilesUploadOnly(), "this folder is upload only: nothing in it can be deleted"},
 	{"dev.files.upload_out_of_order", i18n.DevFilesUploadOutOfOrder(), "upload chunk out of order"},
 	{"dev.files.upload_receive_failed", i18n.DevFilesUploadReceiveFailed("boom"), fmt.Sprintf("error receiving the upload: %s", "boom")},

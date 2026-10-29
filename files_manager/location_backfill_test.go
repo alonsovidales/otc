@@ -29,6 +29,14 @@ func (n near) Match(v driver.Value) bool {
 	return ok && math.Abs(f-float64(n)) < 1e-6
 }
 
+// placesOn turns Places on in mg as the device read it, without asking
+// the database.
+func placesOn(mg *Manager) *Manager {
+	mg.placesSwitch.on.Store(true)
+	mg.placesSwitch.loaded.Store(true)
+	return mg
+}
+
 func expectLocation(mock sqlmock.Sqlmock, hash string, lat, lon any) {
 	mock.ExpectExec("insert into `photo_locations` \\(`hash`, `lat`, `lon`\\) values \\(\\?, \\?, \\?\\) on duplicate key update").
 		WithArgs(hash, lat, lon).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -74,7 +82,7 @@ func TestBackfillLocationsReadsWhatHasNoRow(t *testing.T) {
 
 	db, mock, _ := sqlmock.New()
 	t.Cleanup(func() { db.Close() })
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := placesOn(&Manager{dao: dao.NewWithDB(db)})
 	mock.ExpectQuery("select `locations_backfilled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"d"}).AddRow(0))
 	at := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
 	rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
@@ -103,7 +111,7 @@ func TestBackfillLocationsReadsWhatHasNoRow(t *testing.T) {
 	// Once read to the end, it records so.
 	db2, mock2, _ := sqlmock.New()
 	t.Cleanup(func() { db2.Close() })
-	mg = &Manager{dao: dao.NewWithDB(db2)}
+	mg = placesOn(&Manager{dao: dao.NewWithDB(db2)})
 	mock2.ExpectQuery("select `locations_backfilled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"d"}).AddRow(0))
 	mock2.ExpectQuery("left join `photo_locations`").WithArgs("", cLocationBackfillPage).
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).AddRow(noGPS, "image/jpeg", at, at, "/p/plain.jpg", 10))
@@ -133,7 +141,7 @@ func TestBackfillLocationsOnlyOnce(t *testing.T) {
 		} else {
 			q.WillReturnRows(c.rows)
 		}
-		(&Manager{dao: dao.NewWithDB(db)}).BackfillLocations(ses)
+		placesOn(&Manager{dao: dao.NewWithDB(db)}).BackfillLocations(ses)
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Errorf("%s: %v", c.name, err)
 		}
@@ -146,7 +154,7 @@ func TestBackfillLocationsOnlyOnce(t *testing.T) {
 func TestStoreLocation(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := placesOn(&Manager{dao: dao.NewWithDB(db)})
 	hash := fmt.Sprintf("%064x", 0x9200)
 	expectLocation(mock, hash, 43.5, 11.9)
 	expectLocation(mock, hash, nil, nil)

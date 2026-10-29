@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "no photos given"},
   "dev.files.person_same": {"text": "choose another person to move the photos to"},
   "dev.files.person_too_many": {"text": "at most {max} photos at a time", "args": [["max", "int"]]},
+  "dev.files.places_off": {"text": "Places is off: turn it on in Settings to see your photos on a map"},
   "dev.files.post_content_unavailable": {"text": "the content of {hash} is missing or unreadable: {detail}", "args": [["hash", "text"], ["detail", "text"]]},
   "dev.files.read_failed": {"text": "error reading file: {detail}", "args": [["detail", "text"]]},
   "dev.files.reprocess_count_failed": {"text": "counting media for reprocess: {detail}", "args": [["detail", "text"]]},

@@ -181,6 +181,10 @@
     "text": "{max} photos au maximum à la fois",
     "en": "at most {max} photos at a time"
   },
+  "dev.files.places_off": {
+    "text": "Lieux est désactivé : activez-le dans les Paramètres pour voir vos photos sur une carte",
+    "en": "Places is off: turn it on in Settings to see your photos on a map"
+  },
   "dev.files.post_content_unavailable": {
     "text": "le contenu de {hash} est absent ou illisible : {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

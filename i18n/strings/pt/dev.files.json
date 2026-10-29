@@ -181,6 +181,10 @@
     "text": "no máximo {max} fotos de cada vez",
     "en": "at most {max} photos at a time"
   },
+  "dev.files.places_off": {
+    "text": "Locais está desativado: ative-o nas Definições para ver as suas fotos num mapa",
+    "en": "Places is off: turn it on in Settings to see your photos on a map"
+  },
   "dev.files.post_content_unavailable": {
     "text": "o conteúdo de {hash} está em falta ou ilegível: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"

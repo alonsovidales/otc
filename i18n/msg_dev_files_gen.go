@@ -229,6 +229,11 @@ func DevFilesPersonTooMany(max int) Msg {
 	return Msg{Key: "dev.files.person_too_many", Args: map[string]any{"max": int64(max)}}
 }
 
+// DevFilesPlacesOff is dev.files.places_off: "Places is off: turn it on in Settings to see your photos on a map".
+func DevFilesPlacesOff() Msg {
+	return Msg{Key: "dev.files.places_off"}
+}
+
 // DevFilesPostContentUnavailable is dev.files.post_content_unavailable: "the content of {hash} is missing or unreadable: {detail}".
 func DevFilesPostContentUnavailable(hash string, detail string) Msg {
 	return Msg{Key: "dev.files.post_content_unavailable", Args: map[string]any{"hash": hash, "detail": detail}}

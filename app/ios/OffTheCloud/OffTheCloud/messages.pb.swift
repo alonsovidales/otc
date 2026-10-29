@@ -1538,10 +1538,11 @@ public nonisolated struct Msg_SearchPhotos: @unchecked Sendable {
   /// people and collection as they combine with each other, and pages,
   /// jumps (before, newer_than) and resumes like any search - send it on
   /// every page, as they are; a photo without a position is never inside
-  /// one. Unset is the whole library.
+  /// one. Unset is the whole library. While Places is off nothing is inside
+  /// an area: the device keeps no positions.
   /// Devices before Places ignore it and answer the whole library: offer
   /// it only to a device that answered GetPhotoPlaces, never to one that
-  /// answered it with error_code "unknown_payload".
+  /// answered it with error_code "unknown_payload", nor while Places is off.
   public var area: Msg_PlaceArea {
     get {_storage._area ?? Msg_PlaceArea()}
     set {_uniqueStorage()._area = newValue}
@@ -1712,6 +1713,9 @@ public nonisolated struct Msg_PlaceTile: Sendable {
 /// background for what it held before), grouped for the tiles a map shows
 /// at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
 /// SearchPhotos; devices before Places answer error_code "unknown_payload".
+/// While Places is off (Settings.places_enabled) the device keeps no
+/// position and answers error_code "places_off": hide the map, as when
+/// Settings says it is off.
 ///
 /// Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
 /// cell holding a photo is one place: the photos the same search would
@@ -1855,6 +1859,13 @@ public nonisolated struct Msg_PhotoPlaces: Sendable {
 
   /// The zoom the places are for (the one asked, within 0 to 20).
   public var zoom: Int32 = 0
+
+  /// The device is still reading where the photos it held when Places was
+  /// turned on were taken: some are missing from the map for now, and come
+  /// as it reads them (ask again in a while). False once it has read them
+  /// all, and once a reading that couldn't read some has ended (those are
+  /// read again when the device restarts).
+  public var reading: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3345,11 +3356,29 @@ public nonisolated struct Msg_Settings: Sendable {
   /// Clears the value of `language`. Subsequent reads from it will return its default value.
   public mutating func clearLanguage() {self._language = nil}
 
+  /// Places, the map in Images: off unless the user turns it on
+  /// (SetPlacesEnabled), for their own library. Only while it is on does
+  /// the device keep where each photo and video was taken - read from its
+  /// GPS tags, kept unencrypted so the map opens quickly - and only then do
+  /// the apps show the map (GetPhotoPlaces answers error_code "places_off"
+  /// while it is off). The city and country search tags (issue #42) don't
+  /// depend on it. Always set by devices that have Places; absent means the
+  /// device predates it, and the apps show neither the map nor the switch.
+  public var placesEnabled: Bool {
+    get {_placesEnabled ?? false}
+    set {_placesEnabled = newValue}
+  }
+  /// Returns true if `placesEnabled` has been explicitly set.
+  public var hasPlacesEnabled: Bool {self._placesEnabled != nil}
+  /// Clears the value of `placesEnabled`. Subsequent reads from it will return its default value.
+  public mutating func clearPlacesEnabled() {self._placesEnabled = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _language: String? = nil
+  fileprivate var _placesEnabled: Bool? = nil
 }
 
 /// Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -3542,6 +3571,27 @@ public nonisolated struct Msg_SetSocialStorageLimit: Sendable {
 /// comment in db.sql for why that's a deliberate design choice, not a
 /// missing backfill feature.
 public nonisolated struct Msg_SetFaceRecognitionEnabled: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var enabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Places: turns the map in Images on or off for the user's own library
+/// (Settings.places_enabled). On, the device reads in the background where
+/// each photo and video it holds was taken, from its metadata
+/// (PhotoPlaces.reading until that is done), and keeps the position of
+/// every one it processes from then on. Off, it deletes every position it
+/// kept before it answers, and keeps none until it is turned on again.
+/// Answers with the generic Ack. Owner and user sessions, as
+/// SetFaceRecognitionEnabled; a demo device refuses it (error_code
+/// "demo"), and devices before Places answer error_code "unknown_payload".
+public nonisolated struct Msg_SetPlacesEnabled: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -6562,6 +6612,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqGetPhotoPlaces(newValue)}
   }
 
+  /// Places' switch. Answers with the generic Ack; devices before it with
+  /// error_code "unknown_payload".
+  public var reqSetPlacesEnabled: Msg_SetPlacesEnabled {
+    get {
+      if case .reqSetPlacesEnabled(let v)? = payload {return v}
+      return Msg_SetPlacesEnabled()
+    }
+    set {payload = .reqSetPlacesEnabled(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -6804,6 +6864,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// Places, the map in Images. Answers with resp_photo_places; devices
     /// before it with error_code "unknown_payload".
     case reqGetPhotoPlaces(Msg_GetPhotoPlaces)
+    /// Places' switch. Answers with the generic Ack; devices before it with
+    /// error_code "unknown_payload".
+    case reqSetPlacesEnabled(Msg_SetPlacesEnabled)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -6855,7 +6918,8 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
   /// whole, because one of the copies, maybe the path asked for, is in an
   /// upload-only folder; nothing was deleted, and the message names that
   /// folder), "changed" (issue #201: a DelFile whose hash is no longer the
-  /// content at its path; nothing was deleted - refresh and ask again).
+  /// content at its path; nothing was deleted - refresh and ask again),
+  /// "places_off" (GetPhotoPlaces while Places is off: hide the map).
   public var errorCode: String {
     get {_storage._errorCode}
     set {_uniqueStorage()._errorCode = newValue}
@@ -9795,7 +9859,7 @@ nonisolated extension Msg_PhotoPlace: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PhotoPlaces"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}places\0\u{3}located_total\0\u{3}located_area\0\u{1}zoom\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}places\0\u{3}located_total\0\u{3}located_area\0\u{1}zoom\0\u{1}reading\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9807,6 +9871,7 @@ nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.locatedTotal) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._locatedArea) }()
       case 4: try { try decoder.decodeSingularInt32Field(value: &self.zoom) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.reading) }()
       default: break
       }
     }
@@ -9829,6 +9894,9 @@ nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if self.zoom != 0 {
       try visitor.visitSingularInt32Field(value: self.zoom, fieldNumber: 4)
     }
+    if self.reading != false {
+      try visitor.visitSingularBoolField(value: self.reading, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -9837,6 +9905,7 @@ nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.locatedTotal != rhs.locatedTotal {return false}
     if lhs._locatedArea != rhs._locatedArea {return false}
     if lhs.zoom != rhs.zoom {return false}
+    if lhs.reading != rhs.reading {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -12333,7 +12402,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12348,6 +12417,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 5: try { try decoder.decodeSingularInt64Field(value: &self.socialStorageUsedBytes) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.imageTaggingEnabled) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self._language) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self._placesEnabled) }()
       default: break
       }
     }
@@ -12379,6 +12449,9 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._language {
       try visitor.visitSingularStringField(value: v, fieldNumber: 7)
     } }()
+    try { if let v = self._placesEnabled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -12390,6 +12463,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.socialStorageUsedBytes != rhs.socialStorageUsedBytes {return false}
     if lhs.imageTaggingEnabled != rhs.imageTaggingEnabled {return false}
     if lhs._language != rhs._language {return false}
+    if lhs._placesEnabled != rhs._placesEnabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -12757,6 +12831,36 @@ nonisolated extension Msg_SetFaceRecognitionEnabled: SwiftProtobuf.Message, Swif
   }
 
   public static func ==(lhs: Msg_SetFaceRecognitionEnabled, rhs: Msg_SetFaceRecognitionEnabled) -> Bool {
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetPlacesEnabled: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetPlacesEnabled"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}enabled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetPlacesEnabled, rhs: Msg_SetPlacesEnabled) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -16222,7 +16326,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -17987,6 +18091,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqGetPhotoPlaces(v)
         }
       }()
+      case 148: try {
+        var v: Msg_SetPlacesEnabled?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetPlacesEnabled(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetPlacesEnabled(v)
+        }
+      }()
       default: break
       }
     }
@@ -18543,6 +18660,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqGetPhotoPlaces?: try {
       guard case .reqGetPhotoPlaces(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 147)
+    }()
+    case .reqSetPlacesEnabled?: try {
+      guard case .reqSetPlacesEnabled(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 148)
     }()
     case nil: break
     }

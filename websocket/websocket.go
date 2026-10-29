@@ -2889,7 +2889,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			t := p.ReqSearchPhotos.NewerThan.AsTime()
 			newerThan = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearchWithin(mediaArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
+		files, token, err := ch.mg.filesManager.ImageSearchWithin(ch.placesArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -2910,7 +2910,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 
 	case *pb.ReqEnvelope_ReqPhotoDateBuckets:
-		buckets, err := ch.mg.filesManager.PhotoDateBucketsWithin(mediaArea(p.ReqPhotoDateBuckets.Area), p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
+		buckets, err := ch.mg.filesManager.PhotoDateBucketsWithin(ch.placesArea(p.ReqPhotoDateBuckets.Area), p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
 		if err != nil {
 			log.Error("error trying to compute photo date buckets:", err)
 			resp.Error = true
@@ -2929,7 +2929,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqGetPhotoPlaces:
 		req := p.ReqGetPhotoPlaces
 		places, err := ch.mg.filesManager.PhotoPlaces(req.Zoom, req.Tiles, req.Tags, req.PersonIds, req.GroupId, req.IncludeVideos)
-		if err != nil {
+		if errors.Is(err, filesmanager.ErrPlacesOff) {
+			log.Debug("the map asked for while Places is off")
+			resp.Error = true
+			resp.ErrorCode = cCodePlacesOff
+			resp.ErrorMessage = i18n.DevFilesPlacesOff().Render(lang)
+		} else if err != nil {
 			log.Error("error grouping the photos for the map:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
@@ -3252,6 +3257,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				// Localization: always set ("" = Automatic), except on a
 				// demo device (see GetStatus).
 				Language: demoLanguage(ch.mg.settings.Language()),
+				// Places: always set by a device that has it.
+				PlacesEnabled: proto.Bool(ch.mg.filesManager.PlacesEnabled()),
 			},
 		}
 
@@ -3295,6 +3302,21 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
 			}
+		}
+
+	// Places: the map in Images, off unless the user turns it on - while it
+	// is on the device keeps every photo's position, unencrypted. Turning
+	// it off deletes them before this answers; on reads them in the
+	// background with this session's key.
+	case *pb.ReqEnvelope_ReqSetPlacesEnabled:
+		on := p.ReqSetPlacesEnabled.Enabled
+		log.Info("Set Places enabled:", on)
+		if err := ch.mg.filesManager.SetPlacesEnabled(ses, on); err != nil {
+			log.Error("error turning Places on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
 	// Issue #181: the tagging model, like face recognition, can be off.

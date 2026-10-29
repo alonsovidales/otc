@@ -19,10 +19,11 @@ import (
 	"github.com/alonsovidales/otc/session"
 )
 
-// Places, the map in Images: every photo and video gets a photo_locations
-// row when the device processes it (storeLocation, from processMedia's
-// metadata read), and what the device held before Places gets one once,
-// in the background, from its metadata alone (backfillLocations).
+// Places, the map in Images: while Places is on (places_switch.go) every
+// photo and video gets a photo_locations row when the device processes it
+// (storeLocation, from processMedia's metadata read), and what the device
+// held before Places was turned on gets one once, in the background, from
+// its metadata alone (BackfillLocations).
 
 const (
 	// cLocationBackfillPage is how many contents the backfill lists at a
@@ -49,10 +50,13 @@ func locationOf(ex *exifinfo.Info) (lat, lon float64, ok bool) {
 }
 
 // storeLocation records hash's position from ex, its metadata as
-// processing read it (nil: none could be), or that it has none.
+// processing read it (nil: none could be), or that it has none - while
+// Places is on. Off, nothing: the backfill reads it once it is turned on
+// (the thumbnail is written before this, so the backfill lists it).
 func (mg *Manager) storeLocation(hash string, ex *exifinfo.Info) {
 	lat, lon, ok := locationOf(ex)
-	if err := mg.dao.SetPhotoLocation(hash, lat, lon, ok); err != nil {
+	wrote, err := mg.placesWrite(nil, func() error { return mg.dao.SetPhotoLocation(hash, lat, lon, ok) })
+	if err != nil {
 		// Before the release's migration there is nowhere to keep it; the
 		// backfill reads it once the table is there.
 		if !errors.Is(err, dao.ErrSchemaBehind) {
@@ -60,7 +64,9 @@ func (mg *Manager) storeLocation(hash string, ex *exifinfo.Info) {
 		}
 		return
 	}
-	mg.places.changed()
+	if wrote {
+		mg.places.changed()
+	}
 }
 
 // errLocationUnread is a content whose metadata couldn't be read this
@@ -103,20 +109,35 @@ func (mg *Manager) readLocation(ses *session.Session, file *pb.File) (lat, lon f
 }
 
 // BackfillLocations gives every photo and video the device held before
-// Places its photo_locations row, once per database
-// (settings.locations_backfilled), in the background after the first
-// sign-in (it needs the key to read). Only content Images may show is
-// read - one with a thumbnail; the processing that makes one writes the
-// row of the rest - and only its metadata, paced. A restart before the
-// end goes on at the next: what has a row is never listed again. Content
-// that couldn't be read this time (errLocationUnread) leaves the flag
-// unset, and is read at the next start.
+// Places was turned on its photo_locations row, once per turn on
+// (settings.locations_backfilled, cleared by turning it off), in the
+// background: after the first sign-in (it needs the key to read), and
+// when it is turned on. Only while it is on, and one at a time: a run of
+// an earlier turn stops at its next photo. Only content Images may show
+// is read - one with a thumbnail; the processing that makes one writes
+// the row of the rest - and only its metadata, paced. A restart before
+// the end goes on at the next: what has a row is never listed again.
+// Content that couldn't be read this time (errLocationUnread) leaves the
+// flag unset, and is read at the next start.
 func (mg *Manager) BackfillLocations(ses *session.Session) {
 	// thumbnailPath needs the storage path: nothing to read without one
 	// (a test binary's websocket layer has neither).
 	if mg == nil || mg.dao == nil || ses == nil || !cfg.HasSection("otc") {
 		return
 	}
+	sw := &mg.placesSwitch
+	sw.backfillMu.Lock()
+	defer sw.backfillMu.Unlock()
+	if !mg.PlacesEnabled() {
+		return
+	}
+	turn := sw.turn.Load()
+	// This turn's run has ended: the map no longer says it is reading.
+	defer func() {
+		if sw.turn.Load() == turn {
+			sw.reading.Store(false)
+		}
+	}()
 	done, err := mg.dao.LocationsBackfilled()
 	if errors.Is(err, dao.ErrSchemaBehind) {
 		log.Info("places: the database has no photo positions yet (the release's migration), nothing read")
@@ -139,6 +160,10 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 			return
 		}
 		for _, file := range batch {
+			if sw.turn.Load() != turn {
+				log.Info("places: turned off or on again, this reading stops")
+				return
+			}
 			after = file.Hash
 			if _, err := os.Stat(thumbnailPath(file.Hash)); err != nil {
 				continue
@@ -154,8 +179,13 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 				log.Debug("places: could not read the metadata of", file.Path, ":", err)
 				continue
 			}
-			if err := mg.dao.SetPhotoLocation(file.Hash, lat, lon, ok); err != nil {
+			wrote, err := mg.placesWrite(&turn, func() error { return mg.dao.SetPhotoLocation(file.Hash, lat, lon, ok) })
+			if err != nil {
 				log.Error("places: could not record a position, stopping:", err)
+				return
+			}
+			if !wrote {
+				log.Info("places: turned off or on again, this reading stops")
 				return
 			}
 			mg.places.changed()
@@ -179,7 +209,7 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 	if unread > 0 {
 		return
 	}
-	if err := mg.dao.SetLocationsBackfilled(); err != nil {
+	if _, err := mg.placesWrite(&turn, mg.dao.SetLocationsBackfilled); err != nil {
 		log.Error("places: could not record that the positions were read:", err)
 	}
 }

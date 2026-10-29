@@ -128,8 +128,10 @@ type Manager struct {
 	// sizesBackfilled is set once every row's size is known to be right
 	// (size_backfill.go); until then budgetSize also checks the blob.
 	sizesBackfilled atomic.Bool
-	// places is the map's index of the photos with a position (places.go).
-	places placesCache
+	// places is the map's index of the photos with a position (places.go),
+	// kept only while placesSwitch is on (places_switch.go).
+	places       placesCache
+	placesSwitch placesSwitch
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged

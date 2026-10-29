@@ -40,6 +40,9 @@ func TestPlacesRequests(t *testing.T) {
 	defer db.Close()
 	at := time.Date(2024, 6, 1, 8, 0, 0, 0, time.UTC)
 	hash := fmt.Sprintf("%064x", 0x91ace)
+	// Places is on, its positions all read.
+	mock.ExpectQuery("select `places_enabled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"p"}).AddRow(1))
+	mock.ExpectQuery("select `locations_backfilled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"d"}).AddRow(1))
 	mock.ExpectQuery("select `path` from `out_of_images_folders`").WillReturnRows(sqlmock.NewRows([]string{"path"}))
 	mock.ExpectQuery("from `files` as `f` join `photo_locations` as `l`").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "created", "video", "lat", "lon"}).AddRow(hash, at, 0, 43.7731, 11.256))
@@ -95,5 +98,43 @@ func TestMediaArea(t *testing.T) {
 	}
 	if a := mediaArea(&pb.PlaceArea{South: 1, West: 170, North: 2, East: -170}); *a != (dao.MediaArea{South: 1, West: 170, North: 2, East: -170}) {
 		t.Errorf("area %+v", a)
+	}
+}
+
+// While Places is off the map answers places_off, an area holds nothing,
+// and turning it off (again) deletes the positions before it answers.
+func TestPlacesOffRequests(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `places_enabled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"p"}).AddRow(0))
+	ch := &connHandler{mg: &Manager{filesManager: filesmanager.NewWithDAO(dao.NewWithDB(db))}}
+	ch.setSession(newTestAuthenticatedSession(t))
+
+	resp, closeConn := ch.processMessage(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqGetPhotoPlaces{ReqGetPhotoPlaces: &pb.GetPhotoPlaces{
+		Tiles: []*pb.PlaceTile{{}},
+	}}})
+	if closeConn || !resp.GetError() || resp.GetErrorCode() != cCodePlacesOff || resp.GetErrorMessage() == "" {
+		t.Errorf("GetPhotoPlaces while off: %+v", resp)
+	}
+	if a := ch.placesArea(&pb.PlaceArea{South: 43.7, West: 11.2, North: 43.8, East: 11.3}); a == nil || a.South <= a.North {
+		t.Errorf("an area while off %+v holds something", a)
+	}
+	if ch.placesArea(nil) != nil {
+		t.Error("no area while off isn't the whole library")
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec("update `settings` set `places_enabled` = 0, `locations_backfilled` = 0").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `photo_locations`").WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectCommit()
+	resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 4, Payload: &pb.ReqEnvelope_ReqSetPlacesEnabled{ReqSetPlacesEnabled: &pb.SetPlacesEnabled{Enabled: false}}})
+	if !resp.GetRespAck().GetOk() {
+		t.Errorf("SetPlacesEnabled off: %+v", resp)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

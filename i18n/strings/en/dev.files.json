@@ -207,6 +207,10 @@
     "args": [["max", "int"]],
     "note": "Error reply when an app asks to take more photos off a person found by face recognition (Not this person), or to move more of them to another person, than the device handles in one request (an app fault). {max} is that most (10000)."
   },
+  "dev.files.places_off": {
+    "text": "Places is off: turn it on in Settings to see your photos on a map",
+    "note": "Error reply when the map of photos (Places, in Images) is asked for while the user has Places turned off in Settings. The apps hide the map then, so it is rarely shown. Places is the feature's name, as in app.shell.section_places."
+  },
   "dev.files.post_content_unavailable": {
     "text": "the content of {hash} is missing or unreadable: {detail}",
     "args": [["hash", "text"], ["detail", "text"]],

@@ -308,3 +308,54 @@ func TestEachLocatedCopyLargeMySQL(t *testing.T) {
 		t.Logf("run %d: read %d positions in %v", run, count, time.Since(start))
 	}
 }
+
+// Places' switch: off until turned on; turning it off empties
+// photo_locations and clears the backfill's record together; before the
+// release it is ErrSchemaBehind (read as off).
+func TestPlacesSwitchMySQL(t *testing.T) {
+	d := placesTestDB(t)
+	db := d.db
+	if _, err := db.Exec("create temporary table `settings` (`locations_backfilled` tinyint(1) not null default 0) engine=InnoDB"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("insert into `settings` () values ()"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.PlacesEnabled(); !errors.Is(err, ErrSchemaBehind) {
+		t.Errorf("before the release: %v", err)
+	}
+	if _, err := db.Exec("alter table `settings` add column `places_enabled` tinyint(1) not null default 0"); err != nil {
+		t.Fatal(err)
+	}
+	if on, err := d.PlacesEnabled(); on || err != nil {
+		t.Errorf("by default: %v, %v", on, err)
+	}
+	if err := d.SetPlacesEnabled(true); err != nil {
+		t.Fatal(err)
+	}
+	if on, err := d.PlacesEnabled(); !on || err != nil {
+		t.Errorf("turned on: %v, %v", on, err)
+	}
+	for i := 1; i <= 3; i++ {
+		if err := d.SetPhotoLocation(ph(i), 43, 11, i != 3); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := d.SetLocationsBackfilled(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.SetPlacesEnabled(false); err != nil {
+		t.Fatal(err)
+	}
+	var rows int
+	if err := db.QueryRow("select count(*) from `photo_locations`").Scan(&rows); err != nil || rows != 0 {
+		t.Errorf("%d positions left after turning it off (%v)", rows, err)
+	}
+	if on, err := d.PlacesEnabled(); on || err != nil {
+		t.Errorf("turned off: %v, %v", on, err)
+	}
+	if done, err := d.LocationsBackfilled(); done || err != nil {
+		t.Errorf("the backfill's record after turning it off: %v, %v", done, err)
+	}
+}

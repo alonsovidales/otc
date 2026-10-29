@@ -48,9 +48,12 @@ real usage.
    build of the web app connects to its development device instead):
    - `otc-put` uploads the library made as described in `docs/demo-device/content/README.md`
      (`echo PASSWORD | otc-put -address ws://127.0.0.1:18080/ws <content>/library /`);
-   - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` sets the profile,
+   - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` turns Places on
+     (the map in Images, off on every other device until its user turns it on), sets the profile,
      names each person after the name most of their photos list, deletes the rest (the dog,
-     strangers) and makes the collections and posts;
+     strangers) and makes the collections and posts. A demo set up before Places gets it with
+     `otc-demo-setup -places-only -address …` (password on stdin), with demo mode off for it as
+     for the rest of this step;
    - `docs/demo-device/content/friends.py` builds three made-up friends (addresses under
      `demo.off-the.cloud`, which no bridge name can take and which don't resolve, so the friend
      sync fails quietly), their posts and their comments and likes; copy its media into

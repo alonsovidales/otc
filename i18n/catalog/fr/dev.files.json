@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "aucune photo indiquée"},
   "dev.files.person_same": {"text": "choisissez une autre personne vers qui déplacer les photos"},
   "dev.files.person_too_many": {"text": "{max} photos au maximum à la fois"},
+  "dev.files.places_off": {"text": "Lieux est désactivé : activez-le dans les Paramètres pour voir vos photos sur une carte"},
   "dev.files.post_content_unavailable": {"text": "le contenu de {hash} est absent ou illisible : {detail}"},
   "dev.files.read_failed": {"text": "erreur lors de la lecture du fichier : {detail}"},
   "dev.files.reprocess_count_failed": {"text": "comptage des médias à retraiter : {detail}"},

@@ -342,7 +342,7 @@ func TestPhotoPlacesAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg := placesOn(&Manager{dao: dao.NewWithDB(db)})
 	empty := []string{}
 	mg.outOfImagesCache.Store(&empty)
 

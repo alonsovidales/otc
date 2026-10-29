@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "no se ha indicado ninguna foto"},
   "dev.files.person_same": {"text": "elige otra persona a la que mover las fotos"},
   "dev.files.person_too_many": {"text": "como máximo {max} fotos a la vez"},
+  "dev.files.places_off": {"text": "Lugares está desactivado: actívalo en Ajustes para ver tus fotos en un mapa"},
   "dev.files.post_content_unavailable": {"text": "el contenido de {hash} falta o no se puede leer: {detail}"},
   "dev.files.read_failed": {"text": "error al leer el archivo: {detail}"},
   "dev.files.reprocess_count_failed": {"text": "al contar el contenido multimedia para reprocesar: {detail}"},

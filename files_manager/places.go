@@ -89,12 +89,24 @@ type placesCache struct {
 	building bool
 	lastUsed time.Time
 	idle     *time.Timer
+	// floor is gen at the last reset: an index read before it is never
+	// put in place.
+	floor uint64
 }
 
 // changed says the library changed: a path added, replaced or deleted, a
 // folder kept out of Images or shown again, a position written. The next
 // request rebuilds the index.
 func (c *placesCache) changed() { c.gen.Add(1) }
+
+// reset forgets the index and its masks at once (Places turned off or
+// on): one being built from before is never used.
+func (c *placesCache) reset() {
+	gen := c.gen.Add(1)
+	c.mu.Lock()
+	c.idx, c.masks, c.floor = nil, nil, gen
+	c.mu.Unlock()
+}
 
 // index is the index for a request at now: built in it the first time,
 // and after a change still the one before while build makes the next in
@@ -147,6 +159,9 @@ func (c *placesCache) rebuild(build func(gen uint64) (*placesIndex, error), gen 
 func (c *placesCache) set(idx *placesIndex) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if idx.gen < c.floor {
+		return
+	}
 	c.idx = idx
 	c.masks = nil
 	if c.idle == nil {
@@ -458,6 +473,9 @@ func placesFilterKey(tags, personIDs []string, groupID string, includeVideos boo
 // PhotoPlaces answers GetPhotoPlaces: the places of tiles at zoom (see the
 // proto) for the photos SearchPhotos would show with these filters.
 func (mg *Manager) PhotoPlaces(zoom int32, tiles []*pb.PlaceTile, tags, personIDs []string, groupID string, includeVideos bool) (*pb.PhotoPlaces, error) {
+	if !mg.PlacesEnabled() {
+		return nil, ErrPlacesOff
+	}
 	z := int(max(0, min(cPlacesMaxZoom, zoom)))
 	asked := placesTiles(z, tiles)
 	excluded, err := mg.OutOfImagesFolders()
@@ -484,7 +502,7 @@ func (mg *Manager) PhotoPlaces(zoom int32, tiles []*pb.PlaceTile, tags, personID
 	}
 	groups, total, area := placesGroups(idx.entries, keep, z, asked)
 
-	out := &pb.PhotoPlaces{LocatedTotal: int32(total), LocatedArea: area, Zoom: int32(z)}
+	out := &pb.PhotoPlaces{LocatedTotal: int32(total), LocatedArea: area, Zoom: int32(z), Reading: mg.placesReading()}
 	covers := make([]string, 0, len(groups))
 	for _, g := range groups {
 		covers = append(covers, hex.EncodeToString(idx.entries[g.cover].hash[:]))

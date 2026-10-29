@@ -44,6 +44,7 @@
   "dev.files.person_no_photos": {"text": "nessuna foto indicata"},
   "dev.files.person_same": {"text": "scegli un’altra persona a cui spostare le foto"},
   "dev.files.person_too_many": {"text": "al massimo {max} foto alla volta"},
+  "dev.files.places_off": {"text": "Luoghi è disattivato: attivalo nelle Impostazioni per vedere le tue foto su una mappa"},
   "dev.files.post_content_unavailable": {"text": "il contenuto di {hash} manca o è illeggibile: {detail}"},
   "dev.files.read_failed": {"text": "errore durante la lettura del file: {detail}"},
   "dev.files.reprocess_count_failed": {"text": "conteggio dei media da rielaborare: {detail}"},

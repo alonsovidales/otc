@@ -17,9 +17,11 @@ import (
 // processes the content (files_manager.processMedia) and once in the
 // background for what it held before (files_manager.backfillLocations);
 // read by the map's index (EachLocatedCopy) and by a search inside an area
-// (searchMediaClauses). A database without the table (the release's
-// script hasn't reached it) reads as one where nothing has a position,
-// and its writes are ErrSchemaBehind.
+// (searchMediaClauses). Only while Places is on (settings.places_enabled,
+// files_manager's placesSwitch): turning it off empties the table. A
+// database without the table (the release's script hasn't reached it)
+// reads as one where nothing has a position, and its writes are
+// ErrSchemaBehind.
 
 // MediaArea is an area of the map in degrees, bounds inclusive
 // (PlaceArea in the protocol). West greater than East is an area across
@@ -234,4 +236,37 @@ func (dao *Dao) LocationsBackfilled() (done bool, err error) {
 func (dao *Dao) SetLocationsBackfilled() error {
 	_, err := dao.db.Exec("update `settings` set `locations_backfilled` = 1")
 	return schemaBehind(err)
+}
+
+// PlacesEnabled is whether Places is on (settings.places_enabled, off
+// unless the user turns it on): only then does the device keep where its
+// photos were taken. ErrSchemaBehind before the release that added it,
+// which callers read as off.
+func (dao *Dao) PlacesEnabled() (on bool, err error) {
+	err = dao.db.QueryRow("select `places_enabled` from `settings`").Scan(&on)
+	return on, schemaBehind(err)
+}
+
+// SetPlacesEnabled turns Places on, or off. Off deletes every position
+// kept and the record that the backfill ran, with the switch in one
+// transaction: nothing of them is left, and turning it on again reads
+// them afresh.
+func (dao *Dao) SetPlacesEnabled(on bool) error {
+	if on {
+		_, err := dao.db.Exec("update `settings` set `places_enabled` = 1")
+		return schemaBehind(err)
+	}
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec("update `settings` set `places_enabled` = 0, `locations_backfilled` = 0"); err != nil {
+		tx.Rollback()
+		return schemaBehind(err)
+	}
+	if _, err := tx.Exec("delete from `photo_locations`"); err != nil && !isNoSuchTable(err) {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
