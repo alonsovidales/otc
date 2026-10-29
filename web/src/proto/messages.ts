@@ -899,8 +899,9 @@ export interface SearchPhotos {
    * by the position the device keeps for each (see GetPhotoPlaces) - a
    * place's area, to open its photos in the grid. Combines with tags,
    * people and collection as they combine with each other, and pages,
-   * jumps (before, newer_than) and resumes like any search; a photo
-   * without a position is never inside one. Unset is the whole library.
+   * jumps (before, newer_than) and resumes like any search - send it on
+   * every page, as they are; a photo without a position is never inside
+   * one. Unset is the whole library.
    * Devices before Places ignore it and answer the whole library: offer
    * it only to a device that answered GetPhotoPlaces, never to one that
    * answered it with error_code "unknown_payload".
@@ -1054,8 +1055,8 @@ export interface PhotoPlace {
     | PlaceArea
     | undefined;
   /**
-   * The tile it was asked for with, as asked (x as sent, before the
-   * modulo), and its zoom.
+   * The tile it is in, at its zoom: x within 0 to 2^zoom - 1 (the modulo
+   * GetPhotoPlaces takes), the key a client keeps it under.
    */
   zoom: number;
   x: number;
