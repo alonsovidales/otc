@@ -132,9 +132,13 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 		return
 	}
 	turn := sw.turn.Load()
-	// This turn's run has ended: the map no longer says it is reading.
+	// This turn's run has ended: the map no longer says it is reading, and
+	// its first answer that says so comes from an index read after the
+	// last position (the one in use may be up to cPlacesMinRebuild older,
+	// and the apps keep a done answer five minutes).
 	defer func() {
 		if sw.turn.Load() == turn {
+			mg.places.reset()
 			sw.reading.Store(false)
 		}
 	}()

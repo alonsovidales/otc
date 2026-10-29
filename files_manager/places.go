@@ -476,6 +476,9 @@ func (mg *Manager) PhotoPlaces(zoom int32, tiles []*pb.PlaceTile, tags, personID
 	if !mg.PlacesEnabled() {
 		return nil, ErrPlacesOff
 	}
+	// Before the index: a reading that ends meanwhile drops the index it
+	// read, so "done" never comes with one older than its last position.
+	reading := mg.placesReading()
 	z := int(max(0, min(cPlacesMaxZoom, zoom)))
 	asked := placesTiles(z, tiles)
 	excluded, err := mg.OutOfImagesFolders()
@@ -502,7 +505,7 @@ func (mg *Manager) PhotoPlaces(zoom int32, tiles []*pb.PlaceTile, tags, personID
 	}
 	groups, total, area := placesGroups(idx.entries, keep, z, asked)
 
-	out := &pb.PhotoPlaces{LocatedTotal: int32(total), LocatedArea: area, Zoom: int32(z), Reading: mg.placesReading()}
+	out := &pb.PhotoPlaces{LocatedTotal: int32(total), LocatedArea: area, Zoom: int32(z), Reading: reading}
 	covers := make([]string, 0, len(groups))
 	for _, g := range groups {
 		covers = append(covers, hex.EncodeToString(idx.entries[g.cover].hash[:]))

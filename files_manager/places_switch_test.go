@@ -185,18 +185,29 @@ func TestPlacesTurnedOnStartsTheBackfill(t *testing.T) {
 	mock.ExpectExec("update `settings` set `places_enabled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("select `locations_backfilled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"d"}).AddRow(1))
 	mg := &Manager{dao: dao.NewWithDB(db)}
+	// Held, so the backfill waits until an index read while it reads is
+	// in place: gone once the reading ends.
+	mg.placesSwitch.backfillMu.Lock()
 	if err := mg.SetPlacesEnabled(ses, true); err != nil {
 		t.Fatal(err)
 	}
-	if !mg.PlacesEnabled() {
-		t.Error("off after turning it on")
+	if !mg.PlacesEnabled() || !mg.placesReading() {
+		t.Error("off, or not reading, after turning it on")
 	}
+	mg.places.set(&placesIndex{gen: mg.places.gen.Load(), built: time.Now()})
+	mg.placesSwitch.backfillMu.Unlock()
 	deadline := time.Now().Add(3 * time.Second)
 	for mg.placesReading() && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	if mg.placesReading() {
 		t.Error("still reading: the backfill didn't run")
+	}
+	mg.places.mu.Lock()
+	idx := mg.places.idx
+	mg.places.mu.Unlock()
+	if idx != nil {
+		t.Error("the index read while reading outlived the reading")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
