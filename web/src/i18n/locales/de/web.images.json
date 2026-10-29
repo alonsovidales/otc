@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Foto vom {date}",
   "web.images.places.pin_video": "Video vom {date}",
+  "web.images.places.reading": "Es wird ermittelt, wo deine Fotos aufgenommen wurden…",
   "web.images.places.zoom_in": "Vergrößern",
   "web.images.places.zoom_out": "Verkleinern",
   "web.images.post.caption": "Bildunterschrift",

@@ -338,6 +338,14 @@ fun S.appSettingsPickerAll(): UiText =
 fun S.appSettingsPickerTitle(): UiText =
     UiText.Res(R.string.app_settings_picker_title)
 
+/** "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.": Explanation and consent text under the Places switch in Settings (the map of photos in Images, off unless the user turns it on). The device reads each photo's GPS location and keeps it unencrypted while it is on; turning it off deletes those locations. The map's own picture (streets, names) comes from a map service, which sees the area on screen but never the photos. Say plainly that the locations are kept unencrypted. */
+fun S.appSettingsPlacesFooter(): UiText =
+    UiText.Res(R.string.app_settings_places_footer)
+
+/** "Places": Heading of the section of Settings holding the Places switch, and the switch's own label: the map of the photos in Images, at the places they were taken. Places is the feature's name, as in the menu (app.shell.section_places). */
+fun S.appSettingsPlacesTitle(): UiText =
+    UiText.Res(R.string.app_settings_places_title)
+
 /** "Change photo": Button under the profile photo in Settings > Profile. It opens a menu: pick the photo on this phone, or among the photos on the user's device. */
 fun S.appSettingsProfileChangePhoto(): UiText =
     UiText.Res(R.string.app_settings_profile_change_photo)

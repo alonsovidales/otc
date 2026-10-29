@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Photo du {date}",
   "web.images.places.pin_video": "Vidéo du {date}",
+  "web.images.places.reading": "Recherche de l’endroit où vos photos ont été prises…",
   "web.images.places.zoom_in": "Zoom avant",
   "web.images.places.zoom_out": "Zoom arrière",
   "web.images.post.caption": "Légende",

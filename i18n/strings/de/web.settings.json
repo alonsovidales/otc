@@ -330,6 +330,22 @@
     "text": "Unerwartete Antwort.",
     "en": "Unexpected response."
   },
+  "web.settings.places.disable": {
+    "text": "Orte ausschalten",
+    "en": "Disable Places"
+  },
+  "web.settings.places.enable": {
+    "text": "Orte einschalten",
+    "en": "Enable Places"
+  },
+  "web.settings.places.hint": {
+    "text": "Zeigt deine Fotos und Videos auf einer Karte, dort, wo sie aufgenommen wurden. Ausgeschaltet, solange du es nicht einschaltest. Solange es eingeschaltet ist, liest das Gerät aus den Standortdaten, wo jedes aufgenommen wurde, und speichert diese Standorte unverschlüsselt, damit sich die Karte schnell öffnet. Beim Ausschalten werden sie gelöscht. Die Karte selbst kommt von einem Kartendienst, der den Bereich sieht, den du dir ansiehst, aber nie deine Fotos.",
+    "en": "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos."
+  },
+  "web.settings.places.title": {
+    "text": "Orte",
+    "en": "Places"
+  },
   "web.settings.profile.title": {
     "text": "Profil",
     "en": "Profile"

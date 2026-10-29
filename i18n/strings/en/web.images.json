@@ -960,6 +960,11 @@
     "args": [["date", "text"]],
     "note": "Screen-reader name of a pin on the Places map that holds one video; pressing it opens the video. {date} is when it was recorded, like 3 May 2024."
   },
+  "web.images.places.reading": {
+    "text": "Finding where your photos were taken…",
+    "note": "Small note on the map in Images (Places) while the device is still reading, in the background, where the photos it already held were taken, just after Places was turned on: some photos aren't on the map yet.",
+    "max": 60
+  },
   "web.images.places.zoom_in": {
     "text": "Zoom in",
     "note": "Screen-reader name and tooltip of the + button on the Places map.",

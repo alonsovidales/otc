@@ -921,6 +921,10 @@
     "text": "Vidéo du {date}",
     "en": "Video from {date}"
   },
+  "web.images.places.reading": {
+    "text": "Recherche de l’endroit où vos photos ont été prises…",
+    "en": "Finding where your photos were taken…"
+  },
   "web.images.places.zoom_in": {
     "text": "Zoom avant",
     "en": "Zoom in"

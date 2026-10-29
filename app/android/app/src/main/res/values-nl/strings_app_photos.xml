@@ -229,6 +229,7 @@
         <item quantity="one">%1$s item hier</item>
         <item quantity="other">%1$s items hier</item>
     </plurals>
+    <string name="app_photos_places_reading">Zoeken waar je foto’s zijn gemaakt…</string>
     <string name="app_photos_places_show_grid">Als raster tonen</string>
     <string name="app_photos_places_show_map">Op de kaart tonen</string>
     <string name="app_photos_search_already">“\u2068%1$s\u2069” staat al in de zoekopdracht.</string>

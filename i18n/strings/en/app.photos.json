@@ -793,6 +793,11 @@
     "args": [["count", "count"]],
     "note": "Screen-reader name of a group of photos on the map (Places): a round thumbnail with a count, drawn at the place they were taken. {count} is how many photos and videos it holds, always 2 or more (a single photo is read as app.photos.grid.tile_photo_on). Tapping it zooms in, or opens them in Images."
   },
+  "app.photos.places.reading": {
+    "text": "Finding where your photos were taken…",
+    "note": "Small note on the map in Images (Places) while the device is still reading, in the background, where the photos it already held were taken, just after Places was turned on: some photos aren't on the map yet.",
+    "max": 60
+  },
   "app.photos.places.show_grid": {
     "text": "Show as a grid",
     "note": "Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos."

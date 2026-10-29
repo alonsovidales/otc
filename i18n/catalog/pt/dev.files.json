@@ -44,7 +44,7 @@
   "dev.files.person_no_photos": {"text": "não foi indicada nenhuma foto"},
   "dev.files.person_same": {"text": "escolhe outra pessoa para onde mover as fotos"},
   "dev.files.person_too_many": {"text": "no máximo {max} fotos de cada vez"},
-  "dev.files.places_off": {"text": "Locais está desativado: ative-o nas Definições para ver as suas fotos num mapa"},
+  "dev.files.places_off": {"text": "Locais está desativado: ativa-o nas Definições para veres as tuas fotos num mapa"},
   "dev.files.post_content_unavailable": {"text": "o conteúdo de {hash} está em falta ou ilegível: {detail}"},
   "dev.files.read_failed": {"text": "erro ao ler o ficheiro: {detail}"},
   "dev.files.reprocess_count_failed": {"text": "erro ao contar o conteúdo multimédia a reprocessar: {detail}"},

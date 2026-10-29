@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Foto del {date}",
   "web.images.places.pin_video": "Vídeo del {date}",
+  "web.images.places.reading": "Buscando dónde se tomaron tus fotos…",
   "web.images.places.zoom_in": "Acercar",
   "web.images.places.zoom_out": "Alejar",
   "web.images.post.caption": "Pie de foto",

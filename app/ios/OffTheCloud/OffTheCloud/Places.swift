@@ -10,10 +10,16 @@
 //  at a zoom is 4 x 4 cells, and each cell holding photos is one place.
 //  Zooming in splits the groups.
 //
-//    - Shown only on a device that answered GetPhotoPlaces (PlacesSupport,
-//      asked on every connection): a wide window's menu has a Places page
-//      after Collections, a narrow one a grid/map switch at the top of
-//      Images (MainView, PhotoGalleryView).
+//    - Shown only while Places is on (PlacesSupport: Settings.places_enabled,
+//      the user's switch in Settings, asked on every connection; off on
+//      every device until turned on, as the device keeps where each photo
+//      was taken unencrypted only then): a wide window's menu has a Places
+//      page after Collections, a narrow one a grid/map switch at the top
+//      of Images (MainView, PhotoGalleryView). A map told "places_off"
+//      (turned off on another app) goes at once.
+//    - Just turned on, the device reads where the photos were taken in
+//      the background (PhotoPlaces.reading): the map says so, keeps those
+//      answers only 15 s and asks again as it fills in.
 //    - The map shows what Images would show: its search, people and open
 //      collection (PlacesFilter), videos included as in the grid. It opens
 //      framed on all of them (PhotoPlaces.located_area), or where it was
@@ -216,10 +222,14 @@ struct PlacesFilter: Hashable, Sendable {
 struct PlacesExtent: Equatable {
     let total: Int
     let area: Msg_PlaceArea?
+    /// The device is still reading where the photos were taken (Places
+    /// just turned on): more come.
+    let reading: Bool
 
     init(_ answer: Msg_PhotoPlaces) {
         total = Int(answer.locatedTotal)
         area = answer.locatedTotal > 0 && answer.hasLocatedArea ? answer.locatedArea : nil
+        reading = answer.reading
     }
 }
 
@@ -415,6 +425,8 @@ enum PlaceTap {
 /// each search too.
 struct PlacesCache {
     static let ttl: TimeInterval = 5 * 60
+    /// An answer given while the device is still reading positions.
+    static let readingTTL: TimeInterval = 15
 
     private struct Key: Hashable {
         let filter: PlacesFilter
@@ -424,6 +436,7 @@ struct PlacesCache {
     private struct Entry {
         let places: [Msg_PhotoPlace]
         let at: Date
+        let reading: Bool
     }
 
     private var tiles: [Key: Entry] = [:]
@@ -432,7 +445,8 @@ struct PlacesCache {
     /// The places of a tile, when its answer is kept and fresh: [] for a
     /// tile without any.
     func places(in tile: PlaceTileKey, for filter: PlacesFilter, now: Date = Date()) -> [Msg_PhotoPlace]? {
-        guard let e = tiles[Key(filter: filter, tile: tile)], now.timeIntervalSince(e.at) < Self.ttl else { return nil }
+        guard let e = tiles[Key(filter: filter, tile: tile)],
+              now.timeIntervalSince(e.at) < (e.reading ? Self.readingTTL : Self.ttl) else { return nil }
         return e.places
     }
 
@@ -453,7 +467,7 @@ struct PlacesCache {
         // Under the tiles as asked: an answer for another zoom (never
         // sent) holds nothing for them, and isn't asked for again.
         for t in asked {
-            tiles[Key(filter: filter, tile: t)] = Entry(places: byTile[t] ?? [], at: now)
+            tiles[Key(filter: filter, tile: t)] = Entry(places: byTile[t] ?? [], at: now, reading: answer.reading)
         }
         extents[filter] = PlacesExtent(answer)
     }
@@ -472,10 +486,13 @@ struct PlacesCache {
 
 // MARK: - Whether the device has them
 
-/// Whether the signed-in device answers GetPhotoPlaces (release 148): asked
-/// on every connection (it may have been updated), with the answer this
-/// phone had last standing in meanwhile, so Places doesn't come and go at
-/// each launch. nil (never asked, or Log Out): hidden.
+/// Whether Places shows: the signed-in device has it (release 148) and its
+/// user turned it on (Settings.places_enabled, off by default). Asked on
+/// every connection (it may have been updated, or turned on or off on
+/// another app), with the answer this phone had last standing in
+/// meanwhile, so Places doesn't come and go at each launch; Settings'
+/// switch and a map told "places_off" set it at once. nil (never asked,
+/// or Log Out): hidden.
 @MainActor
 final class PlacesSupport: ObservableObject {
     static let shared = PlacesSupport()
@@ -490,20 +507,18 @@ final class PlacesSupport: ObservableObject {
         try await OTCConnection.shared.ask("places", base: OTCConnection.listTimeout) { $0.payload = payload }
     }
 
-    nonisolated private static let key = "placesSupported"
+    nonisolated private static let key = "placesOn"
     private var asking: Task<Void, Never>?
 
     init(stored: Bool? = UserDefaults.standard.object(forKey: PlacesSupport.key) as? Bool) {
         supported = stored
     }
 
-    /// What an answer to the question says: true for places, false for a
-    /// device that doesn't know the request, nil for anything else (asked
-    /// again).
+    /// What the device's Settings say: on or off, false for a device before
+    /// Places (no places_enabled), nil for no Settings (asked again).
     nonisolated static func verdict(_ resp: Msg_RespEnvelope?) -> Bool? {
-        guard let resp else { return nil }
-        if case .respPhotoPlaces = resp.payload { return true }
-        return resp.errorCode == "unknown_payload" ? false : nil
+        guard let resp, case .respSettings(let s) = resp.payload else { return nil }
+        return s.hasPlacesEnabled && s.placesEnabled
     }
 
     /// Signed in, or connected again: asked now, then after a failure
@@ -514,8 +529,7 @@ final class PlacesSupport: ObservableObject {
             var failures = 0
             while !Task.isCancelled {
                 guard let self else { return }
-                // The whole library at zoom 0 with no tiles: only the count.
-                let resp = try? await self.request(.reqGetPhotoPlaces(PlacesFilter().request(zoom: 0, tiles: [])))
+                let resp = try? await self.request(.reqGetSettings(Msg_GetSettings()))
                 guard !Task.isCancelled else { return }
                 if let said = Self.verdict(resp) {
                     self.set(said)
@@ -528,7 +542,7 @@ final class PlacesSupport: ObservableObject {
         }
     }
 
-    /// A device that turned the request down meanwhile (a map's own ask).
+    /// Settings' switch, or a map told "places_off" or "unknown_payload".
     func set(_ on: Bool) {
         UserDefaults.standard.set(on, forKey: Self.key)
         if supported != on { supported = on }
@@ -584,6 +598,9 @@ final class PlacesModel: ObservableObject {
     private var settleTask: Task<Void, Never>?
     private var prefetchTask: Task<Void, Never>?
     private var lastAnswer = Date.distantPast
+    /// While the device reads positions, what the map shows is asked again
+    /// as its answers age.
+    private var readingTask: Task<Void, Never>?
     /// The map is on the screen: only then is anything asked for (a delete
     /// in the grid only forgets what is kept).
     private var onMap = false
@@ -645,6 +662,7 @@ final class PlacesModel: ObservableObject {
         onMap = false
         settleTask?.cancel()
         prefetchTask?.cancel()
+        readingTask?.cancel()
         for gone in onScreen { thumbs.disappeared(gone) }
         onScreen = []
     }
@@ -700,6 +718,17 @@ final class PlacesModel: ObservableObject {
         pump()
     }
 
+    /// An answer said the device is still reading positions: once it has
+    /// aged, the screen's tiles (and the count with them) are asked again.
+    private func askAgainWhileReading() {
+        readingTask?.cancel()
+        readingTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(PlacesCache.readingTTL + 0.5))
+            guard let self, !Task.isCancelled, self.onMap else { return }
+            self.pump()
+        }
+    }
+
     /// The pin's thumbnail, when decoded.
     func image(for pin: PlacePin) -> UIImage? {
         guard let c = pin.cover else { return nil }
@@ -750,9 +779,9 @@ final class PlacesModel: ObservableObject {
             let resp = try? await self.request(.reqGetPhotoPlaces(f.request(zoom: zoom, tiles: tiles)))
             self.asking = false
             guard let resp, case .respPhotoPlaces(let answer) = resp.payload else {
-                if resp?.errorCode == "unknown_payload" {
+                if resp?.errorCode == "unknown_payload" || resp?.errorCode == "places_off" {
                     // A device before Places (signed in to another one
-                    // meanwhile): no map.
+                    // meanwhile), or Places turned off on another app: no map.
                     PlacesSupport.shared.set(false)
                     return
                 }
@@ -769,6 +798,7 @@ final class PlacesModel: ObservableObject {
                 if e != self.extent { self.extent = e }
                 self.redraw()
             }
+            if answer.reading { self.askAgainWhileReading() }
             self.pump()
         }
     }
@@ -931,6 +961,11 @@ struct PlacesMapView: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(.regularMaterial, in: Capsule())
+        } else if let e = places.extent, e.reading {
+            Text(S.appPhotosPlacesReading)
+                .font(.subheadline)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(.regularMaterial, in: Capsule())
         } else if let e = places.extent, e.total == 0 {
             Text(places.filter.isEmpty ? S.appPhotosPlacesNone : S.appPhotosPlacesNoneFiltered)
                 .font(.subheadline)

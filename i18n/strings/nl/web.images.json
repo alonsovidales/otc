@@ -921,6 +921,10 @@
     "text": "Video van {date}",
     "en": "Video from {date}"
   },
+  "web.images.places.reading": {
+    "text": "Zoeken waar je foto’s zijn gemaakt…",
+    "en": "Finding where your photos were taken…"
+  },
   "web.images.places.zoom_in": {
     "text": "Inzoomen",
     "en": "Zoom in"

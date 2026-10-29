@@ -330,6 +330,22 @@
     "text": "Respuesta inesperada.",
     "en": "Unexpected response."
   },
+  "web.settings.places.disable": {
+    "text": "Desactivar Lugares",
+    "en": "Disable Places"
+  },
+  "web.settings.places.enable": {
+    "text": "Activar Lugares",
+    "en": "Enable Places"
+  },
+  "web.settings.places.hint": {
+    "text": "Muestra tus fotos y vídeos en un mapa, en los lugares donde se tomaron. Está desactivado salvo que lo actives. Mientras está activado, el dispositivo lee de sus datos de ubicación dónde se tomó cada uno y guarda esas ubicaciones sin cifrar, para que el mapa se abra rápido. Al desactivarlo, se borran. El mapa en sí viene de un servicio de mapas, que ve la zona que miras, pero nunca tus fotos.",
+    "en": "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos."
+  },
+  "web.settings.places.title": {
+    "text": "Lugares",
+    "en": "Places"
+  },
   "web.settings.profile.title": {
     "text": "Perfil",
     "en": "Profile"

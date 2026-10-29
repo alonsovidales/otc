@@ -316,19 +316,43 @@ struct PlacesCacheTests {
         #expect(!f.isEmpty && PlacesFilter().isEmpty)
     }
 
+    /// Places shows only while the device's Settings say it is on; a
+    /// device before Places (no places_enabled) has none.
     @Test func whatTheQuestionsAnswerSays() {
-        var places = Msg_RespEnvelope()
-        places.payload = .respPhotoPlaces(Msg_PhotoPlaces())
-        #expect(PlacesSupport.verdict(places) == true)
-        var old = Msg_RespEnvelope()
-        old.error = true
-        old.errorCode = "unknown_payload"
-        #expect(PlacesSupport.verdict(old) == false)
+        func settings(_ on: Bool?) -> Msg_RespEnvelope {
+            var s = Msg_Settings()
+            if let on { s.placesEnabled = on }
+            var r = Msg_RespEnvelope()
+            r.payload = .respSettings(s)
+            return r
+        }
+        #expect(PlacesSupport.verdict(settings(true)) == true)
+        #expect(PlacesSupport.verdict(settings(false)) == false)
+        #expect(PlacesSupport.verdict(settings(nil)) == false)
         var other = Msg_RespEnvelope()
         other.error = true
         other.errorMessage = "busy"
         #expect(PlacesSupport.verdict(other) == nil)
         #expect(PlacesSupport.verdict(nil) == nil)
+    }
+
+    /// While the device reads positions, its answers are kept 15 s, not 5
+    /// minutes, and the extent says so.
+    @Test func readingAnswersAgeSooner() {
+        var c = PlacesCache()
+        let f = PlacesFilter()
+        let t = PlaceTileKey(zoom: 0, x: 0, y: 0)
+        let then = Date()
+        var a = answer([], zoom: 0, total: 0)
+        a.reading = true
+        c.put(a, asked: [t], for: f, now: then)
+        #expect(c.extent(for: f)?.reading == true)
+        #expect(c.places(in: t, for: f, now: then + PlacesCache.readingTTL - 1) != nil)
+        #expect(c.places(in: t, for: f, now: then + PlacesCache.readingTTL + 1) == nil)
+        a.reading = false
+        c.put(a, asked: [t], for: f, now: then)
+        #expect(c.extent(for: f)?.reading == false)
+        #expect(c.places(in: t, for: f, now: then + 60) != nil)
     }
 }
 
@@ -348,6 +372,8 @@ private func waitUntil(_ seconds: Double = 3, _ done: () -> Bool) async {
 final class PlacesDevice {
     var asks: [Msg_GetPhotoPlaces] = []
     var fail = false
+    /// Places turned off (on another app): every ask is told so.
+    var off = false
     let places: [(Double, Double, Int)] = [(40.4168, -3.7038, 3), (40.4200, -3.7000, 2), (41.3874, 2.1686, 4)]
 
     func answer(_ r: Msg_GetPhotoPlaces) -> Msg_RespEnvelope {
@@ -356,6 +382,12 @@ final class PlacesDevice {
         if fail {
             resp.error = true
             resp.errorMessage = "busy"
+            return resp
+        }
+        if off {
+            resp.error = true
+            resp.errorCode = "places_off"
+            resp.errorMessage = "Places is off"
             return resp
         }
         var a = Msg_PhotoPlaces()
@@ -431,6 +463,21 @@ struct PlacesModelTests {
         try? await Task.sleep(for: .milliseconds(150))
         #expect(device.asks.count == count)
         #expect(m.pins.first?.count == 5)
+    }
+
+    /// Places turned off on another app: the map is told "places_off" and
+    /// goes, with no banner to try again.
+    @Test func aMapToldPlacesOffGoes() async {
+        let m = PlacesModel(thumbCache: testThumbCache())
+        let device = PlacesDevice()
+        device.attach(m)
+        device.off = true
+        PlacesSupport.shared.set(true)
+        m.appeared(filter: PlacesFilter())
+        await waitUntil { PlacesSupport.shared.supported == false }
+        #expect(PlacesSupport.shared.supported == false)
+        #expect(!m.problem)
+        PlacesSupport.shared.reset()
     }
 
     @Test func offTheScreenNothingIsAsked() async {

@@ -4826,6 +4826,100 @@
         }
       }
     },
+    "app.settings.places.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt deine Fotos und Videos auf einer Karte, dort, wo sie aufgenommen wurden. Ausgeschaltet, solange du es nicht einschaltest. Solange es eingeschaltet ist, liest das Gerät aus den Standortdaten, wo jedes aufgenommen wurde, und speichert diese Standorte unverschlüsselt, damit sich die Karte schnell öffnet. Beim Ausschalten werden sie gelöscht. Die Karte selbst kommt von einem Kartendienst, der den Bereich sieht, den du dir ansiehst, aber nie deine Fotos."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra tus fotos y vídeos en un mapa, en los lugares donde se tomaron. Está desactivado salvo que lo actives. Mientras está activado, el dispositivo lee de sus datos de ubicación dónde se tomó cada uno y guarda esas ubicaciones sin cifrar, para que el mapa se abra rápido. Al desactivarlo, se borran. El mapa en sí viene de un servicio de mapas, que ve la zona que miras, pero nunca tus fotos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche vos photos et vidéos sur une carte, là où elles ont été prises. Désactivé sauf si vous l’activez. Tant qu’il est activé, l’appareil lit dans leurs données de localisation où chacune a été prise et conserve ces positions non chiffrées, pour que la carte s’ouvre vite. Le désactiver les supprime. La carte elle-même vient d’un service de cartographie, qui voit la zone que vous regardez, mais jamais vos photos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra le tue foto e i tuoi video su una mappa, nei luoghi in cui sono stati scattati. È disattivato finché non lo attivi tu. Finché è attivo, il dispositivo legge dai dati di posizione dove è stato scattato ciascuno e conserva queste posizioni non crittografate, così la mappa si apre in fretta. Disattivandolo, vengono eliminate. La mappa in sé arriva da un servizio di mappe, che vede la zona che guardi, ma mai le tue foto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toont je foto’s en video’s op een kaart, op de plek waar ze zijn gemaakt. Dit staat uit tot je het inschakelt. Zolang het aanstaat, leest het apparaat uit de locatiegegevens waar elk is gemaakt en bewaart het die locaties onversleuteld, zodat de kaart snel opent. Uitschakelen verwijdert ze. De kaart zelf komt van een kaartdienst, die het gebied ziet waar je naar kijkt, maar nooit je foto’s."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra as tuas fotos e vídeos num mapa, nos sítios onde foram tirados. Só fica ativo se o ativares. Enquanto estiver ativo, o dispositivo lê dos dados de localização onde foi tirado cada um e guarda essas localizações sem encriptação, para o mapa abrir depressa. Desativá-lo apaga-as. O mapa em si vem de um serviço de mapas, que vê a zona que estás a ver, mas nunca as tuas fotos."
+          }
+        }
+      }
+    },
+    "app.settings.places.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Places"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lugares"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lieux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luoghi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plaatsen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locais"
+          }
+        }
+      }
+    },
     "app.settings.profile.change_photo" : {
       "extractionState" : "manual",
       "localizations" : {

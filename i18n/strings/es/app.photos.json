@@ -755,6 +755,10 @@
       "other": "{count} items here"
     }
   },
+  "app.photos.places.reading": {
+    "text": "Buscando dónde se tomaron tus fotos…",
+    "en": "Finding where your photos were taken…"
+  },
   "app.photos.places.show_grid": {
     "text": "Mostrar en cuadrícula",
     "en": "Show as a grid"

@@ -398,6 +398,14 @@
     "text": "Scegli una foto",
     "en": "Choose a photo"
   },
+  "app.settings.places.footer": {
+    "text": "Mostra le tue foto e i tuoi video su una mappa, nei luoghi in cui sono stati scattati. È disattivato finché non lo attivi tu. Finché è attivo, il dispositivo legge dai dati di posizione dove è stato scattato ciascuno e conserva queste posizioni non crittografate, così la mappa si apre in fretta. Disattivandolo, vengono eliminate. La mappa in sé arriva da un servizio di mappe, che vede la zona che guardi, ma mai le tue foto.",
+    "en": "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos."
+  },
+  "app.settings.places.title": {
+    "text": "Luoghi",
+    "en": "Places"
+  },
   "app.settings.profile.change_photo": {
     "text": "Cambia foto",
     "en": "Change photo"

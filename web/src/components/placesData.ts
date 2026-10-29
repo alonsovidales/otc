@@ -8,7 +8,7 @@
 
 import { useWS } from "../net/useWS";
 import type { File as MsgFile, PhotoPlace, PlaceArea, RespEnvelope } from "../proto/messages";
-import { onDropPlaces } from "./places";
+import { onDropPlaces, setPlacesOn } from "./places";
 import { batches, tileKey, type Tile } from "./placesMath";
 
 // ---- the places, per filter and tile --------------------------------------------
@@ -19,11 +19,14 @@ export type PlaceFilter = { tags: string[]; personIds: string[]; groupId: string
 export const filterKeyOf = (f: PlaceFilter) => `${f.tags.join("\n")}|${f.personIds.join(",")}|${f.groupId}`;
 
 /** An answer is used for this long, then asked again when shown (the
- *  phones' 5 minutes). */
+ *  phones' 5 minutes); one given while the device is still reading where
+ *  the photos were taken (PhotoPlaces.reading) only for cKeepReadingMs,
+ *  so the map fills in as it reads. */
 const cKeepMs = 5 * 60_000;
+export const cKeepReadingMs = 15_000;
 
-type TileEntry = { at: number; places: PhotoPlace[] };
-type Located = { at: number; total: number; area: PlaceArea | null };
+type TileEntry = { at: number; places: PhotoPlace[]; reading: boolean };
+type Located = { at: number; total: number; area: PlaceArea | null; reading: boolean };
 
 const tiles = new Map<string, TileEntry>();
 const located = new Map<string, Located>();
@@ -50,19 +53,20 @@ onDropPlaces((signedOut) => {
   told();
 });
 
-const fresh = (at: number) => Date.now() - at < cKeepMs;
+const fresh = (e: { at: number; reading: boolean }) => Date.now() - e.at < (e.reading ? cKeepReadingMs : cKeepMs);
 
 /** A tile's places as the device answered (maybe none), or null when it
  *  wasn't asked, or too long ago. */
 export function placesOf(filter: string, z: number, t: Tile): PhotoPlace[] | null {
   const e = tiles.get(tileKey(filter, z, t));
-  return e && fresh(e.at) ? e.places : null;
+  return e && fresh(e) ? e.places : null;
 }
 
-/** The whole library's located count and area under a filter, if known. */
+/** The whole library's located count and area under a filter, and
+ *  whether the device is still reading positions, if known. */
 export function locatedOf(filter: string): Located | null {
   const e = located.get(filter);
-  return e && fresh(e.at) ? e : null;
+  return e && fresh(e) ? e : null;
 }
 
 /** Asks the device for the tiles of `want` it doesn't have (and isn't
@@ -99,14 +103,20 @@ async function askBatch(filter: PlaceFilter, fk: string, z: number, batch: Tile[
         reqGetPhotoPlaces: { zoom: z, tiles: batch, tags: filter.tags, personIds: filter.personIds, includeVideos: true, groupId: filter.groupId },
       };
     });
+    // Turned off (on another app, or in Settings meanwhile): no map.
+    if (resp.errorCode === "places_off") {
+      setPlacesOn(false);
+      return true;
+    }
     if (resp.payload?.$case !== "respPhotoPlaces") return false;
     if (gen !== generation) return true;
     const answer = resp.payload.respPhotoPlaces;
     const now = Date.now();
+    const reading = !!answer.reading;
     const byTile = new Map<string, PhotoPlace[]>(keys.map((k) => [k, []]));
     for (const p of answer.places) byTile.get(tileKey(fk, z, { x: p.x, y: p.y }))?.push(p);
-    for (const [k, places] of byTile) tiles.set(k, { at: now, places });
-    located.set(fk, { at: now, total: answer.locatedTotal, area: answer.locatedTotal > 0 ? answer.locatedArea ?? null : null });
+    for (const [k, places] of byTile) tiles.set(k, { at: now, places, reading });
+    located.set(fk, { at: now, total: answer.locatedTotal, area: answer.locatedTotal > 0 ? answer.locatedArea ?? null : null, reading });
     told();
     return true;
   } catch {

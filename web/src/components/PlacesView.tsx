@@ -31,7 +31,7 @@ import type { ViewerItem } from "./MediaViewer";
 import { cMapHost, mapFetch, mapFetchJSON } from "./mapFetch";
 import { isFiltered, leaveArea, showArea, usePhotoFilter } from "./photoFilter";
 import { keepCamera, lastCamera } from "./places";
-import { askLocated, askTiles, filterKeyOf, locatedOf, onPlaces, onThumbs, placesOf, thumbOf, wantThumbs, type PlaceFilter } from "./placesData";
+import { askLocated, askTiles, cKeepReadingMs, filterKeyOf, locatedOf, onPlaces, onThumbs, placesOf, thumbOf, wantThumbs, type PlaceFilter } from "./placesData";
 import { areaSpanMetres, deviceZoom, fitCorners, mergePins, tileX, tileY, tilesFor, wrapX, type Area, type Pin } from "./placesMath";
 import "./PlacesView.css";
 
@@ -180,6 +180,9 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
   const [ready, setReady] = useState(false);
   // The whole library's located count under the filter (null: not known yet).
   const [total, setTotal] = useState<number | null>(() => locatedOf(fk)?.total ?? null);
+  // The device is still reading where the photos were taken (Places just
+  // turned on): the map says so, and asks again as it fills in.
+  const [reading, setReading] = useState(() => locatedOf(fk)?.reading ?? false);
   const [placesFailed, setPlacesFailed] = useState(false);
   const [viewing, setViewing] = useState<ViewerItem | null>(null);
 
@@ -457,6 +460,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
     if (mapRef.current !== map || !loc) return;
     setPlacesFailed(false);
     setTotal(loc.total);
+    setReading(loc.reading);
     const padding = { top: 96, bottom: 64, left: 64, right: 64 };
     const cam = loc.area ? map.cameraForBounds(fitCorners(loc.area), { padding, maxZoom: cFrameMaxZoom }) : undefined;
     if (cam && (cam.zoom ?? 0) > map.getMinZoom() + 0.25) {
@@ -482,6 +486,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
     for (const s of shownRef.current.values()) s.marker.remove();
     shownRef.current.clear();
     setTotal(locatedOf(fk)?.total ?? null);
+    setReading(locatedOf(fk)?.reading ?? false);
     if (map && ready) void frame(map);
   }, [fk, ready, frame]);
 
@@ -489,8 +494,21 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
   useEffect(() => onPlaces(() => {
     draw();
     const loc = locatedOf(live.current.fk);
-    if (loc) setTotal(loc.total);
+    if (loc) {
+      setTotal(loc.total);
+      setReading(loc.reading);
+    }
   }), [draw]);
+  // While the device reads, what is on screen is asked again as its
+  // answers age (cKeepReadingMs), the count and area with it.
+  useEffect(() => {
+    if (!reading || !ready) return;
+    const timer = setInterval(() => {
+      void askLocated(live.current.pf);
+      void ask();
+    }, cKeepReadingMs);
+    return () => clearInterval(timer);
+  }, [reading, ready, ask]);
   useEffect(() => onThumbs(() => {
     for (const s of shownRef.current.values()) paintPin(s, live.current.t);
   }), [paintPin]);
@@ -510,7 +528,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
     ? { title: t("web.images.places.no_map"), text: t("web.images.places.no_map_text"), retry: false }
     : problem === "style"
       ? { title: t("web.images.places.map_failed"), text: t("web.images.places.map_failed_text"), retry: true }
-      : total === 0
+      : total === 0 && !reading
         ? { title: filtered ? t("web.images.places.empty_filtered") : t("web.images.places.empty"), text: t("web.images.places.empty_text"), retry: false }
         : null;
 
@@ -526,6 +544,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
               ? (problem ? "" : <Spinner label={t("web.images.places.loading")} />)
               : total > 0 && t("web.images.places.located", { count: total })}
         </p>
+        {reading && !placesFailed && <p className="pl-sub pl-reading">{t("web.images.places.reading")}</p>}
       </div>
       {ready && (
         <div className="pl-zoom">

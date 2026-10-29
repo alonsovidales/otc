@@ -430,6 +430,7 @@ export type MessageKey =
   | "web.images.places.pin"
   | "web.images.places.pin_photo"
   | "web.images.places.pin_video"
+  | "web.images.places.reading"
   | "web.images.places.zoom_in"
   | "web.images.places.zoom_out"
   | "web.images.post.caption"
@@ -583,6 +584,10 @@ export type MessageKey =
   | "web.settings.password.title"
   | "web.settings.password.too_short"
   | "web.settings.password.unexpected"
+  | "web.settings.places.disable"
+  | "web.settings.places.enable"
+  | "web.settings.places.hint"
+  | "web.settings.places.title"
   | "web.settings.profile.title"
   | "web.settings.reprocess.all"
   | "web.settings.reprocess.cancel"
@@ -1495,6 +1500,7 @@ export interface MessageArgs {
   "web.images.places.pin": { count: number };
   "web.images.places.pin_photo": { date: string };
   "web.images.places.pin_video": { date: string };
+  "web.images.places.reading": undefined;
   "web.images.places.zoom_in": undefined;
   "web.images.places.zoom_out": undefined;
   "web.images.post.caption": undefined;
@@ -1654,6 +1660,10 @@ export interface MessageArgs {
   "web.settings.password.title": undefined;
   "web.settings.password.too_short": undefined;
   "web.settings.password.unexpected": undefined;
+  "web.settings.places.disable": undefined;
+  "web.settings.places.enable": undefined;
+  "web.settings.places.hint": undefined;
+  "web.settings.places.title": undefined;
   "web.settings.profile.title": undefined;
   "web.settings.reprocess.all": undefined;
   "web.settings.reprocess.cancel": undefined;

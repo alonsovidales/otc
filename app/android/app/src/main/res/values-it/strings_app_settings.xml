@@ -109,6 +109,8 @@
     <string name="app_settings_password_title">Modifica password</string>
     <string name="app_settings_picker_all">Tutte le foto</string>
     <string name="app_settings_picker_title">Scegli una foto</string>
+    <string name="app_settings_places_footer">Mostra le tue foto e i tuoi video su una mappa, nei luoghi in cui sono stati scattati. È disattivato finché non lo attivi tu. Finché è attivo, il dispositivo legge dai dati di posizione dove è stato scattato ciascuno e conserva queste posizioni non crittografate, così la mappa si apre in fretta. Disattivandolo, vengono eliminate. La mappa in sé arriva da un servizio di mappe, che vede la zona che guardi, ma mai le tue foto.</string>
+    <string name="app_settings_places_title">Luoghi</string>
     <string name="app_settings_profile_change_photo">Cambia foto</string>
     <string name="app_settings_profile_from_device">Dal tuo dispositivo</string>
     <string name="app_settings_profile_name">Nome</string>

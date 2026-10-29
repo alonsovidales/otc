@@ -16,7 +16,7 @@ import TopSearch from "./components/TopSearch";
 import CollectionsView from "./components/CollectionsView";
 import { leaveArea, showAll } from "./components/photoFilter";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
-import { usePlacesSupported, watchPlaces } from "./components/places";
+import { usePlacesOn, watchPlaces } from "./components/places";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -214,9 +214,10 @@ function App() {
   const faces = useFaceRecognition();
   useEffect(() => (authenticated ? watchFaceRecognition() : undefined), [authenticated]);
   useEffect(() => { if (faces === false && tab === "People") setTab("PhotoGallery"); }, [faces, tab]);
-  // Places likewise, on a device that has it (places.ts): asked once signed
-  // in; Places remembered as the last tab gives way to Images without it.
-  const places = usePlacesSupported();
+  // Places likewise, while it is on (places.ts: the user's switch in
+  // Settings, on a device that has it): asked once signed in; Places
+  // remembered as the last tab gives way to Images without it.
+  const places = usePlacesOn();
   useEffect(() => (authenticated ? watchPlaces() : undefined), [authenticated]);
   useEffect(() => { if (places === false && tab === "Places") setTab("PhotoGallery"); }, [places, tab]);
 

@@ -11034,6 +11034,53 @@
         }
       }
     },
+    "app.photos.places.reading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es wird ermittelt, wo deine Fotos aufgenommen wurden…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finding where your photos were taken…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando dónde se tomaron tus fotos…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche de l’endroit où vos photos ont été prises…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerco dove sono state scattate le tue foto…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoeken waar je foto’s zijn gemaakt…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A procurar onde foram tiradas as tuas fotos…"
+          }
+        }
+      }
+    },
     "app.photos.places.show_grid" : {
       "extractionState" : "manual",
       "localizations" : {

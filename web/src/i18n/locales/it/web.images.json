@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Foto del {date}",
   "web.images.places.pin_video": "Video del {date}",
+  "web.images.places.reading": "Cerco dove sono state scattate le tue foto…",
   "web.images.places.zoom_in": "Ingrandisci",
   "web.images.places.zoom_out": "Riduci",
   "web.images.post.caption": "Didascalia",

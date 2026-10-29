@@ -426,7 +426,11 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     - Turning it on starts `BackfillLocations` at once with the request's session. One runs at a
       time (`backfillMu`); `turn` counts the turns, and a run of an earlier one stops at its next
       photo and writes nothing more. `PhotoPlaces.reading` (5) is on and not all read, until this
-      turn's run ends (one that couldn't read some ends too: those wait for the next start).
+      turn's run ends (one that couldn't read some ends too: those wait for the next start). The
+      run's end drops the index (`places.reset()`) and `PhotoPlaces` reads `reading` before the
+      index, so the first answer that says it is done comes from an index read after the last
+      position - the apps keep a done answer 5 minutes (seen live: without it the first one held
+      76 of 348).
     - Read once from the database (`loadPlaces`); a database before the column reads as off.
     - A demo device refuses the switch; `otc-demo-setup` turns it on (`-places-only` for a demo
       set up before Places, with demo mode off).
@@ -1644,9 +1648,17 @@ nothing may give `main` (or another ancestor of the pages) an overflow, or `posi
 it (release 103's 64px gap) - so sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars
 use `left: var(--content-left)`.
 **Places on the web** (2026-10-29, the phones' rules: iOS paragraph under the apps): the menu item after
-Collections at every width (the menu is always on the left), only on a device that answered
-`GetPhotoPlaces` (`places.ts`: asked at each sign-in, `otc_places` as `otc_face_recognition`; a new sign-in
-or a sign-out forgets every place, thumbnail and the map's last view - another user's library). The page
+Collections at every width (the menu is always on the left), only while Places is on - the user's switch
+in Settings (`Settings.places_enabled`; a device before Places doesn't say, and has none) - as People
+while face recognition is on (`places.ts`: `GetSettings` asked at each sign-in, `otc_places` as
+`otc_face_recognition`; Settings' section after Face Recognition, "Enable/Disable Places" with the
+`web.settings.places.hint` consent text, shown only when the device's Settings carry the field, sets it
+at once; a map answer `places_off` - turned off on another app - sets it off; off drops an open area;
+a new sign-in or a sign-out forgets every place, thumbnail and the map's last view - another user's
+library). While the device still reads where the photos were taken (`PhotoPlaces.reading`, just
+turned on) the head says "Finding where your photos were taken…", answers are kept 15 s
+(`cKeepReadingMs`) and the screen's tiles and the count are asked again on that beat; the empty note
+waits until it is done. `web/scripts/places-switch-test.mjs` tests the gating. The page
 (`PlacesView.tsx`, a lazy part with MapLibre GL JS, pinned in package.json; its worker is Vite's copy of
 `maplibre-gl-worker.mjs` from 'self') shows what Images would (`photoFilter`'s tags, people and collection;
 the top bar's picks stay on the map), on OpenFreeMap's dark style recoloured to the app's greys, names in
@@ -2826,10 +2838,18 @@ per section, a blank box on a slow connection). A request with no answer leaves 
 the unanswered ones are asked again after 5 s, doubling to a minute, while Settings shows, and all of
 them whenever Settings shows and at each wake.
 **Places, the map in Images** (2026-10-29; iOS `Places.swift`; Android follows on Google Maps - the
-Maps SDK, its key kept out of the repo like `google-services.json` - and isn't built yet). Only on a
-device that answered `GetPhotoPlaces` (`PlacesSupport`: asked on every connection from
-`OTCConnection.connected`, the last answer kept in defaults `placesSupported` so it doesn't come and
-go at launch, reset at Log Out; `unknown_payload` hides it and drops the area filter): the wide
+Maps SDK, its key kept out of the repo like `google-services.json` - and isn't built yet: it has the
+shared texts, `app.settings.places.*` and `app.photos.places.*`, and must gate on the switch the same
+way). Only while Places is on - the user's switch, off by default, as the device keeps where each photo
+was taken unencrypted only then (`PlacesSupport`: `GetSettings`' `places_enabled`, absent on a device
+before Places = off, asked on every connection from `OTCConnection.connected`, the last answer kept in
+defaults `placesOn` so it doesn't come and go at launch, reset at Log Out; Settings' Places section
+after People - "Places" switch, `app.settings.places.footer` consent text, only when the device's
+Settings carry the field - and a map told `places_off` or `unknown_payload` set it at once; off hides
+it and drops the area filter). Just turned on, the device reads positions in the background
+(`PhotoPlaces.reading`): the map's note says "Finding where your photos were taken…", those answers
+are kept 15 s (`PlacesCache.readingTTL`) and the screen's tiles are asked again once they age
+(`askAgainWhileReading`). The wide
 layout's menu has Places after Collections (`AppSection.places`, a page), a narrow window a grid/map
 switch in Images' search row (`vm.showMap`; MainView moves one to the other as the window changes).
 The map shows what Images would show (`PlacesFilter`: tags, people, collection, videos always), on

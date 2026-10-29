@@ -257,6 +257,7 @@
         <item quantity="many">%1$s éléments ici</item>
         <item quantity="other">%1$s éléments ici</item>
     </plurals>
+    <string name="app_photos_places_reading">Recherche de l’endroit où vos photos ont été prises…</string>
     <string name="app_photos_places_show_grid">Afficher en grille</string>
     <string name="app_photos_places_show_map">Afficher sur la carte</string>
     <string name="app_photos_search_already">« \u2068%1$s\u2069 » est déjà dans la recherche.</string>

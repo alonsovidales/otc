@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Foto van {date}",
   "web.images.places.pin_video": "Video van {date}",
+  "web.images.places.reading": "Zoeken waar je foto’s zijn gemaakt…",
   "web.images.places.zoom_in": "Inzoomen",
   "web.images.places.zoom_out": "Uitzoomen",
   "web.images.post.caption": "Bijschrift",

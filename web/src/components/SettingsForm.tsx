@@ -16,6 +16,7 @@ import LanguagePanel from "./settings/LanguagePanel";
 import WifiPanel from "./settings/WifiPanel";
 import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
+import { setPlacesOn, usePlacesOn } from "./places";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
 import type {
@@ -68,6 +69,11 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [imageTaggingEnabled, setImageTaggingEnabled] = useState(true);
   const [imageTaggingBusy, setImageTaggingBusy] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
+  // Places' switch (places.ts), on a device that has Places: its Settings
+  // answer says places_enabled either way.
+  const placesOn = usePlacesOn() === true;
+  const [placesKnown, setPlacesKnown] = useState(false);
+  const [placesBusy, setPlacesBusy] = useState(false);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -115,6 +121,30 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setFaceRecognitionBusy(false);
+    }
+  };
+
+  // Places: the device keeps where each photo was taken only while it is
+  // on; turning it off deletes those locations before it answers.
+  const togglePlaces = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setPlacesBusy(true);
+    setStatus(null);
+    const next = !placesOn;
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqSetPlacesEnabled", reqSetPlacesEnabled: { enabled: next } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setPlacesOn(next);
+      } else {
+        const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+        setStatus({ kind: "error", text: said ? asIs(said) : say("web.settings.general.update_failed") });
+      }
+    } catch (err) {
+      setStatus({ kind: "error", text: asIs(err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setPlacesBusy(false);
     }
   };
 
@@ -268,6 +298,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           const s: PbSettings = resp.payload.respSettings;
           setFaceRecognition(!!s.faceRecognitionEnabled);
           setImageTaggingEnabled(!!s.imageTaggingEnabled);
+          // Absent: a device before Places, with no switch.
+          setPlacesKnown(s.placesEnabled !== undefined);
+          if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
           setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
@@ -463,6 +496,16 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           {faceRecognitionBusy ? t("web.settings.general.working") : faceRecognitionEnabled ? t("web.settings.faces.disable") : t("web.settings.faces.enable")}
         </button>
       </section>
+
+      {placesKnown && (
+        <section className="sf-section">
+          <h3>{t("web.settings.places.title")}</h3>
+          <p className="sf-hint">{t("web.settings.places.hint")}</p>
+          <button className="sf-btn" disabled={placesBusy} onClick={() => void togglePlaces()}>
+            {placesBusy ? t("web.settings.general.working") : placesOn ? t("web.settings.places.disable") : t("web.settings.places.enable")}
+          </button>
+        </section>
+      )}
 
       <section className="sf-section">
         <h3>{t("web.settings.tagging.title")}</h3>

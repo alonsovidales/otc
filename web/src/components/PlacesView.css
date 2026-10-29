@@ -26,6 +26,8 @@
 .pl-title { margin: 0; font-size: 18px; font-weight: 650; line-height: 24px; color: var(--mist); }
 .pl-sub { margin: 2px 0 0; min-height: 20px; font-size: 13px; line-height: 20px; color: var(--mist-dim); font-variant-numeric: tabular-nums; }
 .pl-sub .spinner-wrap { gap: 8px; }
+/* Places just turned on: the device still reads where photos were taken. */
+.pl-reading { min-height: 0; max-width: 260px; font-style: italic; }
 
 /* Nothing to place, or no map. */
 .pl-note {

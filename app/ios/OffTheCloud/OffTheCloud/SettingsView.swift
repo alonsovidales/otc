@@ -59,6 +59,11 @@ final class DeviceSettingsViewModel: ObservableObject {
     // Issue #181: the tagging model, on by default.
     @Published var imageTaggingEnabled = true
     @Published var savingImageTagging = false
+    // Places, the map in Images: off unless turned on - the device keeps
+    // where each photo was taken, unencrypted, only while it is on. nil: a
+    // device before Places (or not answered yet), with no switch.
+    @Published var placesEnabled: Bool?
+    @Published var savingPlaces = false
 
     // Issue #73: full-library reprocess - re-runs tagging/face detection
     // against every already-uploaded photo/video (e.g. after a detection
@@ -186,6 +191,9 @@ final class DeviceSettingsViewModel: ObservableObject {
                 imageTaggingEnabled = s.imageTaggingEnabled
                 // People shows only while it is on (FaceRecognition.swift).
                 FaceRecognition.shared.set(s.faceRecognitionEnabled)
+                // Places likewise (PlacesSupport), on a device that has it.
+                placesEnabled = s.hasPlacesEnabled ? s.placesEnabled : nil
+                PlacesSupport.shared.set(s.hasPlacesEnabled && s.placesEnabled)
                 LanguageSettings.shared.deviceSaid(settings: s)
             }
         } catch { /* leave blank - the rest of the screen still works */ }
@@ -211,6 +219,33 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             faceRecognitionEnabled = !enabled
+            showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// Places' switch. Off deletes the positions the device kept before it
+    /// answers; the map comes and goes at once (PlacesSupport).
+    func togglePlaces(_ enabled: Bool) async {
+        savingPlaces = true
+        defer { savingPlaces = false }
+        var req = Msg_SetPlacesEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetPlacesEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                placesEnabled = enabled
+                PlacesSupport.shared.set(enabled)
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding.
+                placesEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
+                } else if resp.error {
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
+                }
+            }
+        } catch {
+            placesEnabled = !enabled
             showToast(.say { S.appSettingsErrorSetting })
         }
     }
@@ -510,6 +545,23 @@ struct SettingsView: View {
                         )
                     )
                     .disabled(device.savingFaceRecognition)
+                }
+
+                // Places, next to People: on a device that has it.
+                if let placesOn = device.placesEnabled {
+                    Section(
+                        header: Text(S.appSettingsPlacesTitle),
+                        footer: Text(S.appSettingsPlacesFooter)
+                    ) {
+                        Toggle(
+                            S.appSettingsPlacesTitle,
+                            isOn: Binding(
+                                get: { placesOn },
+                                set: { newValue in Task { await device.togglePlaces(newValue) } }
+                            )
+                        )
+                        .disabled(device.savingPlaces)
+                    }
                 }
 
                 ConnectionSettingsSection(secrets: secrets) { confirmLogout = true }

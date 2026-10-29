@@ -755,6 +755,10 @@
       "other": "{count} items here"
     }
   },
+  "app.photos.places.reading": {
+    "text": "Es wird ermittelt, wo deine Fotos aufgenommen wurden…",
+    "en": "Finding where your photos were taken…"
+  },
   "app.photos.places.show_grid": {
     "text": "Als Raster zeigen",
     "en": "Show as a grid"

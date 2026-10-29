@@ -403,6 +403,25 @@
     "text": "Unexpected response.",
     "note": "Error at the top of Settings when the device answered the password change with something other than a yes or no."
   },
+  "web.settings.places.disable": {
+    "text": "Disable Places",
+    "note": "Button in Settings > Places that turns Places off, which deletes the locations the device kept.",
+    "max": 40
+  },
+  "web.settings.places.enable": {
+    "text": "Enable Places",
+    "note": "Button in Settings > Places that turns Places on (the user's consent to the device keeping where each photo was taken).",
+    "max": 40
+  },
+  "web.settings.places.hint": {
+    "text": "Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.",
+    "note": "Explanation and consent text under the Places heading in Settings (the map of photos in Images, off unless the user turns it on). The device reads each photo's GPS location and keeps it unencrypted while it is on; turning it off deletes those locations. The map's own picture (streets, names) comes from a map service, which sees the area on screen but never the photos. Say plainly that the locations are kept unencrypted."
+  },
+  "web.settings.places.title": {
+    "text": "Places",
+    "note": "Heading of the section in Settings that turns Places (the map of the photos in Images, at the places they were taken) on or off. Places is the feature's name, as in the menu (web.shell.menu.places).",
+    "max": 32
+  },
   "web.settings.profile.title": {
     "text": "Profile",
     "note": "Heading of the first section in Settings: the user's own profile (name, picture, description) that friends see.",

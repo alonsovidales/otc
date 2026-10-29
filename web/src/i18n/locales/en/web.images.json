@@ -300,6 +300,7 @@
   },
   "web.images.places.pin_photo": "Photo from {date}",
   "web.images.places.pin_video": "Video from {date}",
+  "web.images.places.reading": "Finding where your photos were taken…",
   "web.images.places.zoom_in": "Zoom in",
   "web.images.places.zoom_out": "Zoom out",
   "web.images.post.caption": "Caption",

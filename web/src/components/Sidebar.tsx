@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import type { ComponentType } from "react";
 import type { TabKey } from "./nav";
 import { AlertsIcon, ChevronIcon, CollectionsIcon, FilesIcon, FriendsIcon, ImagesIcon, PeopleIcon, PlacesIcon, SettingsIcon, SocialIcon, StorageIcon } from "./NavIcons";
-import { usePlacesSupported } from "./places";
+import { usePlacesOn } from "./places";
 import { formatMB, pct, raidStateLabel, round, useDeviceStatus } from "./useDeviceStatus";
 import { usePhotoFilter } from "./photoFilter";
 import { useFaceRecognition } from "./faceRecognition";
@@ -91,7 +91,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   const [details, setDetails] = useState(false);
   const tips = useSyncExternalStore(onHoverChange, canHover);
   const faces = useFaceRecognition() === true;
-  const places = usePlacesSupported() === true;
+  const places = usePlacesOn() === true;
   const sections = useMemo(
     () => SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => (it.key !== "People" || faces) && (it.key !== "Places" || places)) })),
     [faces, places],

@@ -853,6 +853,11 @@ extension S {
         L("app.photos.places.pin", table: "AppPhotos", count)
     }
 
+    /// Finding where your photos were taken…
+    ///
+    /// Small note on the map in Images (Places) while the device is still reading, in the background, where the photos it already held were taken, just after Places was turned on: some photos aren't on the map yet.
+    static var appPhotosPlacesReading: String { L("app.photos.places.reading", table: "AppPhotos") }
+
     /// Show as a grid
     ///
     /// Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos.

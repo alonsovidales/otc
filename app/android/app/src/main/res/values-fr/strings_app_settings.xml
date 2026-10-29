@@ -109,6 +109,8 @@
     <string name="app_settings_password_title">Modifier le mot de passe</string>
     <string name="app_settings_picker_all">Toutes les photos</string>
     <string name="app_settings_picker_title">Choisir une photo</string>
+    <string name="app_settings_places_footer">Affiche vos photos et vidéos sur une carte, là où elles ont été prises. Désactivé sauf si vous l’activez. Tant qu’il est activé, l’appareil lit dans leurs données de localisation où chacune a été prise et conserve ces positions non chiffrées, pour que la carte s’ouvre vite. Le désactiver les supprime. La carte elle-même vient d’un service de cartographie, qui voit la zone que vous regardez, mais jamais vos photos.</string>
+    <string name="app_settings_places_title">Lieux</string>
     <string name="app_settings_profile_change_photo">Changer de photo</string>
     <string name="app_settings_profile_from_device">Depuis votre appareil</string>
     <string name="app_settings_profile_name">Nom</string>

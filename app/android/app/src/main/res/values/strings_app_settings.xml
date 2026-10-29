@@ -102,6 +102,8 @@
     <string name="app_settings_password_title">Change Password</string>
     <string name="app_settings_picker_all">All photos</string>
     <string name="app_settings_picker_title">Choose a photo</string>
+    <string name="app_settings_places_footer">Show your photos and videos on a map, at the places they were taken. Off unless you turn it on. While it is on, the device reads where each one was taken from its location data and keeps those locations unencrypted, so the map opens quickly. Turning it off deletes them. The map itself comes from a map service, which sees the area you look at but never your photos.</string>
+    <string name="app_settings_places_title">Places</string>
     <string name="app_settings_profile_change_photo">Change photo</string>
     <string name="app_settings_profile_from_device">From your device</string>
     <string name="app_settings_profile_name">Name</string>

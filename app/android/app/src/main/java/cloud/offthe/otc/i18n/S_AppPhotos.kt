@@ -578,6 +578,10 @@ fun S.appPhotosPlacesNoneFiltered(): UiText =
 fun S.appPhotosPlacesPin(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_places_pin, count, listOf(count))
 
+/** "Finding where your photos were taken…": Small note on the map in Images (Places) while the device is still reading, in the background, where the photos it already held were taken, just after Places was turned on: some photos aren't on the map yet. */
+fun S.appPhotosPlacesReading(): UiText =
+    UiText.Res(R.string.app_photos_places_reading)
+
 /** "Show as a grid": Screen-reader name of the same button (app.photos.places.show_map) while the map shows: back to the grid of photos. */
 fun S.appPhotosPlacesShowGrid(): UiText =
     UiText.Res(R.string.app_photos_places_show_grid)
