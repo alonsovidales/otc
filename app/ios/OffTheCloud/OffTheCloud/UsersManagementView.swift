@@ -18,6 +18,10 @@ final class UsersManagementViewModel: ObservableObject {
     private let ws = OTCConnection.shared
 
     @Published var isPrimary = false
+    /// The device has said whether this account is its owner (and, for the
+    /// owner, the accounts have been asked for once): until then Settings
+    /// shows the section's header and a spinner.
+    @Published var answered = false
     @Published var users: [Msg_User] = []
     @Published var loading = false
     @Published var metrics: [String: Msg_RespUserMetrics] = [:]
@@ -56,8 +60,10 @@ final class UsersManagementViewModel: ObservableObject {
 
     func checkRole() async {
         guard let primary = await Self.askIsPrimary() else { return }
+        // The list first: the section comes with its accounts in it.
+        if primary { await loadUsers() }
         isPrimary = primary
-        if isPrimary { await loadUsers() }
+        answered = true
     }
 
     /// Whether the account signed in is the device's owner (the primary
@@ -270,11 +276,9 @@ struct UsersManagementSection: View {
                 }
                 .tourTarget(.bridgeAccess)
             }
-        } else {
-            // The role check has to run while nothing is shown yet: a
-            // .task on the section above never ran, since the section
-            // only exists once the check has passed (it was never shown).
-            Color.clear.frame(height: 0).task { await vm.checkRole() }
+        } else if !vm.answered {
+            // Asked for by SettingsView (loadDeviceSections).
+            LoadingSection(title: S.appSettingsUsersTitle)
         }
     }
 

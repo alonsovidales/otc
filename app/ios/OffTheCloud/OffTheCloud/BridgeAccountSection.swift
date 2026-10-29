@@ -28,6 +28,9 @@ func localEndpoint(_ address: String) -> String {
 @MainActor
 final class BridgeAccountViewModel: ObservableObject {
     @Published var visible = false
+    /// The device has answered (with the section or without): until then
+    /// Settings shows its header and a spinner.
+    @Published var answered = false
     @Published var enabled = false
     @Published var domain = ""
     @Published var bridge = "off-the.cloud"
@@ -44,12 +47,13 @@ final class BridgeAccountViewModel: ObservableObject {
     func load() async {
         do {
             let resp = try await ws.request { $0.payload = .reqGetBridgeAccess(Msg_ReqGetBridgeAccess()) }
+            answered = true
             // An additional user's instance answers with an error: not theirs.
             guard case .respBridgeAccess(let a) = resp.payload else { visible = false; return }
             apply(a)
             visible = true
         } catch {
-            visible = false
+            // Not known now: what is shown stays as it is.
         }
     }
 
@@ -91,64 +95,60 @@ final class BridgeAccountViewModel: ObservableObject {
 
 struct BridgeAccountSection: View {
     @EnvironmentObject var secrets: SecretsStore
-    @StateObject private var vm = BridgeAccountViewModel()
+    // Owned and asked for by SettingsView (loadDeviceSections).
+    @ObservedObject var vm: BridgeAccountViewModel
     @Environment(\.openURL) private var openURL
     @State private var confirmLeave = false
     @State private var confirmDelete = false
 
     var body: some View {
-        Group {
-            if vm.visible {
-                Section(
-                    header: Text(S.appSettingsBridgeTitle),
-                    footer: Text(footer)
-                ) {
-                    if vm.enabled {
-                        Text(S.appSettingsBridgeReachable(domain: vm.domain))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if !vm.localAddress.isEmpty {
-                            Text(S.appSettingsBridgeAtHome(address: vm.localAddress)).font(.caption).foregroundStyle(.secondary)
-                        }
-                        Button(S.appSettingsBridgeLeave, role: .destructive) { confirmLeave = true }
-                        .buttonStyle(.bordered)
-                            .disabled(vm.busy)
-                        Button(S.appSettingsBridgeDeleteAccount, role: .destructive) { confirmDelete = true }
-                        .buttonStyle(.bordered)
-                            .disabled(vm.busy)
-                    } else {
-                        if vm.leftReason == "released" {
-                            Text(S.appSettingsBridgeReleased(bridge: vm.bridge))
-                                .font(.caption).foregroundStyle(.orange)
-                        }
-                        Text(S.appSettingsBridgeLocalOnly)
-                            .font(.caption).foregroundStyle(.secondary)
-                        Button(S.appSettingsBridgeAccountPage) { open("account") }
+        if vm.visible {
+            Section(
+                header: Text(S.appSettingsBridgeTitle),
+                footer: Text(footer)
+            ) {
+                if vm.enabled {
+                    Text(S.appSettingsBridgeReachable(domain: vm.domain))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if !vm.localAddress.isEmpty {
+                        Text(S.appSettingsBridgeAtHome(address: vm.localAddress)).font(.caption).foregroundStyle(.secondary)
                     }
-                    Button(S.appShellPrivacy) { open("privacy") }
-                    if let n = vm.note { Text(n.text).font(.caption).foregroundStyle(.secondary) }
-                    if let e = vm.error { Text(e.text).font(.caption).foregroundStyle(.red) }
-                }
-                .confirmationDialog(S.appSettingsBridgeLeaveTitle, isPresented: $confirmLeave, titleVisibility: .visible) {
-                    Button(S.appSettingsBridgeLeaveConfirm, role: .destructive) { Task { _ = await vm.leave(secrets: secrets) } }
-                } message: {
-                    Text(S.appSettingsBridgeLeaveMessage(domain: vm.domain))
-                }
-                .confirmationDialog(S.appSettingsBridgeDeleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
-                    Button(S.iosSettingsBridgeLeaveDelete, role: .destructive) {
-                        Task {
-                            if await vm.leave(secrets: secrets) { open("account?delete=1") }
-                        }
+                    Button(S.appSettingsBridgeLeave, role: .destructive) { confirmLeave = true }
+                    .buttonStyle(.bordered)
+                        .disabled(vm.busy)
+                    Button(S.appSettingsBridgeDeleteAccount, role: .destructive) { confirmDelete = true }
+                    .buttonStyle(.bordered)
+                        .disabled(vm.busy)
+                } else {
+                    if vm.leftReason == "released" {
+                        Text(S.appSettingsBridgeReleased(bridge: vm.bridge))
+                            .font(.caption).foregroundStyle(.orange)
                     }
-                } message: {
-                    Text(S.appSettingsBridgeDeleteMessage)
+                    Text(S.appSettingsBridgeLocalOnly)
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button(S.appSettingsBridgeAccountPage) { open("account") }
                 }
-            } else {
-                // Something to hang the load on while hidden: a .task on an
-                // empty Group never runs, so the section never appeared.
-                Color.clear.frame(height: 0)
+                Button(S.appShellPrivacy) { open("privacy") }
+                if let n = vm.note { Text(n.text).font(.caption).foregroundStyle(.secondary) }
+                if let e = vm.error { Text(e.text).font(.caption).foregroundStyle(.red) }
             }
+            .confirmationDialog(S.appSettingsBridgeLeaveTitle, isPresented: $confirmLeave, titleVisibility: .visible) {
+                Button(S.appSettingsBridgeLeaveConfirm, role: .destructive) { Task { _ = await vm.leave(secrets: secrets) } }
+            } message: {
+                Text(S.appSettingsBridgeLeaveMessage(domain: vm.domain))
+            }
+            .confirmationDialog(S.appSettingsBridgeDeleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button(S.iosSettingsBridgeLeaveDelete, role: .destructive) {
+                    Task {
+                        if await vm.leave(secrets: secrets) { open("account?delete=1") }
+                    }
+                }
+            } message: {
+                Text(S.appSettingsBridgeDeleteMessage)
+            }
+        } else if !vm.answered {
+            LoadingSection(title: S.appSettingsBridgeTitle)
         }
-        .task { await vm.load() }
     }
 
     private var footer: String {

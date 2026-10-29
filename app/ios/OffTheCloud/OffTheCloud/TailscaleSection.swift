@@ -24,6 +24,10 @@ import UIKit
 @MainActor
 final class TailscaleViewModel: ObservableObject {
     @Published var isPrimary = false
+    /// The device has said whether there is a section and, for its owner,
+    /// what Funnel is doing: until then Settings shows its header and a
+    /// spinner.
+    @Published var answered = false
     @Published var installed = false
     @Published var loggedIn = false
     @Published var funnelOn = false
@@ -43,10 +47,12 @@ final class TailscaleViewModel: ObservableObject {
             }
             if case .respInstanceRole(let role) = resp.payload { isPrimary = role.isPrimary }
         } catch {
-            isPrimary = false
+            // Not known now: what is shown stays as it is.
+            return
         }
-        guard isPrimary else { return }
+        guard isPrimary else { answered = true; return }
         await refresh()
+        answered = true
     }
 
     func refresh() async {
@@ -126,12 +132,15 @@ final class TailscaleViewModel: ObservableObject {
 }
 
 struct TailscaleSection: View {
-    @StateObject private var vm = TailscaleViewModel()
+    // Owned and asked for by SettingsView (loadDeviceSections).
+    @ObservedObject var vm: TailscaleViewModel
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        if vm.isPrimary {
-            Section(header: Text(verbatim: "Tailscale Funnel")) {
+        if !vm.answered {
+            LoadingSection(title: Self.title)
+        } else if vm.isPrimary {
+            Section(header: Text(verbatim: Self.title)) {
                 if vm.funnelOn {
                     Text(S.appSettingsTailscaleServed(url: vm.publicURL))
                         .font(.caption).foregroundStyle(.secondary)
@@ -182,18 +191,14 @@ struct TailscaleSection: View {
                     Text(error.text).font(.caption).foregroundStyle(.red)
                 }
             }
-            .task { await vm.load() }
             // Authorising happens in Safari, so coming back to the app is
-            // the moment the device has something new to say.
-            .onReceive(NotificationCenter.default.publisher(
-                for: UIApplication.willEnterForegroundNotification
-            )) { _ in
-                Task { await vm.refresh() }
-            }
-        } else {
-            Color.clear.frame(height: 0).task { await vm.load() }
+            // the moment the device has something new to say: SettingsView
+            // asks again at each wake, the app back in front among them.
         }
     }
+
+    /// A product's name, the same in every language.
+    private static let title = "Tailscale Funnel"
 
     /// A limitation's lead (its <b> span), in bold.
     private static var lead: AttributeContainer {

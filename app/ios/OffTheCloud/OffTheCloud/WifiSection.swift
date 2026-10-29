@@ -267,6 +267,9 @@ final class WifiViewModel: ObservableObject {
     /// The owner of the primary instance, on a device that manages its
     /// own Wi-Fi.
     @Published var shown = false
+    /// The device has said whether there is a section (shown, or hidden for
+    /// good): until then Settings shows its header and a spinner.
+    @Published var answered = false
     // The device's network now.
     @Published var ssid = ""
     @Published var signal: Int32 = 0
@@ -336,6 +339,7 @@ final class WifiViewModel: ObservableObject {
             guard case .respWifiStatus(let s) = resp.payload else { return }
             apply(s)
             shown = true
+            answered = true
             if let id = WifiFlow.resumeID(s) {
                 error = nil
                 startWaiting(id: id, ssid: s.lastJoin.ssid, since: Date())
@@ -567,6 +571,7 @@ final class WifiViewModel: ObservableObject {
         joinID = ""
         phase = .idle
         shown = false
+        answered = true
         picking = false
         chosen = nil
         confirm = nil
@@ -578,7 +583,9 @@ final class WifiViewModel: ObservableObject {
 }
 
 struct WifiSection: View {
-    @StateObject private var vm = WifiViewModel()
+    // Owned and asked for by SettingsView (loadDeviceSections), so a
+    // section with nothing to show takes no room at all.
+    @ObservedObject var vm: WifiViewModel
 
     var body: some View {
         if vm.shown {
@@ -610,13 +617,6 @@ struct WifiSection: View {
                     Text(error.text).font(.caption).foregroundStyle(.red)
                 }
             }
-            .task { await vm.load() }
-            // The cable may have gone in or out meanwhile.
-            .onReceive(NotificationCenter.default.publisher(
-                for: UIApplication.willEnterForegroundNotification
-            )) { _ in
-                Task { await vm.refresh() }
-            }
             .alert(
                 vm.confirm.map { S.appSettingsWifiConfirmTitle(ssid: $0.ssid) } ?? "",
                 isPresented: Binding(get: { vm.confirm != nil }, set: { if !$0 { vm.confirm = nil } }),
@@ -627,10 +627,8 @@ struct WifiSection: View {
             } message: { c in
                 Text(c.cableOnly ? S.appSettingsWifiConfirmCableMessage : S.appSettingsWifiConfirmMessage)
             }
-        } else {
-            // Nothing to show, but the role and the status still have to be
-            // asked for.
-            Color.clear.frame(height: 0).task { await vm.load() }
+        } else if !vm.answered {
+            LoadingSection(title: S.appSettingsWifiTitle)
         }
     }
 

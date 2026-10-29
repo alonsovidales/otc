@@ -336,6 +336,12 @@ struct SettingsView: View {
     @StateObject private var status = StatusViewModel()
     // Settings > Users; its sheet is presented here (usersManagementSheets).
     @StateObject private var users = UsersManagementViewModel()
+    // The other sections only the device can say it has (DeviceSection).
+    @StateObject private var update = UpdateViewModel()
+    @StateObject private var wifi = WifiViewModel()
+    @StateObject private var tailscale = TailscaleViewModel()
+    @StateObject private var bridgeAccount = BridgeAccountViewModel()
+    @StateObject private var logs = LogsSectionViewModel()
     // Issue #190: the route line under Connection.
     @ObservedObject private var connection = OTCConnection.shared
     // The Language row's value.
@@ -411,9 +417,9 @@ struct SettingsView: View {
                     NavigationLink(S.appSettingsLinksTitle) { SharedLinksView() }
                 }
 
-                // Issue #94: in-place updates. Renders nothing on a
-                // non-primary instance - see UpdateSection.
-                UpdateSection()
+                // Issue #94: in-place updates. Primary-only - see
+                // UpdateSection.
+                UpdateSection(vm: update)
                     .id(Self.updateSectionID)
 
                 Section(header: Text(S.appSettingsPasswordTitle)) {
@@ -511,13 +517,13 @@ struct SettingsView: View {
                 // Settings › Wi-Fi (release 140): the network the device
                 // uses. Primary-only, where the device manages its own
                 // Wi-Fi - see WifiSection.
-                WifiSection()
+                WifiSection(vm: wifi)
 
                 // Issue #80: Tailscale Funnel as an alternative to the
                 // bridge. Primary-only too - see TailscaleSection.
-                TailscaleSection()
+                TailscaleSection(vm: tailscale)
 
-                BridgeAccountSection()
+                BridgeAccountSection(vm: bridgeAccount)
 
                 Section(
                     header: Text(S.appSettingsReprocessTitle),
@@ -574,9 +580,8 @@ struct SettingsView: View {
                 }
 
                 // The device's logs, live, with Share and "Send to us".
-                // Renders nothing on a non-primary instance - see
-                // LogsSection.
-                LogsSection()
+                // Primary-only - see LogsSection.
+                LogsSection(vm: logs)
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty
@@ -615,6 +620,9 @@ struct SettingsView: View {
                 device.pollReprocessStatusWhileRunning()
             }
         }
+        // Every time Settings shows and at each wake (back in front, a
+        // network up, signed in again).
+        .task(id: connection.wakes) { await loadDeviceSections() }
         .onDisappear {
             status.stop()
             device.stopPollingReprocessStatus()
@@ -723,6 +731,27 @@ extension SettingsView {
         }
     }
 
+    /// Asks the device for the sections only it can say it has, all at
+    /// once; those it hasn't answered for yet (no answer, a dropped
+    /// connection) go again after 5 s, doubling to a minute, while
+    /// Settings shows. Answered ones stay as they are meanwhile.
+    fileprivate func loadDeviceSections() async {
+        let sections: [any DeviceSection] = [users, update, wifi, tailscale, bridgeAccount, logs]
+        var asking = sections
+        var wait = 5
+        while !Task.isCancelled {
+            await withTaskGroup(of: Void.self) { group in
+                for section in asking {
+                    group.addTask { await section.load() }
+                }
+            }
+            asking = sections.filter { !$0.answered }
+            if asking.isEmpty { return }
+            try? await Task.sleep(for: .seconds(wait))
+            wait = min(wait * 2, 60)
+        }
+    }
+
     /// Log Out (the same as SettingsView.kt's logOut): stop everything that
     /// talks to the device, forget what it told us, wipe what this phone
     /// stores. RootView shows onboarding the moment the secrets clear, and
@@ -731,6 +760,43 @@ extension SettingsView {
         status.stop()
         device.stopPollingReprocessStatus()
         AppLogOut.run(secrets: secrets)
+    }
+}
+
+/// A Settings section only the device can say it has (Users, Device
+/// version, Wi-Fi, Tailscale Funnel, Bridge and Account, Troubleshooting):
+/// asked for by SettingsView. `answered` turns true once the device has said
+/// what it shows, or that there is none; a request with no answer leaves it
+/// as it was.
+@MainActor
+protocol DeviceSection: AnyObject {
+    var answered: Bool { get }
+    func load() async
+}
+
+extension UsersManagementViewModel: DeviceSection {
+    func load() async { await checkRole() }
+}
+extension UpdateViewModel: DeviceSection {}
+extension WifiViewModel: DeviceSection {}
+extension TailscaleViewModel: DeviceSection {}
+extension BridgeAccountViewModel: DeviceSection {}
+extension LogsSectionViewModel: DeviceSection {}
+
+/// A DeviceSection the device hasn't answered for yet: its header and a
+/// spinner. An empty row used to stand in for it, which a slow connection
+/// showed as a blank box; one with nothing to show takes no room at all.
+struct LoadingSection: View {
+    let title: String
+
+    var body: some View {
+        Section(header: Text(verbatim: title)) {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(S.commonLoading).foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+        }
     }
 }
 

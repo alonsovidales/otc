@@ -19,6 +19,10 @@ import SwiftUI
 @MainActor
 final class UpdateViewModel: ObservableObject {
     @Published var isPrimary = false
+    /// The device has said whether there is a section and, for its owner,
+    /// how its version stands (the first check, answered or failed): until
+    /// then Settings shows its header and a spinner.
+    @Published var answered = false
     @Published var currentVersion: Int32 = 0
     @Published var latestVersion: Int32 = 0
     // Issue #183: "major.minor" names; empty from a device on old releases.
@@ -82,10 +86,12 @@ final class UpdateViewModel: ObservableObject {
                 isPrimary = role.isPrimary
             }
         } catch {
-            isPrimary = false
+            // Not known now: what is shown stays as it is.
+            return
         }
-        guard isPrimary else { return }
+        guard isPrimary else { answered = true; return }
         await check()
+        answered = true
     }
 
     func check() async {
@@ -224,11 +230,14 @@ final class UpdateViewModel: ObservableObject {
 }
 
 struct UpdateSection: View {
-    @StateObject private var vm = UpdateViewModel()
+    // Owned and asked for by SettingsView (loadDeviceSections).
+    @ObservedObject var vm: UpdateViewModel
     @State private var confirmRestart = false
 
     var body: some View {
-        if vm.isPrimary {
+        if !vm.answered {
+            LoadingSection(title: S.appSettingsUpdateTitle)
+        } else if vm.isPrimary {
             Section(header: Text(S.appSettingsUpdateTitle)) {
                 HStack {
                     Text(vm.installedText)
@@ -328,7 +337,6 @@ struct UpdateSection: View {
                     Text(error.text).font(.caption).foregroundStyle(.red)
                 }
             }
-            .task { await vm.load() }
             .alert(S.appSettingsUpdateRestartTitle, isPresented: $confirmRestart) {
                 Button(S.commonCancel, role: .cancel) {}
                 Button(S.appSettingsUpdateRestartConfirm, role: .destructive) {
@@ -337,9 +345,6 @@ struct UpdateSection: View {
             } message: {
                 Text(S.appSettingsUpdateRestartMessage)
             }
-        } else {
-            // Nothing to show, but the role still has to be asked for.
-            Color.clear.frame(height: 0).task { await vm.load() }
         }
     }
 }

@@ -2703,6 +2703,15 @@ change, iOS asks), and the home screen the `OffTheCloudWidgetExtension` target (
 App Group `group.cloud.off-the.OffTheCloud`, both registered 2026-10-28; copies <= 1200 px in the group
 container, `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
 24-entry one is refused as too large -, its texts from the app's language through the group).
+**Settings sections the device decides** (2026-10-29: Users, Device version, Wi-Fi, Tailscale Funnel,
+Bridge and Account, Troubleshooting): until the device has answered for one - its role and, for the
+owner, the section's first status (the users list, the update check, Wi-Fi's status, Funnel's) -
+Settings shows the section's header and a spinner with `common.loading` (iOS `LoadingSection` and the
+`DeviceSection` models SettingsView owns and asks in `loadDeviceSections`; Android `LoadingSection` and
+`AskDevice`); one the device says it doesn't have takes no room at all (iOS used to leave an empty row
+per section, a blank box on a slow connection). A request with no answer leaves a section as it was:
+the unanswered ones are asked again after 5 s, doubling to a minute, while Settings shows, and all of
+them whenever Settings shows and at each wake.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

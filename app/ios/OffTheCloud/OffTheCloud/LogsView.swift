@@ -358,6 +358,9 @@ private struct SendLogsSheet: View {
 @MainActor
 final class LogsSectionViewModel: ObservableObject {
     @Published var isPrimary = false
+    /// The device has said whether there is a section: until then Settings
+    /// shows its header and a spinner.
+    @Published var answered = false
 
     func load() async {
         do {
@@ -365,8 +368,9 @@ final class LogsSectionViewModel: ObservableObject {
                 e.payload = .reqGetInstanceRole(Msg_ReqGetInstanceRole())
             }
             if case .respInstanceRole(let role) = resp.payload { isPrimary = role.isPrimary }
+            answered = true
         } catch {
-            isPrimary = false
+            // Not known now: what is shown stays as it is.
         }
     }
 }
@@ -374,17 +378,16 @@ final class LogsSectionViewModel: ObservableObject {
 /// The Settings row that opens LogsView - renders nothing on a non-primary
 /// instance, the same rule as UpdateSection.
 struct LogsSection: View {
-    @StateObject private var vm = LogsSectionViewModel()
+    // Owned and asked for by SettingsView (loadDeviceSections).
+    @ObservedObject var vm: LogsSectionViewModel
 
     var body: some View {
         if vm.isPrimary {
             Section(header: Text(S.iosSettingsLogsTroubleshooting)) {
                 NavigationLink(S.appSettingsLogsTitle) { LogsView() }
             }
-            .task { await vm.load() }
-        } else {
-            // Nothing to show, but the role still has to be asked for.
-            Color.clear.frame(height: 0).task { await vm.load() }
+        } else if !vm.answered {
+            LoadingSection(title: S.iosSettingsLogsTroubleshooting)
         }
     }
 }
