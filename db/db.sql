@@ -106,6 +106,23 @@ create table skipped_analysis
   primary key (`hash`)
 ) engine=InnoDB;
 
+-- Places, the map in Images: where each photo or video was taken, by
+-- content, from its GPS tags (degrees, WGS 84). Written when the device
+-- processes the content (thumbnail or analysis), and once in the
+-- background for what it held before (settings.locations_backfilled). A
+-- row with NULL lat/lon is content that was read and has no position, so
+-- it is never read for this again. Goes with the content's last path or
+-- kept version. Never sent anywhere but to the owner's and users' own
+-- apps (GetPhotoPlaces, SearchPhotos.area).
+create table photo_locations
+(
+  `hash` varchar(64) not null,
+  `lat` double null,
+  `lon` double null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
 create table file_tags
 (
   `hash` varchar(64) not null,
@@ -290,7 +307,11 @@ create table settings
   -- The language of the app that last registered for pushes, written from
   -- the owner's push registrations when it changes. Pushes are written in
   -- `language`, else this, else English (push.ResolveLanguage).
-  `last_ui_language` varchar(16) not null default ''
+  `last_ui_language` varchar(16) not null default '',
+  -- Places: the one-off reading of the positions of what the device held
+  -- before photo_locations has run to the end
+  -- (files_manager/location_backfill.go).
+  `locations_backfilled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile

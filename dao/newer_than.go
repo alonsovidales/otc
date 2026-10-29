@@ -34,7 +34,13 @@ func searchCutoff(t time.Time) time.Time { return t.Truncate(time.Second) }
 // instant, by path backwards), and a tag search, ordered by score, sorted
 // so.
 func (dao *Dao) SearchMediaNewerThan(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, newerThan time.Time, excluded []string) ([]*pb.File, error) {
-	files, err := dao.SearchMedia(path, tags, personIDs, groupID, imagesOnly, nil, excluded)
+	return dao.SearchMediaNewerThanWithin(nil, path, tags, personIDs, groupID, imagesOnly, newerThan, excluded)
+}
+
+// SearchMediaNewerThanWithin is SearchMediaNewerThan of the photos taken
+// inside area (nil: everywhere), as SearchMediaWithin finds them.
+func (dao *Dao) SearchMediaNewerThanWithin(area *MediaArea, path string, tags []string, personIDs []string, groupID string, imagesOnly bool, newerThan time.Time, excluded []string) ([]*pb.File, error) {
+	files, err := dao.SearchMediaWithin(area, path, tags, personIDs, groupID, imagesOnly, nil, excluded)
 	if err != nil {
 		return nil, err
 	}

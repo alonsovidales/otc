@@ -1180,6 +1180,18 @@ SQL
     mysql "$db" <<'SQL'
     ALTER TABLE files DROP INDEX IF EXISTS `modified`, DROP INDEX IF EXISTS `size`;
 SQL
+    # Release 148 (updates/148.sh): Places, the map in Images - where each
+    # photo was taken, and whether the one-off read of what the device held
+    # before has run (see db.sql).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS photo_locations (
+      `hash` VARCHAR(64) NOT NULL,
+      `lat` DOUBLE NULL,
+      `lon` DOUBLE NULL,
+      PRIMARY KEY (`hash`)
+    ) ENGINE=InnoDB;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS locations_backfilled TINYINT(1) NOT NULL DEFAULT 0;
+SQL
 }
 
 apply_schema_migrations otc

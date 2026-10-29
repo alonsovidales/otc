@@ -128,6 +128,8 @@ type Manager struct {
 	// sizesBackfilled is set once every row's size is known to be right
 	// (size_backfill.go); until then budgetSize also checks the blob.
 	sizesBackfilled atomic.Bool
+	// places is the map's index of the photos with a position (places.go).
+	places placesCache
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged
@@ -1082,6 +1084,14 @@ func pageSize(limit int32, omit bool) int {
 // direction or of another instant is one this device doesn't hold. It
 // wins over before.
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
+	return mg.ImageSearchWithin(nil, session, path, tags, oldToken, includeVideos, personIDs, groupID, before, newerThan, have, limit, small, omit)
+}
+
+// ImageSearchWithin is ImageSearch of the photos taken inside area
+// (SearchPhotos.area, Places; nil: everywhere). The area filters the
+// search a token starts with, as the other filters do: a token goes on
+// with the rows it holds.
+func (mg *Manager) ImageSearchWithin(area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil)
 	if newerThan != nil {
 		before = nil
@@ -1148,9 +1158,9 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// #201: SearchMedia gives each photo at its oldest copy, so a copy
 		// synced back today no longer takes it to the top of Images.
 		if newerThan != nil {
-			files, err = mg.dao.SearchMediaNewerThan(path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
+			files, err = mg.dao.SearchMediaNewerThanWithin(area, path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
 		} else {
-			files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before, excluded)
+			files, err = mg.dao.SearchMediaWithin(area, path, tags, personIDs, groupID, !includeVideos, before, excluded)
 		}
 		if err != nil {
 			return
@@ -1250,11 +1260,17 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 // gallery's date scrubber - a thin passthrough, no thumbnails/encryption
 // involved since it's just counts, not files.
 func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, groupID string, includeVideos bool) ([]dao.DateBucket, error) {
+	return mg.PhotoDateBucketsWithin(nil, tags, personIDs, groupID, includeVideos)
+}
+
+// PhotoDateBucketsWithin is PhotoDateBuckets of the photos taken inside
+// area (ReqPhotoDateBuckets.area, Places; nil: everywhere).
+func (mg *Manager) PhotoDateBucketsWithin(area *dao.MediaArea, tags []string, personIDs []string, groupID string, includeVideos bool) ([]dao.DateBucket, error) {
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
 		return nil, err
 	}
-	return mg.dao.SearchMediaDateBuckets(tags, personIDs, groupID, !includeVideos, excluded)
+	return mg.dao.SearchMediaDateBucketsWithin(area, tags, personIDs, groupID, !includeVideos, excluded)
 }
 
 // ListImageGroups (issue #115) lists the albums with a cover picture each:
@@ -1475,6 +1491,11 @@ func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*
 		return nil, err
 	}
 	defer blob.Close()
+	return mg.exifOfBlob(blob, file, limit)
+}
+
+// exifOfBlob is readExif of file's blob, already open.
+func (mg *Manager) exifOfBlob(blob blobstore.Blob, file *pb.File, limit int64) (*exifinfo.Info, error) {
 	n := min(blob.Size(), limit)
 	defer mg.ReserveBytes(3 * n)()
 	return exifFrom(blob, n, file.Mime, file.Path)
@@ -1616,6 +1637,7 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 	// A client lowers its have by what it deletes: no search page is
 	// served again across this (searchCursor.resume).
 	mg.searchTokens.noteDelete()
+	mg.places.changed()
 	hashes = []string{hash}
 
 	// Files are deduplicated on disk by hash (more than one path can point
@@ -1776,6 +1798,8 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 	}
 	dao.SetFileSize(file, size)
 
+	// Places: a path added or given other content, once this returns.
+	defer mg.places.changed()
 	duplicated, err := mg.dao.StoreNewFile(file, cloudID)
 	if err != nil {
 		return nil, false, err
@@ -2013,6 +2037,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 
 			mg.processFaces(session, file, img)
 		}
+		// Places: where it was taken, from the metadata read above - once
+		// it can show in Images, as the thumbnail is written first.
+		mg.storeLocation(file.Hash, exif)
 	} else if strings.HasPrefix(file.Mime, "video/") {
 		// Videos get tagged the same way images do — search doesn't
 		// need to know the difference, since it's all just file_tags
@@ -2095,6 +2122,8 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			mg.writeThumbnails(session, file, targetPath, frames[0])
 			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
 		}
+		// Places, as for a photo.
+		mg.storeLocation(file.Hash, exif)
 	}
 	return true
 }
@@ -2196,6 +2225,10 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err := mg.dao.DelSkippedAnalysis(hash); err != nil {
 		log.Error("could not forget the skipped analysis of deleted content", hash, ":", err)
 	}
+	// Places: nor a position.
+	if err := mg.dao.DelPhotoLocation(hash); err != nil {
+		log.Error("could not forget where deleted content was taken", hash, ":", err)
+	}
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -2276,6 +2309,9 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	if err := mg.dao.DelSkippedAnalysis(hash); err != nil {
 		log.Error("could not forget the skipped analysis of deleted content", hash, ":", err)
 	}
+	if err := mg.dao.DelPhotoLocation(hash); err != nil {
+		log.Error("could not forget where deleted content was taken", hash, ":", err)
+	}
 	full := blobPath(hash)
 	os.Remove(full)
 	removeThumbnails(full)
@@ -2325,6 +2361,8 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	}
 	dao.SetFileSize(file, dao.FileSize(existing))
 
+	// Places: a path added or given other content, once this returns.
+	defer mg.places.changed()
 	var duplicated bool
 	if err := mg.withBlob(hash, func() (err error) {
 		duplicated, err = mg.dao.StoreNewFile(file, cloudID)

@@ -2592,7 +2592,13 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // same instant, by path backwards (by score first in a tag search: every
 // copy of a photo has its score), so a photo's last row is its oldest
 // copy: the earliest, then the smallest path.
-func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (from, where, orderBy, selectExtra string, args []any) {
+//
+// area (Places, SearchPhotos.area) keeps the photos whose position is in
+// it: a join on photo_locations, after the collection's, so it combines
+// with the filters as they combine with each other. It doesn't tie the
+// rows to media (the mime rule below still applies without the others),
+// and a photo without a position is never in an area.
+func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, area *MediaArea) (from, where, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
 	orderBy = " order by `f`.`created` desc, `f`.`path` desc"
 
@@ -2622,6 +2628,12 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	if groupID != "" {
 		from += " join `image_group_files` as `ig` on `ig`.`hash` = `f`.`hash` and `ig`.`group_id` = ?"
 		args = append(args, groupID)
+	}
+
+	if area != nil {
+		cond, condArgs := area.condition("`pl`")
+		from += " join `photo_locations` as `pl` on `pl`.`hash` = `f`.`hash` and " + cond
+		args = append(args, condArgs...)
 	}
 
 	var whereParts []string
@@ -2674,7 +2686,13 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 // oldest such copy is at or before it: rows after it are left out in the
 // query, and what is left of a photo still ends with that copy.
 func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (files []*pb.File, err error) {
-	from, where, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded)
+	return dao.SearchMediaWithin(nil, path, tags, personIDs, groupID, imagesOnly, before, excluded)
+}
+
+// SearchMediaWithin is SearchMedia of the photos taken inside area (nil:
+// everywhere, as SearchMedia).
+func (dao *Dao) SearchMediaWithin(area *MediaArea, path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (files []*pb.File, err error) {
+	from, where, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded, area)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + orderBy
@@ -2749,7 +2767,13 @@ type DateBucket struct {
 // callers are expected to hide the scrubber entirely when tags are active,
 // per its own doc comment on the ReqPhotoDateBuckets proto message.
 func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupID string, imagesOnly bool, excluded []string) (buckets []DateBucket, err error) {
-	from, where, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded)
+	return dao.SearchMediaDateBucketsWithin(nil, tags, personIDs, groupID, imagesOnly, excluded)
+}
+
+// SearchMediaDateBucketsWithin is SearchMediaDateBuckets of the photos
+// taken inside area (nil: everywhere), as SearchMediaWithin finds them.
+func (dao *Dao) SearchMediaDateBucketsWithin(area *MediaArea, tags []string, personIDs []string, groupID string, imagesOnly bool, excluded []string) (buckets []DateBucket, err error) {
+	from, where, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded, area)
 
 	// The subquery settles "which photos match" first, one row per photo
 	// (the people's AND is settled per hash in searchMediaClauses' own

@@ -256,6 +256,9 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// cap on their longest side, for what was stored before -
 			// once per device, in the background (thumbnail_pass.go).
 			mg.filesManager.FitStoredThumbnails(ses)
+			// Places: the positions of what was stored before - once per
+			// database, from the metadata alone (location_backfill.go).
+			mg.filesManager.BackfillLocations(ses)
 		}()
 	})
 }
@@ -2886,7 +2889,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			t := p.ReqSearchPhotos.NewerThan.AsTime()
 			newerThan = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
+		files, token, err := ch.mg.filesManager.ImageSearchWithin(mediaArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -2907,7 +2910,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 
 	case *pb.ReqEnvelope_ReqPhotoDateBuckets:
-		buckets, err := ch.mg.filesManager.PhotoDateBuckets(p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
+		buckets, err := ch.mg.filesManager.PhotoDateBucketsWithin(mediaArea(p.ReqPhotoDateBuckets.Area), p.ReqPhotoDateBuckets.Tags, p.ReqPhotoDateBuckets.PersonIds, p.ReqPhotoDateBuckets.GroupId, p.ReqPhotoDateBuckets.IncludeVideos)
 		if err != nil {
 			log.Error("error trying to compute photo date buckets:", err)
 			resp.Error = true
@@ -2920,6 +2923,18 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespPhotoDateBuckets{
 				RespPhotoDateBuckets: &pb.RespPhotoDateBuckets{Buckets: pbBuckets},
 			}
+		}
+
+	// Places, the map in Images.
+	case *pb.ReqEnvelope_ReqGetPhotoPlaces:
+		req := p.ReqGetPhotoPlaces
+		places, err := ch.mg.filesManager.PhotoPlaces(req.Zoom, req.Tiles, req.Tags, req.PersonIds, req.GroupId, req.IncludeVideos)
+		if err != nil {
+			log.Error("error grouping the photos for the map:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespPhotoPlaces{RespPhotoPlaces: places}
 		}
 
 	// Issue #78: notifications.

@@ -651,6 +651,17 @@ message SearchPhotos {
   // with oldest_first false. Drop that page, and don't ask that device
   // again until the next sign-in.
   google.protobuf.Timestamp newer_than = 11;
+  // Places (the map in Images): only the photos taken inside this area,
+  // by the position the device keeps for each (see GetPhotoPlaces) - a
+  // place's area, to open its photos in the grid. Combines with tags,
+  // people and collection as they combine with each other, and pages,
+  // jumps (before, newer_than) and resumes like any search - send it on
+  // every page, as they are; a photo without a position is never inside
+  // one. Unset is the whole library.
+  // Devices before Places ignore it and answer the whole library: offer
+  // it only to a device that answered GetPhotoPlaces, never to one that
+  // answered it with error_code "unknown_payload".
+  PlaceArea area = 12;
 }
 
 message ListOfFiles {
@@ -690,6 +701,9 @@ message ReqPhotoDateBuckets {
   repeated string person_ids = 2;
   bool include_videos = 3;
   string group_id = 4; // issue #115, same meaning as SearchPhotos.group_id
+  // Places: the same meaning as SearchPhotos.area, and the same rule for
+  // devices before it.
+  PlaceArea area = 5;
 }
 
 message PhotoDateBucket {
@@ -701,6 +715,100 @@ message PhotoDateBucket {
 
 message RespPhotoDateBuckets {
   repeated PhotoDateBucket buckets = 1; // ordered desc, newest first
+}
+
+// Places: an area of the map, in degrees (WGS 84, as the photos' GPS
+// tags). Bounds are inclusive. west may be greater than east: the area
+// then crosses the antimeridian (180°), from west eastwards to east.
+message PlaceArea {
+  double south = 1;
+  double west = 2;
+  double north = 3;
+  double east = 4;
+}
+
+// One map tile, numbered as every web map numbers them ("slippy map"
+// tiles, Web Mercator): at zoom z the world is 2^z x 2^z tiles, x from
+// the antimeridian eastwards and y from the north down, so a point is in
+//   x = floor((lon + 180) / 360 * 2^z)
+//   y = floor((1 - ln(tan(lat) + 1 / cos(lat)) / π) / 2 * 2^z)
+// with lat in radians, clamped to ±85.0511287798° (the square map's edge),
+// and lon 180 counted in the last column, 2^z - 1.
+message PlaceTile {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// Places: the map in Images. The photos the device has a position for
+// (from their GPS tags: the device reads them at upload, and once in the
+// background for what it held before), grouped for the tiles a map shows
+// at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
+// SearchPhotos; devices before Places answer error_code "unknown_payload".
+//
+// Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
+// cell holding a photo is one place: the photos the same search would
+// show (one per photo, whatever its copies; never what folders kept out of
+// Images hold) whose position falls in that cell. A map asks for the tiles
+// it shows, and for the next zoom's to have them before the zoom ends;
+// an answer belongs to its zoom and tiles, so a client keeps places per
+// (filters, zoom, x, y) until the library changes (it pulls to refresh,
+// or the device restarts) and asks only for the tiles it lacks.
+message GetPhotoPlaces {
+  // 0 to 20; one outside is taken as the nearest of the two.
+  int32 zoom = 1;
+  // At most 64; the rest are left out of the answer. x is taken modulo
+  // 2^zoom, so a map shown across the antimeridian can name the tiles past
+  // it as it numbers them; a y outside 0 to 2^zoom - 1 is left out.
+  repeated PlaceTile tiles = 2;
+  // The same filters as SearchPhotos, with the same meaning: the places
+  // hold the photos that search would show.
+  repeated string tags = 3;
+  repeated string person_ids = 4;
+  bool include_videos = 5;
+  string group_id = 6;
+}
+
+// One place of GetPhotoPlaces: the photos of one cell of a tile.
+message PhotoPlace {
+  // Where to draw it: the mean position of its photos.
+  double latitude = 1;
+  double longitude = 2;
+  // How many photos it holds; never 0.
+  int32 count = 3;
+  // The smallest area holding them all (south and west their least
+  // latitude and longitude, north and east the greatest; never across the
+  // antimeridian): SearchPhotos.area with it shows exactly these photos,
+  // when sent with the same filters.
+  PlaceArea area = 4;
+  // The tile it is in, at its zoom: x within 0 to 2^zoom - 1 (the modulo
+  // GetPhotoPlaces takes), the key a client keeps it under.
+  int32 zoom = 5;
+  int32 x = 6;
+  int32 y = 7;
+  // The newest of its photos, by the date SearchPhotos sorts by (its
+  // oldest copy's), at the path that search shows it at: hash, path, mime,
+  // dates and size, no content. Its small thumbnail comes from
+  // GetThumbnails, by path. Unset in the rare answer where it was deleted
+  // since the device last read the library: the place still counts it
+  // then, until the next answer.
+  File cover = 8;
+}
+
+// The answer to GetPhotoPlaces.
+message PhotoPlaces {
+  // Every place of the tiles asked for, by tile then cell, in no order a
+  // client should rely on.
+  repeated PhotoPlace places = 1;
+  // How many photos with a position match the filters, in the whole
+  // library (not only the tiles asked for), and the smallest area holding
+  // them all - to open a map framed on every photo. located_area is unset
+  // when located_total is 0. Its west is greater than its east when the
+  // photos are closer together across the antimeridian than around the
+  // world the other way.
+  int32 located_total = 2;
+  PlaceArea located_area = 3;
+  // The zoom the places are for (the one asked, within 0 to 20).
+  int32 zoom = 4;
 }
 
 message File {
@@ -2521,6 +2629,9 @@ message ReqEnvelope {
     // People: "Not this person" / "Move to another person". Answers with
     // the generic Ack; devices before it with error_code "unknown_payload".
     RemoveFromPerson req_remove_from_person = 146;
+    // Places, the map in Images. Answers with resp_photo_places; devices
+    // before it with error_code "unknown_payload".
+    GetPhotoPlaces req_get_photo_places = 147;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2641,5 +2752,7 @@ message RespEnvelope {
     HashesFound resp_hashes_found = 70;
     // Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi.
     WifiStatus resp_wifi_status = 71;
+    // Places: the answer to GetPhotoPlaces.
+    PhotoPlaces resp_photo_places = 72;
   }
 }

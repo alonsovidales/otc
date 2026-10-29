@@ -409,6 +409,64 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   twin, end to end) and dao's `TestSearchMediaNewerThanSplitsWithBeforeMySQL` check that the two
   halves are the plain search, each photo once at the same copy; websocket's
   `TestSearchPhotosNewerThanAnswersOldestFirst` (a child process) checks the handler.
+- Places, the map in Images (2026-10-29, device side; release 148's `updates/148.sh`):
+  - Storage. `photo_locations` keeps where each photo or video was taken, by content hash (`lat`
+    and `lon` in degrees). A row with NULL in both is content that was read and has no position.
+    Rows are written by `processMedia` from the metadata it already reads, in either lane, after
+    the thumbnail, so Reprocess refreshes them. A row goes with the content's last path or kept
+    version (`removeBlobIfUnused`, `dropIfOrphaned`).
+  - Backfill. `BackfillLocations` (`location_backfill.go`) fills in what was stored before Places,
+    once per database: it runs after `FitStoredThumbnails` in websocket's `startBackfillOnce`,
+    because it needs the key, and sets `settings.locations_backfilled` when done.
+    - It reads only content that has a thumbnail and no row (`MediaWithoutLocation`), and only the
+      metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream.
+    - It pauses 20 ms after each photo and 250 ms after each video.
+    - A missing blob is skipped. A read that failed (a blob error, ffprobe not running or not
+      answering) leaves the flag unset, so the next start reads it again. A row is never re-read,
+      the NULL ones included.
+    - Without the table or the column (release 148's script hasn't run) the device reads that
+      nothing has a position (`ErrSchemaBehind`, `isNoSuchTable`).
+  - `GetPhotoPlaces` (req 147, answer `PhotoPlaces` 72). It takes a zoom (0-20, clamped) and up to
+    64 slippy-map tiles (`PlaceTile`; x modulo 2^zoom, a y off the map dropped), plus SearchPhotos'
+    filters.
+    - Each tile is 4x4 cells and each non-empty cell is one `PhotoPlace`. A place carries its
+      count, mean position, members' bounding box, its tile (normalised x) and a cover: the
+      newest member by the search's date, at the copy the search shows (`ShownCopies`), with no
+      content. Its thumbnail comes from `GetThumbnails`.
+    - The answer also carries `located_total` and `located_area` for the whole filtered library.
+      That area may cross the antimeridian (west > east, `placesExtent`).
+  - The index (`files_manager/places.go`). The places come from an in-memory index, about 72 bytes
+    a photo, sorted by hash, with Web Mercator positions in 1/2^32ths (`mercator`, `placeEntry`).
+    - It is built at the first request from `EachLocatedCopy`. That query is ungrouped, because
+      MariaDB took 550 ms to group 100k rows against 115 ms to send them, so the copies are
+      grouped by hash in Go.
+    - It is rebuilt in the background after `places.changed()`, at most every 15 s; answers in
+      between come from the old index. `places.changed()` is called on an upload or link
+      (deferred), a delete, a keep-out reload and every position written.
+    - It is also rebuilt after 10 minutes in any case, and dropped after 15 idle minutes.
+    - Filters keep the index's photos among `EachMatchingMediaHash`'s, the search's own clauses.
+      That keep list is held a minute, up to 4 filters.
+    - Without filters, `include_videos` false is images only, as browsing.
+    - Grouping 100k synthetic photos takes 0.4-1.6 ms on an M-series Mac
+      (`TestPlacesGroupsTiming`).
+  - Area filter. `SearchPhotos.area` (12) and `ReqPhotoDateBuckets.area` (5) take a `PlaceArea`.
+    It is a join on `photo_locations` after the collection's in `searchMediaClauses`, with
+    inclusive bounds, across the antimeridian when west > east. It combines with the other
+    filters, and the images-only browsing rule still applies.
+    - `ImageSearchWithin`, `PhotoDateBucketsWithin` and the dao's `...Within` take it; the old
+      names pass nil. `mediaArea` turns a NaN bound into an empty area.
+    - A place's area with the same filters gives exactly its photos, because the cell boxes don't
+      overlap.
+    - Devices before Places ignore the field, so clients send it only to a device that answered
+      `GetPhotoPlaces`.
+  - Tests:
+    - `places_test.go`: the tile formula at zoom 0-20 against the slippy formula, the poles and the
+      antimeridian, grouping, the cache's rebuild and masks, the answer over sqlmock, timing.
+    - `location_backfill_test.go`.
+    - dao's `TestPhotoLocationsMySQL`, `TestSearchMediaWithinAreaMySQL`,
+      `TestPhotoLocationsWithoutTableMySQL` and `TestEachLocatedCopyLargeMySQL` (with
+      `OTC_TEST_PLACES_LARGE=1`, 100k rows).
+    - websocket's `TestPlacesRequests`, in a child process.
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)

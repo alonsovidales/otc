@@ -891,7 +891,21 @@ export interface SearchPhotos {
    * with oldest_first false. Drop that page, and don't ask that device
    * again until the next sign-in.
    */
-  newerThan?: Date | undefined;
+  newerThan?:
+    | Date
+    | undefined;
+  /**
+   * Places (the map in Images): only the photos taken inside this area,
+   * by the position the device keeps for each (see GetPhotoPlaces) - a
+   * place's area, to open its photos in the grid. Combines with tags,
+   * people and collection as they combine with each other, and pages,
+   * jumps (before, newer_than) and resumes like any search; a photo
+   * without a position is never inside one. Unset is the whole library.
+   * Devices before Places ignore it and answer the whole library: offer
+   * it only to a device that answered GetPhotoPlaces, never to one that
+   * answered it with error_code "unknown_payload".
+   */
+  area?: PlaceArea | undefined;
 }
 
 export interface ListOfFiles {
@@ -940,6 +954,11 @@ export interface ReqPhotoDateBuckets {
   includeVideos: boolean;
   /** issue #115, same meaning as SearchPhotos.group_id */
   groupId: string;
+  /**
+   * Places: the same meaning as SearchPhotos.area, and the same rule for
+   * devices before it.
+   */
+  area?: PlaceArea | undefined;
 }
 
 export interface PhotoDateBucket {
@@ -955,6 +974,124 @@ export interface PhotoDateBucket {
 export interface RespPhotoDateBuckets {
   /** ordered desc, newest first */
   buckets: PhotoDateBucket[];
+}
+
+/**
+ * Places: an area of the map, in degrees (WGS 84, as the photos' GPS
+ * tags). Bounds are inclusive. west may be greater than east: the area
+ * then crosses the antimeridian (180°), from west eastwards to east.
+ */
+export interface PlaceArea {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
+/**
+ * One map tile, numbered as every web map numbers them ("slippy map"
+ * tiles, Web Mercator): at zoom z the world is 2^z x 2^z tiles, x from
+ * the antimeridian eastwards and y from the north down, so a point is in
+ *   x = floor((lon + 180) / 360 * 2^z)
+ *   y = floor((1 - ln(tan(lat) + 1 / cos(lat)) / π) / 2 * 2^z)
+ * with lat in radians, clamped to ±85.0511287798° (the square map's edge),
+ * and lon 180 counted in the last column, 2^z - 1.
+ */
+export interface PlaceTile {
+  x: number;
+  y: number;
+}
+
+/**
+ * Places: the map in Images. The photos the device has a position for
+ * (from their GPS tags: the device reads them at upload, and once in the
+ * background for what it held before), grouped for the tiles a map shows
+ * at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
+ * SearchPhotos; devices before Places answer error_code "unknown_payload".
+ *
+ * Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
+ * cell holding a photo is one place: the photos the same search would
+ * show (one per photo, whatever its copies; never what folders kept out of
+ * Images hold) whose position falls in that cell. A map asks for the tiles
+ * it shows, and for the next zoom's to have them before the zoom ends;
+ * an answer belongs to its zoom and tiles, so a client keeps places per
+ * (filters, zoom, x, y) until the library changes (it pulls to refresh,
+ * or the device restarts) and asks only for the tiles it lacks.
+ */
+export interface GetPhotoPlaces {
+  /** 0 to 20; one outside is taken as the nearest of the two. */
+  zoom: number;
+  /**
+   * At most 64; the rest are left out of the answer. x is taken modulo
+   * 2^zoom, so a map shown across the antimeridian can name the tiles past
+   * it as it numbers them; a y outside 0 to 2^zoom - 1 is left out.
+   */
+  tiles: PlaceTile[];
+  /**
+   * The same filters as SearchPhotos, with the same meaning: the places
+   * hold the photos that search would show.
+   */
+  tags: string[];
+  personIds: string[];
+  includeVideos: boolean;
+  groupId: string;
+}
+
+/** One place of GetPhotoPlaces: the photos of one cell of a tile. */
+export interface PhotoPlace {
+  /** Where to draw it: the mean position of its photos. */
+  latitude: number;
+  longitude: number;
+  /** How many photos it holds; never 0. */
+  count: number;
+  /**
+   * The smallest area holding them all (south and west their least
+   * latitude and longitude, north and east the greatest; never across the
+   * antimeridian): SearchPhotos.area with it shows exactly these photos,
+   * when sent with the same filters.
+   */
+  area?:
+    | PlaceArea
+    | undefined;
+  /**
+   * The tile it was asked for with, as asked (x as sent, before the
+   * modulo), and its zoom.
+   */
+  zoom: number;
+  x: number;
+  y: number;
+  /**
+   * The newest of its photos, by the date SearchPhotos sorts by (its
+   * oldest copy's), at the path that search shows it at: hash, path, mime,
+   * dates and size, no content. Its small thumbnail comes from
+   * GetThumbnails, by path. Unset in the rare answer where it was deleted
+   * since the device last read the library: the place still counts it
+   * then, until the next answer.
+   */
+  cover?: File | undefined;
+}
+
+/** The answer to GetPhotoPlaces. */
+export interface PhotoPlaces {
+  /**
+   * Every place of the tiles asked for, by tile then cell, in no order a
+   * client should rely on.
+   */
+  places: PhotoPlace[];
+  /**
+   * How many photos with a position match the filters, in the whole
+   * library (not only the tiles asked for), and the smallest area holding
+   * them all - to open a map framed on every photo. located_area is unset
+   * when located_total is 0. Its west is greater than its east when the
+   * photos are closer together across the antimeridian than around the
+   * world the other way.
+   */
+  locatedTotal: number;
+  locatedArea?:
+    | PlaceArea
+    | undefined;
+  /** The zoom the places are for (the one asked, within 0 to 20). */
+  zoom: number;
 }
 
 export interface File {
@@ -3102,6 +3239,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqRemoveFromPerson"; reqRemoveFromPerson: RemoveFromPerson }
     | //
+    /**
+     * Places, the map in Images. Answers with resp_photo_places; devices
+     * before it with error_code "unknown_payload".
+     */
+    { $case: "reqGetPhotoPlaces"; reqGetPhotoPlaces: GetPhotoPlaces }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3252,6 +3395,9 @@ export interface RespEnvelope {
     | //
     /** Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi. */
     { $case: "respWifiStatus"; respWifiStatus: WifiStatus }
+    | //
+    /** Places: the answer to GetPhotoPlaces. */
+    { $case: "respPhotoPlaces"; respPhotoPlaces: PhotoPlaces }
     | undefined;
 }
 
@@ -6150,6 +6296,7 @@ function createBaseSearchPhotos(): SearchPhotos {
     smallThumbnails: false,
     omitThumbnails: false,
     newerThan: undefined,
+    area: undefined,
   };
 }
 
@@ -6187,6 +6334,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.newerThan !== undefined) {
       Timestamp.encode(toTimestamp(message.newerThan), writer.uint32(90).fork()).join();
+    }
+    if (message.area !== undefined) {
+      PlaceArea.encode(message.area, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -6286,6 +6436,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.newerThan = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.area = PlaceArea.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6311,6 +6469,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.smallThumbnails = object.smallThumbnails ?? false;
     message.omitThumbnails = object.omitThumbnails ?? false;
     message.newerThan = object.newerThan ?? undefined;
+    message.area = (object.area !== undefined && object.area !== null) ? PlaceArea.fromPartial(object.area) : undefined;
     return message;
   },
 };
@@ -6429,7 +6588,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
 };
 
 function createBaseReqPhotoDateBuckets(): ReqPhotoDateBuckets {
-  return { tags: [], personIds: [], includeVideos: false, groupId: "" };
+  return { tags: [], personIds: [], includeVideos: false, groupId: "", area: undefined };
 }
 
 export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
@@ -6445,6 +6604,9 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     }
     if (message.groupId !== "") {
       writer.uint32(34).string(message.groupId);
+    }
+    if (message.area !== undefined) {
+      PlaceArea.encode(message.area, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -6488,6 +6650,14 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
           message.groupId = reader.string();
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.area = PlaceArea.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6506,6 +6676,7 @@ export const ReqPhotoDateBuckets: MessageFns<ReqPhotoDateBuckets> = {
     message.personIds = object.personIds?.map((e) => e) || [];
     message.includeVideos = object.includeVideos ?? false;
     message.groupId = object.groupId ?? "";
+    message.area = (object.area !== undefined && object.area !== null) ? PlaceArea.fromPartial(object.area) : undefined;
     return message;
   },
 };
@@ -6610,6 +6781,466 @@ export const RespPhotoDateBuckets: MessageFns<RespPhotoDateBuckets> = {
   fromPartial<I extends Exact<DeepPartial<RespPhotoDateBuckets>, I>>(object: I): RespPhotoDateBuckets {
     const message = createBaseRespPhotoDateBuckets();
     message.buckets = object.buckets?.map((e) => PhotoDateBucket.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePlaceArea(): PlaceArea {
+  return { south: 0, west: 0, north: 0, east: 0 };
+}
+
+export const PlaceArea: MessageFns<PlaceArea> = {
+  encode(message: PlaceArea, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.south !== 0) {
+      writer.uint32(9).double(message.south);
+    }
+    if (message.west !== 0) {
+      writer.uint32(17).double(message.west);
+    }
+    if (message.north !== 0) {
+      writer.uint32(25).double(message.north);
+    }
+    if (message.east !== 0) {
+      writer.uint32(33).double(message.east);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PlaceArea {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePlaceArea();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 9) {
+            break;
+          }
+
+          message.south = reader.double();
+          continue;
+        }
+        case 2: {
+          if (tag !== 17) {
+            break;
+          }
+
+          message.west = reader.double();
+          continue;
+        }
+        case 3: {
+          if (tag !== 25) {
+            break;
+          }
+
+          message.north = reader.double();
+          continue;
+        }
+        case 4: {
+          if (tag !== 33) {
+            break;
+          }
+
+          message.east = reader.double();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PlaceArea>, I>>(base?: I): PlaceArea {
+    return PlaceArea.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PlaceArea>, I>>(object: I): PlaceArea {
+    const message = createBasePlaceArea();
+    message.south = object.south ?? 0;
+    message.west = object.west ?? 0;
+    message.north = object.north ?? 0;
+    message.east = object.east ?? 0;
+    return message;
+  },
+};
+
+function createBasePlaceTile(): PlaceTile {
+  return { x: 0, y: 0 };
+}
+
+export const PlaceTile: MessageFns<PlaceTile> = {
+  encode(message: PlaceTile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.x !== 0) {
+      writer.uint32(8).int32(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(16).int32(message.y);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PlaceTile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePlaceTile();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.x = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.y = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PlaceTile>, I>>(base?: I): PlaceTile {
+    return PlaceTile.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PlaceTile>, I>>(object: I): PlaceTile {
+    const message = createBasePlaceTile();
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    return message;
+  },
+};
+
+function createBaseGetPhotoPlaces(): GetPhotoPlaces {
+  return { zoom: 0, tiles: [], tags: [], personIds: [], includeVideos: false, groupId: "" };
+}
+
+export const GetPhotoPlaces: MessageFns<GetPhotoPlaces> = {
+  encode(message: GetPhotoPlaces, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.zoom !== 0) {
+      writer.uint32(8).int32(message.zoom);
+    }
+    for (const v of message.tiles) {
+      PlaceTile.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.tags) {
+      writer.uint32(26).string(v!);
+    }
+    for (const v of message.personIds) {
+      writer.uint32(34).string(v!);
+    }
+    if (message.includeVideos !== false) {
+      writer.uint32(40).bool(message.includeVideos);
+    }
+    if (message.groupId !== "") {
+      writer.uint32(50).string(message.groupId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPhotoPlaces {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetPhotoPlaces();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.zoom = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.tiles.push(PlaceTile.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.tags.push(reader.string());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.personIds.push(reader.string());
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.includeVideos = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetPhotoPlaces>, I>>(base?: I): GetPhotoPlaces {
+    return GetPhotoPlaces.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPhotoPlaces>, I>>(object: I): GetPhotoPlaces {
+    const message = createBaseGetPhotoPlaces();
+    message.zoom = object.zoom ?? 0;
+    message.tiles = object.tiles?.map((e) => PlaceTile.fromPartial(e)) || [];
+    message.tags = object.tags?.map((e) => e) || [];
+    message.personIds = object.personIds?.map((e) => e) || [];
+    message.includeVideos = object.includeVideos ?? false;
+    message.groupId = object.groupId ?? "";
+    return message;
+  },
+};
+
+function createBasePhotoPlace(): PhotoPlace {
+  return { latitude: 0, longitude: 0, count: 0, area: undefined, zoom: 0, x: 0, y: 0, cover: undefined };
+}
+
+export const PhotoPlace: MessageFns<PhotoPlace> = {
+  encode(message: PhotoPlace, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.latitude !== 0) {
+      writer.uint32(9).double(message.latitude);
+    }
+    if (message.longitude !== 0) {
+      writer.uint32(17).double(message.longitude);
+    }
+    if (message.count !== 0) {
+      writer.uint32(24).int32(message.count);
+    }
+    if (message.area !== undefined) {
+      PlaceArea.encode(message.area, writer.uint32(34).fork()).join();
+    }
+    if (message.zoom !== 0) {
+      writer.uint32(40).int32(message.zoom);
+    }
+    if (message.x !== 0) {
+      writer.uint32(48).int32(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(56).int32(message.y);
+    }
+    if (message.cover !== undefined) {
+      File.encode(message.cover, writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoPlace {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoPlace();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 9) {
+            break;
+          }
+
+          message.latitude = reader.double();
+          continue;
+        }
+        case 2: {
+          if (tag !== 17) {
+            break;
+          }
+
+          message.longitude = reader.double();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.count = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.area = PlaceArea.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.zoom = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.x = reader.int32();
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.y = reader.int32();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.cover = File.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoPlace>, I>>(base?: I): PhotoPlace {
+    return PhotoPlace.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoPlace>, I>>(object: I): PhotoPlace {
+    const message = createBasePhotoPlace();
+    message.latitude = object.latitude ?? 0;
+    message.longitude = object.longitude ?? 0;
+    message.count = object.count ?? 0;
+    message.area = (object.area !== undefined && object.area !== null) ? PlaceArea.fromPartial(object.area) : undefined;
+    message.zoom = object.zoom ?? 0;
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    message.cover = (object.cover !== undefined && object.cover !== null) ? File.fromPartial(object.cover) : undefined;
+    return message;
+  },
+};
+
+function createBasePhotoPlaces(): PhotoPlaces {
+  return { places: [], locatedTotal: 0, locatedArea: undefined, zoom: 0 };
+}
+
+export const PhotoPlaces: MessageFns<PhotoPlaces> = {
+  encode(message: PhotoPlaces, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.places) {
+      PhotoPlace.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.locatedTotal !== 0) {
+      writer.uint32(16).int32(message.locatedTotal);
+    }
+    if (message.locatedArea !== undefined) {
+      PlaceArea.encode(message.locatedArea, writer.uint32(26).fork()).join();
+    }
+    if (message.zoom !== 0) {
+      writer.uint32(32).int32(message.zoom);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoPlaces {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoPlaces();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.places.push(PhotoPlace.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.locatedTotal = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.locatedArea = PlaceArea.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.zoom = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoPlaces>, I>>(base?: I): PhotoPlaces {
+    return PhotoPlaces.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoPlaces>, I>>(object: I): PhotoPlaces {
+    const message = createBasePhotoPlaces();
+    message.places = object.places?.map((e) => PhotoPlace.fromPartial(e)) || [];
+    message.locatedTotal = object.locatedTotal ?? 0;
+    message.locatedArea = (object.locatedArea !== undefined && object.locatedArea !== null)
+      ? PlaceArea.fromPartial(object.locatedArea)
+      : undefined;
+    message.zoom = object.zoom ?? 0;
     return message;
   },
 };
@@ -18164,6 +18795,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRemoveFromPerson":
         RemoveFromPerson.encode(message.payload.reqRemoveFromPerson, writer.uint32(1170).fork()).join();
         break;
+      case "reqGetPhotoPlaces":
+        GetPhotoPlaces.encode(message.payload.reqGetPhotoPlaces, writer.uint32(1178).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -19477,6 +20111,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 147: {
+          if (tag !== 1178) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetPhotoPlaces",
+            reqGetPhotoPlaces: GetPhotoPlaces.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -20695,6 +21340,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetPhotoPlaces": {
+        if (object.payload?.reqGetPhotoPlaces !== undefined && object.payload?.reqGetPhotoPlaces !== null) {
+          message.payload = {
+            $case: "reqGetPhotoPlaces",
+            reqGetPhotoPlaces: GetPhotoPlaces.fromPartial(object.payload.reqGetPhotoPlaces),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -20968,6 +21622,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respWifiStatus":
         WifiStatus.encode(message.payload.respWifiStatus, writer.uint32(570).fork()).join();
+        break;
+      case "respPhotoPlaces":
+        PhotoPlaces.encode(message.payload.respPhotoPlaces, writer.uint32(578).fork()).join();
         break;
     }
     return writer;
@@ -21607,6 +22264,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respWifiStatus", respWifiStatus: WifiStatus.decode(reader, reader.uint32()) };
           continue;
         }
+        case 72: {
+          if (tag !== 578) {
+            break;
+          }
+
+          message.payload = { $case: "respPhotoPlaces", respPhotoPlaces: PhotoPlaces.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -22156,6 +22821,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respWifiStatus",
             respWifiStatus: WifiStatus.fromPartial(object.payload.respWifiStatus),
+          };
+        }
+        break;
+      }
+      case "respPhotoPlaces": {
+        if (object.payload?.respPhotoPlaces !== undefined && object.payload?.respPhotoPlaces !== null) {
+          message.payload = {
+            $case: "respPhotoPlaces",
+            respPhotoPlaces: PhotoPlaces.fromPartial(object.payload.respPhotoPlaces),
           };
         }
         break;

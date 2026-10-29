@@ -134,6 +134,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqGetTags{}):            demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetThumbnails{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqPhotoDateBuckets{}):   demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetPhotoPlaces{}):     demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetMediaUrl{}):        demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetMediaRange{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListPeople{}):         demoAllow,

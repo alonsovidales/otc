@@ -1380,28 +1380,40 @@ public nonisolated struct Msg_BridgeSendLogs: Sendable {
   public init() {}
 }
 
-public nonisolated struct Msg_SearchPhotos: Sendable {
+public nonisolated struct Msg_SearchPhotos: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var tags: [String] = []
+  public var tags: [String] {
+    get {_storage._tags}
+    set {_uniqueStorage()._tags = newValue}
+  }
 
-  public var token: String = String()
+  public var token: String {
+    get {_storage._token}
+    set {_uniqueStorage()._token = newValue}
+  }
 
   /// include_videos (issue #60): the Photo Gallery's own search stays
   /// images-only (its default, unset value), but the social composer wants
   /// to offer videos alongside photos too - both share this one RPC, so a
   /// caller opts in explicitly rather than the gallery silently gaining
   /// videos it never asked for.
-  public var includeVideos: Bool = false
+  public var includeVideos: Bool {
+    get {_storage._includeVideos}
+    set {_uniqueStorage()._includeVideos = newValue}
+  }
 
   /// person_ids (issue #52 follow-up): filters to photos containing a face
   /// matched to *every* person listed here (AND, not OR) - "person X with
   /// dogs" means combining this with tags = ["dogs"] on the same request,
   /// not two separate searches. Lives on the Photo Gallery's own search bar
   /// now, not a separate People screen.
-  public var personIds: [String] = []
+  public var personIds: [String] {
+    get {_storage._personIds}
+    set {_uniqueStorage()._personIds = newValue}
+  }
 
   /// Issue #77: the date scrubber's "jump to date". When set, the server
   /// always starts a *fresh* search filtered to created <= before and
@@ -1411,13 +1423,13 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// filtered/sorted result set once per token) by treating a jump exactly
   /// like a brand new search.
   public var before: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_before ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_before = newValue}
+    get {_storage._before ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._before = newValue}
   }
   /// Returns true if `before` has been explicitly set.
-  public var hasBefore: Bool {self._before != nil}
+  public var hasBefore: Bool {_storage._before != nil}
   /// Clears the value of `before`. Subsequent reads from it will return its default value.
-  public mutating func clearBefore() {self._before = nil}
+  public mutating func clearBefore() {_uniqueStorage()._before = nil}
 
   /// How many results the client already holds, sent so a search can be
   /// resumed when the device no longer recognises the token.
@@ -1435,13 +1447,19 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// With a token the device still holds, it also makes a page asked again
   /// with the same have (its answer was lost) come back as the same page,
   /// instead of the page after it, which left a hole in the grid.
-  public var have: Int32 = 0
+  public var have: Int32 {
+    get {_storage._have}
+    set {_uniqueStorage()._have = newValue}
+  }
 
   /// Issue #115: restrict to one image group (album). A group is just
   /// another filter on this same search - combined with tags/people
   /// exactly like they combine with each other - which is what keeps
   /// search and scrolling working unchanged inside a group.
-  public var groupID: String = String()
+  public var groupID: String {
+    get {_storage._groupID}
+    set {_uniqueStorage()._groupID = newValue}
+  }
 
   /// The most photos this page may hold. A grid asks for a small first
   /// page so it paints quickly over a slow upload, and continues with the
@@ -1450,12 +1468,18 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// device never returns more than its default - except for a page
   /// without thumbnails (omit_thumbnails, release 113), which may hold up
   /// to 200.
-  public var limit: Int32 = 0
+  public var limit: Int32 {
+    get {_storage._limit}
+    set {_uniqueStorage()._limit = newValue}
+  }
 
   /// Each File's content is its small thumbnail (see
   /// GetThumbnails.small_thumbnails) instead of the big one: for grids,
   /// and for a viewer only until the full size arrives (see there).
-  public var smallThumbnails: Bool = false
+  public var smallThumbnails: Bool {
+    get {_storage._smallThumbnails}
+    set {_uniqueStorage()._smallThumbnails = newValue}
+  }
 
   /// Release 113: the page's Files come without content - everything else
   /// as before (hash, path, mime, dates, size) - for a client that keeps
@@ -1473,7 +1497,10 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// page). Devices before release 113 ignore the flag and send content,
   /// and a page of at most their default: clients take the content when an
   /// entry has it and fetch only entries that don't.
-  public var omitThumbnails: Bool = false
+  public var omitThumbnails: Bool {
+    get {_storage._omitThumbnails}
+    set {_uniqueStorage()._omitThumbnails = newValue}
+  }
 
   /// Issue #194: scrolling up after a jump (before). This asks for the
   /// photos dated strictly after this instant, served OLDEST first, the
@@ -1497,20 +1524,37 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// with oldest_first false. Drop that page, and don't ask that device
   /// again until the next sign-in.
   public var newerThan: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_newerThan ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_newerThan = newValue}
+    get {_storage._newerThan ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._newerThan = newValue}
   }
   /// Returns true if `newerThan` has been explicitly set.
-  public var hasNewerThan: Bool {self._newerThan != nil}
+  public var hasNewerThan: Bool {_storage._newerThan != nil}
   /// Clears the value of `newerThan`. Subsequent reads from it will return its default value.
-  public mutating func clearNewerThan() {self._newerThan = nil}
+  public mutating func clearNewerThan() {_uniqueStorage()._newerThan = nil}
+
+  /// Places (the map in Images): only the photos taken inside this area,
+  /// by the position the device keeps for each (see GetPhotoPlaces) - a
+  /// place's area, to open its photos in the grid. Combines with tags,
+  /// people and collection as they combine with each other, and pages,
+  /// jumps (before, newer_than) and resumes like any search; a photo
+  /// without a position is never inside one. Unset is the whole library.
+  /// Devices before Places ignore it and answer the whole library: offer
+  /// it only to a device that answered GetPhotoPlaces, never to one that
+  /// answered it with error_code "unknown_payload".
+  public var area: Msg_PlaceArea {
+    get {_storage._area ?? Msg_PlaceArea()}
+    set {_uniqueStorage()._area = newValue}
+  }
+  /// Returns true if `area` has been explicitly set.
+  public var hasArea: Bool {_storage._area != nil}
+  /// Clears the value of `area`. Subsequent reads from it will return its default value.
+  public mutating func clearArea() {_uniqueStorage()._area = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _before: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-  fileprivate var _newerThan: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public nonisolated struct Msg_ListOfFiles: Sendable {
@@ -1572,9 +1616,22 @@ public nonisolated struct Msg_ReqPhotoDateBuckets: Sendable {
   /// issue #115, same meaning as SearchPhotos.group_id
   public var groupID: String = String()
 
+  /// Places: the same meaning as SearchPhotos.area, and the same rule for
+  /// devices before it.
+  public var area: Msg_PlaceArea {
+    get {_area ?? Msg_PlaceArea()}
+    set {_area = newValue}
+  }
+  /// Returns true if `area` has been explicitly set.
+  public var hasArea: Bool {self._area != nil}
+  /// Clears the value of `area`. Subsequent reads from it will return its default value.
+  public mutating func clearArea() {self._area = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _area: Msg_PlaceArea? = nil
 }
 
 public nonisolated struct Msg_PhotoDateBucket: Sendable {
@@ -1605,6 +1662,202 @@ public nonisolated struct Msg_RespPhotoDateBuckets: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// Places: an area of the map, in degrees (WGS 84, as the photos' GPS
+/// tags). Bounds are inclusive. west may be greater than east: the area
+/// then crosses the antimeridian (180°), from west eastwards to east.
+public nonisolated struct Msg_PlaceArea: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var south: Double = 0
+
+  public var west: Double = 0
+
+  public var north: Double = 0
+
+  public var east: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One map tile, numbered as every web map numbers them ("slippy map"
+/// tiles, Web Mercator): at zoom z the world is 2^z x 2^z tiles, x from
+/// the antimeridian eastwards and y from the north down, so a point is in
+///   x = floor((lon + 180) / 360 * 2^z)
+///   y = floor((1 - ln(tan(lat) + 1 / cos(lat)) / π) / 2 * 2^z)
+/// with lat in radians, clamped to ±85.0511287798° (the square map's edge),
+/// and lon 180 counted in the last column, 2^z - 1.
+public nonisolated struct Msg_PlaceTile: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var x: Int32 = 0
+
+  public var y: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Places: the map in Images. The photos the device has a position for
+/// (from their GPS tags: the device reads them at upload, and once in the
+/// background for what it held before), grouped for the tiles a map shows
+/// at a zoom. Answers with PhotoPlaces. Owner and user sessions, as
+/// SearchPhotos; devices before Places answer error_code "unknown_payload".
+///
+/// Each tile is split into 4 x 4 cells (64 px of a 256 px tile), and each
+/// cell holding a photo is one place: the photos the same search would
+/// show (one per photo, whatever its copies; never what folders kept out of
+/// Images hold) whose position falls in that cell. A map asks for the tiles
+/// it shows, and for the next zoom's to have them before the zoom ends;
+/// an answer belongs to its zoom and tiles, so a client keeps places per
+/// (filters, zoom, x, y) until the library changes (it pulls to refresh,
+/// or the device restarts) and asks only for the tiles it lacks.
+public nonisolated struct Msg_GetPhotoPlaces: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// 0 to 20; one outside is taken as the nearest of the two.
+  public var zoom: Int32 = 0
+
+  /// At most 64; the rest are left out of the answer. x is taken modulo
+  /// 2^zoom, so a map shown across the antimeridian can name the tiles past
+  /// it as it numbers them; a y outside 0 to 2^zoom - 1 is left out.
+  public var tiles: [Msg_PlaceTile] = []
+
+  /// The same filters as SearchPhotos, with the same meaning: the places
+  /// hold the photos that search would show.
+  public var tags: [String] = []
+
+  public var personIds: [String] = []
+
+  public var includeVideos: Bool = false
+
+  public var groupID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One place of GetPhotoPlaces: the photos of one cell of a tile.
+public nonisolated struct Msg_PhotoPlace: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Where to draw it: the mean position of its photos.
+  public var latitude: Double {
+    get {_storage._latitude}
+    set {_uniqueStorage()._latitude = newValue}
+  }
+
+  public var longitude: Double {
+    get {_storage._longitude}
+    set {_uniqueStorage()._longitude = newValue}
+  }
+
+  /// How many photos it holds; never 0.
+  public var count: Int32 {
+    get {_storage._count}
+    set {_uniqueStorage()._count = newValue}
+  }
+
+  /// The smallest area holding them all (south and west their least
+  /// latitude and longitude, north and east the greatest; never across the
+  /// antimeridian): SearchPhotos.area with it shows exactly these photos,
+  /// when sent with the same filters.
+  public var area: Msg_PlaceArea {
+    get {_storage._area ?? Msg_PlaceArea()}
+    set {_uniqueStorage()._area = newValue}
+  }
+  /// Returns true if `area` has been explicitly set.
+  public var hasArea: Bool {_storage._area != nil}
+  /// Clears the value of `area`. Subsequent reads from it will return its default value.
+  public mutating func clearArea() {_uniqueStorage()._area = nil}
+
+  /// The tile it was asked for with, as asked (x as sent, before the
+  /// modulo), and its zoom.
+  public var zoom: Int32 {
+    get {_storage._zoom}
+    set {_uniqueStorage()._zoom = newValue}
+  }
+
+  public var x: Int32 {
+    get {_storage._x}
+    set {_uniqueStorage()._x = newValue}
+  }
+
+  public var y: Int32 {
+    get {_storage._y}
+    set {_uniqueStorage()._y = newValue}
+  }
+
+  /// The newest of its photos, by the date SearchPhotos sorts by (its
+  /// oldest copy's), at the path that search shows it at: hash, path, mime,
+  /// dates and size, no content. Its small thumbnail comes from
+  /// GetThumbnails, by path. Unset in the rare answer where it was deleted
+  /// since the device last read the library: the place still counts it
+  /// then, until the next answer.
+  public var cover: Msg_File {
+    get {_storage._cover ?? Msg_File()}
+    set {_uniqueStorage()._cover = newValue}
+  }
+  /// Returns true if `cover` has been explicitly set.
+  public var hasCover: Bool {_storage._cover != nil}
+  /// Clears the value of `cover`. Subsequent reads from it will return its default value.
+  public mutating func clearCover() {_uniqueStorage()._cover = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// The answer to GetPhotoPlaces.
+public nonisolated struct Msg_PhotoPlaces: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Every place of the tiles asked for, by tile then cell, in no order a
+  /// client should rely on.
+  public var places: [Msg_PhotoPlace] = []
+
+  /// How many photos with a position match the filters, in the whole
+  /// library (not only the tiles asked for), and the smallest area holding
+  /// them all - to open a map framed on every photo. located_area is unset
+  /// when located_total is 0. Its west is greater than its east when the
+  /// photos are closer together across the antimeridian than around the
+  /// world the other way.
+  public var locatedTotal: Int32 = 0
+
+  public var locatedArea: Msg_PlaceArea {
+    get {_locatedArea ?? Msg_PlaceArea()}
+    set {_locatedArea = newValue}
+  }
+  /// Returns true if `locatedArea` has been explicitly set.
+  public var hasLocatedArea: Bool {self._locatedArea != nil}
+  /// Clears the value of `locatedArea`. Subsequent reads from it will return its default value.
+  public mutating func clearLocatedArea() {self._locatedArea = nil}
+
+  /// The zoom the places are for (the one asked, within 0 to 20).
+  public var zoom: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _locatedArea: Msg_PlaceArea? = nil
 }
 
 public nonisolated struct Msg_File: Sendable {
@@ -6296,6 +6549,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqRemoveFromPerson(newValue)}
   }
 
+  /// Places, the map in Images. Answers with resp_photo_places; devices
+  /// before it with error_code "unknown_payload".
+  public var reqGetPhotoPlaces: Msg_GetPhotoPlaces {
+    get {
+      if case .reqGetPhotoPlaces(let v)? = payload {return v}
+      return Msg_GetPhotoPlaces()
+    }
+    set {payload = .reqGetPhotoPlaces(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -6535,6 +6798,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// People: "Not this person" / "Move to another person". Answers with
     /// the generic Ack; devices before it with error_code "unknown_payload".
     case reqRemoveFromPerson(Msg_RemoveFromPerson)
+    /// Places, the map in Images. Answers with resp_photo_places; devices
+    /// before it with error_code "unknown_payload".
+    case reqGetPhotoPlaces(Msg_GetPhotoPlaces)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -7115,6 +7381,15 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respWifiStatus(newValue)}
   }
 
+  /// Places: the answer to GetPhotoPlaces.
+  public var respPhotoPlaces: Msg_PhotoPlaces {
+    get {
+      if case .respPhotoPlaces(let v)? = _storage._payload {return v}
+      return Msg_PhotoPlaces()
+    }
+    set {_uniqueStorage()._payload = .respPhotoPlaces(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -7202,6 +7477,8 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respHashesFound(Msg_HashesFound)
     /// Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi.
     case respWifiStatus(Msg_WifiStatus)
+    /// Places: the answer to GetPhotoPlaces.
+    case respPhotoPlaces(Msg_PhotoPlaces)
 
   }
 
@@ -8940,83 +9217,146 @@ nonisolated extension Msg_BridgeSendLogs: SwiftProtobuf.Message, SwiftProtobuf._
 
 nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0\u{3}omit_thumbnails\0\u{3}newer_than\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0\u{3}omit_thumbnails\0\u{3}newer_than\0\u{1}area\0")
+
+  fileprivate class _StorageClass {
+    var _tags: [String] = []
+    var _token: String = String()
+    var _includeVideos: Bool = false
+    var _personIds: [String] = []
+    var _before: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _have: Int32 = 0
+    var _groupID: String = String()
+    var _limit: Int32 = 0
+    var _smallThumbnails: Bool = false
+    var _omitThumbnails: Bool = false
+    var _newerThan: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _area: Msg_PlaceArea? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _tags = source._tags
+      _token = source._token
+      _includeVideos = source._includeVideos
+      _personIds = source._personIds
+      _before = source._before
+      _have = source._have
+      _groupID = source._groupID
+      _limit = source._limit
+      _smallThumbnails = source._smallThumbnails
+      _omitThumbnails = source._omitThumbnails
+      _newerThan = source._newerThan
+      _area = source._area
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
-      case 4: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._before) }()
-      case 6: try { try decoder.decodeSingularInt32Field(value: &self.have) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
-      case 8: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
-      case 9: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self.omitThumbnails) }()
-      case 11: try { try decoder.decodeSingularMessageField(value: &self._newerThan) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeRepeatedStringField(value: &_storage._tags) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._token) }()
+        case 3: try { try decoder.decodeSingularBoolField(value: &_storage._includeVideos) }()
+        case 4: try { try decoder.decodeRepeatedStringField(value: &_storage._personIds) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._before) }()
+        case 6: try { try decoder.decodeSingularInt32Field(value: &_storage._have) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._groupID) }()
+        case 8: try { try decoder.decodeSingularInt32Field(value: &_storage._limit) }()
+        case 9: try { try decoder.decodeSingularBoolField(value: &_storage._smallThumbnails) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._omitThumbnails) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._newerThan) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._area) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.tags.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._tags.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._tags, fieldNumber: 1)
+      }
+      if !_storage._token.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._token, fieldNumber: 2)
+      }
+      if _storage._includeVideos != false {
+        try visitor.visitSingularBoolField(value: _storage._includeVideos, fieldNumber: 3)
+      }
+      if !_storage._personIds.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._personIds, fieldNumber: 4)
+      }
+      try { if let v = _storage._before {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      if _storage._have != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._have, fieldNumber: 6)
+      }
+      if !_storage._groupID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._groupID, fieldNumber: 7)
+      }
+      if _storage._limit != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._limit, fieldNumber: 8)
+      }
+      if _storage._smallThumbnails != false {
+        try visitor.visitSingularBoolField(value: _storage._smallThumbnails, fieldNumber: 9)
+      }
+      if _storage._omitThumbnails != false {
+        try visitor.visitSingularBoolField(value: _storage._omitThumbnails, fieldNumber: 10)
+      }
+      try { if let v = _storage._newerThan {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._area {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
     }
-    if !self.token.isEmpty {
-      try visitor.visitSingularStringField(value: self.token, fieldNumber: 2)
-    }
-    if self.includeVideos != false {
-      try visitor.visitSingularBoolField(value: self.includeVideos, fieldNumber: 3)
-    }
-    if !self.personIds.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.personIds, fieldNumber: 4)
-    }
-    try { if let v = self._before {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
-    if self.have != 0 {
-      try visitor.visitSingularInt32Field(value: self.have, fieldNumber: 6)
-    }
-    if !self.groupID.isEmpty {
-      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 7)
-    }
-    if self.limit != 0 {
-      try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 8)
-    }
-    if self.smallThumbnails != false {
-      try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 9)
-    }
-    if self.omitThumbnails != false {
-      try visitor.visitSingularBoolField(value: self.omitThumbnails, fieldNumber: 10)
-    }
-    try { if let v = self._newerThan {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_SearchPhotos, rhs: Msg_SearchPhotos) -> Bool {
-    if lhs.tags != rhs.tags {return false}
-    if lhs.token != rhs.token {return false}
-    if lhs.includeVideos != rhs.includeVideos {return false}
-    if lhs.personIds != rhs.personIds {return false}
-    if lhs._before != rhs._before {return false}
-    if lhs.have != rhs.have {return false}
-    if lhs.groupID != rhs.groupID {return false}
-    if lhs.limit != rhs.limit {return false}
-    if lhs.smallThumbnails != rhs.smallThumbnails {return false}
-    if lhs.omitThumbnails != rhs.omitThumbnails {return false}
-    if lhs._newerThan != rhs._newerThan {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._tags != rhs_storage._tags {return false}
+        if _storage._token != rhs_storage._token {return false}
+        if _storage._includeVideos != rhs_storage._includeVideos {return false}
+        if _storage._personIds != rhs_storage._personIds {return false}
+        if _storage._before != rhs_storage._before {return false}
+        if _storage._have != rhs_storage._have {return false}
+        if _storage._groupID != rhs_storage._groupID {return false}
+        if _storage._limit != rhs_storage._limit {return false}
+        if _storage._smallThumbnails != rhs_storage._smallThumbnails {return false}
+        if _storage._omitThumbnails != rhs_storage._omitThumbnails {return false}
+        if _storage._newerThan != rhs_storage._newerThan {return false}
+        if _storage._area != rhs_storage._area {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -9079,7 +9419,7 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqPhotoDateBuckets"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{3}person_ids\0\u{3}include_videos\0\u{3}group_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{3}person_ids\0\u{3}include_videos\0\u{3}group_id\0\u{1}area\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -9091,12 +9431,17 @@ nonisolated extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProto
       case 2: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._area) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.tags.isEmpty {
       try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 1)
     }
@@ -9109,6 +9454,9 @@ nonisolated extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProto
     if !self.groupID.isEmpty {
       try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 4)
     }
+    try { if let v = self._area {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -9117,6 +9465,7 @@ nonisolated extension Msg_ReqPhotoDateBuckets: SwiftProtobuf.Message, SwiftProto
     if lhs.personIds != rhs.personIds {return false}
     if lhs.includeVideos != rhs.includeVideos {return false}
     if lhs.groupID != rhs.groupID {return false}
+    if lhs._area != rhs._area {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -9182,6 +9531,309 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
   public static func ==(lhs: Msg_RespPhotoDateBuckets, rhs: Msg_RespPhotoDateBuckets) -> Bool {
     if lhs.buckets != rhs.buckets {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_PlaceArea: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PlaceArea"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}south\0\u{1}west\0\u{1}north\0\u{1}east\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.south) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.west) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.north) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.east) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.south.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.south, fieldNumber: 1)
+    }
+    if self.west.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.west, fieldNumber: 2)
+    }
+    if self.north.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.north, fieldNumber: 3)
+    }
+    if self.east.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.east, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PlaceArea, rhs: Msg_PlaceArea) -> Bool {
+    if lhs.south != rhs.south {return false}
+    if lhs.west != rhs.west {return false}
+    if lhs.north != rhs.north {return false}
+    if lhs.east != rhs.east {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_PlaceTile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PlaceTile"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}x\0\u{1}y\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.x) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.y) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.x != 0 {
+      try visitor.visitSingularInt32Field(value: self.x, fieldNumber: 1)
+    }
+    if self.y != 0 {
+      try visitor.visitSingularInt32Field(value: self.y, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PlaceTile, rhs: Msg_PlaceTile) -> Bool {
+    if lhs.x != rhs.x {return false}
+    if lhs.y != rhs.y {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_GetPhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetPhotoPlaces"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}zoom\0\u{1}tiles\0\u{1}tags\0\u{3}person_ids\0\u{3}include_videos\0\u{3}group_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.zoom) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.tiles) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.personIds) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.includeVideos) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.zoom != 0 {
+      try visitor.visitSingularInt32Field(value: self.zoom, fieldNumber: 1)
+    }
+    if !self.tiles.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.tiles, fieldNumber: 2)
+    }
+    if !self.tags.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 3)
+    }
+    if !self.personIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.personIds, fieldNumber: 4)
+    }
+    if self.includeVideos != false {
+      try visitor.visitSingularBoolField(value: self.includeVideos, fieldNumber: 5)
+    }
+    if !self.groupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetPhotoPlaces, rhs: Msg_GetPhotoPlaces) -> Bool {
+    if lhs.zoom != rhs.zoom {return false}
+    if lhs.tiles != rhs.tiles {return false}
+    if lhs.tags != rhs.tags {return false}
+    if lhs.personIds != rhs.personIds {return false}
+    if lhs.includeVideos != rhs.includeVideos {return false}
+    if lhs.groupID != rhs.groupID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_PhotoPlace: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PhotoPlace"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}latitude\0\u{1}longitude\0\u{1}count\0\u{1}area\0\u{1}zoom\0\u{1}x\0\u{1}y\0\u{1}cover\0")
+
+  fileprivate class _StorageClass {
+    var _latitude: Double = 0
+    var _longitude: Double = 0
+    var _count: Int32 = 0
+    var _area: Msg_PlaceArea? = nil
+    var _zoom: Int32 = 0
+    var _x: Int32 = 0
+    var _y: Int32 = 0
+    var _cover: Msg_File? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _latitude = source._latitude
+      _longitude = source._longitude
+      _count = source._count
+      _area = source._area
+      _zoom = source._zoom
+      _x = source._x
+      _y = source._y
+      _cover = source._cover
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularDoubleField(value: &_storage._latitude) }()
+        case 2: try { try decoder.decodeSingularDoubleField(value: &_storage._longitude) }()
+        case 3: try { try decoder.decodeSingularInt32Field(value: &_storage._count) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._area) }()
+        case 5: try { try decoder.decodeSingularInt32Field(value: &_storage._zoom) }()
+        case 6: try { try decoder.decodeSingularInt32Field(value: &_storage._x) }()
+        case 7: try { try decoder.decodeSingularInt32Field(value: &_storage._y) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._cover) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._latitude.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._latitude, fieldNumber: 1)
+      }
+      if _storage._longitude.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._longitude, fieldNumber: 2)
+      }
+      if _storage._count != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._count, fieldNumber: 3)
+      }
+      try { if let v = _storage._area {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      if _storage._zoom != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._zoom, fieldNumber: 5)
+      }
+      if _storage._x != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._x, fieldNumber: 6)
+      }
+      if _storage._y != 0 {
+        try visitor.visitSingularInt32Field(value: _storage._y, fieldNumber: 7)
+      }
+      try { if let v = _storage._cover {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PhotoPlace, rhs: Msg_PhotoPlace) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._latitude != rhs_storage._latitude {return false}
+        if _storage._longitude != rhs_storage._longitude {return false}
+        if _storage._count != rhs_storage._count {return false}
+        if _storage._area != rhs_storage._area {return false}
+        if _storage._zoom != rhs_storage._zoom {return false}
+        if _storage._x != rhs_storage._x {return false}
+        if _storage._y != rhs_storage._y {return false}
+        if _storage._cover != rhs_storage._cover {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_PhotoPlaces: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PhotoPlaces"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}places\0\u{3}located_total\0\u{3}located_area\0\u{1}zoom\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.places) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.locatedTotal) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._locatedArea) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.zoom) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.places.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.places, fieldNumber: 1)
+    }
+    if self.locatedTotal != 0 {
+      try visitor.visitSingularInt32Field(value: self.locatedTotal, fieldNumber: 2)
+    }
+    try { if let v = self._locatedArea {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if self.zoom != 0 {
+      try visitor.visitSingularInt32Field(value: self.zoom, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_PhotoPlaces, rhs: Msg_PhotoPlaces) -> Bool {
+    if lhs.places != rhs.places {return false}
+    if lhs.locatedTotal != rhs.locatedTotal {return false}
+    if lhs._locatedArea != rhs._locatedArea {return false}
+    if lhs.zoom != rhs.zoom {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -15567,7 +16219,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -17319,6 +17971,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqRemoveFromPerson(v)
         }
       }()
+      case 147: try {
+        var v: Msg_GetPhotoPlaces?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetPhotoPlaces(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetPhotoPlaces(v)
+        }
+      }()
       default: break
       }
     }
@@ -17872,6 +18537,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqRemoveFromPerson(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 146)
     }()
+    case .reqGetPhotoPlaces?: try {
+      guard case .reqGetPhotoPlaces(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 147)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -17888,7 +18557,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0\u{3}resp_wifi_status\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0\u{3}resp_wifi_status\0\u{3}resp_photo_places\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -18739,6 +19408,19 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respWifiStatus(v)
           }
         }()
+        case 72: try {
+          var v: Msg_PhotoPlaces?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respPhotoPlaces(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respPhotoPlaces(v)
+          }
+        }()
         default: break
         }
       }
@@ -19011,6 +19693,10 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respWifiStatus?: try {
         guard case .respWifiStatus(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 71)
+      }()
+      case .respPhotoPlaces?: try {
+        guard case .respPhotoPlaces(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 72)
       }()
       case nil: break
       }
