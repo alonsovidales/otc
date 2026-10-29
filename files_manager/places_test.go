@@ -114,8 +114,8 @@ func groupsByTile(groups []*placeGroup) map[string]*placeGroup {
 	return out
 }
 
-// One place per cell of the tiles asked: its count, mean position,
-// bounding box and newest photo; photos in tiles not asked for still
+// One place per cell of the tiles asked: its count, the photo it is
+// drawn at, bounding box and newest photo; photos in tiles not asked for still
 // count in the totals and the area holding every photo.
 func TestPlacesGroupsCellsOfTheTilesAsked(t *testing.T) {
 	// Florence's centre, a few hundred metres apart, and Rome.
@@ -143,8 +143,11 @@ func TestPlacesGroupsCellsOfTheTilesAsked(t *testing.T) {
 	if g.count != 3 {
 		t.Errorf("Florence holds %d, want 3", g.count)
 	}
-	if lat := g.sumLat / 3; math.Abs(lat-(43.7731+43.7696+43.7710)/3) > 1e-9 {
-		t.Errorf("mean latitude %v", lat)
+	// On the map (where a degree of latitude is 1/cos(lat) longer than
+	// one of longitude) their mean is about 0.0029° from 1, 0.0033° from 0
+	// and 0.0039° from 2.
+	if g.pin != 1 {
+		t.Errorf("drawn at entry %d, want 1: the photo nearest the three's mean", g.pin)
 	}
 	if g.minLat != 43.7696 || g.maxLat != 43.7731 || g.minLon != 11.25 || g.maxLon != 11.256 {
 		t.Errorf("box %v %v %v %v", g.minLat, g.maxLat, g.minLon, g.maxLon)
@@ -167,6 +170,34 @@ func TestPlacesGroupsCellsOfTheTilesAsked(t *testing.T) {
 	groups, _, _ = placesGroups(entries, keep, z, placesTiles(z, toPB(tiles)))
 	if len(groups) != 3 {
 		t.Errorf("%d places at zoom 18, want 3", len(groups))
+	}
+}
+
+// A place is drawn at one of its photos, never at their mean: at zoom 2
+// Paris and Barcelona share a cell, and their mean is near Lyon, where
+// neither was taken. With more photos in Paris the pin is there.
+func TestPlacesDrawnAtAPhotoNotTheMean(t *testing.T) {
+	entries := []placeEntry{
+		testEntry(1, 48.8566, 2.3522, 100, false), // Paris
+		testEntry(2, 48.8600, 2.3400, 200, false), // Paris
+		testEntry(3, 48.8530, 2.3600, 300, false), // Paris
+		testEntry(4, 41.3874, 2.1686, 400, false), // Barcelona, the newest
+	}
+	z := 2
+	x, y := slippyTile(48.8566, 2.3522, z)
+	if bx, by := slippyTile(41.3874, 2.1686, z); bx != x || by != y {
+		t.Fatalf("Barcelona in tile %d,%d, Paris in %d,%d", bx, by, x, y)
+	}
+	groups, _, _ := placesGroups(entries, nil, z, []placeTile{{uint32(x), uint32(y)}})
+	if len(groups) != 1 || groups[0].count != 4 {
+		t.Fatalf("places %v, want one of 4", groups)
+	}
+	g := groups[0]
+	if e := entries[g.pin]; e.lat < 48 {
+		t.Errorf("drawn at %v, %v; want one of the Paris photos", e.lat, e.lon)
+	}
+	if g.cover != 3 {
+		t.Errorf("cover %d, want Barcelona's, the newest", g.cover)
 	}
 }
 

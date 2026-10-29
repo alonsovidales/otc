@@ -249,14 +249,18 @@ func placesTiles(zoom int, tiles []*pb.PlaceTile) []placeTile {
 type placeGroup struct {
 	cx, cy                         uint32 // the cell, at zoom + cPlaceCellBits
 	count                          int
-	sumLat, sumLon                 float64
+	sumX, sumY                     float64 // on the Mercator square, for the mean
 	minLat, maxLat, minLon, maxLon float64
 	cover                          int // the newest photo, in entries
+	pin                            int // the photo nearest the mean, where the place is drawn
 }
 
 // placesGroups is the photos of entries that keep says (nil: all) in the
 // cells of tiles at zoom, a group per cell holding any, and the totals of
 // every photo kept: how many and the smallest area holding them all.
+// A group is drawn at one of its own photos, the one nearest their mean
+// on the map: the mean itself can be where none was taken - a cell at
+// zoom 2 holding Paris and Barcelona put its pin near Lyon.
 func placesGroups(entries []placeEntry, keep func(i int) bool, zoom int, tiles []placeTile) (groups []*placeGroup, total int, area *pb.PlaceArea) {
 	asked := make(map[placeTile]bool, len(tiles))
 	minTX, minTY, maxTX, maxTY := uint32(math.MaxUint32), uint32(math.MaxUint32), uint32(0), uint32(0)
@@ -268,6 +272,8 @@ func placesGroups(entries []placeEntry, keep func(i int) bool, zoom int, tiles [
 	tileShift := uint(32 - zoom)
 	cellShift := uint(32 - zoom - cPlaceCellBits)
 	byCell := map[uint64]*placeGroup{}
+	var in []int              // the photos in the tiles asked, in entries
+	var inGroup []*placeGroup // and each one's group
 	ext := newPlacesExtent()
 	for i := range entries {
 		if keep != nil && !keep(i) {
@@ -293,12 +299,26 @@ func placesGroups(entries []placeEntry, keep func(i int) bool, zoom int, tiles [
 			groups = append(groups, g)
 		}
 		g.count++
-		g.sumLat += e.lat
-		g.sumLon += e.lon
+		g.sumX += float64(e.x)
+		g.sumY += float64(e.y)
+		in, inGroup = append(in, i), append(inGroup, g)
 		g.minLat, g.maxLat = min(g.minLat, e.lat), max(g.maxLat, e.lat)
 		g.minLon, g.maxLon = min(g.minLon, e.lon), max(g.maxLon, e.lon)
 		if newerPlaceEntry(e, &entries[g.cover]) {
 			g.cover = i
+		}
+	}
+	// Mercator distances squared, in 1/2^32ths of the square: a cell is
+	// at most 2^(32-cPlaceCellBits) across, so nothing overflows float64's
+	// exact range. The first photo of the nearest wins a tie.
+	best := make(map[*placeGroup]float64, len(groups))
+	for k, i := range in {
+		g, e := inGroup[k], &entries[i]
+		n := float64(g.count)
+		dx, dy := float64(e.x)-g.sumX/n, float64(e.y)-g.sumY/n
+		d := dx*dx + dy*dy
+		if b, ok := best[g]; !ok || d < b {
+			best[g], g.pin = d, i
 		}
 	}
 	return groups, total, ext.area()
@@ -476,8 +496,8 @@ func (mg *Manager) PhotoPlaces(zoom int32, tiles []*pb.PlaceTile, tags, personID
 	cellShift := uint(cPlaceCellBits)
 	for i, g := range groups {
 		p := &pb.PhotoPlace{
-			Latitude:  g.sumLat / float64(g.count),
-			Longitude: g.sumLon / float64(g.count),
+			Latitude:  idx.entries[g.pin].lat,
+			Longitude: idx.entries[g.pin].lon,
 			Count:     int32(g.count),
 			Area:      &pb.PlaceArea{South: g.minLat, West: g.minLon, North: g.maxLat, East: g.maxLon},
 			Zoom:      int32(z),

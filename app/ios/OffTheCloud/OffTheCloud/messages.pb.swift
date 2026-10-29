@@ -1755,7 +1755,9 @@ public nonisolated struct Msg_PhotoPlace: @unchecked Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Where to draw it: the mean position of its photos.
+  /// Where to draw it: the position of one of its photos, the one nearest
+  /// their mean on the map (the mean itself can be where none was taken:
+  /// Paris and Barcelona in one place at a low zoom).
   public var latitude: Double {
     get {_storage._latitude}
     set {_uniqueStorage()._latitude = newValue}

@@ -1040,7 +1040,11 @@ export interface GetPhotoPlaces {
 
 /** One place of GetPhotoPlaces: the photos of one cell of a tile. */
 export interface PhotoPlace {
-  /** Where to draw it: the mean position of its photos. */
+  /**
+   * Where to draw it: the position of one of its photos, the one nearest
+   * their mean on the map (the mean itself can be where none was taken:
+   * Paris and Barcelona in one place at a low zoom).
+   */
   latitude: number;
   longitude: number;
   /** How many photos it holds; never 0. */

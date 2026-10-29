@@ -332,8 +332,21 @@ enum PinMerge {
             area.north = max(area.north, p.area.north)
             area.east = max(area.east, p.area.east)
         }
-        let mid = MKMapPoint(x: x / Double(count), y: y / Double(count)).coordinate
-        return PlacePin(id: coverID, latitude: mid.latitude, longitude: mid.longitude, count: count, cover: cover, area: area)
+        // Drawn at the member nearest their weighted mean, as the device
+        // draws a place at its photo nearest the mean: the mean itself can
+        // be where no photo was taken.
+        let mean = MKMapPoint(x: x / Double(count), y: y / Double(count))
+        var at = pins[0]
+        var best = Double.infinity
+        for p in pins {
+            let pt = p.mapPoint
+            let d = (pt.x - mean.x) * (pt.x - mean.x) + (pt.y - mean.y) * (pt.y - mean.y)
+            if d < best {
+                best = d
+                at = p
+            }
+        }
+        return PlacePin(id: coverID, latitude: at.latitude, longitude: at.longitude, count: count, cover: cover, area: area)
     }
 }
 

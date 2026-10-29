@@ -430,7 +430,9 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     64 slippy-map tiles (`PlaceTile`; x modulo 2^zoom, a y off the map dropped), plus SearchPhotos'
     filters.
     - Each tile is 4x4 cells and each non-empty cell is one `PhotoPlace`. A place carries its
-      count, mean position, members' bounding box, its tile (normalised x) and a cover: the
+      count, position (its photo nearest the members' mean on the Mercator square: the mean
+      itself can be where none was taken - Paris and Barcelona at zoom 2 put it near Lyon),
+      members' bounding box, its tile (normalised x) and a cover: the
       newest member by the search's date, at the copy the search shows (`ShownCopies`), with no
       content. Its thumbnail comes from `GetThumbnails`.
     - The answer also carries `located_total` and `located_area` for the whole filtered library.
@@ -2788,7 +2790,7 @@ extent first (zoom 0, the world's tile), the next zoom's after 600 ms more -, ke
 kept out, the map shown again after a minute), draws kept tiles at once and the pins drawn before for
 a tile on its way, retries with the pages' backoff (a "Couldn't load the photos on the map" banner
 with Try again meanwhile), and merges places closer than 54 points on the screen (`PinMerge`: the
-biggest first, the newest cover and its id, so a pin keeps its place across zooms; again until no
+biggest first, drawn at the member nearest their weighted mean, the newest cover and its id, so a pin keeps its place across zooms; again until no
 two are that close, as a merged pin moves). A pin
 (`PlacePinView`) is the cover's small thumbnail (`GridThumbLoader` at 48 pt, by hash, the pins on the
 screen first) in a white rounded frame with an ember count, fading in (not with Reduce Motion);
