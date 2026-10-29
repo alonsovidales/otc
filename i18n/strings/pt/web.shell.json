@@ -229,6 +229,10 @@
     "text": "Pessoas",
     "en": "People"
   },
+  "web.shell.menu.places": {
+    "text": "Locais",
+    "en": "Places"
+  },
   "web.shell.menu.privacy": {
     "text": "Privacidade",
     "en": "Privacy",
@@ -289,6 +293,14 @@
     "text": "«{text}» já está na pesquisa.",
     "en": "“{text}” is already in the search."
   },
+  "web.shell.search.area": {
+    "text": "uma zona do mapa",
+    "en": "an area of the map"
+  },
+  "web.shell.search.area_chip": {
+    "text": "Zona do mapa",
+    "en": "Map area"
+  },
   "web.shell.search.clear": {
     "text": "Limpar pesquisa",
     "en": "Clear search"
@@ -296,6 +308,10 @@
   "web.shell.search.close": {
     "text": "Fechar pesquisa",
     "en": "Close search"
+  },
+  "web.shell.search.close_area": {
+    "text": "Fechar a zona do mapa",
+    "en": "Close the map area"
   },
   "web.shell.search.close_collection": {
     "text": "Fechar a coleção {name}",

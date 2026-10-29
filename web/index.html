@@ -14,11 +14,13 @@
          host, as `vite preview` and the phone apps' web view talk to
          another one) and the bridge's API (BridgePanel asks whether a
          sign-in with Google or Apple can come back here); OpenStreetMap's
-         page for the viewer's map. frame-ancestors can't be set here: the
-         device's HTTP server sends it (api/api.go serveStatic), and the
-         bridge for what it relays. The dev server leaves this out
-         (vite.config.ts). -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' ws: wss: https://off-the.cloud; frame-src https://www.openstreetmap.org; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
+         page for the viewer's map; OpenFreeMap's map for Places, fetched
+         by a worker made from a data: URL (components/mapFetch.ts: its
+         opaque origin keeps the device's address from the map service).
+         frame-ancestors can't be set here: the device's HTTP server sends
+         it (api/api.go serveStatic), and the bridge for what it relays.
+         The dev server leaves this out (vite.config.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' ws: wss: https://off-the.cloud https://tiles.openfreemap.org; frame-src https://www.openstreetmap.org; worker-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>Off The Cloud</title>
     <!-- In the page, not behind the entry script (src/main.tsx): its colours
          are there from the first paint, as the whole app's CSS was. -->

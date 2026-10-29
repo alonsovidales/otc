@@ -229,6 +229,10 @@
     "text": "Personen",
     "en": "People"
   },
+  "web.shell.menu.places": {
+    "text": "Plaatsen",
+    "en": "Places"
+  },
   "web.shell.menu.privacy": {
     "text": "Privacy",
     "en": "Privacy",
@@ -289,6 +293,14 @@
     "text": "“{text}” staat al in de zoekopdracht.",
     "en": "“{text}” is already in the search."
   },
+  "web.shell.search.area": {
+    "text": "een gebied op de kaart",
+    "en": "an area of the map"
+  },
+  "web.shell.search.area_chip": {
+    "text": "Kaartgebied",
+    "en": "Map area"
+  },
   "web.shell.search.clear": {
     "text": "Zoekopdracht wissen",
     "en": "Clear search"
@@ -296,6 +308,10 @@
   "web.shell.search.close": {
     "text": "Zoeken sluiten",
     "en": "Close search"
+  },
+  "web.shell.search.close_area": {
+    "text": "Kaartgebied sluiten",
+    "en": "Close the map area"
   },
   "web.shell.search.close_collection": {
     "text": "Collectie {name} sluiten",

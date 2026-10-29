@@ -853,6 +853,82 @@
     "text": "Choisir une photo",
     "en": "Choose a photo"
   },
+  "web.images.places.empty": {
+    "text": "Aucune photo localisée pour l’instant",
+    "en": "No photos with a location yet"
+  },
+  "web.images.places.empty_filtered": {
+    "text": "Aucune de ces photos n’est localisée",
+    "en": "None of these photos has a location"
+  },
+  "web.images.places.empty_text": {
+    "text": "Les photos prises avec la localisation du téléphone activée apparaissent ici, là où elles ont été prises.",
+    "en": "Photos taken with the phone's location on show up here, where they were taken."
+  },
+  "web.images.places.failed": {
+    "text": "Impossible de charger les photos de la carte. Nouvel essai…",
+    "en": "Couldn't load the photos on the map. Trying again…"
+  },
+  "web.images.places.loading": {
+    "text": "Chargement de la carte…",
+    "en": "Loading the map…"
+  },
+  "web.images.places.located": {
+    "text": {
+      "one": "{count} photo sur la carte",
+      "other": "{count} photos sur la carte"
+    },
+    "en": {
+      "one": "{count} photo on the map",
+      "other": "{count} photos on the map"
+    }
+  },
+  "web.images.places.map": {
+    "text": "Carte de vos photos",
+    "en": "Map of your photos"
+  },
+  "web.images.places.map_failed": {
+    "text": "La carte n’a pas pu se charger",
+    "en": "The map couldn't load"
+  },
+  "web.images.places.map_failed_text": {
+    "text": "Vérifiez la connexion Internet et réessayez.",
+    "en": "Check the internet connection and try again."
+  },
+  "web.images.places.no_map": {
+    "text": "Ce navigateur ne peut pas afficher la carte",
+    "en": "This browser can't show the map"
+  },
+  "web.images.places.no_map_text": {
+    "text": "Essayez un autre navigateur, ou activez l’accélération matérielle dans les réglages de celui-ci.",
+    "en": "Try another browser, or turn on hardware acceleration in this one's settings."
+  },
+  "web.images.places.pin": {
+    "text": {
+      "one": "{count} élément ici",
+      "other": "{count} éléments ici"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "web.images.places.pin_photo": {
+    "text": "Photo du {date}",
+    "en": "Photo from {date}"
+  },
+  "web.images.places.pin_video": {
+    "text": "Vidéo du {date}",
+    "en": "Video from {date}"
+  },
+  "web.images.places.zoom_in": {
+    "text": "Zoom avant",
+    "en": "Zoom in"
+  },
+  "web.images.places.zoom_out": {
+    "text": "Zoom arrière",
+    "en": "Zoom out"
+  },
   "web.images.post.caption": {
     "text": "Légende",
     "en": "Caption"

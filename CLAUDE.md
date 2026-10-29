@@ -1608,7 +1608,7 @@ the account button (`AccountMenu.tsx`: picture, name and device address, Setting
 `net/signOut.ts`). Signed out, the bar holds a password field beside Sign In instead (`TopSignIn.tsx`, which
 calls `net/signIn.ts`; on a phone Sign In opens the field across the bar); `views/SignIn.tsx` is only a new
 device's setup, shown when GetPubKey says `is_new_device`. The left menu
-(`Sidebar.tsx`) lists Images, People, Collections, Files; Sharing: Social, Friends; Device: Alerts, Settings;
+(`Sidebar.tsx`) lists Images, People, Collections, Places, Files; Sharing: Social, Friends; Device: Alerts, Settings;
 storage at the foot. People - menu item, page, search, person filter - exists only while face recognition is
 on (`faceRecognition.ts`: asked after sign-in, set by Settings' switch, the last answer kept in
 `otc_face_recognition` so a reload doesn't flash it; unknown means hidden). Three widths: ≥1024px it is
@@ -1617,6 +1617,33 @@ rail, the button lays the whole menu over the page; below that only the overlay.
 nothing may give `main` (or another ancestor of the pages) an overflow, or `position: sticky` measures from
 it (release 103's 64px gap) - so sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars
 use `left: var(--content-left)`.
+**Places on the web** (2026-10-29, the phones' rules: iOS paragraph under the apps): the menu item after
+Collections at every width (the menu is always on the left), only on a device that answered
+`GetPhotoPlaces` (`places.ts`: asked at each sign-in, `otc_places` as `otc_face_recognition`; a new sign-in
+or a sign-out forgets every place, thumbnail and the map's last view - another user's library). The page
+(`PlacesView.tsx`, a lazy part with MapLibre GL JS, pinned in package.json; its worker is Vite's copy of
+`maplibre-gl-worker.mjs` from 'self') shows what Images would (`photoFilter`'s tags, people and collection;
+the top bar's picks stay on the map), on OpenFreeMap's dark style recoloured to the app's greys, names in
+the app's language (`name:<lang>`), towns' dots, one-way arrows and road numbers dropped. Everything the map
+fetches (style, TileJSON, tiles, fonts, sprite) goes through `mapFetch.ts`: a worker made from a data: URL,
+whose opaque origin sends `Origin: null` and no Referer, so OpenFreeMap never learns the device's address
+(MapLibre's `otcmap://` protocol; index.html allows `connect-src https://tiles.openfreemap.org` and
+`worker-src data:`, nothing else). Zoom buttons are ours and the credits are written out (compact, MapLibre
+draws them from data: images img-src refuses). The arithmetic is `placesMath.ts` (`node
+web/scripts/places-test.mjs`): device zoom = floor(MapLibre zoom + 1) (512 px tiles there), the screen's
+tiles and one around, centre first, 64 a request, camera at rest 200 ms; the next zoom's 600 ms later;
+`placesData.ts` keeps answers per (filter, zoom, x, y) for 5 minutes or until `dropPlaces()` (Images' deletes
+and reloads), draws what it has at once and keeps the last zoom's pins until the new zoom's first answer.
+Pins closer than 54 px merge (`mergePins`: biggest first, newest cover, the pin at the member nearest the
+weighted mean, so it stands on a photo; across the antimeridian the short way, the area then west > east);
+a pin is a MapLibre `Marker` around a button (the small thumbnail by path, 24 a `GetThumbnails`, on-screen
+first; ember count; label `web.images.places.pin` or the photo's date). One photo opens in the viewer; a group
+flies to fit its area, at least twice as close, while the zoom is under 16 and it spans over 25 m, else opens Images with
+`photoFilter.showArea` - `SearchPhotos.area` on every page, the month counts and the upward pages, a "Map area"
+chip (× `leaveArea`), the menu marking Places - and Back finds the map where it was (`keepCamera`). Opening
+the page clears the area; the map is never wider than one world (min zoom from its width). It opens framed
+on `located_area` (max zoom 11) - photos all over the world: the world, centred on zoom 0's biggest place -
+or the world with "No photos with a location yet".
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
 and code keep `ImageGroup`/`groupId`. Inside an open collection the selection bar has **Remove from
 collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the
@@ -1631,7 +1658,7 @@ a note, and the people are listed again (the header's face may have been one of 
 for the photo open (`MediaViewer`'s `personId`/`onPersonFixed`, round buttons before Delete), moving on as
 after its Delete. With them the bar's labels give way to icons below 1200px, 1440px with Remove from
 collection too (`barCompact`, `.pg-selbar[data-crowd]`). What Images shows is `photoFilter.ts` (tags, people, open
-collection; a store the search, People and Collections pages and the grid share); the people, collection
+collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover
 or long-press, a drag for a run - see below - numbered in post order) with a bar over the top bar, dialogs for posting and collections,

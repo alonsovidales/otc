@@ -853,6 +853,82 @@
     "text": "Foto auswählen",
     "en": "Choose a photo"
   },
+  "web.images.places.empty": {
+    "text": "Noch keine Fotos mit Ort",
+    "en": "No photos with a location yet"
+  },
+  "web.images.places.empty_filtered": {
+    "text": "Keines dieser Fotos hat einen Ort",
+    "en": "None of these photos has a location"
+  },
+  "web.images.places.empty_text": {
+    "text": "Fotos, die mit eingeschalteter Standortfunktion des Handys aufgenommen wurden, erscheinen hier – dort, wo sie entstanden sind.",
+    "en": "Photos taken with the phone's location on show up here, where they were taken."
+  },
+  "web.images.places.failed": {
+    "text": "Die Fotos auf der Karte konnten nicht geladen werden. Neuer Versuch …",
+    "en": "Couldn't load the photos on the map. Trying again…"
+  },
+  "web.images.places.loading": {
+    "text": "Karte wird geladen …",
+    "en": "Loading the map…"
+  },
+  "web.images.places.located": {
+    "text": {
+      "one": "{count} Foto auf der Karte",
+      "other": "{count} Fotos auf der Karte"
+    },
+    "en": {
+      "one": "{count} photo on the map",
+      "other": "{count} photos on the map"
+    }
+  },
+  "web.images.places.map": {
+    "text": "Karte deiner Fotos",
+    "en": "Map of your photos"
+  },
+  "web.images.places.map_failed": {
+    "text": "Die Karte konnte nicht geladen werden",
+    "en": "The map couldn't load"
+  },
+  "web.images.places.map_failed_text": {
+    "text": "Prüfe die Internetverbindung und versuch es noch einmal.",
+    "en": "Check the internet connection and try again."
+  },
+  "web.images.places.no_map": {
+    "text": "Dieser Browser kann die Karte nicht anzeigen",
+    "en": "This browser can't show the map"
+  },
+  "web.images.places.no_map_text": {
+    "text": "Versuch es mit einem anderen Browser oder schalte in den Einstellungen dieses Browsers die Hardwarebeschleunigung ein.",
+    "en": "Try another browser, or turn on hardware acceleration in this one's settings."
+  },
+  "web.images.places.pin": {
+    "text": {
+      "one": "{count} Element hier",
+      "other": "{count} Elemente hier"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "web.images.places.pin_photo": {
+    "text": "Foto vom {date}",
+    "en": "Photo from {date}"
+  },
+  "web.images.places.pin_video": {
+    "text": "Video vom {date}",
+    "en": "Video from {date}"
+  },
+  "web.images.places.zoom_in": {
+    "text": "Vergrößern",
+    "en": "Zoom in"
+  },
+  "web.images.places.zoom_out": {
+    "text": "Verkleinern",
+    "en": "Zoom out"
+  },
   "web.images.post.caption": {
     "text": "Bildunterschrift",
     "en": "Caption"

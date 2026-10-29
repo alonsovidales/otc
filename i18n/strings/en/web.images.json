@@ -891,6 +891,85 @@
     "text": "Choose a photo",
     "note": "Title of the dialog that picks the profile picture among the photos on the user's device (Settings, Profile)."
   },
+  "web.images.places.empty": {
+    "text": "No photos with a location yet",
+    "note": "Title over the Places map when no photo on the device has a location (GPS) saved in it."
+  },
+  "web.images.places.empty_filtered": {
+    "text": "None of these photos has a location",
+    "note": "Title over the Places map when the search (things, people or a collection) finds photos, but none has a location saved in it."
+  },
+  "web.images.places.empty_text": {
+    "text": "Photos taken with the phone's location on show up here, where they were taken.",
+    "note": "Under the title of an empty Places map: how photos get onto it. The camera saves the location in the photo when the phone's location setting is on."
+  },
+  "web.images.places.failed": {
+    "text": "Couldn't load the photos on the map. Trying again…",
+    "note": "Under the Places title when the device didn't answer which photos go on the map; it is asked again by itself. Its first sentence is the phones' app.photos.places.failed.",
+    "max": 80
+  },
+  "web.images.places.loading": {
+    "text": "Loading the map…",
+    "note": "Under the Places title, beside a spinner, while the device says how many photos it can place on the map.",
+    "max": 40
+  },
+  "web.images.places.located": {
+    "text": {
+      "one": "{count} photo on the map",
+      "other": "{count} photos on the map"
+    },
+    "args": [["count", "count"]],
+    "note": "Under the Places title: how many photos (and videos) have a location, so show as pins on the map. Follows the search when one is made.",
+    "max": 48
+  },
+  "web.images.places.map": {
+    "text": "Map of your photos",
+    "note": "Screen-reader name of the map on the Places page (the photos shown on a map, where they were taken)."
+  },
+  "web.images.places.map_failed": {
+    "text": "The map couldn't load",
+    "note": "Title on the Places page when the map itself (streets, places) didn't download; a Try again button follows."
+  },
+  "web.images.places.map_failed_text": {
+    "text": "Check the internet connection and try again.",
+    "note": "Under web.images.places.map_failed, above its Try again button."
+  },
+  "web.images.places.no_map": {
+    "text": "This browser can't show the map",
+    "note": "Title on the Places page when the browser can't draw maps (no WebGL)."
+  },
+  "web.images.places.no_map_text": {
+    "text": "Try another browser, or turn on hardware acceleration in this one's settings.",
+    "note": "Under web.images.places.no_map: what to do about it. Hardware acceleration is the browser setting that lets it use the graphics card."
+  },
+  "web.images.places.pin": {
+    "text": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of a pin on the Places map: a group of photos and videos taken close together, shown by its newest one. Pressing it zooms in, or opens them. The phones' app.photos.places.pin says the same."
+  },
+  "web.images.places.pin_photo": {
+    "text": "Photo from {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a pin on the Places map that holds one photo; pressing it opens the photo. {date} is when it was taken, like 3 May 2024."
+  },
+  "web.images.places.pin_video": {
+    "text": "Video from {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a pin on the Places map that holds one video; pressing it opens the video. {date} is when it was recorded, like 3 May 2024."
+  },
+  "web.images.places.zoom_in": {
+    "text": "Zoom in",
+    "note": "Screen-reader name and tooltip of the + button on the Places map.",
+    "max": 24
+  },
+  "web.images.places.zoom_out": {
+    "text": "Zoom out",
+    "note": "Screen-reader name and tooltip of the − button on the Places map.",
+    "max": 24
+  },
   "web.images.post.caption": {
     "text": "Caption",
     "note": "Label of the text field in the New Social Post dialog: what the post says about its photos.",

@@ -2,14 +2,18 @@
 
 import { useSyncExternalStore } from "react";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
+import type { PlaceArea } from "../proto/messages";
 
 // What the Images grid shows: the whole library, or the photos with every
 // tag and every person here (AND, see dao.SearchMedia), inside one
-// collection when one is open. The top bar's search edits it; the People
-// and Collections pages open Images on a person or a collection through
-// it. Tags are kept across a reload (issue #53); people and the open
-// collection are not, as before. A collection is an image group in the
-// protocol (ImageGroup, groupId), so the code here says group.
+// collection when one is open, and inside one area of the map when a place
+// was opened from Places (PlacesView.tsx; SearchPhotos.area, sent only to a
+// device that has Places). The top bar's search edits it; the People,
+// Collections and Places pages open Images on a person, a collection or an
+// area through it. Tags are kept across a reload (issue #53); people, the
+// open collection and the area are not, as before. A collection is an
+// image group in the protocol (ImageGroup, groupId), so the code here says
+// group.
 
 export type OpenGroup = { id: string; name: string; fileCount: number };
 
@@ -17,9 +21,10 @@ export type PhotoFilter = {
   tags: string[];
   personIds: string[];
   group: OpenGroup | null;
+  area: PlaceArea | null;
 };
 
-let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null };
+let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null, area: null };
 const listeners = new Set<() => void>();
 
 // Arrays are replaced, never changed in place: the grid restarts its
@@ -38,8 +43,10 @@ function subscribe(l: () => void) {
 export const getPhotoFilter = () => state;
 export const usePhotoFilter = () => useSyncExternalStore(subscribe, getPhotoFilter);
 
-/** Anything narrowing the grid: a tag, a person or a group. */
-export const isFiltered = (f: PhotoFilter) => f.tags.length > 0 || f.personIds.length > 0 || f.group != null;
+/** Anything narrowing the grid: a tag, a person, a group or an area. */
+export const isFiltered = (f: PhotoFilter) => f.tags.length > 0 || f.personIds.length > 0 || f.group != null || f.area != null;
+/** The area as a key: the grid searches again when it changes. */
+export const areaKey = (a: PlaceArea | null) => (a ? `${a.south},${a.west},${a.north},${a.east}` : "");
 /** A tag search is sorted by how well photos match, not by date: no date
  *  headers and no date scrubber then. */
 export const isDateOrdered = (f: PhotoFilter) => f.tags.length === 0;
@@ -76,12 +83,24 @@ export function clearPeople() {
 
 /** One person's photos, from the People page: a new search. */
 export function showPerson(id: string) {
-  set({ tags: [], personIds: [id], group: null });
+  set({ tags: [], personIds: [id], group: null, area: null });
 }
 
 /** A collection's photos, from the Collections page: a new search. */
 export function openGroup(g: OpenGroup) {
-  set({ tags: [], personIds: [], group: g });
+  set({ tags: [], personIds: [], group: g, area: null });
+}
+
+/** A place's photos, from Places: what the map showed (its tags, people
+ *  and collection), inside the place's area. */
+export function showArea(area: PlaceArea) {
+  set({ ...state, area: { ...area } });
+}
+
+/** The area's chip closed, or Places opened: the map chooses again. */
+export function leaveArea() {
+  if (!state.area) return;
+  set({ ...state, area: null });
 }
 
 /** The open group renamed or grown: same search, fresh name and count. */
@@ -95,7 +114,8 @@ export function leaveGroup() {
   set({ ...state, group: null });
 }
 
-/** The search box's clear button: tags and people go, an open group stays. */
+/** The search box's clear button: tags and people go, an open group and
+ *  an area stay. */
 export function clearSearch() {
   if (!state.tags.length && !state.personIds.length) return;
   set({ ...state, tags: [], personIds: [] });
@@ -104,5 +124,5 @@ export function clearSearch() {
 /** Images in the menu: the whole library. */
 export function showAll() {
   if (!isFiltered(state)) return;
-  set({ tags: [], personIds: [], group: null });
+  set({ tags: [], personIds: [], group: null, area: null });
 }

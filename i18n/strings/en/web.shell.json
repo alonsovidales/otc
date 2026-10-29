@@ -266,6 +266,11 @@
     "note": "Left menu item (and icon-rail label, 80 px) that opens the people found by face recognition; shown only while face recognition is on.",
     "max": 12
   },
+  "web.shell.menu.places": {
+    "text": "Places",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens Places: the photos on a map, where they were taken. Also the title of that page. Use the word your language's photo apps use for this view.",
+    "max": 12
+  },
   "web.shell.menu.privacy": {
     "text": "Privacy",
     "note": "Link at the foot of the left menu that opens the privacy notice (in English).",
@@ -336,6 +341,15 @@
     "args": [["text", "user"]],
     "note": "Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style."
   },
+  "web.shell.search.area": {
+    "text": "an area of the map",
+    "note": "Item of the screen-reader summary of the search (web.shell.search.summary): Images shows only the photos taken in one area, opened from the Places map."
+  },
+  "web.shell.search.area_chip": {
+    "text": "Map area",
+    "note": "Chip in the search field while Images shows only the photos taken in one area, opened from the Places map.",
+    "max": 16
+  },
   "web.shell.search.clear": {
     "text": "Clear search",
     "note": "Screen-reader name and tooltip of the × at the end of the search field that clears what is typed and every chip in it.",
@@ -344,6 +358,10 @@
   "web.shell.search.close": {
     "text": "Close search",
     "note": "Screen-reader name of the back arrow that closes the search suggestions under the top bar's search field."
+  },
+  "web.shell.search.close_area": {
+    "text": "Close the map area",
+    "note": "Screen-reader name of the × on the Map area chip in the search field: Images shows photos from everywhere again. The phones' app.photos.places.close_area says the same."
   },
   "web.shell.search.close_collection": {
     "text": "Close the collection {name}",

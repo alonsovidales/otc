@@ -3,7 +3,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ComponentType } from "react";
 import type { TabKey } from "./nav";
-import { AlertsIcon, ChevronIcon, CollectionsIcon, FilesIcon, FriendsIcon, ImagesIcon, PeopleIcon, SettingsIcon, SocialIcon, StorageIcon } from "./NavIcons";
+import { AlertsIcon, ChevronIcon, CollectionsIcon, FilesIcon, FriendsIcon, ImagesIcon, PeopleIcon, PlacesIcon, SettingsIcon, SocialIcon, StorageIcon } from "./NavIcons";
+import { usePlacesSupported } from "./places";
 import { formatMB, pct, raidStateLabel, round, useDeviceStatus } from "./useDeviceStatus";
 import { usePhotoFilter } from "./photoFilter";
 import { useFaceRecognition } from "./faceRecognition";
@@ -32,20 +33,22 @@ type Props = {
 // The words of the menu, by key: made in the language on screen when it
 // renders (t), never kept here as text.
 type LabelKey =
-  | "web.shell.menu.images" | "web.shell.menu.people" | "web.shell.menu.collections" | "web.shell.menu.files"
+  | "web.shell.menu.images" | "web.shell.menu.people" | "web.shell.menu.collections" | "web.shell.menu.places" | "web.shell.menu.files"
   | "web.shell.menu.social" | "web.shell.menu.friends" | "web.shell.menu.alerts" | "web.shell.menu.settings";
 type HeadingKey = "web.shell.menu.sharing" | "web.shell.menu.device";
 type Item = { key: TabKey; label: LabelKey; Icon: ComponentType<{ size?: number }> };
 type Section = { heading?: HeadingKey; items: Item[] };
 
 // Grouped like a photo library: what is stored, what is shared, then the
-// device. People only while face recognition is on (faceRecognition.ts).
+// device. People only while face recognition is on (faceRecognition.ts),
+// Places only on a device that has it (places.ts).
 const SECTIONS: Section[] = [
   {
     items: [
       { key: "PhotoGallery", label: "web.shell.menu.images", Icon: ImagesIcon },
       { key: "People", label: "web.shell.menu.people", Icon: PeopleIcon },
       { key: "Collections", label: "web.shell.menu.collections", Icon: CollectionsIcon },
+      { key: "Places", label: "web.shell.menu.places", Icon: PlacesIcon },
       { key: "AdminPannel", label: "web.shell.menu.files", Icon: FilesIcon },
     ],
   },
@@ -77,9 +80,10 @@ const canHover = () => hoverQuery.matches;
 
 export default function Sidebar({ tab, notificationCount, layout, drawerOpen, onSelect, onCloseDrawer, onExpand }: Props) {
   const t = useT();
-  // A collection open in Images is still the Collections section.
-  const { group } = usePhotoFilter();
-  const current: TabKey = tab === "PhotoGallery" && group ? "Collections" : tab;
+  // A collection open in Images is still the Collections section, and a
+  // place opened from the map (its area) the Places one.
+  const { group, area } = usePhotoFilter();
+  const current: TabKey = tab === "PhotoGallery" && area ? "Places" : tab === "PhotoGallery" && group ? "Collections" : tab;
   // One poll of the device's status for the menu beside the page and the
   // drawer both.
   const { status, failed } = useDeviceStatus();
@@ -87,9 +91,10 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   const [details, setDetails] = useState(false);
   const tips = useSyncExternalStore(onHoverChange, canHover);
   const faces = useFaceRecognition() === true;
+  const places = usePlacesSupported() === true;
   const sections = useMemo(
-    () => (faces ? SECTIONS : SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => it.key !== "People") }))),
-    [faces],
+    () => SECTIONS.map((s) => ({ ...s, items: s.items.filter((it) => (it.key !== "People" || faces) && (it.key !== "Places" || places)) })),
+    [faces, places],
   );
 
   const dockRef = useRef<HTMLElement>(null);

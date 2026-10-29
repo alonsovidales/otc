@@ -14,8 +14,9 @@ import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
 import TopSearch from "./components/TopSearch";
 import CollectionsView from "./components/CollectionsView";
-import { showAll } from "./components/photoFilter";
+import { leaveArea, showAll } from "./components/photoFilter";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
+import { usePlacesSupported, watchPlaces } from "./components/places";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -51,6 +52,8 @@ import Part from "./components/Part";
 const FilesExplorer = lazyPart(() => import("./components/FilesExplorer"));
 const SettingsForm = lazyPart(() => import("./components/SettingsForm"));
 const PeopleView = lazyPart(() => import("./components/PeopleView"));
+// Places' map, with MapLibre, only when it opens.
+const PlacesView = lazyPart(() => import("./components/PlacesView"));
 // The first-run tour and its drawings, only when it opens.
 const Tour = lazyPart(() => import("./components/Tour"));
 // main.tsx gives /shared its own entry (sharedEntry.tsx): this one is never
@@ -60,7 +63,7 @@ const SharedGalleryView = lazyPart(() => import("./components/SharedGalleryView"
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
 // The pages that lay out their own top (their headers' spacing, sticky bars).
-const cOwnTopTabs: TabKey[] = ["PhotoGallery", "People", "Collections"];
+const cOwnTopTabs: TabKey[] = ["PhotoGallery", "People", "Collections", "Places"];
 // Where a signed-out visitor lands (see landIfSignedOut).
 const cLandingTab: TabKey = "Profile";
 // Issue #105: the tabs that have nothing to show without a session. The
@@ -75,7 +78,7 @@ const cLandingTab: TabKey = "Profile";
 // whether that was found out on reload or mid-session. The public
 // profile is what an unregistered visitor gets, and it is what an
 // expired session should get too.
-const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Settings", "Notifications", "Friends", "Social"];
+const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Collections", "Places", "Settings", "Notifications", "Friends", "Social"];
 
 // Issue #38/#39: whether the device is new (no owner password yet), asked
 // once per load - again only while the device hasn't said (null: it
@@ -211,6 +214,11 @@ function App() {
   const faces = useFaceRecognition();
   useEffect(() => (authenticated ? watchFaceRecognition() : undefined), [authenticated]);
   useEffect(() => { if (faces === false && tab === "People") setTab("PhotoGallery"); }, [faces, tab]);
+  // Places likewise, on a device that has it (places.ts): asked once signed
+  // in; Places remembered as the last tab gives way to Images without it.
+  const places = usePlacesSupported();
+  useEffect(() => (authenticated ? watchPlaces() : undefined), [authenticated]);
+  useEffect(() => { if (places === false && tab === "Places") setTab("PhotoGallery"); }, [places, tab]);
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and
@@ -336,6 +344,7 @@ function App() {
   const sectionFor = (want: TabKey): TabKey => {
     if (!authenticated && cAuthOnlyTabs.includes(want)) return cLandingTab;
     if (want === "People" && faces === false) return "PhotoGallery";
+    if (want === "Places" && places === false) return "PhotoGallery";
     if (want === "SignIn" && !setupShown) return authenticated ? "Social" : cLandingTab;
     if (want === "Profile" && authenticated) return "Social";
     return want;
@@ -655,10 +664,10 @@ function App() {
           </div>
         )}
         {/* Search the photos and files from any section, like Google
-            Photos: picking a tag or a person shows Images, a folder or a
-            file Files. */}
+            Photos: picking a tag or a person shows Images (on Places it
+            narrows the map, which stays), a folder or a file Files. */}
         {authenticated
-          ? <TopSearch onShowPhotos={() => goTo("PhotoGallery")} onShowFiles={() => goTo("AdminPannel")} />
+          ? <TopSearch onShowPhotos={() => { if (tab !== "Places") goTo("PhotoGallery"); }} onShowFiles={() => goTo("AdminPannel")} />
           : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
@@ -712,6 +721,8 @@ function App() {
             // Images in the menu is the whole library, as Photos is in
             // Google Photos: whatever was searched for is left.
             if (next === "PhotoGallery") showAll();
+            // Places in the menu is the map: a place's area opened in Images is left.
+            if (next === "Places") leaveArea();
             // Files in the menu is the folder, not the results of a search.
             if (next === "AdminPannel") leaveFilesSearch();
             goTo(next);
@@ -764,6 +775,7 @@ function App() {
         {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
         {tab === "People" && (authenticated ? faces && <Part><PeopleView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
         {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => goTo("PhotoGallery")} /> : signedOutPlaceholder)}
+        {tab === "Places" && (authenticated ? places && <Part><PlacesView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <Part><SettingsForm onShowTour={() => openTour(false)} /></Part> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage

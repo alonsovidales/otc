@@ -32,6 +32,11 @@ export const CollectionsIcon = ({ size }: P) => (
   <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><circle cx="8" cy="11.5" r="1.3" /><path d="m4 19 4-4 3 3 2-2 3.5 3.5" /></Svg>
 );
 
+export const PlacesIcon = ({ size }: P) => (
+  // A map pin: where the photos were taken (the phones' icon too).
+  <Svg size={size}><path d="M12 20.5s-6.5-5.4-6.5-10.5a6.5 6.5 0 0 1 13 0c0 5.1-6.5 10.5-6.5 10.5Z" /><circle cx="12" cy="10" r="2.4" /></Svg>
+);
+
 export const FilesIcon = ({ size }: P) => (
   <Svg size={size}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" /></Svg>
 );

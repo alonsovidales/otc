@@ -38,7 +38,7 @@ export function upwardApplies(g: { cutoff: Date | null | undefined; dateOrdered:
  *  upward token and have, a small first page (`firstLimit`, as a new
  *  search's) and the device's own size after it. */
 export function upwardRequest(
-  filter: { personIds: string[]; groupId: string },
+  filter: { personIds: string[]; groupId: string; area?: { south: number; west: number; north: number; east: number } },
   cutoff: Date,
   cursor: UpCursor,
   firstLimit: number,
@@ -47,6 +47,8 @@ export function upwardRequest(
     tags: [] as string[],
     personIds: filter.personIds,
     groupId: filter.groupId,
+    // A place opened from Places: inside its area too.
+    ...(filter.area ? { area: filter.area } : {}),
     includeVideos: true,
     newerThan: cutoff,
     token: cursor.token,

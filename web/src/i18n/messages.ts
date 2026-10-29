@@ -416,6 +416,22 @@ export type MessageKey =
   | "web.images.picker.no_answer"
   | "web.images.picker.opening"
   | "web.images.picker.title"
+  | "web.images.places.empty"
+  | "web.images.places.empty_filtered"
+  | "web.images.places.empty_text"
+  | "web.images.places.failed"
+  | "web.images.places.loading"
+  | "web.images.places.located"
+  | "web.images.places.map"
+  | "web.images.places.map_failed"
+  | "web.images.places.map_failed_text"
+  | "web.images.places.no_map"
+  | "web.images.places.no_map_text"
+  | "web.images.places.pin"
+  | "web.images.places.pin_photo"
+  | "web.images.places.pin_video"
+  | "web.images.places.zoom_in"
+  | "web.images.places.zoom_out"
   | "web.images.post.caption"
   | "web.images.post.caption_placeholder"
   | "web.images.post.earlier_photo"
@@ -768,6 +784,7 @@ export type MessageKey =
   | "web.shell.menu.friends"
   | "web.shell.menu.images"
   | "web.shell.menu.people"
+  | "web.shell.menu.places"
   | "web.shell.menu.privacy"
   | "web.shell.menu.sections"
   | "web.shell.menu.settings"
@@ -781,8 +798,11 @@ export type MessageKey =
   | "web.shell.scrubber.no_date"
   | "web.shell.search.a_person"
   | "web.shell.search.already"
+  | "web.shell.search.area"
+  | "web.shell.search.area_chip"
   | "web.shell.search.clear"
   | "web.shell.search.close"
+  | "web.shell.search.close_area"
   | "web.shell.search.close_collection"
   | "web.shell.search.collection"
   | "web.shell.search.field"
@@ -1461,6 +1481,22 @@ export interface MessageArgs {
   "web.images.picker.no_answer": undefined;
   "web.images.picker.opening": undefined;
   "web.images.picker.title": undefined;
+  "web.images.places.empty": undefined;
+  "web.images.places.empty_filtered": undefined;
+  "web.images.places.empty_text": undefined;
+  "web.images.places.failed": undefined;
+  "web.images.places.loading": undefined;
+  "web.images.places.located": { count: number };
+  "web.images.places.map": undefined;
+  "web.images.places.map_failed": undefined;
+  "web.images.places.map_failed_text": undefined;
+  "web.images.places.no_map": undefined;
+  "web.images.places.no_map_text": undefined;
+  "web.images.places.pin": { count: number };
+  "web.images.places.pin_photo": { date: string };
+  "web.images.places.pin_video": { date: string };
+  "web.images.places.zoom_in": undefined;
+  "web.images.places.zoom_out": undefined;
   "web.images.post.caption": undefined;
   "web.images.post.caption_placeholder": undefined;
   "web.images.post.earlier_photo": { number: number };
@@ -1826,6 +1862,7 @@ export interface MessageArgs {
   "web.shell.menu.friends": undefined;
   "web.shell.menu.images": undefined;
   "web.shell.menu.people": undefined;
+  "web.shell.menu.places": undefined;
   "web.shell.menu.privacy": undefined;
   "web.shell.menu.sections": undefined;
   "web.shell.menu.settings": undefined;
@@ -1839,8 +1876,11 @@ export interface MessageArgs {
   "web.shell.scrubber.no_date": undefined;
   "web.shell.search.a_person": undefined;
   "web.shell.search.already": { text: string };
+  "web.shell.search.area": undefined;
+  "web.shell.search.area_chip": undefined;
   "web.shell.search.clear": undefined;
   "web.shell.search.close": undefined;
+  "web.shell.search.close_area": undefined;
   "web.shell.search.close_collection": { name: string };
   "web.shell.search.collection": { name: string };
   "web.shell.search.documents": { text: string };

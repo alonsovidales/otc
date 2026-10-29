@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // The search in the top bar, as in Google Photos. The field holds what
-// Images is narrowed to - an open collection, people, tags - as chips.
+// Images is narrowed to - an open collection, an area of the map (a place
+// opened from Places), people, tags - as chips.
 // While something is typed a panel under it offers, in this order, the
 // things (tags) that match, the named people that match (while face
 // recognition is on), and the files and folders whose path matches
@@ -19,13 +20,13 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
-import { addTag, clearSearch, leaveGroup, removeTag, togglePerson, usePhotoFilter } from "./photoFilter";
+import { addTag, clearSearch, leaveArea, leaveGroup, removeTag, togglePerson, usePhotoFilter } from "./photoFilter";
 import { useFaceRecognition } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
   type Folded, type Span,
 } from "./filesNav";
-import { CollectionsIcon } from "./NavIcons";
+import { CollectionsIcon, PlacesIcon } from "./NavIcons";
 import { Trans, useT } from "../i18n";
 import "./TopSearch.css";
 
@@ -191,7 +192,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const listId = `${id}list`;
   const optId = (i: number) => `${id}opt${i}`;
 
-  const chipCount = (filter.group ? 1 : 0) + filter.personIds.length + filter.tags.length;
+  const chipCount = (filter.group ? 1 : 0) + (filter.area ? 1 : 0) + filter.personIds.length + filter.tags.length;
   const shownChips = useRef(chipCount);
   // Whether the chips row shows its end, the newest chips: set by its
   // scrolling, unknown until first measured.
@@ -664,6 +665,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   // The chips, read out with the field.
   const summary = [
     filter.group && t("web.shell.search.collection", { name: filter.group.name }),
+    filter.area && t("web.shell.search.area"),
     ...filter.personIds.map((pid) => { const p = byId.get(pid); return p ? personLabel(p) : t("web.shell.search.a_person"); }),
     ...filter.tags,
   ].filter(Boolean).join(", ");
@@ -690,6 +692,21 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
                 aria-label={t("web.shell.search.close_collection", { name: filter.group.name })}
                 onMouseDown={keepFocus}
                 onClick={(e) => { leaveGroup(); refocus(e); }}
+              >
+                <CloseIcon size={16} />
+              </button>
+            </span>
+          )}
+          {filter.area && (
+            <span className="ts-chip has-icon">
+              <span className="ts-chip-icon"><PlacesIcon size={18} /></span>
+              <span className="ts-chip-label">{t("web.shell.search.area_chip")}</span>
+              <button
+                type="button"
+                className="ts-chip-x"
+                aria-label={t("web.shell.search.close_area")}
+                onMouseDown={keepFocus}
+                onClick={(e) => { leaveArea(); refocus(e); }}
               >
                 <CloseIcon size={16} />
               </button>

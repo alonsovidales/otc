@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Images: every photo and video on the device as a wall of square tiles,
-// newest first under month titles - or what the top bar's search, a person
-// or an open collection narrows it to (photoFilter.ts). Photos are picked
+// newest first under month titles - or what the top bar's search, a person,
+// an open collection or a place opened from the map narrows it to
+// (photoFilter.ts). Photos are picked
 // Google Photos style: the circle on a tile (shown on hover), or a long
 // press on a touch screen, then a tap anywhere on a tile; a press dragged
 // across the grid picks every photo from there to the one under the
@@ -39,7 +40,8 @@ import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
-import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
+import { areaKey, clearSearch, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
+import { dropPlaces } from "./places";
 import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
 import { openWaitingTab } from "./zipTab";
@@ -352,6 +354,11 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
   const groupId = group?.id ?? "";
+  // A place opened from Places (photoFilter.ts): its area goes on every
+  // search, page and month count, as the collection does. The key changes
+  // only when the area does.
+  const areaNow = areaKey(filter.area);
+  const area = filter.area ?? undefined;
   const dateOrdered = isDateOrdered(filter);
   // Below this the selection bar shows icons only, each with a tooltip.
   const compact = useMedia("(max-width: 899px)");
@@ -472,6 +479,8 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
             personIds,
             // Issue #115: inside a collection, only its members.
             groupId,
+            // Places: inside the place's area.
+            area,
             // Issue #106: videos belong in Images too.
             includeVideos: true,
             token: tok,
@@ -542,7 +551,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [tags, personIds, groupId, token, loading, endReached, retryLater, resetRetry, refreshPicked]
+    [tags, personIds, groupId, areaNow, token, loading, endReached, retryLater, resetRetry, refreshPicked] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // -------- date buckets and the scrubber (issue #77) -------------------------
@@ -554,7 +563,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // filter change the previous list is still here until the new one comes,
   // and it isn't this filter's.
   const [buckets, setBuckets] = useState<{ key: string; list: ScrubBucket[] } | null>(null);
-  const bucketKey = dateOrdered ? `${personIds.join(",")}|${groupId}` : null;
+  const bucketKey = dateOrdered ? `${personIds.join(",")}|${groupId}|${areaNow}` : null;
   const bucketsFresh = buckets != null && buckets.key === bucketKey;
   const dateBuckets = bucketsFresh ? buckets.list : cNoBuckets;
   // The month at the end of the grid is laid out at the size it will have.
@@ -573,7 +582,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
     try {
       const resp = await ask({
         $case: "reqPhotoDateBuckets",
-        reqPhotoDateBuckets: { tags: [], personIds, groupId, includeVideos: true },
+        reqPhotoDateBuckets: { tags: [], personIds, groupId, includeVideos: true, area },
       });
       if (gen !== bucketGenRef.current) return;
       if (resp.payload?.$case === "respPhotoDateBuckets") {
@@ -590,7 +599,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
       if (gen !== bucketGenRef.current) return;
     }
     bucketsLater();
-  }, [bucketKey, personIds, groupId, resetBucketRetry, bucketsLater]);
+  }, [bucketKey, personIds, groupId, areaNow, resetBucketRetry, bucketsLater]); // eslint-disable-line react-hooks/exhaustive-deps
   const loadBucketsRef = useRef(loadDateBuckets);
   useLayoutEffect(() => { loadBucketsRef.current = loadDateBuckets; });
   useEffect(() => {
@@ -614,7 +623,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // Where the page was when a scrub began, under which filter: its first
   // preview scrolls to the top, and a scrub cancelled without a jump goes
   // back there (restoreRef, once the photos are back).
-  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}`;
+  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}|${areaNow}`;
   const filterKeyRef = useRef(filterKey);
   useLayoutEffect(() => { filterKeyRef.current = filterKey; });
   const scrubFromRef = useRef<{ y: number; filter: string } | null>(null);
@@ -833,7 +842,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
     resetBucketRetry();
     void loadDateBuckets();
     window.scrollTo(0, 0);
-  }, [tags, personIds, groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tags, personIds, groupId, areaNow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one page at a time ------------------------------
   // Not under the scrubber's grey tiles: those stand in for another month,
@@ -928,7 +937,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
     };
     try {
       const cursor: UpCursor = { token: upRef.current.token, have: upMapRef.current.size, end: false };
-      const resp = await ask({ $case: "reqSearchPhotos", reqSearchPhotos: upwardRequest({ personIds, groupId }, cut, cursor, cFirstPagePhotos) });
+      const resp = await ask({ $case: "reqSearchPhotos", reqSearchPhotos: upwardRequest({ personIds, groupId, area }, cut, cursor, cFirstPagePhotos) });
       if (myGen !== searchGenRef.current) return;
       if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }
       const answer = readUpward(resp.payload.respListOfFiles);
@@ -973,7 +982,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
         setUpLoading(false);
       }
     }
-  }, [personIds, groupId, upRetryLater, resetUpRetry, refreshPicked]);
+  }, [personIds, groupId, areaNow, upRetryLater, resetUpRetry, refreshPicked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Try again" at the top, without waiting for the retry's pause.
   const retryUp = () => {
@@ -1135,6 +1144,8 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // collection's count (its header follows the list).
   const dropDeleted = (gone: Set<string>) => {
     setItems((prev) => prev.filter((f) => !gone.has(f.path)));
+    // Places counts them too.
+    dropPlaces();
     // `have` must count what is on screen, or a search the device
     // resumes would skip as many photos as were deleted: the `have` of the
     // search that brought each one (issue #194).
@@ -1188,6 +1199,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // the newest photo, or the jump's month. Both cursors start again, and
   // the months and the open collection's count with them.
   const reloadGrid = () => {
+    dropPlaces();
     const cut = beforeRef.current;
     const month = monthOf(cut);
     if (cut && month) {
@@ -1554,7 +1566,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
       </Empty>
     );
   } else if (items.length === 0) {
-    if (group && !tags.length && !personIds.length) {
+    if (group && !tags.length && !personIds.length && !area) {
       body = (
         <Empty
           icon={<CollectionsIcon size={32} />}
@@ -1571,7 +1583,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
           title={t("web.images.grid.no_match_title")}
           text={group ? t("web.images.grid.no_match_in", { name: group.name }) : t("web.images.grid.no_match_text")}
         >
-          <button type="button" className="pg-btn outline" onClick={() => clearSearch()}>{t("web.images.grid.clear_search")}</button>
+          <button type="button" className="pg-btn outline" onClick={() => { clearSearch(); leaveArea(); }}>{t("web.images.grid.clear_search")}</button>
         </Empty>
       );
     } else {

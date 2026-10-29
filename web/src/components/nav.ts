@@ -6,5 +6,6 @@
 // bar's password field, TopSignIn). "PhotoGallery" is Images, the
 // whole library or a search, person or group in it (photoFilter.ts);
 // "People" and "Collections" are the pages that open it on one of those (a
-// collection is an image group in the protocol).
-export type TabKey = "Profile" | "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "People" | "Collections" | "Settings" | "Notifications" | "Friends";
+// collection is an image group in the protocol), "Places" the map that
+// opens it on an area of it.
+export type TabKey = "Profile" | "Social" | "SignIn" | "AdminPannel" | "PhotoGallery" | "People" | "Collections" | "Places" | "Settings" | "Notifications" | "Friends";

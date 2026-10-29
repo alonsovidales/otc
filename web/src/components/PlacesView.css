@@ -1,0 +1,170 @@
+/* Places: the map fills the page under the top bar, beside the menu. */
+.pl-root {
+  position: relative;
+  height: calc(100dvh - var(--topbar-h));
+  min-height: 320px;
+  overflow: hidden;
+  background: #1c1e1d;
+}
+.pl-map { position: absolute; inset: 0; }
+.pl-map canvas:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+
+/* What the page is, and how many photos it places. */
+.pl-head {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px 11px;
+  border-radius: 14px;
+  background: rgba(26, 26, 26, .82);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.pl-title { margin: 0; font-size: 18px; font-weight: 650; line-height: 24px; color: var(--mist); }
+.pl-sub { margin: 2px 0 0; min-height: 20px; font-size: 13px; line-height: 20px; color: var(--mist-dim); font-variant-numeric: tabular-nums; }
+.pl-sub .spinner-wrap { gap: 8px; }
+
+/* Nothing to place, or no map. */
+.pl-note {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(380px, calc(100% - 32px));
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: rgba(26, 26, 26, .9);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .45);
+  text-align: center;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+.pl-note-title { margin: 0; font-size: 16px; font-weight: 650; color: var(--mist); text-wrap: balance; }
+.pl-note-text { margin: 0; font-size: 14px; line-height: 20px; color: var(--mist-dim); text-wrap: pretty; }
+.pl-note .pl-btn { margin-top: 10px; }
+.pl-btn {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--mist);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pl-btn:hover { background: rgba(234, 242, 239, .08); }
+.pl-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* A pin: the newest photo of its place, framed in white, with how many
+   photos the place holds. MapLibre places .pl-pin (its transform is the
+   map's), so what moves on its own is the button inside. */
+.pl-pin { width: 48px; height: 48px; }
+.pl-pin:hover, .pl-pin:focus-within { z-index: 2; }
+.pl-pin-btn {
+  position: relative;
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 2.5px solid #fff;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b403e, #2a2e2c);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .55), 0 0 0 1px rgba(0, 0, 0, .3);
+  cursor: pointer;
+  animation: pl-in .22s ease-out backwards;
+  transition: transform .12s ease;
+}
+.pl-pin-btn:hover { transform: scale(1.08); }
+.pl-pin-btn:active { transform: scale(.97); }
+.pl-pin-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.pl-pin-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 9.5px;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+.pl-pin-btn img.is-loaded { opacity: 1; }
+.pl-pin-count {
+  position: absolute;
+  top: -10px;
+  right: -12px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font: 650 12px/22px system-ui, sans-serif;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+  white-space: nowrap;
+}
+.pl-pin-btn[data-single] .pl-pin-count { display: none; }
+/* A video alone: a play mark in its corner. */
+.pl-pin-btn[data-video]::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent #fff;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, .7));
+}
+@keyframes pl-in {
+  from { opacity: 0; transform: scale(.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-pin-btn, .pl-pin-btn img { animation: none; transition: none; }
+}
+
+/* Zoom, in the corner: the map's own buttons, in the app's colours. */
+.pl-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 28px;
+  display: grid;
+  border-radius: 12px;
+  background: rgba(26, 26, 26, .9);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+.pl-zoom-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  cursor: pointer;
+}
+.pl-zoom-btn + .pl-zoom-btn { border-top: 1px solid var(--line); }
+.pl-zoom-btn:hover { background: rgba(234, 242, 239, .08); }
+.pl-zoom-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+
+/* The map's credits, quiet in its corner. */
+.pl-root .maplibregl-ctrl-attrib {
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 0 8px 0 0;
+  background: rgba(26, 26, 26, .72);
+  color: var(--mist-dim);
+  font-size: 11px;
+  line-height: 16px;
+}
+.pl-root .maplibregl-ctrl-attrib a { color: var(--mist-dim); }
+.pl-root .maplibregl-ctrl-bottom-left .maplibregl-ctrl { margin: 0; }

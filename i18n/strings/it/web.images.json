@@ -853,6 +853,82 @@
     "text": "Scegli una foto",
     "en": "Choose a photo"
   },
+  "web.images.places.empty": {
+    "text": "Ancora nessuna foto con posizione",
+    "en": "No photos with a location yet"
+  },
+  "web.images.places.empty_filtered": {
+    "text": "Nessuna di queste foto ha una posizione",
+    "en": "None of these photos has a location"
+  },
+  "web.images.places.empty_text": {
+    "text": "Le foto scattate con la posizione del telefono attiva compaiono qui, dove sono state scattate.",
+    "en": "Photos taken with the phone's location on show up here, where they were taken."
+  },
+  "web.images.places.failed": {
+    "text": "Impossibile caricare le foto sulla mappa. Nuovo tentativo…",
+    "en": "Couldn't load the photos on the map. Trying again…"
+  },
+  "web.images.places.loading": {
+    "text": "Caricamento della mappa…",
+    "en": "Loading the map…"
+  },
+  "web.images.places.located": {
+    "text": {
+      "one": "{count} foto sulla mappa",
+      "other": "{count} foto sulla mappa"
+    },
+    "en": {
+      "one": "{count} photo on the map",
+      "other": "{count} photos on the map"
+    }
+  },
+  "web.images.places.map": {
+    "text": "Mappa delle tue foto",
+    "en": "Map of your photos"
+  },
+  "web.images.places.map_failed": {
+    "text": "Impossibile caricare la mappa",
+    "en": "The map couldn't load"
+  },
+  "web.images.places.map_failed_text": {
+    "text": "Controlla la connessione a Internet e riprova.",
+    "en": "Check the internet connection and try again."
+  },
+  "web.images.places.no_map": {
+    "text": "Questo browser non può mostrare la mappa",
+    "en": "This browser can't show the map"
+  },
+  "web.images.places.no_map_text": {
+    "text": "Prova un altro browser o attiva l’accelerazione hardware nelle impostazioni di questo.",
+    "en": "Try another browser, or turn on hardware acceleration in this one's settings."
+  },
+  "web.images.places.pin": {
+    "text": {
+      "one": "{count} elemento qui",
+      "other": "{count} elementi qui"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "web.images.places.pin_photo": {
+    "text": "Foto del {date}",
+    "en": "Photo from {date}"
+  },
+  "web.images.places.pin_video": {
+    "text": "Video del {date}",
+    "en": "Video from {date}"
+  },
+  "web.images.places.zoom_in": {
+    "text": "Ingrandisci",
+    "en": "Zoom in"
+  },
+  "web.images.places.zoom_out": {
+    "text": "Riduci",
+    "en": "Zoom out"
+  },
   "web.images.post.caption": {
     "text": "Didascalia",
     "en": "Caption"

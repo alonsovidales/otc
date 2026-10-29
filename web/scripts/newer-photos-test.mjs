@@ -73,6 +73,11 @@ describe("the request", () => {
     assert.equal(r.limit, 0);
     assert.equal(r.newerThan, cutoff);
   });
+  test("a place opened from Places: its area on every page", () => {
+    const area = { south: 40.4, west: -3.8, north: 40.5, east: -3.6 };
+    assert.deepEqual(m.upwardRequest({ ...filter, area }, cutoff, m.cUpStart, 12).area, area);
+    assert.deepEqual(m.upwardRequest({ ...filter, area }, cutoff, { token: "up1", have: 3, end: false }, 12).area, area);
+  });
 });
 
 describe("the answer", () => {

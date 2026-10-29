@@ -853,6 +853,82 @@
     "text": "Kies een foto",
     "en": "Choose a photo"
   },
+  "web.images.places.empty": {
+    "text": "Nog geen foto’s met een locatie",
+    "en": "No photos with a location yet"
+  },
+  "web.images.places.empty_filtered": {
+    "text": "Geen van deze foto’s heeft een locatie",
+    "en": "None of these photos has a location"
+  },
+  "web.images.places.empty_text": {
+    "text": "Foto’s die zijn gemaakt met de locatie van je telefoon aan, verschijnen hier, op de plek waar ze zijn gemaakt.",
+    "en": "Photos taken with the phone's location on show up here, where they were taken."
+  },
+  "web.images.places.failed": {
+    "text": "De foto’s op de kaart konden niet worden geladen. Opnieuw proberen…",
+    "en": "Couldn't load the photos on the map. Trying again…"
+  },
+  "web.images.places.loading": {
+    "text": "Kaart laden…",
+    "en": "Loading the map…"
+  },
+  "web.images.places.located": {
+    "text": {
+      "one": "{count} foto op de kaart",
+      "other": "{count} foto’s op de kaart"
+    },
+    "en": {
+      "one": "{count} photo on the map",
+      "other": "{count} photos on the map"
+    }
+  },
+  "web.images.places.map": {
+    "text": "Kaart van je foto’s",
+    "en": "Map of your photos"
+  },
+  "web.images.places.map_failed": {
+    "text": "De kaart kon niet worden geladen",
+    "en": "The map couldn't load"
+  },
+  "web.images.places.map_failed_text": {
+    "text": "Controleer de internetverbinding en probeer het opnieuw.",
+    "en": "Check the internet connection and try again."
+  },
+  "web.images.places.no_map": {
+    "text": "Deze browser kan de kaart niet tonen",
+    "en": "This browser can't show the map"
+  },
+  "web.images.places.no_map_text": {
+    "text": "Probeer een andere browser of zet hardwareversnelling aan in de instellingen van deze browser.",
+    "en": "Try another browser, or turn on hardware acceleration in this one's settings."
+  },
+  "web.images.places.pin": {
+    "text": {
+      "one": "{count} item hier",
+      "other": "{count} items hier"
+    },
+    "en": {
+      "one": "{count} item here",
+      "other": "{count} items here"
+    }
+  },
+  "web.images.places.pin_photo": {
+    "text": "Foto van {date}",
+    "en": "Photo from {date}"
+  },
+  "web.images.places.pin_video": {
+    "text": "Video van {date}",
+    "en": "Video from {date}"
+  },
+  "web.images.places.zoom_in": {
+    "text": "Inzoomen",
+    "en": "Zoom in"
+  },
+  "web.images.places.zoom_out": {
+    "text": "Uitzoomen",
+    "en": "Zoom out"
+  },
   "web.images.post.caption": {
     "text": "Bijschrift",
     "en": "Caption"
