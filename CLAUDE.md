@@ -3147,8 +3147,21 @@ titles, buckets or scrubber, no upward search, no person header, no memories). `
 shows "Your device is still getting to know your photos…" over the results (`head:smart`).
 `smart_search_off` (also turning `SmartSearchSupport` off) and `smart_search_unavailable` drop the text,
 say the device's words (else `app.photos.smart_search.failed`) in the gallery's alert, and search the
-chips again by date. A debug-only `SmartSearchPreviewActivity` (`--es show settings` for the section)
-draws both on sample data. Tests: `PhotoGallerySmartSearchTest.kt`.
+chips again by date. The model on demand (release 152, iOS's names and rules): `SmartSearchSupport.model`
+(`SmartSearchModelState` Ready / Missing / Downloading(percent, problem) from the same `GetSettings`
+answers, `deviceSaid`; absent = an older device = Ready; not kept, Ready again at Log Out). The row and
+the Search key need `searchable` (on and Ready). Settings shows under the footer `download_note`
+(Missing) or a bar plus `downloading` / the device's `problem` (Downloading), asks `GetSettings`
+(`refreshSmartSearch`, Smart search's part only) every 3 s while on, Downloading and in front, and once
+after the switch moves while the model isn't Ready; turned on where the model isn't, it is Downloading(0) at once
+(`modelRequested`). TalkBack: the bar's own percentage; a 1 dp polite live region only for start,
+problem and done (`downloading` at 100%), emptied after 5 s (`SmartSearchModelState.announcement`, the
+web's). A search told `smart_search_downloading` drops the text as `smart_search_unavailable` does,
+keeps the switch on, sets Downloading and asks where the model is. Images learns that it is ready only
+from those answers (sign-in, Settings): no poll outside Settings. A debug-only
+`SmartSearchPreviewActivity` (`--es show settings` for the section, `--es model
+missing|downloading|problem|ready`; turned on from missing it runs a pretend download) draws both on
+sample data. Tests: `PhotoGallerySmartSearchTest.kt`, `SmartSearchModelTest.kt`.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

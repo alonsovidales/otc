@@ -9,7 +9,8 @@
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
         <!-- Smart search's Settings section and search on sample data
-             (adb shell am start -n cloud.offthe.otc/.SmartSearchPreviewActivity [- -es show settings]). -->
+             (adb shell am start -n cloud.offthe.otc/.SmartSearchPreviewActivity [- -es show settings]
+             [- -es model missing|downloading|problem|ready]). -->
         <activity
             android:name=".SmartSearchPreviewActivity"
             android:exported="true"

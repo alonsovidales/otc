@@ -209,11 +209,14 @@ class PhotoGalleryViewModel(
     // How many sign-ins there have been (OTCConnection.signIns): what a
     // device was found unable to do holds until the next one.
     private val signIns: () -> Int = { OTCConnection.signIns.value },
-    // Smart search (SmartSearchSupport): whether the device has it on - only
-    // then is a text sent -, and what turns it off here when a search is
-    // told "smart_search_off".
-    private val smartOn: () -> Boolean = { SmartSearchSupport.enabled.value == true },
+    // Smart search (SmartSearchSupport): whether the device has it on with
+    // its model there (searchable) - only then is a text taken and sent -,
+    // what turns it off here when a search is told "smart_search_off", and
+    // what a search told "smart_search_downloading" does: the model is on
+    // its way, the device is asked where it is (the switch stays on).
+    private val smartOn: () -> Boolean = { SmartSearchSupport.searchable },
     private val smartOff: () -> Unit = { SmartSearchSupport.set(false) },
+    private val smartDownloading: suspend () -> Unit = { SmartSearchSupport.modelRequested(); SmartSearchSupport.refresh() },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -565,8 +568,8 @@ class PhotoGalleryViewModel(
     private fun watchPlaces() {
         if (watchingPlaces) return
         watchingPlaces = true
-        // Smart search likewise: turned off, a text searched for goes.
-        scope.launch { SmartSearchSupport.enabled.collect { on -> if (on != true) clearText() } }
+        // Smart search likewise: turned off (or its model gone), a text searched for goes.
+        scope.launch { SmartSearchSupport.searchableFlow.collect { on -> if (!on) clearText() } }
         scope.launch {
             PlacesSupport.enabled.collect { on ->
                 if (on == true) return@collect
@@ -710,7 +713,7 @@ class PhotoGalleryViewModel(
     /**
      * Smart search: the photos that best match [text], described in words,
      * within the chips (SearchPhotos.text) - only while the device has it
-     * on. A new text replaces the one searched for.
+     * on, with its model there. A new text replaces the one searched for.
      */
     fun searchText(text: String) {
         val x = text.trim()
@@ -1559,13 +1562,17 @@ class PhotoGalleryViewModel(
                 }
             }
             val got = resp
-            // Smart search turned off on another app, or a device that can't
-            // do it: the text goes, saying so in the device's words, and the
-            // chips' photos come by date.
-            if (text != null && got != null && got.error && (got.errorCode == "smart_search_off" || got.errorCode == "smart_search_unavailable")) {
-                if (got.errorCode == "smart_search_off") smartOff()
+            // Smart search turned off on another app, a device that can't do
+            // it, or its model still on its way (release 152): the text
+            // goes, saying so in the device's words, and the chips' photos
+            // come by date. Only "off" turns the switch off here; a model on
+            // its way takes the row away until the device says it is there.
+            val refused = if (text != null) SmartSearchSupport.refusal(got) else null
+            if (refused != null) {
+                if (refused.why == SmartSearchSupport.Refused.OFF) smartOff()
                 _state.update { it.copy(smartText = null, smartReading = false) }
-                alert(deviceOr(got.errorMessage, S.appPhotosSmartSearchFailed()))
+                if (refused.why == SmartSearchSupport.Refused.DOWNLOADING) scope.launch { smartDownloading() }
+                alert(deviceOr(refused.words ?: "", S.appPhotosSmartSearchFailed()))
                 scope.launch { restartSearch() }
                 return PageResult.FAILED
             }

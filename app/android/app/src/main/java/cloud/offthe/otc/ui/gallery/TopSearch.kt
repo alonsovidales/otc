@@ -237,8 +237,8 @@ fun searchOptions(
             out += o
             if (exact == null && f.text == q) exact = o.key
         }
-    // Smart search (only while the device has it on): the words as a
-    // description - first, and what the Search key takes, unless a thing or
+    // Smart search (only while the device has it on, with its model there):
+    // the words as a description - first, and what the Search key takes, unless a thing or
     // a person is named exactly; after them otherwise.
     var smartKey: String? = null
     if (smart) {
@@ -435,13 +435,17 @@ fun RespEnvelope.isUnknownPayload() = error && ErrorCodes.isUnknownPayload(error
 fun rememberSearchOptions(search: TopSearchViewModel, st: PhotoGalleryViewModel.State): SearchOptions {
     val faces by FaceRecognition.enabled.collectAsState()
     val noFileSearch by FilesNav.noFileSearch.collectAsState()
-    val smart by SmartSearchSupport.enabled.collectAsState()
+    // Smart search's row: while it is on with its model there (release 152:
+    // none while the model is still on its way).
+    val smartOn by SmartSearchSupport.enabled.collectAsState()
+    val smartModel by SmartSearchSupport.model.collectAsState()
+    val smart = SmartSearchSupport.searchable(smartOn, smartModel)
     val tagIndex = remember(st.tags) { st.tags.map { it to FilesNav.fold(it) } }
     val named = remember(st.allPeople) { st.allPeople.filter { it.name.isNotBlank() }.map { it to FilesNav.fold(it.name.trim()) } }
     val query = search.query
     val found = search.found
     return remember(query, found, tagIndex, named, faces, noFileSearch, st.chips, smart) {
-        searchOptions(query.trim(), tagIndex, st.chips, if (faces == true) named else null, found, noFileSearch, smart = smart == true)
+        searchOptions(query.trim(), tagIndex, st.chips, if (faces == true) named else null, found, noFileSearch, smart = smart)
     }
 }
 

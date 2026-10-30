@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.File
@@ -32,9 +33,10 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
-// Smart search in Images: the text sent only while the device has it on,
-// with the chips as filters, ranked (no months, no scrubber); the note while
-// the device still reads; its refusals - and the search's row.
+// Smart search in Images: the text sent only while the device has it on
+// (with its model there), with the chips as filters, ranked (no months, no
+// scrubber); the note while the device still reads; its refusals - a model
+// still on its way among them - and the search's row.
 class PhotoGallerySmartSearchTest {
     private val executor = Executors.newSingleThreadExecutor()
     private val dispatcher = executor.asCoroutineDispatcher()
@@ -85,11 +87,12 @@ class PhotoGallerySmartSearchTest {
     }
 
     private var turnedOff = 0
+    @Volatile private var modelAsked = 0
 
     private fun vm(dev: Device, on: Boolean = true) = PhotoGalleryViewModel(
         "test", send = dev.send, pause = {}, online = { true }, problemOf = { _, _ -> LoadProblem.FAILED },
         thumbs = thumbs, fullPhotos = thumbs, scope = scope, signIns = { 1 },
-        smartOn = { on }, smartOff = { turnedOff++ },
+        smartOn = { on }, smartOff = { turnedOff++ }, smartDownloading = { modelAsked++ },
     )
 
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }
@@ -181,6 +184,31 @@ class PhotoGallerySmartSearchTest {
         assertEquals(0, turnedOff)
     }
 
+    @Test fun aModelStillOnItsWayDropsTheTextKeepsTheSwitchAndAsksWhereItIs() {
+        val dev = Device()
+        dev.textError = "smart_search_downloading" to "Smart search is still downloading what it needs (37%)."
+        val vm = started(dev)
+        on { vm.searchText("dog") }
+        await("the alert") { vm.state.value.alert != null }
+        // The device's words, as smart_search_unavailable's.
+        assertEquals("Smart search is still downloading what it needs (37%).", vm.state.value.alert!!.english())
+        assertNull(vm.state.value.smartText)
+        // The switch stays on; where the model is is asked.
+        assertEquals(0, turnedOff)
+        await("the model asked about") { modelAsked == 1 }
+        await("by date again") { paths(vm) == listOf("a", "b") && !vm.state.value.loading && dev.searches.last().text.isEmpty() }
+    }
+
+    @Test fun aModelOnItsWayWithoutWordsSaysOurs() {
+        val dev = Device()
+        dev.textError = "smart_search_downloading" to ""
+        val vm = started(dev)
+        on { vm.searchText("dog") }
+        await("the alert") { vm.state.value.alert != null }
+        assertEquals("Smart search isn't available right now.", vm.state.value.alert!!.english())
+        assertEquals(0, turnedOff)
+    }
+
     // ---- the search's row ----
 
     private fun tags(vararg t: String) = t.map { it to FilesNav.fold(it) }
@@ -197,5 +225,24 @@ class PhotoGallerySmartSearchTest {
         val off = searchOptions("kids in the snow", tags("cat"), emptyList(), null, null, noFileSearch = false)
         assertTrue(off.options.none { it is SearchOption.Smart })
         assertEquals("docs", off.best)
+    }
+
+    @Test fun noRowWhileTheModelIsNotThere() {
+        // On, with the model on its way or not asked for yet: no row, and the
+        // Search key takes what it took before Smart search.
+        for (model in listOf(SmartSearchModelState.Downloading(37), SmartSearchModelState.Downloading(37, "No internet"), SmartSearchModelState.Missing)) {
+            val smart = SmartSearchSupport.searchable(true, model)
+            assertFalse(smart)
+            val o = searchOptions("kids in the snow", tags("cat"), emptyList(), null, null, noFileSearch = false, smart = smart)
+            assertTrue(o.options.none { it is SearchOption.Smart })
+            assertEquals("docs", o.best)
+            assertTrue(searchKeyChoice("kids in the snow", o, null, false) is SearchOption.Docs)
+        }
+        // There (or a device before release 152, which doesn't say): as today.
+        assertTrue(SmartSearchSupport.searchable(true, SmartSearchModelState.Ready))
+        assertTrue(SmartSearchSupport.searchable(true, SmartSearchModelState.of(Settings.newBuilder().setSmartSearchEnabled(true).build())))
+        // Off or unknown: never.
+        assertFalse(SmartSearchSupport.searchable(false, SmartSearchModelState.Ready))
+        assertFalse(SmartSearchSupport.searchable(null, SmartSearchModelState.Ready))
     }
 }

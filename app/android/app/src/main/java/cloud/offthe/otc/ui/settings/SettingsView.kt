@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import cloud.offthe.otc.ui.common.THUMB_CACHE_CHOICES
 import cloud.offthe.otc.ui.common.ThumbStore
@@ -49,6 +51,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -97,6 +100,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.data.SmartSearchAnnouncement
+import cloud.offthe.otc.data.SmartSearchModelState
+import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.RaidState
@@ -360,11 +366,12 @@ import cloud.offthe.otc.ui.common.FitText
 // connection, sync options and device updates (#94).
 
 @Composable
-private fun Section(title: String, footer: String? = null, content: @Composable () -> Unit) {
+private fun Section(title: String, footer: String? = null, below: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
         footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) }
+        below?.invoke()
     }
 }
 
@@ -519,6 +526,20 @@ fun SettingsView(secrets: SecretsStore) {
         }
     }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
+    // Smart search's model on its way (release 152): asked again every 3 s
+    // while the switch is on and Settings is in front - not once it is
+    // there, with the switch off, Settings left or the app in the background.
+    val smartModel by SmartSearchSupport.model.collectAsState()
+    val smartPolls = SmartSearchSupport.polls(dst.smartSearchEnabled, smartModel)
+    LaunchedEffect(smartPolls, lifecycle) {
+        if (!smartPolls) return@LaunchedEffect
+        lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(SmartSearchSupport.POLL_EVERY_MS)
+                device.refreshSmartSearch()
+            }
+        }
+    }
 
     // The first-run tour's steps about Settings scroll to what they ring,
     // where the card leaves it in sight (TourRules.settingsScroll).
@@ -686,10 +707,10 @@ fun SettingsView(secrets: SecretsStore) {
 
             // Smart search (beta): only on a device that has it, off unless
             // turned on; turning it off asks first (what the device learned
-            // is deleted).
+            // is deleted). Under it, where its model is (release 152).
             dst.smartSearchEnabled?.let { on ->
                 SmartSearchSection(
-                    on, saving = dst.savingSmartSearch, confirmOff = dst.confirmSmartOff,
+                    on, saving = dst.savingSmartSearch, confirmOff = dst.confirmSmartOff, model = smartModel,
                     onToggle = { v -> device.askSmartSearch(v) { work -> scope.launch { work() } } },
                     onConfirmOff = { scope.launch { device.setSmartSearch(false) } }, onCancelOff = { device.cancelSmartOff() },
                 )
@@ -1424,14 +1445,19 @@ internal fun sizeText(mb: Double): String = when {
 
 /**
  * Smart search's section: its switch with a Beta badge and the footer; off
- * asks first ([confirmOff]: the device deletes what it learned).
+ * asks first ([confirmOff]: the device deletes what it learned). Under the
+ * footer, where its [model] is (release 152): the download note while it
+ * isn't on the device, a progress bar and how far it is - or the device's
+ * words for why it waits, it tries again by itself - while it comes,
+ * nothing once it is there.
  */
 @Composable
 internal fun SmartSearchSection(
-    on: Boolean, saving: Boolean, confirmOff: Boolean, onToggle: (Boolean) -> Unit, onConfirmOff: () -> Unit, onCancelOff: () -> Unit,
+    on: Boolean, saving: Boolean, confirmOff: Boolean, model: SmartSearchModelState,
+    onToggle: (Boolean) -> Unit, onConfirmOff: () -> Unit, onCancelOff: () -> Unit,
 ) {
     val title = S.appSettingsSmartSearchTitle().resolve()
-    Section(title, S.appSettingsSmartSearchFooter().resolve()) {
+    Section(title, S.appSettingsSmartSearchFooter().resolve(), below = { SmartSearchModelLines(model) }) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f, fill = false))
@@ -1446,6 +1472,41 @@ internal fun SmartSearchSection(
             onConfirm = onConfirmOff, onDismiss = onCancelOff,
         )
     }
+}
+
+/**
+ * Where Smart search's model is, under the section's footer. The bar is a
+ * percentage to TalkBack (its progress semantics); the line beside it
+ * isn't announced as it changes - a polite live region says only that the
+ * download started, ran into a problem or is done
+ * (SmartSearchModelState.announcement).
+ */
+@Composable
+private fun SmartSearchModelLines(model: SmartSearchModelState) {
+    model.progress?.let { p ->
+        LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+    }
+    model.words()?.let {
+        Text(it.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+    }
+    // What to say, once per change worth saying: the model as last shown
+    // (null: nothing yet - the first view isn't announced).
+    var shown by remember { mutableStateOf<SmartSearchModelState?>(null) }
+    var said by remember { mutableStateOf<Pair<Int, SmartSearchAnnouncement>?>(null) }
+    LaunchedEffect(model) {
+        SmartSearchModelState.announcement(shown, model)?.let { said = (said?.first ?: 0) + 1 to it }
+        shown = model
+    }
+    // Emptied again a little later, so swiping through Settings never lands
+    // on a node that only repeats what was said.
+    LaunchedEffect(said?.first) {
+        if (said != null) { delay(5_000); said = null }
+    }
+    val words = said?.second?.text()?.resolve()
+    Box(Modifier.size(1.dp).semantics {
+        liveRegion = LiveRegionMode.Polite
+        if (words != null) contentDescription = words
+    })
 }
 
 /** A small "Beta" badge beside a setting's label (Smart search). */

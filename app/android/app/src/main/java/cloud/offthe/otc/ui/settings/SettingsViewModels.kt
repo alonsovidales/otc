@@ -39,6 +39,7 @@ import cloud.offthe.otc.proto.HideMemory
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
+import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
@@ -267,6 +268,11 @@ class DeviceSettingsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
                 val s = resp.respSettings
+                // Smart search's switch and model (SmartSearchSupport): the
+                // search offers a text only while on with the model there,
+                // and the section shows where the model is - set first, so
+                // the section never shows with the model of before.
+                SmartSearchSupport.deviceSaid(s)
                 state.update {
                     it.copy(
                         faceRecognitionEnabled = s.faceRecognitionEnabled, imageTaggingEnabled = s.imageTaggingEnabled,
@@ -281,8 +287,6 @@ class DeviceSettingsViewModel : ViewModel() {
                 PlacesSupport.set(PlacesSupport.verdict(s))
                 // And On this day's (MemoriesSupport), with what is hidden from it.
                 MemoriesSupport.set(MemoriesSupport.verdict(s))
-                // And Smart search's (SmartSearchSupport): the search offers a text only while on.
-                SmartSearchSupport.set(SmartSearchSupport.verdict(s))
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
                 if (MemoriesSupport.verdict(s)) loadMemoriesHidden()
             }
@@ -321,6 +325,27 @@ class DeviceSettingsViewModel : ViewModel() {
         finally { state.update { it.copy(savingMemories = false) } }
     }
 
+    // Bumped by every change of Smart search's switch made here: a Settings
+    // answer to a question asked before it is older than what the switch
+    // shows, and is dropped (refreshSmartSearch).
+    private var smartChanges = 0
+
+    /**
+     * Where Smart search's model is now (and the switch, turned off on
+     * another app): Settings asks every SmartSearchSupport.POLL_EVERY_MS
+     * while it downloads, and once after the switch moves while the model
+     * isn't there. Only Smart
+     * search's part of the answer: nothing else of Settings changes under
+     * the user every few seconds.
+     */
+    suspend fun refreshSmartSearch() {
+        val asked = smartChanges
+        val s = SmartSearchSupport.askSettings() ?: return
+        if (asked != smartChanges || state.value.savingSmartSearch) return
+        SmartSearchSupport.deviceSaid(s)
+        state.update { it.copy(smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null) }
+    }
+
     /** Smart search's switch, as touched: on at once; off asks first (confirmSmartOff). */
     fun askSmartSearch(enabled: Boolean, launch: (suspend () -> Unit) -> Unit) {
         if (enabled) launch { setSmartSearch(true) } else state.update { it.copy(confirmSmartOff = true) }
@@ -330,17 +355,25 @@ class DeviceSettingsViewModel : ViewModel() {
 
     /**
      * Smart search's switch. On: the device starts describing the photos it
-     * holds (its backfill); off: it deletes every description before it
-     * answers. The text search comes and goes at once (SmartSearchSupport).
-     * A device without the model (smart_search_unavailable) and the demo
-     * refuse it, in their own words.
+     * holds (its backfill) - where its model isn't there yet (release 152),
+     * it starts downloading it first, and the section shows how far that is;
+     * off: it deletes every description before it answers, and stops a
+     * download no other user asked for. The text search comes and goes at
+     * once (SmartSearchSupport). A device that can't get the model
+     * (smart_search_unavailable) and the demo refuse it, in their own words.
      */
     suspend fun setSmartSearch(enabled: Boolean) {
+        smartChanges++
         state.update { it.copy(confirmSmartOff = false, savingSmartSearch = true, smartSearchEnabled = enabled) }
+        var changed = false
         try {
             val resp = OTCConnection.request { it.setReqSetSmartSearchEnabled(SetSmartSearchEnabled.newBuilder().setEnabled(enabled)) }
-            if (resp.ackOk()) SmartSearchSupport.set(enabled)
-            else {
+            if (resp.ackOk()) {
+                SmartSearchSupport.set(enabled)
+                // Turned on where the model isn't: on its way at once, until the device says more.
+                if (enabled && SmartSearchSupport.model.value != SmartSearchModelState.Ready) SmartSearchSupport.modelRequested()
+                changed = true
+            } else {
                 state.update { it.copy(smartSearchEnabled = !enabled) }
                 toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
             }
@@ -348,6 +381,8 @@ class DeviceSettingsViewModel : ViewModel() {
             throw e
         } catch (e: Exception) { state.update { it.copy(smartSearchEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
         finally { state.update { it.copy(savingSmartSearch = false) } }
+        // Where the model is now, while it isn't there: a download started, or one stopped.
+        if (changed && SmartSearchSupport.model.value != SmartSearchModelState.Ready) refreshSmartSearch()
     }
 
     /** Show hidden memories again: everything hidden comes back (HideMemory show_all); Images asks again. */
