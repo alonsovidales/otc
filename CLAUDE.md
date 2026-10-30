@@ -3317,6 +3317,23 @@ no count) and `count` ("4,210 of 12,800", the app's number format), each row one
 reads the Status answers Settings already asks for every 5 s while in front (`StatusViewModel`), so it
 has no poll of its own. A debug-only `BackgroundWorkPreviewActivity` draws it on sample tasks. Tests:
 `BackgroundWorkTest.kt`.
+**Sort by and Back to the map on Android** (2026-10-30, the owner's request after user feedback;
+`ui/gallery/PageSort.kt`, `showsAreaBack` in `Places.kt`, `AreaBackButton` in `PhotoGalleryView.kt`; iOS
+`PeopleSort`/`CollectionsSort`/`AreaBackButton`, the same rules; texts `app.photos.sort_by`,
+`app.photos.people.sort_*`, `app.photos.collections.sort_*`, `app.photos.places.back_to_map`): People
+and Collections have a Sort by menu (`SortByMenu`, with two or more: the sort icon in People's narrow
+bar and the Collections sheet's header, the icon and the order in words in a row atop the wide pages;
+heading "Sort by", a check on the order in use; TalkBack hears "Sort by" and the order). People: Most
+photos (the default, the page's order as before, `peopleOrder`) or Name; Collections: Newest first (the
+default, the device's order) or Name. Name is A to Z by Files' `NameCollator` (ICU, primary strength,
+the app's language, numbers by value), the nameless last and equal names in the default order
+(`PageSort.byName`). Kept in `otc_settings` as `people_sort` ("photos"/"name") and `collections_sort`
+("newest"/"name"), like `files_view_mode`: backed up, wiped at Log Out, read as a page shows; the "Add
+to collection" picker and Someone else… keep the default order. Images over a place opened from the
+map (`State.activeArea`, Places on, the grid showing) starts with `AreaBackButton` (`head:area`, in
+`headerCount`; outlined, 48 dp, an arrow and "Back to the map") on narrow and wide windows, doing what
+the "Map area" chip's tap does (`onPage(GalleryPage.PLACES)`: the map where it was); the chip stays. A
+debug-only `PageSortPreviewActivity` draws them on sample data. Tests: `PageSortTest.kt`.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

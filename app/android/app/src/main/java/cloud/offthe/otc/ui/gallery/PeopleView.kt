@@ -198,10 +198,12 @@ import cloud.offthe.otc.i18n.commonSave
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonTryAgain
 import cloud.offthe.otc.ui.common.FitText
+import cloud.offthe.otc.i18n.LanguageSettings
 
 // Port of the web's PeopleView.tsx, opened from Images' People button (next
 // to Collections) while face recognition is on: the faces the device found,
-// named people first, each a circle that opens Images on that person. A
+// named people first, or by name (Sort by, PageSort.kt), each a circle that
+// opens Images on that person. A
 // face's "more" button (and "Add a name" under an unnamed one) names it,
 // starts a merge or deletes it. A long press picks a face, then taps pick
 // and unpick, and the bar that takes the page's top merges them into one
@@ -609,12 +611,18 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
 
     LaunchedEffect(Unit) { vm.reload(gallery) }
 
-    val people = remember(gst.allPeople, st.gone) { peopleOrder(gst.allPeople, st.gone) }
+    // Sort by (PageSort.kt): Most photos - the order the page always had -
+    // or Name, one choice for the app, kept in otc_settings.
+    var sort by remember { mutableStateOf(PageSortStore.people()) }
+    val sortLocale = LanguageSettings.numberLocale
+    val people = remember(gst.allPeople, st.gone, sort, sortLocale) { PageSort.people(peopleOrder(gst.allPeople, st.gone), sort, sortLocale) }
+    val pickSort: (PeopleSort) -> Unit = { sort = it; PageSortStore.setPeople(it) }
     LaunchedEffect(people) { vm.keepOnly(people.map { it.id }.toSet()) }
     val selPeople = remember(people, st.selection) { people.filter { it.id in st.selection } }
     val selecting = selPeople.isNotEmpty()
     val canMerge = selPeople.size > 1
     val loaded = gst.peopleLoaded
+    val showSort = loaded && people.size > 1
     // The face being named (its id: the tile may be renamed or gone meanwhile).
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -639,17 +647,22 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
             )
         } else if (showBack) {
             Row(
-                Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = 4.dp, end = 16.dp),
+                Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = 4.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) { Icon(PeopleIcons.Back, S.androidPhotosPeopleBack().resolve()) }
                 Spacer(Modifier.width(4.dp))
-                Text(S.appShellSectionPeople().resolve(), style = MaterialTheme.typography.titleLarge)
+                Text(S.appShellSectionPeople().resolve(), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (showSort) SortByMenu(PeopleSort.entries, sort, { it.label }, onPick = pickSort)
             }
         } else {
             // The wide layout's menu names the page, as the web's does: no
-            // title on screen, only for TalkBack.
+            // title on screen, only for TalkBack; its toolbar is Sort by, at
+            // the end, labelled with the order in use.
             HiddenPageHeading(S.appShellSectionPeople().resolve())
+            if (showSort) Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
+                SortByMenu(PeopleSort.entries, sort, { it.label }, onPick = pickSort, labelled = true)
+            }
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -685,7 +698,7 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     )
                     LazyVerticalGrid(
                         // Wide, no bar above: the web's 24 from the top bar.
-                        columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = if (showBack || selecting) 16.dp else 24.dp, bottom = 80.dp),
+                        columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = if (showBack || selecting) 16.dp else if (showSort) 8.dp else 24.dp, bottom = 80.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(20.dp),
                         modifier = Modifier.fillMaxSize().dragSelect(drag), state = gridState,
                     ) {

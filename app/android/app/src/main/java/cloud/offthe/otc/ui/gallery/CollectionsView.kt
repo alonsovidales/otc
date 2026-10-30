@@ -83,13 +83,15 @@ import cloud.offthe.otc.i18n.appShellCollectionsSlowText
 import cloud.offthe.otc.i18n.appShellCollectionsSlowTitle
 import cloud.offthe.otc.i18n.appShellSectionCollections
 import cloud.offthe.otc.i18n.commonTryAgain
+import cloud.offthe.otc.i18n.LanguageSettings
 
 // Port of the web's CollectionsView.tsx: the Collections page of the wide
 // layout (MainView), where the menu has Collections as a section of its
 // own - on a phone's narrow window Images' Collections button lists them
 // in a sheet instead. Every collection (an image group in the protocol) as
-// a card with its cover, as the device lists them; a card opens Images on
-// that collection, which is where one is renamed, shared or deleted.
+// a card with its cover, newest first as the device lists them or by name
+// (Sort by, PageSort.kt); a card opens Images on that collection, which is
+// where one is renamed, shared or deleted.
 
 private const val SKELETON_CARDS = 8
 // How long the first listing may take before the page offers to ask again.
@@ -125,6 +127,12 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
     }
     val loaded = st.groupsLoaded
     val failed = !loaded && !asking
+    // Sort by (PageSort.kt): Newest first - the device's order - or Name,
+    // one choice for the app (the narrow sheet's too), kept in otc_settings.
+    var sort by remember { mutableStateOf(PageSortStore.collections()) }
+    val sortLocale = LanguageSettings.numberLocale
+    val groups = remember(st.groups, sort, sortLocale) { PageSort.collections(st.groups, sort, sortLocale) }
+    val showSort = loaded && groups.size > 1
 
     BackHandler { onShowPhotos() }
 
@@ -132,10 +140,14 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
         // The menu names the page, as the web's does: no title on screen,
         // only for TalkBack.
         HiddenPageHeading(S.appShellSectionCollections().resolve())
+        // Its toolbar: Sort by at the end, labelled with the order in use.
+        if (showSort) Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
+            SortByMenu(CollectionsSort.entries, sort, { it.label }, onPick = { sort = it; PageSortStore.setCollections(it) }, labelled = true)
+        }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                loaded && st.groups.isEmpty() -> StateMessage(
+                loaded && groups.isEmpty() -> StateMessage(
                     art = { Icon(NavIcons.Collections, null, Modifier.size(80.dp), tint = colors.onSurfaceVariant) },
                     title = S.appShellCollectionsEmptyTitle().resolve(),
                     // Plain, as it has always been here: the bold tag styles nothing.
@@ -148,12 +160,12 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
                     val cellPx = gridCellPx(constraints.maxWidth, density, 24.dp, 16.dp, minSize = 180.dp)
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(180.dp), state = gridState,
-                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 64.dp),
+                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = if (showSort) 8.dp else 24.dp, bottom = 64.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        items(st.groups, key = { it.id }) { g ->
-                            CollectionCard(g, cellPx, Modifier.tourTarget(if (g.id == st.groups.firstOrNull()?.id) TourTarget.FIRST_COLLECTION else null)) {
+                        items(groups, key = { it.id }) { g ->
+                            CollectionCard(g, cellPx, Modifier.tourTarget(if (g.id == groups.firstOrNull()?.id) TourTarget.FIRST_COLLECTION else null)) {
                                 gallery.openGroup(g)
                                 onOpen()
                             }

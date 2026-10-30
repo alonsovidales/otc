@@ -57,6 +57,16 @@ data class WorldRect(val x: Double, val y: Double, val width: Double, val height
     }
 }
 
+/**
+ * Whether Images shows "Back to the map" at the top of its grid
+ * (AreaBackButton, the owner's request 2026-10-30): the photos of a place
+ * opened from the map ([area]: State.activeArea, the "Map area" chip),
+ * Places still on, and the grid - not the map - on screen. On narrow and
+ * wide windows alike; the chip stays. iOS's AreaBackButton, the same rule.
+ */
+fun showsAreaBack(area: PlaceArea?, placesOn: Boolean?, mapShown: Boolean): Boolean =
+    area != null && placesOn == true && !mapShown
+
 /** The tile arithmetic, as the device counts its tiles (PlaceTile in messages.proto). */
 object PlaceTiles {
     const val MAX_ZOOM = 20

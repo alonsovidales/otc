@@ -22,5 +22,11 @@
             android:name=".BackgroundWorkPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- People's and Collections' Sort by and Images' "Back to the map" on
+             sample data (adb shell am start -n cloud.offthe.otc/.PageSortPreviewActivity). -->
+        <activity
+            android:name=".PageSortPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

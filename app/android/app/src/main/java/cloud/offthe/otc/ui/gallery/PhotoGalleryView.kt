@@ -149,6 +149,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.ButtonDefaults
+import cloud.offthe.otc.i18n.appPhotosPlacesBackToMap
+import cloud.offthe.otc.i18n.LanguageSettings
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
@@ -525,7 +527,11 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             }
             // Smart search: while the device still describes older photos, a quiet note over what it found.
             val smartNote = st.smartText != null && st.smartReading
-            val headerCount = (if (showMemories) 1 else 0) + (if (group != null) 1 else 0) + (if (personHeader) 1 else 0) + (if (smartNote) 1 else 0)
+            // Places: the photos of a place opened from the map - "Back to
+            // the map" over them, as the "Map area" chip's tap (the map where
+            // it was).
+            val areaBack = showsAreaBack(st.activeArea, placesOn, showMap)
+            val headerCount = (if (areaBack) 1 else 0) + (if (showMemories) 1 else 0) + (if (group != null) 1 else 0) + (if (personHeader) 1 else 0) + (if (smartNote) 1 else 0)
             // Each row's key: its month and place in it in date order (stable
             // while photos land above or fill its grey tiles, issue #194),
             // else its first photo; the grey tiles' own.
@@ -665,6 +671,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 bottomInset = if (hasSelection) barHeight.toFloat() else 0f,
             )
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(upScroll).dragSelect(drag, enabled = greyLayout == null)) {
+                if (areaBack) item(key = "head:area", contentType = "head") {
+                    AreaBackButton(metrics) { onPage(GalleryPage.PLACES) }
+                }
                 if (showMemories) item(key = "head:memories", contentType = "memories") {
                     MemoriesStrip(vm.memories, memories, wide = !metrics.phone, pad = metrics.pad, top = metrics.top) { openMemory = it }
                 }
@@ -828,14 +837,22 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     if (showGroups) {
         // Asked again each time it opens (covers and counts change).
         LaunchedEffect(Unit) { vm.loadGroups() }
+        // Sort by (PageSort.kt): Newest first - the device's order - or Name, kept for the app.
+        var collectionsSort by remember { mutableStateOf(PageSortStore.collections()) }
+        val sortLocale = LanguageSettings.numberLocale
+        val groups = remember(st.groups, collectionsSort, sortLocale) { PageSort.collections(st.groups, collectionsSort, sortLocale) }
         ModalBottomSheet(onDismissRequest = { onPage(GalleryPage.PHOTOS) }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(S.appShellSectionCollections().resolve(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    if (groups.size > 1) SortByMenu(
+                        CollectionsSort.entries, collectionsSort, { it.label },
+                        onPick = { collectionsSort = it; PageSortStore.setCollections(it) },
+                    )
                     TextButton(onClick = { onPage(GalleryPage.PHOTOS) }) { Text(S.commonDone().resolve()) }
                 }
-                if (st.groups.isEmpty()) Text(S.appPhotosCollectionsSheetEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                st.groups.forEach { g ->
+                if (groups.isEmpty()) Text(S.appPhotosCollectionsSheetEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                groups.forEach { g ->
                     Row(Modifier.fillMaxWidth().clickable { onPage(GalleryPage.PHOTOS); vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         val cover = rememberTileThumb(
                             if (g.coverThumbnail.isEmpty) null else "g:${g.id}:${g.coverThumbnail.hashCode()}",
@@ -1365,6 +1382,28 @@ private fun MonthTitle(month: String?, oneTile: Boolean, m: GridMetrics, skeleto
                 overflow = if (short) TextOverflow.Ellipsis else TextOverflow.Clip,
                 onTextLayout = { if (!short && it.hasVisualOverflow) short = true },
             )
+        }
+    }
+}
+
+/**
+ * "Back to the map" at the top of the photos of a place opened from the map
+ * (showsAreaBack; the owner's request 2026-10-30: the "Map area" chip alone
+ * wasn't seen as the way back): an arrow and the words, 48 dp tall, a
+ * button to TalkBack by its words, doing what the chip's tap does - the
+ * map, where it was. iOS's AreaBackButton.
+ */
+@Composable
+internal fun AreaBackButton(metrics: GridMetrics, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp)) {
+        // Outlined, as the open collection's actions are: the ember of the app's buttons.
+        OutlinedButton(
+            onClick = onClick, modifier = Modifier.heightIn(min = 48.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(S.appPhotosPlacesBackToMap().resolve(), fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
