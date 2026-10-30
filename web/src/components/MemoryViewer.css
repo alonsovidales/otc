@@ -1,0 +1,228 @@
+/* A memory's slideshow (MemoryViewer.tsx): over the whole window, black,
+   the progress on top, the photo filling what is left. */
+
+.mem-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: #000;
+  color: #fff;
+  outline: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* One segment a photo; the one shown fills in its 4 s. */
+.mem-progress { position: relative; z-index: 2; display: flex; gap: 4px; padding: 12px 16px 0; }
+.mem-seg { flex: 1; height: 3px; overflow: hidden; border-radius: 2px; background: rgba(255, 255, 255, 0.3); }
+.mem-seg-fill { display: block; width: 0; height: 100%; background: #fff; }
+.mem-seg-fill.done { width: 100%; }
+.mem-seg-fill.now { animation-name: mem-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes mem-fill { from { width: 0; } to { width: 100%; } }
+
+.mem-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 8px 8px 16px;
+}
+.mem-heading { flex: 1; min-width: 0; padding-top: 10px; }
+.mem-when { margin: 0; font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
+.mem-when-years { font-weight: 600; }
+.mem-when-rest { color: rgba(255, 255, 255, 0.78); }
+.mem-people { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: rgba(255, 255, 255, 0.78); overflow-wrap: anywhere; }
+.mem-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+
+.mem-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: none;
+}
+.mem-icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.mem-icon-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; }
+
+.mem-menu-wrap { position: relative; }
+.mem-menu-catcher { position: fixed; inset: 0; z-index: 1; }
+.mem-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ink-3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  animation: pg-menu-in .12s ease-out;
+  transform-origin: top right;
+}
+.mem-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: none;
+}
+.mem-menu button:hover,
+.mem-menu button:focus-visible { outline: none; background: rgba(234, 242, 239, 0.08); }
+
+/* The photo: whole, centred, over a blurred copy of itself. */
+.mem-stage { position: relative; overflow: hidden; cursor: pointer; }
+.mem-backdrop {
+  position: absolute;
+  inset: -48px;
+  width: calc(100% + 96px);
+  height: calc(100% + 96px);
+  object-fit: cover;
+  filter: blur(36px) brightness(0.45);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.mem-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity .25s ease;
+  pointer-events: none;
+}
+.mem-photo[data-loaded] { opacity: 1; }
+
+.mem-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  opacity: 0;
+  transform: translateY(-50%);
+  cursor: pointer;
+  transition: opacity .15s ease;
+}
+.mem-nav.prev { left: 16px; }
+.mem-nav.next { right: 16px; }
+.mem-stage:hover .mem-nav,
+.mem-nav:focus-visible { opacity: 1; }
+.mem-nav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mem-nav:disabled { display: none; }
+@media (hover: none) { .mem-nav { display: none; } }
+
+.mem-foot { position: relative; z-index: 2; display: flex; justify-content: center; padding: 12px 16px 20px; }
+.mem-see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: none;
+}
+.mem-see-all:hover { background: rgba(255, 255, 255, 0.16); }
+.mem-see-all:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* See all: the memory's photos as a grid, over the slideshow. */
+.mem-all {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--ink);
+  color: var(--mist);
+}
+.mem-all-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink);
+}
+.mem-all-head .mem-icon-btn:hover { background: rgba(234, 242, 239, 0.08); }
+.mem-all-head .mem-when-rest { color: var(--mist-dim); }
+.mem-all-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 16px;
+  list-style: none;
+}
+.mem-all-tile {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: var(--ink-3);
+  cursor: pointer;
+  transition: none;
+}
+.mem-all-tile img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .2s ease; }
+.mem-all-tile img[data-loaded] { opacity: 1; }
+.mem-all-tile:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+@media (max-width: 599px) {
+  .mem-progress { padding: 8px 8px 0; gap: 3px; }
+  .mem-bar { padding: 4px 4px 4px 12px; }
+  .mem-heading { padding-top: 8px; }
+  .mem-when { font-size: 14px; line-height: 20px; }
+  .mem-all-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mem-photo,
+  .mem-nav,
+  .mem-all-tile img { transition: none; }
+  .mem-menu { animation: none; }
+}

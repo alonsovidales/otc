@@ -465,6 +465,107 @@
     "text": "Still waiting for your device",
     "note": "Title of the Collections or People page when their list takes more than 10 seconds to come from the device; a Try again button follows."
   },
+  "web.images.memories.day": {
+    "text": "Day",
+    "note": "Choice beside the On this day strip in Images: photos from this same day in earlier years. Greyed out when that period has none.",
+    "max": 12
+  },
+  "web.images.memories.hidden": {
+    "text": "Hidden from your memories",
+    "note": "Note at the foot of Images after hiding something from the memories (a photo, a memory, a day or a person), next to its Undo button (web.images.memories.undo).",
+    "max": 40
+  },
+  "web.images.memories.hide_day": {
+    "text": "Don't show this day",
+    "note": "Menu item in a memory's slideshow: no photo taken on the day of the photo on screen is shown in memories again (a sad anniversary, say).",
+    "max": 40
+  },
+  "web.images.memories.hide_failed": {
+    "text": "Couldn't hide it. Try again.",
+    "note": "Note at the foot of Images when the device didn't hide (or show again) what was picked and gave no reason.",
+    "max": 60
+  },
+  "web.images.memories.hide_memory": {
+    "text": "Hide this memory",
+    "note": "Menu item in a memory's slideshow: this memory (these photos from this year) is not shown again.",
+    "max": 40
+  },
+  "web.images.memories.hide_person": {
+    "text": "Don't show {name}",
+    "args": [["name", "user"]],
+    "note": "Menu item in a memory's slideshow, once for each named person in it: no photo with this person in it is shown in memories again. {name} is the name the user gave them in People.",
+    "max": 40
+  },
+  "web.images.memories.hide_photo": {
+    "text": "Hide this photo",
+    "note": "Menu item in a memory's slideshow: the photo on screen is never shown in memories again (it stays in Images).",
+    "max": 40
+  },
+  "web.images.memories.month": {
+    "text": "Month",
+    "note": "Choice beside the On this day strip in Images: photos from this month in earlier years. Greyed out when that period has none.",
+    "max": 12
+  },
+  "web.images.memories.options": {
+    "text": "Memory options",
+    "note": "Screen-reader name and tooltip of the menu button (a … icon) in a memory's slideshow: it holds the ways to hide what shows in the memories.",
+    "max": 30
+  },
+  "web.images.memories.period": {
+    "text": "Period",
+    "note": "Screen-reader name of the Day / Week / Month choice beside the On this day strip in Images.",
+    "max": 24
+  },
+  "web.images.memories.photo_position": {
+    "text": "Photo {index} of {count}",
+    "args": [["index", "int"], ["count", "int"]],
+    "note": "Screen-reader name of the photo shown in a memory's slideshow, and of each photo in its See all grid: its place among the memory's photos. {index} counts from 1, {count} is how many there are.",
+    "max": 30
+  },
+  "web.images.memories.see_all": {
+    "text": "See all",
+    "note": "Button in a memory's slideshow that shows all its photos as a grid, to open any of them.",
+    "max": 24
+  },
+  "web.images.memories.title_day": {
+    "text": "On this day",
+    "note": "Title of the strip at the top of Images showing photos taken on this day (same day and month) in earlier years. The feature's name, as in the device's texts and the phones' app.photos.memories.title_day.",
+    "max": 32
+  },
+  "web.images.memories.title_month": {
+    "text": "This month",
+    "note": "Title of the strip at the top of Images when it shows photos taken this month in earlier years. The phones' app.photos.memories.title_month.",
+    "max": 32
+  },
+  "web.images.memories.title_week": {
+    "text": "This week",
+    "note": "Title of the strip at the top of Images when it shows photos taken this week (three days either side of today) in earlier years. The phones' app.photos.memories.title_week.",
+    "max": 32
+  },
+  "web.images.memories.undo": {
+    "text": "Undo",
+    "note": "Button on the note after hiding something from the memories: shows it again.",
+    "max": 16
+  },
+  "web.images.memories.week": {
+    "text": "Week",
+    "note": "Choice beside the On this day strip in Images: photos from this week in earlier years. Greyed out when that period has none.",
+    "max": 12
+  },
+  "web.images.memories.with": {
+    "text": "With {names}",
+    "args": [["names", "text"]],
+    "note": "Under a memory's title in its slideshow: the named people in its photos. {names} is a list like Ana and Leo (web.images.people.names_two / names_more)."
+  },
+  "web.images.memories.years_ago": {
+    "text": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    },
+    "args": [["count", "count"]],
+    "note": "On a memory's card in Images and in its slideshow: how long ago its photos were taken (1 or more years).",
+    "max": 24
+  },
   "web.images.people.add_name": {
     "text": "Add a name",
     "note": "Button under a face without a name on the People page, and the first item of its … menu: opens a field to type the person's name.",

@@ -338,6 +338,25 @@ export type MessageKey =
   | "web.images.grid.uploading"
   | "web.images.load.check"
   | "web.images.load.waiting"
+  | "web.images.memories.day"
+  | "web.images.memories.hidden"
+  | "web.images.memories.hide_day"
+  | "web.images.memories.hide_failed"
+  | "web.images.memories.hide_memory"
+  | "web.images.memories.hide_person"
+  | "web.images.memories.hide_photo"
+  | "web.images.memories.month"
+  | "web.images.memories.options"
+  | "web.images.memories.period"
+  | "web.images.memories.photo_position"
+  | "web.images.memories.see_all"
+  | "web.images.memories.title_day"
+  | "web.images.memories.title_month"
+  | "web.images.memories.title_week"
+  | "web.images.memories.undo"
+  | "web.images.memories.week"
+  | "web.images.memories.with"
+  | "web.images.memories.years_ago"
   | "web.images.people.add_name"
   | "web.images.people.count"
   | "web.images.people.delete_failed"
@@ -569,6 +588,12 @@ export type MessageKey =
   | "web.settings.logs.title"
   | "web.settings.logs.waiting"
   | "web.settings.logs.warning"
+  | "web.settings.memories.disable"
+  | "web.settings.memories.enable"
+  | "web.settings.memories.hint"
+  | "web.settings.memories.show_hidden"
+  | "web.settings.memories.shown_again"
+  | "web.settings.memories.title"
   | "web.settings.notifications.denied"
   | "web.settings.notifications.disable"
   | "web.settings.notifications.enable"
@@ -1406,6 +1431,25 @@ export interface MessageArgs {
   "web.images.grid.uploading": { current: number; total: number };
   "web.images.load.check": undefined;
   "web.images.load.waiting": undefined;
+  "web.images.memories.day": undefined;
+  "web.images.memories.hidden": undefined;
+  "web.images.memories.hide_day": undefined;
+  "web.images.memories.hide_failed": undefined;
+  "web.images.memories.hide_memory": undefined;
+  "web.images.memories.hide_person": { name: string };
+  "web.images.memories.hide_photo": undefined;
+  "web.images.memories.month": undefined;
+  "web.images.memories.options": undefined;
+  "web.images.memories.period": undefined;
+  "web.images.memories.photo_position": { index: number; count: number };
+  "web.images.memories.see_all": undefined;
+  "web.images.memories.title_day": undefined;
+  "web.images.memories.title_month": undefined;
+  "web.images.memories.title_week": undefined;
+  "web.images.memories.undo": undefined;
+  "web.images.memories.week": undefined;
+  "web.images.memories.with": { names: string };
+  "web.images.memories.years_ago": { count: number };
   "web.images.people.add_name": undefined;
   "web.images.people.count": { count: number };
   "web.images.people.delete_failed": undefined;
@@ -1645,6 +1689,12 @@ export interface MessageArgs {
   "web.settings.logs.title": undefined;
   "web.settings.logs.waiting": undefined;
   "web.settings.logs.warning": undefined;
+  "web.settings.memories.disable": undefined;
+  "web.settings.memories.enable": undefined;
+  "web.settings.memories.hint": undefined;
+  "web.settings.memories.show_hidden": { count: number };
+  "web.settings.memories.shown_again": undefined;
+  "web.settings.memories.title": undefined;
   "web.settings.notifications.denied": undefined;
   "web.settings.notifications.disable": undefined;
   "web.settings.notifications.enable": undefined;

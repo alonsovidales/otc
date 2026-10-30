@@ -76,6 +76,11 @@ export function fmtDate(lang: string, value: Date | number, options: Intl.DateTi
   return cached("d", localeOf(lang), options, (l) => new Intl.DateTimeFormat(l, options)).format(value);
 }
 
+/** Two dates as one span, the shared parts written once: "27 Oct – 2 Nov 2023". */
+export function fmtDateRange(lang: string, from: Date | number, to: Date | number, options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }): string {
+  return cached("d", localeOf(lang), options, (l) => new Intl.DateTimeFormat(l, options)).formatRange(from, to);
+}
+
 const cRelativeSteps: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 365 * 24 * 3600],
   ["month", 30 * 24 * 3600],

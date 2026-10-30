@@ -1,0 +1,148 @@
+/* On this day at the top of Images (MemoriesStrip.tsx): the period's title
+   and choice, then a row of memories that scrolls sideways on its own. */
+
+.mem-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px var(--pg-pad, 16px) 4px;
+}
+
+.mem-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.mem-title {
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--mist);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* Day · Week · Month: one pill, the choice filled. */
+.mem-periods {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+}
+.mem-period {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--mist-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 28px;
+  cursor: pointer;
+  transition: none;
+}
+.mem-period:hover:not(:disabled) { color: var(--mist); }
+.mem-period[aria-pressed="true"] { background: var(--ink-3); color: var(--mist); }
+/* A period with no memories. */
+.mem-period:disabled { color: var(--mist-dim); opacity: .45; cursor: default; }
+.mem-period:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* The cards run to the window's edges and scroll there, not the page. */
+.mem-cards {
+  display: flex;
+  gap: 8px;
+  margin: 0 calc(-1 * var(--pg-pad, 16px));
+  padding: 0 var(--pg-pad, 16px) 6px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding: 0 var(--pg-pad, 16px);
+  scrollbar-width: thin;
+}
+.mem-cards > li { flex: none; scroll-snap-align: start; }
+
+.mem-card {
+  position: relative;
+  display: block;
+  width: 148px;
+  aspect-ratio: 3 / 4;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ink-3);
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mem-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .2s ease, transform .25s ease;
+}
+.mem-card img[data-loaded] { opacity: 1; }
+.mem-card:hover img { transform: scale(1.03); }
+/* The words stay readable on any photo. */
+.mem-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 55%);
+  pointer-events: none;
+}
+.mem-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mem-card-text {
+  position: absolute;
+  z-index: 1;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mem-card-when { font-size: 14px; font-weight: 600; line-height: 18px; overflow-wrap: anywhere; }
+.mem-card-place {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.82);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Out from under the date scrubber's column, as the grid keeps
+   (PhotoGallery.css): its Month choice sat under the years. */
+@media (hover: hover) and (pointer: fine) {
+  .pg-root.with-scrubber .mem-strip { padding-right: 56px; }
+  .pg-root.with-scrubber .mem-cards { margin-right: 0; }
+}
+
+@media (max-width: 599px) {
+  .mem-strip { gap: 8px; padding-top: 12px; }
+  .mem-title { font-size: 16px; line-height: 22px; }
+  .mem-period { padding: 0 10px; }
+  .mem-card { width: 112px; border-radius: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mem-card img { transition: none; }
+  .mem-card:hover img { transform: none; }
+}

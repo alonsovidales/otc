@@ -17,6 +17,7 @@ import WifiPanel from "./settings/WifiPanel";
 import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
+import { localDay, setMemoriesOn, showAllMemories } from "./memories";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
 import type {
@@ -24,6 +25,7 @@ import type {
   RespEnvelope,
   Settings as PbSettings,
 } from "../proto/messages";
+import { MemoryPeriod } from "../proto/messages";
 import { useDemo } from "./useDemo";
 import "./SettingsForm.css";
 import { refuseOnDemo } from "../net/demo";
@@ -74,6 +76,11 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const placesOn = usePlacesOn() === true;
   const [placesKnown, setPlacesKnown] = useState(false);
   const [placesBusy, setPlacesBusy] = useState(false);
+  // On this day's switch (memories.ts), on a device that has it, and how
+  // many things the user hid from it (GetMemories' answer).
+  const [memoriesOn, setMemoriesOnHere] = useState<boolean | null>(null);
+  const [memoriesBusy, setMemoriesBusy] = useState(false);
+  const [memoriesHidden, setMemoriesHidden] = useState(0);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -121,6 +128,57 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setFaceRecognitionBusy(false);
+    }
+  };
+
+  // On this day: hidden things are counted by GetMemories (the device keeps
+  // today's answer, so this costs it nothing new).
+  const countHiddenMemories = useCallback(async () => {
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqGetMemories", reqGetMemories: { date: localDay(), period: MemoryPeriod.MemoryDay, timeZone: "", utcOffsetMinutes: -new Date().getTimezoneOffset() } };
+      });
+      if (resp.payload?.$case === "respMemories") setMemoriesHidden(resp.payload.respMemories.hiddenCount);
+    } catch {
+      // The button just doesn't show.
+    }
+  }, []);
+
+  const toggleMemories = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setMemoriesBusy(true);
+    setStatus(null);
+    const next = !memoriesOn;
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqSetMemoriesEnabled", reqSetMemoriesEnabled: { enabled: next } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setMemoriesOnHere(next);
+        setMemoriesOn(next);
+        if (next) void countHiddenMemories();
+      } else {
+        const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+        setStatus({ kind: "error", text: said ? asIs(said) : say("web.settings.general.update_failed") });
+      }
+    } catch (err) {
+      setStatus({ kind: "error", text: asIs(err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setMemoriesBusy(false);
+    }
+  };
+
+  const showHiddenMemories = async () => {
+    if (refuseOnDemo()) return;
+    setMemoriesBusy(true);
+    setStatus(null);
+    const said = await showAllMemories();
+    setMemoriesBusy(false);
+    if (said === null) {
+      setMemoriesHidden(0);
+      setStatus({ kind: "success", text: say("web.settings.memories.shown_again") });
+    } else {
+      setStatus({ kind: "error", text: said ? asIs(said) : say("web.settings.general.update_failed") });
     }
   };
 
@@ -301,6 +359,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           // Absent: a device before Places, with no switch.
           setPlacesKnown(s.placesEnabled !== undefined);
           if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
+          // Absent: a device before On this day.
+          setMemoriesOnHere(s.memoriesEnabled ?? null);
+          if (s.memoriesEnabled) void countHiddenMemories();
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
           setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
@@ -312,7 +373,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
       }
     })();
-  }, []);
+  }, [countHiddenMemories]);
 
   // ---------- Validation ----------
 
@@ -504,6 +565,23 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           <button className="sf-btn" disabled={placesBusy} onClick={() => void togglePlaces()}>
             {placesBusy ? t("web.settings.general.working") : placesOn ? t("web.settings.places.disable") : t("web.settings.places.enable")}
           </button>
+        </section>
+      )}
+
+      {memoriesOn !== null && (
+        <section className="sf-section">
+          <h3>{t("web.settings.memories.title")}</h3>
+          <p className="sf-hint">{t("web.settings.memories.hint")}</p>
+          <div className="sf-btn-row sf-mem-btns">
+            <button className="sf-btn" disabled={memoriesBusy} onClick={() => void toggleMemories()}>
+              {memoriesBusy ? t("web.settings.general.working") : memoriesOn ? t("web.settings.memories.disable") : t("web.settings.memories.enable")}
+            </button>
+            {memoriesOn && memoriesHidden > 0 && (
+              <button className="sf-btn sf-btn-secondary" disabled={memoriesBusy} onClick={() => void showHiddenMemories()}>
+                {t("web.settings.memories.show_hidden", { count: memoriesHidden })}
+              </button>
+            )}
+          </div>
         </section>
       )}
 

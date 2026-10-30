@@ -430,6 +430,88 @@
     "text": "Noch keine Antwort von deinem Gerät",
     "en": "Still waiting for your device"
   },
+  "web.images.memories.day": {
+    "text": "Tag",
+    "en": "Day"
+  },
+  "web.images.memories.hidden": {
+    "text": "Aus deinen Erinnerungen ausgeblendet",
+    "en": "Hidden from your memories"
+  },
+  "web.images.memories.hide_day": {
+    "text": "Diesen Tag nicht mehr zeigen",
+    "en": "Don't show this day"
+  },
+  "web.images.memories.hide_failed": {
+    "text": "Ausblenden hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't hide it. Try again."
+  },
+  "web.images.memories.hide_memory": {
+    "text": "Diese Erinnerung ausblenden",
+    "en": "Hide this memory"
+  },
+  "web.images.memories.hide_person": {
+    "text": "{name} nicht mehr zeigen",
+    "en": "Don't show {name}"
+  },
+  "web.images.memories.hide_photo": {
+    "text": "Dieses Foto ausblenden",
+    "en": "Hide this photo"
+  },
+  "web.images.memories.month": {
+    "text": "Monat",
+    "en": "Month"
+  },
+  "web.images.memories.options": {
+    "text": "Optionen der Erinnerung",
+    "en": "Memory options"
+  },
+  "web.images.memories.period": {
+    "text": "Zeitraum",
+    "en": "Period"
+  },
+  "web.images.memories.photo_position": {
+    "text": "Foto {index} von {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "web.images.memories.see_all": {
+    "text": "Alle ansehen",
+    "en": "See all"
+  },
+  "web.images.memories.title_day": {
+    "text": "An diesem Tag",
+    "en": "On this day"
+  },
+  "web.images.memories.title_month": {
+    "text": "Diesen Monat",
+    "en": "This month"
+  },
+  "web.images.memories.title_week": {
+    "text": "Diese Woche",
+    "en": "This week"
+  },
+  "web.images.memories.undo": {
+    "text": "Rückgängig",
+    "en": "Undo"
+  },
+  "web.images.memories.week": {
+    "text": "Woche",
+    "en": "Week"
+  },
+  "web.images.memories.with": {
+    "text": "Mit {names}",
+    "en": "With {names}"
+  },
+  "web.images.memories.years_ago": {
+    "text": {
+      "one": "Vor {count} Jahr",
+      "other": "Vor {count} Jahren"
+    },
+    "en": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    }
+  },
   "web.images.people.add_name": {
     "text": "Name eingeben",
     "en": "Add a name"

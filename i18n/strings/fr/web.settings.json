@@ -263,6 +263,30 @@
     "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
     "reviewed": "claude-backtranslation 2026-10-11 #73b82e86"
   },
+  "web.settings.memories.disable": {
+    "text": "Désactiver Ce jour-là",
+    "en": "Disable On this day"
+  },
+  "web.settings.memories.enable": {
+    "text": "Activer Ce jour-là",
+    "en": "Enable On this day"
+  },
+  "web.settings.memories.hint": {
+    "text": "Des photos prises autour de cette date les années précédentes, en haut d’Images. Pour choisir les meilleures, l’appareil mesure l’aspect de chaque photo (sa netteté, son exposition et une note de qualité), sur l’appareil lui-même.",
+    "en": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself."
+  },
+  "web.settings.memories.show_hidden": {
+    "text": "Réafficher les éléments masqués ({count})",
+    "en": "Show hidden memories again ({count})"
+  },
+  "web.settings.memories.shown_again": {
+    "text": "Les souvenirs masqués sont de nouveau affichés",
+    "en": "Hidden memories are shown again"
+  },
+  "web.settings.memories.title": {
+    "text": "Souvenirs",
+    "en": "Memories"
+  },
   "web.settings.notifications.denied": {
     "text": "L’autorisation d’afficher des notifications a été refusée.",
     "en": "Notification permission was denied."

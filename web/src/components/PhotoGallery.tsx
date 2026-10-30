@@ -42,6 +42,7 @@ import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { areaKey, clearSearch, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropPlaces } from "./places";
+import MemoriesStrip from "./MemoriesStrip";
 import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
 import { openWaitingTab } from "./zipTab";
@@ -1710,6 +1711,9 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
       {!group && personIds.length > 0 && tags.length === 0 && (
         <PersonHeader personIds={personIds} total={bucketsFresh ? bucketTotal : null} />
       )}
+      {/* On this day (MemoriesStrip.tsx): over the whole library from its
+          top - not a search, a collection, a place or a jump's month. */}
+      {!isFiltered(filter) && cutoff === null && <MemoriesStrip />}
 
       {/* What the tile size is measured on (see rulerRef). */}
       <div className="pg-ruler" ref={rulerRef} aria-hidden="true" />

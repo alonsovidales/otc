@@ -1810,6 +1810,40 @@ chip (× `leaveArea`), the menu marking Places - and Back finds the map where it
 the page clears the area; the map is never wider than one world (min zoom from its width). It opens framed
 on `located_area` (max zoom 11) - photos all over the world: the world, centred on zoom 0's biggest place -
 or the world with "No photos with a location yet".
+**On this day on the web** (2026-10-30; `memories.ts`, `MemoriesStrip.tsx` + `.css`, `MemoryViewer.tsx` +
+`.css`, a lazy part; the phones' rules, Android paragraph under the apps; texts `web.images.memories.*` and
+`web.settings.memories.*`, the phones' English and translations where they say the same). `memories.ts`
+(module state; App's `watchMemories` forgets it all at each sign-in and sign-out and asks at once) asks
+`GetMemories` for day, week and month - the browser's date, IANA zone and offset - one question per period
+and generation at a time (`askPeriod`: a second caller waits for the answer on its way; an answer for an
+older generation is dropped - a strip mounted before App's reset once lost its day answer for good); again at
+the next midnight or a tab shown on a new day, every 2 minutes while an answer says `measuring`, after a hide
+and after Settings' switch. The period shown (`choose`): the one picked this session while it has memories,
+else the first of day, week and month with any, decided only once the earlier ones answered; a period that
+answered none is a disabled chip; none anywhere, `memories_off` or `unknown_payload` = no strip. The strip
+(PhotoGallery, under the person header) shows only over the whole library from its top: no tag, person,
+collection or map area (`isFiltered`) and no scrubber jump (`cutoff`); it keeps out from under the scrubber's
+column as the grid does (its Month chip sat under the years), and arriving above a grid already scrolled it
+scrolls the page by its height. Cards: the cover's small thumbnail by path (`fetchThumbs`, 24 a
+`GetThumbnails`, `thumbFor`), "N years ago", the place; the row scrolls sideways on its own. A card opens
+`MemoryViewer` (fixed, z 55, black): 4 s a photo as the progress segment's CSS animation
+(`animationend` steps, `animation-play-state` pauses: the button, a press held 250 ms, the menu, See all,
+the viewer over it, a picture not yet drawn - 8 s at most), a tap on the left third back, elsewhere on, the
+side buttons with a mouse, the next memory after the last photo; keys on the document while it is open (←
+→, Space, Esc - the focus may be on the Undo note), Tab kept inside; opened from the keyboard (`detail` 0)
+it starts paused, the web's stand-in for the phones' screen-reader rule. The line: "N years ago · 30 Oct
+2023 · place" (`fmtDate`/`fmtDateRange`, a new formatter: `Intl.DateTimeFormat.formatRange`), "With …"
+for named people; the big thumbnail for the photo and the next two over a blurred small one. The menu
+(`web.images.memories.options`) hides the photo (it leaves the slideshow, which stays open), the memory,
+the day of the photo shown or a named person (only a name exactly one person in People has: Memory carries
+names, HideMemory an id) - the last three close it; `refuseOnDemo` first; then `refreshMemories` (old answers
+on screen until the new come) and the strip's note "Hidden from your memories" with Undo (`HideMemory`
+`show`); a refusal says the device's words or `hide_failed`. See all: a grid of the memory's photos over the
+slideshow, a tile opens `MediaViewer` (no Delete there). Settings' Memories section after Places (only when
+the device's Settings carry `memories_enabled`): Enable/Disable On this day (`SetMemoriesEnabled`,
+`setMemoriesOn`) and "Show hidden memories again (N)" while today's day answer's `hidden_count` is above 0
+(`HideMemory show_all`). Checked end to end in muted headless Chrome against a Docker test device built
+from main with demo photos dated on 30 October of earlier years.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
 and code keep `ImageGroup`/`groupId`. Inside an open collection the selection bar has **Remove from
 collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the

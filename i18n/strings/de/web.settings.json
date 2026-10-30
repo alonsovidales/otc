@@ -263,6 +263,30 @@
     "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
     "reviewed": "claude-backtranslation 2026-10-11 #aaf28b29"
   },
+  "web.settings.memories.disable": {
+    "text": "An diesem Tag ausschalten",
+    "en": "Disable On this day"
+  },
+  "web.settings.memories.enable": {
+    "text": "An diesem Tag einschalten",
+    "en": "Enable On this day"
+  },
+  "web.settings.memories.hint": {
+    "text": "Fotos, die um diese Zeit in früheren Jahren aufgenommen wurden, oben in Bilder. Um die besten auszuwählen, misst das Gerät, wie jedes Foto aussieht (seine Schärfe, seine Belichtung und eine Qualitätsbewertung), auf dem Gerät selbst.",
+    "en": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself."
+  },
+  "web.settings.memories.show_hidden": {
+    "text": "Ausgeblendetes wieder zeigen ({count})",
+    "en": "Show hidden memories again ({count})"
+  },
+  "web.settings.memories.shown_again": {
+    "text": "Ausgeblendete Erinnerungen werden wieder gezeigt",
+    "en": "Hidden memories are shown again"
+  },
+  "web.settings.memories.title": {
+    "text": "Erinnerungen",
+    "en": "Memories"
+  },
   "web.settings.notifications.denied": {
     "text": "Die Berechtigung für Benachrichtigungen wurde verweigert.",
     "en": "Notification permission was denied."

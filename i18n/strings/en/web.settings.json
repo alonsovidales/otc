@@ -321,6 +321,35 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #f5faacde"
   },
+  "web.settings.memories.disable": {
+    "text": "Disable On this day",
+    "note": "Button in Settings > Memories that turns On this day off: the strip leaves Images.",
+    "max": 40
+  },
+  "web.settings.memories.enable": {
+    "text": "Enable On this day",
+    "note": "Button in Settings > Memories that turns On this day on (the phones' switch is app.settings.memories.toggle, On this day).",
+    "max": 40
+  },
+  "web.settings.memories.hint": {
+    "text": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself.",
+    "note": "Under the Memories heading in Settings: what On this day shows and how the device chooses the photos. The phones' app.settings.memories.footer."
+  },
+  "web.settings.memories.show_hidden": {
+    "text": "Show hidden memories again ({count})",
+    "args": [["count", "int"]],
+    "note": "Button in Settings > Memories: everything hidden from the memories (photos, days, memories, people) is shown again. {count} is how many things are hidden.",
+    "max": 50
+  },
+  "web.settings.memories.shown_again": {
+    "text": "Hidden memories are shown again",
+    "note": "Confirmation in Settings > Memories after Show hidden memories again."
+  },
+  "web.settings.memories.title": {
+    "text": "Memories",
+    "note": "Heading of the section in Settings that turns On this day (photos from around today in earlier years, at the top of Images) on or off. The phones' app.settings.memories.title.",
+    "max": 32
+  },
   "web.settings.notifications.denied": {
     "text": "Notification permission was denied.",
     "note": "Error at the top of Settings when the browser's permission prompt for notifications was refused or blocked."

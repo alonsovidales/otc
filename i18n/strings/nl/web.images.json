@@ -430,6 +430,88 @@
     "text": "Nog steeds wachten op je apparaat",
     "en": "Still waiting for your device"
   },
+  "web.images.memories.day": {
+    "text": "Dag",
+    "en": "Day"
+  },
+  "web.images.memories.hidden": {
+    "text": "Verborgen in je herinneringen",
+    "en": "Hidden from your memories"
+  },
+  "web.images.memories.hide_day": {
+    "text": "Deze dag niet meer tonen",
+    "en": "Don't show this day"
+  },
+  "web.images.memories.hide_failed": {
+    "text": "Verbergen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't hide it. Try again."
+  },
+  "web.images.memories.hide_memory": {
+    "text": "Deze herinnering verbergen",
+    "en": "Hide this memory"
+  },
+  "web.images.memories.hide_person": {
+    "text": "{name} niet meer tonen",
+    "en": "Don't show {name}"
+  },
+  "web.images.memories.hide_photo": {
+    "text": "Deze foto verbergen",
+    "en": "Hide this photo"
+  },
+  "web.images.memories.month": {
+    "text": "Maand",
+    "en": "Month"
+  },
+  "web.images.memories.options": {
+    "text": "Opties voor herinnering",
+    "en": "Memory options"
+  },
+  "web.images.memories.period": {
+    "text": "Periode",
+    "en": "Period"
+  },
+  "web.images.memories.photo_position": {
+    "text": "Foto {index} van {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "web.images.memories.see_all": {
+    "text": "Alles bekijken",
+    "en": "See all"
+  },
+  "web.images.memories.title_day": {
+    "text": "Op deze dag",
+    "en": "On this day"
+  },
+  "web.images.memories.title_month": {
+    "text": "Deze maand",
+    "en": "This month"
+  },
+  "web.images.memories.title_week": {
+    "text": "Deze week",
+    "en": "This week"
+  },
+  "web.images.memories.undo": {
+    "text": "Ongedaan maken",
+    "en": "Undo"
+  },
+  "web.images.memories.week": {
+    "text": "Week",
+    "en": "Week"
+  },
+  "web.images.memories.with": {
+    "text": "Met {names}",
+    "en": "With {names}"
+  },
+  "web.images.memories.years_ago": {
+    "text": {
+      "one": "{count} jaar geleden",
+      "other": "{count} jaar geleden"
+    },
+    "en": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    }
+  },
   "web.images.people.add_name": {
     "text": "Naam toevoegen",
     "en": "Add a name"

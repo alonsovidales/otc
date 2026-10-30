@@ -80,3 +80,5 @@
    up into a card-inside-a-card look; this section already provides the
    border/background, so strip pc-card's own. */
 .sf-section .pc-card { border: 0; background: transparent; padding: 0; margin: 0; max-width: none; }
+/* Memories: its switch and "Show hidden memories again", side by side. */
+.sf-mem-btns { margin-top: 8px; flex-wrap: wrap; }
