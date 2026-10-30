@@ -379,6 +379,28 @@ for entry in "${pending[@]}"; do
     echo "release $version applied"
 done
 
+# On this day's photo quality model (release 150): optional, so a device
+# whose download failed - at release 150's script or since - gets it from
+# the next update that reaches it. Only while it is missing, checked against
+# its pin (the same in install.sh, updates/150.sh and docker/entrypoint.sh),
+# into a temporary file beside it, then renamed; a failure only warns.
+QUALITY_ONNX=/usr/local/models/nima_mobilenet_aesthetic.onnx
+QUALITY_ONNX_URL=https://github.com/alonsovidales/otc/releases/download/models/nima_mobilenet_aesthetic.onnx
+QUALITY_ONNX_SHA=b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1
+if [ -d /usr/local/models ] && [ ! -L /usr/local/models ] && [ ! -e "$QUALITY_ONNX" ] && [ ! -L "$QUALITY_ONNX" ]; then
+    if qtmp="$(mktemp -d /usr/local/models/.otc-fetch.XXXXXX)"; then
+        if curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$qtmp/download" "$QUALITY_ONNX_URL" \
+            && [ "$(sha256sum "$qtmp/download" | awk '{print $1}')" = "$QUALITY_ONNX_SHA" ]; then
+            chmod 0644 "$qtmp/download"
+            mv -Tf "$qtmp/download" "$QUALITY_ONNX"
+            echo "fetched the photo quality model"
+        else
+            echo "warning: the photo quality model could not be fetched - photos are measured without it until the next update"
+        fi
+        rm -rf -- "$qtmp"
+    fi
+fi
+
 # Refreshing the code is common to every update, so it happens once here
 # rather than in each release script.
 # Pinned to the release's own tag rather than whatever main holds right

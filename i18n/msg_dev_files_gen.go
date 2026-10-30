@@ -149,6 +149,21 @@ func DevFilesMediaNotFound() Msg {
 	return Msg{Key: "dev.files.media_not_found"}
 }
 
+// DevFilesMemoriesBadDate is dev.files.memories_bad_date: "the request needs a date written YYYY-MM-DD and a period of a day, a week or a m…".
+func DevFilesMemoriesBadDate() Msg {
+	return Msg{Key: "dev.files.memories_bad_date"}
+}
+
+// DevFilesMemoriesBadHide is dev.files.memories_bad_hide: "nothing to hide: the request doesn't name a photo, a day, a memory or a person".
+func DevFilesMemoriesBadHide() Msg {
+	return Msg{Key: "dev.files.memories_bad_hide"}
+}
+
+// DevFilesMemoriesOff is dev.files.memories_off: "On this day is off: turn it on in Settings to see your memories".
+func DevFilesMemoriesOff() Msg {
+	return Msg{Key: "dev.files.memories_off"}
+}
+
 // DevFilesNoLowResPhotos is dev.files.no_low_res_photos: "there are no photos to share in low resolution there".
 func DevFilesNoLowResPhotos() Msg {
 	return Msg{Key: "dev.files.no_low_res_photos"}

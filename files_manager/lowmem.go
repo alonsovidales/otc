@@ -17,6 +17,7 @@ import (
 
 	"github.com/alonsovidales/otc/cfg"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	imagesquality "github.com/alonsovidales/otc/images_quality"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/modelserver"
@@ -367,6 +368,13 @@ type faceModel interface {
 	Close()
 }
 
+// aestheticModel is On this day's photo quality model, loaded:
+// *imagesquality.NIMA, or tests' fakes.
+type aestheticModel interface {
+	AestheticResized(ctx context.Context, img *image.RGBA) (float32, error)
+	Close()
+}
+
 // idleModels holds a low-memory device's tagging and face models: loaded
 // when processing first needs them, released once neither has been used
 // for idle, and run one at a time - tags or faces, for this instance or
@@ -378,10 +386,13 @@ type idleModels struct {
 	now      func() time.Time
 	loadTags func() (taggerModel, error)
 	loadFace func() (faceModel, error) // nil: no face models
-	tags     taggerModel
-	faces    faceModel
-	inUse    int
-	lastUse  time.Time
+	// loadAesthetic: nil when the device has no quality model (quality.go).
+	loadAesthetic func() (aestheticModel, error)
+	tags          taggerModel
+	faces         faceModel
+	aesthetic     aestheticModel
+	inUse         int
+	lastUse       time.Time
 	// loaded, when set, runs after a model loads (the memory log).
 	loaded func(what string, took time.Duration)
 	// loading, when set, is told a load starts (true) and ends: the run
@@ -458,6 +469,39 @@ func (m *idleModels) facesLocked() (any, error) {
 	return m.faces, nil
 }
 
+// aestheticLocked is the quality model, loading it if it isn't. m.mu held.
+func (m *idleModels) aestheticLocked() (any, error) {
+	if m.aesthetic == nil {
+		if m.loadAesthetic == nil {
+			return nil, modelserver.ErrNoAesthetic
+		}
+		started := m.now()
+		var a aestheticModel
+		err := m.load(func() (err error) { a, err = m.loadAesthetic(); return err })
+		if err != nil {
+			return nil, fmt.Errorf("loading the photo quality model: %w", err) // i18n-ignore: internal, logged
+		}
+		m.aesthetic = a
+		if m.loaded != nil {
+			m.loaded("photo quality model", m.now().Sub(started)) // i18n-ignore: a log line
+		}
+	}
+	return m.aesthetic, nil
+}
+
+// AestheticResized is imagesquality.NIMA.AestheticResized, in the model's
+// turn.
+func (m *idleModels) AestheticResized(ctx context.Context, img *image.RGBA) (float32, error) {
+	model, done, err := m.use(m.aestheticLocked)
+	if err != nil {
+		return 0, err
+	}
+	defer done()
+	m.run.Lock()
+	defer m.run.Unlock()
+	return model.(aestheticModel).AestheticResized(ctx, img)
+}
+
 // Tags is imagestagger.RAMTagger.Tags: the photo is scaled to the model's
 // input outside the model's turn.
 func (m *idleModels) Tags(ctx context.Context, img image.Image, opt imagestagger.RAMOptions) ([]imagestagger.RAMTag, error) {
@@ -520,6 +564,11 @@ func (m *idleModels) releaseIdle() (released []string) {
 		m.faces.Close()
 		m.faces = nil
 		released = append(released, "face models") // i18n-ignore: a log line
+	}
+	if m.aesthetic != nil {
+		m.aesthetic.Close()
+		m.aesthetic = nil
+		released = append(released, "photo quality model") // i18n-ignore: a log line
 	}
 	return released
 }
@@ -593,16 +642,34 @@ func (mg *Manager) initIdleModels() {
 		log.Info("Face recognition not available ([faces] section not configured)")
 	}
 
+	// On this day's quality model, at first use like the tagger's, without
+	// ONNX Runtime's arena; none when the device hasn't the file.
+	if p := qualityModelPath(); p != "" {
+		models.loadAesthetic = func() (aestheticModel, error) {
+			n, err := imagesquality.NewNIMA(p, true)
+			if err != nil {
+				log.Error("could not load the photo quality model:", err)
+				return nil, err
+			}
+			return n, nil
+		}
+		mg.aesthetic = models
+	}
+
 	go models.releaseWhenIdle()
 	go func() {
-		if err := serveModels(modelserver.SocketPath(), mg.waitForTagger, mg.faceRecognizer, 1); err != nil {
+		served := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer}
+		if mg.aesthetic != nil {
+			served.Aesthetic = mg.aesthetic
+		}
+		if err := serveModels(modelserver.SocketPath(), served, 1); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
 	}()
 }
 
-// serveModels is modelserver.ServeLimited, replaced by tests.
-var serveModels = modelserver.ServeLimited
+// serveModels is modelserver.ServeModels, replaced by tests.
+var serveModels = modelserver.ServeModels
 
 // procStatusKB is a "Name:  N kB" line of a /proc status-like file.
 func procStatusKB(path, name string) int64 {

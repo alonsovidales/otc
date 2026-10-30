@@ -132,6 +132,14 @@ type Manager struct {
 	// kept only while placesSwitch is on (places_switch.go).
 	places       placesCache
 	placesSwitch placesSwitch
+	// aesthetic is On this day's photo quality model (quality.go): NIMA
+	// loaded here, a low-memory device's idleModels, or the primary's over
+	// its socket; nil when there is none (photos are then measured by
+	// sharpness and exposure alone).
+	aesthetic modelserver.AestheticScorer
+	// memories is On this day's switch, the measuring backfill and the
+	// day's answers (memories.go, quality.go).
+	memories memoriesState
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged
@@ -263,6 +271,11 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		} else {
 			log.Info("Face recognition not available (the primary instance has no face models)")
 		}
+		// On this day's quality model, the primary's too: without it (an
+		// older primary, or none loaded) photos are measured without it.
+		if has, err := client.HasAesthetic(); err == nil && has {
+			mg.aesthetic = client
+		}
 		log.Info("using the models shared by the primary instance on", sock)
 		go mg.tokenCollector()
 		go mg.sharedLinksSweeper()
@@ -304,12 +317,17 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		log.Info("Face recognition not available ([faces] section not configured)")
 	}
 
+	// On this day's photo quality model (quality.go): small (~13 MB), loaded
+	// here; a device without it measures photos without it.
+	mg.aesthetic = loadQualityModel()
+
 	// Issue #167: the primary shares these with the supervised children,
 	// cServedAtOnce requests at a time: a face request carries the photo
 	// at full resolution (~48 MB for 12 MP, 200 MB at 50 MP), and every
 	// child queued its own, read before the recognizer's turn.
 	go func() {
-		if err := modelserver.ServeLimited(modelserver.SocketPath(), mg.waitForTagger, mg.faceRecognizer, cServedAtOnce); err != nil {
+		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic}
+		if err := modelserver.ServeModels(modelserver.SocketPath(), models, cServedAtOnce); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
 	}()
@@ -1640,6 +1658,7 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 	// served again across this (searchCursor.resume).
 	mg.searchTokens.noteDelete()
 	mg.places.changed()
+	mg.memories.changed()
 	hashes = []string{hash}
 
 	// Files are deduplicated on disk by hash (more than one path can point
@@ -2038,6 +2057,10 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			log.Debug("Time classifying image:", time.Since(startClass), targetPath)
 
 			mg.processFaces(session, file, img)
+
+			// On this day: how it looks, from the thumbnail written above
+			// (or by the fast lane).
+			mg.storeQuality(session, file, exif)
 		}
 		// Places: where it was taken, from the metadata read above - once
 		// it can show in Images, as the thumbnail is written first.
@@ -2231,6 +2254,10 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err := mg.dao.DelPhotoLocation(hash); err != nil {
 		log.Error("could not forget where deleted content was taken", hash, ":", err)
 	}
+	// On this day: nor its measures.
+	if err := mg.dao.DelPhotoQuality(hash); err != nil {
+		log.Error("could not forget how deleted content looked", hash, ":", err)
+	}
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -2313,6 +2340,9 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	}
 	if err := mg.dao.DelPhotoLocation(hash); err != nil {
 		log.Error("could not forget where deleted content was taken", hash, ":", err)
+	}
+	if err := mg.dao.DelPhotoQuality(hash); err != nil {
+		log.Error("could not forget how deleted content looked", hash, ":", err)
 	}
 	full := blobPath(hash)
 	os.Remove(full)

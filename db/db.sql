@@ -126,6 +126,48 @@ create table photo_locations
   primary key (`hash`)
 ) engine=InnoDB;
 
+-- On this day (Memories): how each photo looks, by content, measured once
+-- from its big thumbnail (files_manager/quality.go) while On this day is on
+-- (settings.memories_enabled): numbers only - how sharp and well exposed it
+-- is and a quality model's score - kept as they are, like file_tags'
+-- scores, to choose a day's best photos in a query. Written when the device
+-- analyses a photo (the slow lane), and in the background for what it held
+-- before. `aesthetic` is NIMA's score (1 to 10), NULL when measured without
+-- the model (measured again once it is there); `sharpness` the variance of
+-- the thumbnail's Laplacian; `dark`/`bright` the shares of pixels clipped to
+-- black and white; `brightness` the mean luma (0-255); `width`/`height` the
+-- big thumbnail's (never larger than the photo); `camera` whether its
+-- metadata names a camera (NULL: unread). Goes with the content's last path
+-- or kept version. Never sent anywhere.
+create table photo_quality
+(
+  `hash` varchar(64) not null,
+  `aesthetic` float null,
+  `sharpness` float not null,
+  `dark` float not null,
+  `bright` float not null,
+  `brightness` float not null,
+  `width` int not null,
+  `height` int not null,
+  `camera` tinyint(1) null,
+  `scored` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
+-- On this day: what the user chose not to see again (HideMemory) - a photo
+-- (`kind` 'photo', `value` its content hash), every photo of a day ('day',
+-- "2023-10-30"), one memory ('memory', its key: "week:2023-10-27") or every
+-- photo with a person in it ('person', the person's id).
+create table memories_hidden
+(
+  `kind` varchar(16) not null,
+  `value` varchar(64) not null,
+  `hidden` datetime not null,
+
+  primary key (`kind`, `value`)
+) engine=InnoDB;
+
 create table file_tags
 (
   `hash` varchar(64) not null,
@@ -321,7 +363,12 @@ create table settings
   -- each photo was taken (photo_locations, unencrypted); turning it off
   -- deletes them. The city and country search tags (issue #42, file_tags)
   -- don't depend on it.
-  `places_enabled` tinyint(1) not null default 0
+  `places_enabled` tinyint(1) not null default 0,
+  -- On this day (Memories): on unless the user turns it off
+  -- (SetMemoriesEnabled). While it is on the device measures how each photo
+  -- looks (photo_quality); off, it measures nothing and GetMemories answers
+  -- "memories_off". Turning it off deletes nothing.
+  `memories_enabled` tinyint(1) not null default 1
 ) engine=InnoDB;
 
 create table profile

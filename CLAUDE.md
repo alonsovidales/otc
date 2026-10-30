@@ -499,6 +499,53 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
       `TestPhotoLocationsWithoutTableMySQL` and `TestEachLocatedCopyLargeMySQL` (with
       `OTC_TEST_PLACES_LARGE=1`, 100k rows).
     - websocket's `TestPlacesRequests`, in a child process.
+- On this day (Memories, 2026-10-30, device side; release 150's `updates/150.sh`): the photos
+  taken around today in earlier years, the best of each year chosen by the device.
+  - Protocol: `GetMemories` (req 149: `date` "YYYY-MM-DD" the client's today, `period`
+    `MemoryPeriod` MemoryDay/MemoryWeek/MemoryMonth, `time_zone` IANA name, `utc_offset_minutes`
+    when the zone is "" or unknown) answers `Memories` (resp 73: `memories`, `measuring`,
+    `hidden_count`); each `Memory` has `key` ("day:2023-10-30", "week:2023-10-27", "month:2023-10"),
+    `years_ago`, `start_date`/`end_date`, `place`, `people` (named, faces on only), `cover` and
+    `files` (Files without content, in the order taken; thumbnails by path through GetThumbnails)
+    and `photo_count`. `HideMemory` (150: `kind` `MemoryHideKind` photo hash / day "YYYY-MM-DD" /
+    memory key / person id, `value`, `show` to undo, `show_all`) and `SetMemoriesEnabled` (151)
+    answer Ack. `Settings.memories_enabled` (9, `optional`, on by default). Off: `error_code`
+    "memories_off" (`dev.files.memories_off`); a bad date or period `dev.files.memories_bad_date`, a
+    hide naming nothing `dev.files.memories_bad_hide`. The demo allows GetMemories and refuses the
+    two others. Older devices answer `unknown_payload`.
+  - Measures (`files_manager/quality.go`, table `photo_quality` by content hash, unencrypted numbers
+    like `file_tags`' scores): NIMA's aesthetic score (`images_quality`, below; NULL without the
+    model), Laplacian sharpness, clipped dark/bright shares and mean luma, the big thumbnail's size,
+    and whether the EXIF names a camera - all from the big thumbnail (<= 1000 px), never the
+    original, so the lane and the backfill measure the same pixels. The slow lane measures after
+    tags and faces (`storeQuality`); `BackfillQuality` (after `BackfillLocations` in
+    `startBackfillOnce`, and when the switch goes on) measures what has no row - or, once the model
+    is there, a row without its score - behind `waitForQuiet`, `beginProcessing(jobThumbFix)`,
+    resumable, kept-out content never listed (`PhotosToScore`). Rows go with the content
+    (`removeBlobIfUnused`, `dropIfOrphaned`). Off measures nothing and deletes nothing.
+  - Choice (`files_manager/memories.go`; weights in `memoryWeights`/`memoryTagWeights`, limits as
+    constants): candidates are Images' photos (images only, outside kept-out folders) whose OLDEST
+    copy falls on the UTC month-days around the windows (`MemoryCandidates`: the copies on those
+    days, then each one's oldest copy - a photo synced back on that day years later never counts),
+    kept in the client's zone: day = the same day (29 Feb shows on 28 Feb in other years; a 28 Feb
+    of a year without a 29th also shows a leap year's 29th), week = ±3 days (a week around New Year
+    belongs to the year of its middle day), month = the calendar month. Left out (`leftOut`): what
+    the user hid (photo, day, person), screenshot names, document tags (weak ones like "text" only
+    without a camera or people), PNG/GIF/WebP and very tall pictures without a camera, sharpness
+    under 15, > 60% clipped or mean luma outside 20-240, under 400 px. Per year: moments split at 2 h
+    or a city change; score = people (named, groups; faces on only) + collection + own posts with
+    likes/comments + a trip (city/country other than the library's commonest place tags) + tags +
+    moment size + NIMA/sharpness/clipping; picks by score, at most a share per moment, a burst once
+    (3 s, or 2 min and a 64-bit dHash within 10 bits, from the small thumbnail, never stored); day 8
+    picks (2 needed, or 1 scoring >= 2), week 10, month 12 (3 needed); in the order taken, cover the
+    best; most recent year first. Answers kept per (date, period, zone, faces) for the device's day
+    until anything changes them (`memoriesState.changed`: a delete, a measure, a hide, the switch,
+    keep-out folders, people fixed). 100k photos: the day's query 15 ms, a month's 57 ms (Lima VM).
+  - Tests: `memories_test.go` (windows, years, month-days, keys, filters, choice, bursts, moments,
+    switch), `quality_test.go`, dao's `TestMemoryCandidatesMySQL`, `TestPhotosToScoreMySQL`,
+    `TestMemoriesSignalsMySQL`, `TestMemoriesWithoutTheirTablesMySQL`,
+    `TestMemoryCandidatesLargeMySQL` (`OTC_TEST_MEMORIES_LARGE=1`), websocket's
+    `TestMemoriesRequests`, modelserver's quality tests.
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)
@@ -1208,6 +1255,21 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   and videos get their place tags only (`retryTagger` answers `modelserver.ErrNoTagger`, which
   processing skips quietly), and it is tried again 1, 2, 4... minutes later, an hour apart at most;
   Reprocess Media adds the missing tags.
+- `images_quality` — On this day's photo quality: NIMA (Google's Neural Image Assessment), idealo's
+  MobileNet aesthetic weights trained on AVA (Apache-2.0), exported to ONNX
+  (`nima_mobilenet_aesthetic.onnx`, 12.8 MB, sha256 `b35a4d66…71d1`; matches Keras to 1e-6), plus
+  pure-Go `Sharpness`, `Exposure` and `DHash`. Input: the big thumbnail resized nearest-neighbour to
+  224x224 (`Resize`, as trained: an antialiased resize ranked photos differently, Spearman 0.77),
+  scaled to -1..1, NHWC; output the mean of the 10 rating bins. One thread, ~12 ms a photo on an
+  M-series Mac. `[quality] model-path` (install.sh, the container, 150.sh adds the section); the
+  file is optional: fetched with `fetch_optional` (install.sh), by update.sh at every update while
+  missing, and by the container at each start, from the `models` GitHub release; without it photos
+  are measured without the score. The primary loads it at start (`loadQualityModel`; low-memory: in
+  `idleModels`, at first use, released when idle) and serves it to the children
+  (`modelserver.ServeModels`, op "aesthetic" with the 224x224 pixels, `HasAesthetic` in "info"; an
+  older primary's "unknown request" is `ErrNoAesthetic`). `imagestagger.InitRuntime` initializes
+  ONNX Runtime once for both models. `TestQualityModelPinIsTheSameEverywhere` checks the pin in
+  install.sh, update.sh and the entrypoint.
 - **Low-memory profile** (`files_manager/lowmem.go`): MemTotal under 6 GB (a 4 GB Pi 5 reports
   ~3.7 GB) or `[otc] low-memory = on` (`auto` default, `off`; the primary passes a configured
   choice to its supervised instances as `OTC_LOW_MEMORY`). Logged once at start ("low-memory mode:

@@ -127,8 +127,10 @@ func (mg *Manager) outOfImagesFoldersLocked() ([]string, error) {
 // reloadOutOfImagesLocked reads the flagged folders into the cache after
 // a write; on an error the cache is emptied, so the next use reads again.
 func (mg *Manager) reloadOutOfImagesLocked() ([]string, error) {
-	// Places: the map's photos are the ones outside these folders.
+	// Places: the map's photos are the ones outside these folders; and On
+	// this day's.
 	defer mg.places.changed()
+	defer mg.memories.changed()
 	folders, err := mg.dao.GetOutOfImagesFolders()
 	if err != nil {
 		mg.outOfImagesCache.Store(nil)

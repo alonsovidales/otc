@@ -117,6 +117,18 @@
     "text": "conteúdo multimédia não encontrado",
     "en": "media not found"
   },
+  "dev.files.memories_bad_date": {
+    "text": "o pedido precisa de uma data no formato YYYY-MM-DD e de um período de um dia, uma semana ou um mês",
+    "en": "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month"
+  },
+  "dev.files.memories_bad_hide": {
+    "text": "nada para ocultar: o pedido não indica uma foto, um dia, uma memória nem uma pessoa",
+    "en": "nothing to hide: the request doesn't name a photo, a day, a memory or a person"
+  },
+  "dev.files.memories_off": {
+    "text": "Neste dia está desativado: ativa-o nas Definições para veres as tuas memórias",
+    "en": "On this day is off: turn it on in Settings to see your memories"
+  },
   "dev.files.no_low_res_photos": {
     "text": "aí não há fotos para partilhar em baixa resolução",
     "en": "there are no photos to share in low resolution there"

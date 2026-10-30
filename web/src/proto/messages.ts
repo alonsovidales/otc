@@ -73,6 +73,55 @@ export namespace ActionType {
   export type UNRECOGNIZED = typeof ActionType.UNRECOGNIZED;
 }
 
+/** Which days a memory covers, in each earlier year. */
+export const MemoryPeriod = {
+  /**
+   * MemoryDay - The same day of the month (a 29 February shows on 28 February in the
+   * other years).
+   */
+  MemoryDay: 0,
+  /** MemoryWeek - The week around it: three days before to three days after. */
+  MemoryWeek: 1,
+  /** MemoryMonth - The same calendar month. */
+  MemoryMonth: 2,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type MemoryPeriod = typeof MemoryPeriod[keyof typeof MemoryPeriod];
+
+export namespace MemoryPeriod {
+  export type MemoryDay = typeof MemoryPeriod.MemoryDay;
+  export type MemoryWeek = typeof MemoryPeriod.MemoryWeek;
+  export type MemoryMonth = typeof MemoryPeriod.MemoryMonth;
+  export type UNRECOGNIZED = typeof MemoryPeriod.UNRECOGNIZED;
+}
+
+/** What HideMemory hides. */
+export const MemoryHideKind = {
+  /** MemoryHidePhoto - One photo, by content hash: never in a memory again. */
+  MemoryHidePhoto: 0,
+  /**
+   * MemoryHideDay - Every photo taken on a day ("YYYY-MM-DD", in the client's time zone),
+   * in any memory.
+   */
+  MemoryHideDay: 1,
+  /** MemoryHideMemory - One memory, by Memory.key. */
+  MemoryHideMemory: 2,
+  /** MemoryHidePerson - Every photo with a person in it, by person id (face recognition). */
+  MemoryHidePerson: 3,
+  UNRECOGNIZED: -1,
+} as const;
+
+export type MemoryHideKind = typeof MemoryHideKind[keyof typeof MemoryHideKind];
+
+export namespace MemoryHideKind {
+  export type MemoryHidePhoto = typeof MemoryHideKind.MemoryHidePhoto;
+  export type MemoryHideDay = typeof MemoryHideKind.MemoryHideDay;
+  export type MemoryHideMemory = typeof MemoryHideKind.MemoryHideMemory;
+  export type MemoryHidePerson = typeof MemoryHideKind.MemoryHidePerson;
+  export type UNRECOGNIZED = typeof MemoryHideKind.UNRECOGNIZED;
+}
+
 export const BridgeOnboardErrorType = {
   generic_error: 0,
   taken_domain: 1,
@@ -1887,7 +1936,19 @@ export interface Settings {
    * depend on it. Always set by devices that have Places; absent means the
    * device predates it, and the apps show neither the map nor the switch.
    */
-  placesEnabled?: boolean | undefined;
+  placesEnabled?:
+    | boolean
+    | undefined;
+  /**
+   * On this day (Memories): on unless the user turns it off
+   * (SetMemoriesEnabled), for their own library. While it is on the device
+   * measures how each photo looks (sharpness, exposure and a quality
+   * model's score, kept as numbers by content) and GetMemories answers;
+   * off, GetMemories answers error_code "memories_off" and nothing is
+   * measured. Always set by devices that have it; absent means the device
+   * predates it, and the apps show neither the memories nor the switch.
+   */
+  memoriesEnabled?: boolean | undefined;
 }
 
 /**
@@ -1989,6 +2050,114 @@ export interface SetFaceRecognitionEnabled {
  * "demo"), and devices before Places answer error_code "unknown_payload".
  */
 export interface SetPlacesEnabled {
+  enabled: boolean;
+}
+
+/**
+ * On this day (Memories): the photos taken around today in earlier years,
+ * the best of each year chosen by the device - who is in them (when face
+ * recognition is on), what they show, whether they were put in a
+ * collection or posted, a trip, and how they look - with screenshots,
+ * documents, blurred, badly exposed and tiny pictures left out, and a
+ * burst counted once. Answers with resp_memories; error_code
+ * "memories_off" while the user has it off (Settings.memories_enabled);
+ * devices before it answer error_code "unknown_payload". The answer for a
+ * date and period is kept by the device for the day, so ask again freely.
+ */
+export interface GetMemories {
+  /** The client's own date, "YYYY-MM-DD": its today. */
+  date: string;
+  period: MemoryPeriod;
+  /**
+   * The client's time zone, an IANA name ("Europe/Madrid"), so a photo
+   * counts on the day it was taken there; "" (or one the device doesn't
+   * know) uses utc_offset_minutes.
+   */
+  timeZone: string;
+  utcOffsetMinutes: number;
+}
+
+/** One earlier year's memory. */
+export interface Memory {
+  /**
+   * What HideMemory takes to hide this memory (kind MemoryHideMemory):
+   * its period and first day, as "day:2023-10-30", "week:2023-10-27" or
+   * "month:2023-10".
+   */
+  key: string;
+  /** How many years ago (1 or more). */
+  yearsAgo: number;
+  /** The days it covers, "YYYY-MM-DD", first and last (the same for a day). */
+  startDate: string;
+  endDate: string;
+  /**
+   * Where most of its photos were taken (a city, else a country, from the
+   * photos' own location data); "" when none says.
+   */
+  place: string;
+  /**
+   * The named people in its photos, the one in most first; empty while face
+   * recognition is off.
+   */
+  people: string[];
+  /**
+   * The photo to show it by, one of files: hash, path, mime, dates and
+   * size, no content. Thumbnails come from GetThumbnails, by path.
+   */
+  cover?:
+    | File
+    | undefined;
+  /**
+   * The photos chosen, in the order they were taken, as cover (8 to 12 at
+   * most, fewer for a quiet day).
+   */
+  files: File[];
+  /**
+   * How many photos Images holds for those days (screenshots and the like
+   * included, what the user hid not): for "See all".
+   */
+  photoCount: number;
+}
+
+/** The answer to GetMemories. */
+export interface Memories {
+  /**
+   * One per earlier year that has photos worth showing, the most recent
+   * first. Empty on a day with none.
+   */
+  memories: Memory[];
+  /**
+   * The device is still measuring photos it held before On this day (just
+   * updated, or just turned on): the choice may get better; ask again later.
+   */
+  measuring: boolean;
+  /**
+   * How many things the user has hidden (HideMemory), for "Show hidden
+   * memories again".
+   */
+  hiddenCount: number;
+}
+
+/**
+ * On this day: hides something from the memories, or shows it again
+ * (show), or shows everything hidden again (show_all, kind and value
+ * ignored). Answers with the generic Ack. Owner and user sessions, each for
+ * their own library; a demo device refuses it (error_code "demo"), and
+ * devices before it answer error_code "unknown_payload".
+ */
+export interface HideMemory {
+  kind: MemoryHideKind;
+  value: string;
+  show: boolean;
+  showAll: boolean;
+}
+
+/**
+ * On this day's switch (Settings.memories_enabled), for the user's own
+ * library. Answers with the generic Ack. A demo device refuses it, and
+ * devices before it answer error_code "unknown_payload".
+ */
+export interface SetMemoriesEnabled {
   enabled: boolean;
 }
 
@@ -3296,6 +3465,15 @@ export interface ReqEnvelope {
      */
     { $case: "reqSetPlacesEnabled"; reqSetPlacesEnabled: SetPlacesEnabled }
     | //
+    /**
+     * On this day (Memories). GetMemories answers with resp_memories;
+     * HideMemory and SetMemoriesEnabled with the generic Ack. Devices
+     * before them answer error_code "unknown_payload".
+     */
+    { $case: "reqGetMemories"; reqGetMemories: GetMemories }
+    | { $case: "reqHideMemory"; reqHideMemory: HideMemory }
+    | { $case: "reqSetMemoriesEnabled"; reqSetMemoriesEnabled: SetMemoriesEnabled }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3450,6 +3628,9 @@ export interface RespEnvelope {
     | //
     /** Places: the answer to GetPhotoPlaces. */
     { $case: "respPhotoPlaces"; respPhotoPlaces: PhotoPlaces }
+    | //
+    /** On this day: the answer to GetMemories. */
+    { $case: "respMemories"; respMemories: Memories }
     | undefined;
 }
 
@@ -11740,6 +11921,7 @@ function createBaseSettings(): Settings {
     imageTaggingEnabled: false,
     language: undefined,
     placesEnabled: undefined,
+    memoriesEnabled: undefined,
   };
 }
 
@@ -11771,6 +11953,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.placesEnabled !== undefined) {
       writer.uint32(64).bool(message.placesEnabled);
+    }
+    if (message.memoriesEnabled !== undefined) {
+      writer.uint32(72).bool(message.memoriesEnabled);
     }
     return writer;
   },
@@ -11846,6 +12031,14 @@ export const Settings: MessageFns<Settings> = {
           message.placesEnabled = reader.bool();
           continue;
         }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.memoriesEnabled = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -11868,6 +12061,7 @@ export const Settings: MessageFns<Settings> = {
     message.imageTaggingEnabled = object.imageTaggingEnabled ?? false;
     message.language = object.language ?? undefined;
     message.placesEnabled = object.placesEnabled ?? undefined;
+    message.memoriesEnabled = object.memoriesEnabled ?? undefined;
     return message;
   },
 };
@@ -12570,6 +12764,438 @@ export const SetPlacesEnabled: MessageFns<SetPlacesEnabled> = {
   },
   fromPartial<I extends Exact<DeepPartial<SetPlacesEnabled>, I>>(object: I): SetPlacesEnabled {
     const message = createBaseSetPlacesEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseGetMemories(): GetMemories {
+  return { date: "", period: 0, timeZone: "", utcOffsetMinutes: 0 };
+}
+
+export const GetMemories: MessageFns<GetMemories> = {
+  encode(message: GetMemories, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.date !== "") {
+      writer.uint32(10).string(message.date);
+    }
+    if (message.period !== 0) {
+      writer.uint32(16).int32(message.period);
+    }
+    if (message.timeZone !== "") {
+      writer.uint32(26).string(message.timeZone);
+    }
+    if (message.utcOffsetMinutes !== 0) {
+      writer.uint32(32).int32(message.utcOffsetMinutes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetMemories {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetMemories();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.date = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.period = reader.int32() as any;
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.timeZone = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.utcOffsetMinutes = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetMemories>, I>>(base?: I): GetMemories {
+    return GetMemories.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetMemories>, I>>(object: I): GetMemories {
+    const message = createBaseGetMemories();
+    message.date = object.date ?? "";
+    message.period = object.period ?? 0;
+    message.timeZone = object.timeZone ?? "";
+    message.utcOffsetMinutes = object.utcOffsetMinutes ?? 0;
+    return message;
+  },
+};
+
+function createBaseMemory(): Memory {
+  return {
+    key: "",
+    yearsAgo: 0,
+    startDate: "",
+    endDate: "",
+    place: "",
+    people: [],
+    cover: undefined,
+    files: [],
+    photoCount: 0,
+  };
+}
+
+export const Memory: MessageFns<Memory> = {
+  encode(message: Memory, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.yearsAgo !== 0) {
+      writer.uint32(16).int32(message.yearsAgo);
+    }
+    if (message.startDate !== "") {
+      writer.uint32(26).string(message.startDate);
+    }
+    if (message.endDate !== "") {
+      writer.uint32(34).string(message.endDate);
+    }
+    if (message.place !== "") {
+      writer.uint32(42).string(message.place);
+    }
+    for (const v of message.people) {
+      writer.uint32(50).string(v!);
+    }
+    if (message.cover !== undefined) {
+      File.encode(message.cover, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.files) {
+      File.encode(v!, writer.uint32(66).fork()).join();
+    }
+    if (message.photoCount !== 0) {
+      writer.uint32(72).int32(message.photoCount);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Memory {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMemory();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.yearsAgo = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.startDate = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.endDate = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.place = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.people.push(reader.string());
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.cover = File.decode(reader, reader.uint32());
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.files.push(File.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.photoCount = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Memory>, I>>(base?: I): Memory {
+    return Memory.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Memory>, I>>(object: I): Memory {
+    const message = createBaseMemory();
+    message.key = object.key ?? "";
+    message.yearsAgo = object.yearsAgo ?? 0;
+    message.startDate = object.startDate ?? "";
+    message.endDate = object.endDate ?? "";
+    message.place = object.place ?? "";
+    message.people = object.people?.map((e) => e) || [];
+    message.cover = (object.cover !== undefined && object.cover !== null) ? File.fromPartial(object.cover) : undefined;
+    message.files = object.files?.map((e) => File.fromPartial(e)) || [];
+    message.photoCount = object.photoCount ?? 0;
+    return message;
+  },
+};
+
+function createBaseMemories(): Memories {
+  return { memories: [], measuring: false, hiddenCount: 0 };
+}
+
+export const Memories: MessageFns<Memories> = {
+  encode(message: Memories, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.memories) {
+      Memory.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.measuring !== false) {
+      writer.uint32(16).bool(message.measuring);
+    }
+    if (message.hiddenCount !== 0) {
+      writer.uint32(24).int32(message.hiddenCount);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Memories {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMemories();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.memories.push(Memory.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.measuring = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.hiddenCount = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Memories>, I>>(base?: I): Memories {
+    return Memories.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Memories>, I>>(object: I): Memories {
+    const message = createBaseMemories();
+    message.memories = object.memories?.map((e) => Memory.fromPartial(e)) || [];
+    message.measuring = object.measuring ?? false;
+    message.hiddenCount = object.hiddenCount ?? 0;
+    return message;
+  },
+};
+
+function createBaseHideMemory(): HideMemory {
+  return { kind: 0, value: "", show: false, showAll: false };
+}
+
+export const HideMemory: MessageFns<HideMemory> = {
+  encode(message: HideMemory, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== 0) {
+      writer.uint32(8).int32(message.kind);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    if (message.show !== false) {
+      writer.uint32(24).bool(message.show);
+    }
+    if (message.showAll !== false) {
+      writer.uint32(32).bool(message.showAll);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HideMemory {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHideMemory();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.kind = reader.int32() as any;
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.show = reader.bool();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.showAll = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<HideMemory>, I>>(base?: I): HideMemory {
+    return HideMemory.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HideMemory>, I>>(object: I): HideMemory {
+    const message = createBaseHideMemory();
+    message.kind = object.kind ?? 0;
+    message.value = object.value ?? "";
+    message.show = object.show ?? false;
+    message.showAll = object.showAll ?? false;
+    return message;
+  },
+};
+
+function createBaseSetMemoriesEnabled(): SetMemoriesEnabled {
+  return { enabled: false };
+}
+
+export const SetMemoriesEnabled: MessageFns<SetMemoriesEnabled> = {
+  encode(message: SetMemoriesEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetMemoriesEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetMemoriesEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetMemoriesEnabled>, I>>(base?: I): SetMemoriesEnabled {
+    return SetMemoriesEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetMemoriesEnabled>, I>>(object: I): SetMemoriesEnabled {
+    const message = createBaseSetMemoriesEnabled();
     message.enabled = object.enabled ?? false;
     return message;
   },
@@ -18924,6 +19550,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetPlacesEnabled":
         SetPlacesEnabled.encode(message.payload.reqSetPlacesEnabled, writer.uint32(1186).fork()).join();
         break;
+      case "reqGetMemories":
+        GetMemories.encode(message.payload.reqGetMemories, writer.uint32(1194).fork()).join();
+        break;
+      case "reqHideMemory":
+        HideMemory.encode(message.payload.reqHideMemory, writer.uint32(1202).fork()).join();
+        break;
+      case "reqSetMemoriesEnabled":
+        SetMemoriesEnabled.encode(message.payload.reqSetMemoriesEnabled, writer.uint32(1210).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -20259,6 +20894,33 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 149: {
+          if (tag !== 1194) {
+            break;
+          }
+
+          message.payload = { $case: "reqGetMemories", reqGetMemories: GetMemories.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 150: {
+          if (tag !== 1202) {
+            break;
+          }
+
+          message.payload = { $case: "reqHideMemory", reqHideMemory: HideMemory.decode(reader, reader.uint32()) };
+          continue;
+        }
+        case 151: {
+          if (tag !== 1210) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetMemoriesEnabled",
+            reqSetMemoriesEnabled: SetMemoriesEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21495,6 +22157,33 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetMemories": {
+        if (object.payload?.reqGetMemories !== undefined && object.payload?.reqGetMemories !== null) {
+          message.payload = {
+            $case: "reqGetMemories",
+            reqGetMemories: GetMemories.fromPartial(object.payload.reqGetMemories),
+          };
+        }
+        break;
+      }
+      case "reqHideMemory": {
+        if (object.payload?.reqHideMemory !== undefined && object.payload?.reqHideMemory !== null) {
+          message.payload = {
+            $case: "reqHideMemory",
+            reqHideMemory: HideMemory.fromPartial(object.payload.reqHideMemory),
+          };
+        }
+        break;
+      }
+      case "reqSetMemoriesEnabled": {
+        if (object.payload?.reqSetMemoriesEnabled !== undefined && object.payload?.reqSetMemoriesEnabled !== null) {
+          message.payload = {
+            $case: "reqSetMemoriesEnabled",
+            reqSetMemoriesEnabled: SetMemoriesEnabled.fromPartial(object.payload.reqSetMemoriesEnabled),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -21771,6 +22460,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respPhotoPlaces":
         PhotoPlaces.encode(message.payload.respPhotoPlaces, writer.uint32(578).fork()).join();
+        break;
+      case "respMemories":
+        Memories.encode(message.payload.respMemories, writer.uint32(586).fork()).join();
         break;
     }
     return writer;
@@ -22418,6 +23110,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respPhotoPlaces", respPhotoPlaces: PhotoPlaces.decode(reader, reader.uint32()) };
           continue;
         }
+        case 73: {
+          if (tag !== 586) {
+            break;
+          }
+
+          message.payload = { $case: "respMemories", respMemories: Memories.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -22977,6 +23677,12 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
             $case: "respPhotoPlaces",
             respPhotoPlaces: PhotoPlaces.fromPartial(object.payload.respPhotoPlaces),
           };
+        }
+        break;
+      }
+      case "respMemories": {
+        if (object.payload?.respMemories !== undefined && object.payload?.respMemories !== null) {
+          message.payload = { $case: "respMemories", respMemories: Memories.fromPartial(object.payload.respMemories) };
         }
         break;
       }

@@ -117,6 +117,18 @@
     "text": "contenido multimedia no encontrado",
     "en": "media not found"
   },
+  "dev.files.memories_bad_date": {
+    "text": "la solicitud necesita una fecha con el formato YYYY-MM-DD y un periodo de un día, una semana o un mes",
+    "en": "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month"
+  },
+  "dev.files.memories_bad_hide": {
+    "text": "nada que ocultar: la solicitud no indica una foto, un día, un recuerdo ni una persona",
+    "en": "nothing to hide: the request doesn't name a photo, a day, a memory or a person"
+  },
+  "dev.files.memories_off": {
+    "text": "Un día como hoy está desactivado: actívalo en Ajustes para ver tus recuerdos",
+    "en": "On this day is off: turn it on in Settings to see your memories"
+  },
   "dev.files.no_low_res_photos": {
     "text": "ahí no hay fotos que compartir en baja resolución",
     "en": "there are no photos to share in low resolution there"

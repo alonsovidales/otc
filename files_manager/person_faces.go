@@ -41,6 +41,7 @@ func (mg *Manager) RemoveFromPerson(ses *session.Session, personID string, hashe
 	// have by them, as after a delete: no search page is served again
 	// across this (searchCursor.resume), or they would come back.
 	mg.searchTokens.noteDelete()
+	mg.memories.changed()
 	log.Debug("moved", moved, "face(s) off a person")
 	mg.rebuildPeopleLocked(ses, personID, toPersonID)
 	return nil

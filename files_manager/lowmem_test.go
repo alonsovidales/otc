@@ -531,9 +531,12 @@ func TestInitIdleModelsWiring(t *testing.T) {
 	k := newFakeKernel(t)
 	served := make(chan int, 1)
 	prev := serveModels
-	serveModels = func(_ string, tagger func() modelserver.Tagger, faces modelserver.FaceDetector, limit int) error {
-		if faces != nil {
+	serveModels = func(_ string, m modelserver.Models, limit int) error {
+		if m.Faces != nil {
 			t.Error("faces served without [faces]")
+		}
+		if m.Aesthetic != nil {
+			t.Error("a quality model served without [quality]")
 		}
 		served <- limit
 		return nil

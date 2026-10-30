@@ -259,6 +259,9 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// Places: the positions of what was stored before - once per
 			// database, from the metadata alone (location_backfill.go).
 			mg.filesManager.BackfillLocations(ses)
+			// On this day: how what was stored before looks - from the
+			// thumbnails, behind the uploads and the lanes (quality.go).
+			mg.filesManager.BackfillQuality(ses)
 		}()
 	})
 }
@@ -2942,6 +2945,39 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespPhotoPlaces{RespPhotoPlaces: places}
 		}
 
+	// On this day (Memories): the best photos of earlier years' same days.
+	case *pb.ReqEnvelope_ReqGetMemories:
+		memories, err := ch.mg.filesManager.Memories(ses, p.ReqGetMemories)
+		if errors.Is(err, filesmanager.ErrMemoriesOff) {
+			log.Debug("the memories asked for while On this day is off")
+			resp.Error = true
+			resp.ErrorCode = cCodeMemoriesOff
+			resp.ErrorMessage = i18n.DevFilesMemoriesOff().Render(lang)
+		} else if err != nil {
+			log.Error("error choosing the memories:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespMemories{RespMemories: memories}
+		}
+
+	// On this day: hide something from the memories, or show it again.
+	case *pb.ReqEnvelope_ReqHideMemory:
+		req := p.ReqHideMemory
+		var err error
+		if req.ShowAll {
+			err = ch.mg.filesManager.ShowAllMemories()
+		} else {
+			err = ch.mg.filesManager.HideMemory(hiddenMemory(req), req.Show)
+		}
+		if err != nil {
+			log.Error("error hiding a memory, or showing it again:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
 	// Issue #78: notifications.
 	case *pb.ReqEnvelope_ReqListNotifications:
 		limit := int(p.ReqListNotifications.Limit)
@@ -3259,6 +3295,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				Language: demoLanguage(ch.mg.settings.Language()),
 				// Places: always set by a device that has it.
 				PlacesEnabled: proto.Bool(ch.mg.filesManager.PlacesEnabled()),
+				// On this day: the same.
+				MemoriesEnabled: proto.Bool(ch.mg.filesManager.MemoriesEnabled()),
 			},
 		}
 
@@ -3313,6 +3351,20 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		log.Info("Set Places enabled:", on)
 		if err := ch.mg.filesManager.SetPlacesEnabled(ses, on); err != nil {
 			log.Error("error turning Places on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// On this day: on unless the user turns it off. On measures what the
+	// device holds in the background with this session's key; off deletes
+	// nothing.
+	case *pb.ReqEnvelope_ReqSetMemoriesEnabled:
+		on := p.ReqSetMemoriesEnabled.Enabled
+		log.Info("Set On this day enabled:", on)
+		if err := ch.mg.filesManager.SetMemoriesEnabled(ses, on); err != nil {
+			log.Error("error turning On this day on or off:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {

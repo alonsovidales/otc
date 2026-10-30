@@ -142,6 +142,28 @@ fetch_pinned() {
     rmdir "$tmpd" 2>/dev/null || rm -rf "$tmpd"
 }
 
+# fetch_optional URL DEST SHA256 is fetch_pinned for a file the device can
+# do without (On this day's quality model): a download that fails, or
+# doesn't match its pinned hash, is a warning and leaves nothing behind.
+fetch_optional() {
+    local url="$1" dest="$2" want="$3" dir tmpd
+    dir="$(dirname -- "$dest")"
+    tmpd="$(mktemp -d "$dir/.otc-fetch.XXXXXX")" || { log "warning: could not make a download directory in $dir"; return 0; }
+    if ! curl -fL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
+        -o "$tmpd/download" "$url"; then
+        rm -rf "$tmpd"
+        log "warning: could not download $url - it is tried again by the next update"
+        return 0
+    fi
+    if [ "$(sha256sum "$tmpd/download" | awk '{print $1}')" != "$want" ]; then
+        rm -rf "$tmpd"
+        log "warning: $url does not match its pinned hash - left out"
+        return 0
+    fi
+    mv -Tf "$tmpd/download" "$dest"
+    rmdir "$tmpd" 2>/dev/null || rm -rf "$tmpd"
+}
+
 # If a previous run got partway through and then died (a killed `curl | bash`,
 # a failed step, a reboot mid-install, ...) there will be pieces of OTC on this
 # box — the binary, the database, the models — but NO /etc/otc/.install-complete
@@ -197,6 +219,14 @@ MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
 FACE_DETECTOR_ONNX=$MODEL_DIR/face_detection_yunet_2023mar.onnx
 FACE_RECOGNIZER_ONNX=$MODEL_DIR/face_recognition_sface_2021dec_int8.onnx
 OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
+# On this day (Memories): NIMA, Google's Neural Image Assessment - idealo's
+# MobileNet trained on the AVA ratings (Apache-2.0), exported to ONNX
+# (~13MB) - scores how each photo looks. Optional: without it photos are
+# measured by sharpness and exposure alone, so a download that fails is
+# only a warning (fetch_optional), tried again by the next update.
+QUALITY_ONNX=$MODEL_DIR/nima_mobilenet_aesthetic.onnx
+QUALITY_ONNX_URL=https://github.com/alonsovidales/otc/releases/download/models/nima_mobilenet_aesthetic.onnx
+QUALITY_ONNX_SHA=b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1
 ENVIRONMENT=dev
 INI_FILE="/etc/otc_${ENVIRONMENT}.ini"
 # otc_ini KEY: the [otc] value of KEY in the config an earlier run wrote,
@@ -654,7 +684,7 @@ mkdir -p "$MODEL_DIR"
 # that is a symlink (none was ever installed as one) is fetched again.
 chown root:root "$MODEL_DIR"
 chmod 0755 "$MODEL_DIR"
-for f in "$MODEL_ONNX" "$MODEL_THRESHOLDS" "$MODEL_TAGS" "$FACE_DETECTOR_ONNX" "$FACE_RECOGNIZER_ONNX"; do
+for f in "$MODEL_ONNX" "$MODEL_THRESHOLDS" "$MODEL_TAGS" "$FACE_DETECTOR_ONNX" "$FACE_RECOGNIZER_ONNX" "$QUALITY_ONNX"; do
     if [ -L "$f" ]; then rm -f -- "$f"; fi
 done
 # Each file is checked on its own: fetch_pinned only moves a file into place
@@ -685,6 +715,10 @@ if [ ! -f "$FACE_DETECTOR_ONNX" ]; then
 fi
 if [ ! -f "$FACE_RECOGNIZER_ONNX" ]; then
     fetch_pinned "$OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx" "$FACE_RECOGNIZER_ONNX" 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a
+fi
+# On this day's photo quality model: optional (see QUALITY_ONNX).
+if [ ! -f "$QUALITY_ONNX" ]; then
+    fetch_optional "$QUALITY_ONNX_URL" "$QUALITY_ONNX" "$QUALITY_ONNX_SHA"
 fi
 # Read-only to the service (it only loads them). -R changes a symlink
 # itself, never what it points to, and chmod -R skips symlinks.
@@ -1194,6 +1228,31 @@ SQL
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS locations_backfilled TINYINT(1) NOT NULL DEFAULT 0;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS places_enabled TINYINT(1) NOT NULL DEFAULT 0;
 SQL
+    # Release 150 (updates/150.sh): On this day - how each photo looks, what
+    # the user hid from the memories, and the switch, on by default (see
+    # db.sql).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS photo_quality (
+      `hash` VARCHAR(64) NOT NULL,
+      `aesthetic` FLOAT NULL,
+      `sharpness` FLOAT NOT NULL,
+      `dark` FLOAT NOT NULL,
+      `bright` FLOAT NOT NULL,
+      `brightness` FLOAT NOT NULL,
+      `width` INT NOT NULL,
+      `height` INT NOT NULL,
+      `camera` TINYINT(1) NULL,
+      `scored` DATETIME NOT NULL,
+      PRIMARY KEY (`hash`)
+    ) ENGINE=InnoDB;
+    CREATE TABLE IF NOT EXISTS memories_hidden (
+      `kind` VARCHAR(16) NOT NULL,
+      `value` VARCHAR(64) NOT NULL,
+      `hidden` DATETIME NOT NULL,
+      PRIMARY KEY (`kind`, `value`)
+    ) ENGINE=InnoDB;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS memories_enabled TINYINT(1) NOT NULL DEFAULT 1;
+SQL
 }
 
 apply_schema_migrations otc
@@ -1338,6 +1397,11 @@ max-images-search=30
 [faces]
 detector-model-path=$FACE_DETECTOR_ONNX
 recognizer-model-path=$FACE_RECOGNIZER_ONNX
+
+# On this day (Memories): the photo quality model. Optional - a device
+# without the file measures photos by sharpness and exposure alone.
+[quality]
+model-path=$QUALITY_ONNX
 EOF
 # The database password (and the rest of the device's settings): root
 # and the service only - it used to be left readable by every account.

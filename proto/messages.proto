@@ -1475,6 +1475,14 @@ message Settings {
   // depend on it. Always set by devices that have Places; absent means the
   // device predates it, and the apps show neither the map nor the switch.
   optional bool places_enabled = 8;
+  // On this day (Memories): on unless the user turns it off
+  // (SetMemoriesEnabled), for their own library. While it is on the device
+  // measures how each photo looks (sharpness, exposure and a quality
+  // model's score, kept as numbers by content) and GetMemories answers;
+  // off, GetMemories answers error_code "memories_off" and nothing is
+  // measured. Always set by devices that have it; absent means the device
+  // predates it, and the apps show neither the memories nor the switch.
+  optional bool memories_enabled = 9;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -1564,6 +1572,110 @@ message SetFaceRecognitionEnabled {
 // SetFaceRecognitionEnabled; a demo device refuses it (error_code
 // "demo"), and devices before Places answer error_code "unknown_payload".
 message SetPlacesEnabled {
+  bool enabled = 1;
+}
+
+// On this day (Memories): the photos taken around today in earlier years,
+// the best of each year chosen by the device - who is in them (when face
+// recognition is on), what they show, whether they were put in a
+// collection or posted, a trip, and how they look - with screenshots,
+// documents, blurred, badly exposed and tiny pictures left out, and a
+// burst counted once. Answers with resp_memories; error_code
+// "memories_off" while the user has it off (Settings.memories_enabled);
+// devices before it answer error_code "unknown_payload". The answer for a
+// date and period is kept by the device for the day, so ask again freely.
+message GetMemories {
+  // The client's own date, "YYYY-MM-DD": its today.
+  string date = 1;
+  MemoryPeriod period = 2;
+  // The client's time zone, an IANA name ("Europe/Madrid"), so a photo
+  // counts on the day it was taken there; "" (or one the device doesn't
+  // know) uses utc_offset_minutes.
+  string time_zone = 3;
+  int32 utc_offset_minutes = 4;
+}
+
+// Which days a memory covers, in each earlier year.
+enum MemoryPeriod {
+  // The same day of the month (a 29 February shows on 28 February in the
+  // other years).
+  MemoryDay = 0;
+  // The week around it: three days before to three days after.
+  MemoryWeek = 1;
+  // The same calendar month.
+  MemoryMonth = 2;
+}
+
+// One earlier year's memory.
+message Memory {
+  // What HideMemory takes to hide this memory (kind MemoryHideMemory):
+  // its period and first day, as "day:2023-10-30", "week:2023-10-27" or
+  // "month:2023-10".
+  string key = 1;
+  // How many years ago (1 or more).
+  int32 years_ago = 2;
+  // The days it covers, "YYYY-MM-DD", first and last (the same for a day).
+  string start_date = 3;
+  string end_date = 4;
+  // Where most of its photos were taken (a city, else a country, from the
+  // photos' own location data); "" when none says.
+  string place = 5;
+  // The named people in its photos, the one in most first; empty while face
+  // recognition is off.
+  repeated string people = 6;
+  // The photo to show it by, one of files: hash, path, mime, dates and
+  // size, no content. Thumbnails come from GetThumbnails, by path.
+  File cover = 7;
+  // The photos chosen, in the order they were taken, as cover (8 to 12 at
+  // most, fewer for a quiet day).
+  repeated File files = 8;
+  // How many photos Images holds for those days (screenshots and the like
+  // included, what the user hid not): for "See all".
+  int32 photo_count = 9;
+}
+
+// The answer to GetMemories.
+message Memories {
+  // One per earlier year that has photos worth showing, the most recent
+  // first. Empty on a day with none.
+  repeated Memory memories = 1;
+  // The device is still measuring photos it held before On this day (just
+  // updated, or just turned on): the choice may get better; ask again later.
+  bool measuring = 2;
+  // How many things the user has hidden (HideMemory), for "Show hidden
+  // memories again".
+  int32 hidden_count = 3;
+}
+
+// What HideMemory hides.
+enum MemoryHideKind {
+  // One photo, by content hash: never in a memory again.
+  MemoryHidePhoto = 0;
+  // Every photo taken on a day ("YYYY-MM-DD", in the client's time zone),
+  // in any memory.
+  MemoryHideDay = 1;
+  // One memory, by Memory.key.
+  MemoryHideMemory = 2;
+  // Every photo with a person in it, by person id (face recognition).
+  MemoryHidePerson = 3;
+}
+
+// On this day: hides something from the memories, or shows it again
+// (show), or shows everything hidden again (show_all, kind and value
+// ignored). Answers with the generic Ack. Owner and user sessions, each for
+// their own library; a demo device refuses it (error_code "demo"), and
+// devices before it answer error_code "unknown_payload".
+message HideMemory {
+  MemoryHideKind kind = 1;
+  string value = 2;
+  bool show = 3;
+  bool show_all = 4;
+}
+
+// On this day's switch (Settings.memories_enabled), for the user's own
+// library. Answers with the generic Ack. A demo device refuses it, and
+// devices before it answer error_code "unknown_payload".
+message SetMemoriesEnabled {
   bool enabled = 1;
 }
 
@@ -2669,6 +2781,12 @@ message ReqEnvelope {
     // Places' switch. Answers with the generic Ack; devices before it with
     // error_code "unknown_payload".
     SetPlacesEnabled req_set_places_enabled = 148;
+    // On this day (Memories). GetMemories answers with resp_memories;
+    // HideMemory and SetMemoriesEnabled with the generic Ack. Devices
+    // before them answer error_code "unknown_payload".
+    GetMemories req_get_memories = 149;
+    HideMemory req_hide_memory = 150;
+    SetMemoriesEnabled req_set_memories_enabled = 151;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2792,5 +2910,7 @@ message RespEnvelope {
     WifiStatus resp_wifi_status = 71;
     // Places: the answer to GetPhotoPlaces.
     PhotoPlaces resp_photo_places = 72;
+    // On this day: the answer to GetMemories.
+    Memories resp_memories = 73;
   }
 }

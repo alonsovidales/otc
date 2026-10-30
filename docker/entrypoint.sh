@@ -56,6 +56,10 @@ MODEL_LIST=(
     "face_detection_yunet_2023mar.onnx $OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
     "face_recognition_sface_2021dec_int8.onnx $OPENCV_ZOO_RAW/face_recognition_sface/face_recognition_sface_2021dec_int8.onnx 2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a"
 )
+# On this day's photo quality model (install.sh's QUALITY_ONNX): optional -
+# without it photos are measured by sharpness and exposure alone - so a
+# download that fails is logged and tried again at the next start.
+QUALITY_MODEL="nima_mobilenet_aesthetic.onnx https://github.com/alonsovidales/otc/releases/download/models/nima_mobilenet_aesthetic.onnx b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1"
 
 DB_PID=
 APP_PID=
@@ -395,12 +399,34 @@ fetch_model() {
     as_otc mv -f -- "$part" "$dest" || die "could not move $name into place"
 }
 
+fetch_optional_model() {
+    local name=$1 url=$2 sha=$3 dest part
+    dest=$MODELS/$name
+    part=$dest.part
+    [ -f "$dest" ] && [ ! -L "$dest" ] && return 0
+    log "downloading $name"
+    as_otc rm -f -- "$part"
+    if ! as_otc curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$part" "$url"; then
+        as_otc rm -f -- "$part"
+        log "could not download $name: photos are measured without it until the next start"
+        return 0
+    fi
+    if [ "$(as_otc sha256sum "$part" | cut -d' ' -f1)" != "$sha" ]; then
+        as_otc rm -f -- "$part"
+        log "$name does not match its pinned hash: left out"
+        return 0
+    fi
+    as_otc mv -f -- "$part" "$dest" || log "could not move $name into place"
+}
+
 fetch_models() {
     local m
     for m in "${MODEL_LIST[@]}"; do
         # shellcheck disable=SC2086
         fetch_model $m
     done
+    # shellcheck disable=SC2086
+    fetch_optional_model $QUALITY_MODEL
     # The tag list comes with the image (install.sh takes it from the release).
     as_otc sh -c 'gunzip < "$1" > "$2.tmp" && mv -f "$2.tmp" "$2"' sh "$SHARE/tag_list_4585.txt.gz" "$MODELS/tag_list_4585.txt" \
         || die "could not unpack the tag list"
@@ -712,6 +738,9 @@ max-images-search=30
 [faces]
 detector-model-path=$MODELS/face_detection_yunet_2023mar.onnx
 recognizer-model-path=$MODELS/face_recognition_sface_2021dec_int8.onnx
+
+[quality]
+model-path=$MODELS/nima_mobilenet_aesthetic.onnx
 EOF
     ) && chown root:otc "$INI.tmp" && chmod 0640 "$INI.tmp" && mv -f "$INI.tmp" "$INI" \
         || die "could not write $INI"

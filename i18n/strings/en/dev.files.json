@@ -139,6 +139,18 @@
     "text": "media not found",
     "note": "Error reply when a photo or video to play could not be found, or its playing address has expired (shared galleries, posts, the viewer)."
   },
+  "dev.files.memories_bad_date": {
+    "text": "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month",
+    "note": "Error reply when an app asks for the memories (On this day) without a valid date or period (an app fault). YYYY-MM-DD is the date's technical format and stays as it is."
+  },
+  "dev.files.memories_bad_hide": {
+    "text": "nothing to hide: the request doesn't name a photo, a day, a memory or a person",
+    "note": "Error reply when an app asks to hide something from the memories (On this day) without naming a valid photo, day, memory or person (an app fault)."
+  },
+  "dev.files.memories_off": {
+    "text": "On this day is off: turn it on in Settings to see your memories",
+    "note": "Error reply when the memories (On this day: photos taken on this day in earlier years) are asked for while the user has the feature turned off in Settings. The apps hide them then, so it is rarely shown. On this day is the feature's name, as in the apps' Settings."
+  },
   "dev.files.no_low_res_photos": {
     "text": "there are no photos to share in low resolution there",
     "note": "Error when sharing a collection or folder as a gallery with \"low resolution\" on, and it holds no photos (low resolution shares photos only)."

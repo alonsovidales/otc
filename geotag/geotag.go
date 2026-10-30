@@ -14,6 +14,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //go:embed data/cities.tsv
@@ -99,4 +100,37 @@ func haversineKm(lat1, lon1, lat2, lon2 float64) float64 {
 	a := math.Sin(dLat/2)*math.Sin(dLat/2) + math.Cos(lat1r)*math.Cos(lat2r)*math.Sin(dLon/2)*math.Sin(dLon/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return earthRadiusKm * c
+}
+
+var (
+	namesOnce    sync.Once
+	cityNames    map[string]bool
+	countryNames map[string]bool
+)
+
+// names fills the sets IsCity and IsCountry read, once.
+func names() {
+	namesOnce.Do(func() {
+		cityNames = make(map[string]bool, len(cities))
+		for _, c := range cities {
+			cityNames[c.name] = true
+		}
+		countryNames = make(map[string]bool, len(countries))
+		for _, n := range countries {
+			countryNames[n] = true
+		}
+	})
+}
+
+// IsCity is whether name is a city ReverseGeocode may answer: a photo's
+// place tag (file_tags), not a word of the tagging model's.
+func IsCity(name string) bool {
+	names()
+	return cityNames[name]
+}
+
+// IsCountry is whether name is a country ReverseGeocode may answer.
+func IsCountry(name string) bool {
+	names()
+	return countryNames[name]
 }
