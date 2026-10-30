@@ -144,6 +144,7 @@
     <string name="app_settings_reprocess_title">Medien neu verarbeiten</string>
     <string name="app_settings_sharing_title">Teilen</string>
     <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_describing">Lernt deine Fotos kennen… %1$s von %2$s</string>
     <string name="app_settings_smart_search_download_note">Wenn du sie zum ersten Mal einschaltest, lädt dein Gerät etwa 400 MB herunter.</string>
     <string name="app_settings_smart_search_downloading">Lädt herunter, was sie braucht… %1$s %%</string>
     <string name="app_settings_smart_search_footer">Finde Fotos, indem du sie beschreibst, in jeder Sprache der App. Dein Gerät ermittelt das selbst und speichert es verschlüsselt. Wenn du sie ausschaltest, wird gelöscht, was es gelernt hat.</string>

@@ -478,6 +478,10 @@ fun S.appSettingsSharingTitle(): UiText =
 fun S.appSettingsSmartSearchBeta(): UiText =
     UiText.Res(R.string.app_settings_smart_search_beta)
 
+/** "Getting to know your photos… {done} of {total}": Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading. */
+fun S.appSettingsSmartSearchDescribing(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_settings_smart_search_describing, listOf(done, total))
+
 /** "Turning it on the first time downloads about 400 MB to your device.": Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed. */
 fun S.appSettingsSmartSearchDownloadNote(): UiText =
     UiText.Res(R.string.app_settings_smart_search_download_note)

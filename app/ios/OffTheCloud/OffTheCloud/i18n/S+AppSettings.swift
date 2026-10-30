@@ -650,6 +650,13 @@ extension S {
     /// Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word.
     static var appSettingsSmartSearchBeta: String { L("app.settings.smart_search.beta", table: "AppSettings") }
 
+    /// Getting to know your photos… {done} of {total}
+    ///
+    /// Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading.
+    static func appSettingsSmartSearchDescribing(done: Int, total: Int) -> String {
+        L("app.settings.smart_search.describing", table: "AppSettings", done, total)
+    }
+
     /// Turning it on the first time downloads about 400 MB to your device.
     ///
     /// Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed.

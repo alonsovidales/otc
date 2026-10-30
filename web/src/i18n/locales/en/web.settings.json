@@ -127,6 +127,7 @@
   "web.settings.session.signing_out": "Signing out…",
   "web.settings.session.title": "Session",
   "web.settings.smart_search.beta": "Beta",
+  "web.settings.smart_search.describing": "Getting to know your photos… {done} of {total}",
   "web.settings.smart_search.disable": "Disable Smart search",
   "web.settings.smart_search.download_note": "Turning it on the first time downloads about 400 MB to your device.",
   "web.settings.smart_search.downloading": "Downloading what it needs… {percent}%",

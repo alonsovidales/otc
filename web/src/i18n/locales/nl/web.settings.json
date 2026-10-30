@@ -127,6 +127,7 @@
   "web.settings.session.signing_out": "Uitloggen…",
   "web.settings.session.title": "Sessie",
   "web.settings.smart_search.beta": "Bèta",
+  "web.settings.smart_search.describing": "Leert je foto’s kennen… {done} van {total}",
   "web.settings.smart_search.disable": "Slim zoeken uitschakelen",
   "web.settings.smart_search.download_note": "De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB.",
   "web.settings.smart_search.downloading": "Downloaden wat het nodig heeft… {percent}%",

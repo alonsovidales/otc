@@ -6779,6 +6779,53 @@
         }
       }
     },
+    "app.settings.smart_search.describing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lernt deine Fotos kennen… %1$lld von %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting to know your photos… %1$lld of %2$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conociendo tus fotos… %1$lld de %2$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apprend à connaître vos photos… %1$lld sur %2$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sta conoscendo le tue foto… %1$lld di %2$lld"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leert je foto’s kennen… %1$lld van %2$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A conhecer as tuas fotos… %1$lld de %2$lld"
+          }
+        }
+      }
+    },
     "app.settings.smart_search.download_note" : {
       "extractionState" : "manual",
       "localizations" : {

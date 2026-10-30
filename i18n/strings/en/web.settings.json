@@ -610,6 +610,11 @@
     "note": "Small badge beside the Smart search heading in Settings: the feature is still being tried out.",
     "max": 8
   },
+  "web.settings.smart_search.describing": {
+    "text": "Getting to know your photos… {done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading. The phones' app.settings.smart_search.describing."
+  },
   "web.settings.smart_search.disable": {
     "text": "Disable Smart search",
     "note": "Button in Settings > Smart search that turns it off, after a confirmation: what the device learned is deleted.",

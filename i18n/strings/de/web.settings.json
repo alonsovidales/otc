@@ -511,6 +511,10 @@
     "text": "Beta",
     "en": "Beta"
   },
+  "web.settings.smart_search.describing": {
+    "text": "Lernt deine Fotos kennen… {done} von {total}",
+    "en": "Getting to know your photos… {done} of {total}"
+  },
   "web.settings.smart_search.disable": {
     "text": "Intelligente Suche ausschalten",
     "en": "Disable Smart search"

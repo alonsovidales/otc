@@ -152,6 +152,7 @@
     <string name="app_settings_reprocess_title">Retraiter les médias</string>
     <string name="app_settings_sharing_title">Partage</string>
     <string name="app_settings_smart_search_beta">Bêta</string>
+    <string name="app_settings_smart_search_describing">Apprend à connaître vos photos… %1$s sur %2$s</string>
     <string name="app_settings_smart_search_download_note">La première fois que vous l’activez, votre appareil télécharge environ 400 Mo.</string>
     <string name="app_settings_smart_search_downloading">Téléchargement de ce dont elle a besoin… %1$s %%</string>
     <string name="app_settings_smart_search_footer">Trouvez des photos en les décrivant, dans n’importe quelle langue de l’app. Votre appareil fait ce travail lui-même et le conserve chiffré. La désactiver supprime ce qu’il a appris.</string>

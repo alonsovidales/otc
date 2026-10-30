@@ -553,6 +553,10 @@
     "text": "Bèta",
     "en": "Beta"
   },
+  "app.settings.smart_search.describing": {
+    "text": "Leert je foto’s kennen… {done} van {total}",
+    "en": "Getting to know your photos… {done} of {total}"
+  },
   "app.settings.smart_search.download_note": {
     "text": "De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB.",
     "en": "Turning it on the first time downloads about 400 MB to your device."

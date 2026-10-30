@@ -553,6 +553,10 @@
     "text": "Beta",
     "en": "Beta"
   },
+  "app.settings.smart_search.describing": {
+    "text": "A conhecer as tuas fotos… {done} de {total}",
+    "en": "Getting to know your photos… {done} of {total}"
+  },
   "app.settings.smart_search.download_note": {
     "text": "Da primeira vez que a ativas, o teu dispositivo transfere cerca de 400 MB.",
     "en": "Turning it on the first time downloads about 400 MB to your device."

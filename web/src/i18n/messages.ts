@@ -646,6 +646,7 @@ export type MessageKey =
   | "web.settings.session.signing_out"
   | "web.settings.session.title"
   | "web.settings.smart_search.beta"
+  | "web.settings.smart_search.describing"
   | "web.settings.smart_search.disable"
   | "web.settings.smart_search.download_note"
   | "web.settings.smart_search.downloading"
@@ -1760,6 +1761,7 @@ export interface MessageArgs {
   "web.settings.session.signing_out": undefined;
   "web.settings.session.title": undefined;
   "web.settings.smart_search.beta": undefined;
+  "web.settings.smart_search.describing": { done: number; total: number };
   "web.settings.smart_search.disable": undefined;
   "web.settings.smart_search.download_note": undefined;
   "web.settings.smart_search.downloading": { percent: number };

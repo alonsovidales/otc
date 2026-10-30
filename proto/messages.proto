@@ -1501,8 +1501,9 @@ message Settings {
   // measured. Always set by devices that have it; absent means the device
   // predates it, and the apps show neither the memories nor the switch.
   optional bool memories_enabled = 9;
-  // Smart search (beta): off unless the user turns it on
-  // (SetSmartSearchEnabled), for their own library. While it is on the
+  // Smart search (beta): on by default since release 152 (off by default in
+  // 151), each user turning it off or on again (SetSmartSearchEnabled) for
+  // their own library. While it is on the
   // device describes each photo as a list of numbers (an embedding, from
   // the photo's thumbnail, by an image model on the device), kept encrypted
   // with the user's key, so SearchPhotos.text finds photos by what they
@@ -1516,6 +1517,19 @@ message Settings {
   // the user's own library; absent means an older device, which had the
   // model or answered "smart_search_unavailable".
   optional SmartSearchModel smart_search_model = 11;
+  // How far the device is in describing the user's photos (release 152).
+  // Set while Smart search is on and its model is ready; described equal to
+  // total means done. Absent on older devices and while it is off or the
+  // model isn't there yet.
+  optional SmartSearchProgress smart_search_progress = 12;
+}
+
+// Smart search's work on the library (Settings.smart_search_progress).
+message SmartSearchProgress {
+  // Photos Images may show that have a description.
+  int32 described = 1;
+  // Photos Images may show: images outside the folders kept out of Images.
+  int32 total = 2;
 }
 
 // Where Smart search's model is (Settings.smart_search_model). Neither ready

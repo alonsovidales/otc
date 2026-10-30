@@ -1976,8 +1976,9 @@ export interface Settings {
     | boolean
     | undefined;
   /**
-   * Smart search (beta): off unless the user turns it on
-   * (SetSmartSearchEnabled), for their own library. While it is on the
+   * Smart search (beta): on by default since release 152 (off by default in
+   * 151), each user turning it off or on again (SetSmartSearchEnabled) for
+   * their own library. While it is on the
    * device describes each photo as a list of numbers (an embedding, from
    * the photo's thumbnail, by an image model on the device), kept encrypted
    * with the user's key, so SearchPhotos.text finds photos by what they
@@ -1995,7 +1996,24 @@ export interface Settings {
    * the user's own library; absent means an older device, which had the
    * model or answered "smart_search_unavailable".
    */
-  smartSearchModel?: SmartSearchModel | undefined;
+  smartSearchModel?:
+    | SmartSearchModel
+    | undefined;
+  /**
+   * How far the device is in describing the user's photos (release 152).
+   * Set while Smart search is on and its model is ready; described equal to
+   * total means done. Absent on older devices and while it is off or the
+   * model isn't there yet.
+   */
+  smartSearchProgress?: SmartSearchProgress | undefined;
+}
+
+/** Smart search's work on the library (Settings.smart_search_progress). */
+export interface SmartSearchProgress {
+  /** Photos Images may show that have a description. */
+  described: number;
+  /** Photos Images may show: images outside the folders kept out of Images. */
+  total: number;
 }
 
 /**
@@ -12041,6 +12059,7 @@ function createBaseSettings(): Settings {
     memoriesEnabled: undefined,
     smartSearchEnabled: undefined,
     smartSearchModel: undefined,
+    smartSearchProgress: undefined,
   };
 }
 
@@ -12081,6 +12100,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.smartSearchModel !== undefined) {
       SmartSearchModel.encode(message.smartSearchModel, writer.uint32(90).fork()).join();
+    }
+    if (message.smartSearchProgress !== undefined) {
+      SmartSearchProgress.encode(message.smartSearchProgress, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -12180,6 +12202,14 @@ export const Settings: MessageFns<Settings> = {
           message.smartSearchModel = SmartSearchModel.decode(reader, reader.uint32());
           continue;
         }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.smartSearchProgress = SmartSearchProgress.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12207,6 +12237,67 @@ export const Settings: MessageFns<Settings> = {
     message.smartSearchModel = (object.smartSearchModel !== undefined && object.smartSearchModel !== null)
       ? SmartSearchModel.fromPartial(object.smartSearchModel)
       : undefined;
+    message.smartSearchProgress = (object.smartSearchProgress !== undefined && object.smartSearchProgress !== null)
+      ? SmartSearchProgress.fromPartial(object.smartSearchProgress)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSmartSearchProgress(): SmartSearchProgress {
+  return { described: 0, total: 0 };
+}
+
+export const SmartSearchProgress: MessageFns<SmartSearchProgress> = {
+  encode(message: SmartSearchProgress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.described !== 0) {
+      writer.uint32(8).int32(message.described);
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).int32(message.total);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SmartSearchProgress {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSmartSearchProgress();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.described = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.total = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SmartSearchProgress>, I>>(base?: I): SmartSearchProgress {
+    return SmartSearchProgress.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SmartSearchProgress>, I>>(object: I): SmartSearchProgress {
+    const message = createBaseSmartSearchProgress();
+    message.described = object.described ?? 0;
+    message.total = object.total ?? 0;
     return message;
   },
 };

@@ -127,6 +127,7 @@
   "web.settings.session.signing_out": "Déconnexion…",
   "web.settings.session.title": "Session",
   "web.settings.smart_search.beta": "Bêta",
+  "web.settings.smart_search.describing": "Apprend à connaître vos photos… {done} sur {total}",
   "web.settings.smart_search.disable": "Désactiver la recherche intelligente",
   "web.settings.smart_search.download_note": "La première fois que vous l’activez, votre appareil télécharge environ 400 Mo.",
   "web.settings.smart_search.downloading": "Téléchargement de ce dont elle a besoin… {percent} %",

@@ -127,6 +127,7 @@
   "web.settings.session.signing_out": "A terminar sessão…",
   "web.settings.session.title": "Sessão",
   "web.settings.smart_search.beta": "Beta",
+  "web.settings.smart_search.describing": "A conhecer as tuas fotos… {done} de {total}",
   "web.settings.smart_search.disable": "Desativar a pesquisa inteligente",
   "web.settings.smart_search.download_note": "Da primeira vez que a ativas, o teu dispositivo transfere cerca de 400 MB.",
   "web.settings.smart_search.downloading": "A transferir o que precisa… {percent}%",

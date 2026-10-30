@@ -511,6 +511,10 @@
     "text": "Bèta",
     "en": "Beta"
   },
+  "web.settings.smart_search.describing": {
+    "text": "Leert je foto’s kennen… {done} van {total}",
+    "en": "Getting to know your photos… {done} of {total}"
+  },
   "web.settings.smart_search.disable": {
     "text": "Slim zoeken uitschakelen",
     "en": "Disable Smart search"
