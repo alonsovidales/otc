@@ -301,6 +301,7 @@
   "web.images.picker.no_answer": "Die foto kan niet worden opgehaald van het apparaat (geen antwoord).",
   "web.images.picker.opening": "Openen",
   "web.images.picker.title": "Kies een foto",
+  "web.images.places.back_to_map": "Terug naar de kaart",
   "web.images.places.empty": "Nog geen foto’s met een locatie",
   "web.images.places.empty_filtered": "Geen van deze foto’s heeft een locatie",
   "web.images.places.empty_text": "Foto’s die zijn gemaakt met de locatie van je telefoon aan, verschijnen hier, op de plek waar ze zijn gemaakt.",

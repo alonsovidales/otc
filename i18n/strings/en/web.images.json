@@ -992,6 +992,11 @@
     "text": "Choose a photo",
     "note": "Title of the dialog that picks the profile picture among the photos on the user's device (Settings, Profile)."
   },
+  "web.images.places.back_to_map": {
+    "text": "Back to the map",
+    "note": "Button at the top of Images when it shows the photos of a place opened from the Places map (a Map area chip is on): goes back to the map, where it was. The phones' app.photos.places.back_to_map.",
+    "max": 30
+  },
   "web.images.places.empty": {
     "text": "No photos with a location yet",
     "note": "Title over the Places map when no photo on the device has a location (GPS) saved in it."

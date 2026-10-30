@@ -301,6 +301,7 @@
   "web.images.picker.no_answer": "That photo could not be fetched from the device (no answer).",
   "web.images.picker.opening": "Opening",
   "web.images.picker.title": "Choose a photo",
+  "web.images.places.back_to_map": "Back to the map",
   "web.images.places.empty": "No photos with a location yet",
   "web.images.places.empty_filtered": "None of these photos has a location",
   "web.images.places.empty_text": "Photos taken with the phone's location on show up here, where they were taken.",

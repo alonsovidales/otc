@@ -938,7 +938,7 @@ extension S {
 
     /// Back to the map
     ///
-    /// Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was.
+    /// Button at the top of Images when it shows the photos of a place opened from the Places map, going back to the map where it was; also the screen-reader hint of the Map area chip (app.photos.places.area_chip), which does the same.
     static var appPhotosPlacesBackToMap: String { L("app.photos.places.back_to_map", table: "AppPhotos") }
 
     /// Close the map area

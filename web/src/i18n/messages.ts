@@ -435,6 +435,7 @@ export type MessageKey =
   | "web.images.picker.no_answer"
   | "web.images.picker.opening"
   | "web.images.picker.title"
+  | "web.images.places.back_to_map"
   | "web.images.places.empty"
   | "web.images.places.empty_filtered"
   | "web.images.places.empty_text"
@@ -1546,6 +1547,7 @@ export interface MessageArgs {
   "web.images.picker.no_answer": undefined;
   "web.images.picker.opening": undefined;
   "web.images.picker.title": undefined;
+  "web.images.places.back_to_map": undefined;
   "web.images.places.empty": undefined;
   "web.images.places.empty_filtered": undefined;
   "web.images.places.empty_text": undefined;

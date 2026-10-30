@@ -301,6 +301,7 @@
   "web.images.picker.no_answer": "Impossible de récupérer cette photo sur l’appareil (aucune réponse).",
   "web.images.picker.opening": "Ouverture",
   "web.images.picker.title": "Choisir une photo",
+  "web.images.places.back_to_map": "Revenir à la carte",
   "web.images.places.empty": "Aucune photo localisée pour l’instant",
   "web.images.places.empty_filtered": "Aucune de ces photos n’est localisée",
   "web.images.places.empty_text": "Les photos prises avec la localisation du téléphone activée apparaissent ici, là où elles ont été prises.",

@@ -301,6 +301,7 @@
   "web.images.picker.no_answer": "Dieses Foto konnte nicht vom Gerät abgerufen werden (keine Antwort).",
   "web.images.picker.opening": "Wird geöffnet",
   "web.images.picker.title": "Foto auswählen",
+  "web.images.places.back_to_map": "Zurück zur Karte",
   "web.images.places.empty": "Noch keine Fotos mit Ort",
   "web.images.places.empty_filtered": "Keines dieser Fotos hat einen Ort",
   "web.images.places.empty_text": "Fotos, die mit eingeschalteter Standortfunktion des Handys aufgenommen wurden, erscheinen hier – dort, wo sie entstanden sind.",

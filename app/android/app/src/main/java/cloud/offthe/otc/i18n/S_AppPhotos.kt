@@ -638,7 +638,7 @@ fun S.appPhotosPersonRemovedUnnamed(count: Int): UiText =
 fun S.appPhotosPlacesAreaChip(): UiText =
     UiText.Res(R.string.app_photos_places_area_chip)
 
-/** "Back to the map": Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was. */
+/** "Back to the map": Button at the top of Images when it shows the photos of a place opened from the Places map, going back to the map where it was; also the screen-reader hint of the Map area chip (app.photos.places.area_chip), which does the same. */
 fun S.appPhotosPlacesBackToMap(): UiText =
     UiText.Res(R.string.app_photos_places_back_to_map)
 

@@ -876,7 +876,8 @@
   },
   "app.photos.places.back_to_map": {
     "text": "Back to the map",
-    "note": "Screen-reader hint of the Map area chip (app.photos.places.area_chip): tapping it shows the map again, where it was."
+    "note": "Button at the top of Images when it shows the photos of a place opened from the Places map, going back to the map where it was; also the screen-reader hint of the Map area chip (app.photos.places.area_chip), which does the same.",
+    "max": 30
   },
   "app.photos.places.close_area": {
     "text": "Close the map area",

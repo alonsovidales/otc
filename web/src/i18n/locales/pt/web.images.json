@@ -301,6 +301,7 @@
   "web.images.picker.no_answer": "Não foi possível obter essa foto do dispositivo (sem resposta).",
   "web.images.picker.opening": "A abrir",
   "web.images.picker.title": "Escolher uma foto",
+  "web.images.places.back_to_map": "Voltar ao mapa",
   "web.images.places.empty": "Ainda não há fotos com localização",
   "web.images.places.empty_filtered": "Nenhuma destas fotos tem localização",
   "web.images.places.empty_text": "As fotos tiradas com a localização do telemóvel ativada aparecem aqui, onde foram tiradas.",

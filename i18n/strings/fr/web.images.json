@@ -935,6 +935,10 @@
     "text": "Choisir une photo",
     "en": "Choose a photo"
   },
+  "web.images.places.back_to_map": {
+    "text": "Revenir à la carte",
+    "en": "Back to the map"
+  },
   "web.images.places.empty": {
     "text": "Aucune photo localisée pour l’instant",
     "en": "No photos with a location yet"
