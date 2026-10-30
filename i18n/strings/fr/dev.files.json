@@ -233,13 +233,29 @@
     "text": "erreur lors de la création du lien de partage des fichiers : {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.smart_search_downloading": {
+    "text": "La recherche intelligente se prépare : l’appareil télécharge encore ce dont elle a besoin ({percent} %)",
+    "en": "Smart search is getting ready: the device is still downloading what it needs ({percent}%)"
+  },
+  "dev.files.smart_search_model_failed": {
+    "text": "Le téléchargement de ce dont la recherche intelligente a besoin a échoué. L’appareil réessaiera de lui-même d’ici peu.",
+    "en": "The download of what Smart search needs failed. The device tries again by itself in a while."
+  },
+  "dev.files.smart_search_model_no_space": {
+    "text": "Il n’y a pas assez d’espace sur l’appareil pour ce dont la recherche intelligente a besoin : il faut {need}, et il ne reste que {left}. L’appareil réessaiera de lui-même d’ici peu.",
+    "en": "There isn't enough space on the device for what Smart search needs: it takes {need}, and only {left} is free. The device tries again by itself in a while."
+  },
+  "dev.files.smart_search_model_unreachable": {
+    "text": "L’appareil n’a pas pu télécharger ce dont la recherche intelligente a besoin : vérifiez sa connexion à internet. Il réessaiera de lui-même d’ici peu.",
+    "en": "The device couldn't download what Smart search needs: check its internet connection. It tries again by itself in a while."
+  },
   "dev.files.smart_search_off": {
     "text": "La recherche intelligente est désactivée : activez-la dans les Réglages pour trouver des photos en les décrivant",
     "en": "Smart search is off: turn it on in Settings to find photos by describing them"
   },
   "dev.files.smart_search_unavailable": {
-    "text": "La recherche intelligente n'est pas encore disponible sur cet appareil : elle aura ce qu'il lui faut avec la prochaine mise à jour",
-    "en": "Smart search isn't available on this device yet: it gets what it needs with the next update"
+    "text": "La recherche intelligente n’est pas disponible sur cet appareil : il ne peut pas obtenir ce dont elle a besoin",
+    "en": "Smart search isn't available on this device: it can't get what it needs"
   },
   "dev.files.storage_full": {
     "text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}",

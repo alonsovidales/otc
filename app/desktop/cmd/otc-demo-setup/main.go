@@ -9,9 +9,10 @@
 // manifest.json - and the collections and posts. A person no name fits
 // (the dog's face, a stranger in the background) is deleted. Run it with
 // demo mode still off. -places-only turns Places on and stops: for a demo
-// device set up before Places. Smart search (beta) is turned on too, when
-// the device has its model; -smart-search-only turns it on and stops (a
-// demo set up before it, or before its model was there).
+// device set up before Places. Smart search (beta) is turned on too - a
+// device without its model downloads it first (release 152), then
+// describes the photos; -smart-search-only turns it on and stops (a demo
+// set up before it).
 //
 //	echo "$PASSWORD" | otc-demo-setup -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 //	echo "$PASSWORD" | otc-demo-setup -places-only -address ws://127.0.0.1:8080/ws
@@ -139,7 +140,8 @@ func placesOn(c client, dryRun bool) error {
 
 // smartSearchOn turns Smart search (beta) on: the demo's photos can be
 // found by describing them, once the device has described them in the
-// background. A device without the model only says so.
+// background - after downloading its model when it hasn't it. A device
+// that can't get the model only says so.
 func smartSearchOn(c client, dryRun bool) error {
 	fmt.Println("smart search: on")
 	if dryRun {
@@ -149,11 +151,19 @@ func smartSearchOn(c client, dryRun bool) error {
 		r.Payload = &pb.ReqEnvelope_ReqSetSmartSearchEnabled{ReqSetSmartSearchEnabled: &pb.SetSmartSearchEnabled{Enabled: true}}
 	})
 	if err != nil && resp != nil && resp.ErrorCode == "smart_search_unavailable" {
-		fmt.Println("smart search: the device doesn't have its model yet - run -smart-search-only once it has")
+		fmt.Println("smart search: the device can't get its model:", err)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("smart search: %w", err)
+	}
+	resp, err = c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqGetSettings{ReqGetSettings: &pb.GetSettings{}}
+	})
+	if err == nil {
+		if m := resp.GetRespSettings().GetSmartSearchModel(); m.GetDownloading() {
+			fmt.Printf("smart search: the device is downloading its model first (%d%%), then describes the photos\n", m.GetPercent())
+		}
 	}
 	return nil
 }

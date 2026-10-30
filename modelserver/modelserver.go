@@ -93,9 +93,32 @@ type Embedder interface {
 }
 
 // ErrNoEmbedder is the answer to embedding while the primary has no Smart
-// search model (its files missing), and what a child gets from a primary
-// older than it.
+// search model (its files missing, or still downloading), and what a child
+// gets from a primary older than it - for "embed-fetch" too, from one older
+// than the download on demand.
 var ErrNoEmbedder = errors.New("the smart search model is not available") // i18n-ignore: matched by errors.Is and across the socket, logged only
+
+// EmbedderState is where the primary's Smart search model is while it
+// hasn't it: since release 152 the primary downloads it only once someone
+// turns Smart search on, and "info" and "embed-fetch" carry how far that
+// is. A primary older than that leaves it zero: CanFetch false, it can't
+// get the model for a child.
+type EmbedderState struct {
+	// CanFetch: the primary downloads the model when asked ("embed-fetch").
+	CanFetch bool
+	// Downloading: asked for and on its way, or waiting to try again.
+	Downloading bool
+	// Percent is how far, 0-100.
+	Percent int
+	// Problem is why the last try failed, a modelfetch problem kind ("" for
+	// none); Need and Left go with modelfetch.NoSpace.
+	Problem    string
+	Need, Left int64
+}
+
+// cMaxWho is the longest name an "embed-fetch" carries for the instance
+// asking (a user's id).
+const cMaxWho = 128
 
 // cMaxEmbedText is the longest search text the socket carries (bytes): the
 // model reads 63 tokens at most.
@@ -103,12 +126,27 @@ const cMaxEmbedText = 4096
 
 // Models is what the primary serves: the tagger (asked per request, so it
 // can wait for a model still loading), the face models, the quality model
-// and Smart search's (nil: none on this device).
+// and Smart search's - asked per request too, as it appears once its
+// download is over (nil, or a nil answer: none on this device).
 type Models struct {
 	Tagger    func() Tagger
 	Faces     FaceDetector
 	Aesthetic AestheticScorer
-	Embedder  Embedder
+	Embedder  func() Embedder
+	// EmbedderFetch asks for Smart search's model for a child (who: its
+	// user's id; want false: that child no longer needs it) and is where it
+	// is; EmbedderState is where it is, for "info". nil: this primary can't
+	// download it.
+	EmbedderFetch func(who string, want bool) EmbedderState
+	EmbedderState func() EmbedderState
+}
+
+// embedder is m's Smart search model now, nil when there is none.
+func (m Models) embedder() Embedder {
+	if m.Embedder == nil {
+		return nil
+	}
+	return m.Embedder()
 }
 
 // cProto is the socket version this side speaks (see the package doc).
@@ -120,7 +158,7 @@ const cProto = 1
 const cMaxPixelBytes = 1 << 31
 
 type request struct {
-	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "embed-image", "embed-text", "info"
+	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "embed-image", "embed-text", "embed-fetch", "info"
 	Text   string // "embed-text": the search's text
 	W, H   int
 	Stride int
@@ -129,6 +167,10 @@ type request struct {
 	// N (version 1): this many bytes of pixels follow the message, W*H
 	// RGBA pixels with no padding, instead of Pix.
 	N int64
+	// Who and Want ("embed-fetch"): the instance asking for Smart search's
+	// model (its user's id), and whether it still wants it.
+	Who  string
+	Want bool
 }
 
 type response struct {
@@ -145,10 +187,13 @@ type response struct {
 	Aesthetic    float32
 	HasAesthetic bool
 	// Vec is Smart search's vector ("embed-image", "embed-text");
-	// HasEmbedder (info): the primary has the model. Unset by a primary
-	// older than it.
+	// HasEmbedder (info, "embed-fetch"): the primary has the model. Unset
+	// by a primary older than it.
 	Vec         []float32
 	HasEmbedder bool
+	// EmbedderFetch (info, "embed-fetch") is where the model's download is
+	// while the primary hasn't it; zero from a primary older than that.
+	EmbedderFetch EmbedderState
 }
 
 // resizedTagger is the primary's tagger taking an image already scaled to
@@ -224,8 +269,8 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 		return
 	}
 	// A request with pixels waits for its turn before they are read; "info"
-	// never waits.
-	if slots != nil && req.Op != "info" {
+	// and "embed-fetch" never wait.
+	if slots != nil && req.Op != "info" && req.Op != "embed-fetch" {
 		select {
 		case slots <- struct{}{}:
 			defer func() { <-slots }()
@@ -238,15 +283,31 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 	case "info":
 		resp.HasFaces = faces != nil
 		resp.HasAesthetic = models.Aesthetic != nil
-		resp.HasEmbedder = models.Embedder != nil
+		// The download's state first: the model may arrive meanwhile.
+		if models.EmbedderState != nil {
+			resp.EmbedderFetch = models.EmbedderState()
+		}
+		resp.HasEmbedder = models.embedder() != nil
 		resp.Proto = cProto
+	case "embed-fetch":
+		if models.EmbedderFetch == nil {
+			resp.Err = ErrNoEmbedder.Error()
+			break
+		}
+		if len(req.Who) > cMaxWho {
+			resp.Err = "malformed request"
+			break
+		}
+		resp.EmbedderFetch = models.EmbedderFetch(req.Who, req.Want)
+		resp.HasEmbedder = models.embedder() != nil
 	case "embed-image":
 		img, err := readImage(br, req)
 		if err != nil {
 			resp.Err = err.Error()
 			break
 		}
-		if models.Embedder == nil {
+		embedder := models.embedder()
+		if embedder == nil {
 			resp.Err = ErrNoEmbedder.Error()
 			break
 		}
@@ -254,13 +315,14 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 			resp.Err = "malformed image"
 			break
 		}
-		vec, err := models.Embedder.EmbedResized(context.Background(), img)
+		vec, err := embedder.EmbedResized(context.Background(), img)
 		resp.Vec = vec
 		if err != nil {
 			resp.Err = err.Error()
 		}
 	case "embed-text":
-		if models.Embedder == nil {
+		embedder := models.embedder()
+		if embedder == nil {
 			resp.Err = ErrNoEmbedder.Error()
 			break
 		}
@@ -268,7 +330,7 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 			resp.Err = "text too long"
 			break
 		}
-		vec, err := models.Embedder.EmbedText(context.Background(), req.Text)
+		vec, err := embedder.EmbedText(context.Background(), req.Text)
 		resp.Vec = vec
 		if err != nil {
 			resp.Err = err.Error()
@@ -519,6 +581,28 @@ func (c *Client) HasEmbedder() (bool, error) {
 		return false, err
 	}
 	return resp.HasEmbedder, nil
+}
+
+// EmbedderStatus asks the primary whether it has Smart search's model, and
+// where its download is when it hasn't.
+func (c *Client) EmbedderStatus() (has bool, st EmbedderState, err error) {
+	resp, err := c.info()
+	if err != nil {
+		return false, EmbedderState{}, err
+	}
+	return resp.HasEmbedder, resp.EmbedderFetch, nil
+}
+
+// FetchEmbedder asks the primary for Smart search's model on behalf of who
+// (this instance's user), or (want false) says it no longer needs it: the
+// primary downloads it while any instance wants it. ErrNoEmbedder from a
+// primary that can't (one older than the download on demand).
+func (c *Client) FetchEmbedder(who string, want bool) (has bool, st EmbedderState, err error) {
+	resp, err := c.call(request{Op: "embed-fetch", Who: who, Want: want}, nil)
+	if err != nil {
+		return false, EmbedderState{}, err
+	}
+	return resp.HasEmbedder, resp.EmbedderFetch, nil
 }
 
 // EmbedResized is the primary's Smart search vector of img, already through

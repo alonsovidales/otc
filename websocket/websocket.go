@@ -267,6 +267,10 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			mg.filesManager.BackfillEmbeddings(ses)
 		}()
 	})
+	// Smart search: what its model's download left for a sign-in - every
+	// sign-in, not only the first (smart_model.go) - never holding up the
+	// answer.
+	go mg.filesManager.SmartSearchSignedIn(ses)
 }
 
 // Media is read by api's /media/{token} handler.
@@ -3320,6 +3324,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				MemoriesEnabled: proto.Bool(ch.mg.filesManager.MemoriesEnabled()),
 				// Smart search (beta): the same.
 				SmartSearchEnabled: proto.Bool(ch.mg.filesManager.SmartSearchEnabled()),
+				// And where its model is (release 152: downloaded once
+				// Smart search is first turned on).
+				SmartSearchModel: ch.mg.filesManager.SmartSearchModel(lang),
 			},
 		}
 
@@ -3394,8 +3401,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
-	// Smart search (beta): off unless the user turns it on. On describes
-	// what the device holds in the background with this session's key; off
+	// Smart search (beta): on unless the user turns it off (release 152;
+	// off by default in 151). On describes
+	// what the device holds in the background with this session's key -
+	// after downloading its model when it isn't there (release 152); off
 	// deletes every description before the answer.
 	case *pb.ReqEnvelope_ReqSetSmartSearchEnabled:
 		on := p.ReqSetSmartSearchEnabled.Enabled

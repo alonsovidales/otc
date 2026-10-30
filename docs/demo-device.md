@@ -53,10 +53,11 @@ real usage.
      names each person after the name most of their photos list, deletes the rest (the dog,
      strangers) and makes the collections and posts. A demo set up before Places gets it with
      `otc-demo-setup -places-only -address …` (password on stdin), with demo mode off for it as
-     for the rest of this step. It turns Smart search (beta) on too when the device has its
-     model (it says so and goes on when it hasn't); `-smart-search-only` does just that, for a
-     demo set up before it or before its model was there - the device then describes the
-     photos in the background, and the demo allows text searches but refuses the switch;
+     for the rest of this step. It turns Smart search (beta) on too - a device without its
+     model downloads it first (since release 152 nothing else fetches it; it says so and goes
+     on); `-smart-search-only` does just that, for a demo set up before it - the device then
+     describes the photos in the background, and the demo allows text searches but refuses the
+     switch;
    - `docs/demo-device/content/friends.py` builds three made-up friends (addresses under
      `demo.off-the.cloud`, which no bridge name can take and which don't resolve, so the friend
      sync fails quietly), their posts and their comments and likes; copy its media into

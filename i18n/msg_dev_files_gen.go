@@ -294,12 +294,32 @@ func DevFilesShareLinkFailed(detail string) Msg {
 	return Msg{Key: "dev.files.share_link_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesSmartSearchDownloading is dev.files.smart_search_downloading: "Smart search is getting ready: the device is still downloading what it needs ({p…".
+func DevFilesSmartSearchDownloading(percent int) Msg {
+	return Msg{Key: "dev.files.smart_search_downloading", Args: map[string]any{"percent": int64(percent)}}
+}
+
+// DevFilesSmartSearchModelFailed is dev.files.smart_search_model_failed: "The download of what Smart search needs failed. The device tries again by itself…".
+func DevFilesSmartSearchModelFailed() Msg {
+	return Msg{Key: "dev.files.smart_search_model_failed"}
+}
+
+// DevFilesSmartSearchModelNoSpace is dev.files.smart_search_model_no_space: "There isn't enough space on the device for what Smart search needs: it takes {ne…".
+func DevFilesSmartSearchModelNoSpace(need int64, left int64) Msg {
+	return Msg{Key: "dev.files.smart_search_model_no_space", Args: map[string]any{"need": need, "left": left}}
+}
+
+// DevFilesSmartSearchModelUnreachable is dev.files.smart_search_model_unreachable: "The device couldn't download what Smart search needs: check its internet connect…".
+func DevFilesSmartSearchModelUnreachable() Msg {
+	return Msg{Key: "dev.files.smart_search_model_unreachable"}
+}
+
 // DevFilesSmartSearchOff is dev.files.smart_search_off: "Smart search is off: turn it on in Settings to find photos by describing them".
 func DevFilesSmartSearchOff() Msg {
 	return Msg{Key: "dev.files.smart_search_off"}
 }
 
-// DevFilesSmartSearchUnavailable is dev.files.smart_search_unavailable: "Smart search isn't available on this device yet: it gets what it needs with the …".
+// DevFilesSmartSearchUnavailable is dev.files.smart_search_unavailable: "Smart search isn't available on this device: it can't get what it needs".
 func DevFilesSmartSearchUnavailable() Msg {
 	return Msg{Key: "dev.files.smart_search_unavailable"}
 }

@@ -167,7 +167,13 @@ var headEnglish = []struct {
 	{"dev.files.places_off", i18n.DevFilesPlacesOff(), "Places is off: turn it on in Settings to see your photos on a map"},
 	{"dev.files.memories_off", i18n.DevFilesMemoriesOff(), "On this day is off: turn it on in Settings to see your memories"},
 	{"dev.files.smart_search_off", i18n.DevFilesSmartSearchOff(), "Smart search is off: turn it on in Settings to find photos by describing them"},
-	{"dev.files.smart_search_unavailable", i18n.DevFilesSmartSearchUnavailable(), "Smart search isn't available on this device yet: it gets what it needs with the next update"},
+	{"dev.files.smart_search_unavailable", i18n.DevFilesSmartSearchUnavailable(), "Smart search isn't available on this device: it can't get what it needs"},
+	// Smart search's model on demand (release 152): new, so their English
+	// is the catalog's from the start.
+	{"dev.files.smart_search_downloading", i18n.DevFilesSmartSearchDownloading(42), "Smart search is getting ready: the device is still downloading what it needs (42%)"},
+	{"dev.files.smart_search_model_failed", i18n.DevFilesSmartSearchModelFailed(), "The download of what Smart search needs failed. The device tries again by itself in a while."},
+	{"dev.files.smart_search_model_no_space", i18n.DevFilesSmartSearchModelNoSpace(380_000_000, 120_000_000), "There isn't enough space on the device for what Smart search needs: it takes 380 MB, and only 120 MB is free. The device tries again by itself in a while."},
+	{"dev.files.smart_search_model_unreachable", i18n.DevFilesSmartSearchModelUnreachable(), "The device couldn't download what Smart search needs: check its internet connection. It tries again by itself in a while."},
 	{"dev.files.memories_bad_date", i18n.DevFilesMemoriesBadDate(), "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month"},
 	{"dev.files.memories_bad_hide", i18n.DevFilesMemoriesBadHide(), "nothing to hide: the request doesn't name a photo, a day, a memory or a person"},
 	{"dev.files.upload_only", i18n.DevFilesUploadOnly(), "this folder is upload only: nothing in it can be deleted"},
@@ -443,5 +449,27 @@ func TestEveryReplyKeyRendersInThePseudoLocale(t *testing.T) {
 		if got := plain(c.got.Render("qps")); got == c.want || !strings.HasPrefix(got, "[") {
 			t.Errorf("%s in qps: %q", c.key, got)
 		}
+	}
+}
+
+// Smart search's refusals carry their codes and the device's words: off,
+// still downloading its model (release 152), unavailable.
+func TestSmartSearchRefusals(t *testing.T) {
+	for _, c := range []struct {
+		err  error
+		code string
+		want string
+	}{
+		{filesmanager.ErrSmartSearchOff, "smart_search_off", i18n.DevFilesSmartSearchOff().Render("es")},
+		{fmt.Errorf("searching: %w", filesmanager.ErrSmartSearchDownloading), "smart_search_downloading", i18n.DevFilesSmartSearchDownloading(0).Render("es")},
+		{filesmanager.ErrSmartSearchUnavailable, "smart_search_unavailable", i18n.DevFilesSmartSearchUnavailable().Render("es")},
+	} {
+		code, msg, ok := smartSearchRefusal("es", c.err)
+		if !ok || code != c.code || msg != c.want {
+			t.Errorf("%v: %q %q %v", c.err, code, msg, ok)
+		}
+	}
+	if _, _, ok := smartSearchRefusal("en", errors.New("boom")); ok {
+		t.Error("another error taken for a refusal")
 	}
 }

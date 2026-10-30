@@ -220,7 +220,7 @@ func TestSmartSearchSwitch(t *testing.T) {
 	if err := mg.SetSmartSearchEnabled(nil, true); !errors.Is(err, ErrSmartSearchUnavailable) {
 		t.Fatalf("on without the model: %v", err)
 	}
-	mg.embedder = &fakeEmbedder{}
+	mg.setEmbedder(&fakeEmbedder{})
 	mock.ExpectExec("update `settings` set `smart_search_enabled` = 1").WillReturnResult(sqlmock.NewResult(0, 1))
 	if err := mg.SetSmartSearchEnabled(nil, true); err != nil || !mg.SmartSearchEnabled() || !mg.SmartSearchReading() {
 		t.Fatalf("on: %v %v", err, mg.SmartSearchEnabled())
@@ -265,7 +265,8 @@ func TestRankByTextRanksWithinTheFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	mg := &Manager{dao: dao.NewWithDB(db), embedder: &fakeEmbedder{text: []float32{1, 0, 0}}}
+	mg := &Manager{dao: dao.NewWithDB(db)}
+	mg.setEmbedder(&fakeEmbedder{text: []float32{1, 0, 0}})
 	mock.ExpectQuery("select `smart_search_enabled` from `settings`").WillReturnRows(sqlmock.NewRows([]string{"on"}).AddRow(true))
 	vec := func(x, y, z float32) []byte { return ses.Encrypt(packVec(normalised([]float32{x, y, z}))) }
 	mock.ExpectQuery("select `hash`, `vec` from `photo_embeddings` where `model` = ?").WithArgs(cEmbedModel).

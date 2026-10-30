@@ -401,45 +401,12 @@ if [ -d /usr/local/models ] && [ ! -L /usr/local/models ] && [ ! -e "$QUALITY_ON
     fi
 fi
 
-# Smart search's model (release 151): optional the same way - without it
-# Smart search can't be turned on. Each file only while it is missing,
-# checked against its pin (the same in install.sh's EMBED_FILES and
-# docker/entrypoint.sh), into a temporary file beside it, then renamed; a
-# failure only warns. Its directory is root's, made here when it isn't.
-EMBED_DIR=/usr/local/models/siglip2-base
-EMBED_URL=https://github.com/alonsovidales/otc/releases/download/models
-EMBED_FILES=(
-    "image.onnx siglip2-base-image.onnx e7eca79ab2103e51dd722e3d9e3c24507af450ccb1b5cb94e37c0fc051cbac22"
-    "image.onnx.data siglip2-base-image.onnx.data b9a8e6cfe59f54cb991163c26b82b54bb01e6bbe038291f9116503a3f7dc3f21"
-    "text.onnx siglip2-base-text.onnx 05ad0676b6ffc7c500bc04f9cf80ad442de5bd4bc537c237d33876bc7ba4db92"
-    "text.onnx.data siglip2-base-text.onnx.data 951bd580188f27cdfc72d13e4233e11110b8a8240cb12806fed61a871e444655"
-    "tokenizer.model siglip2-base-tokenizer.model 61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"
-)
-if [ -d /usr/local/models ] && [ ! -L /usr/local/models ] && [ ! -L "$EMBED_DIR" ]; then
-    if [ ! -d "$EMBED_DIR" ]; then
-        mkdir -m 0755 -- "$EMBED_DIR" || true
-    fi
-    if [ -d "$EMBED_DIR" ]; then
-        for e in "${EMBED_FILES[@]}"; do
-            read -r name asset sha <<< "$e"
-            dest="$EMBED_DIR/$name"
-            if [ -e "$dest" ] || [ -L "$dest" ]; then
-                continue
-            fi
-            if etmp="$(mktemp -d "$EMBED_DIR/.otc-fetch.XXXXXX")"; then
-                if curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$etmp/download" "$EMBED_URL/$asset" \
-                    && [ "$(sha256sum "$etmp/download" | awk '{print $1}')" = "$sha" ]; then
-                    chmod 0644 "$etmp/download"
-                    mv -Tf "$etmp/download" "$dest"
-                    echo "fetched Smart search's $name"
-                else
-                    echo "warning: Smart search's $name could not be fetched - it can't be turned on until the next update"
-                fi
-                rm -rf -- "$etmp"
-            fi
-        done
-    fi
-fi
+# Smart search's model (about 415 MB) isn't fetched here: since release 152
+# the device downloads it itself, in the background at a capped speed, only
+# once someone turns Smart search on (files_manager/smart_model.go) - release
+# 151 fetched it at every update, on every device, and on a slow home link
+# that took the whole connection for a long while. Files an earlier update
+# put in /usr/local/models/siglip2-base stay and are used.
 
 # Refreshing the code is common to every update, so it happens once here
 # rather than in each release script.

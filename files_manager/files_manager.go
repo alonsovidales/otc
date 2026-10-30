@@ -140,12 +140,16 @@ type Manager struct {
 	// memories is On this day's switch, the measuring backfill and the
 	// day's answers (memories.go, quality.go).
 	memories memoriesState
-	// embedder is Smart search's model (smart_search.go): loaded here when
-	// first needed, or the primary's over its socket; nil when the device
-	// hasn't its files. smart is its switch, backfill and the decrypted
-	// vectors.
-	embedder modelserver.Embedder
-	smart    smartState
+	// embedder is Smart search's model (smart_search.go), read through
+	// smartEmbedder: loaded here when first needed, or the primary's over
+	// its socket; nil while the device hasn't its files - it appears once
+	// their download is over (smart_model.go). smartSrc is where it comes
+	// from (smartLocal on the primary). smart is its switch, backfill and
+	// the decrypted vectors.
+	embedder   atomic.Pointer[embedderBox]
+	smartSrc   smartModelSource
+	smartLocal *localModel
+	smart      smartState
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged
@@ -282,11 +286,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		if has, err := client.HasAesthetic(); err == nil && has {
 			mg.aesthetic = client
 		}
-		// Smart search's model, the primary's too: without it the switch
-		// can't be turned on.
-		if has, err := client.HasEmbedder(); err == nil && has {
-			mg.embedder = client
-		}
+		// Smart search's model, the primary's too - asked for while this
+		// instance has Smart search on and the primary hasn't it yet.
+		mg.initRemoteSmartModel(client)
 		log.Info("using the models shared by the primary instance on", sock)
 		go mg.tokenCollector()
 		go mg.sharedLinksSweeper()
@@ -331,15 +333,17 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// On this day's photo quality model (quality.go): small (~13 MB), loaded
 	// here; a device without it measures photos without it.
 	mg.aesthetic = loadQualityModel()
-	// Smart search's model (smart_search.go): loaded when first needed.
-	mg.embedder = embedderFor(false, nil)
+	// Smart search's model (smart_model.go): loaded when first needed, or
+	// downloaded once Smart search is turned on.
+	mg.initSmartModel(false, nil)
 
 	// Issue #167: the primary shares these with the supervised children,
 	// cServedAtOnce requests at a time: a face request carries the photo
 	// at full resolution (~48 MB for 12 MP, 200 MB at 50 MP), and every
 	// child queued its own, read before the recognizer's turn.
 	go func() {
-		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic, Embedder: mg.embedder}
+		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic,
+			Embedder: mg.smartEmbedder, EmbedderFetch: mg.serveSmartModel, EmbedderState: mg.smartModelWire}
 		if err := modelserver.ServeModels(modelserver.SocketPath(), models, cServedAtOnce); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
@@ -1131,8 +1135,8 @@ func (mg *Manager) ImageSearchWithin(area *dao.MediaArea, session *session.Sessi
 // ImageSearchText is ImageSearchWithin ranked by Smart search
 // (SearchPhotos.text): the photos the other filters keep that match text,
 // best first (rankByText), paged like a tag search; newerThan doesn't apply.
-// "" is ImageSearchWithin. ErrSmartSearchOff / ErrSmartSearchUnavailable
-// when it can't run.
+// "" is ImageSearchWithin. ErrSmartSearchOff / ErrSmartSearchDownloading /
+// ErrSmartSearchUnavailable when it can't run.
 func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil, "text:", text != "")
 	text = smartText(text)
@@ -1140,6 +1144,10 @@ func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *se
 		// Not even a token's next page once it is off.
 		if !mg.SmartSearchEnabled() {
 			return nil, "", ErrSmartSearchOff
+		}
+		// Nor while its model is still on its way.
+		if err := mg.smartSearchUsable(); err != nil {
+			return nil, "", err
 		}
 		newerThan = nil
 	}

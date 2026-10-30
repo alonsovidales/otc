@@ -268,13 +268,31 @@
     "args": [["detail", "text"]],
     "note": "Error reply in Files when making a link to download the chosen files failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
   },
+  "dev.files.smart_search_downloading": {
+    "text": "Smart search is getting ready: the device is still downloading what it needs ({percent}%)",
+    "args": [["percent", "int"]],
+    "note": "Error reply when an app searches photos by a description (Smart search) while the device is still downloading the model Smart search needs (about 400 MB, once, after Smart search is first turned on). {percent} is how far the download is. The apps don't offer the description search then, so it is rarely shown. Smart search is the feature's name, as in the apps' Settings."
+  },
+  "dev.files.smart_search_model_failed": {
+    "text": "The download of what Smart search needs failed. The device tries again by itself in a while.",
+    "note": "Shown in Settings under the Smart search switch, with how far the download is, when the device's last try to download the model Smart search needs (about 400 MB) failed for another reason than the internet connection or the space - for example a damaged download. The device tries again by itself, a minute later at first and up to an hour later, while Smart search is on. Smart search is the feature's name, as in the apps' Settings."
+  },
+  "dev.files.smart_search_model_no_space": {
+    "text": "There isn't enough space on the device for what Smart search needs: it takes {need}, and only {left} is free. The device tries again by itself in a while.",
+    "args": [["need", "bytes"], ["left", "bytes"]],
+    "note": "Shown in Settings under the Smart search switch, with how far the download is, when the device didn't download the model Smart search needs because it wouldn't fit: the device always keeps some space free for its own database. {need} is what is still to download and {left} what can be used, both sizes such as 380 MB. The device tries again by itself, a minute later at first and up to an hour later, while Smart search is on."
+  },
+  "dev.files.smart_search_model_unreachable": {
+    "text": "The device couldn't download what Smart search needs: check its internet connection. It tries again by itself in a while.",
+    "note": "Shown in Settings under the Smart search switch, with how far the download is, when the device's last try to download the model Smart search needs (about 400 MB) couldn't get through: no internet connection, a download that stalled or was cut, or the server's own error. The device tries again by itself, a minute later at first and up to an hour later, while Smart search is on."
+  },
   "dev.files.smart_search_off": {
     "text": "Smart search is off: turn it on in Settings to find photos by describing them",
     "note": "Error reply when an app searches photos by a description (Smart search) while the user has the feature turned off in Settings. The apps hide the description search then, so it is rarely shown. Smart search is the feature's name, as in the apps' Settings."
   },
   "dev.files.smart_search_unavailable": {
-    "text": "Smart search isn't available on this device yet: it gets what it needs with the next update",
-    "note": "Error reply when Smart search (finding photos by describing them) is turned on, or used, on a device that doesn't have the model it needs yet (a download that failed; the next device update fetches it). Smart search is the feature's name, as in the apps' Settings."
+    "text": "Smart search isn't available on this device: it can't get what it needs",
+    "note": "Error reply when Smart search (finding photos by describing them) is turned on, or used, on a device that can't get the model it needs at all - for example it has nowhere to keep it. Smart search is the feature's name, as in the apps' Settings."
   },
   "dev.files.storage_full": {
     "text": "not enough space on the device: this needs {need}, and only {left} is left",

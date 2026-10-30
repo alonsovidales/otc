@@ -549,21 +549,39 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   - With Smart search on, bursts are told apart by its vectors instead (`memoryOptions.similar`,
     below): cosine >= 0.95 is the same photo whenever taken, >= 0.92 within 60 s a burst; a photo
     without a vector falls back to the dHash rule.
-- Smart search (beta, 2026-10-30, device side; release 151's `updates/151.sh`): photos found by
-  describing them, in any of the seven languages, with Google's SigLIP 2 base (`images_embedder`,
-  below; files from `models/siglip2_export.py`).
-  - Protocol: `Settings.smart_search_enabled` (10, `optional`, OFF by default) and
-    `SetSmartSearchEnabled` (req 152) -> Ack: on starts `BackfillEmbeddings` with the session;
-    off deletes every vector in one transaction (`dao.SetSmartSearchEnabled`) and drops the
-    decrypted ones. `SearchPhotos.text` (13): the photos the other filters keep (tags, people,
+- Smart search (beta, 2026-10-30, device side; release 151's `updates/151.sh`; since release 152
+  on by default and its model on demand): photos found by describing them, in any of the seven
+  languages, with Google's SigLIP 2 base (`images_embedder`, below; files from
+  `models/siglip2_export.py`).
+  - On by default (the owner, 2026-10-30; 151 had it off): db.sql's `smart_search_enabled`
+    defaults to 1, so a fresh install and a new user (provisioning loads the embedded db.sql) start
+    with it on; `updates/152.sh` (and install.sh's migration block, which the container runs) turns
+    every library on once and sets the default - the column's default is the mark, so a run again
+    never turns back on a library its user turned off. A device that updates downloads the model at
+    start (`resumeSmartModel`) and describes the photos after the next sign-in (it needs the key).
+    On a 4 GB device that is the download (415 MB on the SD card, at the cap), then the image
+    tower while the backfill runs (one call at a time with the other models, NoArena, 2 threads,
+    released after 10 idle minutes; the process held ~240 MB more with both towers loaded in the
+    Lima VM's low-memory mode), resting as long as each photo took.
+  - Protocol: `Settings.smart_search_enabled` (10, `optional`, on by default since 152) and
+    `SetSmartSearchEnabled` (req 152) -> Ack: on starts `BackfillEmbeddings` with the session -
+    or, without the model, starts its download and answers Ack at once (below); off deletes
+    every vector in one transaction (`dao.SetSmartSearchEnabled`), drops the decrypted ones and
+    stops the download unless another instance wants it. `Settings.smart_search_model` (11,
+    `SmartSearchModel{ready, downloading, percent, problem}`, always set: `SmartSearchModel(lang)`;
+    a user's instance from the primary's "info"). `SearchPhotos.text` (13): the photos the other filters keep (tags, people,
     collection, area - exact as always), ranked by cosine to the text, best first, cut at
     `cos >= max(0.05, 0.7 x best)` (`rankScores`; demo library: precision 0.84, recall 0.87), paged
     through the same tokens as a tag search; `before`/`newer_than` don't apply (a text search is
     never `oldest_first`). `ListOfFiles.smart_search_reading` (7): a text search while the backfill
     of this turn hasn't finished. Codes: `smart_search_off` (`dev.files.smart_search_off`, a text
-    search - even a token's next page - while off) and `smart_search_unavailable`
-    (`dev.files.smart_search_unavailable`, turning it on or searching without the model). Clients
-    send `text` only while Settings says on: older devices ignore it and answer the whole library.
+    search - even a token's next page - while off), `smart_search_downloading`
+    (`dev.files.smart_search_downloading` with the percent, a text search while the model is on its
+    way: `ErrSmartSearchDownloading`, checked before the database is asked) and
+    `smart_search_unavailable` (`dev.files.smart_search_unavailable`, turning it on or searching on a
+    device that can't get the model at all: nowhere to download it, or a user's instance whose
+    primary is older than the download on demand and hasn't it). Clients send `text` only while
+    Settings says on: older devices ignore it and answer the whole library.
     The demo allows the search and refuses the switch (`otc-demo-setup` turns it on when the
     device has the model; `-smart-search-only`).
   - Storage: `photo_embeddings` (hash, `model` = `cEmbedModel`, `vec` sealed with
@@ -580,21 +598,63 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     (`smartIndex`, ~0.8 KB a photo, dropped after 15 idle minutes, on off, and per deleted hash)
     and scanned brute force (int8 x float32: 50k photos ~9 ms on an M-series Mac). The query goes
     through the text tower (lowercased, 64 Gemma tokens); text is trimmed and cut at 1000 bytes.
-  - Model (`[embedder]` `image-model-path`, `text-model-path`, `tokenizer-path`, all five files in
-    `/usr/local/models/siglip2-base/`: `image.onnx` + `image.onnx.data`, `text.onnx` +
-    `text.onnx.data`, `tokenizer.model`, ~414 MB; fetched by pinned SHA-256 from the `models`
-    release by install.sh (`EMBED_FILES`, `fetch_optional`), update.sh (each file while missing,
-    after the release scripts) and the container's entrypoint (`EMBED_MODELS`); a file missing =
-    the feature unavailable, never a crash). `embedModels` loads each tower at first use and
-    releases both after 10 idle minutes (Smart search is off on most devices); one call at a time,
-    with the other models' too on a low-memory device (idleModels' `run`, NoArena, 2 threads).
-    The primary serves both towers to the users' instances (`modelserver` ops "embed-image" with
-    the 256x256 pixels and "embed-text", `HasEmbedder` in "info"; an older primary answers
-    `ErrNoEmbedder`). The weights in the `.data` files are memory-mapped by ONNX Runtime: the text
-    tower adds ~130 MB resident (~800 MB with them inside the .onnx).
+  - Model: five files, `image.onnx` + `image.onnx.data`, `text.onnx` + `text.onnx.data`,
+    `tokenizer.model`, 414,935,872 bytes (`smartModelFiles` pins each one's size and SHA-256, the
+    `models` release's assets `siglip2-base-*`). Release 151 had update.sh, install.sh and the
+    container's entrypoint fetch them on every device at every update, Smart search on or off: on a
+    slow home link that took the whole connection for a long while. Since release 152 nothing fetches them but the device, and only once someone turns Smart search
+    on (`files_manager/smart_model.go`, `modelfetch`):
+    - Where: `[embedder]`'s `image-model-path`, `text-model-path`, `tokenizer-path`
+      (`/usr/local/models/siglip2-base/`; the container's `$MODELS/siglip2-base`) are used where
+      the files are - each tower's .onnx with its .data beside it (the .onnx names it), the
+      tokenizer apart - so a device that got them from release 151, and the demo, keeps them. What
+      isn't there is downloaded into
+      `[embedder] download-dir`, by default `models/siglip2-base` in the primary's working
+      directory (`/var/lib/otc/models/siglip2-base` on a Pi: the service runs `ProtectSystem=full`
+      and can't write `/usr`; the container sets it to `$MODELS/siglip2-base` on the state volume, so
+      a container made again finds them). `[embedder] model-url` (a fork's release) and
+      `download-kbps` (kilobytes a second: 2048 by default, 0 no cap).
+    - `modelfetch.Fetcher` (primary only): plain Go HTTP (30 s to connect, a minute for the
+      answer's headers, cut after 2 minutes without a byte - never a limit on the whole transfer),
+      each file into `.<name>.part` in the directory, hashed while written, renamed only when it
+      matches its pin; a part is resumed with `Range` (a 200 starts it again); the speed cap waits
+      after each 32 KB read (no credit while the link is slower); free space checked first (the
+      files still missing against `freeSpaceReserve`, `smartModelRoom`); a failed try waits 1 min,
+      doubling to 1 h (back to 1 min after a try that wrote 1 MB), and stops when nobody wants it
+      any more (`Wanted`). Progress = bytes on the disk of what was missing when it was asked
+      for. `problem` kinds `no_space` (need, left), `unreachable` (connection, stall, 5xx),
+      `failed` (pin mismatch, write error, 4xx), worded `dev.files.smart_search_model_*`.
+    - Who wants it (`localModel`): the primary's own switch (`self`) and the users' instances'
+      leases - "embed-fetch" over the model socket (`Who` = the user's id, `Want`), renewed every
+      minute (`watchSmartModel`) while that instance is on without the model, forgotten 5 minutes
+      after the last (`cSmartLease`). On starts or joins the download; off by the last one stops
+      it and removes the `.part` files (whole files stay - not anyone's data). At start the primary
+      asks for it when its own switch is on (`resumeSmartModel`: a 151 -> 152 update whose 151
+      download failed recovers by itself); `GetSettings`, a text search and the users' instances'
+      asks while on ask again. No `[embedder]` section is fine (defaults); no working directory and
+      no `download-dir` = `smart_search_unavailable`.
+    - When it is there (`adoptSmartModel`, from the download's end, or whoever sees it first) the
+      model is set atomically (`Manager.embedder`, an `atomic.Pointer`, read through
+      `smartEmbedder()`; the model socket asks `Models.Embedder()` per request) and, while on, the
+      photos are described with the session that turned it on (`smartWait`: same turn, same
+      password generation), otherwise at the next sign-in (`SmartSearchSignedIn`, from
+      `startBackfillOnce` at every sign-in). A user's instance learns it from "info"
+      (`EmbedderStatus`, `HasEmbedder`) at its next ask, Settings or search.
+    - `embedModels` loads each tower at first use and releases both after 10 idle minutes (Smart
+      search is off on most devices); one call at a time, with the other models' too on a
+      low-memory device (idleModels' `run`, NoArena, 2 threads). The primary serves both towers to
+      the users' instances (`modelserver` ops "embed-image" with the 256x256 pixels and
+      "embed-text", `HasEmbedder` in "info"; an older primary answers `ErrNoEmbedder`). The weights
+      in the `.data` files are memory-mapped by ONNX Runtime: the text tower adds ~130 MB resident
+      (~800 MB with them inside the .onnx).
   - Tests: `smart_search_test.go` (packing, cutoff, text, bursts, lazy towers and idle release,
-    the switch over sqlmock, ranking with a real session), dao's `TestPhotoEmbeddingsMySQL` and
-    `TestPhotoEmbeddingsWithoutTheirTablesMySQL`, modelserver's `embedder_test.go`,
+    the switch over sqlmock, ranking with a real session), `smart_model_test.go` (on without the
+    model, the session held or the next sign-in, off while downloading, the primary's download
+    while any instance wants it against a test server, leases, `[embedder]`'s files where they are,
+    a user's instance over a real socket), `modelfetch`'s tests (pins, resume, a cut transfer, the
+    cap and the backoff on an injected clock, Stop, free space, a stall), dao's
+    `TestPhotoEmbeddingsMySQL` and `TestPhotoEmbeddingsWithoutTheirTablesMySQL`, modelserver's
+    `embedder_test.go` ("embed-fetch", an older primary, a child from release 151),
     `images_embedder`'s tests (`OTC_EMBEDDER_DIR`, `OTC_ORT_LIB` off Linux).
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
@@ -1320,7 +1380,13 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   through `imagestagger.InitRuntime`. Measured on the demo library (M-series Mac): a photo 58 ms
   with resizing (RAM++ 335 ms), a query 10 ms; precision of the first results 0.96 English, 0.93
   Spanish, 0.90 the others, against 0.87 for RAM++'s best tags. Large (patch 16) did worse here at
-  2.6x the time and 2.4x the download.
+  2.6x the time and 2.4x the download. The files aren't fetched by the scripts since release 152:
+  the device downloads them once Smart search is first turned on (`modelfetch`, Smart search above).
+- `modelfetch` — a model's pinned files downloaded on demand, in the background (Smart search's,
+  release 152): size and SHA-256 per file, `.part` files resumed with `Range` and renamed only once
+  they match, a speed cap, a free-space check, a stall cut, retries from 1 minute doubling to an
+  hour while `Wanted`, `Stop` removing the parts; `State` (ready, downloading, done/total, the last
+  `Problem`). Its clock and waits are injectable for the tests.
 - `images_quality` — On this day's photo quality: NIMA (Google's Neural Image Assessment), idealo's
   MobileNet aesthetic weights trained on AVA (Apache-2.0), exported to ONNX
   (`nima_mobilenet_aesthetic.onnx`, 12.8 MB, sha256 `b35a4d66…71d1`; matches Keras to 1e-6), plus
@@ -1398,7 +1464,12 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   child speaks v1 only when "info" reports it, and the primary still accepts v0 (pixels inside the
   gob message) - keep both when changing the socket. The primary reads and answers two requests at
   a time (`cServedAtOnce`; one in low-memory mode): a face request carries the whole photo. With no
-  tagging model loaded the answer is `ErrNoTagger`, which reaches a child as itself.
+  tagging model loaded the answer is `ErrNoTagger`, which reaches a child as itself. Release 152:
+  "embed-fetch" (`Who`, `Want`: a child asking for Smart search's model, or no longer) and
+  `EmbedderFetch` (`EmbedderState{CanFetch, Downloading, Percent, Problem, Need, Left}`) in its
+  answer and in "info" - new gob fields, which either side ignores when it is older; an older
+  primary's "unknown request embed-fetch" is `ErrNoEmbedder`. "info" and "embed-fetch" never wait
+  for a turn.
 - `supervisor` — issue #82's users' instances, run by the primary. One that keeps stopping is started
   again after 4 s, doubling to 10 minutes (`respawnBackoff`; a run of 10 minutes or more starts a
   new series), and the 5th stop in a row is alerted, once a series (`dev.alert.user.keeps_stopping`);

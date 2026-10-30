@@ -28,14 +28,15 @@ import (
 )
 
 // Smart search (beta): photos found by describing them. While the user has
-// it on (settings.smart_search_enabled, off by default) every photo is
-// described as a vector by SigLIP 2's image tower (images_embedder) from its
-// big thumbnail - by the slow lane after tags, and in the background for
-// what the device held before - and kept sealed with the user's key
-// (photo_embeddings). A search's text goes through the text tower, and the
-// photos the other filters keep are ranked by how close their vectors are
-// to it (rankByText). The vectors are decrypted into memory at the first
-// text search and dropped after cSmartIndexIdle without one.
+// it on (settings.smart_search_enabled, on by default since release 152)
+// every photo is described as a vector by SigLIP 2's image tower
+// (images_embedder) from its big thumbnail - by the slow lane after tags,
+// and in the background for what the device held before - and kept sealed
+// with the user's key (photo_embeddings). A search's text goes through the
+// text tower, and the photos the other filters keep are ranked by how close
+// their vectors are to it (rankByText). The vectors are decrypted into
+// memory at the first text search and dropped after cSmartIndexIdle
+// without one.
 //
 // The switch works as Places' (places_switch.go): every write of a vector
 // holds mu for reading and checks the switch under it (smartWrite); turning
@@ -88,37 +89,12 @@ var (
 	// ErrSmartSearchOff is a text search while Smart search is off
 	// (error_code "smart_search_off").
 	ErrSmartSearchOff = errors.New("smart search is off") // i18n-ignore: the reply's code and text are the websocket layer's
-	// ErrSmartSearchUnavailable is Smart search on a device without its
-	// model (error_code "smart_search_unavailable").
+	// ErrSmartSearchUnavailable is Smart search on a device that can't get
+	// its model (error_code "smart_search_unavailable"): nowhere to
+	// download it, or a primary instance older than the download on
+	// demand that hasn't it.
 	ErrSmartSearchUnavailable = errors.New("smart search is not available on this device") // i18n-ignore: the reply's code and text are the websocket layer's
 )
-
-// embedderFiles are [embedder]'s paths.
-type embedderFiles struct {
-	image, text, tokenizer string
-}
-
-// embedderConfig is [embedder]'s files when the section is there and every
-// file is (each tower's weights in a .data file beside it); ok false
-// otherwise, logged once at start.
-func embedderConfig() (embedderFiles, bool) {
-	if !cfg.HasSection("embedder") {
-		log.Info("Smart search not available ([embedder] section not configured)")
-		return embedderFiles{}, false
-	}
-	f := embedderFiles{
-		image:     cfg.GetStr("embedder", "image-model-path"),
-		text:      cfg.GetStr("embedder", "text-model-path"),
-		tokenizer: cfg.GetStr("embedder", "tokenizer-path"),
-	}
-	for _, p := range []string{f.image, f.image + ".data", f.text, f.text + ".data", f.tokenizer} {
-		if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
-			log.Info("Smart search not available: its model isn't there (yet)")
-			return embedderFiles{}, false
-		}
-	}
-	return f, true
-}
 
 // imageTower and textTower are a loaded tower: images_embedder's, or tests'.
 type imageTower interface {
@@ -265,25 +241,6 @@ func (e *embedModels) releaseWhenIdle() {
 	}
 }
 
-// embedderFor is the device's Smart search model when [embedder]'s files
-// are there, started; nil (a nil interface) otherwise. low: a low-memory
-// device's, without ONNX Runtime's arena, on two threads and in turn with
-// its other models (run).
-func embedderFor(low bool, run *sync.Mutex) modelserver.Embedder {
-	f, ok := embedderConfig()
-	if !ok {
-		return nil
-	}
-	lo := imagesembedder.LoadOptions{}
-	if low {
-		lo = imagesembedder.LoadOptions{NoArena: true, Threads: 2}
-	}
-	e := newEmbedModels(f, lo, run)
-	go e.releaseWhenIdle()
-	log.Info("Smart search available (its model loads when first needed)")
-	return e
-}
-
 // smartState is Smart search's switch, its backfill and the decrypted
 // vectors.
 type smartState struct {
@@ -298,6 +255,8 @@ type smartState struct {
 	// the device held (ListOfFiles.smart_search_reading).
 	reading atomic.Bool
 	index   smartIndex
+	// wait: turned on before the model was there (smart_model.go).
+	wait smartWait
 }
 
 // loadSmart reads the switch from the database once. A database before
@@ -340,10 +299,10 @@ func (mg *Manager) SmartSearchEnabled() bool {
 	return mg.smart.on.Load()
 }
 
-// SmartSearchAvailable is whether this device has Smart search's model (or
-// the primary it uses does).
+// SmartSearchAvailable is whether this instance has Smart search's model
+// now (its own, or the primary's).
 func (mg *Manager) SmartSearchAvailable() bool {
-	return mg != nil && mg.embedder != nil
+	return mg != nil && mg.smartEmbedder() != nil
 }
 
 // SmartSearchReading is ListOfFiles.smart_search_reading.
@@ -352,23 +311,45 @@ func (mg *Manager) SmartSearchReading() bool {
 }
 
 // SetSmartSearchEnabled turns Smart search on or off for this library. Off
-// deletes every vector before it returns and drops the decrypted ones; on
-// describes what the device holds in the background, with ses's key.
-// Turning it on without the model is ErrSmartSearchUnavailable.
+// deletes every vector before it returns, drops the decrypted ones and
+// stops the model's download unless another instance wants it; on
+// describes what the device holds in the background, with ses's key - once
+// the model is there: without it, on starts its download (smart_model.go)
+// and the photos are described after it. ErrSmartSearchUnavailable when
+// the device can't get the model at all.
 func (mg *Manager) SetSmartSearchEnabled(ses *session.Session, on bool) error {
-	if on && !mg.SmartSearchAvailable() {
-		return ErrSmartSearchUnavailable
-	}
 	mg.loadSmart()
+	asked := false
+	if on && mg.smartEmbedder() == nil {
+		if mg.smartSrc == nil {
+			return ErrSmartSearchUnavailable
+		}
+		st, err := mg.smartSrc.want(true)
+		if err != nil {
+			return err
+		}
+		if st.unavailable {
+			return ErrSmartSearchUnavailable
+		}
+		if st.ready {
+			mg.adoptSmartModel()
+		}
+		asked = true
+	}
 	s := &mg.smart
 	s.mu.Lock()
+	wasOn := s.on.Load()
 	if err := mg.dao.SetSmartSearchEnabled(on); err != nil {
 		s.mu.Unlock()
+		// The download was asked for this, which didn't happen.
+		if asked && !wasOn {
+			mg.smartSrc.want(false)
+		}
 		return err
 	}
 	s.on.Store(on)
 	s.loaded.Store(true)
-	s.turn.Add(1)
+	turn := s.turn.Add(1)
 	s.reading.Store(on)
 	s.mu.Unlock()
 	s.index.drop()
@@ -376,10 +357,14 @@ func (mg *Manager) SetSmartSearchEnabled(ses *session.Session, on bool) error {
 	mg.memories.changed()
 	if on {
 		log.Info("smart search: on, describing the photos")
-		if ses != nil {
-			go mg.BackfillEmbeddings(ses)
-		}
+		mg.holdForModel(ses, turn)
 	} else {
+		mg.dropHeld()
+		if mg.smartSrc != nil {
+			if _, err := mg.smartSrc.want(false); err != nil {
+				log.Error("smart search: could not tell the primary instance it is off here:", err)
+			}
+		}
 		log.Info("smart search: off, every description deleted")
 	}
 	return nil
@@ -592,9 +577,13 @@ func (mg *Manager) thumbnailVector(ses *session.Session, hash string) ([]float32
 	if err != nil {
 		return nil, err
 	}
+	e := mg.smartEmbedder()
+	if e == nil {
+		return nil, ErrSmartSearchUnavailable
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), cEmbedTimeout)
 	defer cancel()
-	return mg.embedder.EmbedResized(ctx, imagesembedder.Resize(img))
+	return e.EmbedResized(ctx, imagesembedder.Resize(img))
 }
 
 // describe makes and keeps hash's vector, in turn. Whether it was kept.
@@ -618,7 +607,7 @@ func (mg *Manager) describe(ses *session.Session, hash string, turn uint64) (boo
 // the thumbnail the fast lane wrote, while Smart search is on. A failure
 // leaves no row: the next start's backfill describes it.
 func (mg *Manager) storeEmbedding(ses *session.Session, file *pb.File) {
-	if ses == nil || mg.embedder == nil || !strings.HasPrefix(file.Mime, "image") || !mg.SmartSearchEnabled() {
+	if ses == nil || mg.smartEmbedder() == nil || !strings.HasPrefix(file.Mime, "image") || !mg.SmartSearchEnabled() {
 		return
 	}
 	turn := mg.smart.turn.Load()
@@ -639,14 +628,15 @@ func (mg *Manager) forgetEmbedding(hash string) {
 
 // BackfillEmbeddings describes every photo the device held before Smart
 // search was turned on, once, in the background: after the first sign-in
-// (it needs the key) and when it is turned on. One run at a time; a second
+// (it needs the key), when it is turned on, and when its model arrives
+// (smart_model.go's adoptSmartModel). One run at a time; a second
 // caller leaves it to the one running. Only photos Images may show, with a
 // thumbnail; another model's vectors are made again. It gives way to
 // uploads and the processing lanes (waitForQuiet), stops for a full
 // reprocess or when the switch turns, and a restart before the end goes on
 // at the next: what has a vector is never listed again.
 func (mg *Manager) BackfillEmbeddings(ses *session.Session) {
-	if mg == nil || mg.dao == nil || ses == nil || mg.embedder == nil || !cfg.HasSection("otc") {
+	if mg == nil || mg.dao == nil || ses == nil || mg.smartEmbedder() == nil || !cfg.HasSection("otc") {
 		return
 	}
 	s := &mg.smart
@@ -768,11 +758,11 @@ func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.Fil
 	if !mg.SmartSearchEnabled() {
 		return nil, ErrSmartSearchOff
 	}
-	if mg.embedder == nil {
-		return nil, ErrSmartSearchUnavailable
+	if err := mg.smartSearchUsable(); err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cEmbedTimeout)
-	q, err := mg.embedder.EmbedText(ctx, text)
+	q, err := mg.smartEmbedder().EmbedText(ctx, text)
 	cancel()
 	if errors.Is(err, modelserver.ErrNoEmbedder) {
 		return nil, ErrSmartSearchUnavailable
@@ -807,7 +797,7 @@ func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.Fil
 // Memories' bursts: nil while Smart search is off, unavailable or its
 // vectors can't be read.
 func (mg *Manager) smartSimilarity(ses *session.Session) func(a, b string) (float32, bool) {
-	if ses == nil || !mg.SmartSearchEnabled() || mg.embedder == nil {
+	if ses == nil || !mg.SmartSearchEnabled() || mg.smartEmbedder() == nil {
 		return nil
 	}
 	if err := mg.withIndex(ses, func(*smartIndex) {}); err != nil {

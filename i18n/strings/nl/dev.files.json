@@ -233,13 +233,29 @@
     "text": "fout bij het maken van de deellink voor de bestanden: {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.smart_search_downloading": {
+    "text": "Slim zoeken wordt klaargemaakt: het apparaat downloadt nog wat het nodig heeft ({percent}%)",
+    "en": "Smart search is getting ready: the device is still downloading what it needs ({percent}%)"
+  },
+  "dev.files.smart_search_model_failed": {
+    "text": "Het downloaden van wat Slim zoeken nodig heeft, is mislukt. Het apparaat probeert het over een tijdje zelf opnieuw.",
+    "en": "The download of what Smart search needs failed. The device tries again by itself in a while."
+  },
+  "dev.files.smart_search_model_no_space": {
+    "text": "Er is niet genoeg ruimte op het apparaat voor wat Slim zoeken nodig heeft: het neemt {need} in beslag en er is nog maar {left} vrij. Het apparaat probeert het over een tijdje zelf opnieuw.",
+    "en": "There isn't enough space on the device for what Smart search needs: it takes {need}, and only {left} is free. The device tries again by itself in a while."
+  },
+  "dev.files.smart_search_model_unreachable": {
+    "text": "Het apparaat kon niet downloaden wat Slim zoeken nodig heeft: controleer de internetverbinding. Het probeert het over een tijdje zelf opnieuw.",
+    "en": "The device couldn't download what Smart search needs: check its internet connection. It tries again by itself in a while."
+  },
   "dev.files.smart_search_off": {
     "text": "Slim zoeken staat uit: zet het aan in Instellingen om foto's te vinden door ze te beschrijven",
     "en": "Smart search is off: turn it on in Settings to find photos by describing them"
   },
   "dev.files.smart_search_unavailable": {
-    "text": "Slim zoeken is nog niet beschikbaar op dit apparaat: met de volgende update krijgt het wat het nodig heeft",
-    "en": "Smart search isn't available on this device yet: it gets what it needs with the next update"
+    "text": "Slim zoeken is niet beschikbaar op dit apparaat: het apparaat kan niet krijgen wat het nodig heeft",
+    "en": "Smart search isn't available on this device: it can't get what it needs"
   },
   "dev.files.storage_full": {
     "text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over",

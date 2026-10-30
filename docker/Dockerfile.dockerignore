@@ -29,6 +29,7 @@
 !lantls/
 !log/
 !mediastream/
+!modelfetch/
 !modelserver/
 !network/
 !profile/

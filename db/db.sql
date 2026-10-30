@@ -391,12 +391,13 @@ create table settings
   -- looks (photo_quality); off, it measures nothing and GetMemories answers
   -- "memories_off". Turning it off deletes nothing.
   `memories_enabled` tinyint(1) not null default 1,
-  -- Smart search (beta): off unless the user turns it on
-  -- (SetSmartSearchEnabled). While it is on the device describes each photo
-  -- as a vector (photo_embeddings) and SearchPhotos.text finds photos by
-  -- what they show; turning it off deletes every vector in the same
-  -- transaction.
-  `smart_search_enabled` tinyint(1) not null default 0
+  -- Smart search (beta): on unless the user turns it off
+  -- (SetSmartSearchEnabled) - since release 152, which also turned it on for
+  -- the libraries 151 had it off for (updates/152.sh). While it is on the
+  -- device describes each photo as a vector (photo_embeddings) and
+  -- SearchPhotos.text finds photos by what they show; turning it off
+  -- deletes every vector in the same transaction.
+  `smart_search_enabled` tinyint(1) not null default 1
 ) engine=InnoDB;
 
 create table profile

@@ -94,7 +94,8 @@ func (dao *Dao) PhotosToEmbed(afterHash string, limit int, model string, exclude
 }
 
 // SmartSearchEnabled is whether Smart search is on for this library
-// (settings.smart_search_enabled, off unless the user turns it on).
+// (settings.smart_search_enabled, on unless the user turns it off - since
+// release 152; off by default in 151).
 // ErrSchemaBehind before the release that added it, which callers read as
 // off.
 func (dao *Dao) SmartSearchEnabled() (on bool, err error) {
