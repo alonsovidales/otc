@@ -17,6 +17,11 @@
 //  is what the Search key takes, when no tag or person matches; otherwise
 //  it follows the files. A device older than SearchFiles has neither.
 //
+//  While Smart search is on (SmartSearch.swift) a row "Search photos for
+//  “…”" comes first, and the Search key takes it unless the words are
+//  exactly a tag or a person: the photos that best match them, as a
+//  description, within the chips.
+//
 //  Picking a tag or a person narrows Images; picking a folder shows it in
 //  Files, and a file opens there as a tap on it in its folder would. The
 //  Search key never opens a file or folder by itself.
@@ -263,6 +268,9 @@ enum SearchOption: Identifiable {
     case person(Msg_Person, label: String, span: Range<Int>?)
     /// The typed text itself, searched for in every file's path.
     case docs(String)
+    /// Smart search (while it is on): the photos that best match the
+    /// typed words, as a description, within the chips.
+    case smart(String)
     case file(Msg_File, kind: FoundKind, name: String, dir: String, nameSpan: Range<Int>?, dirSpan: Range<Int>?)
 
     var id: String {
@@ -270,6 +278,7 @@ enum SearchOption: Identifiable {
         case .tag(let t, _): return "t:\(t)"
         case .person(let p, _, _): return "p:\(p.id)"
         case .docs: return "docs"
+        case .smart: return "smart"
         case .file(let f, _, _, _, _, _): return "f:\(f.path)"
         }
     }
@@ -279,7 +288,7 @@ enum SearchOption: Identifiable {
     /// every file and folder found. nil for a tag or a person.
     var inFiles: FilesNav.Request.Kind? {
         switch self {
-        case .tag, .person:
+        case .tag, .person, .smart:
             return nil
         case .docs(let text):
             return .search(text)
@@ -297,23 +306,31 @@ struct SearchSuggestions {
     var people: [SearchOption] = []
     var files: [SearchOption] = []
     var docs: SearchOption?
-    /// What the Search key takes: an exact match, or else the first tag,
-    /// person or the documents row - never a file or folder.
+    /// Smart search's row (while it is on): first, and what the Search key
+    /// takes - unless the words are exactly a tag or a person, which is then
+    /// taken and the row follows the things and people (`smartAfter`).
+    var smart: SearchOption?
+    var smartAfter = false
+    /// What the Search key takes: an exact match, or else Smart search's
+    /// row, or the first tag, person or the documents row - never a file or
+    /// folder.
     var best: String?
 
     /// The row to search the documents: first when no tag or person matches.
     var docsFirst: Bool { tags.isEmpty && people.isEmpty }
-    var isEmpty: Bool { tags.isEmpty && people.isEmpty && files.isEmpty && docs == nil }
+    var isEmpty: Bool { tags.isEmpty && people.isEmpty && files.isEmpty && docs == nil && smart == nil }
 
     var bestOption: SearchOption? {
         guard let best else { return nil }
-        return (tags + people + files + [docs].compactMap { $0 }).first { $0.id == best }
+        return ordered.first { $0.id == best }
     }
 
     /// Every row in the panel's order: what the arrow keys step through.
     var ordered: [SearchOption] {
         let d = [docs].compactMap { $0 }
-        return docsFirst ? d + files : tags + people + files + d
+        let s = [smart].compactMap { $0 }
+        if docsFirst { return s + d + files }
+        return smartAfter ? tags + people + s + files + d : s + tags + people + files + d
     }
 
     /// The highlighted row, what the Search key takes: where the arrow keys
@@ -479,7 +496,10 @@ final class TopSearchModel: ObservableObject {
         suggestions(tags: [], inSearch: [], people: [], faces: false, noFileSearch: noFileSearch)
     }
 
-    func suggestions(tags: [String], inSearch: [String], people: [Msg_Person], faces: Bool, noFileSearch: Bool) -> SearchSuggestions {
+    /// `smart`: Smart search is on (SmartSearchSupport), so its row comes
+    /// first - never in Files' own field.
+    func suggestions(tags: [String], inSearch: [String], people: [Msg_Person], faces: Bool, noFileSearch: Bool,
+                     smart: Bool = false) -> SearchSuggestions {
         let typed = self.typed
         let q = FoldedText(typed)
         var out = SearchSuggestions()
@@ -541,7 +561,11 @@ final class TopSearchModel: ObservableObject {
             }
         }
         if !noFileSearch { out.docs = .docs(typed) }
-        out.best = exact ?? out.tags.first?.id ?? out.people.first?.id ?? out.docs?.id
+        if smart, scope == .everything, let t = SmartSearchSupport.text(typed) {
+            out.smart = .smart(t)
+            out.smartAfter = exact != nil
+        }
+        out.best = exact ?? out.smart?.id ?? out.tags.first?.id ?? out.people.first?.id ?? out.docs?.id
         return out
     }
 }
@@ -571,7 +595,8 @@ struct TopSearchActions {
             inSearch: vm.chips,
             people: vm.allPeople,
             faces: faces,
-            noFileSearch: filesNav.noFileSearch
+            noFileSearch: filesNav.noFileSearch,
+            smart: SmartSearchSupport.shared.isOn
         )
     }
 
@@ -586,7 +611,7 @@ struct TopSearchActions {
             // Nothing typed: Images narrowed to the chips, as the web's
             // Enter (from the top bar on another section; Images' own field
             // is there already).
-            if !vm.chips.isEmpty || !vm.selectedPeople.isEmpty || vm.activeGroup != nil { showPhotos() }
+            if !vm.chips.isEmpty || !vm.selectedPeople.isEmpty || vm.activeGroup != nil || vm.smartText != nil { showPhotos() }
             return
         }
         let s = suggestions()
@@ -614,6 +639,10 @@ struct TopSearchActions {
         case .docs(let text):
             // Every file and folder found, listed in Files.
             filesNav.searchInFiles(text)
+        case .smart(let text):
+            // The photos that best match the words, within the chips.
+            vm.searchText(text)
+            showPhotos()
         case .file(let f, let kind, _, _, _, _):
             // A folder opens; a file opens in its folder, as a tap there.
             if kind == .folder {
@@ -725,8 +754,12 @@ struct TopSearchPanel: View {
             // has to measure them all.
             VStack(alignment: .leading, spacing: 0) {
                 Color.clear.frame(height: 0).id(Self.topID)
+                // Smart search's row first - after the things and people
+                // when the words are exactly one of them.
+                if !suggestions.smartAfter, let smart = suggestions.smart { row(smart).padding(.top, 6) }
                 if !suggestions.tags.isEmpty { section(S.appPhotosSearchThings, suggestions.tags) }
                 if !suggestions.people.isEmpty { section(S.appPhotosSearchPeople, suggestions.people) }
+                if suggestions.smartAfter, let smart = suggestions.smart { row(smart).padding(.top, 6) }
                 if suggestions.docsFirst, let docs = suggestions.docs { row(docs).padding(.top, 6) }
                 if !suggestions.files.isEmpty { section(S.appPhotosSearchFiles, suggestions.files) }
                 if !suggestions.docsFirst, let docs = suggestions.docs { row(docs).padding(.top, 6) }
@@ -795,6 +828,13 @@ struct TopSearchPanel: View {
                     if selectedPeople.contains(p.id) {
                         Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Color.accentColor)
                     }
+                case .smart(let text):
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 18))
+                        .foregroundStyle(MenuStyle.gold)
+                        .frame(width: 32, height: 32)
+                    Text(smartLabel(text)).lineLimit(2)
+                    Spacer(minLength: 0)
                 case .docs(let text):
                     NavIconView(.docSearch, size: 20)
                         .foregroundStyle(.secondary)
@@ -832,6 +872,12 @@ struct TopSearchPanel: View {
         .id(o.id)
     }
 
+    private func smartLabel(_ text: String) -> AttributedString {
+        var bold = AttributeContainer()
+        bold.inlinePresentationIntent = .stronglyEmphasized
+        return S.appPhotosSmartSearchSearchFor(text: text, b: bold)
+    }
+
     private func docsLabel(_ text: String) -> AttributedString {
         var bold = AttributeContainer()
         bold.inlinePresentationIntent = .stronglyEmphasized
@@ -847,6 +893,7 @@ struct TopSearchPanel: View {
                 ? S.iosPhotosSearchPersonIn(name: label, count: n)
                 : S.appPhotosPeopleFaceLabel(name: label, count: n)
         case .docs(let text): return S.iosPhotosSearchDocuments(text: text)
+        case .smart(let text): return String(smartLabel(text).characters)
         case .file(_, let kind, let name, let dir, _, _): return kind.spoken(name: name, dir: dir)
         }
     }

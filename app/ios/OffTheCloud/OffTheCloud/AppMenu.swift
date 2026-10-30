@@ -918,7 +918,7 @@ struct TopBarSearchField: View {
     @State private var chipsWidth: CGFloat = 0
 
     /// Tags or people searched for: what the clear button takes away.
-    private var searched: Bool { !vm.chips.isEmpty || !vm.selectedPeople.isEmpty }
+    private var searched: Bool { !vm.chips.isEmpty || !vm.selectedPeople.isEmpty || vm.smartText != nil }
     /// Chips in the field - an open collection is one too, as on the web,
     /// so that every section shows that Images is narrowed to it.
     private var hasChips: Bool { searched || vm.activeGroup != nil }
@@ -1022,6 +1022,19 @@ struct TopBarSearchField: View {
             }
             ForEach(vm.chips, id: \.self) { tag in
                 chip(label: tag, dim: false, removeLabel: S.appShellSearchRemove(name: tag), leading: nil) { vm.removeChip(tag) }
+            }
+            // Smart search's words, last: what the photos are ranked by.
+            if let text = vm.smartText {
+                chip(
+                    label: text, dim: false, removeLabel: S.appShellSearchRemove(name: text),
+                    leading: AnyView(
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13))
+                            .foregroundStyle(MenuStyle.gold)
+                            .accessibilityHidden(true)
+                    ),
+                    leadingPad: 10
+                ) { vm.clearSmartText() }
             }
         }
     }

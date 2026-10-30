@@ -75,6 +75,13 @@ final class PhotoGalleryVM: ObservableObject {
     // UI state
     @Published var tags: [String] = []
     @Published var chips: [String] = []
+    /// Smart search (beta, SmartSearch.swift): the words searched for by
+    /// description, ranked by the device within the other chips
+    /// (SearchPhotos.text); nil for none.
+    @Published private(set) var smartText: String?
+    /// The device is still describing photos it held: some may be missing
+    /// (ListOfFiles.smart_search_reading), a quiet note says so.
+    @Published private(set) var smartReading = false
 
     // Issue #52 follow-up: the person filter. People are picked in the
     // search (TopSearch.swift) and show as chips over it. Selecting more
@@ -164,7 +171,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// What the date buckets count for the current filter; nil out of date
     /// order (a tag search), which has none.
     private var bucketKeyNow: String? {
-        chips.isEmpty ? "\(selectedPeople.joined(separator: ","))|\(activeGroup?.id ?? "")|\(activeArea.map(PhotoGalleryVM.areaKey) ?? "")" : nil
+        !ranked ? "\(selectedPeople.joined(separator: ","))|\(activeGroup?.id ?? "")|\(activeArea.map(PhotoGalleryVM.areaKey) ?? "")" : nil
     }
     /// The date buckets are the current filter's (the web's bucketsFresh).
     var bucketsFresh: Bool { bucketsKey != nil && bucketsKey == bucketKeyNow }
@@ -195,8 +202,8 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
     var personFilter: PersonFilter? {
-        .of(selected: selectedPeople, tags: chips, group: activeGroup?.id, loaded: peopleLoaded,
-            people: allPeople, total: bucketsFresh ? totalPhotos : nil)
+        smartText != nil ? nil : .of(selected: selectedPeople, tags: chips, group: activeGroup?.id, loaded: peopleLoaded,
+                                     people: allPeople, total: bucketsFresh ? totalPhotos : nil)
     }
     // scrubFrac is the live drag position (0=newest/top, 1=oldest/bottom),
     // nil whenever the user isn't actively dragging. placeholderCount
@@ -305,7 +312,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// or what decides the layout changes, so drawing a frame never groups
     /// anything.
     func gridLayout(_ metrics: PhotoGridMetrics) -> PhotoGridLayout {
-        let dated = chips.isEmpty
+        let dated = !ranked
         var placeholder = PhotoGridLayout.Placeholder.none
         var count = 0
         if let n = placeholderCount, let month = placeholderMonth {
@@ -415,7 +422,7 @@ final class PhotoGalleryVM: ObservableObject {
     enum EmptyKind: Equatable { case collection, noMatch, noPhotos }
 
     var emptyKind: EmptyKind {
-        if !chips.isEmpty || !selectedPeople.isEmpty || activeArea != nil { return .noMatch }
+        if !chips.isEmpty || !selectedPeople.isEmpty || activeArea != nil || smartText != nil { return .noMatch }
         if activeGroup != nil { return .collection }
         return .noPhotos
     }
@@ -903,9 +910,43 @@ final class PhotoGalleryVM: ObservableObject {
     /// The search's clear button: no tags, no people (an open collection
     /// stays open, as on the web).
     func clearSearch() {
-        guard !chips.isEmpty || !selectedPeople.isEmpty else { return }
+        guard !chips.isEmpty || !selectedPeople.isEmpty || smartText != nil else { return }
         chips = []
         selectedPeople = []
+        smartText = nil
+        smartReading = false
+        restartSearch()
+    }
+
+    /// Ordered by how well photos match - tags or a Smart search's words -
+    /// not by date: no months, no date scrubber, no jump.
+    var ranked: Bool { !chips.isEmpty || smartText != nil }
+
+    /// Smart search: the photos that best match these words, within the
+    /// other chips. Only while it is on (a device without it would answer
+    /// the whole library).
+    func searchText(_ typed: String) {
+        guard SmartSearchSupport.shared.isOn, let t = SmartSearchSupport.text(typed), t != smartText else { return }
+        smartText = t
+        smartReading = false
+        restartSearch()
+    }
+
+    /// The Smart search chip's ×, or the switch turned off.
+    func clearSmartText() {
+        guard smartText != nil else { return }
+        smartText = nil
+        smartReading = false
+        restartSearch()
+    }
+
+    /// The device refused the words (turned off on another app, no model):
+    /// they go, the search runs without them, and the notice says why.
+    private func dropSmartText(saying words: String?) {
+        smartText = nil
+        smartReading = false
+        notice = .smartSearch(words)
+        showAlert = true
         restartSearch()
     }
 
@@ -1132,7 +1173,9 @@ final class PhotoGalleryVM: ObservableObject {
     /// web's showAll - whatever was searched for, and an open collection,
     /// are left.
     func showAll() {
-        guard !chips.isEmpty || !selectedPeople.isEmpty || activeGroup != nil || activeArea != nil else { return }
+        guard !chips.isEmpty || !selectedPeople.isEmpty || activeGroup != nil || activeArea != nil || smartText != nil else { return }
+        smartText = nil
+        smartReading = false
         chips = []
         selectedPeople = []
         activeGroup = nil
@@ -1143,6 +1186,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// One person's photos, from the People page: a new search, as the
     /// web's showPerson - no tags, no other people, no open collection.
     func showPerson(_ id: String) {
+        smartText = nil
+        smartReading = false
         chips = []
         selectedPeople = [id]
         activeGroup = nil
@@ -1729,7 +1774,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// The grid wants the photos above it: after a jump, in date order,
     /// once its first page is in and while there are more.
     var upWanted: Bool {
-        !fixedList && jumpBefore != nil && chips.isEmpty && !upEnd && placeholderCount == nil && !items.isEmpty
+        !fixedList && jumpBefore != nil && !ranked && !upEnd && placeholderCount == nil && !items.isEmpty
     }
 
     /// A tile near the grid's top (at `idx`; below 0 for the grey tiles
@@ -2061,6 +2106,8 @@ final class PhotoGalleryVM: ObservableObject {
         // against a stale *response*, not a request that mutated out from
         // under itself before it was even sent).
         let tags = chips
+        // Smart search's words: ranked best first, never by a date.
+        let text = smartText
         let people = selectedPeople
         let group = activeGroup?.id ?? ""
         let area = activeArea
@@ -2070,7 +2117,7 @@ final class PhotoGalleryVM: ObservableObject {
         // that show from the upward one included (downHidden).
         let have = items.reduce(0) { $1.up || $1.isLocalOnly ? $0 : $0 + 1 } + downHidden
         let shown = Set(items.map(\.path))
-        let cutoff = jumpBefore
+        let cutoff = text == nil ? jumpBefore : nil
         // What came instead of a page (nil: nothing came), and what was
         // thrown instead of an answer: why the grid says it failed.
         var resp: Msg_RespEnvelope?
@@ -2080,6 +2127,7 @@ final class PhotoGalleryVM: ObservableObject {
             failure = nil
             var sp = SearchPhotosMsg()
             sp.tags = tags
+            if let text { sp.text = text }
             sp.personIds = people
             sp.groupID = group // issue #115: inside a group, only its members
             // Places: a group of the map's photos, by its area.
@@ -2142,6 +2190,12 @@ final class PhotoGalleryVM: ObservableObject {
             await page(requestToken, cutoff)
             guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
         }
+        // Smart search refused the words: they go, with the device's words.
+        if text != nil, let refused = SmartSearchSupport.refusal(resp) {
+            if refused.off { SmartSearchSupport.shared.set(false) }
+            dropSmartText(saying: refused.words)
+            return .skipped
+        }
         // An error answer (the bridge's "device unreachable", the device's
         // own "internal error") is no page and no end of the library either.
         guard let got = resp, case .respListOfFiles(let lof) = got.payload else {
@@ -2187,6 +2241,9 @@ final class PhotoGalleryVM: ObservableObject {
 
         self.token = lof.token.isEmpty ? nil : lof.token
         self.endReached = (self.token == nil)
+        let reading = text != nil && lof.smartSearchReading
+        if reading && !smartReading { Announce.polite(S.appPhotosSmartSearchReading) }
+        smartReading = reading
         pageRetry.reset()
         slowTimer?.cancel()
         slowTimer = nil
@@ -2228,7 +2285,7 @@ final class PhotoGalleryVM: ObservableObject {
         // filter's results coming back mixed with a pile of unrelated
         // photos (a previous unfiltered browse's local files, not a stale
         // server response as first suspected).
-        guard chips.isEmpty && selectedPeople.isEmpty && activeArea == nil else { return }
+        guard chips.isEmpty && selectedPeople.isEmpty && activeArea == nil && smartText == nil else { return }
         let remotePaths = Set(items.map(\.path))
         let locals = scanLocalFiles()
         var adds: [Item] = []
@@ -3184,6 +3241,8 @@ enum GalleryNotice {
     /// Issue #201: a delete of several left some: each one's words, or
     /// several summed up (DeleteCopies.keptText).
     case deletesKept([DeleteCopies.Kept])
+    /// Smart search couldn't search the words: the device's words, if any.
+    case smartSearch(String?)
 
     var text: String {
         switch self {
@@ -3213,6 +3272,7 @@ enum GalleryNotice {
         case .downloadFailed(let e): return S.iosPhotosDownloadFailed(detail: e.localizedDescription)
         case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
         case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
+        case .smartSearch(let words): return words ?? S.appPhotosSmartSearchFailed
         }
     }
 }
@@ -3231,6 +3291,8 @@ struct PhotoGalleryView: View {
     @ObservedObject private var placesSupport = PlacesSupport.shared
     /// On this day: the memories over the whole library (Memories.swift).
     @ObservedObject private var memories = MemoriesModel.shared
+    /// Smart search: its words go when it is turned off.
+    @ObservedObject private var smartSearch = SmartSearchSupport.shared
     // A wide window: the search is in the top bar and People and
     // Collections are in the menu, so this view shows neither - only an
     // open collection's chip, and the photos.
@@ -3338,6 +3400,16 @@ struct PhotoGalleryView: View {
                                 PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
                             }
                             Color.clear.frame(height: 0).id("photoGridTop")
+                            // Smart search: the device is still describing
+                            // the photos it held - some may be missing.
+                            if vm.smartText != nil && vm.smartReading {
+                                Text(S.appPhotosSmartSearchReading)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 8)
+                            }
                             gridMessage
                             // One row per line of the grid, lazily: a big
                             // month's title spans the row over its own rows of
@@ -3611,6 +3683,9 @@ struct PhotoGalleryView: View {
             vm.onAppearInitial()
             memories.appeared()
         }
+        .onChange(of: smartSearch.isOn) { _, on in
+            if !on { vm.clearSmartText() }
+        }
         // Hidden from the memories (Undo), or why not.
         .overlay(alignment: .bottom) { MemoryToastView(model: memories).padding(.bottom, 16) }
         .confirmationDialog(
@@ -3812,7 +3887,7 @@ struct PhotoGalleryView: View {
     /// collection or map area (Android's rule).
     private var showsMemories: Bool {
         memories.isShown && vm.chips.isEmpty && vm.selectedPeople.isEmpty
-            && vm.activeGroup == nil && vm.activeArea == nil
+            && vm.activeGroup == nil && vm.activeArea == nil && vm.smartText == nil
     }
 
     /// A group of the map's photos is open in the grid.
@@ -3821,7 +3896,7 @@ struct PhotoGalleryView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !wide {
-                if !vm.chips.isEmpty || !vm.selectedPeople.isEmpty {
+                if !vm.chips.isEmpty || !vm.selectedPeople.isEmpty || vm.smartText != nil {
                     chipsRow
                 }
                 searchRow
@@ -4001,7 +4076,7 @@ struct PhotoGalleryView: View {
             NavIconView(.search, size: 18)
                 .foregroundStyle(.secondary)
             TextField(
-                vm.chips.isEmpty && vm.selectedPeople.isEmpty ? S.appShellSearchField : S.commonSearch,
+                vm.chips.isEmpty && vm.selectedPeople.isEmpty && vm.smartText == nil ? S.appShellSearchField : S.commonSearch,
                 text: $search.query
             )
             .focused($searchFocused)
@@ -4015,7 +4090,7 @@ struct PhotoGalleryView: View {
             .onKeyPress(.downArrow) { actions.arrow(1) }
             .onKeyPress(.escape) { actions.escape() }
             .accessibilityLabel(S.appShellSearchField)
-            if !search.query.isEmpty || !vm.chips.isEmpty || !vm.selectedPeople.isEmpty {
+            if !search.query.isEmpty || !vm.chips.isEmpty || !vm.selectedPeople.isEmpty || vm.smartText != nil {
                 // Everything typed and picked goes - not an open collection.
                 Button {
                     actions.clear()
@@ -4071,6 +4146,19 @@ struct PhotoGalleryView: View {
                         chipRemove(S.appShellSearchRemove(name: chip)) { vm.removeChip(chip) }
                     }
                     .padding(.leading, 12)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                }
+                // Smart search's words, last: what the photos are ranked by.
+                if let text = vm.smartText {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles").font(.caption).foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        Text(text).font(.subheadline).lineLimit(1)
+                        chipRemove(S.appShellSearchRemove(name: text)) { vm.clearSmartText() }
+                    }
+                    .padding(.leading, 10)
                     .padding(.trailing, 4)
                     .padding(.vertical, 3)
                     .background(Color.accentColor.opacity(0.15), in: Capsule())

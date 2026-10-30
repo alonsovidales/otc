@@ -572,6 +572,11 @@ struct MemoryPeriodPicker: View {
     @ObservedObject var model: MemoriesModel
     let shown: Msg_MemoryPeriod
 
+    /// A period without memories: the label at 38%, Material's disabled
+    /// text (Android's FilterChip), readable on both themes - the secondary
+    /// colour dimmed again all but vanished on a dark one.
+    static let dimmed = Color.primary.opacity(0.38)
+
     var body: some View {
         HStack(spacing: 4) {
             ForEach(MemoryChoice.periods, id: \.rawValue) { p in
@@ -584,13 +589,12 @@ struct MemoryPeriodPicker: View {
                         .lineLimit(1)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .foregroundStyle(on ? MenuStyle.gold : Color.secondary)
+                        .foregroundStyle(on ? MenuStyle.gold : model.has(p) ? Color.secondary : Self.dimmed)
                         .background(on ? MenuStyle.activeFill : Color.clear, in: Capsule())
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .disabled(!model.has(p))
-                .opacity(model.has(p) ? 1 : 0.35)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }

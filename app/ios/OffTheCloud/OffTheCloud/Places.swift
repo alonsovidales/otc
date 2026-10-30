@@ -534,6 +534,7 @@ final class PlacesSupport: ObservableObject {
                 // The same answer says whether On this day is on.
                 if let resp, case .respSettings(let s) = resp.payload {
                     MemoriesModel.shared.deviceSaid(settings: s)
+                    SmartSearchSupport.shared.deviceSaid(settings: s)
                 }
                 if let said = Self.verdict(resp) {
                     self.set(said)

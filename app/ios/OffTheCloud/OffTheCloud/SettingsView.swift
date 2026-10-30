@@ -69,6 +69,10 @@ final class DeviceSettingsViewModel: ObservableObject {
     @Published var memoriesEnabled: Bool?
     @Published var savingMemories = false
     @Published var showingHiddenMemories = false
+    // Smart search (beta): off unless turned on. nil: a device before it
+    // (or not answered yet), with no switch.
+    @Published var smartSearchEnabled: Bool?
+    @Published var savingSmartSearch = false
 
     // Issue #73: full-library reprocess - re-runs tagging/face detection
     // against every already-uploaded photo/video (e.g. after a detection
@@ -202,6 +206,9 @@ final class DeviceSettingsViewModel: ObservableObject {
                 // And On this day (MemoriesModel).
                 memoriesEnabled = s.hasMemoriesEnabled ? s.memoriesEnabled : nil
                 MemoriesModel.shared.deviceSaid(settings: s)
+                // And Smart search (SmartSearchSupport).
+                smartSearchEnabled = s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil
+                SmartSearchSupport.shared.deviceSaid(settings: s)
                 LanguageSettings.shared.deviceSaid(settings: s)
             }
         } catch { /* leave blank - the rest of the screen still works */ }
@@ -281,6 +288,34 @@ final class DeviceSettingsViewModel: ObservableObject {
             }
         } catch {
             memoriesEnabled = !enabled
+            showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// Smart search's switch: the free-text search comes and goes at once
+    /// (SmartSearchSupport). A device without the model refuses turning it
+    /// on in its own words (smart_search_unavailable).
+    func toggleSmartSearch(_ enabled: Bool) async {
+        savingSmartSearch = true
+        defer { savingSmartSearch = false }
+        var req = Msg_SetSmartSearchEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetSmartSearchEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                smartSearchEnabled = enabled
+                SmartSearchSupport.shared.set(enabled)
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding.
+                smartSearchEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
+                } else if resp.error {
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
+                }
+            }
+        } catch {
+            smartSearchEnabled = !enabled
             showToast(.say { S.appSettingsErrorSetting })
         }
     }
@@ -614,6 +649,12 @@ struct SettingsView: View {
                 // On this day, after Places: on a device that has it.
                 if let memoriesOn = device.memoriesEnabled {
                     MemoriesSettingsSection(device: device, on: memoriesOn)
+                }
+
+                // Smart search (beta), after On this day: on a device that
+                // has it.
+                if let smartOn = device.smartSearchEnabled {
+                    SmartSearchSettingsSection(device: device, on: smartOn)
                 }
 
                 ConnectionSettingsSection(secrets: secrets) { confirmLogout = true }
@@ -1028,6 +1069,7 @@ enum AppLogOut {
             FaceRecognition.shared.reset()
             PlacesSupport.shared.reset()
             MemoriesModel.shared.reset()
+            SmartSearchSupport.shared.reset()
             FilesNav.shared.reset()
             OTCConnection.shared.reset()
             MediaStream.reset()
@@ -1287,5 +1329,42 @@ private struct MemoriesSettingsSection: View {
             }
         }
         .onAppear { memories.appeared() }
+    }
+}
+
+/// Settings > Smart search: its switch, with a Beta badge. Turning it off
+/// asks first: the device deletes what it learned about the photos.
+struct SmartSearchSettingsSection: View {
+    @ObservedObject var device: DeviceSettingsViewModel
+    let on: Bool
+    @State private var confirmOff = false
+
+    var body: some View {
+        Section(
+            header: Text(S.appSettingsSmartSearchTitle),
+            footer: Text(S.appSettingsSmartSearchFooter)
+        ) {
+            Toggle(isOn: Binding(
+                get: { on },
+                set: { newValue in
+                    if newValue {
+                        Task { await device.toggleSmartSearch(true) }
+                    } else {
+                        confirmOff = true
+                    }
+                }
+            )) {
+                SmartSearchLabel()
+            }
+            .disabled(device.savingSmartSearch)
+        }
+        .alert(S.appSettingsSmartSearchOffTitle, isPresented: $confirmOff) {
+            Button(S.appSettingsSmartSearchOffConfirm, role: .destructive) {
+                Task { await device.toggleSmartSearch(false) }
+            }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            Text(S.appSettingsSmartSearchOffText)
+        }
     }
 }

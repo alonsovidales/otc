@@ -640,7 +640,8 @@ final class OTCConnection: ObservableObject {
         DeviceSupport.shared.signedIn()
         // Places: whether this device has the map (release 148) and it is
         // on, asked again - and, from the same answer, On this day
-        // (release 150, MemoriesModel).
+        // (release 150, MemoriesModel) and Smart search (151,
+        // SmartSearchSupport).
         PlacesSupport.shared.connected()
         authenticated = true
         homeLink = home

@@ -3150,6 +3150,27 @@ out politely; a refusal (the demo) shows the device's words, no answer `hide_fai
 Memories after Places: the switch (`toggleMemories`) and "Show hidden memories again (N)"
 (`show_all`) while `hidden_count` is above 0. Log Out resets it.
 
+**Smart search on iOS** (beta, 2026-10-30; `SmartSearch.swift`, `SmartSearchTests.swift`; the device
+side under its own paragraph above; texts `app.settings.smart_search.*`, `app.photos.smart_search.*`,
+shared with Android, whose rules these are, case for case): `SmartSearchSupport` knows the switch from
+`GetSettings`' `smart_search_enabled` (PlacesSupport's connection answer and Settings' load; absent = a
+device before it: no switch, no free-text search, the search exactly as before), reset at Log Out.
+Settings' Smart search section after On this day: the switch with a Beta badge
+(`SmartSearchLabel`), the footer; turning it off asks first (`off_title`/`off_text`/`off_confirm`), and
+a refusal (`smart_search_unavailable`, the demo) shows the device's words. While it is on, the search
+panel's first row is "Search photos for “…”" (`SearchOption.smart`), what the Search key takes unless
+the words are exactly a tag or a person - that is taken, and the row follows the things and people
+(`smartAfter`); a partial match never wins ("beac" searches, "beach" is the tag), the arrows do; the
+documents row stays after it; never in Files' own field. Picked,
+the words become `PhotoGalleryVM.smartText`, a chip with a sparkle after the tags (both the narrow
+field's chips and the wide top bar's; × `clearSmartText`), sent as `SearchPhotos.text` with the chips'
+tags, people, collection and area, never `before` or `newer_than`; `ranked` (tags or words) means no
+months, no date buckets or scrubber, no jump or upward pages, and with words no person header or On
+this day strip. `ListOfFiles.smart_search_reading` shows `app.photos.smart_search.reading` above the
+results, announced politely, until a page says false (nothing asked again for it). `smart_search_off` (turned off elsewhere: the switch
+goes off too) and `smart_search_unavailable` drop the words and run the search again, saying the
+device's words or `smart_failed`; the switch going off drops them as well.
+
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
