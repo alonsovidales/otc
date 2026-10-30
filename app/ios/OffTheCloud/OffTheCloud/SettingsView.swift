@@ -69,8 +69,9 @@ final class DeviceSettingsViewModel: ObservableObject {
     @Published var memoriesEnabled: Bool?
     @Published var savingMemories = false
     @Published var showingHiddenMemories = false
-    // Smart search (beta): off unless turned on. nil: a device before it
-    // (or not answered yet), with no switch.
+    // Smart search (beta): as the device says - off by default in release
+    // 151, on by default since 152. nil: a device before it (or not
+    // answered yet), with no switch.
     @Published var smartSearchEnabled: Bool?
     @Published var savingSmartSearch = false
 
@@ -532,6 +533,11 @@ struct SettingsView: View {
                 Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
+
+                // What the device works through by itself (release 152),
+                // from the Status answer above - asked every 5 s while
+                // Settings shows; only while it lists something.
+                BackgroundWorkSection(items: BackgroundWork.items(status.status))
 
                 // The device's accounts, right under its status (the
                 // owner's most used part of Settings).

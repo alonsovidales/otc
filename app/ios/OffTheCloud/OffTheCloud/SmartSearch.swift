@@ -8,9 +8,11 @@
 //  them ("kids in the snow", "un perro en la playa"), worked out on the
 //  device (SigLIP 2) and kept encrypted there. Android follows the same
 //  rules:
-//    - Only while the user has it on (Settings.smart_search_enabled, off by
-//      default; absent = a device before it: neither the switch nor the
-//      free-text search, the search exactly as before).
+//    - Only while it is on for the user (Settings.smart_search_enabled: off
+//      by default in release 151, on by default since 152 - the app never
+//      assumes either, it shows what the device says; absent = a device
+//      before it: neither the switch nor the free-text search, the search
+//      exactly as before).
 //    - Settings: a "Smart search" switch with a Beta badge after On this
 //      day; turning it off asks first (it deletes what the device learned);
 //      a device without the model refuses turning it on
@@ -30,11 +32,14 @@
 //      = an older device, which had it: everything as before). Until it is
 //      there Settings says so under the switch - the download note, or a
 //      progress bar asked about again every 3 s while the switch is on and
-//      Settings shows - and the search offers no row. A search told
+//      Settings shows - and the search offers no row; Images' search field
+//      taking the focus asks where it is (at most every 5 s), so the row
+//      comes without a visit to Settings. A search told
 //      smart_search_downloading drops the words as smart_search_unavailable
 //      does, keeps the switch on and asks where the model is.
 //
 
+import Combine
 import SwiftUI
 
 /// Where Smart search's model is, as the device's Settings say
@@ -143,7 +148,35 @@ final class SmartSearchSupport: ObservableObject {
     var isOn: Bool { enabled == true }
 
     /// The free-text search is offered: on, with the model there.
-    var searchable: Bool { isOn && model == .ready }
+    var searchable: Bool { Self.searchable(on: enabled, model: model) }
+
+    static func searchable(on: Bool?, model: SmartSearchModelState) -> Bool {
+        on == true && model == .ready
+    }
+
+    /// `searchable` as it changes, for a view that doesn't observe the rest.
+    var searchableChanges: AnyPublisher<Bool, Never> {
+        $enabled.combineLatest($model)
+            .map { Self.searchable(on: $0, model: $1) }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    /// Images' search field asks where the model is at most this often.
+    static let focusAskEvery: TimeInterval = 5
+    private var focusAsked: Date?
+
+    /// Images' search field took the focus: while Smart search is on and its
+    /// model isn't there, the device is asked where it is (at most every
+    /// `focusAskEvery`), so the row comes once it is there without a visit to
+    /// Settings. The question on its way, or nil when none was asked.
+    @discardableResult
+    func searchFocused(now: Date = Date()) -> Task<Void, Never>? {
+        guard isOn, model != .ready else { return nil }
+        if let asked = focusAsked, now.timeIntervalSince(asked) < Self.focusAskEvery { return nil }
+        focusAsked = now
+        return Task { await self.refresh() }
+    }
 
     /// How often Settings asks where the model is while it downloads.
     static let pollEvery: Duration = .seconds(3)
@@ -160,9 +193,11 @@ final class SmartSearchSupport: ObservableObject {
     }
 
     func deviceSaid(settings s: Msg_Settings) {
-        set(s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil)
+        // The model first: the switch coming on with it never offers the
+        // row for a moment before the model says it isn't there.
         let m = SmartSearchModelState(s)
         if model != m { model = m }
+        set(s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil)
     }
 
     func set(_ on: Bool?) {
@@ -189,6 +224,7 @@ final class SmartSearchSupport: ObservableObject {
     func reset() {
         enabled = nil
         model = .ready
+        focusAsked = nil
     }
 
     static let off = "smart_search_off"

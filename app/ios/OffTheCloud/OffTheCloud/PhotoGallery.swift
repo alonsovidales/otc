@@ -3582,7 +3582,11 @@ struct PhotoGalleryView: View {
         }
         .keyboardShown($keyboardUp)
         .onChange(of: searchFocused) { _, focused in
-            if focused { search.open = true }
+            guard focused else { return }
+            search.open = true
+            // Smart search's model may have come meanwhile: asked, so its row
+            // shows (SmartSearchSupport, observed here).
+            SmartSearchSupport.shared.searchFocused()
         }
         // Sheets on a narrow window only: a wide one's menu has these as
         // pages (MainView moves one over when the window changes).

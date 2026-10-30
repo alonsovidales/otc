@@ -3234,7 +3234,20 @@ while the switch is on, the model downloading and the app active (`.task(id: sma
 `SmartSearchSupport.polls`), and once after the switch moves while the model isn't ready; turned on,
 it is downloading(0) at once (`modelRequested`). A search told `smart_search_downloading` drops the
 words as `smart_search_unavailable` does, keeps the switch on, sets downloading and asks where the
-model is. Images learns that the model is there only from those answers: no poll outside Settings.
+model is. Outside Settings, Images' search field taking the focus while it is on and the model isn't
+ready asks `GetSettings` once, at most every 5 s (`searchFocused`), so the row comes without a visit
+to Settings; MainView's top bar follows `searchableChanges` (no redraw at each step of a download).
+`deviceSaid` sets the model before the switch, so the row never shows for a moment. Nothing assumes
+the user turned it on: off by default in release 151, on by default since 152, the app shows what
+the device says.
+**Background work on iOS** (release 152; `BackgroundWork.swift`, `BackgroundWorkTests.swift`;
+Android's `BackgroundWork`, the same rules; texts `app.settings.background.*`): Settings' section
+right after Status lists `Status.background_tasks` from the Status answer Settings already asks every
+5 s while it shows (`StatusViewModel`), only while the list isn't empty: a row per task in the
+device's order (a kind once, the first; no kind = `#<index>`), the device's `text`, "done of total"
+(`app.settings.background.count`, numbers as the app's other counts) over a `ProgressView(value:)`,
+or a spinner and no count while `total` is 0; done kept within 0...total. One VoiceOver element a
+row: the words, the count as value.
 
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import Combine
 import Foundation
 import SwiftProtobuf
 import Testing
@@ -176,6 +177,59 @@ struct SmartSearchModelTests {
         #expect(s.model == .downloading(percent: 30, problem: nil))
         s.reset()
         #expect(s.enabled == nil && s.model == .ready)
+    }
+
+    @Test func theSearchFieldAsksForTheModelAtMostEveryFiveSeconds() async {
+        let s = SmartSearchSupport()
+        var asked = 0
+        var ready = false
+        s.request = { payload in
+            guard case .reqGetSettings = payload else { throw CancellationError() }
+            asked += 1
+            var r = Msg_RespEnvelope()
+            r.payload = .respSettings(ready ? settings(smart: true, ready: true)
+                                            : settings(smart: true, ready: false, downloading: true, percent: 80))
+            return r
+        }
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        // Off, or a device before it: nothing asked.
+        #expect(s.searchFocused(now: t0) == nil)
+        s.deviceSaid(settings: settings(smart: false, ready: false))
+        #expect(s.searchFocused(now: t0) == nil)
+        // On and ready: nothing to learn.
+        s.deviceSaid(settings: settings(smart: true, ready: true))
+        #expect(s.searchFocused(now: t0) == nil)
+        // On, the model on its way: asked once...
+        s.deviceSaid(settings: settings(smart: true, ready: false, downloading: true, percent: 40))
+        await s.searchFocused(now: t0)?.value
+        #expect(asked == 1 && s.model == .downloading(percent: 80, problem: nil))
+        // ...not again within 5 s...
+        #expect(s.searchFocused(now: t0 + 4.9) == nil)
+        // ...and again after them: there now, the row is offered.
+        ready = true
+        await s.searchFocused(now: t0 + 5)?.value
+        #expect(asked == 2 && s.searchable)
+        #expect(s.searchFocused(now: t0 + 20) == nil)
+        // Log Out forgets when it last asked.
+        s.reset()
+        s.deviceSaid(settings: settings(smart: true, ready: false))
+        await s.searchFocused(now: t0 + 6)?.value
+        #expect(asked == 3)
+    }
+
+    @Test func whetherTheRowIsOfferedAsItChanges() {
+        let s = SmartSearchSupport()
+        var seen: [Bool] = []
+        let watching = s.searchableChanges.sink { seen.append($0) }
+        s.deviceSaid(settings: settings(smart: true, ready: false, downloading: true, percent: 1))
+        s.deviceSaid(settings: settings(smart: true, ready: false, downloading: true, percent: 2))
+        s.deviceSaid(settings: settings(smart: true, ready: true))
+        s.set(false)
+        watching.cancel()
+        // Each change once, not each step of the download.
+        #expect(seen == [false, true, false])
+        #expect(!SmartSearchSupport.searchable(on: nil, model: .ready))
+        #expect(SmartSearchSupport.searchable(on: true, model: .ready))
     }
 
     @Test func askingAgainTakesTheSwitchAndTheModel() async {

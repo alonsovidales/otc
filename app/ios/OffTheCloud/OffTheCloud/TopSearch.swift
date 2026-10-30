@@ -589,6 +589,10 @@ struct TopSearchActions {
     /// A tag or a person was picked: Images is to show (it already does
     /// where the field is Images' own).
     var showPhotos: () -> Void = {}
+    /// Smart search's row is offered, as the view drawing the panel last
+    /// heard (so it draws again when that changes); nil: as
+    /// SmartSearchSupport says now.
+    var smart: Bool?
 
     func suggestions() -> SearchSuggestions {
         search.suggestions(
@@ -597,7 +601,7 @@ struct TopSearchActions {
             people: vm.allPeople,
             faces: faces,
             noFileSearch: filesNav.noFileSearch,
-            smart: SmartSearchSupport.shared.searchable
+            smart: smart ?? SmartSearchSupport.shared.searchable
         )
     }
 

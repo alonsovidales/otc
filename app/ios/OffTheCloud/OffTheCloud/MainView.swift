@@ -64,6 +64,10 @@ struct MainView: View {
     @State private var revealStorage = false
     @StateObject private var storage = StatusViewModel()
     @FocusState private var topSearchFocused: Bool
+    // Smart search's row is offered: the panel draws again when that
+    // changes (its model became ready while the field is open), without
+    // drawing everything again at each step of a download.
+    @State private var smartSearchable = SmartSearchSupport.shared.searchable
     /// The first-run tour (Tour.swift) opens the section each step talks
     /// about, and on its way out the one it opened over.
     @ObservedObject private var tour = TourModel.shared
@@ -119,7 +123,11 @@ struct MainView: View {
                 search.open = true
                 drawerOpen = false
                 gallery.loadLibraryOnce()
+                // Smart search's model may have come meanwhile: asked, so its
+                // row shows (smartSearchable).
+                SmartSearchSupport.shared.searchFocused()
             }
+            .onReceive(SmartSearchSupport.shared.searchableChanges) { smartSearchable = $0 }
             .onChange(of: search.query) { _, _ in
                 if topSearchFocused && !search.typed.isEmpty { search.open = true }
             }
@@ -434,7 +442,8 @@ struct MainView: View {
             faces: faces.isOn,
             filesNav: filesNav,
             focus: { topSearchFocused = $0 },
-            showPhotos: { show(.images) }
+            showPhotos: { show(.images) },
+            smart: smartSearchable
         )
     }
 
