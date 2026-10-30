@@ -3065,6 +3065,35 @@ or at the grid's foot; a refusal (the demo) shows the device's words, else
 (`showFiles`). A debug-only `MemoriesPreviewActivity` (`src/debug`, `adb shell am start -n
 cloud.offthe.otc/.MemoriesPreviewActivity [--ez open true]`) draws both on sample data. Tests:
 `MemoriesModelTest.kt`.
+**On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
+case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
+`memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before
+it, nothing shown) and asks `GetMemories` for day, week and month one after the other with the
+phone's date, IANA zone and UTC offset (`MemoryDates.request`; Foundation calls UTC "GMT") - again
+at midnight (`NSCalendarDayChanged`, back in front on another day), every 2 minutes while an answer
+says `measuring` (`whileMeasuring`), after a hide and Settings' change; a failure again 1 s doubling
+to 10 s (`PageRetry.delay`), at once on a wake; `memories_off` turns it off, `unknown_payload`
+forgets it. The strip (`MemoriesStrip`) is the grid's first item over the whole library only
+(`PhotoGalleryView.showsMemories`: no chips, people, collection or area), titled by the period shown
+(`MemoryChoice.shown`: the one picked this session while it has memories, else day, week, month -
+empty ones dimmed and disabled; none at all, or measuring with nothing, no strip), with a 120 x 160
+card per memory (cover from `GridThumbLoader` at 160 pt by hash, "N years ago", the place). A card
+opens `MemoryViewer` full screen: the big thumbnails by path (`MemoryPhotos`, GetThumbnails without
+small_thumbnails, the cached tile meanwhile), 4 s a photo, the left third back and elsewhere on, a
+press held, Pause/Resume, the menu or See all pause it (See all leaves it paused), segments on top,
+the line (`MemoryText.header`: "3 years ago · 30 Oct 2023 · Asturias", the days as Android's
+`memoryDays`) and the named people, a swipe down closes, the last photo stays; with VoiceOver it
+starts paused and its sides are buttons ("Previous photo", "Photo 2 of 6. Next photo"). See all is a
+grid opening `ImageModal` on a fixed list. The menu hides the photo (it leaves the slideshow, the
+viewer stays), the memory, the photo's day (its date in the phone's zone) or a named person - only
+a name exactly one person in Images' people list has (`MemoryPeopleMatch`: `Memory.people` are
+names) - the last three close it, as a memory gone from the answers does (hidden on another app); a
+photo or a memory leaves the strip at once (`MemoryHiding.without`), then everything is asked again,
+and `MemoryToastView` says "Hidden from your memories" with Undo (HideMemory `show`) for 6 s, read
+out politely; a refusal (the demo) shows the device's words, no answer `hide_failed`. Settings ›
+Memories after Places: the switch (`toggleMemories`) and "Show hidden memories again (N)"
+(`show_all`) while `hidden_count` is above 0. Log Out resets it.
+
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

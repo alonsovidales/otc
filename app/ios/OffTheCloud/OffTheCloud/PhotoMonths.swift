@@ -125,6 +125,19 @@ enum PhotoMonths {
         return S.appPhotosMonthsRange(from: shortTitle(oldest), to: shortTitle(newest))
     }
 
+    /// "30 Oct 2023": a day with its month short (a memory's day, as
+    /// Android's memoryDays). nil for a month outside 1-12.
+    static func dayTitle(year: Int, month: Int, day: Int) -> String? {
+        guard (1...12).contains(month) else { return nil }
+        return S.appPhotosMonthsDay(day: day, month: shortNames[month - 1], year: String(year))
+    }
+
+    /// "27 Oct": a day without its year, short (a weekly memory's days).
+    static func dayShort(month: Int, day: Int) -> String? {
+        guard (1...12).contains(month) else { return nil }
+        return S.appPhotosMemoriesDayMonth(day: day, month: shortNames[month - 1])
+    }
+
     /// "1 item", "1,234 items" - the web's count(): how many photos and
     /// videos an open collection holds.
     static func items(_ n: Int) -> String { S.appShellCollectionItems(count: n) }

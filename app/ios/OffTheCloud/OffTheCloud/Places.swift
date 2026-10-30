@@ -531,6 +531,10 @@ final class PlacesSupport: ObservableObject {
                 guard let self else { return }
                 let resp = try? await self.request(.reqGetSettings(Msg_GetSettings()))
                 guard !Task.isCancelled else { return }
+                // The same answer says whether On this day is on.
+                if let resp, case .respSettings(let s) = resp.payload {
+                    MemoriesModel.shared.deviceSaid(settings: s)
+                }
                 if let said = Self.verdict(resp) {
                     self.set(said)
                     break

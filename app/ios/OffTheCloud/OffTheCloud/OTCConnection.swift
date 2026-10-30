@@ -639,7 +639,8 @@ final class OTCConnection: ObservableObject {
         // been updated (issues #194, #195).
         DeviceSupport.shared.signedIn()
         // Places: whether this device has the map (release 148) and it is
-        // on, asked again.
+        // on, asked again - and, from the same answer, On this day
+        // (release 150, MemoriesModel).
         PlacesSupport.shared.connected()
         authenticated = true
         homeLink = home

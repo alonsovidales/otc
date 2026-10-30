@@ -3229,6 +3229,8 @@ struct PhotoGalleryView: View {
     @ObservedObject private var filesNav = FilesNav.shared
     /// Places: the map's switch, only on a device that has them.
     @ObservedObject private var placesSupport = PlacesSupport.shared
+    /// On this day: the memories over the whole library (Memories.swift).
+    @ObservedObject private var memories = MemoriesModel.shared
     // A wide window: the search is in the top bar and People and
     // Collections are in the menu, so this view shows neither - only an
     // open collection's chip, and the photos.
@@ -3329,6 +3331,9 @@ struct PhotoGalleryView: View {
                             // grid's, past the person's header (its
                             // gridRef.scrollIntoView).
                             Color.clear.frame(height: 0).id("photoPageTop")
+                            if showsMemories {
+                                MemoriesStrip(model: memories, people: vm.allPeople)
+                            }
                             if let person = vm.personFilter {
                                 PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
                             }
@@ -3602,7 +3607,12 @@ struct PhotoGalleryView: View {
         .sheet(item: $wallpaperTarget) { t in
             WallpaperView(target: t) { wallpaperTarget = nil }
         }
-        .onAppear { vm.onAppearInitial() }
+        .onAppear {
+            vm.onAppearInitial()
+            memories.appeared()
+        }
+        // Hidden from the memories (Undo), or why not.
+        .overlay(alignment: .bottom) { MemoryToastView(model: memories).padding(.bottom, 16) }
         .confirmationDialog(
             S.appPhotosSelectionDeleteTitle(count: vm.selected.count),
             isPresented: $vm.confirmDeleteSelected,
@@ -3797,6 +3807,13 @@ struct PhotoGalleryView: View {
 
     /// A narrow window switched to the map (a wide one has it as a page).
     private var showsMap: Bool { vm.showMap && !wide && placesSupport.isOn }
+
+    /// On this day's strip: over the whole library only - no search, person,
+    /// collection or map area (Android's rule).
+    private var showsMemories: Bool {
+        memories.isShown && vm.chips.isEmpty && vm.selectedPeople.isEmpty
+            && vm.activeGroup == nil && vm.activeArea == nil
+    }
 
     /// A group of the map's photos is open in the grid.
     private var areaChipShown: Bool { vm.activeArea != nil && !showsMap }

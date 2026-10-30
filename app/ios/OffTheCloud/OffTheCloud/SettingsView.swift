@@ -64,6 +64,11 @@ final class DeviceSettingsViewModel: ObservableObject {
     // device before Places (or not answered yet), with no switch.
     @Published var placesEnabled: Bool?
     @Published var savingPlaces = false
+    // On this day (Memories): on unless turned off. nil: a device before
+    // it (or not answered yet), with no switch.
+    @Published var memoriesEnabled: Bool?
+    @Published var savingMemories = false
+    @Published var showingHiddenMemories = false
 
     // Issue #73: full-library reprocess - re-runs tagging/face detection
     // against every already-uploaded photo/video (e.g. after a detection
@@ -194,6 +199,9 @@ final class DeviceSettingsViewModel: ObservableObject {
                 // Places likewise (PlacesSupport), on a device that has it.
                 placesEnabled = s.hasPlacesEnabled ? s.placesEnabled : nil
                 PlacesSupport.shared.set(s.hasPlacesEnabled && s.placesEnabled)
+                // And On this day (MemoriesModel).
+                memoriesEnabled = s.hasMemoriesEnabled ? s.memoriesEnabled : nil
+                MemoriesModel.shared.deviceSaid(settings: s)
                 LanguageSettings.shared.deviceSaid(settings: s)
             }
         } catch { /* leave blank - the rest of the screen still works */ }
@@ -247,6 +255,45 @@ final class DeviceSettingsViewModel: ObservableObject {
         } catch {
             placesEnabled = !enabled
             showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// On this day's switch: the strip at the top of Images comes and goes
+    /// at once (MemoriesModel).
+    func toggleMemories(_ enabled: Bool) async {
+        savingMemories = true
+        defer { savingMemories = false }
+        var req = Msg_SetMemoriesEnabled()
+        req.enabled = enabled
+        do {
+            let resp = try await ws.request { $0.payload = .reqSetMemoriesEnabled(req) }
+            if case .respAck(let ack) = resp.payload, ack.ok {
+                memoriesEnabled = enabled
+                MemoriesModel.shared.set(enabled: enabled)
+            } else {
+                // Revert the optimistic toggle - see the Toggle binding.
+                memoriesEnabled = !enabled
+                if case .respAck(let ack) = resp.payload {
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
+                } else if resp.error {
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
+                }
+            }
+        } catch {
+            memoriesEnabled = !enabled
+            showToast(.say { S.appSettingsErrorSetting })
+        }
+    }
+
+    /// "Show hidden memories again": everything hidden shows again.
+    func showHiddenMemories() async {
+        showingHiddenMemories = true
+        defer { showingHiddenMemories = false }
+        if let refused = await MemoriesModel.shared.showAllHidden() {
+            switch refused {
+            case .failed(let words?): showToast(.asIs(words))
+            default: showToast(.say { S.appSettingsErrorUpdateFailed })
+            }
         }
     }
 
@@ -562,6 +609,11 @@ struct SettingsView: View {
                         )
                         .disabled(device.savingPlaces)
                     }
+                }
+
+                // On this day, after Places: on a device that has it.
+                if let memoriesOn = device.memoriesEnabled {
+                    MemoriesSettingsSection(device: device, on: memoriesOn)
                 }
 
                 ConnectionSettingsSection(secrets: secrets) { confirmLogout = true }
@@ -975,6 +1027,7 @@ enum AppLogOut {
             SocialFeedViewModel.shared.reset()
             FaceRecognition.shared.reset()
             PlacesSupport.shared.reset()
+            MemoriesModel.shared.reset()
             FilesNav.shared.reset()
             OTCConnection.shared.reset()
             MediaStream.reset()
@@ -1205,3 +1258,34 @@ private struct RaidUsageBar: View {
     }
 }
 
+
+/// Settings > Memories: On this day's switch, and "Show hidden memories
+/// again" while something is hidden.
+private struct MemoriesSettingsSection: View {
+    @ObservedObject var device: DeviceSettingsViewModel
+    @ObservedObject private var memories = MemoriesModel.shared
+    let on: Bool
+
+    var body: some View {
+        Section(
+            header: Text(S.appSettingsMemoriesTitle),
+            footer: Text(S.appSettingsMemoriesFooter)
+        ) {
+            Toggle(
+                S.appSettingsMemoriesToggle,
+                isOn: Binding(
+                    get: { on },
+                    set: { newValue in Task { await device.toggleMemories(newValue) } }
+                )
+            )
+            .disabled(device.savingMemories)
+            if on && memories.hiddenCount > 0 {
+                Button(S.appSettingsMemoriesShowHidden(count: memories.hiddenCount)) {
+                    Task { await device.showHiddenMemories() }
+                }
+                .disabled(device.showingHiddenMemories)
+            }
+        }
+        .onAppear { memories.appeared() }
+    }
+}
