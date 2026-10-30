@@ -206,6 +206,10 @@
     "text": "Diesen Tag nicht mehr zeigen",
     "en": "Don't show this day"
   },
+  "app.photos.memories.hide_failed": {
+    "text": "Ausblenden hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't hide it. Try again."
+  },
   "app.photos.memories.hide_memory": {
     "text": "Diese Erinnerung ausblenden",
     "en": "Hide this memory"

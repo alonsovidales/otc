@@ -7,6 +7,7 @@ import android.content.Intent
 import cloud.offthe.otc.MainActivity
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
@@ -58,6 +59,7 @@ fun logOut(
         NotificationsModel.reset()
         FaceRecognition.reset()
         PlacesSupport.reset()
+        MemoriesSupport.reset()
         FilesNav.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()

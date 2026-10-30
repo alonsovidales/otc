@@ -65,6 +65,7 @@
     <string name="app_photos_memories_day_month">%1$s %2$s</string>
     <string name="app_photos_memories_hidden">Verborgen in je herinneringen</string>
     <string name="app_photos_memories_hide_day">Deze dag niet meer tonen</string>
+    <string name="app_photos_memories_hide_failed">Verbergen is niet gelukt. Probeer het opnieuw.</string>
     <string name="app_photos_memories_hide_memory">Deze herinnering verbergen</string>
     <string name="app_photos_memories_hide_person">\u2068%1$s\u2069 niet meer tonen</string>
     <string name="app_photos_memories_hide_photo">Deze foto verbergen</string>

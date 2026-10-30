@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.i18n.appPhotosPlacesShowGrid
 import cloud.offthe.otc.i18n.appPhotosPlacesShowMap
@@ -167,6 +168,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import cloud.offthe.otc.proto.ImageGroup
+import cloud.offthe.otc.proto.Memory
 import cloud.offthe.otc.proto.Person
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.widthIn
@@ -355,6 +357,25 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     val placesOn by PlacesSupport.enabled.collectAsState()
     val showMap = page == GalleryPage.PLACES && placesOn == true
     LaunchedEffect(placesOn) { if (placesOn != true && page == GalleryPage.PLACES) onPage(GalleryPage.PHOTOS) }
+    // On this day: while the device says it is on (MemoriesSupport); turned
+    // on again, or changed in Settings, it is asked again; off, it goes.
+    val memoriesOn by MemoriesSupport.enabled.collectAsState()
+    val memoriesChanged by MemoriesSupport.changes.collectAsState()
+    val memories by vm.memories.state.collectAsState()
+    var openMemory by remember { mutableStateOf<Memory?>(null) }
+    var seeAllMemory by remember { mutableStateOf<Memory?>(null) }
+    LaunchedEffect(memoriesOn) {
+        when (memoriesOn) {
+            true -> vm.memories.refresh()
+            false -> { vm.memories.clear(); openMemory = null; seeAllMemory = null }
+            null -> {}
+        }
+    }
+    LaunchedEffect(memoriesChanged) { if (memoriesChanged > 0) vm.memories.refresh() }
+    openMemory?.let { m ->
+        MemoryViewer(vm.memories, m, st.allPeople, onClose = { openMemory = null }, onSeeAll = { seeAllMemory = it })
+    }
+    seeAllMemory?.let { m -> MemoryGrid(vm.memories, m, onClose = { seeAllMemory = null }) }
 
     LaunchedEffect(Unit) { vm.onAppearInitial() }
     // The selection outlives a jump and a filter change, as on the web, but
@@ -487,7 +508,21 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // and PersonHeader.
             val group = st.activeGroup
             val personHeader = group == null && st.selectedPeople.isNotEmpty() && st.chips.isEmpty() && faces == true
-            val headerCount = (if (group != null) 1 else 0) + (if (personHeader) 1 else 0)
+            // On this day (Memories.kt): over the whole library only - no
+            // search, person, collection or map area - while the device says
+            // it is on and has a memory for some choice.
+            val memoriesWanted = memoriesOn == true && group == null && st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeArea == null
+            DisposableEffect(memoriesWanted) {
+                if (memoriesWanted) vm.memories.appeared()
+                onDispose { vm.memories.disappeared() }
+            }
+            val showMemories = memoriesWanted && memories.visible
+            // Landing while the grid is at its top, the strip goes above the
+            // first row: shown, not left above the screen.
+            LaunchedEffect(showMemories) {
+                if (showMemories && listState.firstVisibleItemIndex == 1 && listState.firstVisibleItemScrollOffset == 0) listState.scrollToItem(0)
+            }
+            val headerCount = (if (showMemories) 1 else 0) + (if (group != null) 1 else 0) + (if (personHeader) 1 else 0)
             // Each row's key: its month and place in it in date order (stable
             // while photos land above or fill its grey tiles, issue #194),
             // else its first photo; the grey tiles' own.
@@ -627,6 +662,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 bottomInset = if (hasSelection) barHeight.toFloat() else 0f,
             )
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(upScroll).dragSelect(drag, enabled = greyLayout == null)) {
+                if (showMemories) item(key = "head:memories", contentType = "memories") {
+                    MemoriesStrip(vm.memories, memories, wide = !metrics.phone, pad = metrics.pad, top = metrics.top) { openMemory = it }
+                }
                 if (group != null) item(key = "head:group", contentType = "head") {
                     CollectionHeader(
                         group, span = spanLabel(buckets, years = compact).resolve(), compact = compact, metrics = metrics,
@@ -709,6 +747,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         }
                     }
                 }
+            }
+            // A hide's notice, with Undo, once the memory it came from closed.
+            if (openMemory == null) memories.notice?.let {
+                MemoriesNoticeBar(vm.memories, it, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
             }
             // The first page is slow to come (a slow link, a busy device):
             // over the grey tiles, that it is still on its way.

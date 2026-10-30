@@ -2966,6 +2966,39 @@ tiles, the device's 256: one more), in a TextureView map so they move with it; t
 (the map keeps every gesture), a tap is the map's click against the pins' frames (`pinAt`), and
 TalkBack reaches each one by its label and action. One photo opens in a viewer of its own
 (`showFiles`), as Files opens one.
+**On this day on Android** (2026-10-30; `data/MemoriesSupport.kt`, `ui/gallery/MemoriesModel.kt`,
+`ui/gallery/Memories.kt`; the device side and protocol are under Places' device notes; the shared texts
+`app.photos.memories.*`, `app.settings.memories.*`; iOS must match): only while the device says it is on
+(`MemoriesSupport`: `Settings.memories_enabled`, absent = a device before it = hidden, from the same
+`GetSettings` answer as `FaceRecognition.watch` and Settings' load, kept in `otc_device_state`, reset at
+Log Out; `memories_off`/`unknown_payload` set it off). Settings' On this day section after Places
+(heading "Memories", switch `app.settings.memories.toggle`, `SetMemoriesEnabled`; "Show hidden memories
+again (N)" while today's day answer's `hidden_count` is above 0, `HideMemory show_all`, then
+`MemoriesSupport.changed()` makes Images ask again). `MemoriesModel` (one for the session,
+`PhotoGalleryViewModel.memories`) asks while the strip may show (the grid over the whole library: no
+search chip, person, collection or map area): day, week and month one after the other for the phone's
+date, IANA zone and offset (`MemoriesDay`), again at the next midnight, every 2 minutes while an answer
+says `measuring`, after a hide or Settings' change; a failure 1 s doubling to 10 s, at once on a Wake.
+`MemoriesRules.period`: the choice picked this session while it has memories, else the first with any,
+day -> week -> month, decided only once the earlier ones answered; a choice without memories can't be
+picked; no memory in any = no strip. The strip is a LazyColumn item above the headers (`head:memories`,
+counted in `headerCount`; landing while the grid is at its top it scrolls into view): the title by the
+choice, Day / Week / Month chips, a card per memory (cover by hash from the thumbnail cache, else
+`GetThumbnails` by path; "N years ago", the place). A card opens `MemoryViewer`: a full-screen dialog,
+4 s a photo timed by frames (animations off drop the cross-fade, never the advance), a tap on the left
+third goes back, elsewhere on, holding pauses, Pause/Resume, progress segments, the line
+(`memoryDays`: "30 Oct 2023", "27 Oct - 2 Nov 2023" by `week_in_year`, "October 2023") and the named
+people (`peopleTitle`), the big thumbnail (`GetThumbnails` without small, 8 kept) over the tile; starts
+paused with TalkBack, whose sides are buttons. Its menu hides the photo (the viewer stays), the memory,
+the photo's day in the phone's zone, or a named person (`hideablePeople`: a name exactly one person in
+People has; the memory carries names, HideMemory a person id) - the last three close it; a photo or a
+memory leaves the strip at once (`withoutHidden`), then everything is asked again; the notice
+(`app.photos.memories.hidden`, Undo = HideMemory `show`, 6 s, a polite live region) shows in the viewer
+or at the grid's foot; a refusal (the demo) shows the device's words, else
+`app.photos.memories.hide_failed`. See all is a grid of the memory's photos opening a viewer of its own
+(`showFiles`). A debug-only `MemoriesPreviewActivity` (`src/debug`, `adb shell am start -n
+cloud.offthe.otc/.MemoriesPreviewActivity [--ez open true]`) draws both on sample data. Tests:
+`MemoriesModelTest.kt`.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

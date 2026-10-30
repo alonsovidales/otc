@@ -33,7 +33,10 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
 import cloud.offthe.otc.proto.SetPlacesEnabled
+import cloud.offthe.otc.proto.SetMemoriesEnabled
+import cloud.offthe.otc.proto.HideMemory
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
@@ -195,6 +198,12 @@ class DeviceSettingsViewModel : ViewModel() {
         // where each photo was taken, unencrypted, only while it is on. null:
         // a device before Places (or not answered yet), with no switch.
         val placesEnabled: Boolean? = null, val savingPlaces: Boolean = false,
+        // On this day (the memories at the top of Images): on unless turned
+        // off. null: a device before it (or not answered yet), with no
+        // switch. memoriesHidden: what is hidden from them, for "Show hidden
+        // memories again" (from a GetMemories answer).
+        val memoriesEnabled: Boolean? = null, val savingMemories: Boolean = false,
+        val memoriesHidden: Int = 0, val showingHidden: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
@@ -256,15 +265,66 @@ class DeviceSettingsViewModel : ViewModel() {
                     it.copy(
                         faceRecognitionEnabled = s.faceRecognitionEnabled, imageTaggingEnabled = s.imageTaggingEnabled,
                         placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
+                        memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
                     )
                 }
                 // The one place the rest of the app reads it from (People in the search).
                 FaceRecognition.set(s.faceRecognitionEnabled)
                 // Places likewise (PlacesSupport), on a device that has it.
                 PlacesSupport.set(PlacesSupport.verdict(s))
+                // And On this day's (MemoriesSupport), with what is hidden from it.
+                MemoriesSupport.set(MemoriesSupport.verdict(s))
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
+                if (MemoriesSupport.verdict(s)) loadMemoriesHidden()
             }
         } catch (_: Exception) {}
+    }
+
+    /** How many things are hidden from the memories: today's day answer says (the device keeps it for the day). */
+    private suspend fun loadMemoriesHidden() {
+        try {
+            val d = cloud.offthe.otc.ui.gallery.MemoriesDay.of(java.time.ZonedDateTime.now())
+            val resp = OTCConnection.request { it.setReqGetMemories(d.request(cloud.offthe.otc.ui.gallery.MemoryPeriodChoice.DAY)) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_MEMORIES) state.update { it.copy(memoriesHidden = resp.respMemories.hiddenCount) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * On this day's switch. The memories come and go at once
+     * (MemoriesSupport); the demo device refuses it, with its own words.
+     */
+    suspend fun toggleMemories(enabled: Boolean) {
+        state.update { it.copy(savingMemories = true, memoriesEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetMemoriesEnabled(SetMemoriesEnabled.newBuilder().setEnabled(enabled)) }
+            if (resp.ackOk()) {
+                MemoriesSupport.set(enabled)
+                if (enabled) loadMemoriesHidden()
+            } else {
+                state.update { it.copy(memoriesEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { state.update { it.copy(memoriesEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(savingMemories = false) } }
+    }
+
+    /** Show hidden memories again: everything hidden comes back (HideMemory show_all); Images asks again. */
+    suspend fun showHiddenMemories() {
+        state.update { it.copy(showingHidden = true) }
+        try {
+            val resp = OTCConnection.request { it.setReqHideMemory(HideMemory.newBuilder().setShowAll(true)) }
+            if (resp.ackOk()) {
+                state.update { it.copy(memoriesHidden = 0) }
+                MemoriesSupport.changed()
+            } else toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(showingHidden = false) } }
     }
 
     suspend fun toggleFaceRecognition(enabled: Boolean) {

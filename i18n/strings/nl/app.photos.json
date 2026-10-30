@@ -206,6 +206,10 @@
     "text": "Deze dag niet meer tonen",
     "en": "Don't show this day"
   },
+  "app.photos.memories.hide_failed": {
+    "text": "Verbergen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't hide it. Try again."
+  },
   "app.photos.memories.hide_memory": {
     "text": "Deze herinnering verbergen",
     "en": "Hide this memory"

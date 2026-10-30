@@ -169,6 +169,10 @@ import cloud.offthe.otc.i18n.appSettingsFacesFooter
 import cloud.offthe.otc.i18n.appSettingsFacesTitle
 import cloud.offthe.otc.i18n.appSettingsPlacesFooter
 import cloud.offthe.otc.i18n.appSettingsPlacesTitle
+import cloud.offthe.otc.i18n.appSettingsMemoriesFooter
+import cloud.offthe.otc.i18n.appSettingsMemoriesShowHidden
+import cloud.offthe.otc.i18n.appSettingsMemoriesTitle
+import cloud.offthe.otc.i18n.appSettingsMemoriesToggle
 import cloud.offthe.otc.i18n.appSettingsFacesToggle
 import cloud.offthe.otc.i18n.appSettingsLanguage
 import cloud.offthe.otc.i18n.appSettingsLinksTitle
@@ -653,6 +657,23 @@ fun SettingsView(secrets: SecretsStore) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(S.appSettingsPlacesTitle().resolve(), Modifier.weight(1f))
                         Switch(checked = on, enabled = !dst.savingPlaces, onCheckedChange = { v -> scope.launch { device.togglePlaces(v) } })
+                    }
+                }
+            }
+
+            // On this day (the memories at the top of Images): only on a
+            // device that has it, on unless turned off; Show hidden memories
+            // again while something is hidden.
+            dst.memoriesEnabled?.let { on ->
+                Section(S.appSettingsMemoriesTitle().resolve(), S.appSettingsMemoriesFooter().resolve()) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(S.appSettingsMemoriesToggle().resolve(), Modifier.weight(1f))
+                        Switch(checked = on, enabled = !dst.savingMemories, onCheckedChange = { v -> scope.launch { device.toggleMemories(v) } })
+                    }
+                    if (on && dst.memoriesHidden > 0) {
+                        TextButton(onClick = { scope.launch { device.showHiddenMemories() } }, enabled = !dst.showingHidden) {
+                            Text(S.appSettingsMemoriesShowHidden(dst.memoriesHidden).resolve())
+                        }
                     }
                 }
             }

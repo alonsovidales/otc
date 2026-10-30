@@ -62,6 +62,8 @@ object FaceRecognition {
                     set(resp.respSettings.faceRecognitionEnabled)
                     // The same answer says whether Places is on (the map in Images).
                     PlacesSupport.set(PlacesSupport.verdict(resp.respSettings))
+                    // And whether On this day is on (the memories at the top of Images).
+                    MemoriesSupport.set(MemoriesSupport.verdict(resp.respSettings))
                     // Asked once signed in: the language too.
                     cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
                     return

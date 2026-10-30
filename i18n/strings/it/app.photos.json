@@ -206,6 +206,10 @@
     "text": "Non mostrare questo giorno",
     "en": "Don't show this day"
   },
+  "app.photos.memories.hide_failed": {
+    "text": "Impossibile nasconderlo. Riprova.",
+    "en": "Couldn't hide it. Try again."
+  },
   "app.photos.memories.hide_memory": {
     "text": "Nascondi questo ricordo",
     "en": "Hide this memory"

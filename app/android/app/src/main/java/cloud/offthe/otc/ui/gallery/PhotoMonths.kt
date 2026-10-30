@@ -139,6 +139,25 @@ fun spanLabel(buckets: List<PhotoGalleryViewModel.DateBucket>, years: Boolean = 
     return nested(R.string.app_photos_months_range, shortTitle(from), shortTitle(to))
 }
 
+/**
+ * The days a memory covers (On this day), over its slideshow: "30 Oct 2023"
+ * for a day (app.photos.months.day), "27 Oct – 2 Nov 2023" for a week
+ * (app.photos.memories.week_in_year, the year its last day's) and "October
+ * 2023" for a month - by its key's period ("day:", "week:", "month:").
+ * [start] and [end] are the memory's "YYYY-MM-DD"; nothing for dates that
+ * don't read.
+ */
+fun memoryDays(key: String, start: String, end: String): UiText {
+    val s = runCatching { java.time.LocalDate.parse(start) }.getOrNull() ?: return UiText.Raw("")
+    val e = runCatching { java.time.LocalDate.parse(end) }.getOrNull() ?: s
+    fun short(d: java.time.LocalDate) = nested(R.string.app_photos_memories_day_month, d.dayOfMonth, MONTH_SHORT[d.monthValue - 1])
+    return when {
+        key.startsWith("month:") -> monthTitle("${s.year}-${s.monthValue.toString().padStart(2, '0')}")
+        key.startsWith("week:") && e != s -> nested(R.string.app_photos_memories_week_in_year, short(s), short(e), "${e.year}")
+        else -> nested(R.string.app_photos_months_day, s.dayOfMonth, MONTH_SHORT[s.monthValue - 1], "${s.year}")
+    }
+}
+
 /** "1 item", "1,234 items" - the web's count(): how many photos and videos an open collection holds. */
 fun itemsLabel(n: Int): UiText = S.appShellCollectionItems(n)
 

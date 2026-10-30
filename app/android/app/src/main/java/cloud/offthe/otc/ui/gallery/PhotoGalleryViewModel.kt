@@ -379,6 +379,20 @@ class PhotoGalleryViewModel(
             pause = pause,
         )
     }
+    /** On this day (MemoriesModel.kt): one for the session, so the Day/Week/Month picked stays. */
+    val memories: MemoriesModel by lazy {
+        MemoriesModel(
+            this.scope,
+            getMemories = { r -> ask("memories", OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetMemories(r) } },
+            hideMemory = { r -> call { it.setReqHideMemory(r) } },
+            bigThumbAsk = { path ->
+                ask("thumbnail", OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetThumbnails(GetThumbnails.newBuilder().addPaths(path).setSmallThumbnails(false)) }
+            },
+            thumbs = thumbs,
+            sendThumbs = { b -> ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } },
+            pause = pause,
+        )
+    }
     private var token: String? = null
     private var searchGeneration = 0
     // A jump's cutoff (epoch ms), for the search it started: a first page

@@ -65,6 +65,7 @@
     <string name="app_photos_memories_day_month">%1$s. %2$s</string>
     <string name="app_photos_memories_hidden">Aus deinen Erinnerungen ausgeblendet</string>
     <string name="app_photos_memories_hide_day">Diesen Tag nicht mehr zeigen</string>
+    <string name="app_photos_memories_hide_failed">Ausblenden hat nicht geklappt. Versuch es noch einmal.</string>
     <string name="app_photos_memories_hide_memory">Diese Erinnerung ausblenden</string>
     <string name="app_photos_memories_hide_person">\u2068%1$s\u2069 nicht mehr zeigen</string>
     <string name="app_photos_memories_hide_photo">Dieses Foto ausblenden</string>

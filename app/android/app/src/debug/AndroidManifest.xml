@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: On this day's strip and slideshow on sample data, to
+     look at them without a device (adb shell am start -n
+     cloud.offthe.otc/.MemoriesPreviewActivity [- -ez open true]). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".MemoriesPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
+    </application>
+</manifest>

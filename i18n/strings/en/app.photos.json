@@ -216,6 +216,11 @@
     "note": "In an opened memory's menu: never show photos taken on the day of the photo on screen in any memory again (a sad day, for example). The photos themselves stay in Images.",
     "max": 30
   },
+  "app.photos.memories.hide_failed": {
+    "text": "Couldn't hide it. Try again.",
+    "note": "Short message at the bottom of the screen when hiding something from the memories (a photo, a memory, a day or a person), or undoing it, failed: the device didn't answer. A device that refuses says why in its own words instead.",
+    "max": 60
+  },
   "app.photos.memories.hide_memory": {
     "text": "Hide this memory",
     "note": "In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images.",

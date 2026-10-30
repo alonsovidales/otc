@@ -74,6 +74,7 @@
     <string name="app_photos_memories_day_month">%1$s %2$s</string>
     <string name="app_photos_memories_hidden">Masqué dans vos souvenirs</string>
     <string name="app_photos_memories_hide_day">Ne plus afficher ce jour</string>
+    <string name="app_photos_memories_hide_failed">Impossible de le masquer. Réessayez.</string>
     <string name="app_photos_memories_hide_memory">Masquer ce souvenir</string>
     <string name="app_photos_memories_hide_person">Ne plus afficher \u2068%1$s\u2069</string>
     <string name="app_photos_memories_hide_photo">Masquer cette photo</string>

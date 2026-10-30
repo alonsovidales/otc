@@ -225,6 +225,11 @@ extension S {
     /// In an opened memory's menu: never show photos taken on the day of the photo on screen in any memory again (a sad day, for example). The photos themselves stay in Images.
     static var appPhotosMemoriesHideDay: String { L("app.photos.memories.hide_day", table: "AppPhotos") }
 
+    /// Couldn't hide it. Try again.
+    ///
+    /// Short message at the bottom of the screen when hiding something from the memories (a photo, a memory, a day or a person), or undoing it, failed: the device didn't answer. A device that refuses says why in its own words instead.
+    static var appPhotosMemoriesHideFailed: String { L("app.photos.memories.hide_failed", table: "AppPhotos") }
+
     /// Hide this memory
     ///
     /// In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images.

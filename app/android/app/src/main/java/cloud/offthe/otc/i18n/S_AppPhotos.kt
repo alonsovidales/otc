@@ -150,6 +150,10 @@ fun S.appPhotosMemoriesHidden(): UiText =
 fun S.appPhotosMemoriesHideDay(): UiText =
     UiText.Res(R.string.app_photos_memories_hide_day)
 
+/** "Couldn't hide it. Try again.": Short message at the bottom of the screen when hiding something from the memories (a photo, a memory, a day or a person), or undoing it, failed: the device didn't answer. A device that refuses says why in its own words instead. */
+fun S.appPhotosMemoriesHideFailed(): UiText =
+    UiText.Res(R.string.app_photos_memories_hide_failed)
+
 /** "Hide this memory": In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images. */
 fun S.appPhotosMemoriesHideMemory(): UiText =
     UiText.Res(R.string.app_photos_memories_hide_memory)
