@@ -722,6 +722,13 @@ If you have configured the bridge you should be able to connect in: https://<dom
 
 **The first time, before any password is set, the web app shows the setup described in "Using the setup wizard" instead of the sign-in: be careful, because the password you choose there will be your password.**
 
+## Home server (Docker, beta)
+
+Already run a Linux home server, a NAS or a Docker host? Off The Cloud also runs there in Docker,
+as a beta, on amd64 and arm64. The server's own RAID protects the files, or the container mirrors two
+disks itself and watches them, as the Raspberry Pi does; updates come by pulling the image. On a Raspberry Pi, use the pre-built image above instead.
+[docs/docker.md](docs/docker.md) explains how to set it up.
+
 ## What is encrypted on the device
 
 Everything you store is encrypted at rest under a key only your password unlocks: file
