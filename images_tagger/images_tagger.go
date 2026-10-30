@@ -111,11 +111,8 @@ func NewRAMTaggerWith(modelPath, tagListPath, thresholdsPath string, opt RAMOpti
 		opt.ImageSize = 384
 	}
 
-	if !ort.IsInitialized() {
-		ort.SetSharedLibraryPath("/opt/onnxruntime/lib/libonnxruntime.so")
-		if err := ort.InitializeEnvironment(); err != nil {
-			return nil, fmt.Errorf("InitializeEnvironment: %w", err)
-		}
+	if err := InitRuntime(); err != nil {
+		return nil, err
 	}
 
 	// read tag names
@@ -167,6 +164,30 @@ func NewRAMTaggerWith(modelPath, tagListPath, thresholdsPath string, opt RAMOpti
 }
 
 func (r *RAMTagger) Close() { _ = r.sess.Destroy() }
+
+// runtimeMu makes InitRuntime one at a time: the tagging model and the
+// photo quality model (images_quality) load from different goroutines,
+// and ONNX Runtime refuses a second InitializeEnvironment.
+var runtimeMu sync.Mutex
+
+// RuntimeLibrary is the ONNX Runtime library the device loads (install.sh
+// unpacks it there); tests point it elsewhere before the first model.
+var RuntimeLibrary = "/opt/onnxruntime/lib/libonnxruntime.so"
+
+// InitRuntime initializes ONNX Runtime's environment once per process,
+// for every model that runs in it.
+func InitRuntime() error {
+	runtimeMu.Lock()
+	defer runtimeMu.Unlock()
+	if ort.IsInitialized() {
+		return nil
+	}
+	ort.SetSharedLibraryPath(RuntimeLibrary)
+	if err := ort.InitializeEnvironment(); err != nil {
+		return fmt.Errorf("InitializeEnvironment: %w", err)
+	}
+	return nil
+}
 
 // Tags runs inference and returns tag strings (sorted by score desc).
 func (r *RAMTagger) Tags(ctx context.Context, img image.Image, opt RAMOptions) ([]RAMTag, error) {

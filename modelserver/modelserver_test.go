@@ -17,6 +17,7 @@ import (
 	"time"
 
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	imagesquality "github.com/alonsovidales/otc/images_quality"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 )
 
@@ -354,5 +355,62 @@ func TestNoTaggerReachesTheChildAsItself(t *testing.T) {
 		if _, err := c.Tags(context.Background(), img, imagestagger.RAMOptions{}); !errors.Is(err, ErrNoTagger) {
 			t.Fatalf("protocol %d: got %v, want ErrNoTagger", c.proto, err)
 		}
+	}
+}
+
+// fakeAesthetic scores every photo 6.5 and keeps what it was given.
+type fakeAesthetic struct{ got *image.RGBA }
+
+func (f *fakeAesthetic) AestheticResized(_ context.Context, img *image.RGBA) (float32, error) {
+	f.got = img
+	return 6.5, nil
+}
+
+// On this day: a child's photos are scored by the primary's quality model,
+// from the 224x224 picture the child resized itself.
+func TestClientScoresWithThePrimarysQualityModel(t *testing.T) {
+	path := socketPath(t)
+	fa := &fakeAesthetic{}
+	go ServeModels(path, Models{Tagger: func() Tagger { return &fakeTagger{} }, Aesthetic: fa}, 2)
+	waitForSocket(path)
+	c := &Client{Path: path}
+	if has, err := c.HasAesthetic(); err != nil || !has {
+		t.Fatalf("HasAesthetic = %v %v", has, err)
+	}
+	img := imagesquality.Resize(image.NewRGBA(image.Rect(0, 0, 1000, 750)))
+	img.SetRGBA(5, 7, color.RGBA{R: 1, G: 2, B: 3, A: 255})
+	score, err := c.AestheticResized(context.Background(), img)
+	if err != nil || score != 6.5 {
+		t.Fatalf("score %v %v", score, err)
+	}
+	if fa.got == nil || fa.got.Rect.Dx() != imagesquality.InputSize || fa.got.RGBAAt(5, 7) != (color.RGBA{R: 1, G: 2, B: 3, A: 255}) {
+		t.Error("the model didn't get the child's picture")
+	}
+	// Anything but the model's square is refused before the model.
+	if _, err := c.AestheticResized(context.Background(), image.NewRGBA(image.Rect(0, 0, 100, 100))); err == nil {
+		t.Error("a 100x100 picture was scored")
+	}
+}
+
+// A primary without the model (its file missing), and one older than it,
+// answer ErrNoAesthetic: the child scores with the measures alone.
+func TestNoQualityModelReachesTheChildAsItself(t *testing.T) {
+	path := socketPath(t)
+	go ServeModels(path, Models{Tagger: func() Tagger { return &fakeTagger{} }}, 0)
+	waitForSocket(path)
+	c := &Client{Path: path}
+	if has, err := c.HasAesthetic(); err != nil || has {
+		t.Errorf("HasAesthetic = %v %v, want false", has, err)
+	}
+	img := imagesquality.Resize(image.NewRGBA(image.Rect(0, 0, 10, 10)))
+	if _, err := c.AestheticResized(context.Background(), img); !errors.Is(err, ErrNoAesthetic) {
+		t.Errorf("no model: %v", err)
+	}
+	old := &Client{Path: oldPrimary(t, make(chan request, 2))}
+	if has, err := old.HasAesthetic(); err != nil || has {
+		t.Errorf("an older primary: HasAesthetic = %v %v", has, err)
+	}
+	if _, err := old.AestheticResized(context.Background(), img); !errors.Is(err, ErrNoAesthetic) {
+		t.Errorf("an older primary: %v", err)
 	}
 }

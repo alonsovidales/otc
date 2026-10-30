@@ -9,7 +9,9 @@
 // their images and get back tags and faces, computed exactly as they would
 // have been locally. For faces the full-resolution image travels (face
 // embeddings are cropped from it); for tags only the 384x384 image the
-// tagging model takes, scaled by the child (imagestagger.Resize).
+// tagging model takes, scaled by the child (imagestagger.Resize); for On
+// this day's photo quality only the 224x224 one NIMA takes
+// (imagesquality.Resize).
 //
 // A request is a gob header; its pixels, when there are any, follow it as
 // raw bytes (header.N), so neither side builds a gob message the size of
@@ -37,6 +39,7 @@ import (
 	"time"
 
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	imagesquality "github.com/alonsovidales/otc/images_quality"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 )
@@ -66,6 +69,28 @@ type FaceDetector interface {
 	DetectFaces(img image.Image) ([]facerecognition.FaceDetection, error)
 }
 
+// AestheticScorer is what files_manager scores photos with for On this day:
+// the local NIMA model (images_quality), or Client. img is already through
+// imagesquality.Resize (an InputSize square), all the model takes of a
+// photo.
+type AestheticScorer interface {
+	AestheticResized(ctx context.Context, img *image.RGBA) (float32, error)
+}
+
+// ErrNoAesthetic is the answer to scoring while the primary has no quality
+// model (its file missing: photos are scored by the measures alone), and
+// what a child gets from a primary older than the model.
+var ErrNoAesthetic = errors.New("the photo quality model is not loaded") // i18n-ignore: matched by errors.Is and across the socket, logged only
+
+// Models is what the primary serves: the tagger (asked per request, so it
+// can wait for a model still loading), the face models and the quality
+// model (nil: none on this device).
+type Models struct {
+	Tagger    func() Tagger
+	Faces     FaceDetector
+	Aesthetic AestheticScorer
+}
+
 // cProto is the socket version this side speaks (see the package doc).
 const cProto = 1
 
@@ -75,7 +100,7 @@ const cProto = 1
 const cMaxPixelBytes = 1 << 31
 
 type request struct {
-	Op     string // "tags", "tags-resized" (version 1), "faces", "info"
+	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "info"
 	W, H   int
 	Stride int
 	Pix    []byte // version 0: the pixels, in the message
@@ -94,6 +119,10 @@ type response struct {
 	// Proto: the socket version the primary speaks (info); 0 from one
 	// older than versions.
 	Proto int
+	// Aesthetic is the quality model's score ("aesthetic"); HasAesthetic
+	// (info): the primary has the model. Unset by a primary older than it.
+	Aesthetic    float32
+	HasAesthetic bool
 }
 
 // resizedTagger is the primary's tagger taking an image already scaled to
@@ -127,6 +156,11 @@ func Serve(path string, tagger func() Tagger, faces FaceDetector) error {
 // their pixels are read: a full-resolution photo is ~48 MB as it arrives,
 // and a device short of memory shouldn't hold one per child at once.
 func ServeLimited(path string, tagger func() Tagger, faces FaceDetector, limit int) error {
+	return ServeModels(path, Models{Tagger: tagger, Faces: faces}, limit)
+}
+
+// ServeModels is ServeLimited with every model the primary has.
+func ServeModels(path string, models Models, limit int) error {
 	var slots chan struct{}
 	if limit > 0 {
 		slots = make(chan struct{}, limit)
@@ -147,11 +181,12 @@ func ServeLimited(path string, tagger func() Tagger, faces FaceDetector, limit i
 		if err != nil {
 			return err
 		}
-		go serveConn(conn, tagger, faces, slots)
+		go serveConn(conn, models, slots)
 	}
 }
 
-func serveConn(conn net.Conn, tagger func() Tagger, faces FaceDetector, slots chan struct{}) {
+func serveConn(conn net.Conn, models Models, slots chan struct{}) {
+	tagger, faces := models.Tagger, models.Faces
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(cCallTimeout))
 	// The pixels after the header are read from the same buffered reader
@@ -176,7 +211,27 @@ func serveConn(conn net.Conn, tagger func() Tagger, faces FaceDetector, slots ch
 	switch req.Op {
 	case "info":
 		resp.HasFaces = faces != nil
+		resp.HasAesthetic = models.Aesthetic != nil
 		resp.Proto = cProto
+	case "aesthetic":
+		img, err := readImage(br, req)
+		if err != nil {
+			resp.Err = err.Error()
+			break
+		}
+		if models.Aesthetic == nil {
+			resp.Err = ErrNoAesthetic.Error()
+			break
+		}
+		if img.Rect.Dx() != imagesquality.InputSize || img.Rect.Dy() != imagesquality.InputSize {
+			resp.Err = "malformed image"
+			break
+		}
+		score, err := models.Aesthetic.AestheticResized(context.Background(), img)
+		resp.Aesthetic = score
+		if err != nil {
+			resp.Err = err.Error()
+		}
 	case "tags", "tags-resized", "faces":
 		img, err := readImage(br, req)
 		if err != nil {
@@ -299,6 +354,10 @@ func (c *Client) call(req request, pix []byte) (*response, error) {
 		if resp.Err == ErrNoTagger.Error() {
 			return &resp, ErrNoTagger
 		}
+		// A primary older than the quality model doesn't know the request.
+		if resp.Err == ErrNoAesthetic.Error() || (req.Op == "aesthetic" && resp.Err == "unknown request aesthetic") {
+			return &resp, ErrNoAesthetic
+		}
 		return &resp, errors.New(resp.Err)
 	}
 	return &resp, nil
@@ -361,12 +420,43 @@ func (c *Client) DetectFaces(img image.Image) ([]facerecognition.FaceDetection, 
 // HasFaces asks the primary whether it has face models (and, on the way,
 // which socket version it speaks).
 func (c *Client) HasFaces() (bool, error) {
-	resp, err := c.call(request{Op: "info"}, nil)
+	resp, err := c.info()
 	if err != nil {
 		return false, err
+	}
+	return resp.HasFaces, nil
+}
+
+// HasAesthetic asks the primary whether it has the quality model.
+func (c *Client) HasAesthetic() (bool, error) {
+	resp, err := c.info()
+	if err != nil {
+		return false, err
+	}
+	return resp.HasAesthetic, nil
+}
+
+// info asks the primary what it has, noting its socket version.
+func (c *Client) info() (*response, error) {
+	resp, err := c.call(request{Op: "info"}, nil)
+	if err != nil {
+		return nil, err
 	}
 	c.mu.Lock()
 	c.proto, c.known = resp.Proto, true
 	c.mu.Unlock()
-	return resp.HasFaces, nil
+	return resp, nil
+}
+
+// AestheticResized is the primary's quality model's score of img, already
+// through imagesquality.Resize: ErrNoAesthetic when the primary has none.
+func (c *Client) AestheticResized(ctx context.Context, img *image.RGBA) (float32, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	resp, err := c.imageCall("aesthetic", rgba(img), imagestagger.RAMOptions{})
+	if err != nil {
+		return 0, err
+	}
+	return resp.Aesthetic, nil
 }
