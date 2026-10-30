@@ -2001,6 +2001,15 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			log.Debug("no EXIF metadata for", targetPath, ":", err)
 			exif = nil
 		}
+		// Its date taken, for its rows that are later copies (date_taken.go)
+		// - before the decode, so a photo the device can't show gets it too.
+		// A HEIF not read as one above (".heic" in lower case, an AVIF) has
+		// its EXIF read from its boxes for this alone.
+		dated := exif
+		if dated == nil && !isHeic && isHeif(content) {
+			dated, _ = exifinfo.FromHEICReader(bytes.NewReader(content))
+		}
+		mg.storeDateTaken(file.Hash, dated)
 
 		if isHeic {
 			// Issue #66: quality 6 produced severe compression artifacts
@@ -2151,6 +2160,8 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			log.Debug("no location metadata for", targetPath, ":", err)
 			exif = nil
 		}
+		// Its date taken, as for a photo.
+		mg.storeDateTaken(file.Hash, exif)
 
 		if stages&stageAnalysis != 0 {
 			var tags []imagestagger.RAMTag

@@ -362,7 +362,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   back, with the date it came back): Images lists it once, at its **oldest copy** (earliest
   `created`, then the smallest path) among the copies it may show (outside the folders kept out
   of Images; under the folder for a folder gallery). Chosen when listing; no stored date is
-  rewritten, Files lists every path with its own. `dao.SearchMedia` reads every such row newest
+  rewritten for it (dates taken, below, move a media row's date for another reason), Files lists every
+  path with its own. `dao.SearchMedia` reads every such row newest
   first and, at one instant, by path backwards (a tag search by score first: tags and people are
   settled per hash in derived tables, so a tag's score is no longer multiplied by the copies and
   nothing relies on lax GROUP BY) and keeps each hash's last row (`oldestCopies`). `before` stays a
@@ -388,6 +389,39 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   path. A folder's path is DelPath as before; older devices ignore both fields. Measured
   on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
   before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
+- Dates taken (release 152's `updates/152.sh`; `files_manager/date_taken.go`, `exifinfo/taken.go`): for a
+  photo or video, `files.created` is the date it was taken whenever its own metadata clearly says the row
+  is a later copy - a library copied to a drive in 2018 and synced from there (the sync clients send a
+  file's creation time, #134) no longer sits in 2018. The rule (`createdFromTaken`, table-tested): with T
+  the date taken and C a row's `created`, the row moves to T when T < C - 26 h (more than the widest gap
+  between two zones' clocks, so a phone's exact capture time never moves), never later; a T outside
+  [1990-01-01, now + 1 day) or a clock reset (1 January at exactly 00:00:00, any year) is ignored.
+  `exifinfo` reads T the same in any zone (goexif's `DateTime()` used `time.Local`): DateTimeOriginal,
+  else DateTimeDigitized, else IFD0's DateTime; made exact by OffsetTime(Original/Digitized) (EXIF 2.31,
+  read from the Exif sub-IFD, which goexif skips), else by the GPS clock (UTC: the gap to the nearest
+  quarter hour, when a zone can have it, -12 to +14 h), else the clock read as UTC (`Info.TakenClock`
+  keeps the clock as written); a video's `creation_time` is UTC. GetFileInfo's taken time is the same
+  instant. Applied where the metadata is read: `processMedia` (both lanes and Reprocess; before the
+  decode, so a photo the device can't show gets it too; a lower-case `.heic` read by its boxes for this),
+  and once for what a database held before: `BackfillDatesTaken`, after `FitStoredThumbnails` in
+  `startBackfillOnce` (before Places and On this day), reads every media hash (`ListMediaForReprocess`,
+  500 a page) up to its metadata only (`readStoredMetadata`, shared with Places: a photo up to its EXIF,
+  a video by ffprobe on its stream), 20 ms after a photo and 250 ms after a video, behind `waitForQuiet`
+  (it stops for a reprocess), saving its place in `settings.dates_taken_cursor` after each page and
+  setting `dates_taken_backfilled` at the end; a database without them is skipped (`ErrSchemaBehind`);
+  content not read this time is counted, not retried (Reprocess applies the rule); one Info line at the
+  end. Lima VM: 311 stored photos and videos in 9 s, ~7 ms of work a photo besides the pause. Each
+  application is one `dao.MoveToDateTaken` (`update files set created = T where hash = ? and created >
+  T + 26 h`: every `files` row of the content, rechecked in SQL; `file_versions` keep theirs), then
+  `memories.changed()` and `places.changed()` when a row moved. So Images' order, month counts, the
+  scrubber, `before`/`newer_than`, the oldest copy (#201), On this day and Places' covers have the date
+  taken with no query changed; Files' Created column shows it too, and the sync clients give it to a file
+  they download as its creation time. A path added later for content already processed (not processed
+  again) keeps its own date; Images still shows the oldest copy. Known limit: a photo with neither an
+  offset nor a GPS clock is placed at its clock read as UTC, and the apps show `created` in the viewer's
+  zone, so east of UTC its last hours of a day show on the next day (one or two in Spain), west of UTC
+  its first hours on the day before. Tests: `date_taken_test.go`, exifinfo's `taken_test.go`, dao's
+  `TestMoveToDateTakenMySQL` and `TestDatesTakenBackfillMySQL`.
 - Scrolling up after a jump (issue #194): `SearchPhotos.newer_than` (11) asks for the photos dated
   strictly after the instant, served OLDEST first, and every answer to it has
   `ListOfFiles.oldest_first` (6) true - its last page and an empty one too; devices before #194

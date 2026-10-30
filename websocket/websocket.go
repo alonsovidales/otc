@@ -256,6 +256,11 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// cap on their longest side, for what was stored before -
 			// once per device, in the background (thumbnail_pass.go).
 			mg.filesManager.FitStoredThumbnails(ses)
+			// Dates taken: what was stored before gets the date its
+			// metadata says it was taken where its own is a later copy's -
+			// once per database, before what goes by date below
+			// (date_taken.go).
+			mg.filesManager.BackfillDatesTaken(ses)
 			// Places: the positions of what was stored before - once per
 			// database, from the metadata alone (location_backfill.go).
 			mg.filesManager.BackfillLocations(ses)
