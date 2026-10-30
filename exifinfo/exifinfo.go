@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package exifinfo reads camera/EXIF metadata out of photos and videos for
-// the photo gallery's "More info" panel (issue #41) and for location
-// tagging (issue #42). It never modifies the original file — everything
-// here is read-only extraction of whatever metadata is already embedded.
+// the photo gallery's "More info" panel (issue #41), for location tagging
+// (issue #42) and for when each was taken (taken.go). It never modifies
+// the original file — everything here is read-only extraction of whatever
+// metadata is already embedded.
 package exifinfo
 
 import (
@@ -27,10 +28,19 @@ import (
 // source format — callers don't need to know whether it came from a JPEG's
 // EXIF segment, a HEIC's EXIF box, or a video container's format tags.
 type Info struct {
-	CameraMake   string
-	CameraModel  string
-	TakenAt      time.Time
-	HasTakenAt   bool
+	CameraMake  string
+	CameraModel string
+	// TakenAt is when the photo or video was taken, as an instant: a
+	// photo's EXIF clock with its zone when the file gives one (taken.go),
+	// else the clock read as UTC; a video's creation_time, which QuickTime
+	// and MP4 keep in UTC. Read the same whatever zone the device is set
+	// to.
+	TakenAt    time.Time
+	HasTakenAt bool
+	// TakenClock is the clock reading TakenAt comes from, as written - a
+	// photo's local wall time, a video's UTC - kept in UTC: a camera whose
+	// clock was reset shows it as 2000-01-01 00:00:00 in any zone.
+	TakenClock   time.Time
 	ExposureTime string // e.g. "1/300s"
 	FNumber      string // e.g. "f/5.9"
 	ISO          int32
@@ -101,9 +111,8 @@ func fromExif(x *exif.Exif) *Info {
 		s, _ := v.StringVal()
 		info.CameraModel = strings.ToValidUTF8(s, "\uFFFD")
 	}
-	if dt, err := x.DateTime(); err == nil {
-		info.TakenAt = dt
-		info.HasTakenAt = true
+	if at, clock, ok := takenAt(x); ok {
+		info.TakenAt, info.TakenClock, info.HasTakenAt = at, clock, true
 	}
 	if v, err := x.Get(exif.ExposureTime); err == nil {
 		if num, den, err := v.Rat2(0); err == nil && den != 0 {
@@ -232,7 +241,8 @@ func FromVideoSource(tmpPath string) (*Info, error) {
 			}
 		case "TAG:creation_time":
 			if t, err := time.Parse(time.RFC3339, v); err == nil {
-				info.TakenAt = t
+				info.TakenAt = t.UTC()
+				info.TakenClock = info.TakenAt
 				info.HasTakenAt = true
 			}
 		}
