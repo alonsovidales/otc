@@ -95,6 +95,10 @@
     <string name="app_settings_logs_title">Journaux</string>
     <string name="app_settings_logs_updates">Mises à jour</string>
     <string name="app_settings_logs_warning">Les journaux peuvent contenir des noms de fichiers et de dossiers, des mots recherchés, des noms de réseaux Wi-Fi et les adresses de votre appareil. Vérifiez-les avant de les partager.</string>
+    <string name="app_settings_memories_footer">Des photos prises autour de cette date les années précédentes, en haut d’Images. Pour choisir les meilleures, l’appareil mesure l’aspect de chaque photo (sa netteté, son exposition et une note de qualité), sur l’appareil lui-même.</string>
+    <string name="app_settings_memories_show_hidden">Réafficher les éléments masqués (%1$s)</string>
+    <string name="app_settings_memories_title">Souvenirs</string>
+    <string name="app_settings_memories_toggle">Ce jour-là</string>
     <string name="app_settings_password_change">Modifier le mot de passe</string>
     <string name="app_settings_password_changed">Mot de passe modifié ✅</string>
     <string name="app_settings_password_changing">Modification…</string>

@@ -89,6 +89,10 @@
     <string name="app_settings_logs_title">Logboeken</string>
     <string name="app_settings_logs_updates">Updates</string>
     <string name="app_settings_logs_warning">Logboeken kunnen namen van bestanden en mappen, zoekwoorden, namen van wifinetwerken en de adressen van je apparaat bevatten. Controleer ze voordat je ze deelt.</string>
+    <string name="app_settings_memories_footer">Foto’s die rond deze tijd in eerdere jaren zijn gemaakt, bovenaan in Afbeeldingen. Om de beste te kiezen, meet het apparaat hoe elke foto eruitziet (de scherpte, de belichting en een kwaliteitsscore), op het apparaat zelf.</string>
+    <string name="app_settings_memories_show_hidden">Verborgen herinneringen weer tonen (%1$s)</string>
+    <string name="app_settings_memories_title">Herinneringen</string>
+    <string name="app_settings_memories_toggle">Op deze dag</string>
     <string name="app_settings_password_change">Wachtwoord wijzigen</string>
     <string name="app_settings_password_changed">Wachtwoord gewijzigd ✅</string>
     <string name="app_settings_password_changing">Wijzigen…</string>

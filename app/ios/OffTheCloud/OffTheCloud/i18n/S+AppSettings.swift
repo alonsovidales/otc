@@ -391,6 +391,28 @@ extension S {
     /// At the top of the Logs screen, with a warning sign.
     static var appSettingsLogsWarning: String { L("app.settings.logs.warning", table: "AppSettings") }
 
+    /// Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself.
+    ///
+    /// Explanation under the On this day switch in Settings (on unless the user turns it off). Images is the section's name (app.shell.section_images). The measuring is done by the user's own device, never sent anywhere.
+    static var appSettingsMemoriesFooter: String { L("app.settings.memories.footer", table: "AppSettings") }
+
+    /// Show hidden memories again ({count})
+    ///
+    /// Button in Settings > Memories, shown when something is hidden from the memories: shows everything hidden again (photos, memories, days and people). {count} is how many things are hidden (1 or more).
+    static func appSettingsMemoriesShowHidden(count: Int) -> String {
+        L("app.settings.memories.show_hidden", table: "AppSettings", count)
+    }
+
+    /// Memories
+    ///
+    /// Heading of the section of Settings holding the On this day switch (the photos taken around today in earlier years, at the top of Images).
+    static var appSettingsMemoriesTitle: String { L("app.settings.memories.title", table: "AppSettings") }
+
+    /// On this day
+    ///
+    /// Label of the switch in Settings > Memories that turns On this day on or off: the photos taken around today in earlier years, at the top of Images. The feature's name, as app.photos.memories.title_day.
+    static var appSettingsMemoriesToggle: String { L("app.settings.memories.toggle", table: "AppSettings") }
+
     /// Change Password
     ///
     /// Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in.

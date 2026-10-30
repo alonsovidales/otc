@@ -331,6 +331,22 @@
     "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
     "reviewed": "claude-backtranslation 2026-10-11 #11d29483"
   },
+  "app.settings.memories.footer": {
+    "text": "Foto’s die rond deze tijd in eerdere jaren zijn gemaakt, bovenaan in Afbeeldingen. Om de beste te kiezen, meet het apparaat hoe elke foto eruitziet (de scherpte, de belichting en een kwaliteitsscore), op het apparaat zelf.",
+    "en": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself."
+  },
+  "app.settings.memories.show_hidden": {
+    "text": "Verborgen herinneringen weer tonen ({count})",
+    "en": "Show hidden memories again ({count})"
+  },
+  "app.settings.memories.title": {
+    "text": "Herinneringen",
+    "en": "Memories"
+  },
+  "app.settings.memories.toggle": {
+    "text": "Op deze dag",
+    "en": "On this day"
+  },
   "app.settings.password.change": {
     "text": "Wachtwoord wijzigen",
     "en": "Change Password",

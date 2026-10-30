@@ -208,6 +208,117 @@ extension S {
         L("app.photos.grid.tile_video_on", table: "AppPhotos", date)
     }
 
+    /// {day} {month}
+    ///
+    /// A day without its year, short (27 Oct), for the days an opened weekly memory covers (app.photos.memories.week_in_year). {day} is the day of the month (1 to 31), {month} the month's short name (app.photos.months.january_short...).
+    static func appPhotosMemoriesDayMonth(day: Int, month: String) -> String {
+        L("app.photos.memories.day_month", table: "AppPhotos", day, month)
+    }
+
+    /// Hidden from your memories
+    ///
+    /// Short message at the bottom of the screen after hiding something from the memories (a photo, a memory, a day or a person), next to app.photos.memories.undo.
+    static var appPhotosMemoriesHidden: String { L("app.photos.memories.hidden", table: "AppPhotos") }
+
+    /// Don't show this day
+    ///
+    /// In an opened memory's menu: never show photos taken on the day of the photo on screen in any memory again (a sad day, for example). The photos themselves stay in Images.
+    static var appPhotosMemoriesHideDay: String { L("app.photos.memories.hide_day", table: "AppPhotos") }
+
+    /// Hide this memory
+    ///
+    /// In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images.
+    static var appPhotosMemoriesHideMemory: String { L("app.photos.memories.hide_memory", table: "AppPhotos") }
+
+    /// Don't show {name}
+    ///
+    /// In an opened memory's menu, once for each named person in it: never show photos with this person in any memory again. {name} is the name the user gave the person in People. The photos themselves stay in Images.
+    static func appPhotosMemoriesHidePerson(name: String) -> String {
+        L("app.photos.memories.hide_person", table: "AppPhotos", L10n.isolate(name))
+    }
+
+    /// Hide this photo
+    ///
+    /// In an opened memory's menu: never show the photo on screen in a memory again. The photo itself stays in Images.
+    static var appPhotosMemoriesHidePhoto: String { L("app.photos.memories.hide_photo", table: "AppPhotos") }
+
+    /// Next photo
+    ///
+    /// What screen readers offer on an opened memory's slideshow: go to its next photo (tapping the right side of the screen).
+    static var appPhotosMemoriesNextPhoto: String { L("app.photos.memories.next_photo", table: "AppPhotos") }
+
+    /// Memory options
+    ///
+    /// What screen readers read for the menu button on an opened memory (a … icon): it holds the ways to hide what shows in the memories.
+    static var appPhotosMemoriesOptions: String { L("app.photos.memories.options", table: "AppPhotos") }
+
+    /// Day
+    ///
+    /// One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of today's date in earlier years.
+    static var appPhotosMemoriesPeriodDay: String { L("app.photos.memories.period_day", table: "AppPhotos") }
+
+    /// Month
+    ///
+    /// One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of this calendar month in earlier years.
+    static var appPhotosMemoriesPeriodMonth: String { L("app.photos.memories.period_month", table: "AppPhotos") }
+
+    /// Week
+    ///
+    /// One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of the week around today's date in earlier years.
+    static var appPhotosMemoriesPeriodWeek: String { L("app.photos.memories.period_week", table: "AppPhotos") }
+
+    /// Photo {index} of {count}
+    ///
+    /// What screen readers read for an opened memory's slideshow: which of its photos is on screen. {index} is its position (from 1), {count} how many photos the memory shows.
+    static func appPhotosMemoriesPhotoPosition(index: Int, count: Int) -> String {
+        L("app.photos.memories.photo_position", table: "AppPhotos", index, count)
+    }
+
+    /// Previous photo
+    ///
+    /// What screen readers offer on an opened memory's slideshow: go back to its previous photo (tapping the left side of the screen).
+    static var appPhotosMemoriesPreviousPhoto: String { L("app.photos.memories.previous_photo", table: "AppPhotos") }
+
+    /// See all
+    ///
+    /// Button on an opened memory: shows all its photos in a grid, where each opens in the photo viewer.
+    static var appPhotosMemoriesSeeAll: String { L("app.photos.memories.see_all", table: "AppPhotos") }
+
+    /// On this day
+    ///
+    /// Title of the strip of memories at the top of Images, and of a memory opened from it, while it shows the photos taken on today's date in earlier years. The feature's name, as the device calls it.
+    static var appPhotosMemoriesTitleDay: String { L("app.photos.memories.title_day", table: "AppPhotos") }
+
+    /// This month
+    ///
+    /// Title of the strip of memories at the top of Images while it shows the photos taken in this calendar month in earlier years.
+    static var appPhotosMemoriesTitleMonth: String { L("app.photos.memories.title_month", table: "AppPhotos") }
+
+    /// This week
+    ///
+    /// Title of the strip of memories at the top of Images while it shows the photos taken in the week around today's date (three days before to three days after) in earlier years.
+    static var appPhotosMemoriesTitleWeek: String { L("app.photos.memories.title_week", table: "AppPhotos") }
+
+    /// Undo
+    ///
+    /// Button next to app.photos.memories.hidden: shows what was just hidden in the memories again.
+    static var appPhotosMemoriesUndo: String { L("app.photos.memories.undo", table: "AppPhotos") }
+
+    /// {from} – {to} {year}
+    ///
+    /// The days an opened weekly memory covers, in one year (27 Oct – 2 Nov 2023), after how many years ago. {from} and {to} are short days (app.photos.memories.day_month), the first first; {year} the year in four digits.
+    static func appPhotosMemoriesWeekInYear(from: String, to: String, year: String) -> String {
+        L("app.photos.memories.week_in_year", table: "AppPhotos", from, to, year)
+    }
+
+    /// one: {count} year ago
+    /// other: {count} years ago
+    ///
+    /// On a memory's card in the strip at the top of Images, and in its title when opened: how many years ago its photos were taken. {count} is 1 or more.
+    static func appPhotosMemoriesYearsAgo(count: Int) -> String {
+        L("app.photos.memories.years_ago", table: "AppPhotos", count)
+    }
+
     /// April
     ///
     /// The month April, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.

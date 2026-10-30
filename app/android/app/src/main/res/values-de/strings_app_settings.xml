@@ -89,6 +89,10 @@
     <string name="app_settings_logs_title">Protokolle</string>
     <string name="app_settings_logs_updates">Updates</string>
     <string name="app_settings_logs_warning">Protokolle können Datei- und Ordnernamen, Suchbegriffe, WLAN-Namen und die Adressen deines Geräts enthalten. Prüfe sie, bevor du sie teilst.</string>
+    <string name="app_settings_memories_footer">Fotos, die um diese Zeit in früheren Jahren aufgenommen wurden, oben in Bilder. Um die besten auszuwählen, misst das Gerät, wie jedes Foto aussieht (seine Schärfe, seine Belichtung und eine Qualitätsbewertung), auf dem Gerät selbst.</string>
+    <string name="app_settings_memories_show_hidden">Ausgeblendetes wieder zeigen (%1$s)</string>
+    <string name="app_settings_memories_title">Erinnerungen</string>
+    <string name="app_settings_memories_toggle">An diesem Tag</string>
     <string name="app_settings_password_change">Passwort ändern</string>
     <string name="app_settings_password_changed">Passwort geändert ✅</string>
     <string name="app_settings_password_changing">Wird geändert…</string>

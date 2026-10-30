@@ -138,6 +138,86 @@ fun S.appPhotosGridTileVideo(): UiText =
 fun S.appPhotosGridTileVideoOn(date: String): UiText =
     UiText.Res(R.string.app_photos_grid_tile_video_on, listOf(date))
 
+/** "{day} {month}": A day without its year, short (27 Oct), for the days an opened weekly memory covers (app.photos.memories.week_in_year). {day} is the day of the month (1 to 31), {month} the month's short name (app.photos.months.january_short...). */
+fun S.appPhotosMemoriesDayMonth(day: Int, month: String): UiText =
+    UiText.Res(R.string.app_photos_memories_day_month, listOf(day, month))
+
+/** "Hidden from your memories": Short message at the bottom of the screen after hiding something from the memories (a photo, a memory, a day or a person), next to app.photos.memories.undo. */
+fun S.appPhotosMemoriesHidden(): UiText =
+    UiText.Res(R.string.app_photos_memories_hidden)
+
+/** "Don't show this day": In an opened memory's menu: never show photos taken on the day of the photo on screen in any memory again (a sad day, for example). The photos themselves stay in Images. */
+fun S.appPhotosMemoriesHideDay(): UiText =
+    UiText.Res(R.string.app_photos_memories_hide_day)
+
+/** "Hide this memory": In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images. */
+fun S.appPhotosMemoriesHideMemory(): UiText =
+    UiText.Res(R.string.app_photos_memories_hide_memory)
+
+/** "Don't show {name}": In an opened memory's menu, once for each named person in it: never show photos with this person in any memory again. {name} is the name the user gave the person in People. The photos themselves stay in Images. */
+fun S.appPhotosMemoriesHidePerson(name: String): UiText =
+    UiText.Res(R.string.app_photos_memories_hide_person, listOf(name))
+
+/** "Hide this photo": In an opened memory's menu: never show the photo on screen in a memory again. The photo itself stays in Images. */
+fun S.appPhotosMemoriesHidePhoto(): UiText =
+    UiText.Res(R.string.app_photos_memories_hide_photo)
+
+/** "Next photo": What screen readers offer on an opened memory's slideshow: go to its next photo (tapping the right side of the screen). */
+fun S.appPhotosMemoriesNextPhoto(): UiText =
+    UiText.Res(R.string.app_photos_memories_next_photo)
+
+/** "Memory options": What screen readers read for the menu button on an opened memory (a … icon): it holds the ways to hide what shows in the memories. */
+fun S.appPhotosMemoriesOptions(): UiText =
+    UiText.Res(R.string.app_photos_memories_options)
+
+/** "Day": One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of today's date in earlier years. */
+fun S.appPhotosMemoriesPeriodDay(): UiText =
+    UiText.Res(R.string.app_photos_memories_period_day)
+
+/** "Month": One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of this calendar month in earlier years. */
+fun S.appPhotosMemoriesPeriodMonth(): UiText =
+    UiText.Res(R.string.app_photos_memories_period_month)
+
+/** "Week": One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of the week around today's date in earlier years. */
+fun S.appPhotosMemoriesPeriodWeek(): UiText =
+    UiText.Res(R.string.app_photos_memories_period_week)
+
+/** "Photo {index} of {count}": What screen readers read for an opened memory's slideshow: which of its photos is on screen. {index} is its position (from 1), {count} how many photos the memory shows. */
+fun S.appPhotosMemoriesPhotoPosition(index: Int, count: Int): UiText =
+    UiText.Res(R.string.app_photos_memories_photo_position, listOf(index, count))
+
+/** "Previous photo": What screen readers offer on an opened memory's slideshow: go back to its previous photo (tapping the left side of the screen). */
+fun S.appPhotosMemoriesPreviousPhoto(): UiText =
+    UiText.Res(R.string.app_photos_memories_previous_photo)
+
+/** "See all": Button on an opened memory: shows all its photos in a grid, where each opens in the photo viewer. */
+fun S.appPhotosMemoriesSeeAll(): UiText =
+    UiText.Res(R.string.app_photos_memories_see_all)
+
+/** "On this day": Title of the strip of memories at the top of Images, and of a memory opened from it, while it shows the photos taken on today's date in earlier years. The feature's name, as the device calls it. */
+fun S.appPhotosMemoriesTitleDay(): UiText =
+    UiText.Res(R.string.app_photos_memories_title_day)
+
+/** "This month": Title of the strip of memories at the top of Images while it shows the photos taken in this calendar month in earlier years. */
+fun S.appPhotosMemoriesTitleMonth(): UiText =
+    UiText.Res(R.string.app_photos_memories_title_month)
+
+/** "This week": Title of the strip of memories at the top of Images while it shows the photos taken in the week around today's date (three days before to three days after) in earlier years. */
+fun S.appPhotosMemoriesTitleWeek(): UiText =
+    UiText.Res(R.string.app_photos_memories_title_week)
+
+/** "Undo": Button next to app.photos.memories.hidden: shows what was just hidden in the memories again. */
+fun S.appPhotosMemoriesUndo(): UiText =
+    UiText.Res(R.string.app_photos_memories_undo)
+
+/** "{from} – {to} {year}": The days an opened weekly memory covers, in one year (27 Oct – 2 Nov 2023), after how many years ago. {from} and {to} are short days (app.photos.memories.day_month), the first first; {year} the year in four digits. */
+fun S.appPhotosMemoriesWeekInYear(from: String, to: String, year: String): UiText =
+    UiText.Res(R.string.app_photos_memories_week_in_year, listOf(from, to, year))
+
+/** "{count} years ago" (one: "{count} year ago"): On a memory's card in the strip at the top of Images, and in its title when opened: how many years ago its photos were taken. {count} is 1 or more. */
+fun S.appPhotosMemoriesYearsAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_memories_years_ago, count, listOf(count))
+
 /** "April": The month April, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there. */
 fun S.appPhotosMonthsApril(): UiText =
     UiText.Res(R.string.app_photos_months_april)

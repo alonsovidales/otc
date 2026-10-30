@@ -95,6 +95,10 @@
     <string name="app_settings_logs_title">Registros</string>
     <string name="app_settings_logs_updates">Actualizaciones</string>
     <string name="app_settings_logs_warning">Los registros pueden incluir nombres de archivos y carpetas, palabras de búsqueda, nombres de redes Wi-Fi y las direcciones de tu dispositivo. Revísalos antes de compartirlos.</string>
+    <string name="app_settings_memories_footer">Fotos tomadas en estas fechas en años anteriores, en la parte superior de Imágenes. Para elegir las mejores, el dispositivo mide cómo se ve cada foto (su nitidez, su exposición y una puntuación de calidad), en el propio dispositivo.</string>
+    <string name="app_settings_memories_show_hidden">Volver a mostrar lo oculto (%1$s)</string>
+    <string name="app_settings_memories_title">Recuerdos</string>
+    <string name="app_settings_memories_toggle">Un día como hoy</string>
     <string name="app_settings_password_change">Cambiar contraseña</string>
     <string name="app_settings_password_changed">Contraseña cambiada ✅</string>
     <string name="app_settings_password_changing">Cambiando…</string>

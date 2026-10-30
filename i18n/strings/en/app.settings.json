@@ -385,6 +385,26 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #f5faacde"
   },
+  "app.settings.memories.footer": {
+    "text": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself.",
+    "note": "Explanation under the On this day switch in Settings (on unless the user turns it off). Images is the section's name (app.shell.section_images). The measuring is done by the user's own device, never sent anywhere."
+  },
+  "app.settings.memories.show_hidden": {
+    "text": "Show hidden memories again ({count})",
+    "args": [["count", "int"]],
+    "note": "Button in Settings > Memories, shown when something is hidden from the memories: shows everything hidden again (photos, memories, days and people). {count} is how many things are hidden (1 or more).",
+    "max": 50
+  },
+  "app.settings.memories.title": {
+    "text": "Memories",
+    "note": "Heading of the section of Settings holding the On this day switch (the photos taken around today in earlier years, at the top of Images).",
+    "max": 30
+  },
+  "app.settings.memories.toggle": {
+    "text": "On this day",
+    "note": "Label of the switch in Settings > Memories that turns On this day on or off: the photos taken around today in earlier years, at the top of Images. The feature's name, as app.photos.memories.title_day.",
+    "max": 30
+  },
   "app.settings.password.change": {
     "text": "Change Password",
     "note": "Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in.",

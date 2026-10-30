@@ -88,6 +88,10 @@
     <string name="app_settings_logs_title">Logs</string>
     <string name="app_settings_logs_updates">Updates</string>
     <string name="app_settings_logs_warning">Logs can include file and folder names, search words, Wi-Fi network names and your device\'s addresses. Check them before you share them.</string>
+    <string name="app_settings_memories_footer">Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself.</string>
+    <string name="app_settings_memories_show_hidden">Show hidden memories again (%1$s)</string>
+    <string name="app_settings_memories_title">Memories</string>
+    <string name="app_settings_memories_toggle">On this day</string>
     <string name="app_settings_password_change">Change Password</string>
     <string name="app_settings_password_changed">Password changed ✅</string>
     <string name="app_settings_password_changing">Changing…</string>

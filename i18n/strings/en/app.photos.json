@@ -201,6 +201,113 @@
     "args": [["date", "text"]],
     "note": "Screen-reader name of a video's tile in Images: the day it was taken. {date} is app.photos.months.day (5 October 2026)."
   },
+  "app.photos.memories.day_month": {
+    "text": "{day} {month}",
+    "args": [["day", "int"], ["month", "text"]],
+    "note": "A day without its year, short (27 Oct), for the days an opened weekly memory covers (app.photos.memories.week_in_year). {day} is the day of the month (1 to 31), {month} the month's short name (app.photos.months.january_short...)."
+  },
+  "app.photos.memories.hidden": {
+    "text": "Hidden from your memories",
+    "note": "Short message at the bottom of the screen after hiding something from the memories (a photo, a memory, a day or a person), next to app.photos.memories.undo.",
+    "max": 40
+  },
+  "app.photos.memories.hide_day": {
+    "text": "Don't show this day",
+    "note": "In an opened memory's menu: never show photos taken on the day of the photo on screen in any memory again (a sad day, for example). The photos themselves stay in Images.",
+    "max": 30
+  },
+  "app.photos.memories.hide_memory": {
+    "text": "Hide this memory",
+    "note": "In an opened memory's menu: hide this whole memory (this year's photos for this date). The photos themselves stay in Images.",
+    "max": 30
+  },
+  "app.photos.memories.hide_person": {
+    "text": "Don't show {name}",
+    "args": [["name", "user"]],
+    "note": "In an opened memory's menu, once for each named person in it: never show photos with this person in any memory again. {name} is the name the user gave the person in People. The photos themselves stay in Images.",
+    "max": 40
+  },
+  "app.photos.memories.hide_photo": {
+    "text": "Hide this photo",
+    "note": "In an opened memory's menu: never show the photo on screen in a memory again. The photo itself stays in Images.",
+    "max": 30
+  },
+  "app.photos.memories.next_photo": {
+    "text": "Next photo",
+    "note": "What screen readers offer on an opened memory's slideshow: go to its next photo (tapping the right side of the screen).",
+    "max": 30
+  },
+  "app.photos.memories.options": {
+    "text": "Memory options",
+    "note": "What screen readers read for the menu button on an opened memory (a … icon): it holds the ways to hide what shows in the memories.",
+    "max": 30
+  },
+  "app.photos.memories.period_day": {
+    "text": "Day",
+    "note": "One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of today's date in earlier years.",
+    "max": 10
+  },
+  "app.photos.memories.period_month": {
+    "text": "Month",
+    "note": "One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of this calendar month in earlier years.",
+    "max": 10
+  },
+  "app.photos.memories.period_week": {
+    "text": "Week",
+    "note": "One of three short choices beside the memories strip's title (Day, Week, Month): show the memories of the week around today's date in earlier years.",
+    "max": 10
+  },
+  "app.photos.memories.photo_position": {
+    "text": "Photo {index} of {count}",
+    "args": [["index", "int"], ["count", "int"]],
+    "note": "What screen readers read for an opened memory's slideshow: which of its photos is on screen. {index} is its position (from 1), {count} how many photos the memory shows.",
+    "max": 30
+  },
+  "app.photos.memories.previous_photo": {
+    "text": "Previous photo",
+    "note": "What screen readers offer on an opened memory's slideshow: go back to its previous photo (tapping the left side of the screen).",
+    "max": 30
+  },
+  "app.photos.memories.see_all": {
+    "text": "See all",
+    "note": "Button on an opened memory: shows all its photos in a grid, where each opens in the photo viewer.",
+    "max": 20
+  },
+  "app.photos.memories.title_day": {
+    "text": "On this day",
+    "note": "Title of the strip of memories at the top of Images, and of a memory opened from it, while it shows the photos taken on today's date in earlier years. The feature's name, as the device calls it.",
+    "max": 30
+  },
+  "app.photos.memories.title_month": {
+    "text": "This month",
+    "note": "Title of the strip of memories at the top of Images while it shows the photos taken in this calendar month in earlier years.",
+    "max": 30
+  },
+  "app.photos.memories.title_week": {
+    "text": "This week",
+    "note": "Title of the strip of memories at the top of Images while it shows the photos taken in the week around today's date (three days before to three days after) in earlier years.",
+    "max": 30
+  },
+  "app.photos.memories.undo": {
+    "text": "Undo",
+    "note": "Button next to app.photos.memories.hidden: shows what was just hidden in the memories again.",
+    "max": 16
+  },
+  "app.photos.memories.week_in_year": {
+    "text": "{from} – {to} {year}",
+    "args": [["from", "text"], ["to", "text"], ["year", "text"]],
+    "note": "The days an opened weekly memory covers, in one year (27 Oct – 2 Nov 2023), after how many years ago. {from} and {to} are short days (app.photos.memories.day_month), the first first; {year} the year in four digits.",
+    "max": 24
+  },
+  "app.photos.memories.years_ago": {
+    "text": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    },
+    "args": [["count", "count"]],
+    "note": "On a memory's card in the strip at the top of Images, and in its title when opened: how many years ago its photos were taken. {count} is 1 or more.",
+    "max": 24
+  },
   "app.photos.months.april": {
     "text": "April",
     "note": "The month April, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",

@@ -331,6 +331,22 @@
     "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
     "reviewed": "claude-backtranslation 2026-10-11 #fdf2abcf"
   },
+  "app.settings.memories.footer": {
+    "text": "Fotos tomadas en estas fechas en años anteriores, en la parte superior de Imágenes. Para elegir las mejores, el dispositivo mide cómo se ve cada foto (su nitidez, su exposición y una puntuación de calidad), en el propio dispositivo.",
+    "en": "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself."
+  },
+  "app.settings.memories.show_hidden": {
+    "text": "Volver a mostrar lo oculto ({count})",
+    "en": "Show hidden memories again ({count})"
+  },
+  "app.settings.memories.title": {
+    "text": "Recuerdos",
+    "en": "Memories"
+  },
+  "app.settings.memories.toggle": {
+    "text": "Un día como hoy",
+    "en": "On this day"
+  },
   "app.settings.password.change": {
     "text": "Cambiar contraseña",
     "en": "Change Password",

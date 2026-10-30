@@ -194,6 +194,92 @@
     "text": "Vidéo, {date}",
     "en": "Video, {date}"
   },
+  "app.photos.memories.day_month": {
+    "text": "{day} {month}",
+    "en": "{day} {month}"
+  },
+  "app.photos.memories.hidden": {
+    "text": "Masqué dans vos souvenirs",
+    "en": "Hidden from your memories"
+  },
+  "app.photos.memories.hide_day": {
+    "text": "Ne plus afficher ce jour",
+    "en": "Don't show this day"
+  },
+  "app.photos.memories.hide_memory": {
+    "text": "Masquer ce souvenir",
+    "en": "Hide this memory"
+  },
+  "app.photos.memories.hide_person": {
+    "text": "Ne plus afficher {name}",
+    "en": "Don't show {name}"
+  },
+  "app.photos.memories.hide_photo": {
+    "text": "Masquer cette photo",
+    "en": "Hide this photo"
+  },
+  "app.photos.memories.next_photo": {
+    "text": "Photo suivante",
+    "en": "Next photo"
+  },
+  "app.photos.memories.options": {
+    "text": "Options du souvenir",
+    "en": "Memory options"
+  },
+  "app.photos.memories.period_day": {
+    "text": "Jour",
+    "en": "Day"
+  },
+  "app.photos.memories.period_month": {
+    "text": "Mois",
+    "en": "Month"
+  },
+  "app.photos.memories.period_week": {
+    "text": "Semaine",
+    "en": "Week"
+  },
+  "app.photos.memories.photo_position": {
+    "text": "Photo {index} sur {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "app.photos.memories.previous_photo": {
+    "text": "Photo précédente",
+    "en": "Previous photo"
+  },
+  "app.photos.memories.see_all": {
+    "text": "Tout voir",
+    "en": "See all"
+  },
+  "app.photos.memories.title_day": {
+    "text": "Ce jour-là",
+    "en": "On this day"
+  },
+  "app.photos.memories.title_month": {
+    "text": "Ce mois-ci",
+    "en": "This month"
+  },
+  "app.photos.memories.title_week": {
+    "text": "Cette semaine",
+    "en": "This week"
+  },
+  "app.photos.memories.undo": {
+    "text": "Annuler",
+    "en": "Undo"
+  },
+  "app.photos.memories.week_in_year": {
+    "text": "{from} – {to} {year}",
+    "en": "{from} – {to} {year}"
+  },
+  "app.photos.memories.years_ago": {
+    "text": {
+      "one": "Il y a {count} an",
+      "other": "Il y a {count} ans"
+    },
+    "en": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    }
+  },
   "app.photos.months.april": {
     "text": "avril",
     "en": "April"

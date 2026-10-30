@@ -4168,6 +4168,194 @@
         }
       }
     },
+    "app.settings.memories.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos, die um diese Zeit in früheren Jahren aufgenommen wurden, oben in Bilder. Um die besten auszuwählen, misst das Gerät, wie jedes Foto aussieht (seine Schärfe, seine Belichtung und eine Qualitätsbewertung), auf dem Gerät selbst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos tomadas en estas fechas en años anteriores, en la parte superior de Imágenes. Para elegir las mejores, el dispositivo mide cómo se ve cada foto (su nitidez, su exposición y una puntuación de calidad), en el propio dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des photos prises autour de cette date les années précédentes, en haut d’Images. Pour choisir les meilleures, l’appareil mesure l’aspect de chaque photo (sa netteté, son exposition et une note de qualité), sur l’appareil lui-même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto scattate in questi giorni negli anni passati, in cima a Immagini. Per scegliere le migliori, il dispositivo misura l’aspetto di ogni foto (nitidezza, esposizione e un punteggio di qualità), sul dispositivo stesso."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto’s die rond deze tijd in eerdere jaren zijn gemaakt, bovenaan in Afbeeldingen. Om de beste te kiezen, meet het apparaat hoe elke foto eruitziet (de scherpte, de belichting en een kwaliteitsscore), op het apparaat zelf."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos tiradas por estes dias em anos anteriores, no topo de Imagens. Para escolher as melhores, o dispositivo mede o aspeto de cada foto (a nitidez, a exposição e uma pontuação de qualidade), no próprio dispositivo."
+          }
+        }
+      }
+    },
+    "app.settings.memories.show_hidden" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausgeblendetes wieder zeigen (%1$lld)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show hidden memories again (%1$lld)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a mostrar lo oculto (%1$lld)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réafficher les éléments masqués (%1$lld)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra di nuovo i ricordi nascosti (%1$lld)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verborgen herinneringen weer tonen (%1$lld)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar de novo o que está oculto (%1$lld)"
+          }
+        }
+      }
+    },
+    "app.settings.memories.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erinnerungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memories"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuerdos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Souvenirs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricordi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herinneringen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordações"
+          }
+        }
+      }
+    },
+    "app.settings.memories.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An diesem Tag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this day"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un día como hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce jour-là"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accadde oggi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op deze dag"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste dia"
+          }
+        }
+      }
+    },
     "app.settings.password.change" : {
       "extractionState" : "manual",
       "localizations" : {

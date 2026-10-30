@@ -282,6 +282,22 @@ fun S.appSettingsLogsUpdates(): UiText =
 fun S.appSettingsLogsWarning(): UiText =
     UiText.Res(R.string.app_settings_logs_warning)
 
+/** "Photos taken around today in earlier years, at the top of Images. To choose the best ones, the device measures how each photo looks (its sharpness, its exposure and a quality score), on the device itself.": Explanation under the On this day switch in Settings (on unless the user turns it off). Images is the section's name (app.shell.section_images). The measuring is done by the user's own device, never sent anywhere. */
+fun S.appSettingsMemoriesFooter(): UiText =
+    UiText.Res(R.string.app_settings_memories_footer)
+
+/** "Show hidden memories again ({count})": Button in Settings > Memories, shown when something is hidden from the memories: shows everything hidden again (photos, memories, days and people). {count} is how many things are hidden (1 or more). */
+fun S.appSettingsMemoriesShowHidden(count: Int): UiText =
+    UiText.Res(R.string.app_settings_memories_show_hidden, listOf(count))
+
+/** "Memories": Heading of the section of Settings holding the On this day switch (the photos taken around today in earlier years, at the top of Images). */
+fun S.appSettingsMemoriesTitle(): UiText =
+    UiText.Res(R.string.app_settings_memories_title)
+
+/** "On this day": Label of the switch in Settings > Memories that turns On this day on or off: the photos taken around today in earlier years, at the top of Images. The feature's name, as app.photos.memories.title_day. */
+fun S.appSettingsMemoriesToggle(): UiText =
+    UiText.Res(R.string.app_settings_memories_toggle)
+
 /** "Change Password": Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in. */
 fun S.appSettingsPasswordChange(): UiText =
     UiText.Res(R.string.app_settings_password_change)

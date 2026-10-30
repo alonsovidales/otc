@@ -194,6 +194,92 @@
     "text": "Vídeo, {date}",
     "en": "Video, {date}"
   },
+  "app.photos.memories.day_month": {
+    "text": "{day} {month}",
+    "en": "{day} {month}"
+  },
+  "app.photos.memories.hidden": {
+    "text": "Oculto en tus recuerdos",
+    "en": "Hidden from your memories"
+  },
+  "app.photos.memories.hide_day": {
+    "text": "No mostrar este día",
+    "en": "Don't show this day"
+  },
+  "app.photos.memories.hide_memory": {
+    "text": "Ocultar este recuerdo",
+    "en": "Hide this memory"
+  },
+  "app.photos.memories.hide_person": {
+    "text": "No mostrar a {name}",
+    "en": "Don't show {name}"
+  },
+  "app.photos.memories.hide_photo": {
+    "text": "Ocultar esta foto",
+    "en": "Hide this photo"
+  },
+  "app.photos.memories.next_photo": {
+    "text": "Foto siguiente",
+    "en": "Next photo"
+  },
+  "app.photos.memories.options": {
+    "text": "Opciones del recuerdo",
+    "en": "Memory options"
+  },
+  "app.photos.memories.period_day": {
+    "text": "Día",
+    "en": "Day"
+  },
+  "app.photos.memories.period_month": {
+    "text": "Mes",
+    "en": "Month"
+  },
+  "app.photos.memories.period_week": {
+    "text": "Semana",
+    "en": "Week"
+  },
+  "app.photos.memories.photo_position": {
+    "text": "Foto {index} de {count}",
+    "en": "Photo {index} of {count}"
+  },
+  "app.photos.memories.previous_photo": {
+    "text": "Foto anterior",
+    "en": "Previous photo"
+  },
+  "app.photos.memories.see_all": {
+    "text": "Ver todas",
+    "en": "See all"
+  },
+  "app.photos.memories.title_day": {
+    "text": "Un día como hoy",
+    "en": "On this day"
+  },
+  "app.photos.memories.title_month": {
+    "text": "Este mes",
+    "en": "This month"
+  },
+  "app.photos.memories.title_week": {
+    "text": "Esta semana",
+    "en": "This week"
+  },
+  "app.photos.memories.undo": {
+    "text": "Deshacer",
+    "en": "Undo"
+  },
+  "app.photos.memories.week_in_year": {
+    "text": "{from} – {to} {year}",
+    "en": "{from} – {to} {year}"
+  },
+  "app.photos.memories.years_ago": {
+    "text": {
+      "one": "Hace {count} año",
+      "other": "Hace {count} años"
+    },
+    "en": {
+      "one": "{count} year ago",
+      "other": "{count} years ago"
+    }
+  },
   "app.photos.months.april": {
     "text": "abril",
     "en": "April"
