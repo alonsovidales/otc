@@ -262,6 +262,9 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// On this day: how what was stored before looks - from the
 			// thumbnails, behind the uploads and the lanes (quality.go).
 			mg.filesManager.BackfillQuality(ses)
+			// Smart search: what was stored before, described while it is
+			// on (smart_search.go).
+			mg.filesManager.BackfillEmbeddings(ses)
 		}()
 	})
 }
@@ -2892,13 +2895,21 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			t := p.ReqSearchPhotos.NewerThan.AsTime()
 			newerThan = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearchWithin(ch.placesArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
-		if err != nil {
+		// Smart search: ranked by the text, within the other filters.
+		text := p.ReqSearchPhotos.Text
+		files, token, err := ch.mg.filesManager.ImageSearchText(text, ch.placesArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
+		if code, message, refused := smartSearchRefusal(lang, err); refused {
+			log.Debug("a text search refused:", code)
+			resp.Error = true
+			resp.ErrorCode = code
+			resp.ErrorMessage = message
+		} else if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
 			log.Debug("Files to return:", len(files))
+			smart := strings.TrimSpace(text) != ""
 
 			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
 				RespListOfFiles: &pb.ListOfFiles{
@@ -2906,8 +2917,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 					Token: token,
 					// Every page of a newer_than search, the last and an
 					// empty one too: how a client tells this device from
-					// one before #194, which answers newest first.
-					OldestFirst: newerThan != nil,
+					// one before #194, which answers newest first. A text
+					// search is never one.
+					OldestFirst: newerThan != nil && !smart,
+					// A text search while photos the device held are still
+					// being described.
+					SmartSearchReading: smart && ch.mg.filesManager.SmartSearchReading(),
 				},
 			}
 		}
@@ -3297,6 +3312,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				PlacesEnabled: proto.Bool(ch.mg.filesManager.PlacesEnabled()),
 				// On this day: the same.
 				MemoriesEnabled: proto.Bool(ch.mg.filesManager.MemoriesEnabled()),
+				// Smart search (beta): the same.
+				SmartSearchEnabled: proto.Bool(ch.mg.filesManager.SmartSearchEnabled()),
 			},
 		}
 
@@ -3365,6 +3382,25 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		log.Info("Set On this day enabled:", on)
 		if err := ch.mg.filesManager.SetMemoriesEnabled(ses, on); err != nil {
 			log.Error("error turning On this day on or off:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// Smart search (beta): off unless the user turns it on. On describes
+	// what the device holds in the background with this session's key; off
+	// deletes every description before the answer.
+	case *pb.ReqEnvelope_ReqSetSmartSearchEnabled:
+		on := p.ReqSetSmartSearchEnabled.Enabled
+		log.Info("Set Smart search enabled:", on)
+		err := ch.mg.filesManager.SetSmartSearchEnabled(ses, on)
+		if code, message, refused := smartSearchRefusal(lang, err); refused {
+			resp.Error = true
+			resp.ErrorCode = code
+			resp.ErrorMessage = message
+		} else if err != nil {
+			log.Error("error turning Smart search on or off:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {

@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "suppression des étiquettes et visages avant le retraitement : {detail}"},
   "dev.files.retrieve_failed": {"text": "erreur lors de la récupération du fichier : {detail}"},
   "dev.files.share_link_failed": {"text": "erreur lors de la création du lien de partage des fichiers : {detail}"},
+  "dev.files.smart_search_off": {"text": "La recherche intelligente est désactivée : activez-la dans les Réglages pour trouver des photos en les décrivant"},
+  "dev.files.smart_search_unavailable": {"text": "La recherche intelligente n'est pas encore disponible sur cet appareil : elle aura ce qu'il lui faut avec la prochaine mise à jour"},
   "dev.files.storage_full": {"text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}"},
   "dev.files.stream_failed": {"text": "impossible de préparer la diffusion"},
   "dev.files.too_large_to_open": {"text": "ce fichier est trop volumineux pour être ouvert ici ({size}) : téléchargez-le plutôt"},

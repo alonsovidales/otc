@@ -140,6 +140,12 @@ type Manager struct {
 	// memories is On this day's switch, the measuring backfill and the
 	// day's answers (memories.go, quality.go).
 	memories memoriesState
+	// embedder is Smart search's model (smart_search.go): loaded here when
+	// first needed, or the primary's over its socket; nil when the device
+	// hasn't its files. smart is its switch, backfill and the decrypted
+	// vectors.
+	embedder modelserver.Embedder
+	smart    smartState
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged
@@ -276,6 +282,11 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		if has, err := client.HasAesthetic(); err == nil && has {
 			mg.aesthetic = client
 		}
+		// Smart search's model, the primary's too: without it the switch
+		// can't be turned on.
+		if has, err := client.HasEmbedder(); err == nil && has {
+			mg.embedder = client
+		}
 		log.Info("using the models shared by the primary instance on", sock)
 		go mg.tokenCollector()
 		go mg.sharedLinksSweeper()
@@ -320,13 +331,15 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// On this day's photo quality model (quality.go): small (~13 MB), loaded
 	// here; a device without it measures photos without it.
 	mg.aesthetic = loadQualityModel()
+	// Smart search's model (smart_search.go): loaded when first needed.
+	mg.embedder = embedderFor(false, nil)
 
 	// Issue #167: the primary shares these with the supervised children,
 	// cServedAtOnce requests at a time: a face request carries the photo
 	// at full resolution (~48 MB for 12 MP, 200 MB at 50 MP), and every
 	// child queued its own, read before the recognizer's turn.
 	go func() {
-		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic}
+		models := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Aesthetic: mg.aesthetic, Embedder: mg.embedder}
 		if err := modelserver.ServeModels(modelserver.SocketPath(), models, cServedAtOnce); err != nil {
 			log.Error("could not serve the models to the other instances:", err)
 		}
@@ -1112,7 +1125,24 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 // search a token starts with, as the other filters do: a token goes on
 // with the rows it holds.
 func (mg *Manager) ImageSearchWithin(area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
-	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil)
+	return mg.ImageSearchText("", area, session, path, tags, oldToken, includeVideos, personIDs, groupID, before, newerThan, have, limit, small, omit)
+}
+
+// ImageSearchText is ImageSearchWithin ranked by Smart search
+// (SearchPhotos.text): the photos the other filters keep that match text,
+// best first (rankByText), paged like a tag search; newerThan doesn't apply.
+// "" is ImageSearchWithin. ErrSmartSearchOff / ErrSmartSearchUnavailable
+// when it can't run.
+func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
+	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil, "text:", text != "")
+	text = smartText(text)
+	if text != "" {
+		// Not even a token's next page once it is off.
+		if !mg.SmartSearchEnabled() {
+			return nil, "", ErrSmartSearchOff
+		}
+		newerThan = nil
+	}
 	if newerThan != nil {
 		before = nil
 		t := *newerThan
@@ -1184,6 +1214,12 @@ func (mg *Manager) ImageSearchWithin(area *dao.MediaArea, session *session.Sessi
 		}
 		if err != nil {
 			return
+		}
+		// Smart search: the same photos, ranked by the text.
+		if text != "" {
+			if files, err = mg.rankByText(session, text, files); err != nil {
+				return nil, "", err
+			}
 		}
 		// The client was resuming a search this device no longer holds a
 		// token for. Starting it again from the top would hand back
@@ -2061,6 +2097,9 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			// On this day: how it looks, from the thumbnail written above
 			// (or by the fast lane).
 			mg.storeQuality(session, file, exif)
+
+			// Smart search: what it shows, as a vector, while it is on.
+			mg.storeEmbedding(session, file)
 		}
 		// Places: where it was taken, from the metadata read above - once
 		// it can show in Images, as the thumbnail is written first.
@@ -2258,6 +2297,8 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err := mg.dao.DelPhotoQuality(hash); err != nil {
 		log.Error("could not forget how deleted content looked", hash, ":", err)
 	}
+	// Smart search: nor its description.
+	mg.forgetEmbedding(hash)
 	fullPath := blobPath(hash)
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -2344,6 +2385,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	if err := mg.dao.DelPhotoQuality(hash); err != nil {
 		log.Error("could not forget how deleted content looked", hash, ":", err)
 	}
+	mg.forgetEmbedding(hash)
 	full := blobPath(hash)
 	os.Remove(full)
 	removeThumbnails(full)

@@ -268,6 +268,14 @@
     "args": [["detail", "text"]],
     "note": "Error reply in Files when making a link to download the chosen files failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
   },
+  "dev.files.smart_search_off": {
+    "text": "Smart search is off: turn it on in Settings to find photos by describing them",
+    "note": "Error reply when an app searches photos by a description (Smart search) while the user has the feature turned off in Settings. The apps hide the description search then, so it is rarely shown. Smart search is the feature's name, as in the apps' Settings."
+  },
+  "dev.files.smart_search_unavailable": {
+    "text": "Smart search isn't available on this device yet: it gets what it needs with the next update",
+    "note": "Error reply when Smart search (finding photos by describing them) is turned on, or used, on a device that doesn't have the model it needs yet (a download that failed; the next device update fetches it). Smart search is the feature's name, as in the apps' Settings."
+  },
   "dev.files.storage_full": {
     "text": "not enough space on the device: this needs {need}, and only {left} is left",
     "args": [["need", "bytes"], ["left", "bytes"]],

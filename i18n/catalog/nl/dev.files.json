@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "fout bij het wissen van tags/gezichten voor het opnieuw verwerken: {detail}"},
   "dev.files.retrieve_failed": {"text": "fout bij het ophalen van het bestand: {detail}"},
   "dev.files.share_link_failed": {"text": "fout bij het maken van de deellink voor de bestanden: {detail}"},
+  "dev.files.smart_search_off": {"text": "Slim zoeken staat uit: zet het aan in Instellingen om foto's te vinden door ze te beschrijven"},
+  "dev.files.smart_search_unavailable": {"text": "Slim zoeken is nog niet beschikbaar op dit apparaat: met de volgende update krijgt het wat het nodig heeft"},
   "dev.files.storage_full": {"text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over"},
   "dev.files.stream_failed": {"text": "kan de stream niet voorbereiden"},
   "dev.files.too_large_to_open": {"text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan"},

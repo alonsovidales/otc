@@ -656,9 +656,12 @@ func (mg *Manager) initIdleModels() {
 		mg.aesthetic = models
 	}
 
+	// Smart search's model, at first use too, in turn with the others.
+	mg.embedder = embedderFor(true, &models.run)
+
 	go models.releaseWhenIdle()
 	go func() {
-		served := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer}
+		served := modelserver.Models{Tagger: mg.waitForTagger, Faces: mg.faceRecognizer, Embedder: mg.embedder}
 		if mg.aesthetic != nil {
 			served.Aesthetic = mg.aesthetic
 		}

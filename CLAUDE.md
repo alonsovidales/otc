@@ -546,6 +546,56 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `TestMemoriesSignalsMySQL`, `TestMemoriesWithoutTheirTablesMySQL`,
     `TestMemoryCandidatesLargeMySQL` (`OTC_TEST_MEMORIES_LARGE=1`), websocket's
     `TestMemoriesRequests`, modelserver's quality tests.
+  - With Smart search on, bursts are told apart by its vectors instead (`memoryOptions.similar`,
+    below): cosine >= 0.95 is the same photo whenever taken, >= 0.92 within 60 s a burst; a photo
+    without a vector falls back to the dHash rule.
+- Smart search (beta, 2026-10-30, device side; release 151's `updates/151.sh`): photos found by
+  describing them, in any of the seven languages, with Google's SigLIP 2 base (`images_embedder`,
+  below; files from `models/siglip2_export.py`).
+  - Protocol: `Settings.smart_search_enabled` (10, `optional`, OFF by default) and
+    `SetSmartSearchEnabled` (req 152) -> Ack: on starts `BackfillEmbeddings` with the session;
+    off deletes every vector in one transaction (`dao.SetSmartSearchEnabled`) and drops the
+    decrypted ones. `SearchPhotos.text` (13): the photos the other filters keep (tags, people,
+    collection, area - exact as always), ranked by cosine to the text, best first, cut at
+    `cos >= max(0.05, 0.7 x best)` (`rankScores`; demo library: precision 0.84, recall 0.87), paged
+    through the same tokens as a tag search; `before`/`newer_than` don't apply (a text search is
+    never `oldest_first`). `ListOfFiles.smart_search_reading` (7): a text search while the backfill
+    of this turn hasn't finished. Codes: `smart_search_off` (`dev.files.smart_search_off`, a text
+    search - even a token's next page - while off) and `smart_search_unavailable`
+    (`dev.files.smart_search_unavailable`, turning it on or searching without the model). Clients
+    send `text` only while Settings says on: older devices ignore it and answer the whole library.
+    The demo allows the search and refuses the switch (`otc-demo-setup` turns it on when the
+    device has the model; `-smart-search-only`).
+  - Storage: `photo_embeddings` (hash, `model` = `cEmbedModel`, `vec` sealed with
+    `session.Encrypt`: format byte, float32 scale, one int8 a number - 773 bytes, 801 sealed - and
+    `made`). Unlike `file_tags`, sealed: a vector says much about what a photo shows. Written by the
+    slow lane after `storeQuality` (`storeEmbedding`, images only) and by `BackfillEmbeddings`
+    (after `BackfillQuality` in `startBackfillOnce`, and when turned on; `PhotosToEmbed`: no row,
+    or another model's; kept-out content never; `waitForQuiet`, `beginProcessing(jobThumbFix)`,
+    rests as long as each photo took, at least 30 ms; resumable; `reading` cleared only by a run of
+    this turn that described everything). Every write goes through `smartWrite` under the switch's
+    read lock (Places' pattern), so none lands after off. From the big thumbnail, never the
+    original. Rows go with the content (`forgetEmbedding` in `removeBlobIfUnused`/`dropIfOrphaned`).
+  - Search: the vectors are decrypted into memory at the first text search or burst check
+    (`smartIndex`, ~0.8 KB a photo, dropped after 15 idle minutes, on off, and per deleted hash)
+    and scanned brute force (int8 x float32: 50k photos ~9 ms on an M-series Mac). The query goes
+    through the text tower (lowercased, 64 Gemma tokens); text is trimmed and cut at 1000 bytes.
+  - Model (`[embedder]` `image-model-path`, `text-model-path`, `tokenizer-path`, all five files in
+    `/usr/local/models/siglip2-base/`: `image.onnx` + `image.onnx.data`, `text.onnx` +
+    `text.onnx.data`, `tokenizer.model`, ~414 MB; fetched by pinned SHA-256 from the `models`
+    release by install.sh (`EMBED_FILES`, `fetch_optional`), update.sh (each file while missing,
+    after the release scripts) and the container's entrypoint (`EMBED_MODELS`); a file missing =
+    the feature unavailable, never a crash). `embedModels` loads each tower at first use and
+    releases both after 10 idle minutes (Smart search is off on most devices); one call at a time,
+    with the other models' too on a low-memory device (idleModels' `run`, NoArena, 2 threads).
+    The primary serves both towers to the users' instances (`modelserver` ops "embed-image" with
+    the 256x256 pixels and "embed-text", `HasEmbedder` in "info"; an older primary answers
+    `ErrNoEmbedder`). The weights in the `.data` files are memory-mapped by ONNX Runtime: the text
+    tower adds ~130 MB resident (~800 MB with them inside the .onnx).
+  - Tests: `smart_search_test.go` (packing, cutoff, text, bursts, lazy towers and idle release,
+    the switch over sqlmock, ranking with a real session), dao's `TestPhotoEmbeddingsMySQL` and
+    `TestPhotoEmbeddingsWithoutTheirTablesMySQL`, modelserver's `embedder_test.go`,
+    `images_embedder`'s tests (`OTC_EMBEDDER_DIR`, `OTC_ORT_LIB` off Linux).
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)
@@ -1255,6 +1305,22 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   and videos get their place tags only (`retryTagger` answers `modelserver.ErrNoTagger`, which
   processing skips quietly), and it is tried again 1, 2, 4... minutes later, an hour apart at most;
   Reprocess Media adds the missing tags.
+- `images_embedder` — Smart search's model: Google's SigLIP 2 base (patch 16, 256 px,
+  Apache-2.0) as two ONNX towers, made by `models/siglip2_export.py` from the safetensors weights
+  and checked against transformers' fp32 model (cosine >= 0.99, or it fails). Image tower: 8-bit
+  weights in blocks of 32 (MatMulNBits, int8 compute; cosine 0.9997 - dynamic int8 fell to 0.90),
+  ~114 MB; text tower: the 256k-token table int8 with a scale per token, looked up as
+  Gather(int8) -> Cast -> Mul(Gather(scales)) so ONNX Runtime can't fold it back to fp32, and the
+  weights as above, ~296 MB; each with its weights in a `.data` file ONNX Runtime memory-maps.
+  `ImageEncoder` (`Resize`: squeezed to 256x256 by `draw.BiLinear`, PIL's averaging bilinear,
+  scaled to -1..1; `EmbedResized` for a picture already resized), `TextEncoder` + `Tokenizer`
+  (github.com/eliben/go-sentencepiece on the Gemma tokenizer that ships with SigLIP 2: text
+  lowercased, at most 63 tokens, `<eos>`, padded to 64 - id for id with transformers on 40 texts in
+  the seven languages, `testdata/tokens.json`); vectors L2-normalised, 768 numbers. ONNX Runtime
+  through `imagestagger.InitRuntime`. Measured on the demo library (M-series Mac): a photo 58 ms
+  with resizing (RAM++ 335 ms), a query 10 ms; precision of the first results 0.96 English, 0.93
+  Spanish, 0.90 the others, against 0.87 for RAM++'s best tags. Large (patch 16) did worse here at
+  2.6x the time and 2.4x the download.
 - `images_quality` — On this day's photo quality: NIMA (Google's Neural Image Assessment), idealo's
   MobileNet aesthetic weights trained on AVA (Apache-2.0), exported to ONNX
   (`nima_mobilenet_aesthetic.onnx`, 12.8 MB, sha256 `b35a4d66…71d1`; matches Keras to 1e-6), plus

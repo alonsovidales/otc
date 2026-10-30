@@ -233,6 +233,14 @@
     "text": "fout bij het maken van de deellink voor de bestanden: {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.smart_search_off": {
+    "text": "Slim zoeken staat uit: zet het aan in Instellingen om foto's te vinden door ze te beschrijven",
+    "en": "Smart search is off: turn it on in Settings to find photos by describing them"
+  },
+  "dev.files.smart_search_unavailable": {
+    "text": "Slim zoeken is nog niet beschikbaar op dit apparaat: met de volgende update krijgt het wat het nodig heeft",
+    "en": "Smart search isn't available on this device yet: it gets what it needs with the next update"
+  },
   "dev.files.storage_full": {
     "text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over",
     "en": "not enough space on the device: this needs {need}, and only {left} is left"

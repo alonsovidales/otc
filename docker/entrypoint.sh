@@ -60,6 +60,16 @@ MODEL_LIST=(
 # without it photos are measured by sharpness and exposure alone - so a
 # download that fails is logged and tried again at the next start.
 QUALITY_MODEL="nima_mobilenet_aesthetic.onnx https://github.com/alonsovidales/otc/releases/download/models/nima_mobilenet_aesthetic.onnx b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1"
+# Smart search's model (install.sh's EMBED_FILES): optional the same way -
+# without it Smart search can't be turned on - in a directory of its own,
+# under the names the .onnx files expect for their .data files.
+EMBED_MODELS=(
+    "siglip2-base/image.onnx https://github.com/alonsovidales/otc/releases/download/models/siglip2-base-image.onnx e7eca79ab2103e51dd722e3d9e3c24507af450ccb1b5cb94e37c0fc051cbac22"
+    "siglip2-base/image.onnx.data https://github.com/alonsovidales/otc/releases/download/models/siglip2-base-image.onnx.data b9a8e6cfe59f54cb991163c26b82b54bb01e6bbe038291f9116503a3f7dc3f21"
+    "siglip2-base/text.onnx https://github.com/alonsovidales/otc/releases/download/models/siglip2-base-text.onnx 05ad0676b6ffc7c500bc04f9cf80ad442de5bd4bc537c237d33876bc7ba4db92"
+    "siglip2-base/text.onnx.data https://github.com/alonsovidales/otc/releases/download/models/siglip2-base-text.onnx.data 951bd580188f27cdfc72d13e4233e11110b8a8240cb12806fed61a871e444655"
+    "siglip2-base/tokenizer.model https://github.com/alonsovidales/otc/releases/download/models/siglip2-base-tokenizer.model 61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"
+)
 
 DB_PID=
 APP_PID=
@@ -427,6 +437,11 @@ fetch_models() {
     done
     # shellcheck disable=SC2086
     fetch_optional_model $QUALITY_MODEL
+    as_otc mkdir -p -- "$MODELS/siglip2-base" || log "could not make Smart search's model directory"
+    for m in "${EMBED_MODELS[@]}"; do
+        # shellcheck disable=SC2086
+        fetch_optional_model $m
+    done
     # The tag list comes with the image (install.sh takes it from the release).
     as_otc sh -c 'gunzip < "$1" > "$2.tmp" && mv -f "$2.tmp" "$2"' sh "$SHARE/tag_list_4585.txt.gz" "$MODELS/tag_list_4585.txt" \
         || die "could not unpack the tag list"
@@ -741,6 +756,11 @@ recognizer-model-path=$MODELS/face_recognition_sface_2021dec_int8.onnx
 
 [quality]
 model-path=$MODELS/nima_mobilenet_aesthetic.onnx
+
+[embedder]
+image-model-path=$MODELS/siglip2-base/image.onnx
+text-model-path=$MODELS/siglip2-base/text.onnx
+tokenizer-path=$MODELS/siglip2-base/tokenizer.model
 EOF
     ) && chown root:otc "$INI.tmp" && chmod 0640 "$INI.tmp" && mv -f "$INI.tmp" "$INI" \
         || die "could not write $INI"

@@ -235,6 +235,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqSetImageTaggingEnabled{}):    demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetPlacesEnabled{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetMemoriesEnabled{}):        demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqSetSmartSearchEnabled{}):     demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqHideMemory{}):                demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetSocialStorageLimit{}):     demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqCreateUser{}):                demoRefuse,

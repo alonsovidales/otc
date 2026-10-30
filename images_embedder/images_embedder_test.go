@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	imagestagger "github.com/alonsovidales/otc/images_tagger"
 )
 
 // The model tests need the exported towers and the tokenizer, which are
@@ -35,10 +37,10 @@ func modelFile(t *testing.T, name string) string {
 func useRuntime(t *testing.T) {
 	t.Helper()
 	if lib := os.Getenv("OTC_ORT_LIB"); lib != "" {
-		SharedLibraryPath = lib
+		imagestagger.RuntimeLibrary = lib
 	}
-	if _, err := os.Stat(SharedLibraryPath); err != nil {
-		t.Skipf("no ONNX Runtime at %s", SharedLibraryPath)
+	if _, err := os.Stat(imagestagger.RuntimeLibrary); err != nil {
+		t.Skipf("no ONNX Runtime at %s", imagestagger.RuntimeLibrary)
 	}
 }
 

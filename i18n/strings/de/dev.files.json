@@ -233,6 +233,14 @@
     "text": "Fehler beim Erstellen des Freigabelinks für die Dateien: {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.smart_search_off": {
+    "text": "Die intelligente Suche ist ausgeschaltet: Schalte sie in den Einstellungen ein, um Fotos durch Beschreiben zu finden",
+    "en": "Smart search is off: turn it on in Settings to find photos by describing them"
+  },
+  "dev.files.smart_search_unavailable": {
+    "text": "Die intelligente Suche ist auf diesem Gerät noch nicht verfügbar: Mit dem nächsten Update bekommt sie, was sie braucht",
+    "en": "Smart search isn't available on this device yet: it gets what it needs with the next update"
+  },
   "dev.files.storage_full": {
     "text": "nicht genug Speicherplatz auf dem Gerät: Das braucht {need}, und es sind nur noch {left} frei",
     "en": "not enough space on the device: this needs {need}, and only {left} is left"

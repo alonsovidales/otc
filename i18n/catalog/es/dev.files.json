@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "al borrar etiquetas y caras antes de reprocesar: {detail}"},
   "dev.files.retrieve_failed": {"text": "error al intentar obtener el archivo: {detail}"},
   "dev.files.share_link_failed": {"text": "error al crear el enlace para compartir archivos: {detail}"},
+  "dev.files.smart_search_off": {"text": "La búsqueda inteligente está desactivada: actívala en Ajustes para encontrar fotos describiéndolas"},
+  "dev.files.smart_search_unavailable": {"text": "La búsqueda inteligente aún no está disponible en este dispositivo: tendrá lo que necesita con la próxima actualización"},
   "dev.files.storage_full": {"text": "no hay espacio suficiente en el dispositivo: esto necesita {need} y solo quedan {left}"},
   "dev.files.stream_failed": {"text": "no se ha podido preparar la reproducción"},
   "dev.files.too_large_to_open": {"text": "este archivo es demasiado grande para abrirlo aquí ({size}): descárgalo"},

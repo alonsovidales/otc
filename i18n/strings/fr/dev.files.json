@@ -233,6 +233,14 @@
     "text": "erreur lors de la création du lien de partage des fichiers : {detail}",
     "en": "error creating files share link: {detail}"
   },
+  "dev.files.smart_search_off": {
+    "text": "La recherche intelligente est désactivée : activez-la dans les Réglages pour trouver des photos en les décrivant",
+    "en": "Smart search is off: turn it on in Settings to find photos by describing them"
+  },
+  "dev.files.smart_search_unavailable": {
+    "text": "La recherche intelligente n'est pas encore disponible sur cet appareil : elle aura ce qu'il lui faut avec la prochaine mise à jour",
+    "en": "Smart search isn't available on this device yet: it gets what it needs with the next update"
+  },
   "dev.files.storage_full": {
     "text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}",
     "en": "not enough space on the device: this needs {need}, and only {left} is left"

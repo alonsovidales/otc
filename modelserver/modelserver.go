@@ -35,10 +35,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
+	imagesembedder "github.com/alonsovidales/otc/images_embedder"
 	imagesquality "github.com/alonsovidales/otc/images_quality"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
@@ -82,13 +84,31 @@ type AestheticScorer interface {
 // what a child gets from a primary older than the model.
 var ErrNoAesthetic = errors.New("the photo quality model is not loaded") // i18n-ignore: matched by errors.Is and across the socket, logged only
 
+// Embedder is Smart search's model (images_embedder, SigLIP 2): a photo
+// already through imagesembedder.Resize, or a search's text, as a
+// normalised vector. files_manager's, or Client.
+type Embedder interface {
+	EmbedResized(ctx context.Context, img *image.RGBA) ([]float32, error)
+	EmbedText(ctx context.Context, text string) ([]float32, error)
+}
+
+// ErrNoEmbedder is the answer to embedding while the primary has no Smart
+// search model (its files missing), and what a child gets from a primary
+// older than it.
+var ErrNoEmbedder = errors.New("the smart search model is not available") // i18n-ignore: matched by errors.Is and across the socket, logged only
+
+// cMaxEmbedText is the longest search text the socket carries (bytes): the
+// model reads 63 tokens at most.
+const cMaxEmbedText = 4096
+
 // Models is what the primary serves: the tagger (asked per request, so it
-// can wait for a model still loading), the face models and the quality
-// model (nil: none on this device).
+// can wait for a model still loading), the face models, the quality model
+// and Smart search's (nil: none on this device).
 type Models struct {
 	Tagger    func() Tagger
 	Faces     FaceDetector
 	Aesthetic AestheticScorer
+	Embedder  Embedder
 }
 
 // cProto is the socket version this side speaks (see the package doc).
@@ -100,7 +120,8 @@ const cProto = 1
 const cMaxPixelBytes = 1 << 31
 
 type request struct {
-	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "info"
+	Op     string // "tags", "tags-resized" (version 1), "faces", "aesthetic", "embed-image", "embed-text", "info"
+	Text   string // "embed-text": the search's text
 	W, H   int
 	Stride int
 	Pix    []byte // version 0: the pixels, in the message
@@ -123,6 +144,11 @@ type response struct {
 	// (info): the primary has the model. Unset by a primary older than it.
 	Aesthetic    float32
 	HasAesthetic bool
+	// Vec is Smart search's vector ("embed-image", "embed-text");
+	// HasEmbedder (info): the primary has the model. Unset by a primary
+	// older than it.
+	Vec         []float32
+	HasEmbedder bool
 }
 
 // resizedTagger is the primary's tagger taking an image already scaled to
@@ -212,7 +238,41 @@ func serveConn(conn net.Conn, models Models, slots chan struct{}) {
 	case "info":
 		resp.HasFaces = faces != nil
 		resp.HasAesthetic = models.Aesthetic != nil
+		resp.HasEmbedder = models.Embedder != nil
 		resp.Proto = cProto
+	case "embed-image":
+		img, err := readImage(br, req)
+		if err != nil {
+			resp.Err = err.Error()
+			break
+		}
+		if models.Embedder == nil {
+			resp.Err = ErrNoEmbedder.Error()
+			break
+		}
+		if img.Rect.Dx() != imagesembedder.ImageSize || img.Rect.Dy() != imagesembedder.ImageSize {
+			resp.Err = "malformed image"
+			break
+		}
+		vec, err := models.Embedder.EmbedResized(context.Background(), img)
+		resp.Vec = vec
+		if err != nil {
+			resp.Err = err.Error()
+		}
+	case "embed-text":
+		if models.Embedder == nil {
+			resp.Err = ErrNoEmbedder.Error()
+			break
+		}
+		if len(req.Text) > cMaxEmbedText {
+			resp.Err = "text too long"
+			break
+		}
+		vec, err := models.Embedder.EmbedText(context.Background(), req.Text)
+		resp.Vec = vec
+		if err != nil {
+			resp.Err = err.Error()
+		}
 	case "aesthetic":
 		img, err := readImage(br, req)
 		if err != nil {
@@ -358,6 +418,10 @@ func (c *Client) call(req request, pix []byte) (*response, error) {
 		if resp.Err == ErrNoAesthetic.Error() || (req.Op == "aesthetic" && resp.Err == "unknown request aesthetic") {
 			return &resp, ErrNoAesthetic
 		}
+		// Nor one older than Smart search.
+		if resp.Err == ErrNoEmbedder.Error() || (strings.HasPrefix(req.Op, "embed-") && resp.Err == "unknown request "+req.Op) {
+			return &resp, ErrNoEmbedder
+		}
 		return &resp, errors.New(resp.Err)
 	}
 	return &resp, nil
@@ -446,6 +510,40 @@ func (c *Client) info() (*response, error) {
 	c.proto, c.known = resp.Proto, true
 	c.mu.Unlock()
 	return resp, nil
+}
+
+// HasEmbedder asks the primary whether it has Smart search's model.
+func (c *Client) HasEmbedder() (bool, error) {
+	resp, err := c.info()
+	if err != nil {
+		return false, err
+	}
+	return resp.HasEmbedder, nil
+}
+
+// EmbedResized is the primary's Smart search vector of img, already through
+// imagesembedder.Resize: ErrNoEmbedder when the primary has no model.
+func (c *Client) EmbedResized(ctx context.Context, img *image.RGBA) ([]float32, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := c.imageCall("embed-image", img, imagestagger.RAMOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Vec, nil
+}
+
+// EmbedText is the primary's Smart search vector of a search's text.
+func (c *Client) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := c.call(request{Op: "embed-text", Text: text}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Vec, nil
 }
 
 // AestheticResized is the primary's quality model's score of img, already

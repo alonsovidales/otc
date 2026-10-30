@@ -663,6 +663,18 @@ message SearchPhotos {
   // it only to a device that answered GetPhotoPlaces, never to one that
   // answered it with error_code "unknown_payload", nor while Places is off.
   PlaceArea area = 12;
+  // Smart search (beta): the photos that best match this description, in
+  // any of the apps' languages ("kids in the snow", "un perro en la
+  // playa"), best first, within the other filters (tags, people,
+  // collection, area: exact, as always) - a photo the device has no
+  // embedding for yet isn't among them. Pages like a tag search (token,
+  // have); before and newer_than don't apply. Send it only while
+  // Settings.smart_search_enabled is on: off, the answer is error_code
+  // "smart_search_off"; on a device without the model,
+  // "smart_search_unavailable". Devices before Smart search ignore it and
+  // answer the whole library, so never send it to one whose Settings lack
+  // smart_search_enabled. "" (or only spaces) is no text.
+  string text = 13;
 }
 
 message ListOfFiles {
@@ -691,6 +703,10 @@ message ListOfFiles {
   // asked for with newer_than that comes back without it is an ordinary
   // newest-first page and is to be dropped.
   bool oldest_first = 6;
+  // Smart search: true on the pages of a text search while the device is
+  // still describing photos it held before (just turned on, just updated):
+  // some may be missing until it is done - ask again later.
+  bool smart_search_reading = 7;
 }
 
 // Issue #77: per-month photo counts, used to size/position the gallery's
@@ -1483,6 +1499,15 @@ message Settings {
   // measured. Always set by devices that have it; absent means the device
   // predates it, and the apps show neither the memories nor the switch.
   optional bool memories_enabled = 9;
+  // Smart search (beta): off unless the user turns it on
+  // (SetSmartSearchEnabled), for their own library. While it is on the
+  // device describes each photo as a list of numbers (an embedding, from
+  // the photo's thumbnail, by an image model on the device), kept encrypted
+  // with the user's key, so SearchPhotos.text finds photos by what they
+  // show; turning it off deletes them all. Always set by devices that have
+  // it; absent means the device predates it, and the apps show neither the
+  // switch nor the free-text search.
+  optional bool smart_search_enabled = 10;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -1676,6 +1701,17 @@ message HideMemory {
 // library. Answers with the generic Ack. A demo device refuses it, and
 // devices before it answer error_code "unknown_payload".
 message SetMemoriesEnabled {
+  bool enabled = 1;
+}
+
+// Smart search's switch (Settings.smart_search_enabled), for the user's own
+// library. On: the device describes the photos it holds in the background,
+// with this session's key; off: every description is deleted before the
+// answer. Answers with the generic Ack; error_code
+// "smart_search_unavailable" (turning it on) on a device without the
+// model. A demo device refuses it, and devices before it answer error_code
+// "unknown_payload".
+message SetSmartSearchEnabled {
   bool enabled = 1;
 }
 
@@ -2787,6 +2823,9 @@ message ReqEnvelope {
     GetMemories req_get_memories = 149;
     HideMemory req_hide_memory = 150;
     SetMemoriesEnabled req_set_memories_enabled = 151;
+    // Smart search's switch. Answers with the generic Ack; devices before it
+    // with error_code "unknown_payload".
+    SetSmartSearchEnabled req_set_smart_search_enabled = 152;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

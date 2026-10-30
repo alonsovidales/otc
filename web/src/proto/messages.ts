@@ -956,7 +956,23 @@ export interface SearchPhotos {
    * it only to a device that answered GetPhotoPlaces, never to one that
    * answered it with error_code "unknown_payload", nor while Places is off.
    */
-  area?: PlaceArea | undefined;
+  area?:
+    | PlaceArea
+    | undefined;
+  /**
+   * Smart search (beta): the photos that best match this description, in
+   * any of the apps' languages ("kids in the snow", "un perro en la
+   * playa"), best first, within the other filters (tags, people,
+   * collection, area: exact, as always) - a photo the device has no
+   * embedding for yet isn't among them. Pages like a tag search (token,
+   * have); before and newer_than don't apply. Send it only while
+   * Settings.smart_search_enabled is on: off, the answer is error_code
+   * "smart_search_off"; on a device without the model,
+   * "smart_search_unavailable". Devices before Smart search ignore it and
+   * answer the whole library, so never send it to one whose Settings lack
+   * smart_search_enabled. "" (or only spaces) is no text.
+   */
+  text: string;
 }
 
 export interface ListOfFiles {
@@ -991,6 +1007,12 @@ export interface ListOfFiles {
    * newest-first page and is to be dropped.
    */
   oldestFirst: boolean;
+  /**
+   * Smart search: true on the pages of a text search while the device is
+   * still describing photos it held before (just turned on, just updated):
+   * some may be missing until it is done - ask again later.
+   */
+  smartSearchReading: boolean;
 }
 
 /**
@@ -1948,7 +1970,20 @@ export interface Settings {
    * measured. Always set by devices that have it; absent means the device
    * predates it, and the apps show neither the memories nor the switch.
    */
-  memoriesEnabled?: boolean | undefined;
+  memoriesEnabled?:
+    | boolean
+    | undefined;
+  /**
+   * Smart search (beta): off unless the user turns it on
+   * (SetSmartSearchEnabled), for their own library. While it is on the
+   * device describes each photo as a list of numbers (an embedding, from
+   * the photo's thumbnail, by an image model on the device), kept encrypted
+   * with the user's key, so SearchPhotos.text finds photos by what they
+   * show; turning it off deletes them all. Always set by devices that have
+   * it; absent means the device predates it, and the apps show neither the
+   * switch nor the free-text search.
+   */
+  smartSearchEnabled?: boolean | undefined;
 }
 
 /**
@@ -2158,6 +2193,19 @@ export interface HideMemory {
  * devices before it answer error_code "unknown_payload".
  */
 export interface SetMemoriesEnabled {
+  enabled: boolean;
+}
+
+/**
+ * Smart search's switch (Settings.smart_search_enabled), for the user's own
+ * library. On: the device describes the photos it holds in the background,
+ * with this session's key; off: every description is deleted before the
+ * answer. Answers with the generic Ack; error_code
+ * "smart_search_unavailable" (turning it on) on a device without the
+ * model. A demo device refuses it, and devices before it answer error_code
+ * "unknown_payload".
+ */
+export interface SetSmartSearchEnabled {
   enabled: boolean;
 }
 
@@ -3473,6 +3521,12 @@ export interface ReqEnvelope {
     { $case: "reqGetMemories"; reqGetMemories: GetMemories }
     | { $case: "reqHideMemory"; reqHideMemory: HideMemory }
     | { $case: "reqSetMemoriesEnabled"; reqSetMemoriesEnabled: SetMemoriesEnabled }
+    | //
+    /**
+     * Smart search's switch. Answers with the generic Ack; devices before it
+     * with error_code "unknown_payload".
+     */
+    { $case: "reqSetSmartSearchEnabled"; reqSetSmartSearchEnabled: SetSmartSearchEnabled }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -6530,6 +6584,7 @@ function createBaseSearchPhotos(): SearchPhotos {
     omitThumbnails: false,
     newerThan: undefined,
     area: undefined,
+    text: "",
   };
 }
 
@@ -6570,6 +6625,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.area !== undefined) {
       PlaceArea.encode(message.area, writer.uint32(98).fork()).join();
+    }
+    if (message.text !== "") {
+      writer.uint32(106).string(message.text);
     }
     return writer;
   },
@@ -6677,6 +6735,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.area = PlaceArea.decode(reader, reader.uint32());
           continue;
         }
+        case 13: {
+          if (tag !== 106) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6703,6 +6769,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.omitThumbnails = object.omitThumbnails ?? false;
     message.newerThan = object.newerThan ?? undefined;
     message.area = (object.area !== undefined && object.area !== null) ? PlaceArea.fromPartial(object.area) : undefined;
+    message.text = object.text ?? "";
     return message;
   },
 };
@@ -6715,6 +6782,7 @@ function createBaseListOfFiles(): ListOfFiles {
     folderOutOfImages: false,
     askAgainFrom: 0,
     oldestFirst: false,
+    smartSearchReading: false,
   };
 }
 
@@ -6737,6 +6805,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     }
     if (message.oldestFirst !== false) {
       writer.uint32(48).bool(message.oldestFirst);
+    }
+    if (message.smartSearchReading !== false) {
+      writer.uint32(56).bool(message.smartSearchReading);
     }
     return writer;
   },
@@ -6796,6 +6867,14 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.oldestFirst = reader.bool();
           continue;
         }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.smartSearchReading = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6816,6 +6895,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     message.folderOutOfImages = object.folderOutOfImages ?? false;
     message.askAgainFrom = object.askAgainFrom ?? 0;
     message.oldestFirst = object.oldestFirst ?? false;
+    message.smartSearchReading = object.smartSearchReading ?? false;
     return message;
   },
 };
@@ -11922,6 +12002,7 @@ function createBaseSettings(): Settings {
     language: undefined,
     placesEnabled: undefined,
     memoriesEnabled: undefined,
+    smartSearchEnabled: undefined,
   };
 }
 
@@ -11956,6 +12037,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.memoriesEnabled !== undefined) {
       writer.uint32(72).bool(message.memoriesEnabled);
+    }
+    if (message.smartSearchEnabled !== undefined) {
+      writer.uint32(80).bool(message.smartSearchEnabled);
     }
     return writer;
   },
@@ -12039,6 +12123,14 @@ export const Settings: MessageFns<Settings> = {
           message.memoriesEnabled = reader.bool();
           continue;
         }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.smartSearchEnabled = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12062,6 +12154,7 @@ export const Settings: MessageFns<Settings> = {
     message.language = object.language ?? undefined;
     message.placesEnabled = object.placesEnabled ?? undefined;
     message.memoriesEnabled = object.memoriesEnabled ?? undefined;
+    message.smartSearchEnabled = object.smartSearchEnabled ?? undefined;
     return message;
   },
 };
@@ -13196,6 +13289,52 @@ export const SetMemoriesEnabled: MessageFns<SetMemoriesEnabled> = {
   },
   fromPartial<I extends Exact<DeepPartial<SetMemoriesEnabled>, I>>(object: I): SetMemoriesEnabled {
     const message = createBaseSetMemoriesEnabled();
+    message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetSmartSearchEnabled(): SetSmartSearchEnabled {
+  return { enabled: false };
+}
+
+export const SetSmartSearchEnabled: MessageFns<SetSmartSearchEnabled> = {
+  encode(message: SetSmartSearchEnabled, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetSmartSearchEnabled {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetSmartSearchEnabled();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.enabled = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetSmartSearchEnabled>, I>>(base?: I): SetSmartSearchEnabled {
+    return SetSmartSearchEnabled.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetSmartSearchEnabled>, I>>(object: I): SetSmartSearchEnabled {
+    const message = createBaseSetSmartSearchEnabled();
     message.enabled = object.enabled ?? false;
     return message;
   },
@@ -19559,6 +19698,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetMemoriesEnabled":
         SetMemoriesEnabled.encode(message.payload.reqSetMemoriesEnabled, writer.uint32(1210).fork()).join();
         break;
+      case "reqSetSmartSearchEnabled":
+        SetSmartSearchEnabled.encode(message.payload.reqSetSmartSearchEnabled, writer.uint32(1218).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -20921,6 +21063,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 152: {
+          if (tag !== 1218) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetSmartSearchEnabled",
+            reqSetSmartSearchEnabled: SetSmartSearchEnabled.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -22180,6 +22333,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqSetMemoriesEnabled",
             reqSetMemoriesEnabled: SetMemoriesEnabled.fromPartial(object.payload.reqSetMemoriesEnabled),
+          };
+        }
+        break;
+      }
+      case "reqSetSmartSearchEnabled": {
+        if (
+          object.payload?.reqSetSmartSearchEnabled !== undefined && object.payload?.reqSetSmartSearchEnabled !== null
+        ) {
+          message.payload = {
+            $case: "reqSetSmartSearchEnabled",
+            reqSetSmartSearchEnabled: SetSmartSearchEnabled.fromPartial(object.payload.reqSetSmartSearchEnabled),
           };
         }
         break;

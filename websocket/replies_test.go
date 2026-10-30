@@ -166,6 +166,8 @@ var headEnglish = []struct {
 	{"dev.files.upload_incomplete", i18n.DevFilesUploadIncomplete(10, 900), fmt.Sprintf("upload incomplete: %d of %d bytes", 10, 900)},
 	{"dev.files.places_off", i18n.DevFilesPlacesOff(), "Places is off: turn it on in Settings to see your photos on a map"},
 	{"dev.files.memories_off", i18n.DevFilesMemoriesOff(), "On this day is off: turn it on in Settings to see your memories"},
+	{"dev.files.smart_search_off", i18n.DevFilesSmartSearchOff(), "Smart search is off: turn it on in Settings to find photos by describing them"},
+	{"dev.files.smart_search_unavailable", i18n.DevFilesSmartSearchUnavailable(), "Smart search isn't available on this device yet: it gets what it needs with the next update"},
 	{"dev.files.memories_bad_date", i18n.DevFilesMemoriesBadDate(), "the request needs a date written YYYY-MM-DD and a period of a day, a week or a month"},
 	{"dev.files.memories_bad_hide", i18n.DevFilesMemoriesBadHide(), "nothing to hide: the request doesn't name a photo, a day, a memory or a person"},
 	{"dev.files.upload_only", i18n.DevFilesUploadOnly(), "this folder is upload only: nothing in it can be deleted"},

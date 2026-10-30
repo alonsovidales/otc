@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "rimozione di etichette e volti prima della rielaborazione: {detail}"},
   "dev.files.retrieve_failed": {"text": "errore durante il recupero del file: {detail}"},
   "dev.files.share_link_failed": {"text": "errore durante la creazione del link di condivisione dei file: {detail}"},
+  "dev.files.smart_search_off": {"text": "La ricerca intelligente è disattivata: attivala nelle Impostazioni per trovare le foto descrivendole"},
+  "dev.files.smart_search_unavailable": {"text": "La ricerca intelligente non è ancora disponibile su questo dispositivo: avrà ciò che le serve con il prossimo aggiornamento"},
   "dev.files.storage_full": {"text": "spazio insufficiente sul dispositivo: servono {need} e ne restano solo {left}"},
   "dev.files.stream_failed": {"text": "impossibile preparare lo streaming"},
   "dev.files.too_large_to_open": {"text": "questo file è troppo grande per aprirlo qui ({size}): scaricalo"},

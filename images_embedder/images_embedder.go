@@ -30,6 +30,7 @@ import (
 	"strings"
 	"sync"
 
+	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	sentencepiece "github.com/eliben/go-sentencepiece"
 	ort "github.com/yalue/onnxruntime_go"
 	"golang.org/x/image/draw"
@@ -49,11 +50,6 @@ const (
 	eosID = 1
 	padID = 0
 )
-
-// SharedLibraryPath is where ONNX Runtime is loaded from, the first time
-// any model in the process loads it (images_tagger's path; tests point it
-// elsewhere).
-var SharedLibraryPath = "/opt/onnxruntime/lib/libonnxruntime.so"
 
 // LoadOptions is how a tower runs in ONNX Runtime. The zero value is ONNX
 // Runtime's defaults.
@@ -93,21 +89,6 @@ func (lo LoadOptions) sessionOptions() (*ort.SessionOptions, error) {
 	return so, nil
 }
 
-var initMu sync.Mutex
-
-func initRuntime() error {
-	initMu.Lock()
-	defer initMu.Unlock()
-	if ort.IsInitialized() {
-		return nil
-	}
-	ort.SetSharedLibraryPath(SharedLibraryPath)
-	if err := ort.InitializeEnvironment(); err != nil {
-		return fmt.Errorf("InitializeEnvironment: %w", err)
-	}
-	return nil
-}
-
 // tower is one loaded ONNX model with one input and one [batch, dim]
 // output.
 type tower struct {
@@ -117,7 +98,9 @@ type tower struct {
 }
 
 func loadTower(modelPath, input string, lo LoadOptions) (*tower, error) {
-	if err := initRuntime(); err != nil {
+	// ONNX Runtime's environment, once per process for every model, from
+	// images_tagger's library path.
+	if err := imagestagger.InitRuntime(); err != nil {
 		return nil, err
 	}
 	ins, outs, err := ort.GetInputOutputInfo(modelPath)

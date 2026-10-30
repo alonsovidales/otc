@@ -301,7 +301,7 @@ func (mg *Manager) chooseMemories(ses *session.Session, today time.Time, period 
 		p.posts = posted[p.hash]
 	}
 	home := mg.homePlaces()
-	opts := memoryOptions{period: period, today: today, faces: faces, home: home, hidden: hiddenSets(hidden)}
+	opts := memoryOptions{period: period, today: today, faces: faces, home: home, hidden: hiddenSets(hidden), similar: mg.smartSimilarity(ses)}
 	thumbs := map[string]uint64{}
 	dhash := func(hash string) (uint64, bool) {
 		if h, ok := thumbs[hash]; ok {
@@ -414,6 +414,10 @@ type memoryOptions struct {
 	faces  bool
 	home   homePlaces
 	hidden hidden
+	// similar is how alike two photos are by Smart search's vectors
+	// (smart_search.go), false when either has none; nil while Smart search
+	// is off: bursts are told apart by difference hashes then.
+	similar func(a, b string) (float32, bool)
 }
 
 type hidden struct {
@@ -853,7 +857,7 @@ func chooseYear(photos []memPhoto, idx []int, o memoryOptions, most, least int, 
 		if len(picks) == most {
 			break
 		}
-		if taken[moment[i]] >= perMoment || burstOf(photos, picks, i, dhash) {
+		if taken[moment[i]] >= perMoment || burstOf(photos, picks, i, dhash, o.similar) {
 			continue
 		}
 		picks = append(picks, i)
@@ -873,9 +877,12 @@ func chooseYear(photos []memPhoto, idx []int, o memoryOptions, most, least int, 
 }
 
 // burstOf is whether photo i is another shot of a burst one of picks
-// already holds: taken within cBurstSame of it, or within cBurstWindow and
-// a few bits of its difference hash.
-func burstOf(photos []memPhoto, picks []int, i int, dhash func(string) (uint64, bool)) bool {
+// already holds: taken within cBurstSame of it; or, by Smart search's
+// vectors when both have one (similar), the same photo (cSameCos) whenever
+// taken or as alike as a burst's shots (cBurstCos) within
+// cEmbedBurstWindow; else within cBurstWindow and a few bits of its
+// difference hash.
+func burstOf(photos []memPhoto, picks []int, i int, dhash func(string) (uint64, bool), similar func(a, b string) (float32, bool)) bool {
 	for _, j := range picks {
 		d := photos[i].local.Sub(photos[j].local)
 		if d < 0 {
@@ -883,6 +890,14 @@ func burstOf(photos []memPhoto, picks []int, i int, dhash func(string) (uint64, 
 		}
 		if d <= cBurstSame {
 			return true
+		}
+		if similar != nil {
+			if c, ok := similar(photos[i].hash, photos[j].hash); ok {
+				if c >= cSameCos || (c >= cBurstCos && d <= cEmbedBurstWindow) {
+					return true
+				}
+				continue
+			}
 		}
 		if d > cBurstWindow {
 			continue

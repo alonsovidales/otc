@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "beim Löschen von Tags/Gesichtern vor der Neuverarbeitung: {detail}"},
   "dev.files.retrieve_failed": {"text": "Fehler beim Abrufen der Datei: {detail}"},
   "dev.files.share_link_failed": {"text": "Fehler beim Erstellen des Freigabelinks für die Dateien: {detail}"},
+  "dev.files.smart_search_off": {"text": "Die intelligente Suche ist ausgeschaltet: Schalte sie in den Einstellungen ein, um Fotos durch Beschreiben zu finden"},
+  "dev.files.smart_search_unavailable": {"text": "Die intelligente Suche ist auf diesem Gerät noch nicht verfügbar: Mit dem nächsten Update bekommt sie, was sie braucht"},
   "dev.files.storage_full": {"text": "nicht genug Speicherplatz auf dem Gerät: Das braucht {need}, und es sind nur noch {left} frei"},
   "dev.files.stream_failed": {"text": "die Wiedergabe konnte nicht vorbereitet werden"},
   "dev.files.too_large_to_open": {"text": "diese Datei ist zu groß, um sie hier zu öffnen ({size}): Lade sie stattdessen herunter"},

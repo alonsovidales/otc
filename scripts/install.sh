@@ -227,6 +227,23 @@ OPENCV_ZOO_RAW=https://github.com/opencv/opencv_zoo/raw/main/models
 QUALITY_ONNX=$MODEL_DIR/nima_mobilenet_aesthetic.onnx
 QUALITY_ONNX_URL=https://github.com/alonsovidales/otc/releases/download/models/nima_mobilenet_aesthetic.onnx
 QUALITY_ONNX_SHA=b35a4d6616b5597fb84d57cbcfbc7d5f3d80b694069d1182b66677903d0b71d1
+# Smart search (beta): SigLIP 2 base (Google, Apache-2.0), exported and
+# quantized by models/siglip2_export.py - each tower's .onnx with the .data
+# file ONNX Runtime maps beside it, and the tokenizer: ~414MB in their own
+# directory, under the names the .onnx files expect. Optional: without them
+# Smart search can't be turned on, so a download that fails is only a
+# warning (fetch_optional), tried again by the next update. Each line is the
+# file's name here, its name in the release and its pinned SHA-256 (the
+# same in updates/151.sh's update.sh block and docker/entrypoint.sh).
+EMBED_DIR=$MODEL_DIR/siglip2-base
+EMBED_URL=https://github.com/alonsovidales/otc/releases/download/models
+EMBED_FILES=(
+    "image.onnx siglip2-base-image.onnx e7eca79ab2103e51dd722e3d9e3c24507af450ccb1b5cb94e37c0fc051cbac22"
+    "image.onnx.data siglip2-base-image.onnx.data b9a8e6cfe59f54cb991163c26b82b54bb01e6bbe038291f9116503a3f7dc3f21"
+    "text.onnx siglip2-base-text.onnx 05ad0676b6ffc7c500bc04f9cf80ad442de5bd4bc537c237d33876bc7ba4db92"
+    "text.onnx.data siglip2-base-text.onnx.data 951bd580188f27cdfc72d13e4233e11110b8a8240cb12806fed61a871e444655"
+    "tokenizer.model siglip2-base-tokenizer.model 61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2"
+)
 ENVIRONMENT=dev
 INI_FILE="/etc/otc_${ENVIRONMENT}.ini"
 # otc_ini KEY: the [otc] value of KEY in the config an earlier run wrote,
@@ -687,6 +704,15 @@ chmod 0755 "$MODEL_DIR"
 for f in "$MODEL_ONNX" "$MODEL_THRESHOLDS" "$MODEL_TAGS" "$FACE_DETECTOR_ONNX" "$FACE_RECOGNIZER_ONNX" "$QUALITY_ONNX"; do
     if [ -L "$f" ]; then rm -f -- "$f"; fi
 done
+# Smart search's directory, root's like the rest.
+if [ -L "$EMBED_DIR" ]; then rm -f -- "$EMBED_DIR"; fi
+mkdir -p "$EMBED_DIR"
+chown root:root "$EMBED_DIR"
+chmod 0755 "$EMBED_DIR"
+for e in "${EMBED_FILES[@]}"; do
+    read -r name _ _ <<< "$e"
+    if [ -L "$EMBED_DIR/$name" ]; then rm -f -- "$EMBED_DIR/$name"; fi
+done
 # Each file is checked on its own: fetch_pinned only moves a file into place
 # after its hash matches, so one that is present is already verified, and a
 # failed small download must not cost another ~870MB.
@@ -720,6 +746,13 @@ fi
 if [ ! -f "$QUALITY_ONNX" ]; then
     fetch_optional "$QUALITY_ONNX_URL" "$QUALITY_ONNX" "$QUALITY_ONNX_SHA"
 fi
+# Smart search's model: optional too (see EMBED_FILES), each file on its own.
+for e in "${EMBED_FILES[@]}"; do
+    read -r name asset sha <<< "$e"
+    if [ ! -f "$EMBED_DIR/$name" ]; then
+        fetch_optional "$EMBED_URL/$asset" "$EMBED_DIR/$name" "$sha"
+    fi
+done
 # Read-only to the service (it only loads them). -R changes a symlink
 # itself, never what it points to, and chmod -R skips symlinks.
 chown -R root:root "$MODEL_DIR"
@@ -1253,6 +1286,18 @@ SQL
     ) ENGINE=InnoDB;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS memories_enabled TINYINT(1) NOT NULL DEFAULT 1;
 SQL
+    # Release 151 (updates/151.sh): Smart search - each photo's description,
+    # sealed with the user's key, and the switch, off by default (see db.sql).
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS photo_embeddings (
+      `hash` VARCHAR(64) NOT NULL,
+      `model` VARCHAR(64) NOT NULL,
+      `vec` VARBINARY(2048) NOT NULL,
+      `made` DATETIME NOT NULL,
+      PRIMARY KEY (`hash`)
+    ) ENGINE=InnoDB;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS smart_search_enabled TINYINT(1) NOT NULL DEFAULT 0;
+SQL
 }
 
 apply_schema_migrations otc
@@ -1402,6 +1447,13 @@ recognizer-model-path=$FACE_RECOGNIZER_ONNX
 # without the file measures photos by sharpness and exposure alone.
 [quality]
 model-path=$QUALITY_ONNX
+
+# Smart search (beta): SigLIP 2, the photos' and the searches' model.
+# Optional - without its files Smart search can't be turned on.
+[embedder]
+image-model-path=$EMBED_DIR/image.onnx
+text-model-path=$EMBED_DIR/text.onnx
+tokenizer-path=$EMBED_DIR/tokenizer.model
 EOF
 # The database password (and the rest of the device's settings): root
 # and the service only - it used to be left readable by every account.

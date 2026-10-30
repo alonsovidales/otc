@@ -57,6 +57,8 @@
   "dev.files.reprocess_wipe_failed": {"text": "wiping tags/faces before reprocess: {detail}", "args": [["detail", "text"]]},
   "dev.files.retrieve_failed": {"text": "error trying to retrieve file: {detail}", "args": [["detail", "text"]]},
   "dev.files.share_link_failed": {"text": "error creating files share link: {detail}", "args": [["detail", "text"]]},
+  "dev.files.smart_search_off": {"text": "Smart search is off: turn it on in Settings to find photos by describing them"},
+  "dev.files.smart_search_unavailable": {"text": "Smart search isn't available on this device yet: it gets what it needs with the next update"},
   "dev.files.storage_full": {"text": "not enough space on the device: this needs {need}, and only {left} is left", "args": [["need", "bytes"], ["left", "bytes"]]},
   "dev.files.stream_failed": {"text": "could not prepare the stream"},
   "dev.files.too_large_to_open": {"text": "this file is too large to open here ({size}): download it instead", "args": [["size", "bytes"]]},

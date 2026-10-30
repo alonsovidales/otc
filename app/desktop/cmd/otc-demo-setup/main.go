@@ -9,10 +9,13 @@
 // manifest.json - and the collections and posts. A person no name fits
 // (the dog's face, a stranger in the background) is deleted. Run it with
 // demo mode still off. -places-only turns Places on and stops: for a demo
-// device set up before Places.
+// device set up before Places. Smart search (beta) is turned on too, when
+// the device has its model; -smart-search-only turns it on and stops (a
+// demo set up before it, or before its model was there).
 //
 //	echo "$PASSWORD" | otc-demo-setup -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 //	echo "$PASSWORD" | otc-demo-setup -places-only -address ws://127.0.0.1:8080/ws
+//	echo "$PASSWORD" | otc-demo-setup -smart-search-only -address ws://127.0.0.1:8080/ws
 package main
 
 import (
@@ -41,18 +44,24 @@ func main() {
 	address := flag.String("address", "", "the device's address (ws://127.0.0.1:8080/ws)")
 	dryRun := flag.Bool("n", false, "say what would be done, change nothing")
 	placesOnly := flag.Bool("places-only", false, "turn Places on and stop (a demo set up before Places)")
+	smartOnly := flag.Bool("smart-search-only", false, "turn Smart search on and stop (a demo set up before it)")
 	flag.Parse()
-	if *address == "" || (flag.NArg() != 1 && !*placesOnly) {
+	if *address == "" || (flag.NArg() != 1 && !*placesOnly && !*smartOnly) {
 		fmt.Fprintln(os.Stderr, "usage: otc-demo-setup [-n] -address <ws-url> <content-dir>   (password on stdin)")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -places-only -address <ws-url>")
+		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -smart-search-only -address <ws-url>")
 		os.Exit(2)
 	}
 	pw, _ := io.ReadAll(io.LimitReader(os.Stdin, 1024))
 	password := strings.TrimRight(string(pw), "\r\n")
-	if *placesOnly {
+	if *placesOnly || *smartOnly {
 		c, done, err := signIn(*address, password)
 		if err == nil {
-			err = placesOn(c, *dryRun)
+			if *placesOnly {
+				err = placesOn(c, *dryRun)
+			} else {
+				err = smartSearchOn(c, *dryRun)
+			}
 			done()
 		}
 		if err != nil {
@@ -128,6 +137,27 @@ func placesOn(c client, dryRun bool) error {
 	return nil
 }
 
+// smartSearchOn turns Smart search (beta) on: the demo's photos can be
+// found by describing them, once the device has described them in the
+// background. A device without the model only says so.
+func smartSearchOn(c client, dryRun bool) error {
+	fmt.Println("smart search: on")
+	if dryRun {
+		return nil
+	}
+	resp, err := c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqSetSmartSearchEnabled{ReqSetSmartSearchEnabled: &pb.SetSmartSearchEnabled{Enabled: true}}
+	})
+	if err != nil && resp != nil && resp.ErrorCode == "smart_search_unavailable" {
+		fmt.Println("smart search: the device doesn't have its model yet - run -smart-search-only once it has")
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("smart search: %w", err)
+	}
+	return nil
+}
+
 func run(address, password, dir string, dryRun bool) error {
 	var manifest []manifestEntry
 	if err := readJSON(dir, "manifest.json", &manifest); err != nil {
@@ -173,6 +203,9 @@ func run(address, password, dir string, dryRun bool) error {
 	defer done()
 
 	if err := placesOn(c, dryRun); err != nil {
+		return err
+	}
+	if err := smartSearchOn(c, dryRun); err != nil {
 		return err
 	}
 

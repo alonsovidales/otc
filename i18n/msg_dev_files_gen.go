@@ -294,6 +294,16 @@ func DevFilesShareLinkFailed(detail string) Msg {
 	return Msg{Key: "dev.files.share_link_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesSmartSearchOff is dev.files.smart_search_off: "Smart search is off: turn it on in Settings to find photos by describing them".
+func DevFilesSmartSearchOff() Msg {
+	return Msg{Key: "dev.files.smart_search_off"}
+}
+
+// DevFilesSmartSearchUnavailable is dev.files.smart_search_unavailable: "Smart search isn't available on this device yet: it gets what it needs with the …".
+func DevFilesSmartSearchUnavailable() Msg {
+	return Msg{Key: "dev.files.smart_search_unavailable"}
+}
+
 // DevFilesStorageFull is dev.files.storage_full: "not enough space on the device: this needs {need}, and only {left} is left".
 func DevFilesStorageFull(need int64, left int64) Msg {
 	return Msg{Key: "dev.files.storage_full", Args: map[string]any{"need": need, "left": left}}

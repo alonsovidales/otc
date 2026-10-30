@@ -126,6 +126,28 @@ create table photo_locations
   primary key (`hash`)
 ) engine=InnoDB;
 
+-- Smart search (beta): each photo described as a vector of 768 numbers by
+-- an image model on the device (SigLIP 2, images_embedder), from its big
+-- thumbnail, so a search's text finds it by what it shows
+-- (files_manager/smart_search.go). Kept only while the user has Smart search
+-- on (settings.smart_search_enabled): turning it off deletes every row.
+-- `vec` is sealed with the user's key (AES-GCM, session.Encrypt) - a vector
+-- says much about what a photo shows, unlike file_tags' words - so it is
+-- read only while the user is signed in; `model` names the model that made
+-- it (another model's vectors are made again). Written when the device
+-- analyses a photo (the slow lane), and in the background for what it held
+-- before. Goes with the content's last path or kept version. Never sent
+-- anywhere.
+create table photo_embeddings
+(
+  `hash` varchar(64) not null,
+  `model` varchar(64) not null,
+  `vec` varbinary(2048) not null,
+  `made` datetime not null,
+
+  primary key (`hash`)
+) engine=InnoDB;
+
 -- On this day (Memories): how each photo looks, by content, measured once
 -- from its big thumbnail (files_manager/quality.go) while On this day is on
 -- (settings.memories_enabled): numbers only - how sharp and well exposed it
@@ -368,7 +390,13 @@ create table settings
   -- (SetMemoriesEnabled). While it is on the device measures how each photo
   -- looks (photo_quality); off, it measures nothing and GetMemories answers
   -- "memories_off". Turning it off deletes nothing.
-  `memories_enabled` tinyint(1) not null default 1
+  `memories_enabled` tinyint(1) not null default 1,
+  -- Smart search (beta): off unless the user turns it on
+  -- (SetSmartSearchEnabled). While it is on the device describes each photo
+  -- as a vector (photo_embeddings) and SearchPhotos.text finds photos by
+  -- what they show; turning it off deletes every vector in the same
+  -- transaction.
+  `smart_search_enabled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile
