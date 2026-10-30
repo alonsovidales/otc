@@ -59,7 +59,8 @@ export default function MirrorDiskPanel() {
   const [mine, setMine] = useState<Asked | null>(asked);
   const [notAdded, setNotAdded] = useState<Disk | null>(null);
   const [confirming, setConfirming] = useState<Disk | null>(null);
-  // Looked at more often while the device takes it up.
+  // Looked at more often while the device takes it up. This is Settings'
+  // Status poll: Background work reads what it brings too.
   const { status } = useDeviceStatus(mine && !mine.copying ? 2000 : 5000);
   const offered = status?.mirrorCandidates ?? [];
 

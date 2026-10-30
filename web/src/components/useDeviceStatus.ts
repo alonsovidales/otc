@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import { RaidState } from "../proto/messages";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";
@@ -38,6 +38,35 @@ export function raidStateLabel(t: TFunction, status: MsgStatus): string {
   }
 }
 
+// The last Status any poll here got, and when: for what shows a part of it
+// without a poll of its own (Settings' Background work, fed by Settings'
+// own 5 s poll in MirrorDiskPanel and the menu's). A sign-out reloads the
+// page, so it is never another sign-in's.
+export type LatestStatus = { status: MsgStatus; at: number };
+let latest: LatestStatus | null = null;
+const latestListeners = new Set<() => void>();
+const subscribeLatest = (l: () => void) => {
+  latestListeners.add(l);
+  return () => { latestListeners.delete(l); };
+};
+function noteStatus(status: MsgStatus) {
+  latest = { status, at: Date.now() };
+  latestListeners.forEach((l) => l());
+}
+export const getLatestStatus = () => latest;
+export const useLatestStatus = () => useSyncExternalStore(subscribeLatest, getLatestStatus);
+
+/** Asks the device's Status once; noted as the latest. null without an
+ *  answer. */
+export async function askDeviceStatus(): Promise<MsgStatus | null> {
+  const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+    (e as { payload?: ReqEnvelope["payload"] }).payload = { $case: "reqGetStatus", reqGetStatus: {} };
+  });
+  if (resp.payload?.$case !== "respStatus") return null;
+  noteStatus(resp.payload.respStatus);
+  return resp.payload.respStatus;
+}
+
 /** The device's status (storage, mirror, CPU, memory, errors), polled
  *  (devicePoll.ts: a closed socket is opened again, a failure waits
  *  longer); `failed` while the last poll got no status. */
@@ -49,12 +78,10 @@ export function useDeviceStatus(refreshMs = 5000) {
     let stop = false;
     const fetchStatus = async (): Promise<boolean> => {
       try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as { payload?: ReqEnvelope["payload"] }).payload = { $case: "reqGetStatus", reqGetStatus: {} };
-        });
+        const got = await askDeviceStatus();
         if (stop) return true;
-        if (resp.payload?.$case === "respStatus") {
-          setStatus(resp.payload.respStatus);
+        if (got) {
+          setStatus(got);
           setFailed(false);
           return true;
         }

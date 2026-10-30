@@ -1857,10 +1857,11 @@ from main with demo photos dated on 30 October of earlier years.
 is `smartSearch.ts` (`GetSettings`' `smart_search_enabled` at each sign-in, `otc_smart_search` as
 `otc_places`; absent = a device before it = off: no Settings section, no panel row, `text` never sent). Beside it
 the model's state (`Settings.smart_search_model`, release 152: the device downloads the model only once Smart search
-is first turned on; absent = an older device = ready): while on and not ready there is no panel row. Settings
-asks `GetSettings` again every 3 s while it shows the download (`followSmartSearchDownload`: until ready, off or
-left); elsewhere it is the last answer's (sign-in, Settings, a refused search), as on the phones. An answer to a
-question asked before a switch change is dropped. `node web/scripts/smart-search-test.mjs`. While
+is first turned on; absent = an older device = ready; on by default from 152): while on and not ready there is no
+panel row. Settings asks `GetSettings` again every 3 s while it shows the download (`followSmartSearch`: until ready,
+off or left); elsewhere it is the last answer's (sign-in, Settings, a refused search), and the search field asks once
+as it gets the focus while on and not ready (`smartSearchFocused`, at most every 5 s), as on the phones. An answer to
+a question asked before a switch change is dropped. `node web/scripts/smart-search-test.mjs`. While
 on and ready, the search panel's first row is "Search photos for “x”" (sparkle), and Enter takes it - unless the words
 are exactly a tag or a named person's name, which Enter takes, the row then following things and people
 (a partial match never wins: "beac" searches by description, "beach" is the tag); the documents row stays
@@ -1876,11 +1877,18 @@ shows "Your device is still getting to know your photos…" above the results (`
 first page without it; nothing is asked again for it. Settings' section after Memories: the heading with a
 Beta badge (`.sf-beta`), the footer text, Enable (at once) / Disable (an in-page `ConfirmDialog` first: what
 the device learned is deleted); refusals show the device's words; after either the model's state is asked. Under
-the hint, `download_note` while the model is neither ready nor downloading; while it downloads, a
+the hint, `download_note` only while the switch is off and the model missing (on and missing: nothing until the
+device says it is downloading - no text assumes the user turned it on); while it downloads, a
 `role="progressbar"` bar and `downloading` with its percent, or the device's `problem` in its place (it retries by
 itself); a hidden `role="status"` says only the start, a problem and the end (`announcement`), never each percent,
-emptied after 5 s.
-The download states were checked in muted headless Chrome against a fake socket. Checked end to end in muted headless Chrome
+emptied after 5 s. **Background work** (`settings/BackgroundWorkPanel.tsx`, rules in `settings/backgroundWork.ts`,
+tested in smart-search-test.mjs; texts `web.settings.background.*`): `Status.background_tasks` (release 152: new
+uploads' analysis, thumbnails, places, On this day's measures, Smart search's descriptions, photo dates...), a
+section right after Storage only while the list isn't empty - per task the device's `text`, `role="progressbar"`
+(done of total, labelled by the text; indeterminate, no value, while total is 0) and `count` - with no timer of its
+own: it reads `useDeviceStatus`' latest Status (`useLatestStatus`), which Settings' own 5 s poll (MirrorDiskPanel's)
+and the menu's keep fresh, as the phones use their Settings' Status poll.
+The download states and Background work were checked in muted headless Chrome against a fake socket. Checked end to end in muted headless Chrome
 against a Docker test device built from main with the SigLIP files copied in and the demo library: English
 and Spanish descriptions, a description within a tag chip, the reading note, off with its confirmation.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol

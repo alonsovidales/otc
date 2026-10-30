@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Smart search (beta): finding photos by describing them ("kids in the
-// snow", "un perro en la playa"), on the device's own model. Off unless the
-// user turns it on in Settings (Settings.smart_search_enabled: while it is
-// on the device describes each photo and keeps that encrypted; turning it
-// off deletes it). A device before it doesn't say, and then there is
-// neither the switch nor the free-text search (SearchPhotos.text: an older
-// device would ignore it and answer the whole library).
+// snow", "un perro en la playa"), on the device's own model. On by default
+// since release 152 (off by default in 151), each user turning it off or on
+// again in Settings (Settings.smart_search_enabled: while it is on the
+// device describes each photo and keeps that encrypted; turning it off
+// deletes it). A device before it doesn't say, and then there is neither
+// the switch nor the free-text search (SearchPhotos.text: an older device
+// would ignore it and answer the whole library).
 //
 // The model (about 400 MB) is on the device only once it was asked for:
 // from release 152 the device downloads it when Smart search is first
 // turned on (Settings.smart_search_model; a device before that doesn't
 // say, and had it or refuses: taken as ready). Until it is ready the search
-// doesn't offer the description, and Settings shows the download.
+// doesn't offer the description, and Settings shows the download. (How far
+// the device is in describing the photos is Settings' Background work,
+// from Status.background_tasks.)
 //
 // The device is asked once per sign-in (watchSmartSearch, from App);
 // Settings' switch and a search told "smart_search_off" (turned off on
@@ -20,9 +23,10 @@
 // this browser had last time stands in (otc_smart_search), as places.ts
 // does. While it isn't on, the search has no free text (photoFilter.ts).
 // While it is on and the model is downloading, Settings asks the device
-// again every 3 s (followSmartSearchDownload); elsewhere the model's state
-// is what the last answer said (sign-in, Settings, a refused search), as on
-// the phones.
+// again every 3 s (followSmartSearch); elsewhere the state is what the last
+// answer said (sign-in, Settings, a refused search), and the search field
+// asks once as it gets the focus while the model isn't there
+// (smartSearchFocused, at most every 5 s), as on the phones.
 
 import { useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
@@ -62,19 +66,24 @@ const sameModel = (a: SmartModel, b: SmartModel) =>
  *  on, with the model there. */
 export const offersSmartSearch = (isOn: boolean | null, m: SmartModel) => isOn === true && m.ready;
 
-/** What Settings' section says under its hint: nothing (ready), that
- *  turning it on downloads the model (neither ready nor downloading), or
- *  the download - its percent, or the device's words while a try failed
- *  (it tries again by itself). */
+/** What Settings' section says under its hint:
+ *  - ready: nothing (the model is there, or the device doesn't say);
+ *  - note: off, without the model - turning it on downloads it (Smart
+ *    search is on by default since release 152, so this is only said
+ *    while it is off);
+ *  - idle: on, the model neither there nor on its way yet - nothing;
+ *  - downloading: its percent, or the device's words while a try failed
+ *    (it tries again by itself). */
 export type ModelView =
   | { kind: "ready" }
   | { kind: "note" }
+  | { kind: "idle" }
   | { kind: "downloading"; percent: number; problem: string };
 
-export function modelView(m: SmartModel): ModelView {
+export function modelView(isOn: boolean | null, m: SmartModel): ModelView {
   if (m.ready) return { kind: "ready" };
-  if (!m.downloading) return { kind: "note" };
-  return { kind: "downloading", percent: m.percent, problem: m.problem };
+  if (m.downloading) return { kind: "downloading", percent: m.percent, problem: m.problem };
+  return isOn === true ? { kind: "idle" } : { kind: "note" };
 }
 
 /** What a screen reader is told as the section changes - only when the
@@ -206,7 +215,7 @@ function follow() {
 /** Settings shows the download: the device is asked every 3 s while Smart
  *  search is on and the model downloading - until it is ready, it is
  *  turned off or this stops (Settings left). Returns the stop. */
-export function followSmartSearchDownload(): () => void {
+export function followSmartSearch(): () => void {
   followers++;
   follow();
   let stopped = false;
@@ -216,6 +225,22 @@ export function followSmartSearchDownload(): () => void {
     followers--;
     follow();
   };
+}
+
+// ---- the search field --------------------------------------------------------------
+
+export const cFocusAskMs = 5000;
+let focusAskedAt = Number.NEGATIVE_INFINITY;
+
+/** The top search field got the focus: while Smart search is on and its
+ *  model isn't there, where it is is asked once (at most every 5 s), so
+ *  the search offers descriptions once it is - whether or not Settings
+ *  was watching. true when it asked. */
+export function smartSearchFocused(now = Date.now()): boolean {
+  if (on !== true || model.ready || now - focusAskedAt < cFocusAskMs) return false;
+  focusAskedAt = now;
+  void refreshSmartSearch();
+  return true;
 }
 
 // ---- at sign-in ---------------------------------------------------------------

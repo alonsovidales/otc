@@ -2,11 +2,14 @@
 //
 // Tests for Smart search's state on the web (src/components/smartSearch.ts):
 // the switch and where the device's model is (Settings.smart_search_model,
-// release 152: downloaded only once Smart search is first turned on) - when
-// the search offers "Search photos for …", what Settings' section says and
-// tells a screen reader, and how Settings asks the device again while the
-// model downloads. Loaded through Vite's SSR loader in Node, as
-// places-switch-test.mjs, with the socket's request replaced by the test's:
+// release 152: downloaded only once Smart search is first turned on; on by
+// default from then) - when the search offers "Search photos for …", what
+// Settings' section says and tells a screen reader, how Settings asks the
+// device again while the model downloads and the search field as it gets
+// the focus. And Settings' Background work (settings/backgroundWork.ts,
+// Status.background_tasks: Smart search's descriptions among them). Loaded
+// through Vite's SSR loader in Node, as places-switch-test.mjs, with the
+// socket's request replaced by the test's:
 //
 //   node web/scripts/smart-search-test.mjs        (needs web/node_modules)
 //
@@ -34,7 +37,7 @@ globalThis.window = {
 Object.defineProperty(globalThis, "navigator", { value: { languages: ["en"], language: "en" }, configurable: true, writable: true });
 
 let server;
-let smart, filter, ws;
+let smart, filter, ws, work, deviceStatus;
 // What the test's device answers each request with.
 let answer = () => ({});
 const asked = [];
@@ -57,6 +60,8 @@ before(async () => {
   };
   smart = await server.ssrLoadModule("/src/components/smartSearch.ts");
   filter = await server.ssrLoadModule("/src/components/photoFilter.ts");
+  work = await server.ssrLoadModule("/src/components/settings/backgroundWork.ts");
+  deviceStatus = await server.ssrLoadModule("/src/components/useDeviceStatus.ts");
 });
 after(() => server?.close());
 beforeEach(() => { asked.length = 0; });
@@ -124,12 +129,22 @@ describe("whether the search offers the description", () => {
 
 describe("what Settings' section says", () => {
   test("nothing once ready; the note before; the download while it goes", () => {
-    assert.deepEqual(smart.modelView(smart.cModelReady), { kind: "ready" });
-    assert.deepEqual(smart.modelView(smart.modelFrom(model({}))), { kind: "note" });
-    assert.deepEqual(smart.modelView(smart.modelFrom(model({ downloading: true, percent: 30 }))),
-      { kind: "downloading", percent: 30, problem: "" });
-    assert.deepEqual(smart.modelView(smart.modelFrom(model({ downloading: true, percent: 30, problem: "No connection" }))),
-      { kind: "downloading", percent: 30, problem: "No connection" });
+    for (const on of [true, false, null]) {
+      assert.deepEqual(smart.modelView(on, smart.cModelReady), { kind: "ready" });
+      assert.deepEqual(smart.modelView(on, smart.modelFrom(model({ downloading: true, percent: 30 }))),
+        { kind: "downloading", percent: 30, problem: "" }, "another user's download shows too");
+      assert.deepEqual(smart.modelView(on, smart.modelFrom(model({ downloading: true, percent: 30, problem: "No connection" }))),
+        { kind: "downloading", percent: 30, problem: "No connection" });
+    }
+    assert.deepEqual(smart.modelView(false, smart.modelFrom(model({}))), { kind: "note" });
+  });
+
+  test("on by default: the note that turning it on downloads it only while it is off", () => {
+    assert.deepEqual(smart.modelView(true, smart.modelFrom(model({}))), { kind: "idle" });
+    assert.deepEqual(smart.modelView(null, smart.modelFrom(model({}))), { kind: "note" });
+    const idle = { kind: "idle" };
+    assert.deepEqual(smart.announcement(idle, { kind: "downloading", percent: 0, problem: "" }), { kind: "progress", percent: 0 });
+    assert.equal(smart.announcement({ kind: "note" }, idle), null);
   });
 
   test("a screen reader hears the start, a problem and the end - not every percent", () => {
@@ -192,7 +207,7 @@ describe("while the model downloads", () => {
       await until(() => smart.getSmartSearchModel().percent === 10);
       await new Promise((r) => realSetTimeout(r, 20));
       assert.equal(held.size, 0, "outside Settings, nothing is asked again");
-      const stopFollow = smart.followSmartSearchDownload();
+      const stopFollow = smart.followSmartSearch();
       assert.deepEqual(heldDelays(), [smart.cFollowMs], "Settings shows it: every 3 s");
       percent = 55;
       asked.length = 0;
@@ -221,7 +236,7 @@ describe("while the model downloads", () => {
       const stopWatch = smart.watchSmartSearch();
       await until(() => smart.getSmartSearchModel().percent === 20);
       await new Promise((r) => realSetTimeout(r, 20));
-      const stopFollow = smart.followSmartSearchDownload();
+      const stopFollow = smart.followSmartSearch();
       assert.deepEqual(heldDelays(), [smart.cFollowMs]);
       stopFollow();
       assert.equal(held.size, 0);
@@ -238,7 +253,7 @@ describe("while the model downloads", () => {
       const stopWatch = smart.watchSmartSearch();
       await until(() => smart.getSmartSearchModel().percent === 21);
       await new Promise((r) => realSetTimeout(r, 20));
-      const stopFollow = smart.followSmartSearchDownload();
+      const stopFollow = smart.followSmartSearch();
       assert.equal(held.size, 1);
       smart.setSmartSearchOn(false);
       assert.equal(held.size, 0);
@@ -265,5 +280,67 @@ describe("while the model downloads", () => {
     assert.equal(smart.getSmartSearchOn(), false);
     assert.equal(smart.getSmartSearchModel().downloading, false);
     stopWatch();
+  });
+});
+
+describe("the search field's focus while the model is on its way", () => {
+  test("asks where it is once, at most every 5 s, only while on and not ready", async () => {
+    answer = () => settings(true, model({ downloading: true, percent: 40 }));
+    const stopWatch = smart.watchSmartSearch();
+    await until(() => smart.getSmartSearchModel().percent === 40);
+    await new Promise((r) => setTimeout(r, 20));
+    asked.length = 0;
+    const t0 = 10_000_000;
+    assert.equal(smart.smartSearchFocused(t0), true, "asked");
+    await until(() => asked.length === 1);
+    assert.deepEqual(asked, ["reqGetSettings"]);
+    await new Promise((r) => setTimeout(r, 20)); // its answer applied
+    assert.equal(smart.smartSearchFocused(t0 + smart.cFocusAskMs - 1), false, "not again within 5 s");
+    answer = () => settings(true, model({ ready: true }));
+    assert.equal(smart.smartSearchFocused(t0 + smart.cFocusAskMs), true, "again after 5 s");
+    await until(() => smart.getSmartSearchModel().ready);
+    assert.equal(smart.offersSmartSearch(smart.getSmartSearchOn(), smart.getSmartSearchModel()), true, "the row comes back");
+    assert.equal(smart.smartSearchFocused(t0 + 3 * smart.cFocusAskMs), false, "ready: nothing asked");
+    smart.setSmartSearchOn(false);
+    assert.equal(smart.smartSearchFocused(t0 + 9 * smart.cFocusAskMs), false, "off: nothing asked");
+    assert.equal(asked.length, 2);
+    stopWatch();
+  });
+});
+
+describe("Settings' Background work", () => {
+  const task = (kind, text, done, total) => ({ kind, text, done: BigInt(done), total: BigInt(total) });
+
+  test("a row per task in the device's order, its words, done of total and the bar", () => {
+    const rows = work.workRows([
+      task("smart_search", "Getting to know your photos", 1200, 4800),
+      task("quality", " Choosing the nicest photos ", 0, 0),
+      task("analysis", "Looking at new uploads", 9, 7),
+    ]);
+    assert.deepEqual(rows.map((r) => r.key), ["smart_search", "quality", "analysis"]);
+    assert.deepEqual(rows[0], { key: "smart_search", text: "Getting to know your photos", done: 1200, total: 4800, percent: 25 });
+    assert.equal(rows[1].text, "Choosing the nicest photos");
+    assert.equal(rows[1].percent, null, "no total yet: an indeterminate bar");
+    assert.deepEqual([rows[2].done, rows[2].total, rows[2].percent], [7, 7, 100], "done never past total");
+  });
+
+  test("keys stay unique; nothing to do is no section", () => {
+    const rows = work.workRows([task("", "One", 1, 2), task("dates", "Two", 1, 3), task("dates", "Three", 0, 3)]);
+    assert.equal(new Set(rows.map((r) => r.key)).size, 3);
+    assert.deepEqual(work.workRows([]), []);
+    assert.equal(work.workRows([task("x", "y", -5, -1)])[0].percent, null, "a nonsense count reads as unknown");
+  });
+
+  test("a Status any poll gets is the section's", async () => {
+    const tasks = [task("smart_search", "Getting to know your photos", 3, 10)];
+    answer = () => ({ payload: { $case: "respStatus", respStatus: { backgroundTasks: tasks } } });
+    const got = await deviceStatus.askDeviceStatus();
+    assert.equal(got.backgroundTasks.length, 1);
+    const latest = deviceStatus.getLatestStatus();
+    assert.ok(latest && Date.now() - latest.at < 1000);
+    assert.equal(work.workRows(latest.status.backgroundTasks)[0].percent, 30);
+    answer = () => ({ error: true, errorCode: "unknown_payload", errorMessage: "" });
+    assert.equal(await deviceStatus.askDeviceStatus(), null);
+    assert.equal(deviceStatus.getLatestStatus(), latest, "no answer leaves the last one");
   });
 });

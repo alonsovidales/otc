@@ -15,11 +15,12 @@ import BridgePanel from "./BridgePanel";
 import LanguagePanel from "./settings/LanguagePanel";
 import WifiPanel from "./settings/WifiPanel";
 import MirrorDiskPanel from "./settings/MirrorDiskPanel";
+import BackgroundWorkPanel from "./settings/BackgroundWorkPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
 import {
-  announcement, applySmartSearchSettings, followSmartSearchDownload, modelView, refreshSmartSearch, setSmartSearchOn,
+  announcement, applySmartSearchSettings, followSmartSearch, modelView, refreshSmartSearch, setSmartSearchOn,
   useSmartSearchModel, useSmartSearchOn, type Announcement, type ModelView, type SmartModel,
 } from "./smartSearch";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -97,7 +98,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [smartBusy, setSmartBusy] = useState(false);
   const [smartOffAsk, setSmartOffAsk] = useState(false);
   const followSmart = smartKnown && smartOn && smartModel.downloading;
-  useEffect(() => (followSmart ? followSmartSearchDownload() : undefined), [followSmart]);
+  useEffect(() => (followSmart ? followSmartSearch() : undefined), [followSmart]);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -521,6 +522,12 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           (nothing shows otherwise). */}
       <MirrorDiskPanel />
 
+      {/* What the device works through by itself (Status.background_tasks:
+          new uploads' analysis, Smart search's descriptions, ...), with
+          how far it is, from the Status the panel above polls; nothing
+          shows while there is none. */}
+      <BackgroundWorkPanel />
+
       <LanguagePanel />
 
       {onShowTour && (
@@ -642,7 +649,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
             <span className="sf-beta">{t("web.settings.smart_search.beta")}</span>
           </h3>
           <p className="sf-hint">{t("web.settings.smart_search.hint")}</p>
-          <SmartSearchModelNote model={smartModel} labelId="sf-smart-title" />
+          <SmartSearchModelNote on={smartOn} model={smartModel} labelId="sf-smart-title" />
           <button className="sf-btn" disabled={smartBusy} onClick={() => void toggleSmartSearch()}>
             {smartBusy ? t("web.settings.general.working") : smartOn ? t("web.settings.smart_search.disable") : t("web.settings.smart_search.enable")}
           </button>
@@ -800,21 +807,23 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
 const cSaidMs = 5000;
 
 // Smart search's model under the section's hint (smartSearch.ts' modelView):
-// that turning it on downloads it, or the download - a bar and its percent,
-// or the device's words while a try failed (it tries again by itself).
-// Nothing once it is there. A screen reader hears only when the download
-// starts, runs into a problem and is done (announcement), not every percent.
-function SmartSearchModelNote({ model, labelId }: { model: SmartModel; labelId: string }) {
+// while off, that turning it on downloads it (it is on by default since
+// release 152, so nothing here says the user turned it on); the download - a
+// bar and its percent, or the device's words while a try failed (it tries
+// again by itself). Nothing once it is there. A screen reader hears only
+// when the download starts, runs into a problem and is done (announcement),
+// not every percent.
+function SmartSearchModelNote({ on, model, labelId }: { on: boolean; model: SmartModel; labelId: string }) {
   const t = useT();
-  const view = modelView(model);
+  const view = modelView(on, model);
   const [said, setSaid] = useState<Announcement | null>(null);
   const shown = useRef<ModelView | null>(null);
   useEffect(() => {
-    const now = modelView(model);
+    const now = modelView(on, model);
     const next = announcement(shown.current, now);
     shown.current = now;
     if (next) setSaid(next);
-  }, [model]);
+  }, [on, model]);
   // Said, then emptied: no old words left for a screen reader to come
   // across later, and the same words said again are heard again.
   useEffect(() => {

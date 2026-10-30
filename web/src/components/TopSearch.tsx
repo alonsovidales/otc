@@ -19,14 +19,15 @@
 // photos for the words as a description, within the chips, and is what
 // Enter takes unless they are exactly a tag or a named person's name; the
 // description then shows as a chip of its own. Not while the device is
-// still downloading Smart search's model: the row comes once it is there.
+// still downloading Smart search's model: the row comes once it is there
+// (the field asks where it is as it gets the focus).
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
-import { useSmartSearchOffered } from "./smartSearch";
+import { smartSearchFocused, useSmartSearchOffered } from "./smartSearch";
 import { useFaceRecognition } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
@@ -826,7 +827,12 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             setMoved(null);
             setOpen(true);
           }}
-          onFocus={() => { if (!quietFocus.current && !windowBack.current) setOpen(true); }}
+          onFocus={() => {
+            // Smart search on while its model is on its way: where it is
+            // is asked (at most every 5 s), so the row comes once it is there.
+            smartSearchFocused();
+            if (!quietFocus.current && !windowBack.current) setOpen(true);
+          }}
           onKeyDown={onKeyDown}
           autoComplete="off"
           autoCorrect="off"
