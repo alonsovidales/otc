@@ -32,6 +32,8 @@
   "web.images.collections.failed": "Não foi possível carregar as tuas coleções",
   "web.images.collections.loading": "A carregar coleções",
   "web.images.collections.slow": "As tuas coleções estão a demorar mais do que o habitual a carregar.",
+  "web.images.collections.sort_name": "Nome",
+  "web.images.collections.sort_newest": "Mais recentes primeiro",
   "web.images.collections.title": "Coleções",
   "web.images.collections.untitled": "Coleção sem nome",
   "web.images.copies.all": {
@@ -244,6 +246,8 @@
   },
   "web.images.people.selected": "Pessoas selecionadas",
   "web.images.people.slow": "As pessoas estão a demorar mais do que o habitual a carregar.",
+  "web.images.people.sort_name": "Nome",
+  "web.images.people.sort_photos": "Mais fotos",
   "web.images.people.title": "Pessoas",
   "web.images.people.will_be_called": "A pessoa resultante vai chamar-se \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e.",
   "web.images.person.more": {
@@ -375,6 +379,7 @@
   "web.images.share.zip_tab": "A preparar o ZIP… A transferência começa aqui quando estiver pronto.",
   "web.images.smart_search.failed": "A Pesquisa inteligente não está disponível de momento.",
   "web.images.smart_search.reading": "O teu dispositivo ainda está a conhecer as tuas fotos…",
+  "web.images.sort_by": "Ordenar por",
   "web.images.trim.end": "Fim do corte",
   "web.images.trim.keeping": "A manter \u003cb\u003e{kept}\u003c/b\u003e de {total}",
   "web.images.trim.play": "Reproduzir corte",

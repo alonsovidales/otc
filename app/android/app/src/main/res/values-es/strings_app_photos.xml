@@ -26,6 +26,8 @@
     <string name="app_photos_collections_remove_needs_update">Tu dispositivo necesita una actualización para quitar fotos de una colección.</string>
     <string name="app_photos_collections_rename">Renombrar colección</string>
     <string name="app_photos_collections_sheet_empty">Aún no hay colecciones: selecciona algunas fotos y elige “Añadir a una colección”.</string>
+    <string name="app_photos_collections_sort_name">Nombre</string>
+    <string name="app_photos_collections_sort_newest">Más recientes primero</string>
     <plurals name="app_photos_copies_all">
         <item quantity="one">Eliminar las %1$s copias</item>
         <item quantity="many">Eliminar las %1$s copias</item>
@@ -231,6 +233,8 @@
         <item quantity="other">%1$s fotos</item>
     </plurals>
     <string name="app_photos_people_slow_text">Las personas están tardando más de lo habitual en cargarse.</string>
+    <string name="app_photos_people_sort_name">Nombre</string>
+    <string name="app_photos_people_sort_photos">Más fotos</string>
     <string name="app_photos_person_move_failed">No se han podido mover. Vuelve a intentarlo.</string>
     <string name="app_photos_person_move_none">Aún no se ha encontrado a nadie más.</string>
     <plurals name="app_photos_person_move_title">
@@ -299,6 +303,7 @@
     <string name="app_photos_smart_search_failed">La Búsqueda inteligente no está disponible ahora mismo.</string>
     <string name="app_photos_smart_search_reading">Tu dispositivo aún está conociendo tus fotos…</string>
     <string name="app_photos_smart_search_search_for">Buscar fotos de “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
+    <string name="app_photos_sort_by">Ordenar por</string>
     <string name="app_photos_viewer_delete">Eliminar foto</string>
     <string name="app_photos_viewer_delete_title">¿Eliminar esta foto?</string>
     <string name="app_photos_viewer_delete_video">Eliminar vídeo</string>

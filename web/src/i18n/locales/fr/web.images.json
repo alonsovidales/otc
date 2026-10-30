@@ -32,6 +32,8 @@
   "web.images.collections.failed": "Impossible de charger vos collections",
   "web.images.collections.loading": "Chargement des collections",
   "web.images.collections.slow": "Le chargement de vos collections prend plus de temps que d’habitude.",
+  "web.images.collections.sort_name": "Nom",
+  "web.images.collections.sort_newest": "Plus récents d'abord",
   "web.images.collections.title": "Collections",
   "web.images.collections.untitled": "Collection sans nom",
   "web.images.copies.all": {
@@ -244,6 +246,8 @@
   },
   "web.images.people.selected": "Personnes sélectionnées",
   "web.images.people.slow": "Le chargement des personnes prend plus de temps que d’habitude.",
+  "web.images.people.sort_name": "Nom",
+  "web.images.people.sort_photos": "Le plus de photos",
   "web.images.people.title": "Personnes",
   "web.images.people.will_be_called": "La personne fusionnée s’appellera \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e.",
   "web.images.person.more": {
@@ -375,6 +379,7 @@
   "web.images.share.zip_tab": "Préparation du ZIP… Le téléchargement démarrera ici dès qu’il sera prêt.",
   "web.images.smart_search.failed": "La Recherche intelligente n’est pas disponible pour le moment.",
   "web.images.smart_search.reading": "Votre appareil apprend encore à connaître vos photos…",
+  "web.images.sort_by": "Trier par",
   "web.images.trim.end": "Fin de l’extrait",
   "web.images.trim.keeping": "Extrait conservé : \u003cb\u003e{kept}\u003c/b\u003e sur {total}",
   "web.images.trim.play": "Lire l’extrait",

@@ -23,6 +23,8 @@
     <string name="app_photos_collections_remove_needs_update">Dein Gerät braucht ein Update, um Fotos aus einer Sammlung zu entfernen.</string>
     <string name="app_photos_collections_rename">Sammlung umbenennen</string>
     <string name="app_photos_collections_sheet_empty">Noch keine Sammlungen – wähle Fotos aus und tippe auf „Zur Sammlung hinzufügen“.</string>
+    <string name="app_photos_collections_sort_name">Name</string>
+    <string name="app_photos_collections_sort_newest">Neueste zuerst</string>
     <plurals name="app_photos_copies_all">
         <item quantity="one">Alle %1$s Kopien löschen</item>
         <item quantity="other">Alle %1$s Kopien löschen</item>
@@ -210,6 +212,8 @@
         <item quantity="other">%1$s Fotos</item>
     </plurals>
     <string name="app_photos_people_slow_text">Die Personen brauchen länger als sonst zum Laden.</string>
+    <string name="app_photos_people_sort_name">Name</string>
+    <string name="app_photos_people_sort_photos">Meiste Fotos</string>
     <string name="app_photos_person_move_failed">Sie konnten nicht verschoben werden. Versuche es erneut.</string>
     <string name="app_photos_person_move_none">Noch niemand anderes gefunden.</string>
     <plurals name="app_photos_person_move_title">
@@ -269,6 +273,7 @@
     <string name="app_photos_smart_search_failed">Intelligente Suche ist gerade nicht verfügbar.</string>
     <string name="app_photos_smart_search_reading">Dein Gerät lernt deine Fotos noch kennen…</string>
     <string name="app_photos_smart_search_search_for">Fotos nach „&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;“ durchsuchen</string>
+    <string name="app_photos_sort_by">Sortieren nach</string>
     <string name="app_photos_viewer_delete">Foto löschen</string>
     <string name="app_photos_viewer_delete_title">Dieses Foto löschen?</string>
     <string name="app_photos_viewer_delete_video">Video löschen</string>

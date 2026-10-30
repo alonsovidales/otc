@@ -123,6 +123,14 @@
     "text": "Het laden van je collecties duurt langer dan normaal.",
     "en": "Your collections are taking longer than usual to load."
   },
+  "web.images.collections.sort_name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "web.images.collections.sort_newest": {
+    "text": "Nieuwste eerst",
+    "en": "Newest first"
+  },
   "web.images.collections.title": {
     "text": "Collecties",
     "en": "Collections"
@@ -787,6 +795,14 @@
     "text": "Het laden van personen duurt langer dan normaal.",
     "en": "People are taking longer than usual to load."
   },
+  "web.images.people.sort_name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "web.images.people.sort_photos": {
+    "text": "Meeste foto’s",
+    "en": "Most photos"
+  },
   "web.images.people.title": {
     "text": "Personen",
     "en": "People"
@@ -1203,6 +1219,10 @@
   "web.images.smart_search.reading": {
     "text": "Je apparaat leert je foto’s nog kennen…",
     "en": "Your device is still getting to know your photos…"
+  },
+  "web.images.sort_by": {
+    "text": "Sorteren op",
+    "en": "Sort by"
   },
   "web.images.trim.end": {
     "text": "Einde van het fragment",

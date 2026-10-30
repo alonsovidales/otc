@@ -32,6 +32,8 @@
   "web.images.collections.failed": "Kan je collecties niet laden",
   "web.images.collections.loading": "Collecties laden",
   "web.images.collections.slow": "Het laden van je collecties duurt langer dan normaal.",
+  "web.images.collections.sort_name": "Naam",
+  "web.images.collections.sort_newest": "Nieuwste eerst",
   "web.images.collections.title": "Collecties",
   "web.images.collections.untitled": "Naamloze collectie",
   "web.images.copies.all": {
@@ -244,6 +246,8 @@
   },
   "web.images.people.selected": "Geselecteerde personen",
   "web.images.people.slow": "Het laden van personen duurt langer dan normaal.",
+  "web.images.people.sort_name": "Naam",
+  "web.images.people.sort_photos": "Meeste foto’s",
   "web.images.people.title": "Personen",
   "web.images.people.will_be_called": "De samengevoegde persoon gaat \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e heten.",
   "web.images.person.more": {
@@ -375,6 +379,7 @@
   "web.images.share.zip_tab": "De ZIP wordt voorbereid… De download begint hier zodra die klaar is.",
   "web.images.smart_search.failed": "Slim zoeken is nu niet beschikbaar.",
   "web.images.smart_search.reading": "Je apparaat leert je foto’s nog kennen…",
+  "web.images.sort_by": "Sorteren op",
   "web.images.trim.end": "Einde van het fragment",
   "web.images.trim.keeping": "\u003cb\u003e{kept}\u003c/b\u003e van {total} behouden",
   "web.images.trim.play": "Fragment afspelen",

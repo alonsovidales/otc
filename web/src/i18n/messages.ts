@@ -281,6 +281,8 @@ export type MessageKey =
   | "web.images.collections.failed"
   | "web.images.collections.loading"
   | "web.images.collections.slow"
+  | "web.images.collections.sort_name"
+  | "web.images.collections.sort_newest"
   | "web.images.collections.title"
   | "web.images.collections.untitled"
   | "web.images.copies.all"
@@ -411,6 +413,8 @@ export type MessageKey =
   | "web.images.people.select_unnamed"
   | "web.images.people.selected"
   | "web.images.people.slow"
+  | "web.images.people.sort_name"
+  | "web.images.people.sort_photos"
   | "web.images.people.title"
   | "web.images.person.more"
   | "web.images.person.move_failed"
@@ -497,6 +501,7 @@ export type MessageKey =
   | "web.images.share.zip_tab"
   | "web.images.smart_search.failed"
   | "web.images.smart_search.reading"
+  | "web.images.sort_by"
   | "web.images.trim.end"
   | "web.images.trim.play"
   | "web.images.trim.reading"
@@ -1390,6 +1395,8 @@ export interface MessageArgs {
   "web.images.collections.failed": undefined;
   "web.images.collections.loading": undefined;
   "web.images.collections.slow": undefined;
+  "web.images.collections.sort_name": undefined;
+  "web.images.collections.sort_newest": undefined;
   "web.images.collections.title": undefined;
   "web.images.collections.untitled": undefined;
   "web.images.copies.all": { count: number };
@@ -1522,6 +1529,8 @@ export interface MessageArgs {
   "web.images.people.select_unnamed": { count: number };
   "web.images.people.selected": undefined;
   "web.images.people.slow": undefined;
+  "web.images.people.sort_name": undefined;
+  "web.images.people.sort_photos": undefined;
   "web.images.people.title": undefined;
   "web.images.people.will_be_called": { name: string };
   "web.images.person.more": { first: string; second: string; count: number };
@@ -1609,6 +1618,7 @@ export interface MessageArgs {
   "web.images.share.zip_tab": undefined;
   "web.images.smart_search.failed": undefined;
   "web.images.smart_search.reading": undefined;
+  "web.images.sort_by": undefined;
   "web.images.trim.end": undefined;
   "web.images.trim.keeping": { kept: string; total: string };
   "web.images.trim.play": undefined;

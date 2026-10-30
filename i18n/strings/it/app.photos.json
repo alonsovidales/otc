@@ -68,6 +68,14 @@
     "text": "Non ci sono ancora raccolte: seleziona alcune foto e scegli “Aggiungi a una raccolta”.",
     "en": "No collections yet — select some pictures and choose Add to collection."
   },
+  "app.photos.collections.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.photos.collections.sort_newest": {
+    "text": "Prima i più recenti",
+    "en": "Newest first"
+  },
   "app.photos.copies.all": {
     "text": {
       "one": "Elimina tutte le {count} copie",
@@ -721,6 +729,14 @@
     "text": "Il caricamento delle persone sta richiedendo più tempo del solito.",
     "en": "People are taking longer than usual to load."
   },
+  "app.photos.people.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.photos.people.sort_photos": {
+    "text": "Più foto",
+    "en": "Most photos"
+  },
   "app.photos.person.move_failed": {
     "text": "Impossibile spostarle. Riprova.",
     "en": "Couldn't move them. Try again."
@@ -903,6 +919,10 @@
   "app.photos.smart_search.search_for": {
     "text": "Cerca foto di “<b>{text}</b>”",
     "en": "Search photos for “<b>{text}</b>”"
+  },
+  "app.photos.sort_by": {
+    "text": "Ordina per",
+    "en": "Sort by"
   },
   "app.photos.viewer.delete": {
     "text": "Elimina foto",

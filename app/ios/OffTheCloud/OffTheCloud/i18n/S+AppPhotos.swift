@@ -77,6 +77,16 @@ extension S {
     /// In the list of collections opened from Images' Collections button (on a phone held upright) when there is none. Add to collection is the name of the selection bar's item (app.shell.add_to_collection): use the same words.
     static var appPhotosCollectionsSheetEmpty: String { L("app.photos.collections.sheet_empty", table: "AppPhotos") }
 
+    /// Name
+    ///
+    /// In Collections' Sort by menu: by name, A to Z.
+    static var appPhotosCollectionsSortName: String { L("app.photos.collections.sort_name", table: "AppPhotos") }
+
+    /// Newest first
+    ///
+    /// In Collections' Sort by menu: the collections made most recently first (the default).
+    static var appPhotosCollectionsSortNewest: String { L("app.photos.collections.sort_newest", table: "AppPhotos") }
+
     /// one: Delete all {count} copies
     /// other: Delete all {count} copies
     ///
@@ -850,6 +860,16 @@ extension S {
     /// Under the heading Still waiting for your device (app.shell.collections_slow_title), on the People page after 10 seconds without an answer; a Try again button follows.
     static var appPhotosPeopleSlowText: String { L("app.photos.people.slow_text", table: "AppPhotos") }
 
+    /// Name
+    ///
+    /// In People's Sort by menu: by name, A to Z; people without a name come last.
+    static var appPhotosPeopleSortName: String { L("app.photos.people.sort_name", table: "AppPhotos") }
+
+    /// Most photos
+    ///
+    /// In People's Sort by menu: the people with the most photos first (the order the device gives, and the default).
+    static var appPhotosPeopleSortPhotos: String { L("app.photos.people.sort_photos", table: "AppPhotos") }
+
     /// Couldn't move them. Try again.
     ///
     /// Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person).
@@ -1044,6 +1064,11 @@ extension S {
     static func appPhotosSmartSearchSearchFor(text: String, b: AttributeContainer) -> AttributedString {
         LRich("app.photos.smart_search.search_for", table: "AppPhotos", tags: ["b": b], [.text(L10n.isolate(text))])
     }
+
+    /// Sort by
+    ///
+    /// Title of the menu that picks the order of the People and Collections pages.
+    static var appPhotosSortBy: String { L("app.photos.sort_by", table: "AppPhotos") }
 
     /// Delete Photo
     ///

@@ -68,6 +68,14 @@
     "text": "Ainda não há coleções: seleciona algumas fotos e escolhe «Adicionar a uma coleção».",
     "en": "No collections yet — select some pictures and choose Add to collection."
   },
+  "app.photos.collections.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.photos.collections.sort_newest": {
+    "text": "Mais recentes primeiro",
+    "en": "Newest first"
+  },
   "app.photos.copies.all": {
     "text": {
       "one": "Eliminar as {count} cópias",
@@ -721,6 +729,14 @@
     "text": "As pessoas estão a demorar mais do que o habitual a carregar.",
     "en": "People are taking longer than usual to load."
   },
+  "app.photos.people.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.photos.people.sort_photos": {
+    "text": "Mais fotos",
+    "en": "Most photos"
+  },
   "app.photos.person.move_failed": {
     "text": "Não foi possível movê-las. Tenta novamente.",
     "en": "Couldn't move them. Try again."
@@ -903,6 +919,10 @@
   "app.photos.smart_search.search_for": {
     "text": "Pesquisar fotos de «<b>{text}</b>»",
     "en": "Search photos for “<b>{text}</b>”"
+  },
+  "app.photos.sort_by": {
+    "text": "Ordenar por",
+    "en": "Sort by"
   },
   "app.photos.viewer.delete": {
     "text": "Eliminar foto",

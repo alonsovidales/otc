@@ -32,6 +32,8 @@
   "web.images.collections.failed": "Couldn't load your collections",
   "web.images.collections.loading": "Loading collections",
   "web.images.collections.slow": "Your collections are taking longer than usual to load.",
+  "web.images.collections.sort_name": "Name",
+  "web.images.collections.sort_newest": "Newest first",
   "web.images.collections.title": "Collections",
   "web.images.collections.untitled": "Untitled collection",
   "web.images.copies.all": {
@@ -244,6 +246,8 @@
   },
   "web.images.people.selected": "Selected people",
   "web.images.people.slow": "People are taking longer than usual to load.",
+  "web.images.people.sort_name": "Name",
+  "web.images.people.sort_photos": "Most photos",
   "web.images.people.title": "People",
   "web.images.people.will_be_called": "The merged person will be called \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e.",
   "web.images.person.more": {
@@ -375,6 +379,7 @@
   "web.images.share.zip_tab": "Preparing the ZIP… It downloads from here once it's ready.",
   "web.images.smart_search.failed": "Smart search isn't available right now.",
   "web.images.smart_search.reading": "Your device is still getting to know your photos…",
+  "web.images.sort_by": "Sort by",
   "web.images.trim.end": "End of the cut",
   "web.images.trim.keeping": "Keeping \u003cb\u003e{kept}\u003c/b\u003e of {total}",
   "web.images.trim.play": "Play cut",

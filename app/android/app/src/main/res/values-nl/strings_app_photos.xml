@@ -23,6 +23,8 @@
     <string name="app_photos_collections_remove_needs_update">Je apparaat heeft een update nodig om foto’s uit een collectie te halen.</string>
     <string name="app_photos_collections_rename">Naam van collectie wijzigen</string>
     <string name="app_photos_collections_sheet_empty">Nog geen collecties: selecteer wat foto’s en kies “Toevoegen aan collectie”.</string>
+    <string name="app_photos_collections_sort_name">Naam</string>
+    <string name="app_photos_collections_sort_newest">Nieuwste eerst</string>
     <plurals name="app_photos_copies_all">
         <item quantity="one">Alle %1$s kopieën verwijderen</item>
         <item quantity="other">Alle %1$s kopieën verwijderen</item>
@@ -210,6 +212,8 @@
         <item quantity="other">%1$s foto’s</item>
     </plurals>
     <string name="app_photos_people_slow_text">Het laden van personen duurt langer dan normaal.</string>
+    <string name="app_photos_people_sort_name">Naam</string>
+    <string name="app_photos_people_sort_photos">Meeste foto’s</string>
     <string name="app_photos_person_move_failed">Ze konden niet worden verplaatst. Probeer het opnieuw.</string>
     <string name="app_photos_person_move_none">Er is nog niemand anders gevonden.</string>
     <plurals name="app_photos_person_move_title">
@@ -269,6 +273,7 @@
     <string name="app_photos_smart_search_failed">Slim zoeken is nu niet beschikbaar.</string>
     <string name="app_photos_smart_search_reading">Je apparaat leert je foto’s nog kennen…</string>
     <string name="app_photos_smart_search_search_for">Foto’s zoeken op “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
+    <string name="app_photos_sort_by">Sorteren op</string>
     <string name="app_photos_viewer_delete">Foto verwijderen</string>
     <string name="app_photos_viewer_delete_title">Deze foto verwijderen?</string>
     <string name="app_photos_viewer_delete_video">Video verwijderen</string>

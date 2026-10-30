@@ -123,6 +123,14 @@
     "text": "As tuas coleções estão a demorar mais do que o habitual a carregar.",
     "en": "Your collections are taking longer than usual to load."
   },
+  "web.images.collections.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "web.images.collections.sort_newest": {
+    "text": "Mais recentes primeiro",
+    "en": "Newest first"
+  },
   "web.images.collections.title": {
     "text": "Coleções",
     "en": "Collections"
@@ -787,6 +795,14 @@
     "text": "As pessoas estão a demorar mais do que o habitual a carregar.",
     "en": "People are taking longer than usual to load."
   },
+  "web.images.people.sort_name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "web.images.people.sort_photos": {
+    "text": "Mais fotos",
+    "en": "Most photos"
+  },
   "web.images.people.title": {
     "text": "Pessoas",
     "en": "People"
@@ -1203,6 +1219,10 @@
   "web.images.smart_search.reading": {
     "text": "O teu dispositivo ainda está a conhecer as tuas fotos…",
     "en": "Your device is still getting to know your photos…"
+  },
+  "web.images.sort_by": {
+    "text": "Ordenar por",
+    "en": "Sort by"
   },
   "web.images.trim.end": {
     "text": "Fim do corte",

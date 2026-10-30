@@ -22,6 +22,8 @@
     <string name="app_photos_collections_remove_needs_update">Your device needs an update to remove photos from a collection.</string>
     <string name="app_photos_collections_rename">Rename collection</string>
     <string name="app_photos_collections_sheet_empty">No collections yet — select some pictures and choose Add to collection.</string>
+    <string name="app_photos_collections_sort_name">Name</string>
+    <string name="app_photos_collections_sort_newest">Newest first</string>
     <plurals name="app_photos_copies_all">
         <item quantity="one">Delete all %1$s copies</item>
         <item quantity="other">Delete all %1$s copies</item>
@@ -209,6 +211,8 @@
         <item quantity="other">%1$s photos</item>
     </plurals>
     <string name="app_photos_people_slow_text">People are taking longer than usual to load.</string>
+    <string name="app_photos_people_sort_name">Name</string>
+    <string name="app_photos_people_sort_photos">Most photos</string>
     <string name="app_photos_person_move_failed">Couldn\'t move them. Try again.</string>
     <string name="app_photos_person_move_none">No one else has been found yet.</string>
     <plurals name="app_photos_person_move_title">
@@ -268,6 +272,7 @@
     <string name="app_photos_smart_search_failed">Smart search isn\'t available right now.</string>
     <string name="app_photos_smart_search_reading">Your device is still getting to know your photos…</string>
     <string name="app_photos_smart_search_search_for">Search photos for “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
+    <string name="app_photos_sort_by">Sort by</string>
     <string name="app_photos_viewer_delete">Delete Photo</string>
     <string name="app_photos_viewer_delete_title">Delete this photo?</string>
     <string name="app_photos_viewer_delete_video">Delete Video</string>

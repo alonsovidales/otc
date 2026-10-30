@@ -54,6 +54,14 @@ fun S.appPhotosCollectionsRename(): UiText =
 fun S.appPhotosCollectionsSheetEmpty(): UiText =
     UiText.Res(R.string.app_photos_collections_sheet_empty)
 
+/** "Name": In Collections' Sort by menu: by name, A to Z. */
+fun S.appPhotosCollectionsSortName(): UiText =
+    UiText.Res(R.string.app_photos_collections_sort_name)
+
+/** "Newest first": In Collections' Sort by menu: the collections made most recently first (the default). */
+fun S.appPhotosCollectionsSortNewest(): UiText =
+    UiText.Res(R.string.app_photos_collections_sort_newest)
+
 /** "Delete all {count} copies" (one: "Delete all {count} copies"): Button of the confirmation app.photos.copies.single_text: deletes every copy of the photo or video from the device, in every folder (also from computers and phones that sync those folders). {count} is how many copies: always 2 or more, so both forms are the plural. */
 fun S.appPhotosCopiesAll(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_copies_all, count, listOf(count))
@@ -586,6 +594,14 @@ fun S.appPhotosPeoplePhotoCount(count: Int): UiText =
 fun S.appPhotosPeopleSlowText(): UiText =
     UiText.Res(R.string.app_photos_people_slow_text)
 
+/** "Name": In People's Sort by menu: by name, A to Z; people without a name come last. */
+fun S.appPhotosPeopleSortName(): UiText =
+    UiText.Res(R.string.app_photos_people_sort_name)
+
+/** "Most photos": In People's Sort by menu: the people with the most photos first (the order the device gives, and the default). */
+fun S.appPhotosPeopleSortPhotos(): UiText =
+    UiText.Res(R.string.app_photos_people_sort_photos)
+
 /** "Couldn't move them. Try again.": Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person). */
 fun S.appPhotosPersonMoveFailed(): UiText =
     UiText.Res(R.string.app_photos_person_move_failed)
@@ -713,6 +729,10 @@ fun S.appPhotosSmartSearchReading(): UiText =
 /** "Search photos for “<b>{text}</b>”": Row of the search's suggestions while Smart search is on: finds the photos that best match what was typed, as a description ("kids in the snow"), within the chips already in the search. {text} is what was typed. Write the quotes in your language's style, as app.photos.search.documents. Tags: b. */
 fun S.appPhotosSmartSearchSearchFor(text: String): RichText =
     RichText.Res(R.string.app_photos_smart_search_search_for, listOf(text))
+
+/** "Sort by": Title of the menu that picks the order of the People and Collections pages. */
+fun S.appPhotosSortBy(): UiText =
+    UiText.Res(R.string.app_photos_sort_by)
 
 /** "Delete Photo": Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. A video has its own: app.photos.viewer.delete_video. */
 fun S.appPhotosViewerDelete(): UiText =

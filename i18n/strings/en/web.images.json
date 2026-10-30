@@ -140,6 +140,16 @@
     "text": "Your collections are taking longer than usual to load.",
     "note": "Text under web.images.load.waiting on the Collections page when the list takes more than 10 seconds."
   },
+  "web.images.collections.sort_name": {
+    "text": "Name",
+    "note": "In Collections' Sort by menu: by name, A to Z. The phones' app.photos.collections.sort_name.",
+    "max": 30
+  },
+  "web.images.collections.sort_newest": {
+    "text": "Newest first",
+    "note": "In Collections' Sort by menu: the collections made most recently first (the default). The phones' app.photos.collections.sort_newest.",
+    "max": 30
+  },
   "web.images.collections.title": {
     "text": "Collections",
     "note": "Title of the Collections page (the user's groups of photos), and the back link over an open collection in Images that returns there. Same word as the menu item.",
@@ -853,6 +863,16 @@
     "text": "People are taking longer than usual to load.",
     "note": "Text under web.images.load.waiting on the People page when the list takes more than 10 seconds."
   },
+  "web.images.people.sort_name": {
+    "text": "Name",
+    "note": "In People's Sort by menu: by name, A to Z; people without a name come last. The phones' app.photos.people.sort_name.",
+    "max": 30
+  },
+  "web.images.people.sort_photos": {
+    "text": "Most photos",
+    "note": "In People's Sort by menu: the people with the most photos first (the order the device gives, and the default). The phones' app.photos.people.sort_photos.",
+    "max": 30
+  },
   "web.images.people.title": {
     "text": "People",
     "note": "Title of the People page: the faces face recognition found in the photos. Same word as the menu item.",
@@ -1292,6 +1312,11 @@
     "text": "Your device is still getting to know your photos…",
     "note": "Quiet note over the photos a Smart search (a search by description) found, while the device is still describing the photos it held before Smart search was turned on: some may be missing for now.",
     "max": 70
+  },
+  "web.images.sort_by": {
+    "text": "Sort by",
+    "note": "Title of the menu that picks the order of the People and Collections pages. The phones' app.photos.sort_by.",
+    "max": 30
   },
   "web.images.trim.end": {
     "text": "End of the cut",

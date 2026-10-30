@@ -123,6 +123,14 @@
     "text": "Le chargement de vos collections prend plus de temps que d’habitude.",
     "en": "Your collections are taking longer than usual to load."
   },
+  "web.images.collections.sort_name": {
+    "text": "Nom",
+    "en": "Name"
+  },
+  "web.images.collections.sort_newest": {
+    "text": "Plus récents d'abord",
+    "en": "Newest first"
+  },
   "web.images.collections.title": {
     "text": "Collections",
     "en": "Collections"
@@ -787,6 +795,14 @@
     "text": "Le chargement des personnes prend plus de temps que d’habitude.",
     "en": "People are taking longer than usual to load."
   },
+  "web.images.people.sort_name": {
+    "text": "Nom",
+    "en": "Name"
+  },
+  "web.images.people.sort_photos": {
+    "text": "Le plus de photos",
+    "en": "Most photos"
+  },
   "web.images.people.title": {
     "text": "Personnes",
     "en": "People"
@@ -1203,6 +1219,10 @@
   "web.images.smart_search.reading": {
     "text": "Votre appareil apprend encore à connaître vos photos…",
     "en": "Your device is still getting to know your photos…"
+  },
+  "web.images.sort_by": {
+    "text": "Trier par",
+    "en": "Sort by"
   },
   "web.images.trim.end": {
     "text": "Fin de l’extrait",

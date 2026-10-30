@@ -68,6 +68,14 @@
     "text": "Nog geen collecties: selecteer wat foto’s en kies “Toevoegen aan collectie”.",
     "en": "No collections yet — select some pictures and choose Add to collection."
   },
+  "app.photos.collections.sort_name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "app.photos.collections.sort_newest": {
+    "text": "Nieuwste eerst",
+    "en": "Newest first"
+  },
   "app.photos.copies.all": {
     "text": {
       "one": "Alle {count} kopieën verwijderen",
@@ -721,6 +729,14 @@
     "text": "Het laden van personen duurt langer dan normaal.",
     "en": "People are taking longer than usual to load."
   },
+  "app.photos.people.sort_name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "app.photos.people.sort_photos": {
+    "text": "Meeste foto’s",
+    "en": "Most photos"
+  },
   "app.photos.person.move_failed": {
     "text": "Ze konden niet worden verplaatst. Probeer het opnieuw.",
     "en": "Couldn't move them. Try again."
@@ -903,6 +919,10 @@
   "app.photos.smart_search.search_for": {
     "text": "Foto’s zoeken op “<b>{text}</b>”",
     "en": "Search photos for “<b>{text}</b>”"
+  },
+  "app.photos.sort_by": {
+    "text": "Sorteren op",
+    "en": "Sort by"
   },
   "app.photos.viewer.delete": {
     "text": "Foto verwijderen",

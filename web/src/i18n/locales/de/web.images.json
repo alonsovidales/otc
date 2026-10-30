@@ -32,6 +32,8 @@
   "web.images.collections.failed": "Deine Sammlungen konnten nicht geladen werden",
   "web.images.collections.loading": "Sammlungen werden geladen",
   "web.images.collections.slow": "Deine Sammlungen brauchen länger als sonst zum Laden.",
+  "web.images.collections.sort_name": "Name",
+  "web.images.collections.sort_newest": "Neueste zuerst",
   "web.images.collections.title": "Sammlungen",
   "web.images.collections.untitled": "Unbenannte Sammlung",
   "web.images.copies.all": {
@@ -244,6 +246,8 @@
   },
   "web.images.people.selected": "Ausgewählte Personen",
   "web.images.people.slow": "Die Personen brauchen länger als sonst zum Laden.",
+  "web.images.people.sort_name": "Name",
+  "web.images.people.sort_photos": "Meiste Fotos",
   "web.images.people.title": "Personen",
   "web.images.people.will_be_called": "Die zusammengeführte Person heißt \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e.",
   "web.images.person.more": {
@@ -375,6 +379,7 @@
   "web.images.share.zip_tab": "ZIP-Datei wird vorbereitet… Der Download startet hier, sobald sie fertig ist.",
   "web.images.smart_search.failed": "Intelligente Suche ist gerade nicht verfügbar.",
   "web.images.smart_search.reading": "Dein Gerät lernt deine Fotos noch kennen…",
+  "web.images.sort_by": "Sortieren nach",
   "web.images.trim.end": "Ende des Ausschnitts",
   "web.images.trim.keeping": "Behalten: \u003cb\u003e{kept}\u003c/b\u003e von {total}",
   "web.images.trim.play": "Ausschnitt abspielen",

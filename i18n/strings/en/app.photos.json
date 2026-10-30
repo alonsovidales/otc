@@ -72,6 +72,16 @@
     "text": "No collections yet — select some pictures and choose Add to collection.",
     "note": "In the list of collections opened from Images' Collections button (on a phone held upright) when there is none. Add to collection is the name of the selection bar's item (app.shell.add_to_collection): use the same words."
   },
+  "app.photos.collections.sort_name": {
+    "text": "Name",
+    "note": "In Collections' Sort by menu: by name, A to Z.",
+    "max": 30
+  },
+  "app.photos.collections.sort_newest": {
+    "text": "Newest first",
+    "note": "In Collections' Sort by menu: the collections made most recently first (the default).",
+    "max": 30
+  },
   "app.photos.copies.all": {
     "text": {
       "one": "Delete all {count} copies",
@@ -793,6 +803,16 @@
     "text": "People are taking longer than usual to load.",
     "note": "Under the heading Still waiting for your device (app.shell.collections_slow_title), on the People page after 10 seconds without an answer; a Try again button follows."
   },
+  "app.photos.people.sort_name": {
+    "text": "Name",
+    "note": "In People's Sort by menu: by name, A to Z; people without a name come last.",
+    "max": 30
+  },
+  "app.photos.people.sort_photos": {
+    "text": "Most photos",
+    "note": "In People's Sort by menu: the people with the most photos first (the order the device gives, and the default).",
+    "max": 30
+  },
   "app.photos.person.move_failed": {
     "text": "Couldn't move them. Try again.",
     "note": "Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person)."
@@ -975,6 +995,11 @@
     "args": [["text", "user"]],
     "note": "Row of the search's suggestions while Smart search is on: finds the photos that best match what was typed, as a description (\"kids in the snow\"), within the chips already in the search. {text} is what was typed. Write the quotes in your language's style, as app.photos.search.documents.",
     "rich": ["b"]
+  },
+  "app.photos.sort_by": {
+    "text": "Sort by",
+    "note": "Title of the menu that picks the order of the People and Collections pages.",
+    "max": 30
   },
   "app.photos.viewer.delete": {
     "text": "Delete Photo",
