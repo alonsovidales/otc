@@ -1377,7 +1377,8 @@ private struct MemoriesSettingsSection: View {
 /// Settings > Smart search: its switch, with a Beta badge. Turning it off
 /// asks first: the device deletes what it learned about the photos. Under
 /// the footer, until the model is on the device (release 152), the download
-/// note or how far its download is (SmartSearchModelLine).
+/// note while the switch is off or how far its download is
+/// (SmartSearchModelLine).
 struct SmartSearchSettingsSection: View {
     @ObservedObject var device: DeviceSettingsViewModel
     @ObservedObject private var support = SmartSearchSupport.shared
@@ -1389,7 +1390,7 @@ struct SmartSearchSettingsSection: View {
             header: Text(S.appSettingsSmartSearchTitle),
             footer: VStack(alignment: .leading, spacing: 8) {
                 Text(S.appSettingsSmartSearchFooter)
-                SmartSearchModelLine(model: support.model)
+                SmartSearchModelLine(model: support.model, on: on)
             }
         ) {
             Toggle(isOn: Binding(

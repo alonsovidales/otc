@@ -100,16 +100,24 @@ struct SmartSearchModelTests {
 
     @Test func whatTheSectionSays() {
         inEnglish {
-            #expect(SmartSearchModelState.ready.words == nil)
+            for on in [false, true] {
+                #expect(SmartSearchModelState.ready.words(on: on) == nil)
+            }
             #expect(SmartSearchModelState.ready.progress == nil)
-            #expect(SmartSearchModelState.missing.words == "Turning it on the first time downloads about 400 MB to your device.")
+            // Missing: the note only while the switch is off. On (by default
+            // since 152) the device is about to fetch it: nothing yet.
+            #expect(SmartSearchModelState.missing.words(on: false)
+                    == "Turning it on the first time downloads about 400 MB to your device.")
+            #expect(SmartSearchModelState.missing.words(on: true) == nil)
             #expect(SmartSearchModelState.missing.progress == nil)
             let going = SmartSearchModelState.downloading(percent: 40, problem: nil)
-            #expect(going.words == "Downloading what it needs… 40%")
+            for on in [false, true] {
+                #expect(going.words(on: on) == "Downloading what it needs… 40%")
+            }
             #expect(going.progress == 0.4)
             // The device's words in its place, the bar where it got to.
             let waiting = SmartSearchModelState.downloading(percent: 40, problem: "Can't reach the download server.")
-            #expect(waiting.words == "Can't reach the download server.")
+            #expect(waiting.words(on: true) == "Can't reach the download server.")
             #expect(waiting.progress == 0.4)
         }
     }

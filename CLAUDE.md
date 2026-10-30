@@ -3237,8 +3237,10 @@ device's words or `smart_failed`; the switch going off drops them as well. The m
 (release 152; Android has the same names): `SmartSearchSupport.model` (`SmartSearchModelState`
 ready / missing / downloading(percent, problem), from the same answers; absent = an older device =
 ready; ready again at Log Out). The row, the Search key and `searchText` need `searchable` (on and
-ready). Under Settings' footer `SmartSearchModelLine` shows `download_note` (missing) or a
-`ProgressView(value:)` and `downloading`, the device's `problem` in its place (downloading): one
+ready). Under Settings' footer `SmartSearchModelLine` shows `download_note` (missing, only while
+the switch is off - on, by default since 152, nothing until the device says it is downloading:
+`words(on:)`, Android's rule) or a `ProgressView(value:)` and `downloading`, the device's `problem` in
+its place (downloading): one
 VoiceOver element, the line as label and, with a problem, `ios.storage_percent` as value; the section
 announces only the start, a problem and the end (`SmartSearchModelState.announcement`, Android's and
 the web's). SettingsView asks `GetSettings` (`refreshSmartSearch`, Smart search's part only) every 3 s

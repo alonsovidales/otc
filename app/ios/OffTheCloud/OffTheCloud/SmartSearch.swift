@@ -30,9 +30,9 @@
 //    - Its model (device release 152): downloaded, about 400 MB, only once
 //      Smart search is first turned on (Settings.smart_search_model; absent
 //      = an older device, which had it: everything as before). Until it is
-//      there Settings says so under the switch - the download note, or a
-//      progress bar asked about again every 3 s while the switch is on and
-//      Settings shows - and the search offers no row; Images' search field
+//      there Settings says so under the switch - the download note while
+//      the switch is off, or a progress bar asked about again every 3 s
+//      while it is on and Settings shows - and the search offers no row; Images' search field
 //      taking the focus asks where it is (at most every 5 s), so the row
 //      comes without a visit to Settings. A search told
 //      smart_search_downloading drops the words as smart_search_unavailable
@@ -78,13 +78,17 @@ enum SmartSearchModelState: Equatable {
         return false
     }
 
-    /// What Settings' section says under its footer: the download note while
-    /// the model isn't there, how far the download is - or the device's
-    /// words for why it waits - while it comes, nothing once it is there.
-    var words: String? {
+    /// What Settings' section says under its footer, with the switch `on`
+    /// or off: the download note while the model isn't there and the switch
+    /// is off (on - by default since release 152 - the device is about to
+    /// fetch it, and "Turning it on the first time…" would be wrong: nothing
+    /// until it says it is downloading); how far the download is - or the
+    /// device's words for why it waits - while it comes; nothing once it is
+    /// there. Android's rule.
+    func words(on: Bool) -> String? {
         switch self {
         case .ready: return nil
-        case .missing: return S.appSettingsSmartSearchDownloadNote
+        case .missing: return on ? nil : S.appSettingsSmartSearchDownloadNote
         case .downloading(let percent, let problem): return problem ?? S.appSettingsSmartSearchDownloading(percent: percent)
         }
     }
@@ -282,16 +286,19 @@ struct SmartSearchLabel: View {
 }
 
 /// Under Smart search's footer in Settings, until its model is on the
-/// device: the download note, or a progress bar with how far the download
-/// is - or, while it waits to try again, the device's words for why.
+/// device: the download note while the switch is off, or a progress bar
+/// with how far the download is - or, while it waits to try again, the
+/// device's words for why.
 /// VoiceOver reads one element with the percentage, taken in when focused;
 /// the section announces only the start, a problem and the end
 /// (SmartSearchModelState.announcement).
 struct SmartSearchModelLine: View {
     let model: SmartSearchModelState
+    /// The switch.
+    let on: Bool
 
     var body: some View {
-        if case .downloading(let percent, let problem) = model, let progress = model.progress, let words = model.words {
+        if case .downloading(let percent, let problem) = model, let progress = model.progress, let words = model.words(on: on) {
             VStack(alignment: .leading, spacing: 6) {
                 ProgressView(value: progress)
                     .progressViewStyle(.linear)
@@ -302,7 +309,7 @@ struct SmartSearchModelLine: View {
             // The device's words carry no number: the percentage follows.
             .accessibilityValue(problem == nil ? "" : S.iosStoragePercent(percent: percent))
             .accessibilityAddTraits(.updatesFrequently)
-        } else if let words = model.words {
+        } else if let words = model.words(on: on) {
             Text(words)
         }
     }
