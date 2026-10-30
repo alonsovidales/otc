@@ -613,7 +613,7 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
       directory (`/var/lib/otc/models/siglip2-base` on a Pi: the service runs `ProtectSystem=full`
       and can't write `/usr`; the container sets it to `$MODELS/siglip2-base` on the state volume, so
       a container made again finds them). `[embedder] model-url` (a fork's release) and
-      `download-kbps` (kilobytes a second: 2048 by default, 0 no cap).
+      `download-kbps` (kilobytes a second: 1024 by default, 0 no cap).
     - `modelfetch.Fetcher` (primary only): plain Go HTTP (30 s to connect, a minute for the
       answer's headers, cut after 2 minutes without a byte - never a limit on the whole transfer),
       each file into `.<name>.part` in the directory, hashed while written, renamed only when it

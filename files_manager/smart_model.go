@@ -40,7 +40,7 @@ import (
 //     the service can't write under /usr.
 //   - From the "models" release on GitHub ([embedder] model-url for a
 //     fork), pinned in smartModelFiles, at [embedder] download-kbps
-//     kilobytes a second (2048 by default; 0 for no cap).
+//     kilobytes a second (1024 by default; 0 for no cap).
 //
 // It is downloaded while any instance has Smart search on: the primary's
 // own switch, or a user's instance asking over the model socket
@@ -69,9 +69,11 @@ const (
 	// cSmartModelDir is where they are downloaded, under the primary's
 	// working directory, unless [embedder] download-dir says otherwise.
 	cSmartModelDir = "models/siglip2-base"
-	// cSmartModelKBps caps the download (kilobytes a second): about 16
-	// Mbit/s, so it never fills a home link.
-	cSmartModelKBps = 2048
+	// cSmartModelKBps caps the download (kilobytes a second): about 8
+	// Mbit/s, about 7 minutes for the whole model. A device on weak Wi-Fi
+	// filled its link with an update's downloads on 2026-10-30, and its
+	// router's DNS stopped answering it.
+	cSmartModelKBps = 1024
 	// cSmartLease: a user's instance that hasn't asked for the model for
 	// this long no longer counts as wanting it.
 	cSmartLease = 5 * time.Minute
