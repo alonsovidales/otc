@@ -1,4 +1,16 @@
 {
+  "app.settings.background.count": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "app.settings.background.footer": {
+    "text": "Tu dispositivo se ocupa de esto por sí solo y hace una pausa mientras subes archivos. Mientras tanto, puedes seguir usándolo.",
+    "en": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile."
+  },
+  "app.settings.background.title": {
+    "text": "Trabajo en segundo plano",
+    "en": "Background work"
+  },
   "app.settings.bridge.account_page": {
     "text": "Página de tu cuenta",
     "en": "Your Account Page"
@@ -552,10 +564,6 @@
   "app.settings.smart_search.beta": {
     "text": "Beta",
     "en": "Beta"
-  },
-  "app.settings.smart_search.describing": {
-    "text": "Conociendo tus fotos… {done} de {total}",
-    "en": "Getting to know your photos… {done} of {total}"
   },
   "app.settings.smart_search.download_note": {
     "text": "La primera vez que la activas, tu dispositivo descarga unos 400 MB.",

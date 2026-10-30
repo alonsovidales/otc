@@ -1,4 +1,7 @@
 {
+  "web.settings.background.count": "{done} von {total}",
+  "web.settings.background.footer": "Dein Gerät erledigt das selbst und pausiert, während du hochlädst. Du kannst es währenddessen weiter nutzen.",
+  "web.settings.background.title": "Arbeit im Hintergrund",
   "web.settings.bridge.code_failed": "Dieser Einrichtungscode hat nicht funktioniert.",
   "web.settings.bridge.continue_apple": "Mit Apple fortfahren",
   "web.settings.bridge.continue_google": "Weiter mit Google",
@@ -127,7 +130,6 @@
   "web.settings.session.signing_out": "Wird abgemeldet…",
   "web.settings.session.title": "Sitzung",
   "web.settings.smart_search.beta": "Beta",
-  "web.settings.smart_search.describing": "Lernt deine Fotos kennen… {done} von {total}",
   "web.settings.smart_search.disable": "Intelligente Suche ausschalten",
   "web.settings.smart_search.download_note": "Wenn du sie zum ersten Mal einschaltest, lädt dein Gerät etwa 400 MB herunter.",
   "web.settings.smart_search.downloading": "Lädt herunter, was sie braucht… {percent} %",

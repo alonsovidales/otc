@@ -6,6 +6,18 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
+/** "{done} of {total}": Under a row of the Background work section in Settings, next to its progress bar: {done} photos or videos dealt with of {total}. */
+fun S.appSettingsBackgroundCount(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_settings_background_count, listOf(done, total))
+
+/** "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile.": Under the Background work section in Settings: the device does this work by itself (after an update, or when a feature is turned on), it gives way to uploads, and the device can be used meanwhile. */
+fun S.appSettingsBackgroundFooter(): UiText =
+    UiText.Res(R.string.app_settings_background_footer)
+
+/** "Background work": Heading of the Settings section listing what the device is working through in the background (Status.background_tasks): one row per piece of work, in the device's own words ("Getting to know your photos"), each with a progress bar. Shown only while there is something. */
+fun S.appSettingsBackgroundTitle(): UiText =
+    UiText.Res(R.string.app_settings_background_title)
+
 /** "Your Account Page": Button in Settings > Bridge and Account that opens the Off The Cloud account page in the browser. */
 fun S.appSettingsBridgeAccountPage(): UiText =
     UiText.Res(R.string.app_settings_bridge_account_page)
@@ -477,10 +489,6 @@ fun S.appSettingsSharingTitle(): UiText =
 /** "Beta": Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word. */
 fun S.appSettingsSmartSearchBeta(): UiText =
     UiText.Res(R.string.app_settings_smart_search_beta)
-
-/** "Getting to know your photos… {done} of {total}": Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading. */
-fun S.appSettingsSmartSearchDescribing(done: Int, total: Int): UiText =
-    UiText.Res(R.string.app_settings_smart_search_describing, listOf(done, total))
 
 /** "Turning it on the first time downloads about 400 MB to your device.": Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed. */
 fun S.appSettingsSmartSearchDownloadNote(): UiText =

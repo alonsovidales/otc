@@ -249,6 +249,34 @@ export interface Status {
    * copied onto. Empty on devices before it.
    */
   mirrorCandidates: MirrorDiskCandidate[];
+  /**
+   * Release 152: what the device is working through in the background for
+   * this library - the passes that read it once after an update or a switch
+   * turned on (thumbnails, places, On this day's measures, Smart search's
+   * descriptions, photo dates) and the analysis of what was uploaded - so
+   * the apps can say how far it is. Empty when there is nothing, and on
+   * older devices. Settings > Reprocess Media keeps its own progress
+   * (GetReprocessStatus) and isn't listed here.
+   */
+  backgroundTasks: BackgroundTask[];
+}
+
+/** One piece of background work (Status.background_tasks). */
+export interface BackgroundTask {
+  /**
+   * Stable name, for the apps to key on (not to show): "analysis" (new
+   * uploads: thumbnails, tags, faces), "thumbnails", "places", "quality"
+   * (On this day), "smart_search", "dates", ... - new kinds may come.
+   */
+  kind: string;
+  /**
+   * What it is doing, in the device's words in the request's language
+   * ("Getting to know your photos"): the apps show it as it comes.
+   */
+  text: string;
+  /** How far: done of total photos or videos; total 0 when not known yet. */
+  done: bigint;
+  total: bigint;
 }
 
 /** A disk Settings offers for the mirror (Status.mirror_candidates). */
@@ -1996,24 +2024,7 @@ export interface Settings {
    * the user's own library; absent means an older device, which had the
    * model or answered "smart_search_unavailable".
    */
-  smartSearchModel?:
-    | SmartSearchModel
-    | undefined;
-  /**
-   * How far the device is in describing the user's photos (release 152).
-   * Set while Smart search is on and its model is ready; described equal to
-   * total means done. Absent on older devices and while it is off or the
-   * model isn't there yet.
-   */
-  smartSearchProgress?: SmartSearchProgress | undefined;
-}
-
-/** Smart search's work on the library (Settings.smart_search_progress). */
-export interface SmartSearchProgress {
-  /** Photos Images may show that have a description. */
-  described: number;
-  /** Photos Images may show: images outside the folders kept out of Images. */
-  total: number;
+  smartSearchModel?: SmartSearchModel | undefined;
 }
 
 /**
@@ -3855,6 +3866,7 @@ function createBaseStatus(): Status {
     language: undefined,
     demo: false,
     mirrorCandidates: [],
+    backgroundTasks: [],
   };
 }
 
@@ -3913,6 +3925,9 @@ export const Status: MessageFns<Status> = {
     }
     for (const v of message.mirrorCandidates) {
       MirrorDiskCandidate.encode(v!, writer.uint32(154).fork()).join();
+    }
+    for (const v of message.backgroundTasks) {
+      BackgroundTask.encode(v!, writer.uint32(162).fork()).join();
     }
     return writer;
   },
@@ -4068,6 +4083,14 @@ export const Status: MessageFns<Status> = {
           message.mirrorCandidates.push(MirrorDiskCandidate.decode(reader, reader.uint32()));
           continue;
         }
+        case 20: {
+          if (tag !== 162) {
+            break;
+          }
+
+          message.backgroundTasks.push(BackgroundTask.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4102,6 +4125,95 @@ export const Status: MessageFns<Status> = {
     message.language = object.language ?? undefined;
     message.demo = object.demo ?? false;
     message.mirrorCandidates = object.mirrorCandidates?.map((e) => MirrorDiskCandidate.fromPartial(e)) || [];
+    message.backgroundTasks = object.backgroundTasks?.map((e) => BackgroundTask.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBackgroundTask(): BackgroundTask {
+  return { kind: "", text: "", done: 0n, total: 0n };
+}
+
+export const BackgroundTask: MessageFns<BackgroundTask> = {
+  encode(message: BackgroundTask, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== "") {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.text !== "") {
+      writer.uint32(18).string(message.text);
+    }
+    if (message.done !== 0n) {
+      if (BigInt.asIntN(64, message.done) !== message.done) {
+        throw new globalThis.Error("value provided for field message.done of type int64 too large");
+      }
+      writer.uint32(24).int64(message.done);
+    }
+    if (message.total !== 0n) {
+      if (BigInt.asIntN(64, message.total) !== message.total) {
+        throw new globalThis.Error("value provided for field message.total of type int64 too large");
+      }
+      writer.uint32(32).int64(message.total);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BackgroundTask {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBackgroundTask();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.kind = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.done = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.total = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<BackgroundTask>, I>>(base?: I): BackgroundTask {
+    return BackgroundTask.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BackgroundTask>, I>>(object: I): BackgroundTask {
+    const message = createBaseBackgroundTask();
+    message.kind = object.kind ?? "";
+    message.text = object.text ?? "";
+    message.done = object.done ?? 0n;
+    message.total = object.total ?? 0n;
     return message;
   },
 };
@@ -12059,7 +12171,6 @@ function createBaseSettings(): Settings {
     memoriesEnabled: undefined,
     smartSearchEnabled: undefined,
     smartSearchModel: undefined,
-    smartSearchProgress: undefined,
   };
 }
 
@@ -12100,9 +12211,6 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.smartSearchModel !== undefined) {
       SmartSearchModel.encode(message.smartSearchModel, writer.uint32(90).fork()).join();
-    }
-    if (message.smartSearchProgress !== undefined) {
-      SmartSearchProgress.encode(message.smartSearchProgress, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -12202,14 +12310,6 @@ export const Settings: MessageFns<Settings> = {
           message.smartSearchModel = SmartSearchModel.decode(reader, reader.uint32());
           continue;
         }
-        case 12: {
-          if (tag !== 98) {
-            break;
-          }
-
-          message.smartSearchProgress = SmartSearchProgress.decode(reader, reader.uint32());
-          continue;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12237,67 +12337,6 @@ export const Settings: MessageFns<Settings> = {
     message.smartSearchModel = (object.smartSearchModel !== undefined && object.smartSearchModel !== null)
       ? SmartSearchModel.fromPartial(object.smartSearchModel)
       : undefined;
-    message.smartSearchProgress = (object.smartSearchProgress !== undefined && object.smartSearchProgress !== null)
-      ? SmartSearchProgress.fromPartial(object.smartSearchProgress)
-      : undefined;
-    return message;
-  },
-};
-
-function createBaseSmartSearchProgress(): SmartSearchProgress {
-  return { described: 0, total: 0 };
-}
-
-export const SmartSearchProgress: MessageFns<SmartSearchProgress> = {
-  encode(message: SmartSearchProgress, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.described !== 0) {
-      writer.uint32(8).int32(message.described);
-    }
-    if (message.total !== 0) {
-      writer.uint32(16).int32(message.total);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SmartSearchProgress {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSmartSearchProgress();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.described = reader.int32();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.total = reader.int32();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  create<I extends Exact<DeepPartial<SmartSearchProgress>, I>>(base?: I): SmartSearchProgress {
-    return SmartSearchProgress.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<SmartSearchProgress>, I>>(object: I): SmartSearchProgress {
-    const message = createBaseSmartSearchProgress();
-    message.described = object.described ?? 0;
-    message.total = object.total ?? 0;
     return message;
   },
 };

@@ -1,4 +1,16 @@
 {
+  "app.settings.background.count": {
+    "text": "{done} sur {total}",
+    "en": "{done} of {total}"
+  },
+  "app.settings.background.footer": {
+    "text": "Votre appareil s’en occupe tout seul et fait une pause pendant vos envois. Vous pouvez continuer à l’utiliser en attendant.",
+    "en": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile."
+  },
+  "app.settings.background.title": {
+    "text": "Tâches en arrière-plan",
+    "en": "Background work"
+  },
   "app.settings.bridge.account_page": {
     "text": "Page de votre compte",
     "en": "Your Account Page"
@@ -552,10 +564,6 @@
   "app.settings.smart_search.beta": {
     "text": "Bêta",
     "en": "Beta"
-  },
-  "app.settings.smart_search.describing": {
-    "text": "Apprend à connaître vos photos… {done} sur {total}",
-    "en": "Getting to know your photos… {done} of {total}"
   },
   "app.settings.smart_search.download_note": {
     "text": "La première fois que vous l’activez, votre appareil télécharge environ 400 Mo.",

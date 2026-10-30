@@ -1,4 +1,7 @@
 {
+  "web.settings.background.count": "{done} de {total}",
+  "web.settings.background.footer": "O teu dispositivo trata disto sozinho e faz uma pausa enquanto carregas ficheiros. Entretanto, podes continuar a usá-lo.",
+  "web.settings.background.title": "Trabalho em segundo plano",
   "web.settings.bridge.code_failed": "Esse código de configuração não funcionou.",
   "web.settings.bridge.continue_apple": "Continuar com a Apple",
   "web.settings.bridge.continue_google": "Continuar com o Google",
@@ -127,7 +130,6 @@
   "web.settings.session.signing_out": "A terminar sessão…",
   "web.settings.session.title": "Sessão",
   "web.settings.smart_search.beta": "Beta",
-  "web.settings.smart_search.describing": "A conhecer as tuas fotos… {done} de {total}",
   "web.settings.smart_search.disable": "Desativar a pesquisa inteligente",
   "web.settings.smart_search.download_note": "Da primeira vez que a ativas, o teu dispositivo transfere cerca de 400 MB.",
   "web.settings.smart_search.downloading": "A transferir o que precisa… {percent}%",

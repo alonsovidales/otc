@@ -1,4 +1,7 @@
 {
+  "web.settings.background.count": "{done} sur {total}",
+  "web.settings.background.footer": "Votre appareil s’en occupe tout seul et fait une pause pendant vos envois. Vous pouvez continuer à l’utiliser en attendant.",
+  "web.settings.background.title": "Tâches en arrière-plan",
   "web.settings.bridge.code_failed": "Ce code de configuration n’a pas fonctionné.",
   "web.settings.bridge.continue_apple": "Continuer avec Apple",
   "web.settings.bridge.continue_google": "Continuer avec Google",
@@ -127,7 +130,6 @@
   "web.settings.session.signing_out": "Déconnexion…",
   "web.settings.session.title": "Session",
   "web.settings.smart_search.beta": "Bêta",
-  "web.settings.smart_search.describing": "Apprend à connaître vos photos… {done} sur {total}",
   "web.settings.smart_search.disable": "Désactiver la recherche intelligente",
   "web.settings.smart_search.download_note": "La première fois que vous l’activez, votre appareil télécharge environ 400 Mo.",
   "web.settings.smart_search.downloading": "Téléchargement de ce dont elle a besoin… {percent} %",

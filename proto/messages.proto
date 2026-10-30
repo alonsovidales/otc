@@ -82,6 +82,28 @@ message Status {
   // has a slot with no working disk - none while a replacement is being
   // copied onto. Empty on devices before it.
   repeated MirrorDiskCandidate mirror_candidates = 19;
+  // Release 152: what the device is working through in the background for
+  // this library - the passes that read it once after an update or a switch
+  // turned on (thumbnails, places, On this day's measures, Smart search's
+  // descriptions, photo dates) and the analysis of what was uploaded - so
+  // the apps can say how far it is. Empty when there is nothing, and on
+  // older devices. Settings > Reprocess Media keeps its own progress
+  // (GetReprocessStatus) and isn't listed here.
+  repeated BackgroundTask background_tasks = 20;
+}
+
+// One piece of background work (Status.background_tasks).
+message BackgroundTask {
+  // Stable name, for the apps to key on (not to show): "analysis" (new
+  // uploads: thumbnails, tags, faces), "thumbnails", "places", "quality"
+  // (On this day), "smart_search", "dates", ... - new kinds may come.
+  string kind = 1;
+  // What it is doing, in the device's words in the request's language
+  // ("Getting to know your photos"): the apps show it as it comes.
+  string text = 2;
+  // How far: done of total photos or videos; total 0 when not known yet.
+  int64 done = 3;
+  int64 total = 4;
 }
 
 // A disk Settings offers for the mirror (Status.mirror_candidates).
@@ -1517,19 +1539,6 @@ message Settings {
   // the user's own library; absent means an older device, which had the
   // model or answered "smart_search_unavailable".
   optional SmartSearchModel smart_search_model = 11;
-  // How far the device is in describing the user's photos (release 152).
-  // Set while Smart search is on and its model is ready; described equal to
-  // total means done. Absent on older devices and while it is off or the
-  // model isn't there yet.
-  optional SmartSearchProgress smart_search_progress = 12;
-}
-
-// Smart search's work on the library (Settings.smart_search_progress).
-message SmartSearchProgress {
-  // Photos Images may show that have a description.
-  int32 described = 1;
-  // Photos Images may show: images outside the folders kept out of Images.
-  int32 total = 2;
 }
 
 // Where Smart search's model is (Settings.smart_search_model). Neither ready

@@ -1,4 +1,18 @@
 {
+  "web.settings.background.count": {
+    "text": "{done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Under a row of the Background work section in Settings, next to its progress bar: {done} photos or videos dealt with of {total}. The phones' app.settings.background.count."
+  },
+  "web.settings.background.footer": {
+    "text": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile.",
+    "note": "Under the Background work section in Settings: the device does this work by itself (after an update, or when a feature is turned on), it gives way to uploads, and the device can be used meanwhile. The phones' app.settings.background.footer."
+  },
+  "web.settings.background.title": {
+    "text": "Background work",
+    "note": "Heading of the Settings section listing what the device is working through in the background (Status.background_tasks): one row per piece of work, in the device's own words (\"Getting to know your photos\"), each with a progress bar. Shown only while there is something. The phones' app.settings.background.title.",
+    "max": 30
+  },
   "web.settings.bridge.code_failed": {
     "text": "That setup code didn't work.",
     "note": "Error in Settings > Bridge access when the device could not use a setup code (pasted, or brought back from Apple or Google sign-in) and gave no reason."
@@ -609,11 +623,6 @@
     "text": "Beta",
     "note": "Small badge beside the Smart search heading in Settings: the feature is still being tried out.",
     "max": 8
-  },
-  "web.settings.smart_search.describing": {
-    "text": "Getting to know your photos… {done} of {total}",
-    "args": [["done", "int"], ["total", "int"]],
-    "note": "Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading. The phones' app.settings.smart_search.describing."
   },
   "web.settings.smart_search.disable": {
     "text": "Disable Smart search",

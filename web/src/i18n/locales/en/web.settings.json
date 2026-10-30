@@ -1,4 +1,7 @@
 {
+  "web.settings.background.count": "{done} of {total}",
+  "web.settings.background.footer": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile.",
+  "web.settings.background.title": "Background work",
   "web.settings.bridge.code_failed": "That setup code didn't work.",
   "web.settings.bridge.continue_apple": "Continue with Apple",
   "web.settings.bridge.continue_google": "Continue with Google",
@@ -127,7 +130,6 @@
   "web.settings.session.signing_out": "Signing out…",
   "web.settings.session.title": "Session",
   "web.settings.smart_search.beta": "Beta",
-  "web.settings.smart_search.describing": "Getting to know your photos… {done} of {total}",
   "web.settings.smart_search.disable": "Disable Smart search",
   "web.settings.smart_search.download_note": "Turning it on the first time downloads about 400 MB to your device.",
   "web.settings.smart_search.downloading": "Downloading what it needs… {percent}%",

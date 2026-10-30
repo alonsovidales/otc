@@ -531,6 +531,9 @@ export type MessageKey =
   | "web.images.viewer.stalled"
   | "web.images.viewer.stalled_hint"
   | "web.images.viewer.taken"
+  | "web.settings.background.count"
+  | "web.settings.background.footer"
+  | "web.settings.background.title"
   | "web.settings.bridge.code_failed"
   | "web.settings.bridge.continue_apple"
   | "web.settings.bridge.continue_google"
@@ -646,7 +649,6 @@ export type MessageKey =
   | "web.settings.session.signing_out"
   | "web.settings.session.title"
   | "web.settings.smart_search.beta"
-  | "web.settings.smart_search.describing"
   | "web.settings.smart_search.disable"
   | "web.settings.smart_search.download_note"
   | "web.settings.smart_search.downloading"
@@ -1641,6 +1643,9 @@ export interface MessageArgs {
   "web.images.viewer.stalled": undefined;
   "web.images.viewer.stalled_hint": undefined;
   "web.images.viewer.taken": undefined;
+  "web.settings.background.count": { done: number; total: number };
+  "web.settings.background.footer": undefined;
+  "web.settings.background.title": undefined;
   "web.settings.bridge.code_failed": undefined;
   "web.settings.bridge.continue_apple": undefined;
   "web.settings.bridge.continue_google": undefined;
@@ -1761,7 +1766,6 @@ export interface MessageArgs {
   "web.settings.session.signing_out": undefined;
   "web.settings.session.title": undefined;
   "web.settings.smart_search.beta": undefined;
-  "web.settings.smart_search.describing": { done: number; total: number };
   "web.settings.smart_search.disable": undefined;
   "web.settings.smart_search.download_note": undefined;
   "web.settings.smart_search.downloading": { percent: number };

@@ -1,4 +1,16 @@
 {
+  "web.settings.background.count": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "web.settings.background.footer": {
+    "text": "O teu dispositivo trata disto sozinho e faz uma pausa enquanto carregas ficheiros. Entretanto, podes continuar a usá-lo.",
+    "en": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile."
+  },
+  "web.settings.background.title": {
+    "text": "Trabalho em segundo plano",
+    "en": "Background work"
+  },
   "web.settings.bridge.code_failed": {
     "text": "Esse código de configuração não funcionou.",
     "en": "That setup code didn't work."
@@ -510,10 +522,6 @@
   "web.settings.smart_search.beta": {
     "text": "Beta",
     "en": "Beta"
-  },
-  "web.settings.smart_search.describing": {
-    "text": "A conhecer as tuas fotos… {done} de {total}",
-    "en": "Getting to know your photos… {done} of {total}"
   },
   "web.settings.smart_search.disable": {
     "text": "Desativar a pesquisa inteligente",

@@ -1,4 +1,16 @@
 {
+  "app.settings.background.count": {
+    "text": "{done} van {total}",
+    "en": "{done} of {total}"
+  },
+  "app.settings.background.footer": {
+    "text": "Je apparaat doet dit zelf en pauzeert terwijl je uploadt. Je kunt het ondertussen gewoon blijven gebruiken.",
+    "en": "Your device works through these by itself and pauses while you upload. You can keep using it meanwhile."
+  },
+  "app.settings.background.title": {
+    "text": "Werk op de achtergrond",
+    "en": "Background work"
+  },
   "app.settings.bridge.account_page": {
     "text": "Je accountpagina",
     "en": "Your Account Page"
@@ -552,10 +564,6 @@
   "app.settings.smart_search.beta": {
     "text": "Bèta",
     "en": "Beta"
-  },
-  "app.settings.smart_search.describing": {
-    "text": "Leert je foto’s kennen… {done} van {total}",
-    "en": "Getting to know your photos… {done} of {total}"
   },
   "app.settings.smart_search.download_note": {
     "text": "De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB.",

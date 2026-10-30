@@ -1,4 +1,7 @@
 {
+  "web.settings.background.count": "{done} van {total}",
+  "web.settings.background.footer": "Je apparaat doet dit zelf en pauzeert terwijl je uploadt. Je kunt het ondertussen gewoon blijven gebruiken.",
+  "web.settings.background.title": "Werk op de achtergrond",
   "web.settings.bridge.code_failed": "Die configuratiecode werkte niet.",
   "web.settings.bridge.continue_apple": "Doorgaan met Apple",
   "web.settings.bridge.continue_google": "Doorgaan met Google",
@@ -127,7 +130,6 @@
   "web.settings.session.signing_out": "Uitloggen…",
   "web.settings.session.title": "Sessie",
   "web.settings.smart_search.beta": "Bèta",
-  "web.settings.smart_search.describing": "Leert je foto’s kennen… {done} van {total}",
   "web.settings.smart_search.disable": "Slim zoeken uitschakelen",
   "web.settings.smart_search.download_note": "De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB.",
   "web.settings.smart_search.downloading": "Downloaden wat het nodig heeft… {percent}%",

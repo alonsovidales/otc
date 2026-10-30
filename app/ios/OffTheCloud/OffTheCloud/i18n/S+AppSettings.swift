@@ -6,6 +6,23 @@
 import Foundation
 
 extension S {
+    /// {done} of {total}
+    ///
+    /// Under a row of the Background work section in Settings, next to its progress bar: {done} photos or videos dealt with of {total}.
+    static func appSettingsBackgroundCount(done: Int, total: Int) -> String {
+        L("app.settings.background.count", table: "AppSettings", done, total)
+    }
+
+    /// Your device works through these by itself and pauses while you upload. You can keep using it meanwhile.
+    ///
+    /// Under the Background work section in Settings: the device does this work by itself (after an update, or when a feature is turned on), it gives way to uploads, and the device can be used meanwhile.
+    static var appSettingsBackgroundFooter: String { L("app.settings.background.footer", table: "AppSettings") }
+
+    /// Background work
+    ///
+    /// Heading of the Settings section listing what the device is working through in the background (Status.background_tasks): one row per piece of work, in the device's own words ("Getting to know your photos"), each with a progress bar. Shown only while there is something.
+    static var appSettingsBackgroundTitle: String { L("app.settings.background.title", table: "AppSettings") }
+
     /// Your Account Page
     ///
     /// Button in Settings > Bridge and Account that opens the Off The Cloud account page in the browser.
@@ -649,13 +666,6 @@ extension S {
     ///
     /// Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word.
     static var appSettingsSmartSearchBeta: String { L("app.settings.smart_search.beta", table: "AppSettings") }
-
-    /// Getting to know your photos… {done} of {total}
-    ///
-    /// Under the Smart search switch in Settings while the device describes the user's photos in the background, after Smart search is turned on (or after the update that turned it on): {done} photos are described of {total} it will describe. Same wording as app.photos.smart_search.reading.
-    static func appSettingsSmartSearchDescribing(done: Int, total: Int) -> String {
-        L("app.settings.smart_search.describing", table: "AppSettings", done, total)
-    }
 
     /// Turning it on the first time downloads about 400 MB to your device.
     ///

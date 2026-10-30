@@ -564,11 +564,48 @@ public nonisolated struct Msg_Status: @unchecked Sendable {
     set {_uniqueStorage()._mirrorCandidates = newValue}
   }
 
+  /// Release 152: what the device is working through in the background for
+  /// this library - the passes that read it once after an update or a switch
+  /// turned on (thumbnails, places, On this day's measures, Smart search's
+  /// descriptions, photo dates) and the analysis of what was uploaded - so
+  /// the apps can say how far it is. Empty when there is nothing, and on
+  /// older devices. Settings > Reprocess Media keeps its own progress
+  /// (GetReprocessStatus) and isn't listed here.
+  public var backgroundTasks: [Msg_BackgroundTask] {
+    get {_storage._backgroundTasks}
+    set {_uniqueStorage()._backgroundTasks = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// One piece of background work (Status.background_tasks).
+public nonisolated struct Msg_BackgroundTask: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Stable name, for the apps to key on (not to show): "analysis" (new
+  /// uploads: thumbnails, tags, faces), "thumbnails", "places", "quality"
+  /// (On this day), "smart_search", "dates", ... - new kinds may come.
+  public var kind: String = String()
+
+  /// What it is doing, in the device's words in the request's language
+  /// ("Getting to know your photos"): the apps show it as it comes.
+  public var text: String = String()
+
+  /// How far: done of total photos or videos; total 0 when not known yet.
+  public var done: Int64 = 0
+
+  public var total: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// A disk Settings offers for the mirror (Status.mirror_candidates).
@@ -3542,19 +3579,6 @@ public nonisolated struct Msg_Settings: Sendable {
   /// Clears the value of `smartSearchModel`. Subsequent reads from it will return its default value.
   public mutating func clearSmartSearchModel() {self._smartSearchModel = nil}
 
-  /// How far the device is in describing the user's photos (release 152).
-  /// Set while Smart search is on and its model is ready; described equal to
-  /// total means done. Absent on older devices and while it is off or the
-  /// model isn't there yet.
-  public var smartSearchProgress: Msg_SmartSearchProgress {
-    get {_smartSearchProgress ?? Msg_SmartSearchProgress()}
-    set {_smartSearchProgress = newValue}
-  }
-  /// Returns true if `smartSearchProgress` has been explicitly set.
-  public var hasSmartSearchProgress: Bool {self._smartSearchProgress != nil}
-  /// Clears the value of `smartSearchProgress`. Subsequent reads from it will return its default value.
-  public mutating func clearSmartSearchProgress() {self._smartSearchProgress = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3564,24 +3588,6 @@ public nonisolated struct Msg_Settings: Sendable {
   fileprivate var _memoriesEnabled: Bool? = nil
   fileprivate var _smartSearchEnabled: Bool? = nil
   fileprivate var _smartSearchModel: Msg_SmartSearchModel? = nil
-  fileprivate var _smartSearchProgress: Msg_SmartSearchProgress? = nil
-}
-
-/// Smart search's work on the library (Settings.smart_search_progress).
-public nonisolated struct Msg_SmartSearchProgress: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Photos Images may show that have a description.
-  public var described: Int32 = 0
-
-  /// Photos Images may show: images outside the folders kept out of Images.
-  public var total: Int32 = 0
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
 }
 
 /// Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -8124,7 +8130,7 @@ nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{1}demo\0\u{3}mirror_candidates\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{1}demo\0\u{3}mirror_candidates\0\u{3}background_tasks\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
   fileprivate class _StorageClass {
     var _online: Bool = false
@@ -8145,6 +8151,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     var _language: String? = nil
     var _demo: Bool = false
     var _mirrorCandidates: [Msg_MirrorDiskCandidate] = []
+    var _backgroundTasks: [Msg_BackgroundTask] = []
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -8173,6 +8180,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       _language = source._language
       _demo = source._demo
       _mirrorCandidates = source._mirrorCandidates
+      _backgroundTasks = source._backgroundTasks
     }
   }
 
@@ -8209,6 +8217,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._language) }()
         case 18: try { try decoder.decodeSingularBoolField(value: &_storage._demo) }()
         case 19: try { try decoder.decodeRepeatedMessageField(value: &_storage._mirrorCandidates) }()
+        case 20: try { try decoder.decodeRepeatedMessageField(value: &_storage._backgroundTasks) }()
         default: break
         }
       }
@@ -8275,6 +8284,9 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       if !_storage._mirrorCandidates.isEmpty {
         try visitor.visitRepeatedMessageField(value: _storage._mirrorCandidates, fieldNumber: 19)
       }
+      if !_storage._backgroundTasks.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._backgroundTasks, fieldNumber: 20)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -8302,10 +8314,56 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         if _storage._language != rhs_storage._language {return false}
         if _storage._demo != rhs_storage._demo {return false}
         if _storage._mirrorCandidates != rhs_storage._mirrorCandidates {return false}
+        if _storage._backgroundTasks != rhs_storage._backgroundTasks {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_BackgroundTask: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BackgroundTask"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{1}text\0\u{1}done\0\u{1}total\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.kind) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.text) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.done) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.total) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.kind.isEmpty {
+      try visitor.visitSingularStringField(value: self.kind, fieldNumber: 1)
+    }
+    if !self.text.isEmpty {
+      try visitor.visitSingularStringField(value: self.text, fieldNumber: 2)
+    }
+    if self.done != 0 {
+      try visitor.visitSingularInt64Field(value: self.done, fieldNumber: 3)
+    }
+    if self.total != 0 {
+      try visitor.visitSingularInt64Field(value: self.total, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_BackgroundTask, rhs: Msg_BackgroundTask) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.text != rhs.text {return false}
+    if lhs.done != rhs.done {return false}
+    if lhs.total != rhs.total {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -12900,7 +12958,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}smart_search_progress\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12919,7 +12977,6 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 9: try { try decoder.decodeSingularBoolField(value: &self._memoriesEnabled) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self._smartSearchEnabled) }()
       case 11: try { try decoder.decodeSingularMessageField(value: &self._smartSearchModel) }()
-      case 12: try { try decoder.decodeSingularMessageField(value: &self._smartSearchProgress) }()
       default: break
       }
     }
@@ -12963,9 +13020,6 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._smartSearchModel {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
     } }()
-    try { if let v = self._smartSearchProgress {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -12981,42 +13035,6 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs._memoriesEnabled != rhs._memoriesEnabled {return false}
     if lhs._smartSearchEnabled != rhs._smartSearchEnabled {return false}
     if lhs._smartSearchModel != rhs._smartSearchModel {return false}
-    if lhs._smartSearchProgress != rhs._smartSearchProgress {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-nonisolated extension Msg_SmartSearchProgress: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SmartSearchProgress"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}described\0\u{1}total\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularInt32Field(value: &self.described) }()
-      case 2: try { try decoder.decodeSingularInt32Field(value: &self.total) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.described != 0 {
-      try visitor.visitSingularInt32Field(value: self.described, fieldNumber: 1)
-    }
-    if self.total != 0 {
-      try visitor.visitSingularInt32Field(value: self.total, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Msg_SmartSearchProgress, rhs: Msg_SmartSearchProgress) -> Bool {
-    if lhs.described != rhs.described {return false}
-    if lhs.total != rhs.total {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
