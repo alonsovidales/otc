@@ -260,14 +260,14 @@
     <string name="app_photos_search_files">Files</string>
     <string name="app_photos_search_nothing">Nothing matches “\u2068%1$s\u2069”.</string>
     <string name="app_photos_search_people">People</string>
-    <string name="app_photos_search_smart">Search photos for “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
-    <string name="app_photos_search_smart_failed">Smart search isn\'t available right now.</string>
-    <string name="app_photos_search_smart_reading">Your device is still getting to know your photos…</string>
     <string name="app_photos_search_things">Things</string>
     <plurals name="app_photos_selection_delete_title">
         <item quantity="one">Delete %1$s item?</item>
         <item quantity="other">Delete %1$s items?</item>
     </plurals>
+    <string name="app_photos_smart_search_failed">Smart search isn\'t available right now.</string>
+    <string name="app_photos_smart_search_reading">Your device is still getting to know your photos…</string>
+    <string name="app_photos_smart_search_search_for">Search photos for “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
     <string name="app_photos_viewer_delete">Delete Photo</string>
     <string name="app_photos_viewer_delete_title">Delete this photo?</string>
     <string name="app_photos_viewer_delete_video">Delete Video</string>

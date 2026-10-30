@@ -694,18 +694,6 @@ fun S.appPhotosSearchNothing(text: String): UiText =
 fun S.appPhotosSearchPeople(): UiText =
     UiText.Res(R.string.app_photos_search_people)
 
-/** "Search photos for “<b>{text}</b>”": Row of the search's suggestions while Smart search is on: finds the photos that best match what was typed, as a description ("kids in the snow"), within the chips already in the search. {text} is what was typed. Write the quotes in your language's style, as app.photos.search.documents. Tags: b. */
-fun S.appPhotosSearchSmart(text: String): RichText =
-    RichText.Res(R.string.app_photos_search_smart, listOf(text))
-
-/** "Smart search isn't available right now.": Message when a Smart search (a description typed in the search) can't be done and the device gave no words of its own (it was turned off on another app, or the device can't do it). */
-fun S.appPhotosSearchSmartFailed(): UiText =
-    UiText.Res(R.string.app_photos_search_smart_failed)
-
-/** "Your device is still getting to know your photos…": Quiet note over the photos found by a Smart search (a description typed in the search) while the device is still working out what the photos it already held show, just after Smart search was turned on: some photos may be missing for now. */
-fun S.appPhotosSearchSmartReading(): UiText =
-    UiText.Res(R.string.app_photos_search_smart_reading)
-
 /** "Things": Heading of the search suggestions that are things recognised in photos (tags such as beach or dog). Shown in capitals. */
 fun S.appPhotosSearchThings(): UiText =
     UiText.Res(R.string.app_photos_search_things)
@@ -713,6 +701,18 @@ fun S.appPhotosSearchThings(): UiText =
 /** "Delete {count} items?" (one: "Delete {count} item?"): Title of the confirmation asked before deleting the selected photos and videos from the device (the selection bar's Delete). {count} is how many are selected. Buttons: Delete and Cancel. */
 fun S.appPhotosSelectionDeleteTitle(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_selection_delete_title, count, listOf(count))
+
+/** "Smart search isn't available right now.": Message when a Smart search (a description typed in the search) can't be done and the device gave no words of its own (it was turned off on another app, or the device can't do it). */
+fun S.appPhotosSmartSearchFailed(): UiText =
+    UiText.Res(R.string.app_photos_smart_search_failed)
+
+/** "Your device is still getting to know your photos…": Quiet note over the photos found by a Smart search (a description typed in the search) while the device is still working out what the photos it already held show, just after Smart search was turned on: some photos may be missing for now. */
+fun S.appPhotosSmartSearchReading(): UiText =
+    UiText.Res(R.string.app_photos_smart_search_reading)
+
+/** "Search photos for “<b>{text}</b>”": Row of the search's suggestions while Smart search is on: finds the photos that best match what was typed, as a description ("kids in the snow"), within the chips already in the search. {text} is what was typed. Write the quotes in your language's style, as app.photos.search.documents. Tags: b. */
+fun S.appPhotosSmartSearchSearchFor(text: String): RichText =
+    RichText.Res(R.string.app_photos_smart_search_search_for, listOf(text))
 
 /** "Delete Photo": Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. A video has its own: app.photos.viewer.delete_video. */
 fun S.appPhotosViewerDelete(): UiText =

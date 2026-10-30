@@ -877,18 +877,6 @@
     "text": "Personen",
     "en": "People"
   },
-  "app.photos.search.smart": {
-    "text": "Fotos nach „<b>{text}</b>“ durchsuchen",
-    "en": "Search photos for “<b>{text}</b>”"
-  },
-  "app.photos.search.smart_failed": {
-    "text": "Intelligente Suche ist gerade nicht verfügbar.",
-    "en": "Smart search isn't available right now."
-  },
-  "app.photos.search.smart_reading": {
-    "text": "Dein Gerät lernt deine Fotos noch kennen…",
-    "en": "Your device is still getting to know your photos…"
-  },
   "app.photos.search.things": {
     "text": "Dinge",
     "en": "Things"
@@ -903,6 +891,18 @@
       "other": "Delete {count} items?"
     },
     "reviewed": "claude-backtranslation 2026-10-11 #8e1297ef"
+  },
+  "app.photos.smart_search.failed": {
+    "text": "Intelligente Suche ist gerade nicht verfügbar.",
+    "en": "Smart search isn't available right now."
+  },
+  "app.photos.smart_search.reading": {
+    "text": "Dein Gerät lernt deine Fotos noch kennen…",
+    "en": "Your device is still getting to know your photos…"
+  },
+  "app.photos.smart_search.search_for": {
+    "text": "Fotos nach „<b>{text}</b>“ durchsuchen",
+    "en": "Search photos for “<b>{text}</b>”"
   },
   "app.photos.viewer.delete": {
     "text": "Foto löschen",

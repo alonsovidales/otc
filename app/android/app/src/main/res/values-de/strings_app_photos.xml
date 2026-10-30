@@ -261,14 +261,14 @@
     <string name="app_photos_search_files">Dateien</string>
     <string name="app_photos_search_nothing">Keine Treffer für „\u2068%1$s\u2069“.</string>
     <string name="app_photos_search_people">Personen</string>
-    <string name="app_photos_search_smart">Fotos nach „&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;“ durchsuchen</string>
-    <string name="app_photos_search_smart_failed">Intelligente Suche ist gerade nicht verfügbar.</string>
-    <string name="app_photos_search_smart_reading">Dein Gerät lernt deine Fotos noch kennen…</string>
     <string name="app_photos_search_things">Dinge</string>
     <plurals name="app_photos_selection_delete_title">
         <item quantity="one">%1$s Element löschen?</item>
         <item quantity="other">%1$s Elemente löschen?</item>
     </plurals>
+    <string name="app_photos_smart_search_failed">Intelligente Suche ist gerade nicht verfügbar.</string>
+    <string name="app_photos_smart_search_reading">Dein Gerät lernt deine Fotos noch kennen…</string>
+    <string name="app_photos_smart_search_search_for">Fotos nach „&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;“ durchsuchen</string>
     <string name="app_photos_viewer_delete">Foto löschen</string>
     <string name="app_photos_viewer_delete_title">Dieses Foto löschen?</string>
     <string name="app_photos_viewer_delete_video">Video löschen</string>
