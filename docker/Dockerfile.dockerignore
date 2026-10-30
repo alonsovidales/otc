@@ -23,6 +23,7 @@
 !geotag/
 !hardening/
 !i18n/
+!images_embedder/
 !images_quality/
 !images_tagger/
 !lantls/
