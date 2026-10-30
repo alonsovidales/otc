@@ -6,11 +6,9 @@ import (
 	"errors"
 	"math"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
@@ -69,40 +67,14 @@ func (mg *Manager) storeLocation(hash string, ex *exifinfo.Info) {
 	}
 }
 
-// errLocationUnread is a content whose metadata couldn't be read this
-// time (its blob or ffprobe failed): no row, so a later pass reads it.
-var errLocationUnread = errors.New("metadata not read") // i18n-ignore: logged only
-
 // readLocation reads the position of stored content from its metadata
-// only, as "More info" does (GetFileInfo): a photo up to its EXIF, a
-// video through ffprobe on its stream. Metadata that is there but holds
-// no position, or can't be parsed, is ok false with no error - read, and
-// never read again; errLocationUnread is a read to try again.
+// only (readStoredMetadata). Metadata that is there but holds no position,
+// or can't be parsed, is ok false with no error - read, and never read
+// again; errMetadataUnread is a read to try again.
 func (mg *Manager) readLocation(ses *session.Session, file *pb.File) (lat, lon float64, ok bool, err error) {
-	var ex *exifinfo.Info
-	if strings.HasPrefix(file.Mime, "video/") {
-		src, done, srcErr := mg.videoSource(ses, file)
-		if srcErr != nil {
-			return 0, 0, false, errors.Join(errLocationUnread, srcErr)
-		}
-		ex, err = exifinfo.FromVideoSource(src)
-		done()
-		// ffprobe that ran and refused the file has read it; one that
-		// didn't run, or didn't answer in time, hasn't.
-		var exitErr *exec.ExitError
-		if err != nil && !errors.As(err, &exitErr) {
-			return 0, 0, false, errors.Join(errLocationUnread, err)
-		}
-	} else {
-		blob, openErr := blobstore.Open(blobPath(file.Hash), ses)
-		if openErr != nil {
-			return 0, 0, false, errors.Join(errLocationUnread, openErr)
-		}
-		ex, err = mg.exifOfBlob(blob, file, mg.shownWholeLimit())
-		blob.Close()
-	}
+	ex, err := mg.readStoredMetadata(ses, file)
 	if err != nil {
-		log.Debug("no location metadata for", file.Path, ":", err)
+		return 0, 0, false, err
 	}
 	lat, lon, ok = locationOf(ex)
 	return lat, lon, ok, nil
@@ -117,7 +89,7 @@ func (mg *Manager) readLocation(ses *session.Session, file *pb.File) (lat, lon f
 // is read - one with a thumbnail; the processing that makes one writes
 // the row of the rest - and only its metadata, paced. A restart before
 // the end goes on at the next: what has a row is never listed again.
-// Content that couldn't be read this time (errLocationUnread) leaves the
+// Content that couldn't be read this time (errMetadataUnread) leaves the
 // flag unset, and is read at the next start.
 func (mg *Manager) BackfillLocations(ses *session.Session) {
 	// thumbnailPath needs the storage path: nothing to read without one

@@ -1285,6 +1285,13 @@ SQL
     ALTER TABLE settings ALTER COLUMN smart_search_enabled SET DEFAULT 1;
 SQL
     fi
+    # Release 152 (updates/152.sh): dates taken - where the one-off pass
+    # that gives what the device held its dates taken has got to (see
+    # db.sql).
+    mysql "$db" <<'SQL'
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS dates_taken_cursor VARCHAR(64) NOT NULL DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS dates_taken_backfilled TINYINT(1) NOT NULL DEFAULT 0;
+SQL
 }
 
 apply_schema_migrations otc

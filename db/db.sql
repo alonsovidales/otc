@@ -20,6 +20,10 @@ create table files
 (
   `hash` varchar(64) not null,
   `mime` varchar(150) not null,
+  -- UTC. What the client sent (a phone's capture time, a computer's file
+  -- creation time - issue #134) or the upload time; for a photo or video
+  -- whose metadata says it was taken more than 26 hours earlier, that date
+  -- taken (release 152, files_manager/date_taken.go).
   `created` datetime not null,
   `modified` datetime not null,
   `path` varchar(768) character set utf8mb4 collate utf8mb4_bin not null, -- exact: issue #172
@@ -397,7 +401,14 @@ create table settings
   -- device describes each photo as a vector (photo_embeddings) and
   -- SearchPhotos.text finds photos by what they show; turning it off
   -- deletes every vector in the same transaction.
-  `smart_search_enabled` tinyint(1) not null default 1
+  `smart_search_enabled` tinyint(1) not null default 1,
+  -- Dates taken (release 152): the one-off pass that gives the photos and
+  -- videos stored before it the date their metadata says they were taken,
+  -- where a row's `created` is a later copy's (files_manager/date_taken.go):
+  -- the last content hash it read, so a restart goes on from there, and
+  -- whether it has read everything.
+  `dates_taken_cursor` varchar(64) not null default '',
+  `dates_taken_backfilled` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile
