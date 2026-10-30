@@ -9,6 +9,7 @@ import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
+import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.i18n.LanguageSettings
@@ -60,6 +61,7 @@ fun logOut(
         FaceRecognition.reset()
         PlacesSupport.reset()
         MemoriesSupport.reset()
+        SmartSearchSupport.reset()
         FilesNav.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()

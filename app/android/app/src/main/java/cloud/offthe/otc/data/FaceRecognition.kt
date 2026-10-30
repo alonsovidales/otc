@@ -64,6 +64,8 @@ object FaceRecognition {
                     PlacesSupport.set(PlacesSupport.verdict(resp.respSettings))
                     // And whether On this day is on (the memories at the top of Images).
                     MemoriesSupport.set(MemoriesSupport.verdict(resp.respSettings))
+                    // And whether Smart search is on (text searches).
+                    SmartSearchSupport.set(SmartSearchSupport.verdict(resp.respSettings))
                     // Asked once signed in: the language too.
                     cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
                     return

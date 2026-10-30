@@ -125,7 +125,7 @@ class MemoriesPreviewActivity : ComponentActivity() {
         else -> Memories.getDefaultInstance()
     }
 
-    private object SampleThumbs : GridThumbStore {
+    internal object SampleThumbs : GridThumbStore {
         override suspend fun scope() = 1L
         override suspend fun kinds(hashes: Collection<String>) = hashes.associateWith { ThumbKind.SMALL }
         override suspend fun put(entries: List<ThumbPut>, scope: Long): Map<String, ThumbKind>? = null

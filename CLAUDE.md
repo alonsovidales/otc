@@ -3099,6 +3099,28 @@ or at the grid's foot; a refusal (the demo) shows the device's words, else
 (`showFiles`). A debug-only `MemoriesPreviewActivity` (`src/debug`, `adb shell am start -n
 cloud.offthe.otc/.MemoriesPreviewActivity [--ez open true]`) draws both on sample data. Tests:
 `MemoriesModelTest.kt`.
+**Smart search on Android** (beta, 2026-10-30; `data/SmartSearchSupport.kt`, `TopSearch.kt`,
+`PhotoGalleryViewModel.kt`, Settings' `SmartSearchSection`; the device side under its own notes; texts
+`app.settings.smart_search.*`, `app.photos.smart_search.*`; iOS and the web must match): only while
+the device says it is on (`SmartSearchSupport`: `Settings.smart_search_enabled`, absent = a device before
+it = off, from the same `GetSettings` answer as `FaceRecognition.watch` and Settings' load, kept in
+`otc_device_state`, reset at Log Out; a search told `smart_search_off` sets it off). Settings' section
+after On this day (only when the device's Settings carry the field): "Smart search" with a Beta badge,
+the footer; on at once (the device starts describing), off asks first (`off_title`/`off_text`, Turn Off:
+the device deletes what it learned); `smart_search_unavailable` and the demo's refusal show the
+device's words. The search: typing works as before (tags and people become chips); while on, the panel
+has "Search photos for "x"" (`SearchOption.Smart`, a sparkle) - first, and what the Search key takes,
+unless a thing or a person is named exactly (then after them, the exact one taken); picked, it is
+`PhotoGalleryViewModel.searchText` (`State.smartText`, a chip of its own after the tags, x =
+`clearText`; the field's clear takes it too, and so does Images in the wide menu). Pages send
+`SearchPhotos.text` only while `SmartSearchSupport` is on, with the chips, people, collection and area
+as filters, never `before`/`newer_than`; the order is the device's (`dateOrdered` false: no month
+titles, buckets or scrubber, no upward search, no person header, no memories). `smart_search_reading`
+shows "Your device is still getting to know your photos…" over the results (`head:smart`).
+`smart_search_off` (also turning `SmartSearchSupport` off) and `smart_search_unavailable` drop the text,
+say the device's words (else `app.photos.smart_search.failed`) in the gallery's alert, and search the
+chips again by date. A debug-only `SmartSearchPreviewActivity` (`--es show settings` for the section)
+draws both on sample data. Tests: `PhotoGallerySmartSearchTest.kt`.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

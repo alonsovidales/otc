@@ -11,6 +11,9 @@ import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.PlacesSupport
+import cloud.offthe.otc.data.SmartSearchSupport
+import cloud.offthe.otc.i18n.appPhotosSmartSearchFailed
+import cloud.offthe.otc.ui.settings.deviceOr
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ErrorCodes
@@ -206,6 +209,11 @@ class PhotoGalleryViewModel(
     // How many sign-ins there have been (OTCConnection.signIns): what a
     // device was found unable to do holds until the next one.
     private val signIns: () -> Int = { OTCConnection.signIns.value },
+    // Smart search (SmartSearchSupport): whether the device has it on - only
+    // then is a text sent -, and what turns it off here when a search is
+    // told "smart_search_off".
+    private val smartOn: () -> Boolean = { SmartSearchSupport.enabled.value == true },
+    private val smartOff: () -> Unit = { SmartSearchSupport.set(false) },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -238,6 +246,12 @@ class PhotoGalleryViewModel(
     data class State(
         val tags: List<String> = emptyList(),
         val chips: List<String> = emptyList(),
+        // Smart search: the description searched for (SearchPhotos.text),
+        // with the chips as filters - a chip of its own in the field; null:
+        // none. smartReading: the device's last page of it said it is still
+        // describing older photos (ListOfFiles.smart_search_reading).
+        val smartText: String? = null,
+        val smartReading: Boolean = false,
         // Everyone the device found (ListPeople: most photos first), for
         // the search and the People page; peopleLoaded once a list came.
         val allPeople: List<Person> = emptyList(),
@@ -324,8 +338,8 @@ class PhotoGalleryViewModel(
         // Issue #201: the viewer's Save is downloading an original (its spinner).
         val saving: Boolean = false,
     ) {
-        /** A tag search is sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
-        val dateOrdered get() = chips.isEmpty()
+        /** A tag search, and a Smart search's text, are sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
+        val dateOrdered get() = chips.isEmpty() && smartText == null
         /**
          * The one person whose photos Images shows - a face opened from
          * People, or one person in the search, tags or a collection with
@@ -523,8 +537,8 @@ class PhotoGalleryViewModel(
      */
     fun showAll() {
         val st = _state.value
-        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeGroup == null && st.activeArea == null) return
-        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = null, activeArea = null) }
+        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeGroup == null && st.activeArea == null && st.smartText == null) return
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = null, activeArea = null, smartText = null, smartReading = false) }
         restartSearch()
     }
 
@@ -551,6 +565,8 @@ class PhotoGalleryViewModel(
     private fun watchPlaces() {
         if (watchingPlaces) return
         watchingPlaces = true
+        // Smart search likewise: turned off, a text searched for goes.
+        scope.launch { SmartSearchSupport.enabled.collect { on -> if (on != true) clearText() } }
         scope.launch {
             PlacesSupport.enabled.collect { on ->
                 if (on == true) return@collect
@@ -686,8 +702,27 @@ class PhotoGalleryViewModel(
     /** The search field's clear button: tags and people go, an open collection stays. */
     fun clearSearch() {
         val st = _state.value
-        if (st.chips.isEmpty() && st.selectedPeople.isEmpty()) return
-        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList()) }
+        if (st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.smartText == null) return
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), smartText = null, smartReading = false) }
+        restartSearch()
+    }
+
+    /**
+     * Smart search: the photos that best match [text], described in words,
+     * within the chips (SearchPhotos.text) - only while the device has it
+     * on. A new text replaces the one searched for.
+     */
+    fun searchText(text: String) {
+        val x = text.trim()
+        if (x.isEmpty() || !smartOn() || x == _state.value.smartText) return
+        _state.update { it.copy(smartText = x, smartReading = false) }
+        restartSearch()
+    }
+
+    /** The text's chip x: the chips' photos again, by date. */
+    fun clearText() {
+        if (_state.value.smartText == null) return
+        _state.update { it.copy(smartText = null, smartReading = false) }
         restartSearch()
     }
 
@@ -1460,6 +1495,9 @@ class PhotoGalleryViewModel(
             val people = st0.selectedPeople
             val group = st0.activeGroup?.id ?: ""
             val area = st0.activeArea
+            // Never to a device that doesn't have it on: one before it would
+            // answer the whole library.
+            val text = st0.smartText?.takeIf { smartOn() }
             val requestToken = overrideToken ?: token ?: ""
             // What this search brought, not what the grid holds: photos
             // above a jump came from another one (issue #194).
@@ -1487,6 +1525,8 @@ class PhotoGalleryViewModel(
                             .setSmallThumbnails(true).setOmitThumbnails(true)
                         // Places: a group of the map's photos, by its area.
                         if (area != null) sp.area = area
+                        // Smart search: the description, the chips as filters.
+                        if (text != null) sp.text = text
                         // A search starting here (opening, a filter, the
                         // scrubber's jump) gets a first page of its own size;
                         // scrolling on, a bigger one.
@@ -1519,6 +1559,16 @@ class PhotoGalleryViewModel(
                 }
             }
             val got = resp
+            // Smart search turned off on another app, or a device that can't
+            // do it: the text goes, saying so in the device's words, and the
+            // chips' photos come by date.
+            if (text != null && got != null && got.error && (got.errorCode == "smart_search_off" || got.errorCode == "smart_search_unavailable")) {
+                if (got.errorCode == "smart_search_off") smartOff()
+                _state.update { it.copy(smartText = null, smartReading = false) }
+                alert(deviceOr(got.errorMessage, S.appPhotosSmartSearchFailed()))
+                scope.launch { restartSearch() }
+                return PageResult.FAILED
+            }
             // An error answer (the bridge's "device unreachable", the device's
             // own) is no page and no end of the library either.
             if (got == null || got.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
@@ -1550,6 +1600,7 @@ class PhotoGalleryViewModel(
                 st.copy(
                     items = st.items + withoutShown(newItems, st.items), endReached = token == null,
                     pageProblem = null, slowFirstPage = false, jumpsLanded = if (jumped) st.jumpsLanded + 1 else st.jumpsLanded,
+                    smartReading = text != null && lof.smartSearchReading,
                 )
             }
             // Asked for as their tiles show or come near.
@@ -2411,7 +2462,7 @@ fun personTakenOffNote(count: Int, from: Person?, to: Person?): UiText {
 enum class EmptyKind { COLLECTION, NO_MATCH, NO_PHOTOS }
 
 fun emptyKind(st: PhotoGalleryViewModel.State): EmptyKind = when {
-    st.chips.isNotEmpty() || st.selectedPeople.isNotEmpty() || st.activeArea != null -> EmptyKind.NO_MATCH
+    st.chips.isNotEmpty() || st.selectedPeople.isNotEmpty() || st.activeArea != null || st.smartText != null -> EmptyKind.NO_MATCH
     st.activeGroup != null -> EmptyKind.COLLECTION
     else -> EmptyKind.NO_PHOTOS
 }

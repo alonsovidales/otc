@@ -8,5 +8,12 @@
             android:name=".MemoriesPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- Smart search's Settings section and search on sample data
+             (adb shell am start -n cloud.offthe.otc/.SmartSearchPreviewActivity [- -es show settings]). -->
+        <activity
+            android:name=".SmartSearchPreviewActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

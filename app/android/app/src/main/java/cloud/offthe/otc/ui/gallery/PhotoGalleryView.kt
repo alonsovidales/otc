@@ -65,6 +65,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.MemoriesSupport
+import cloud.offthe.otc.i18n.appPhotosSmartSearchReading
 import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.i18n.appPhotosPlacesShowGrid
 import cloud.offthe.otc.i18n.appPhotosPlacesShowMap
@@ -507,11 +508,11 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // people searched for (without tags) - the web's CollectionHeader
             // and PersonHeader.
             val group = st.activeGroup
-            val personHeader = group == null && st.selectedPeople.isNotEmpty() && st.chips.isEmpty() && faces == true
+            val personHeader = group == null && st.selectedPeople.isNotEmpty() && st.chips.isEmpty() && st.smartText == null && faces == true
             // On this day (Memories.kt): over the whole library only - no
             // search, person, collection or map area - while the device says
             // it is on and has a memory for some choice.
-            val memoriesWanted = memoriesOn == true && group == null && st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeArea == null
+            val memoriesWanted = memoriesOn == true && group == null && st.chips.isEmpty() && st.selectedPeople.isEmpty() && st.activeArea == null && st.smartText == null
             DisposableEffect(memoriesWanted) {
                 if (memoriesWanted) vm.memories.appeared()
                 onDispose { vm.memories.disappeared() }
@@ -522,7 +523,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             LaunchedEffect(showMemories) {
                 if (showMemories && listState.firstVisibleItemIndex == 1 && listState.firstVisibleItemScrollOffset == 0) listState.scrollToItem(0)
             }
-            val headerCount = (if (showMemories) 1 else 0) + (if (group != null) 1 else 0) + (if (personHeader) 1 else 0)
+            // Smart search: while the device still describes older photos, a quiet note over what it found.
+            val smartNote = st.smartText != null && st.smartReading
+            val headerCount = (if (showMemories) 1 else 0) + (if (group != null) 1 else 0) + (if (personHeader) 1 else 0) + (if (smartNote) 1 else 0)
             // Each row's key: its month and place in it in date order (stable
             // while photos land above or fill its grey tiles, issue #194),
             // else its first photo; the grey tiles' own.
@@ -681,6 +684,12 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 }
                 if (personHeader) item(key = "head:people", contentType = "head") {
                     PersonHeader(st.allPeople, st.peopleLoaded, st.selectedPeople, total = if (st.bucketsFresh) st.totalPhotos else null, metrics = metrics)
+                }
+                if (smartNote) item(key = "head:smart", contentType = "note") {
+                    Text(
+                        S.appPhotosSmartSearchReading().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = metrics.top).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                 }
                 val rows = shown.rows
                 val grey = greyLayout != null

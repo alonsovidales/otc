@@ -34,10 +34,12 @@ import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
 import cloud.offthe.otc.proto.SetPlacesEnabled
 import cloud.offthe.otc.proto.SetMemoriesEnabled
+import cloud.offthe.otc.proto.SetSmartSearchEnabled
 import cloud.offthe.otc.proto.HideMemory
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.MemoriesSupport
 import cloud.offthe.otc.data.PlacesSupport
+import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
@@ -204,6 +206,10 @@ class DeviceSettingsViewModel : ViewModel() {
         // memories again" (from a GetMemories answer).
         val memoriesEnabled: Boolean? = null, val savingMemories: Boolean = false,
         val memoriesHidden: Int = 0, val showingHidden: Boolean = false,
+        // Smart search (beta): off unless turned on. null: a device before it
+        // (or not answered yet), with no switch. confirmSmartOff: turning it
+        // off is asked first (the device deletes what it learned).
+        val smartSearchEnabled: Boolean? = null, val savingSmartSearch: Boolean = false, val confirmSmartOff: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
@@ -266,6 +272,7 @@ class DeviceSettingsViewModel : ViewModel() {
                         faceRecognitionEnabled = s.faceRecognitionEnabled, imageTaggingEnabled = s.imageTaggingEnabled,
                         placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
                         memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
+                        smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null,
                     )
                 }
                 // The one place the rest of the app reads it from (People in the search).
@@ -274,6 +281,8 @@ class DeviceSettingsViewModel : ViewModel() {
                 PlacesSupport.set(PlacesSupport.verdict(s))
                 // And On this day's (MemoriesSupport), with what is hidden from it.
                 MemoriesSupport.set(MemoriesSupport.verdict(s))
+                // And Smart search's (SmartSearchSupport): the search offers a text only while on.
+                SmartSearchSupport.set(SmartSearchSupport.verdict(s))
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
                 if (MemoriesSupport.verdict(s)) loadMemoriesHidden()
             }
@@ -310,6 +319,35 @@ class DeviceSettingsViewModel : ViewModel() {
             throw e
         } catch (e: Exception) { state.update { it.copy(memoriesEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
         finally { state.update { it.copy(savingMemories = false) } }
+    }
+
+    /** Smart search's switch, as touched: on at once; off asks first (confirmSmartOff). */
+    fun askSmartSearch(enabled: Boolean, launch: (suspend () -> Unit) -> Unit) {
+        if (enabled) launch { setSmartSearch(true) } else state.update { it.copy(confirmSmartOff = true) }
+    }
+
+    fun cancelSmartOff() = state.update { it.copy(confirmSmartOff = false) }
+
+    /**
+     * Smart search's switch. On: the device starts describing the photos it
+     * holds (its backfill); off: it deletes every description before it
+     * answers. The text search comes and goes at once (SmartSearchSupport).
+     * A device without the model (smart_search_unavailable) and the demo
+     * refuse it, in their own words.
+     */
+    suspend fun setSmartSearch(enabled: Boolean) {
+        state.update { it.copy(confirmSmartOff = false, savingSmartSearch = true, smartSearchEnabled = enabled) }
+        try {
+            val resp = OTCConnection.request { it.setReqSetSmartSearchEnabled(SetSmartSearchEnabled.newBuilder().setEnabled(enabled)) }
+            if (resp.ackOk()) SmartSearchSupport.set(enabled)
+            else {
+                state.update { it.copy(smartSearchEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { state.update { it.copy(smartSearchEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
+        finally { state.update { it.copy(savingSmartSearch = false) } }
     }
 
     /** Show hidden memories again: everything hidden comes back (HideMemory show_all); Images asks again. */

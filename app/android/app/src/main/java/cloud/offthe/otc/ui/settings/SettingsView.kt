@@ -170,6 +170,12 @@ import cloud.offthe.otc.i18n.appSettingsFacesTitle
 import cloud.offthe.otc.i18n.appSettingsPlacesFooter
 import cloud.offthe.otc.i18n.appSettingsPlacesTitle
 import cloud.offthe.otc.i18n.appSettingsMemoriesFooter
+import cloud.offthe.otc.i18n.appSettingsSmartSearchBeta
+import cloud.offthe.otc.i18n.appSettingsSmartSearchFooter
+import cloud.offthe.otc.i18n.appSettingsSmartSearchOffConfirm
+import cloud.offthe.otc.i18n.appSettingsSmartSearchOffText
+import cloud.offthe.otc.i18n.appSettingsSmartSearchOffTitle
+import cloud.offthe.otc.i18n.appSettingsSmartSearchTitle
 import cloud.offthe.otc.i18n.appSettingsMemoriesShowHidden
 import cloud.offthe.otc.i18n.appSettingsMemoriesTitle
 import cloud.offthe.otc.i18n.appSettingsMemoriesToggle
@@ -676,6 +682,17 @@ fun SettingsView(secrets: SecretsStore) {
                         }
                     }
                 }
+            }
+
+            // Smart search (beta): only on a device that has it, off unless
+            // turned on; turning it off asks first (what the device learned
+            // is deleted).
+            dst.smartSearchEnabled?.let { on ->
+                SmartSearchSection(
+                    on, saving = dst.savingSmartSearch, confirmOff = dst.confirmSmartOff,
+                    onToggle = { v -> device.askSmartSearch(v) { work -> scope.launch { work() } } },
+                    onConfirmOff = { scope.launch { device.setSmartSearch(false) } }, onCancelOff = { device.cancelSmartOff() },
+                )
             }
 
             Section(S.appSettingsConnectionTitle().resolve()) {
@@ -1403,4 +1420,44 @@ internal fun sizeText(mb: Double): String = when {
     mb >= 100_000 -> decimalText("%.0f GB", mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
     mb >= 1000 -> decimalText("%.1f GB", mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
     else -> decimalText("%.0f MB", mb) // i18n-ignore: a size, the unit's symbol in every language
+}
+
+/**
+ * Smart search's section: its switch with a Beta badge and the footer; off
+ * asks first ([confirmOff]: the device deletes what it learned).
+ */
+@Composable
+internal fun SmartSearchSection(
+    on: Boolean, saving: Boolean, confirmOff: Boolean, onToggle: (Boolean) -> Unit, onConfirmOff: () -> Unit, onCancelOff: () -> Unit,
+) {
+    val title = S.appSettingsSmartSearchTitle().resolve()
+    Section(title, S.appSettingsSmartSearchFooter().resolve()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f, fill = false))
+                BetaBadge(S.appSettingsSmartSearchBeta().resolve())
+            }
+            Switch(checked = on, enabled = !saving, onCheckedChange = onToggle)
+        }
+    }
+    if (confirmOff) {
+        cloud.offthe.otc.ui.gallery.ConfirmDialog(
+            S.appSettingsSmartSearchOffTitle().resolve(), S.appSettingsSmartSearchOffText().resolve(), S.appSettingsSmartSearchOffConfirm().resolve(),
+            onConfirm = onConfirmOff, onDismiss = onCancelOff,
+        )
+    }
+}
+
+/** A small "Beta" badge beside a setting's label (Smart search). */
+@Composable
+private fun BetaBadge(text: String) {
+    androidx.compose.material3.Surface(
+        Modifier.padding(start = 8.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
 }

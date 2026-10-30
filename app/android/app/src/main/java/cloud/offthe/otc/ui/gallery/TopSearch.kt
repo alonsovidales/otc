@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import androidx.compose.material.icons.outlined.AutoAwesome
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -93,6 +95,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.net.ErrorCodes
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.File as PbFile
@@ -121,6 +124,7 @@ import cloud.offthe.otc.i18n.appFilesSearchField
 import cloud.offthe.otc.i18n.appPhotosPeoplePhotoCount
 import cloud.offthe.otc.i18n.appPhotosSearchAlready
 import cloud.offthe.otc.i18n.appPhotosSearchDocuments
+import cloud.offthe.otc.i18n.appPhotosSmartSearchSearchFor
 import cloud.offthe.otc.i18n.appPhotosSearchFiles
 import cloud.offthe.otc.i18n.appPhotosSearchNothing
 import cloud.offthe.otc.i18n.appPhotosSearchPeople
@@ -186,6 +190,8 @@ sealed interface SearchOption {
     data class PersonHit(val person: Person, val span: Span?) : SearchOption { override val key get() = "p:${person.id}" }
     /** The documents searched for the word as typed. */
     data class Docs(val text: String) : SearchOption { override val key get() = "docs" }
+    /** Smart search: the photos that best match the words as a description, the chips as filters. */
+    data class Smart(val text: String) : SearchOption { override val key get() = "smart" }
     data class FileHit(val file: PbFile, val kind: FileKind, val parts: FoundParts) : SearchOption { override val key get() = "f:${file.path}" }
 }
 
@@ -205,7 +211,7 @@ data class SearchOptions(val options: List<SearchOption>, val best: String?)
  */
 fun searchOptions(
     typed: String, tags: List<Pair<String, Folded>>, inSearch: List<String>, named: List<Pair<Person, Folded>>?,
-    found: FoundFiles?, noFileSearch: Boolean,
+    found: FoundFiles?, noFileSearch: Boolean, smart: Boolean = false,
 ): SearchOptions {
     val q = FilesNav.fold(typed).text
     if (q.isEmpty()) return SearchOptions(emptyList(), null)
@@ -231,6 +237,15 @@ fun searchOptions(
             out += o
             if (exact == null && f.text == q) exact = o.key
         }
+    // Smart search (only while the device has it on): the words as a
+    // description - first, and what the Search key takes, unless a thing or
+    // a person is named exactly; after them otherwise.
+    var smartKey: String? = null
+    if (smart) {
+        val o = SearchOption.Smart(typed)
+        if (exact == null) out.add(0, o) else out += o
+        smartKey = o.key
+    }
     val files = mutableListOf<SearchOption.FileHit>()
     if (found != null) {
         val current = found.typed == typed
@@ -245,7 +260,7 @@ fun searchOptions(
     // are never what the key takes.
     val docs = if (noFileSearch) emptyList() else listOf(SearchOption.Docs(typed))
     if (out.isEmpty()) { out += docs; out += files } else { out += files; out += docs }
-    return SearchOptions(out, exact ?: out.firstOrNull { it !is SearchOption.FileHit }?.key)
+    return SearchOptions(out, exact ?: smartKey ?: out.firstOrNull { it !is SearchOption.FileHit }?.key)
 }
 
 /**
@@ -420,12 +435,13 @@ fun RespEnvelope.isUnknownPayload() = error && ErrorCodes.isUnknownPayload(error
 fun rememberSearchOptions(search: TopSearchViewModel, st: PhotoGalleryViewModel.State): SearchOptions {
     val faces by FaceRecognition.enabled.collectAsState()
     val noFileSearch by FilesNav.noFileSearch.collectAsState()
+    val smart by SmartSearchSupport.enabled.collectAsState()
     val tagIndex = remember(st.tags) { st.tags.map { it to FilesNav.fold(it) } }
     val named = remember(st.allPeople) { st.allPeople.filter { it.name.isNotBlank() }.map { it to FilesNav.fold(it.name.trim()) } }
     val query = search.query
     val found = search.found
-    return remember(query, found, tagIndex, named, faces, noFileSearch, st.chips) {
-        searchOptions(query.trim(), tagIndex, st.chips, if (faces == true) named else null, found, noFileSearch)
+    return remember(query, found, tagIndex, named, faces, noFileSearch, st.chips, smart) {
+        searchOptions(query.trim(), tagIndex, st.chips, if (faces == true) named else null, found, noFileSearch, smart = smart == true)
     }
 }
 
@@ -453,6 +469,7 @@ private fun pick(o: SearchOption, search: TopSearchViewModel, gallery: PhotoGall
         is SearchOption.Tag -> { gallery?.addChip(o.tag); onShowPhotos() }
         is SearchOption.PersonHit -> { gallery?.togglePerson(o.person.id); onShowPhotos() }
         is SearchOption.Docs -> FilesNav.searchInFiles(o.text)
+        is SearchOption.Smart -> { gallery?.searchText(o.text); onShowPhotos() }
         // A folder opens; a file opens in its folder, as a tap there.
         is SearchOption.FileHit ->
             if (o.kind == FileKind.FOLDER) FilesNav.showInFiles(FilesNav.asFolder(o.file.path))
@@ -469,6 +486,8 @@ internal object SearchIcons {
         outlineIcon("DocSearch", "M10.5 20.5h-4a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h7l4 4v3", "M13.5 3.5v4h4M8 11h4M8 14.5h2", circlePath(16f, 16f, 3.2f), "m18.4 18.4 2.6 2.6")
     }
     val Back: ImageVector by lazy { outlineIcon("Back", "M19 12H5m6-6-6 6 6 6") }
+    /** Smart search: sparkles, Material's AutoAwesome. */
+    val Smart: ImageVector get() = androidx.compose.material.icons.Icons.Outlined.AutoAwesome
     val Close: ImageVector by lazy { outlineIcon("Close", "m6.5 6.5 11 11m0-11-11 11", stroke = 2f) }
     val Tag: ImageVector by lazy {
         outlineIcon("Tag", "M3.5 12V5.5a2 2 0 0 1 2-2H12a2 2 0 0 1 1.4.6l6.9 6.9a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0l-6.9-6.9A2 2 0 0 1 3.5 12Z", circlePath(8.5f, 8.5f, 1.4f))
@@ -557,7 +576,8 @@ private fun SearchField(
     val area = st?.activeArea?.takeIf { onShowMap != null }
     // Tags and people: what the clear button takes away. An open
     // collection is a chip too, which only its own x closes; so is the map's area.
-    val searched = people.size + chips.size
+    val smartText = st?.smartText
+    val searched = people.size + chips.size + (if (smartText != null) 1 else 0)
     val chipCount = searched + (if (group != null) 1 else 0) + (if (area != null) 1 else 0)
     val colors = MaterialTheme.colorScheme
 
@@ -670,6 +690,12 @@ private fun SearchField(
                         ) { PersonPic(p, 24) }
                     }
                     st.chips.forEach { t -> SearchChip(label = t, removeLabel = S.appShellSearchRemove(t).resolve(), onRemove = { gallery.removeChip(t) }) }
+                    // Smart search: the description searched for, last.
+                    if (smartText != null) {
+                        SearchChip(label = smartText, removeLabel = S.appShellSearchRemove(smartText).resolve(), onRemove = { gallery.clearText() }, leadingPad = 8.dp) {
+                            Icon(SearchIcons.Smart, null, Modifier.size(18.dp), tint = colors.primary)
+                        }
+                    }
                 }
             }
             Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
@@ -838,6 +864,9 @@ private fun SearchPanel(
     val people = options.options.filterIsInstance<SearchOption.PersonHit>()
     val files = options.options.filterIsInstance<SearchOption.FileHit>()
     val docs = options.options.filterIsInstance<SearchOption.Docs>().firstOrNull()
+    // Smart search's row: first when it is what the Search key takes.
+    val smart = options.options.filterIsInstance<SearchOption.Smart>().firstOrNull()
+    val smartFirst = smart != null && options.best == smart.key
     // The row to search the documents: first when no tag or person matches.
     val docsFirst = tags.isEmpty() && people.isEmpty()
     val alreadyIn = st?.chips.orEmpty().any { FilesNav.fold(it).text == q }
@@ -855,8 +884,10 @@ private fun SearchPanel(
     val moved = search.moved
     val order = remember(options) {
         buildList {
+            if (smart != null && smartFirst) add("smart")
             if (tags.isNotEmpty()) { add("h:Things"); tags.forEach { add(it.key) } }
             if (people.isNotEmpty()) { add("h:People"); people.forEach { add(it.key) } }
+            if (smart != null && !smartFirst) add("smart")
             if (docs != null && docsFirst) add("docs")
             if (files.isNotEmpty()) { add("h:Files"); files.forEach { add(it.key) } }
             if (docs != null && !docsFirst) add("docs")
@@ -900,6 +931,7 @@ private fun SearchPanel(
             LazyColumn(Modifier.nestedScroll(keyboardAwayOnDrag), state = list, contentPadding = PaddingValues(top = 4.dp, bottom = 8.dp)) {
                 // Keyed by the English name, as `order` has them.
                 fun section(key: String) = item(key = "h:$key") { SectionHead(headings.getValue(key)) }
+                if (smart != null && smartFirst) item(key = "smart") { SmartRow(smart, smart.key == active) { choose(smart) } }
                 if (tags.isNotEmpty()) {
                     section("Things") // i18n-ignore: the list's key for the heading, not shown
                     items(tags, key = { it.key }) { o ->
@@ -923,6 +955,7 @@ private fun SearchPanel(
                         }
                     }
                 }
+                if (smart != null && !smartFirst) item(key = "smart") { SmartRow(smart, smart.key == active) { choose(smart) } }
                 if (docs != null && docsFirst) item(key = "docs") { DocsRow(docs, docs.key == active) { choose(docs) } }
                 if (files.isNotEmpty()) {
                     section("Files") // i18n-ignore: the list's key for the heading, not shown
@@ -1026,6 +1059,22 @@ private fun OptionRow(active: Boolean, onClick: () -> Unit, content: @Composable
             .clickable(onClick = onClick).heightIn(min = 52.dp).padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content,
     )
+}
+
+/** Smart search's row: the photos that best match the words, as a description. */
+@Composable
+private fun SmartRow(o: SearchOption.Smart, active: Boolean, onClick: () -> Unit) {
+    Column(Modifier.padding(top = 4.dp)) {
+        OptionRow(active, onClick) {
+            Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Icon(SearchIcons.Smart, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            Text(
+                S.appPhotosSmartSearchSearchFor(o.text).resolve(mapOf("b" to RichTag(SpanStyle(fontWeight = FontWeight.Bold)))),
+                style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+        }
+    }
 }
 
 @Composable

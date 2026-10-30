@@ -41,6 +41,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -173,10 +174,17 @@ internal fun MemoriesStrip(model: MemoriesModel, st: MemoriesState, wide: Boolea
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (p in MemoriesRules.ORDER) {
+                    // A choice without memories can't be picked, but stays
+                    // readable (the default 38% faded into the dark theme).
+                    val colors = MaterialTheme.colorScheme
                     FilterChip(
                         selected = st.period == p, enabled = st.has(p),
                         onClick = { model.choose(p) },
                         label = { Text(periodLabel(p).resolve(), style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(disabledLabelColor = colors.onSurfaceVariant.copy(alpha = 0.6f)),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = st.has(p), selected = st.period == p, disabledBorderColor = colors.outline.copy(alpha = 0.45f),
+                        ),
                     )
                 }
             }
