@@ -1088,7 +1088,16 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   Decrypted manifests are cached (8, 5 min idle, valid only for the same secret and manifest
   size/mtime), but the expiry is read from the database on every request.
   An archive's link is `/#download=<uuid>_<secret>` (2026-10: the secret in the fragment, as a
-  gallery's; `downloadLink.ts` still takes `?download=`).
+  gallery's; `downloadLink.ts` still takes `?download=`). Its page is `ZipLinkPage.tsx` (rules in
+  `zipDownload.ts`, `node web/scripts/zip-download-test.mjs`), in the tab Images' and Files'
+  Download ZIP open at the click (`zipTab.ts`): the percent rounded down (100% only with every byte
+  in), then the file handed to the browser and a tick, "Your download has started" and a Download
+  button (an `<a download>` on the same `blob:` URL, kept while the page shows) that saves it again;
+  2 s later the tab closes itself only when nothing took the focus or changed its visibility
+  meanwhile and it is in the background or focused (`watchHandOff`, `mayClose`) - a browser asking
+  where to save, or whether the site may download, keeps the tab and its question. Releases up to
+  140 stayed on "Downloading… 100%" (user feedback 2026-10: "stalls at 100%, the file did
+  download"); 141 closed the tab regardless, with any such question.
   Issue #166 (release 63): a share link is downloaded in parts (the web page asks for 4 MiB
   ranges; a whole-archive `DownloadSharedLink` is refused above 4 MiB), and every reply carrying
   file content holds the content budget until it is on the wire (`connHandler.reserveMemory`:
@@ -1937,7 +1946,12 @@ a pin is a MapLibre `Marker` around a button (the small thumbnail by path, 24 a 
 first; ember count; label `web.images.places.pin` or the photo's date). One photo opens in the viewer; a group
 flies to fit its area, at least twice as close, while the zoom is under 16 and it spans over 25 m, else opens Images with
 `photoFilter.showArea` - `SearchPhotos.area` on every page, the month counts and the upward pages, a "Map area"
-chip (× `leaveArea`), the menu marking Places - and Back finds the map where it was (`keepCamera`). Opening
+chip (× `leaveArea`), the menu marking Places - and Back finds the map where it was (`keepCamera`). While the area is on, Images starts with a
+"Back to the map" button (`.pg-tomap`, an arrow and `web.images.places.back_to_map`, above any person
+or collection header, at every width; owner, 2026-10-30: the menu's Places wasn't obvious): it does
+what the menu's Places does - `leaveArea`, the map where it was - and stands in for the place's
+history entry (App's `onShowMap` sets the tab, as Images back to Collections does), so Back from the
+map goes past it; the Map area chip stays. Opening
 the page clears the area; the map is never wider than one world (min zoom from its width). It opens framed
 on `located_area` (max zoom 11) - photos all over the world: the world, centred on zoom 0's biggest place -
 or the world with "No photos with a location yet".
@@ -2034,7 +2048,16 @@ and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never 
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover
 or long-press, a drag for a run - see below - numbered in post order) with a bar over the top bar, dialogs for posting and collections,
 and `DateScrubber.tsx` (a column of years with a mouse, a draggable handle on touch). `People` and
-`Collections` are pages of their own (`PeopleView`, `CollectionsView`). `web/src/net/` holds the WebSocket/proto
+`Collections` are pages of their own (`PeopleView`, `CollectionsView`), each with Sort by over its
+grid from two items on (`SortBy.tsx`, a native select; rules in `librarySort.ts`, `node
+web/scripts/library-sort-test.mjs`, the phones' rules; owner, 2026-10-30; it survives Sign Out): People's Most photos (the
+default, the order the page always had: named people first, then the unnamed, each in the device's
+order) or Name (A to Z in `nameCollator(t.lang)` - case and accents ignored, numbers by value, spaces
+trimmed - names that compare equal and the unnamed in the device's order, the unnamed last);
+Collections' Newest first (the device's order, the default) or Name (the untitled last). Kept in
+`otc_people_sort` / `otc_collections_sort` (a storage that throws: for the visit only). Only the
+pages follow it: the Someone else… and Add to collection pickers keep the device's order, as on
+the phones. `web/src/net/` holds the WebSocket/proto
 client; `web/src/views/` are top-level routed pages (`SignIn` - a new device's setup - and `Social`); `web/src/components/` are the
 feature widgets (files explorer, photo gallery, friendships, settings, status, profile, social feed —
 each with a co-located `.css`). Built output (`vite build`) is copied by `make web` into the device's

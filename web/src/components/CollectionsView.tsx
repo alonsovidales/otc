@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Trans, useT, type TFunction } from "../i18n";
 import type { ImageGroup } from "../proto/messages";
@@ -10,11 +10,14 @@ import { CollectionsIcon } from "./NavIcons";
 import { openGroup, showAll } from "./photoFilter";
 import "./CollectionsView.css";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { nameCollator } from "./filesSort";
+import { collectionsOrders, setCollectionsOrder, sortCollections, useCollectionsOrder, type CollectionsOrder } from "./librarySort";
+import { SortBy } from "./SortBy";
 
 // The Collections page: every collection (an image group in the protocol)
-// as a card with its cover, newest first as the device lists them. A card
-// opens Images on that collection, which is where one is renamed, shared
-// or deleted.
+// as a card with its cover, in the order Sort by picks (librarySort.ts:
+// newest first as the device lists them, or by name). A card opens Images
+// on that collection, which is where one is renamed, shared or deleted.
 
 type Props = {
   // A collection was opened (photoFilter.openGroup already called): show Images.
@@ -26,6 +29,7 @@ const cSkeletonCards = 8;
 const cSlowMs = 10_000;
 
 const nameOf = (t: TFunction, g: ImageGroup) => g.name.trim() || t("web.images.collections.untitled");
+const orderText = (t: TFunction, o: CollectionsOrder) => (o === "name" ? t("web.images.collections.sort_name") : t("web.images.collections.sort_newest"));
 
 // Collections, inside its section's error boundary (ErrorBoundary.tsx).
 export default function CollectionsView(props: Props) {
@@ -34,8 +38,14 @@ export default function CollectionsView(props: Props) {
 
 function CollectionsPage({ onOpenPhotos }: Props) {
   const t = useT();
-  const { items, thumbs, loaded } = useGroups();
+  const { items: listed, thumbs, loaded } = useGroups();
   const { failed, slow, retry } = useFreshList(loaded, reloadGroups);
+  // Sort by: the device's order (newest first), or by name; remembered in
+  // this browser.
+  const order = useCollectionsOrder();
+  const collator = useMemo(() => nameCollator(t.lang), [t.lang]);
+  const items = useMemo(() => sortCollections(listed, order, collator), [listed, order, collator]);
+  const orderOptions = useMemo(() => collectionsOrders.map((o) => ({ value: o, label: orderText(t, o) })), [t]);
 
   const open = (g: ImageGroup) => {
     openGroup({ id: g.id, name: g.name, fileCount: g.fileCount });
@@ -106,6 +116,11 @@ function CollectionsPage({ onOpenPhotos }: Props) {
       <header className="cv-head">
         <h1 className="cv-title">{t("web.images.collections.title")}</h1>
       </header>
+      {loaded && items.length > 1 && (
+        <div className="sortby-row">
+          <SortBy value={order} options={orderOptions} onChange={setCollectionsOrder} />
+        </div>
+      )}
       {body}
     </div>
   );

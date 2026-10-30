@@ -331,6 +331,9 @@ function useMedia(query: string): boolean {
 type PhotoGalleryProps = {
   // An open collection's "back" link: the Collections page.
   onShowCollections: () => void;
+  // "Back to the map", over a place opened from Places (the area left
+  // already): the map, where it was (places.ts' keepCamera).
+  onShowMap: () => void;
 };
 
 type DialogState =
@@ -351,7 +354,7 @@ export default function PhotoGallery(props: PhotoGalleryProps) {
   return <ErrorBoundary where="tab" noImages><PhotoGalleryView {...props} /></ErrorBoundary>;
 }
 
-function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
+function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   const t = useT();
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
@@ -1725,6 +1728,26 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
         </div>
       )}
 
+      {/* A place opened from Places: the way back to the map, where it was,
+          plain to see (the menu's Places, which does the same, wasn't). The
+          area's chip in the top bar stays. */}
+      {area && (
+        <div className="pg-head pg-maphead">
+          <button
+            type="button"
+            className="pg-btn outline pg-tomap"
+            onClick={() => {
+              // A double click's second click must not land on the map.
+              swallowSecondClick();
+              leaveArea();
+              onShowMap();
+            }}
+          >
+            <BackIcon size={20} />
+            <span>{t("web.images.places.back_to_map")}</span>
+          </button>
+        </div>
+      )}
       {group && (
         <CollectionHeader
           group={group}

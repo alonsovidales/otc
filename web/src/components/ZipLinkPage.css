@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* A share link's ZIP page (ZipLinkPage.tsx), centred by App.css'
+   .download-view: the progress, then a tick, the done line and a Download
+   button that saves the file again. */
+.zl-note {
+  margin: 0;
+  max-width: 36em;
+  padding: 0 16px;
+  color: var(--mist-dim);
+  line-height: 1.5;
+  text-align: center;
+}
+.zl-error { color: var(--danger); }
+.zl-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.zl-mark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+}
+.zl-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--mist);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.zl-again:hover { background: rgba(234, 242, 239, .08); border-color: rgba(234, 242, 239, .22); }
+.zl-again:active { background: rgba(234, 242, 239, .14); }
+.zl-again:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .zl-again { transition: none; }
+}

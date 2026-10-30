@@ -17,15 +17,19 @@ import { useDragSelect } from "./useDragSelect";
 import { refuseOnDemo } from "../net/demo";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useBackLayer } from "./backStack";
+import { nameCollator } from "./filesSort";
+import { peopleOrders, setPeopleOrder, sortPeople, usePeopleOrder, type PeopleOrder } from "./librarySort";
+import { SortBy } from "./SortBy";
 import "./PeopleView.css";
 
-// The People page: the faces the device found, named people first, each a
-// circle that opens Images on that person. A person's "more" menu names or
-// deletes them. Several are picked as photos are on Images - the circle on
-// a face's corner, a long press on a touch screen, Shift for a run, a press
-// dragged across faces (issue #200, useDragSelect.ts) - and the bar that
-// then lies over the top bar merges them into one (face matching split one
-// person in several) or deletes them.
+// The People page: the faces the device found, in the order Sort by picks
+// (librarySort.ts: named people first, most photos first, or by name),
+// each a circle that opens Images on that person. A person's "more" menu
+// names or deletes them. Several are picked as photos are on Images - the
+// circle on a face's corner, a long press on a touch screen, Shift for a
+// run, a press dragged across faces (issue #200, useDragSelect.ts) - and
+// the bar that then lies over the top bar merges them into one (face
+// matching split one person in several) or deletes them.
 
 type Props = {
   // A person was opened (photoFilter.showPerson already called): show Images.
@@ -57,6 +61,7 @@ const cMaxName = 100;
 const cDeleteParallel = 3;
 
 const photosLabel = (t: TFunction, n: number) => t("web.images.people.photos", { count: n });
+const peopleOrderText = (t: TFunction, o: PeopleOrder) => (o === "name" ? t("web.images.people.sort_name") : t("web.images.people.sort_photos"));
 // What a selection knows a person by.
 const personId = (p: Person) => p.id;
 const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -162,11 +167,16 @@ function PeoplePage({ onOpenPhotos }: Props) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [toast, setToast] = useState<{ text: UiText; at: number; error: boolean } | null>(null);
 
-  // Named people first, each part in the order the device lists them.
-  const people = useMemo(() => {
-    const shown = items.filter((p) => !gone.has(p.id));
-    return [...shown.filter((p) => p.name.trim() !== ""), ...shown.filter((p) => p.name.trim() === "")];
-  }, [items, gone]);
+  // Sort by (librarySort.ts): Most photos - named people first, then the
+  // unnamed, each in the device's order (most photos first) - or by name,
+  // the unnamed after; remembered in this browser.
+  const order = usePeopleOrder();
+  const collator = useMemo(() => nameCollator(t.lang), [t.lang]);
+  const people = useMemo(
+    () => sortPeople(items.filter((p) => !gone.has(p.id)), order, collator),
+    [items, gone, order, collator],
+  );
+  const orderOptions = useMemo(() => peopleOrders.map((o) => ({ value: o, label: peopleOrderText(t, o) })), [t]);
   const menuPerson = menu ? people.find((p) => p.id === menu.id) ?? null : null;
 
   // Focus moves once the render that needs it is on screen: a button that
@@ -617,6 +627,11 @@ function PeoplePage({ onOpenPhotos }: Props) {
       <header className="pv-head">
         <h1 ref={titleRef} className="pv-title" tabIndex={-1}>{t("web.images.people.title")}</h1>
       </header>
+      {loaded && people.length > 1 && (
+        <div className="sortby-row">
+          <SortBy value={order} options={orderOptions} onChange={setPeopleOrder} />
+        </div>
+      )}
       {body}
 
       {menu && menuPerson && (

@@ -22,11 +22,9 @@ import { watchSmartSearch } from "./components/smartSearch";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
-import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
 import { reregisterPush } from "./net/webPush";
 import { useLanguage, useT } from "./i18n";
-import { asIs, percentText, say, type UiText } from "./components/uiText";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
@@ -45,8 +43,7 @@ import type { TourStepId } from "./components/tourSteps";
 import { backSection, followBackSection, keepSection } from "./components/backStack";
 import { restoreSession } from "./net/sessionRestore";
 import ReconnectingBanner from "./components/ReconnectingBanner";
-import BigFileDialog from "./components/BigFileDialog";
-import { isTooBigForMemory } from "./components/bigFile";
+import ZipLinkPage from "./components/ZipLinkPage";
 import { lazyPart } from "./components/lazyPart";
 import Part from "./components/Part";
 
@@ -493,106 +490,10 @@ function App() {
     }, []);
   }
 
-  // Issue #104: a shared link (/#download=<uuid>_<secret>, ?download= before) fetches the zip
-  // and saves it. This used to run as a bare async IIFE in the render body
-  // - so every re-render of App while that parameter was in the URL kicked
-  // off *another* download, and App re-renders several times on any normal
-  // load as auth, device status and the notification count each settle.
-  // Selecting three photos and downloading them produced three copies of
-  // the same zip.
-  //
-  // An effect keyed on the link runs it once per link instead, and the ref
-  // makes that hold even when React deliberately double-invokes effects
-  // (StrictMode in development), where a dependency array alone wouldn't.
+  // Issue #104: a share link's archive (/#download=<uuid>_<secret>,
+  // ?download= before) is the whole page: ZipLinkPage fetches and saves it,
+  // once per link.
   const downloadLink = useDownloadLink(sp);
-  const startedDownloadRef = useRef<string | null>(null);
-  const [downloadError, setDownloadError] = useState<UiText | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [downloadDone, setDownloadDone] = useState(false);
-  // F11 of the 2026-10 review: the archive is put together in this page's
-  // memory before the browser saves it. A big one asks first, once its
-  // first part says how big (BigFileDialog); Cancel stops it there.
-  const [bigAsk, setBigAsk] = useState<{ bytes: number; answer: (go: boolean) => void } | null>(null);
-  const [downloadCancelled, setDownloadCancelled] = useState(false);
-  useEffect(() => {
-    if (!downloadLink) return;
-    if (startedDownloadRef.current === downloadLink) return;
-    startedDownloadRef.current = downloadLink;
-
-    (async () => {
-      const parts = downloadLink.split("_").filter(Boolean);
-      if (parts.length < 2) {
-        setDownloadError(() => say("web.shell.link.malformed"));
-        return;
-      }
-      const [uuid, secret] = parts;
-      try {
-        // Issue #166: in parts of at most 4 MB, so the device never holds
-        // the whole archive for one reply (it refuses to above 4 MB).
-        const CHUNK = 4 << 20;
-        const parts: Uint8Array[] = [];
-        let offset = 0;
-        let total = -1;
-        while (total < 0 || offset < total) {
-          const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            (e as any).payload = {
-              $case: "reqDownloadSharedLink",
-              reqDownloadSharedLink: { uuid, secret, offset: BigInt(offset), length: CHUNK },
-            };
-          });
-          if (resp.payload?.$case !== "respFileChunk") {
-            // The device's own words, in the language the request carried.
-            setDownloadError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.link.invalid")));
-            return;
-          }
-          const chunk = resp.payload.respFileChunk;
-          total = Number(chunk.size);
-          if (chunk.data.length === 0 && offset < total) {
-            setDownloadError(() => say("web.shell.link.stopped"));
-            return;
-          }
-          parts.push(chunk.data);
-          offset += chunk.data.length;
-          if (total > 0) setDownloadProgress(offset / total);
-          if (parts.length === 1 && offset < total && isTooBigForMemory(total)) {
-            const go = await new Promise<boolean>((answer) => setBigAsk({ bytes: total, answer }));
-            setBigAsk(null);
-            if (!go) {
-              setDownloadCancelled(true);
-              return;
-            }
-          }
-        }
-        if (total === 0) {
-          setDownloadError(() => say("web.shell.link.empty"));
-          return;
-        }
-
-        const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: "application/zip" }));
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "shared.zip";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        // The tab has nothing more to do. Images and Files open it for the
-        // ZIP, so it may close itself - after a moment, for the browser to
-        // take the file (one that refuses, a tab someone opened by hand,
-        // shows that the download started instead of 100% for good).
-        setDownloadDone(true);
-        window.setTimeout(() => {
-          window.close();
-          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        }, 2000);
-      } catch (err: any) {
-        // Reported inline rather than through alert(), which blocks the
-        // whole tab until someone dismisses it - and this view has nothing
-        // else to show, so the message is the page.
-        const message: string = err?.message || "";
-        setDownloadError(() => (message ? asIs(message) : say("web.shell.link.failed")));
-      }
-    })();
-  }, [downloadLink]);
 
   // The tour by itself, the first time the signed-in app shows here: after
   // a restored session too (after a sign-in handleSignedIn opens it first,
@@ -601,34 +502,15 @@ function App() {
   const shellShown = authenticated && !inSetup && !deviceStatus && !downloadLink && window.location.pathname !== "/shared";
   useEffect(() => { if (shellShown) startAutoTour(); }, [shellShown, startAutoTour]);
 
-  // If this is a download, that's the whole page. The wait here is the
-  // longest of the lot - the device builds the archive and sends it over
-  // the relay before the browser sees a byte - so it gets a spinner
-  // rather than a line of static text that could equally mean "stuck".
   // Issue #180: a shared gallery's page (/shared#<uuid>.<secret>) - for
   // anyone with the link, signed in or not; nothing else of the app shows.
   if (window.location.pathname === "/shared") {
     return <Part><SharedGalleryView /></Part>;
   }
 
-  if (!!downloadLink) {
-    return (
-      <div className="download-view">
-        {downloadError
-          ? <p className="sf-note error">{downloadError(t)}</p>
-          : downloadCancelled
-          ? <p className="sf-note">{t("web.shell.link.cancelled")}</p>
-          : downloadDone
-          ? <p className="sf-note">{t("web.shell.link.done")}</p>
-          : <Spinner label={downloadProgress === null
-              ? t("web.shell.link.preparing")
-              : t("web.shell.link.progress", { percent: percentText(t, Math.round(downloadProgress * 100)) })} />}
-        {bigAsk && (
-          <BigFileDialog bytes={bigAsk.bytes} kind="save" onGo={() => bigAsk.answer(true)} onCancel={() => bigAsk.answer(false)} />
-        )}
-      </div>
-    );
-  }
+  // A share link's ZIP: that's the whole page (another link pasted in
+  // starts afresh).
+  if (downloadLink) return <ZipLinkPage key={downloadLink} link={downloadLink} />;
 
   if (tab === "Settings") {
     (window as any).webkit?.messageHandlers?.native?.postMessage({
@@ -778,9 +660,11 @@ function App() {
         {/* Files, People and Settings load when first opened (Part). Images
             going to Collections - out of a collection, or after deleting
             it - stands in for the collection's entry rather than adding
-            one: Back doesn't open a collection that was left. */}
+            one: Back doesn't open a collection that was left. "Back to the
+            map" (a place opened from Places) likewise stands in for the
+            place's entry with the map's, which opens where it was. */}
         {tab === "AdminPannel" && (authenticated ? <Part><FilesExplorer initialPath="/" /></Part> : signedOutPlaceholder)}
-        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} /> : signedOutPlaceholder)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowCollections={() => setTab("Collections")} onShowMap={() => setTab("Places")} /> : signedOutPlaceholder)}
         {tab === "People" && (authenticated ? faces && <Part><PeopleView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}
         {tab === "Collections" && (authenticated ? <CollectionsView onOpenPhotos={() => goTo("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Places" && (authenticated ? places && <Part><PlacesView onOpenPhotos={() => goTo("PhotoGallery")} /></Part> : signedOutPlaceholder)}

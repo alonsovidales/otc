@@ -404,6 +404,11 @@
 /* ---- a collection's or a person's header ----------------------------------- */
 
 .pg-head { padding: 16px var(--pg-pad) 4px; }
+/* "Back to the map", over a place opened from Places: a pill of its own
+   above whatever header follows (a collection's, a person's). */
+.pg-maphead + .pg-head { padding-top: 8px; }
+.pg-tomap { max-width: 100%; }
+.pg-tomap span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pg-back {
   display: inline-flex;
   align-items: center;
