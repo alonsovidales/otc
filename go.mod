@@ -8,6 +8,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/alyu/configparser v0.0.0-20191103060215-744e9a66e7bc
+	github.com/eliben/go-sentencepiece v0.7.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gabriel-vasile/mimetype v1.4.11
 	github.com/go-sql-driver/mysql v1.9.3
