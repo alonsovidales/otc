@@ -38,6 +38,9 @@
 //      with the count. A tap opens a single photo in the viewer, zooms into
 //      a group, and opens a group too close to split in Images
 //      (SearchPhotos.area, the "Map area" chip) - PlaceTap.
+//    - A group open in Images has "Back to the map" at the top of the grid
+//      (AreaBackButton, the owner's request of 2026-10-30), on both
+//      layouts: the map where it was, as the chip's name does.
 //
 //  The web (PlacesView.tsx) and Android follow the same rules.
 //
@@ -1075,5 +1078,56 @@ struct PlacePinView: View {
         } else {
             Rectangle().fill(Color(.systemGray5))
         }
+    }
+}
+
+// MARK: - Back to the map
+
+/// "Back to the map" at the top of Images' grid while it shows the photos
+/// of a group opened from the map (PhotoGalleryVM.activeArea, the "Map
+/// area" chip, which stays): an arrow and the words in ember, outlined as
+/// the top bar's own action, on a 44 pt high target, read by VoiceOver as
+/// a button by its words. It does what the chip's name does: the map where
+/// it was - a narrow window's map in the grid's place, a wide one's Places
+/// page (MainView turns `showMap` into it). Android's AreaBackButton.
+struct AreaBackButton: View {
+    let action: () -> Void
+
+    /// Whether it shows: a group of the map is open and the map isn't on
+    /// the screen in the grid's place (a narrow window switched to it).
+    /// The chip's own rule.
+    static func shown(area: Msg_PlaceArea?, mapShown: Bool) -> Bool {
+        area != nil && !mapShown
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                // "Backward": it points the other way in a right-to-left
+                // language.
+                Image(systemName: "arrow.backward")
+                    .font(.subheadline.weight(.semibold))
+                Text(S.appPhotosPlacesBackToMap)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.leading)
+            }
+            .foregroundStyle(MenuStyle.ember)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .frame(minHeight: 44)
+            .overlay(Capsule().stroke(MenuStyle.ember, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(AreaBackButtonStyle())
+        // The words alone, not the arrow's name.
+        .accessibilityLabel(S.appPhotosPlacesBackToMap)
+    }
+}
+
+/// Pressed: the ember faintly behind it, as the top bar's action.
+private struct AreaBackButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(MenuStyle.ember.opacity(configuration.isPressed ? 0.12 : 0), in: Capsule())
     }
 }

@@ -3208,7 +3208,8 @@ VoiceOver reads a tile's label for one photo, `app.photos.places.pin` for a grou
 (`PlaceTap`): one photo opens in the viewer (`ImageModal` on a fixed list, as Files'); a group zooms to
 fit its area, at least twice as close; from zoom 16, or photos within 25 m, it opens in Images with
 `SearchPhotos.area` and the month counts' `area` (`vm.activeArea`, the "Map area" chip: tap for the
-map where it was, × for every place). Tests: `PlacesTests.swift`.
+map where it was, × for every place; and "Back to the map" at the top of the grid, below). Tests:
+`PlacesTests.swift`.
 **Places on Android** (2026-10-29, owner: "let's use these maps in the android app too so we don't depend
 on Google"): the web's map, MapLibre Native (`org.maplibre.gl:android-sdk-opengl`, pinned - the plain
 `android-sdk` is the Vulkan build, which Play would offer only to phones with Vulkan 1.0) on OpenFreeMap,
@@ -3334,6 +3335,25 @@ map (`State.activeArea`, Places on, the grid showing) starts with `AreaBackButto
 `headerCount`; outlined, 48 dp, an arrow and "Back to the map") on narrow and wide windows, doing what
 the "Map area" chip's tap does (`onPage(GalleryPage.PLACES)`: the map where it was); the chip stays. A
 debug-only `PageSortPreviewActivity` draws them on sample data. Tests: `PageSortTest.kt`.
+**Sort by and Back to the map on iOS** (2026-10-30, the owner's request after user feedback;
+`SortBy.swift`, `AreaBackButton` in `Places.swift`, tests `SortByTests.swift`; Android's rules above,
+case for case): People and Collections have a Sort by menu (`SortByMenu`: the sort icon at the
+leading end of the narrow sheets' bars - People's sheet, `CollectionsSheet` -, the icon and the order
+in words atop the wide pages, `SortByHeader`, 44 pt high; a "Sort by" section with a check on the
+order in use; VoiceOver hears "Sort by" and the order). People: Most photos (`PeopleSort.photos`, the
+default, the page's order as before, `PeopleOrder.shown`) or Name; Collections: Newest first
+(`CollectionsSort.newest`, the default, the device's order) or Name. Name (`NameOrder`) is A to Z by
+`FilesSort.compareNames` in the app's language (case and accents ignored, numbers by value), names
+trimmed, the nameless (Untitled) last and equal names in the device's order. Kept in UserDefaults as
+`people.sort` ("photos"/"name") and `collections.sort` ("newest"/"name"), like `files.viewMode`:
+wiped at Log Out with the app's defaults. Another order scrolls back to the page's top. The drag
+selection, the merge sheet and the tour's first face follow the order shown; "Add to collection"
+keeps the device's order. Images over a group opened from the map starts with `AreaBackButton`
+(`AreaBackButton.shown(area:mapShown:)`, the chip's rule: `vm.activeArea` set and the grid showing;
+ember outline, an arrow - `arrow.backward`, mirrored right to left - and "Back to the map", 44 pt
+high, read as a button by its words), above a person's header, on both layouts:
+it sets `vm.showMap` as the chip does - the narrow window's map in the grid's place, the wide one's
+Places page (MainView) - the map where it was; the chip stays.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

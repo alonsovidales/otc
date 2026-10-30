@@ -1070,9 +1070,10 @@ struct TopBarSearchField: View {
 
 /// The Collections page, as the web's CollectionsView: every collection as
 /// a card with its cover, its name and how many items, newest first as the
-/// device lists them. A card opens Images on that collection, which is
-/// where one is renamed, shared or deleted. On a narrow window Images'
-/// Collections button lists them in a sheet instead.
+/// device lists them or by name (Sort by, SortBy.swift, at the page's
+/// head). A card opens Images on that collection, which is where one is
+/// renamed, shared or deleted. On a narrow window Images' Collections
+/// button lists them in a sheet instead.
 struct CollectionsPage: View {
     @ObservedObject var vm: PhotoGalleryVM
     /// A collection was opened (vm.openGroup already called), or Images
@@ -1083,8 +1084,14 @@ struct CollectionsPage: View {
     @State private var failed = false
     @State private var slow = false
     @State private var shareSource: Msg_SharedGallerySource?
+    /// Newest first or Name, shared with Images' sheet of collections.
+    @AppStorage(CollectionsSort.storageKey) private var sortChoice = CollectionsSort.default.rawValue
+    private var sort: Binding<CollectionsSort> {
+        Binding(get: { CollectionsSort(stored: sortChoice) }, set: { sortChoice = $0.rawValue })
+    }
 
     private static let cols = [GridItem(.adaptive(minimum: 180), spacing: 16, alignment: .top)]
+    private static let topID = "collectionsTop"
 
     var body: some View {
         Group {
@@ -1099,16 +1106,29 @@ struct CollectionsPage: View {
                     onOpenPhotos()
                 }
             } else if vm.groupsLoaded {
-                ScrollView {
-                    LazyVGrid(columns: Self.cols, spacing: 24) {
-                        ForEach(vm.groups, id: \.id) { g in
-                            card(g).tourTarget(g.id == vm.groups.first?.id ? .firstCollection : nil)
+                let groups = CollectionsSort(stored: sortChoice).ordered(vm.groups, locale: L10n.shared.locale)
+                VStack(spacing: 0) {
+                    SortByHeader(choices: CollectionsSort.allCases, selection: sort, title: \.title)
+                        .padding(.horizontal, 12)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 0) {
+                                Color.clear.frame(height: 0).id(Self.topID)
+                                LazyVGrid(columns: Self.cols, spacing: 24) {
+                                    ForEach(groups, id: \.id) { g in
+                                        card(g).tourTarget(g.id == groups.first?.id ? .firstCollection : nil)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.top, 8)
+                                .padding(.bottom, 64)
+                            }
                         }
+                        // Another order starts from its top.
+                        .onChange(of: sortChoice) { _, _ in proxy.scrollTo(Self.topID, anchor: .top) }
                     }
-                    .padding(24)
-                    .padding(.bottom, 40)
+                    .refreshable { await ask() }
                 }
-                .refreshable { await ask() }
             } else if failed || slow {
                 stateView(
                     art: AnyView(Image(systemName: "exclamationmark.circle").font(.system(size: 40, weight: .light)).foregroundStyle(.secondary)),
@@ -1241,6 +1261,95 @@ struct CollectionsPage: View {
             .padding(.horizontal, 24)
             .padding(.top, 48)
             .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// Issue #115: the collections in a sheet, from Images' Collections button
+/// on a narrow window - a picture on the left, like the notifications
+/// rows - in the order picked in its toolbar's Sort by (SortBy.swift), the
+/// same choice as the wide layout's page.
+struct CollectionsSheet: View {
+    @ObservedObject var vm: PhotoGalleryVM
+    /// Set to share a collection as a gallery (the flow is presented from
+    /// the sheet, by whoever shows it).
+    @Binding var shareSource: Msg_SharedGallerySource?
+
+    @AppStorage(CollectionsSort.storageKey) private var sortChoice = CollectionsSort.default.rawValue
+    private var sort: Binding<CollectionsSort> {
+        Binding(get: { CollectionsSort(stored: sortChoice) }, set: { sortChoice = $0.rawValue })
+    }
+
+    var body: some View {
+        let groups = CollectionsSort(stored: sortChoice).ordered(vm.groups, locale: L10n.shared.locale)
+        NavigationStack {
+            ScrollViewReader { proxy in
+                List {
+                    if groups.isEmpty {
+                        Text(S.appPhotosCollectionsSheetEmpty)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(groups, id: \.id) { g in
+                        row(g)
+                    }
+                }
+                // Another order starts from its first collection.
+                .onChange(of: sortChoice) { _, now in
+                    let first = CollectionsSort(stored: now).ordered(vm.groups, locale: L10n.shared.locale).first?.id
+                    if let first { proxy.scrollTo(first, anchor: .top) }
+                }
+            }
+            .navigationTitle(S.appShellSectionCollections)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !groups.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        SortByMenu(choices: CollectionsSort.allCases, selection: sort, title: \.title, compact: true)
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(S.commonDone) { vm.showGroups = false }
+                }
+            }
+        }
+    }
+
+    private func row(_ g: Msg_ImageGroup) -> some View {
+        Button { vm.openGroup(g) } label: {
+            HStack(spacing: 12) {
+                if let ui = UIImage(data: g.coverThumbnail) {
+                    Image(uiImage: ui)
+                        .resizable().scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                        .overlay(NavIconView(.collections, size: 24).foregroundStyle(.secondary))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(g.name).foregroundStyle(.primary)
+                    Text(S.appPhotosCollectionsPictures(count: Int(g.fileCount)))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        // Issue #180: long-press or swipe a group to share it.
+        .contextMenu {
+            Button {
+                shareSource = .group(g.id)
+            } label: {
+                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button {
+                shareSource = .group(g.id)
+            } label: {
+                Label(S.commonShare, systemImage: "square.and.arrow.up")
+            }
+            .tint(.accentColor)
         }
     }
 }

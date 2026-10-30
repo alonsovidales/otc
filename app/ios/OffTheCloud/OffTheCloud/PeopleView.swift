@@ -5,8 +5,9 @@
 //  OffTheCloud
 //
 //  The People page, as the web's PeopleView.tsx: the faces the device
-//  found, named people first, each a circle with the name and the photo
-//  count under it that opens Images on that person. Images' People button
+//  found, named people first (or by name: Sort by, SortBy.swift), each a
+//  circle with the name and the photo count under it that opens Images on
+//  that person. Images' People button
 //  (next to Collections) opens it, only while face recognition is on
 //  (FaceRecognition.swift).
 //
@@ -284,6 +285,7 @@ struct PeopleView: View {
     @State private var moreFrames = DragSelectFrames<String>()
     @State private var drag: (selection: DragSelection<String>, earlier: [String])?
     private static let gridSpaceName = "peopleGrid"
+    private static let topID = "peopleTop"
     private static let gridSpace = DragSelectSpace.named(gridSpaceName)
     /// The face at the top of the grid (state.topPerson).
     @State private var scrolledTo: String?
@@ -325,14 +327,29 @@ struct PeopleView: View {
         nonmutating set { state.saving = newValue }
     }
 
+    /// Most photos or Name (SortBy.swift), kept for the app as Files' view
+    /// is.
+    @AppStorage(PeopleSort.storageKey) private var sortChoice = PeopleSort.default.rawValue
+    private var sort: Binding<PeopleSort> {
+        Binding(get: { PeopleSort(stored: sortChoice) }, set: { sortChoice = $0.rawValue })
+    }
+
     private static let cols = [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 8, alignment: .top)]
-    private var people: [Msg_Person] { PeopleOrder.shown(vm.allPeople) }
+    /// In the order picked. Worked out on every read: read it once per use.
+    private var people: [Msg_Person] { PeopleSort(stored: sortChoice).ordered(vm.allPeople, locale: L10n.shared.locale) }
     private var selPeople: [Msg_Person] {
         let picked = Set(sel)
         return people.filter { picked.contains($0.id) }
     }
     private var selecting: Bool { !sel.isEmpty }
-    private var canMerge: Bool { selPeople.count > 1 }
+    /// Faces picked that are still listed - the order doesn't matter here.
+    private var canMerge: Bool {
+        let picked = Set(sel)
+        return vm.allPeople.lazy.filter { picked.contains($0.id) }.prefix(2).count > 1
+    }
+    /// The faces show (not the empty, failed or loading states): what the
+    /// Sort by menu orders.
+    private var showsGrid: Bool { vm.peopleLoaded && !vm.allPeople.isEmpty }
     private var busy: Bool { deleteProgress != nil }
 
     var body: some View {
@@ -356,9 +373,18 @@ struct PeopleView: View {
                         .accessibilityLabel(S.appPhotosPeopleClearSelection)
                         .disabled(busy)
                     }
-                } else if let onClose {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(S.commonDone, action: onClose)
+                } else {
+                    // The sheet's Sort by; the wide page has it in its own
+                    // header (grid), as it shows no title bar.
+                    if !wide && showsGrid {
+                        ToolbarItem(placement: .topBarLeading) {
+                            SortByMenu(choices: PeopleSort.allCases, selection: sort, title: \.title, compact: true)
+                        }
+                    }
+                    if let onClose {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(S.commonDone, action: onClose)
+                        }
                     }
                 }
             }
@@ -487,7 +513,7 @@ struct PeopleView: View {
 
     @ViewBuilder
     private var content: some View {
-        if vm.peopleLoaded && people.isEmpty {
+        if vm.peopleLoaded && vm.allPeople.isEmpty {
             stateView(
                 art: AnyView(NavIconView(.people, size: 72, stroke: 1.2)),
                 title: S.appPhotosPeopleNoFacesTitle,
@@ -551,50 +577,73 @@ struct PeopleView: View {
     }
 
     private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: Self.cols, spacing: 24) {
-                ForEach(people, id: \.id) { p in
-                    let pending = saving[p.id]
-                    PersonTile(
-                        person: p,
-                        face: vm.face(for: p),
-                        name: PeopleOrder.tidy(pending ?? p.name),
-                        pending: pending != nil,
-                        editing: editingID == p.id,
-                        editText: $editText,
-                        editSelection: $editSelection,
-                        nameFocus: $nameFocus,
-                        selecting: selecting,
-                        selected: sel.contains(p.id),
-                        canMerge: people.count > 1,
-                        dragFrames: dragFrames,
-                        moreFrames: moreFrames,
-                        dragSpace: Self.gridSpace,
-                        onTap: { tap(p) },
-                        onPick: { pick(p.id) },
-                        onRename: { startRename(p) },
-                        onMergeWithOthers: { mergeWithOthers(p) },
-                        onDelete: { deleteAsk = [p.id] },
-                        onSubmitName: { endRename(editText, fromBlur: false) },
-                        onCancelName: { endRename(nil, fromBlur: false) }
-                    )
-                    // The tour's step about People, on the wide layout's page.
-                    .tourTarget(p.id == people.first?.id ? .firstFace : nil)
+        let list = people
+        let first = list.first?.id
+        return VStack(spacing: 0) {
+            // The wide page has no title bar: Sort by heads the page.
+            if wide {
+                SortByHeader(choices: PeopleSort.allCases, selection: sort, title: \.title)
+                    .padding(.horizontal, 8)
+                    .disabled(busy)
+            }
+            faces(list, first: first)
+        }
+    }
+
+    private func faces(_ list: [Msg_Person], first: String?) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    // The very top, padding included: where another order
+                    // starts.
+                    Color.clear.frame(height: 0).id(Self.topID)
+                    LazyVGrid(columns: Self.cols, spacing: 24) {
+                        ForEach(list, id: \.id) { p in
+                            let pending = saving[p.id]
+                            PersonTile(
+                                person: p,
+                                face: vm.face(for: p),
+                                name: PeopleOrder.tidy(pending ?? p.name),
+                                pending: pending != nil,
+                                editing: editingID == p.id,
+                                editText: $editText,
+                                editSelection: $editSelection,
+                                nameFocus: $nameFocus,
+                                selecting: selecting,
+                                selected: sel.contains(p.id),
+                                canMerge: list.count > 1,
+                                dragFrames: dragFrames,
+                                moreFrames: moreFrames,
+                                dragSpace: Self.gridSpace,
+                                onTap: { tap(p) },
+                                onPick: { pick(p.id) },
+                                onRename: { startRename(p) },
+                                onMergeWithOthers: { mergeWithOthers(p) },
+                                onDelete: { deleteAsk = [p.id] },
+                                onSubmitName: { endRename(editText, fromBlur: false) },
+                                onCancelName: { endRename(nil, fromBlur: false) }
+                            )
+                            // The tour's step about People, on the wide layout's page.
+                            .tourTarget(p.id == first ? .firstFace : nil)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 20)
+                    .scrollTargetLayout()
+                    // Issue #200: a long press on a face picks it, and a drag on
+                    // from it every face up to the finger.
+                    .coordinateSpace(.named(Self.gridSpaceName))
+                    .gesture(dragSelect)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 20)
-            .scrollTargetLayout()
-            // Issue #200: a long press on a face picks it, and a drag on
-            // from it every face up to the finger.
-            .coordinateSpace(.named(Self.gridSpaceName))
-            .gesture(dragSelect)
+            .scrollPosition(id: $scrolledTo, anchor: .top)
+            .onChange(of: scrolledTo) { _, id in state.topPerson = id }
+            // Another order starts from its top.
+            .onChange(of: sortChoice) { _, _ in proxy.scrollTo(Self.topID, anchor: .top) }
+            .scrollDismissesKeyboard(.immediately)
+            .disabled(busy)
+            .refreshable { await ask() }
         }
-        .scrollPosition(id: $scrolledTo, anchor: .top)
-        .onChange(of: scrolledTo) { _, id in state.topPerson = id }
-        .scrollDismissesKeyboard(.immediately)
-        .disabled(busy)
-        .refreshable { await ask() }
     }
 
     // MARK: The selection bar

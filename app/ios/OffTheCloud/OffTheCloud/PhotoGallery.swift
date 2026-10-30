@@ -3404,6 +3404,14 @@ struct PhotoGalleryView: View {
                             // grid's, past the person's header (its
                             // gridRef.scrollIntoView).
                             Color.clear.frame(height: 0).id("photoPageTop")
+                            // Places: the photos of a group of the map -
+                            // back to the map where it was, as the chip.
+                            if areaChipShown {
+                                AreaBackButton { vm.showMap = true }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 8)
+                            }
                             if showsMemories {
                                 MemoriesStrip(model: memories, people: vm.allPeople)
                             }
@@ -3603,63 +3611,10 @@ struct PhotoGalleryView: View {
         .onChange(of: search.query) { _, _ in
             if searchFocused && !search.typed.isEmpty { search.open = true }
         }
-        // Issue #115: the groups list - a picture on the left, like the
-        // notifications rows.
+        // Issue #115: the groups list (CollectionsSheet, AppMenu.swift).
         .sheet(isPresented: Binding(get: { vm.showGroups && !wide }, set: { vm.showGroups = $0 })) {
-            NavigationStack {
-                List {
-                    if vm.groups.isEmpty {
-                        Text(S.appPhotosCollectionsSheetEmpty)
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(vm.groups, id: \.id) { g in
-                        Button { vm.openGroup(g) } label: {
-                            HStack(spacing: 12) {
-                                if let ui = UIImage(data: g.coverThumbnail) {
-                                    Image(uiImage: ui)
-                                        .resizable().scaledToFill()
-                                        .frame(width: 44, height: 44)
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                } else {
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.secondary.opacity(0.15))
-                                        .frame(width: 44, height: 44)
-                                        .overlay(NavIconView(.collections, size: 24).foregroundStyle(.secondary))
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(g.name).foregroundStyle(.primary)
-                                    Text(S.appPhotosCollectionsPictures(count: Int(g.fileCount)))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        // Issue #180: long-press or swipe a group to share it.
-                        .contextMenu {
-                            Button {
-                                groupsSheetGallerySource = .group(g.id)
-                            } label: {
-                                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
-                            }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button {
-                                groupsSheetGallerySource = .group(g.id)
-                            } label: {
-                                Label(S.commonShare, systemImage: "square.and.arrow.up")
-                            }
-                            .tint(.accentColor)
-                        }
-                    }
-                }
-                .navigationTitle(S.appShellSectionCollections)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(S.commonDone) { vm.showGroups = false }
-                    }
-                }
-            }
-            .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
+            CollectionsSheet(vm: vm, shareSource: $groupsSheetGallerySource)
+                .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
         }
         // The selection bar's "Add to collection": pick an existing group or start a new one.
         .confirmationDialog(S.appPhotosCollectionsAddTitle(count: vm.selected.count), isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
@@ -3905,8 +3860,9 @@ struct PhotoGalleryView: View {
             && vm.activeGroup == nil && vm.activeArea == nil && vm.smartText == nil
     }
 
-    /// A group of the map's photos is open in the grid.
-    private var areaChipShown: Bool { vm.activeArea != nil && !showsMap }
+    /// A group of the map's photos is open in the grid: its chip, and Back
+    /// to the map at the grid's top.
+    private var areaChipShown: Bool { AreaBackButton.shown(area: vm.activeArea, mapShown: showsMap) }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
