@@ -1015,6 +1015,23 @@ extension S {
     /// Heading of the search suggestions that are people found by face recognition. Shown in capitals.
     static var appPhotosSearchPeople: String { L("app.photos.search.people", table: "AppPhotos") }
 
+    /// Search photos for “<b>{text}</b>”
+    ///
+    /// Row of the search's suggestions while Smart search is on: finds the photos that best match what was typed, as a description ("kids in the snow"), within the chips already in the search. {text} is what was typed. Write the quotes in your language's style, as app.photos.search.documents.
+    static func appPhotosSearchSmart(text: String, b: AttributeContainer) -> AttributedString {
+        LRich("app.photos.search.smart", table: "AppPhotos", tags: ["b": b], [.text(L10n.isolate(text))])
+    }
+
+    /// Smart search isn't available right now.
+    ///
+    /// Message when a Smart search (a description typed in the search) can't be done and the device gave no words of its own (it was turned off on another app, or the device can't do it).
+    static var appPhotosSearchSmartFailed: String { L("app.photos.search.smart_failed", table: "AppPhotos") }
+
+    /// Your device is still getting to know your photos…
+    ///
+    /// Quiet note over the photos found by a Smart search (a description typed in the search) while the device is still working out what the photos it already held show, just after Smart search was turned on: some photos may be missing for now.
+    static var appPhotosSearchSmartReading: String { L("app.photos.search.smart_reading", table: "AppPhotos") }
+
     /// Things
     ///
     /// Heading of the search suggestions that are things recognised in photos (tags such as beach or dog). Shown in capitals.

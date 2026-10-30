@@ -645,6 +645,36 @@ extension S {
     /// Heading of the section of Settings holding the Shared Links row.
     static var appSettingsSharingTitle: String { L("app.settings.sharing.title", table: "AppSettings") }
 
+    /// Beta
+    ///
+    /// Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word.
+    static var appSettingsSmartSearchBeta: String { L("app.settings.smart_search.beta", table: "AppSettings") }
+
+    /// Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.
+    ///
+    /// Explanation under the Smart search switch in Settings: the user types a description and finds matching photos; the device itself works out what each photo shows (nothing is sent anywhere) and keeps that encrypted; turning it off deletes it.
+    static var appSettingsSmartSearchFooter: String { L("app.settings.smart_search.footer", table: "AppSettings") }
+
+    /// Turn Off
+    ///
+    /// Confirming button of the question asked before turning Smart search off (app.settings.smart_search.off_title).
+    static var appSettingsSmartSearchOffConfirm: String { L("app.settings.smart_search.off_confirm", table: "AppSettings") }
+
+    /// Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while.
+    ///
+    /// Text of the question asked before turning Smart search off (app.settings.smart_search.off_title).
+    static var appSettingsSmartSearchOffText: String { L("app.settings.smart_search.off_text", table: "AppSettings") }
+
+    /// Turn off Smart search?
+    ///
+    /// Title of the question asked before turning Smart search off in Settings (it deletes what the device learned about the photos). Buttons: app.settings.smart_search.off_confirm and Cancel.
+    static var appSettingsSmartSearchOffTitle: String { L("app.settings.smart_search.off_title", table: "AppSettings") }
+
+    /// Smart search
+    ///
+    /// Heading of the section of Settings holding the Smart search switch, and the switch's own label: finding photos by describing them in words ("kids in the snow"), worked out on the user's device. The feature's name, as the device calls it.
+    static var appSettingsSmartSearchTitle: String { L("app.settings.smart_search.title", table: "AppSettings") }
+
     /// CPU: {cpu}% · Mem: {used} of {total}
     ///
     /// Line of Settings > Status: the processor's load and the memory in use (Mem is short for memory). {cpu} is a number with one decimal (12.5); {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB).

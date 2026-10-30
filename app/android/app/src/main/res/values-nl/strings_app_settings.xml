@@ -143,6 +143,12 @@
     <string name="app_settings_reprocess_stopping">Stoppen…</string>
     <string name="app_settings_reprocess_title">Media opnieuw verwerken</string>
     <string name="app_settings_sharing_title">Delen</string>
+    <string name="app_settings_smart_search_beta">Bèta</string>
+    <string name="app_settings_smart_search_footer">Vind foto’s door ze te beschrijven, in elke taal van de app. Je apparaat werkt dit zelf uit en bewaart het versleuteld. Uitzetten verwijdert wat het heeft geleerd.</string>
+    <string name="app_settings_smart_search_off_confirm">Uitzetten</string>
+    <string name="app_settings_smart_search_off_text">Je apparaat verwijdert wat het over je foto’s heeft geleerd. Zet je het weer aan, dan moet het ze allemaal opnieuw bekijken, en dat duurt even.</string>
+    <string name="app_settings_smart_search_off_title">Slim zoeken uitzetten?</string>
+    <string name="app_settings_smart_search_title">Slim zoeken</string>
     <string name="app_settings_status_cpu_mem">CPU: %1$s%% · Geheugen: %2$s van %3$s</string>
     <string name="app_settings_status_disk">Schijf: %1$s van %2$s</string>
     <string name="app_settings_status_raid">RAID: %1$s · Schijven: %2$s</string>

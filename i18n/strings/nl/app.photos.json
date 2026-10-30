@@ -877,6 +877,18 @@
     "text": "Personen",
     "en": "People"
   },
+  "app.photos.search.smart": {
+    "text": "Foto’s zoeken op “<b>{text}</b>”",
+    "en": "Search photos for “<b>{text}</b>”"
+  },
+  "app.photos.search.smart_failed": {
+    "text": "Slim zoeken is nu niet beschikbaar.",
+    "en": "Smart search isn't available right now."
+  },
+  "app.photos.search.smart_reading": {
+    "text": "Je apparaat leert je foto’s nog kennen…",
+    "en": "Your device is still getting to know your photos…"
+  },
   "app.photos.search.things": {
     "text": "Dingen",
     "en": "Things"

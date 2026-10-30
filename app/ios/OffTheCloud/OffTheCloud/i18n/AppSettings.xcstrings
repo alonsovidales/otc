@@ -6732,6 +6732,288 @@
         }
       }
     },
+    "app.settings.smart_search.beta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bêta"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bèta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beta"
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finde Fotos, indem du sie beschreibst, in jeder Sprache der App. Dein Gerät ermittelt das selbst und speichert es verschlüsselt. Wenn du sie ausschaltest, wird gelöscht, was es gelernt hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encuentra fotos describiéndolas, en cualquiera de los idiomas de la app. Tu dispositivo lo calcula por sí mismo y lo guarda cifrado. Al desactivarla, se borra lo que aprendió."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouvez des photos en les décrivant, dans n’importe quelle langue de l’app. Votre appareil fait ce travail lui-même et le conserve chiffré. La désactiver supprime ce qu’il a appris."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trova le foto descrivendole, in qualsiasi lingua dell’app. Il tuo dispositivo lo calcola da solo e lo conserva cifrato. Disattivandola, si cancella ciò che ha imparato."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vind foto’s door ze te beschrijven, in elke taal van de app. Je apparaat werkt dit zelf uit en bewaart het versleuteld. Uitzetten verwijdert wat het heeft geleerd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encontra fotos descrevendo-as, em qualquer idioma da app. O teu dispositivo calcula isto sozinho e guarda-o cifrado. Ao desativar, apaga-se o que aprendeu."
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.off_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausschalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uitzetten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativar"
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.off_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät löscht, was es über deine Fotos gelernt hat. Schaltest du sie wieder ein, muss es sich alle erneut ansehen, und das dauert eine Weile."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo borra lo que aprendió de tus fotos. Si la vuelves a activar, tendrá que mirarlas todas de nuevo, y eso lleva un rato."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil supprime ce qu’il a appris sur vos photos. Si vous la réactivez, il devra toutes les examiner à nouveau, ce qui prend un moment."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo cancella ciò che ha imparato sulle tue foto. Se la riattivi, dovrà riguardarle tutte, e ci vorrà un po’."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat verwijdert wat het over je foto’s heeft geleerd. Zet je het weer aan, dan moet het ze allemaal opnieuw bekijken, en dat duurt even."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo apaga o que aprendeu sobre as tuas fotos. Se a voltares a ativar, terá de as ver todas outra vez, o que demora algum tempo."
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.off_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intelligente Suche ausschalten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off Smart search?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Desactivar la Búsqueda inteligente?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver la Recherche intelligente ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivare la Ricerca intelligente?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slim zoeken uitzetten?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativar a Pesquisa inteligente?"
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intelligente Suche"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart search"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Búsqueda inteligente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche intelligente"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca intelligente"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slim zoeken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pesquisa inteligente"
+          }
+        }
+      }
+    },
     "app.settings.status.cpu_mem" : {
       "extractionState" : "manual",
       "localizations" : {

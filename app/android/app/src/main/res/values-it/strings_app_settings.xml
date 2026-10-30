@@ -151,6 +151,12 @@
     <string name="app_settings_reprocess_stopping">Interruzione…</string>
     <string name="app_settings_reprocess_title">Rielabora media</string>
     <string name="app_settings_sharing_title">Condivisione</string>
+    <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_footer">Trova le foto descrivendole, in qualsiasi lingua dell’app. Il tuo dispositivo lo calcola da solo e lo conserva cifrato. Disattivandola, si cancella ciò che ha imparato.</string>
+    <string name="app_settings_smart_search_off_confirm">Disattiva</string>
+    <string name="app_settings_smart_search_off_text">Il tuo dispositivo cancella ciò che ha imparato sulle tue foto. Se la riattivi, dovrà riguardarle tutte, e ci vorrà un po’.</string>
+    <string name="app_settings_smart_search_off_title">Disattivare la Ricerca intelligente?</string>
+    <string name="app_settings_smart_search_title">Ricerca intelligente</string>
     <string name="app_settings_status_cpu_mem">CPU: %1$s%% · Memoria: %2$s di %3$s</string>
     <string name="app_settings_status_disk">Disco: %1$s di %2$s</string>
     <string name="app_settings_status_raid">RAID: %1$s · Dischi: %2$s</string>

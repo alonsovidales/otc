@@ -261,6 +261,9 @@
     <string name="app_photos_search_files">Bestanden</string>
     <string name="app_photos_search_nothing">Niets gevonden voor “\u2068%1$s\u2069”.</string>
     <string name="app_photos_search_people">Personen</string>
+    <string name="app_photos_search_smart">Foto’s zoeken op “&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;”</string>
+    <string name="app_photos_search_smart_failed">Slim zoeken is nu niet beschikbaar.</string>
+    <string name="app_photos_search_smart_reading">Je apparaat leert je foto’s nog kennen…</string>
     <string name="app_photos_search_things">Dingen</string>
     <plurals name="app_photos_selection_delete_title">
         <item quantity="one">%1$s item verwijderen?</item>

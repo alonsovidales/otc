@@ -290,6 +290,9 @@
     <string name="app_photos_search_files">Ficheiros</string>
     <string name="app_photos_search_nothing">Sem resultados para «\u2068%1$s\u2069».</string>
     <string name="app_photos_search_people">Pessoas</string>
+    <string name="app_photos_search_smart">Pesquisar fotos de «&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt;»</string>
+    <string name="app_photos_search_smart_failed">A Pesquisa inteligente não está disponível de momento.</string>
+    <string name="app_photos_search_smart_reading">O teu dispositivo ainda está a conhecer as tuas fotos…</string>
     <string name="app_photos_search_things">Coisas</string>
     <plurals name="app_photos_selection_delete_title">
         <item quantity="one">Eliminar %1$s item?</item>

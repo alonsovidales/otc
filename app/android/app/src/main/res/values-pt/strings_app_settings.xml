@@ -151,6 +151,12 @@
     <string name="app_settings_reprocess_stopping">A parar…</string>
     <string name="app_settings_reprocess_title">Reprocessar multimédia</string>
     <string name="app_settings_sharing_title">Partilha</string>
+    <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_footer">Encontra fotos descrevendo-as, em qualquer idioma da app. O teu dispositivo calcula isto sozinho e guarda-o cifrado. Ao desativar, apaga-se o que aprendeu.</string>
+    <string name="app_settings_smart_search_off_confirm">Desativar</string>
+    <string name="app_settings_smart_search_off_text">O teu dispositivo apaga o que aprendeu sobre as tuas fotos. Se a voltares a ativar, terá de as ver todas outra vez, o que demora algum tempo.</string>
+    <string name="app_settings_smart_search_off_title">Desativar a Pesquisa inteligente?</string>
+    <string name="app_settings_smart_search_title">Pesquisa inteligente</string>
     <string name="app_settings_status_cpu_mem">CPU: %1$s%% · Memória: %2$s de %3$s</string>
     <string name="app_settings_status_disk">Disco: %1$s de %2$s</string>
     <string name="app_settings_status_raid">RAID: %1$s · Discos: %2$s</string>

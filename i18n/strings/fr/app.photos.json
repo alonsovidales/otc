@@ -877,6 +877,18 @@
     "text": "Personnes",
     "en": "People"
   },
+  "app.photos.search.smart": {
+    "text": "Rechercher des photos de « <b>{text}</b> »",
+    "en": "Search photos for “<b>{text}</b>”"
+  },
+  "app.photos.search.smart_failed": {
+    "text": "La Recherche intelligente n’est pas disponible pour le moment.",
+    "en": "Smart search isn't available right now."
+  },
+  "app.photos.search.smart_reading": {
+    "text": "Votre appareil apprend encore à connaître vos photos…",
+    "en": "Your device is still getting to know your photos…"
+  },
   "app.photos.search.things": {
     "text": "Choses",
     "en": "Things"

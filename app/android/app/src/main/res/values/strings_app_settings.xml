@@ -142,6 +142,12 @@
     <string name="app_settings_reprocess_stopping">Stopping…</string>
     <string name="app_settings_reprocess_title">Reprocess Media</string>
     <string name="app_settings_sharing_title">Sharing</string>
+    <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_footer">Find photos by describing them, in any of the app\'s languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.</string>
+    <string name="app_settings_smart_search_off_confirm">Turn Off</string>
+    <string name="app_settings_smart_search_off_text">Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while.</string>
+    <string name="app_settings_smart_search_off_title">Turn off Smart search?</string>
+    <string name="app_settings_smart_search_title">Smart search</string>
     <string name="app_settings_status_cpu_mem">CPU: %1$s%% · Mem: %2$s of %3$s</string>
     <string name="app_settings_status_disk">Disk: %1$s of %2$s</string>
     <string name="app_settings_status_raid">RAID: %1$s · Disks: %2$s</string>

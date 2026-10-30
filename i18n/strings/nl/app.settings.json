@@ -549,6 +549,30 @@
     "text": "Delen",
     "en": "Sharing"
   },
+  "app.settings.smart_search.beta": {
+    "text": "Bèta",
+    "en": "Beta"
+  },
+  "app.settings.smart_search.footer": {
+    "text": "Vind foto’s door ze te beschrijven, in elke taal van de app. Je apparaat werkt dit zelf uit en bewaart het versleuteld. Uitzetten verwijdert wat het heeft geleerd.",
+    "en": "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned."
+  },
+  "app.settings.smart_search.off_confirm": {
+    "text": "Uitzetten",
+    "en": "Turn Off"
+  },
+  "app.settings.smart_search.off_text": {
+    "text": "Je apparaat verwijdert wat het over je foto’s heeft geleerd. Zet je het weer aan, dan moet het ze allemaal opnieuw bekijken, en dat duurt even.",
+    "en": "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while."
+  },
+  "app.settings.smart_search.off_title": {
+    "text": "Slim zoeken uitzetten?",
+    "en": "Turn off Smart search?"
+  },
+  "app.settings.smart_search.title": {
+    "text": "Slim zoeken",
+    "en": "Smart search"
+  },
   "app.settings.status.cpu_mem": {
     "text": "CPU: {cpu}% · Geheugen: {used} van {total}",
     "en": "CPU: {cpu}% · Mem: {used} of {total}"

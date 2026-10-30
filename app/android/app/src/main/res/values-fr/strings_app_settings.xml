@@ -151,6 +151,12 @@
     <string name="app_settings_reprocess_stopping">Arrêt…</string>
     <string name="app_settings_reprocess_title">Retraiter les médias</string>
     <string name="app_settings_sharing_title">Partage</string>
+    <string name="app_settings_smart_search_beta">Bêta</string>
+    <string name="app_settings_smart_search_footer">Trouvez des photos en les décrivant, dans n’importe quelle langue de l’app. Votre appareil fait ce travail lui-même et le conserve chiffré. La désactiver supprime ce qu’il a appris.</string>
+    <string name="app_settings_smart_search_off_confirm">Désactiver</string>
+    <string name="app_settings_smart_search_off_text">Votre appareil supprime ce qu’il a appris sur vos photos. Si vous la réactivez, il devra toutes les examiner à nouveau, ce qui prend un moment.</string>
+    <string name="app_settings_smart_search_off_title">Désactiver la Recherche intelligente ?</string>
+    <string name="app_settings_smart_search_title">Recherche intelligente</string>
     <string name="app_settings_status_cpu_mem">Processeur : %1$s %% · Mémoire : %2$s sur %3$s</string>
     <string name="app_settings_status_disk">Disque : %1$s sur %2$s</string>
     <string name="app_settings_status_raid">RAID : %1$s · Disques : %2$s</string>

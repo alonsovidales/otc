@@ -474,6 +474,30 @@ fun S.appSettingsReprocessTitle(): UiText =
 fun S.appSettingsSharingTitle(): UiText =
     UiText.Res(R.string.app_settings_sharing_title)
 
+/** "Beta": Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word. */
+fun S.appSettingsSmartSearchBeta(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_beta)
+
+/** "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.": Explanation under the Smart search switch in Settings: the user types a description and finds matching photos; the device itself works out what each photo shows (nothing is sent anywhere) and keeps that encrypted; turning it off deletes it. */
+fun S.appSettingsSmartSearchFooter(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_footer)
+
+/** "Turn Off": Confirming button of the question asked before turning Smart search off (app.settings.smart_search.off_title). */
+fun S.appSettingsSmartSearchOffConfirm(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_off_confirm)
+
+/** "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while.": Text of the question asked before turning Smart search off (app.settings.smart_search.off_title). */
+fun S.appSettingsSmartSearchOffText(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_off_text)
+
+/** "Turn off Smart search?": Title of the question asked before turning Smart search off in Settings (it deletes what the device learned about the photos). Buttons: app.settings.smart_search.off_confirm and Cancel. */
+fun S.appSettingsSmartSearchOffTitle(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_off_title)
+
+/** "Smart search": Heading of the section of Settings holding the Smart search switch, and the switch's own label: finding photos by describing them in words ("kids in the snow"), worked out on the user's device. The feature's name, as the device calls it. */
+fun S.appSettingsSmartSearchTitle(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_title)
+
 /** "CPU: {cpu}% · Mem: {used} of {total}": Line of Settings > Status: the processor's load and the memory in use (Mem is short for memory). {cpu} is a number with one decimal (12.5); {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB). */
 fun S.appSettingsStatusCpuMem(cpu: String, used: String, total: String): UiText =
     UiText.Res(R.string.app_settings_status_cpu_mem, listOf(cpu, used, total))
