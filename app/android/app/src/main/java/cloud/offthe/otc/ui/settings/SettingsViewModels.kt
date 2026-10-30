@@ -207,9 +207,10 @@ class DeviceSettingsViewModel : ViewModel() {
         // memories again" (from a GetMemories answer).
         val memoriesEnabled: Boolean? = null, val savingMemories: Boolean = false,
         val memoriesHidden: Int = 0, val showingHidden: Boolean = false,
-        // Smart search (beta): off unless turned on. null: a device before it
-        // (or not answered yet), with no switch. confirmSmartOff: turning it
-        // off is asked first (the device deletes what it learned).
+        // Smart search (beta): as the device says - off by default in
+        // release 151, on by default from 152. null: a device before it (or
+        // not answered yet), with no switch. confirmSmartOff: turning it off
+        // is asked first (the device deletes what it learned).
         val smartSearchEnabled: Boolean? = null, val savingSmartSearch: Boolean = false, val confirmSmartOff: Boolean = false,
         val reprocessStatus: String = "", val reprocessTotal: Int = 0, val reprocessProcessed: Int = 0,
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,

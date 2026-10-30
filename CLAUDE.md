@@ -3168,11 +3168,23 @@ after the switch moves while the model isn't Ready; turned on where the model is
 (`modelRequested`). TalkBack: the bar's own percentage; a 1 dp polite live region only for start,
 problem and done (`downloading` at 100%), emptied after 5 s (`SmartSearchModelState.announcement`, the
 web's). A search told `smart_search_downloading` drops the text as `smart_search_unavailable` does,
-keeps the switch on, sets Downloading and asks where the model is. Images learns that it is ready only
-from those answers (sign-in, Settings): no poll outside Settings. A debug-only
+keeps the switch on, sets Downloading and asks where the model is. Images learns that it is ready
+from those answers (sign-in, Settings) and when its search field gets the focus while the switch is on
+and the model isn't Ready (`searchFocused`: one `GetSettings`, at most every 5 s, `asksOnFocus`) - no
+poll outside Settings. On by default from release 152 (off in 151): the switch is always the device's
+answer, never assumed; `download_note` shows only while the switch is off (on with the model missing,
+the device is about to fetch it). A debug-only
 `SmartSearchPreviewActivity` (`--es show settings` for the section, `--es model
 missing|downloading|problem|ready`; turned on from missing it runs a pretend download) draws both on
 sample data. Tests: `PhotoGallerySmartSearchTest.kt`, `SmartSearchModelTest.kt`.
+**Background work on Android** (release 152, `ui/settings/BackgroundWork.kt`; iOS's `BackgroundWork`;
+texts `app.settings.background.*`): Settings' section right after Status, shown only while
+`Status.background_tasks` isn't empty (an older device sends none): a row per task (keyed by `kind`)
+with the device's `text`, a `LinearProgressIndicator` (indeterminate while `total` is 0, which shows
+no count) and `count` ("4,210 of 12,800", the app's number format), each row one TalkBack element. It
+reads the Status answers Settings already asks for every 5 s while in front (`StatusViewModel`), so it
+has no poll of its own. A debug-only `BackgroundWorkPreviewActivity` draws it on sample tasks. Tests:
+`BackgroundWorkTest.kt`.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

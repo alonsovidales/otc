@@ -92,7 +92,7 @@ class PhotoGallerySmartSearchTest {
     private fun vm(dev: Device, on: Boolean = true) = PhotoGalleryViewModel(
         "test", send = dev.send, pause = {}, online = { true }, problemOf = { _, _ -> LoadProblem.FAILED },
         thumbs = thumbs, fullPhotos = thumbs, scope = scope, signIns = { 1 },
-        smartOn = { on }, smartOff = { turnedOff++ }, smartDownloading = { modelAsked++ },
+        smartOn = { on }, smartSearchable = kotlinx.coroutines.flow.flowOf(on), smartOff = { turnedOff++ }, smartDownloading = { modelAsked++ },
     )
 
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }

@@ -16,5 +16,11 @@
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- Settings > Background work on sample tasks
+             (adb shell am start -n cloud.offthe.otc/.BackgroundWorkPreviewActivity). -->
+        <activity
+            android:name=".BackgroundWorkPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

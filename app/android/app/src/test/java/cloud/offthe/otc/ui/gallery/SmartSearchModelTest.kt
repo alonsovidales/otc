@@ -121,6 +121,59 @@ class SmartSearchModelTest {
         assertEquals(Ready, SmartSearchSupport.model.value)
     }
 
+    @Test fun imagesSearchAsksWhereTheModelIsAsItGetsTheFocus() {
+        val every = SmartSearchSupport.FOCUS_ASK_EVERY_MS
+        assertEquals(5_000L, every)
+        // On with the model not there yet (missing or on its way): asked,
+        // then not again within 5 s.
+        assertTrue(SmartSearchSupport.asksOnFocus(true, Missing, null, 1_000))
+        assertTrue(SmartSearchSupport.asksOnFocus(true, Downloading(40), null, 1_000))
+        assertFalse(SmartSearchSupport.asksOnFocus(true, Downloading(40), 1_000, 1_000 + every - 1))
+        assertTrue(SmartSearchSupport.asksOnFocus(true, Downloading(40), 1_000, 1_000 + every))
+        // There, off, or not known: never.
+        assertFalse(SmartSearchSupport.asksOnFocus(true, Ready, null, 1_000))
+        assertFalse(SmartSearchSupport.asksOnFocus(false, Missing, null, 1_000))
+        assertFalse(SmartSearchSupport.asksOnFocus(null, Missing, null, 1_000))
+    }
+
+    @Test fun theFocusAskHappensAtMostEveryFiveSecondsAndBringsTheRow() = kotlinx.coroutines.runBlocking {
+        SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder().setDownloading(true).setPercent(98)))
+        var asked = 0
+        // What the device answers once the download is done.
+        val ask: suspend () -> Unit = { asked++; SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder().setDownloading(true).setPercent(99))) }
+        SmartSearchSupport.searchFocused(10_000, ask)
+        SmartSearchSupport.searchFocused(12_000, ask)
+        assertEquals(1, asked)
+        SmartSearchSupport.searchFocused(15_000, ask)
+        assertEquals(2, asked)
+        // Ready: the row is offered, and the focus asks nothing more.
+        SmartSearchSupport.searchFocused(30_000) { asked++; SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder().setReady(true))) }
+        assertEquals(3, asked)
+        assertTrue(SmartSearchSupport.searchable)
+        SmartSearchSupport.searchFocused(60_000, ask)
+        assertEquals(3, asked)
+        // Log Out forgets when it last asked.
+        SmartSearchSupport.reset()
+        SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder()))
+        SmartSearchSupport.searchFocused(60_001, ask)
+        assertEquals(4, asked)
+    }
+
+    @Test fun onByDefaultIsWhateverTheDeviceSays() {
+        // Release 152 turns Smart search on by default: nothing here assumes
+        // the user did it - the switch is the device's answer, and with the
+        // model still missing there is no Smart row.
+        SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder(), on = true))
+        assertEquals(true, SmartSearchSupport.enabled.value)
+        assertEquals(Missing, SmartSearchSupport.model.value)
+        assertFalse(SmartSearchSupport.searchable)
+        // 151's default (off), and an older device's (absent): off.
+        SmartSearchSupport.deviceSaid(settings(SmartSearchModel.newBuilder().setReady(true), on = false))
+        assertFalse(SmartSearchSupport.searchable)
+        SmartSearchSupport.deviceSaid(settings(null, on = null))
+        assertEquals(false, SmartSearchSupport.enabled.value)
+    }
+
     @Test fun theSearchesTheDeviceRefuses() {
         fun refused(code: String, words: String = "") =
             SmartSearchSupport.refusal(RespEnvelope.newBuilder().setError(true).setErrorCode(code).setErrorMessage(words).build())

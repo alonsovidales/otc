@@ -568,6 +568,7 @@ private fun SearchField(
     val focus = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
+    val focusScope = androidx.compose.runtime.rememberCoroutineScope()
     val noFileSearch by FilesNav.noFileSearch.collectAsState()
     val faces by FaceRecognition.enabled.collectAsState()
     val typed = search.query.trim()
@@ -744,7 +745,13 @@ private fun SearchField(
                         .semantics { contentDescription = placeholder }
                         .onFocusChanged {
                             focused = it.isFocused
-                            if (it.isFocused) search.opened()
+                            if (it.isFocused) {
+                                search.opened()
+                                // Images' search, with Smart search on and its model
+                                // not there yet: is it there now? (at most every 5 s)
+                                // So the Smart row comes without a visit to Settings.
+                                if (gallery != null) focusScope.launch { SmartSearchSupport.searchFocused() }
+                            }
                         },
                 )
             }

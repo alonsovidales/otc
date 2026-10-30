@@ -101,14 +101,16 @@ sealed interface SmartSearchAnnouncement {
 
 /**
  * Whether Smart search is on (finding photos by a description typed in the
- * search): the signed-in device has it (release 151) and its user turned it
- * on (Settings.smart_search_enabled, off by default) - and, with it, where
+ * search): the signed-in device has it (release 151) and it is on for this
+ * user (Settings.smart_search_enabled: off by default in 151, on by default
+ * from 152 - never assume either, the device says) - and, with it, where
  * its model is ([model], release 152). Told by the device's Settings -
  * asked once after sign-in with face recognition's (FaceRecognition.watch,
- * the same answer) and whenever Settings loads (every [POLL_EVERY_MS] while
- * the model downloads and Settings shows) -, by Settings' switch, and by a
- * search told "smart_search_off" (turned off on another app) or
- * "smart_search_downloading". PlacesSupport's twin. Only while it is
+ * the same answer), whenever Settings loads (then every [POLL_EVERY_MS]
+ * while the model downloads and Settings shows), and when Images' search
+ * gets the focus while the model isn't there ([searchFocused]) -, by Settings'
+ * switch, and by a search told "smart_search_off" (turned off on another
+ * app) or "smart_search_downloading". PlacesSupport's twin. Only while it is
  * [searchable] does the search offer a text search, and only then is
  * SearchPhotos.text sent: a device before it would ignore the text and
  * answer the whole library.
@@ -124,6 +126,9 @@ object SmartSearchSupport {
 
     /** How often Settings asks where the model is while it downloads. */
     const val POLL_EVERY_MS = 3_000L
+
+    /** Images' search asks where the model is, as it gets the focus, at most this often. */
+    const val FOCUS_ASK_EVERY_MS = 5_000L
 
     const val OFF = "smart_search_off"
     const val UNAVAILABLE = "smart_search_unavailable"
@@ -158,6 +163,24 @@ object SmartSearchSupport {
      * the model is on its way: not once it is there, nor with the switch off.
      */
     fun polls(on: Boolean?, model: SmartSearchModelState): Boolean = on == true && model.isDownloading
+
+    /**
+     * Whether Images' search getting the focus asks where the model is: on,
+     * the model not there yet, and not asked in the last [FOCUS_ASK_EVERY_MS]
+     * ([lastAskedMs] null: never) - so the Smart row comes once the model is
+     * there, without a visit to Settings.
+     */
+    fun asksOnFocus(on: Boolean?, model: SmartSearchModelState, lastAskedMs: Long?, nowMs: Long): Boolean =
+        on == true && model != SmartSearchModelState.Ready && (lastAskedMs == null || nowMs - lastAskedMs >= FOCUS_ASK_EVERY_MS)
+
+    private var focusAskedAt: Long? = null
+
+    /** Images' search got the focus: asks the device's Settings when [asksOnFocus]. */
+    suspend fun searchFocused(nowMs: Long = System.nanoTime() / 1_000_000, ask: suspend () -> Unit = { refresh() }) {
+        if (!asksOnFocus(enabled.value, model.value, focusAskedAt, nowMs)) return
+        focusAskedAt = nowMs
+        ask()
+    }
 
     /** What the device's Settings say: on or off - false for a device before Smart search (no smart_search_enabled). */
     fun verdict(s: Settings): Boolean = s.hasSmartSearchEnabled() && s.smartSearchEnabled
@@ -223,5 +246,6 @@ object SmartSearchSupport {
         try { prefs().edit().remove(KEY).apply() } catch (_: Exception) {}
         _enabled.value = null
         _model.value = SmartSearchModelState.Ready
+        focusAskedAt = null
     }
 }

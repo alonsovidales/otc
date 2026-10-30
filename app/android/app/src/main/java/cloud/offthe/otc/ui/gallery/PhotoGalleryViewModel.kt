@@ -215,6 +215,8 @@ class PhotoGalleryViewModel(
     // what a search told "smart_search_downloading" does: the model is on
     // its way, the device is asked where it is (the switch stays on).
     private val smartOn: () -> Boolean = { SmartSearchSupport.searchable },
+    // The same as it changes: turned off (or the model gone), a text searched for goes.
+    private val smartSearchable: kotlinx.coroutines.flow.Flow<Boolean> = SmartSearchSupport.searchableFlow,
     private val smartOff: () -> Unit = { SmartSearchSupport.set(false) },
     private val smartDownloading: suspend () -> Unit = { SmartSearchSupport.modelRequested(); SmartSearchSupport.refresh() },
 ) : ViewModel(), PeopleStore {
@@ -569,7 +571,7 @@ class PhotoGalleryViewModel(
         if (watchingPlaces) return
         watchingPlaces = true
         // Smart search likewise: turned off (or its model gone), a text searched for goes.
-        scope.launch { SmartSearchSupport.searchableFlow.collect { on -> if (!on) clearText() } }
+        scope.launch { smartSearchable.collect { on -> if (!on) clearText() } }
         scope.launch {
             PlacesSupport.enabled.collect { on ->
                 if (on == true) return@collect

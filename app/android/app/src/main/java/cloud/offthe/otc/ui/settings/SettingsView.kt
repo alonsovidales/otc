@@ -150,6 +150,8 @@ import cloud.offthe.otc.i18n.androidSettingsUpdateVersionUnknown
 import cloud.offthe.otc.i18n.androidSettingsUploadPending
 import cloud.offthe.otc.i18n.androidSettingsUploadWaiting
 import cloud.offthe.otc.i18n.androidSettingsUploading
+import cloud.offthe.otc.i18n.appSettingsBackgroundFooter
+import cloud.offthe.otc.i18n.appSettingsBackgroundTitle
 import cloud.offthe.otc.i18n.appSettingsBridgeAccountPage
 import cloud.offthe.otc.i18n.appSettingsBridgeAtHome
 import cloud.offthe.otc.i18n.appSettingsBridgeDeleteAccount
@@ -588,6 +590,12 @@ fun SettingsView(secrets: SecretsStore) {
 
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
 
+            // What the device works through by itself (release 152), beside
+            // its status: only while there is something. From the Status
+            // answers this screen already asks for every 5 s while in front.
+            val statusNow by status.state.collectAsState()
+            BackgroundWorkSection(BackgroundWork.tasks(statusNow.status))
+
             // The device's accounts, right under its status.
             UsersManagementSection()
 
@@ -705,9 +713,10 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            // Smart search (beta): only on a device that has it, off unless
-            // turned on; turning it off asks first (what the device learned
-            // is deleted). Under it, where its model is (release 152).
+            // Smart search (beta): only on a device that has it - off by
+            // default in release 151, on from 152, the device says which;
+            // turning it off asks first (what the device learned is
+            // deleted). Under it, where its model is (release 152).
             dst.smartSearchEnabled?.let { on ->
                 SmartSearchSection(
                     on, saving = dst.savingSmartSearch, confirmOff = dst.confirmSmartOff, model = smartModel,
@@ -1444,6 +1453,32 @@ internal fun sizeText(mb: Double): String = when {
 }
 
 /**
+ * Settings > Background work (release 152): one row per piece of work the
+ * device does by itself - its own words, a bar (indeterminate while it
+ * doesn't know how many yet) and "4,210 of 12,800" - with the footer.
+ * Nothing at all while the list is empty, as on a device before it. Each
+ * row is one TalkBack element: the words, the count and the bar's
+ * percentage. The same rules as iOS's BackgroundWork.
+ */
+@Composable
+internal fun BackgroundWorkSection(tasks: List<BackgroundWork.Task>) {
+    if (tasks.isEmpty()) return
+    Section(S.appSettingsBackgroundTitle().resolve(), S.appSettingsBackgroundFooter().resolve()) {
+        tasks.forEachIndexed { i, task ->
+            androidx.compose.runtime.key(task.kind) {
+                Column(Modifier.fillMaxWidth().padding(top = if (i > 0) 10.dp else 0.dp).semantics(mergeDescendants = true) {}) {
+                    if (task.text.isNotEmpty()) Text(task.text, style = MaterialTheme.typography.bodyMedium)
+                    val bar = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                    if (task.indeterminate) LinearProgressIndicator(bar)
+                    else LinearProgressIndicator(progress = { task.progress }, modifier = bar)
+                    task.count()?.let { Caption(it.resolve()) }
+                }
+            }
+        }
+    }
+}
+
+/**
  * Smart search's section: its switch with a Beta badge and the footer; off
  * asks first ([confirmOff]: the device deletes what it learned). Under the
  * footer, where its [model] is (release 152): the download note while it
@@ -1457,7 +1492,7 @@ internal fun SmartSearchSection(
     onToggle: (Boolean) -> Unit, onConfirmOff: () -> Unit, onCancelOff: () -> Unit,
 ) {
     val title = S.appSettingsSmartSearchTitle().resolve()
-    Section(title, S.appSettingsSmartSearchFooter().resolve(), below = { SmartSearchModelLines(model) }) {
+    Section(title, S.appSettingsSmartSearchFooter().resolve(), below = { SmartSearchModelLines(on, model) }) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f, fill = false))
@@ -1482,11 +1517,13 @@ internal fun SmartSearchSection(
  * (SmartSearchModelState.announcement).
  */
 @Composable
-private fun SmartSearchModelLines(model: SmartSearchModelState) {
+private fun SmartSearchModelLines(on: Boolean, model: SmartSearchModelState) {
     model.progress?.let { p ->
         LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
     }
-    model.words()?.let {
+    // The download note says what turning it on does: not while it is on
+    // (on by default from release 152 - the device is about to fetch it).
+    model.words()?.takeUnless { on && model == SmartSearchModelState.Missing }?.let {
         Text(it.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
     }
     // What to say, once per change worth saying: the model as last shown
