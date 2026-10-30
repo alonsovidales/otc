@@ -293,8 +293,10 @@ final class DeviceSettingsViewModel: ObservableObject {
     }
 
     /// Smart search's switch: the free-text search comes and goes at once
-    /// (SmartSearchSupport). A device without the model refuses turning it
-    /// on in its own words (smart_search_unavailable).
+    /// (SmartSearchSupport). A device that can't get the model refuses
+    /// turning it on in its own words (smart_search_unavailable). Since
+    /// release 152, turning it on where the model isn't starts its download:
+    /// the section shows it at once, then as the device says.
     func toggleSmartSearch(_ enabled: Bool) async {
         savingSmartSearch = true
         defer { savingSmartSearch = false }
@@ -305,6 +307,12 @@ final class DeviceSettingsViewModel: ObservableObject {
             if case .respAck(let ack) = resp.payload, ack.ok {
                 smartSearchEnabled = enabled
                 SmartSearchSupport.shared.set(enabled)
+                // Where the model is now: on its way (on), or - turned off -
+                // stopped unless another of the device's users asked for it.
+                if SmartSearchSupport.shared.model != .ready {
+                    if enabled { SmartSearchSupport.shared.modelRequested() }
+                    Task { await refreshSmartSearch() }
+                }
             } else {
                 // Revert the optimistic toggle - see the Toggle binding.
                 smartSearchEnabled = !enabled
@@ -318,6 +326,14 @@ final class DeviceSettingsViewModel: ObservableObject {
             smartSearchEnabled = !enabled
             showToast(.say { S.appSettingsErrorSetting })
         }
+    }
+
+    /// Smart search's switch and where its model is, as the device says now:
+    /// asked every 3 s while Settings shows and the model downloads
+    /// (SmartSearchSupport.polls), and after the switch moved.
+    func refreshSmartSearch() async {
+        guard let s = await SmartSearchSupport.shared.refresh() else { return }
+        if !savingSmartSearch { smartSearchEnabled = s.hasSmartSearchEnabled ? s.smartSearchEnabled : nil }
     }
 
     /// "Show hidden memories again": everything hidden shows again.
@@ -463,6 +479,10 @@ struct SettingsView: View {
     @ObservedObject private var connection = OTCConnection.shared
     // The Language row's value.
     @ObservedObject private var language = LanguageSettings.shared
+    // Where Smart search's model is: asked again while it downloads, with
+    // the app in front.
+    @ObservedObject private var smartSearch = SmartSearchSupport.shared
+    @Environment(\.scenePhase) private var scenePhase
     @State private var confirmLogout = false
     // Whether the app may read the photo library (full or limited): the
     // Authorize Photos Access button shows only while it can't.
@@ -772,6 +792,17 @@ struct SettingsView: View {
             status.stop()
             device.stopPollingReprocessStatus()
         }
+        // Smart search's model on its way: where it is, asked again every
+        // 3 s while Settings shows, the app is in front and the switch is
+        // on - not once it is there (SmartSearchSupport.polls).
+        .task(id: smartPolls) {
+            guard smartPolls else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: SmartSearchSupport.pollEvery)
+                guard !Task.isCancelled else { return }
+                await device.refreshSmartSearch()
+            }
+        }
         .usersManagementSheets(users)
         // Back from iOS Settings, where access may just have been given.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -816,6 +847,11 @@ struct SettingsView: View {
 
 extension SettingsView {
     fileprivate static let updateSectionID = "updates"
+
+    /// Smart search's model is asked about again (every 3 s) now.
+    fileprivate var smartPolls: Bool {
+        scenePhase == .active && SmartSearchSupport.polls(on: device.smartSearchEnabled, model: smartSearch.model)
+    }
 
     /// Change Password, and Go on the confirmation's keyboard.
     fileprivate func changePassword() {
@@ -1333,16 +1369,22 @@ private struct MemoriesSettingsSection: View {
 }
 
 /// Settings > Smart search: its switch, with a Beta badge. Turning it off
-/// asks first: the device deletes what it learned about the photos.
+/// asks first: the device deletes what it learned about the photos. Under
+/// the footer, until the model is on the device (release 152), the download
+/// note or how far its download is (SmartSearchModelLine).
 struct SmartSearchSettingsSection: View {
     @ObservedObject var device: DeviceSettingsViewModel
+    @ObservedObject private var support = SmartSearchSupport.shared
     let on: Bool
     @State private var confirmOff = false
 
     var body: some View {
         Section(
             header: Text(S.appSettingsSmartSearchTitle),
-            footer: Text(S.appSettingsSmartSearchFooter)
+            footer: VStack(alignment: .leading, spacing: 8) {
+                Text(S.appSettingsSmartSearchFooter)
+                SmartSearchModelLine(model: support.model)
+            }
         ) {
             Toggle(isOn: Binding(
                 get: { on },
@@ -1357,6 +1399,10 @@ struct SmartSearchSettingsSection: View {
                 SmartSearchLabel()
             }
             .disabled(device.savingSmartSearch)
+        }
+        // The download's start, a problem and its end - never every step.
+        .onChange(of: support.model) { before, now in
+            if let said = SmartSearchModelState.announcement(before: before, now: now) { Announce.polite(said.text) }
         }
         .alert(S.appSettingsSmartSearchOffTitle, isPresented: $confirmOff) {
             Button(S.appSettingsSmartSearchOffConfirm, role: .destructive) {

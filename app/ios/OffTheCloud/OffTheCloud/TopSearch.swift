@@ -17,10 +17,10 @@
 //  is what the Search key takes, when no tag or person matches; otherwise
 //  it follows the files. A device older than SearchFiles has neither.
 //
-//  While Smart search is on (SmartSearch.swift) a row "Search photos for
-//  “…”" comes first, and the Search key takes it unless the words are
-//  exactly a tag or a person: the photos that best match them, as a
-//  description, within the chips.
+//  While Smart search is on and its model is on the device
+//  (SmartSearch.swift) a row "Search photos for “…”" comes first, and the
+//  Search key takes it unless the words are exactly a tag or a person: the
+//  photos that best match them, as a description, within the chips.
 //
 //  Picking a tag or a person narrows Images; picking a folder shows it in
 //  Files, and a file opens there as a tap on it in its folder would. The
@@ -496,8 +496,9 @@ final class TopSearchModel: ObservableObject {
         suggestions(tags: [], inSearch: [], people: [], faces: false, noFileSearch: noFileSearch)
     }
 
-    /// `smart`: Smart search is on (SmartSearchSupport), so its row comes
-    /// first - never in Files' own field.
+    /// `smart`: Smart search is on and its model there
+    /// (SmartSearchSupport.searchable), so its row comes first - never in
+    /// Files' own field.
     func suggestions(tags: [String], inSearch: [String], people: [Msg_Person], faces: Bool, noFileSearch: Bool,
                      smart: Bool = false) -> SearchSuggestions {
         let typed = self.typed
@@ -596,7 +597,7 @@ struct TopSearchActions {
             people: vm.allPeople,
             faces: faces,
             noFileSearch: filesNav.noFileSearch,
-            smart: SmartSearchSupport.shared.isOn
+            smart: SmartSearchSupport.shared.searchable
         )
     }
 

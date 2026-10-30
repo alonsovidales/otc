@@ -924,9 +924,9 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Smart search: the photos that best match these words, within the
     /// other chips. Only while it is on (a device without it would answer
-    /// the whole library).
+    /// the whole library) and its model is there.
     func searchText(_ typed: String) {
-        guard SmartSearchSupport.shared.isOn, let t = SmartSearchSupport.text(typed), t != smartText else { return }
+        guard SmartSearchSupport.shared.searchable, let t = SmartSearchSupport.text(typed), t != smartText else { return }
         smartText = t
         smartReading = false
         restartSearch()
@@ -940,8 +940,9 @@ final class PhotoGalleryVM: ObservableObject {
         restartSearch()
     }
 
-    /// The device refused the words (turned off on another app, no model):
-    /// they go, the search runs without them, and the notice says why.
+    /// The device refused the words (turned off on another app, no model,
+    /// the model still on its way): they go, the search runs without them,
+    /// and the notice says why.
     private func dropSmartText(saying words: String?) {
         smartText = nil
         smartReading = false
@@ -2191,8 +2192,18 @@ final class PhotoGalleryVM: ObservableObject {
             guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
         }
         // Smart search refused the words: they go, with the device's words.
+        // Only off turns the switch off here; a model still on its way
+        // takes the row away until the device says it is there.
         if text != nil, let refused = SmartSearchSupport.refusal(resp) {
-            if refused.off { SmartSearchSupport.shared.set(false) }
+            switch refused.why {
+            case .off:
+                SmartSearchSupport.shared.set(false)
+            case .downloading:
+                SmartSearchSupport.shared.modelRequested()
+                Task { await SmartSearchSupport.shared.refresh() }
+            case .unavailable:
+                break
+            }
             dropSmartText(saying: refused.words)
             return .skipped
         }

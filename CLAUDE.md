@@ -3197,7 +3197,20 @@ months, no date buckets or scrubber, no jump or upward pages, and with words no 
 this day strip. `ListOfFiles.smart_search_reading` shows `app.photos.smart_search.reading` above the
 results, announced politely, until a page says false (nothing asked again for it). `smart_search_off` (turned off elsewhere: the switch
 goes off too) and `smart_search_unavailable` drop the words and run the search again, saying the
-device's words or `smart_failed`; the switch going off drops them as well.
+device's words or `smart_failed`; the switch going off drops them as well. The model on demand
+(release 152; Android has the same names): `SmartSearchSupport.model` (`SmartSearchModelState`
+ready / missing / downloading(percent, problem), from the same answers; absent = an older device =
+ready; ready again at Log Out). The row, the Search key and `searchText` need `searchable` (on and
+ready). Under Settings' footer `SmartSearchModelLine` shows `download_note` (missing) or a
+`ProgressView(value:)` and `downloading`, the device's `problem` in its place (downloading): one
+VoiceOver element, the line as label and, with a problem, `ios.storage_percent` as value; the section
+announces only the start, a problem and the end (`SmartSearchModelState.announcement`, Android's and
+the web's). SettingsView asks `GetSettings` (`refreshSmartSearch`, Smart search's part only) every 3 s
+while the switch is on, the model downloading and the app active (`.task(id: smartPolls)`,
+`SmartSearchSupport.polls`), and once after the switch moves while the model isn't ready; turned on,
+it is downloading(0) at once (`modelRequested`). A search told `smart_search_downloading` drops the
+words as `smart_search_unavailable` does, keeps the switch on, sets downloading and asks where the
+model is. Images learns that the model is there only from those answers: no poll outside Settings.
 
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
