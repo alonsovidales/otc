@@ -204,6 +204,12 @@ func (mg *Manager) BackfillQuality(ses *session.Session) {
 		return
 	}
 	withoutAesthetic := mg.aesthetic != nil
+	// Listed in Status while there is something to measure (background.go).
+	var bg *BackgroundPass
+	if n, err := mg.dao.CountPhotosToScore(withoutAesthetic, excluded); err != nil || n > 0 {
+		bg = mg.BeginBackground(BackgroundQuality, n)
+	}
+	defer bg.End()
 	started := time.Now()
 	measured, failed := 0, 0
 	after := ""
@@ -219,6 +225,7 @@ func (mg *Manager) BackfillQuality(ses *session.Session) {
 		}
 		for _, file := range batch {
 			after = file.Hash
+			bg.Step(1)
 			if !mg.MemoriesEnabled() {
 				log.Info("on this day: turned off, the measuring stops after", measured, "photo(s)")
 				return

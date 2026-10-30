@@ -656,6 +656,25 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `TestPhotoEmbeddingsMySQL` and `TestPhotoEmbeddingsWithoutTheirTablesMySQL`, modelserver's
     `embedder_test.go` ("embed-fetch", an older primary, a child from release 151),
     `images_embedder`'s tests (`OTC_EMBEDDER_DIR`, `OTC_ORT_LIB` off Linux).
+- Background work (release 152; `files_manager/background.go`): `Status.background_tasks` (20,
+  `BackgroundTask{kind, text, done, total}`) is what the instance is working through on its own
+  library, one entry a kind, in a fixed order (`backgroundOrder`), `text` the device's words in the
+  request's language (`dev.status.background.<kind>`). A pass reports into the registry:
+  `mg.BeginBackground(kind, total)` (total 0 = not known), `Step(n)`, `AddTotal`/`SetTotal`, `End`
+  (deferred; nil-safe); passes of one kind are summed, a total under what is done is raised to it.
+  Kinds: "analysis" - the processing lanes' busy spell (`analysisSpell`: from the first file queued
+  while they were idle - `queueThumbnail`/`queueAnalysis` in enqueueMedia, enqueueAnalysis and
+  ResumePendingAnalysis - total what was queued, done what left them, `mediaLanes.finished`; gone
+  when they are idle); "thumbnails" (`BackfillMissingThumbnails` from its first repair, total
+  unknown; `FitStoredThumbnails` with `CountMediaFilesAfter`); "places" (`BackfillLocations`,
+  `CountMediaWithoutLocation`); "quality" (`BackfillQuality`, `CountPhotosToScore`);
+  "smart_search" (`BackfillEmbeddings`, `CountPhotosToEmbed`); "dates" (`BackgroundDates`, for the
+  date-taken pass). The counts are the listings' rows (`dao/background_counts.go`,
+  `TestBackgroundCountsMySQL`), asked once when a pass starts; a pass with nothing to do isn't
+  listed. A pass waiting for the uploads or the lanes stays listed. Not listed: Reprocess Media
+  (`GetReprocessStatus`) and Smart search's model download (bytes, already in
+  `Settings.smart_search_model`). Tests: `background_test.go`, websocket's
+  `TestStatusListsBackgroundWork`.
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)

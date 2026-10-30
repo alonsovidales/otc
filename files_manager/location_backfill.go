@@ -154,6 +154,12 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 	if done {
 		return
 	}
+	// Listed in Status while there is something to read (background.go).
+	var bg *BackgroundPass
+	if n, err := mg.dao.CountMediaWithoutLocation(); err != nil || n > 0 {
+		bg = mg.BeginBackground(BackgroundPlaces, n)
+	}
+	defer bg.End()
 	started := time.Now()
 	read, located, unread := 0, 0, 0
 	after := ""
@@ -169,6 +175,7 @@ func (mg *Manager) BackfillLocations(ses *session.Session) {
 				return
 			}
 			after = file.Hash
+			bg.Step(1)
 			if _, err := os.Stat(thumbnailPath(file.Hash)); err != nil {
 				continue
 			}

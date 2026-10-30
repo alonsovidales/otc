@@ -1,4 +1,10 @@
 {
+  "dev.status.background.analysis": {"text": "Sta analizzando le nuove foto e i nuovi video"},
+  "dev.status.background.dates": {"text": "Sta correggendo le date delle foto"},
+  "dev.status.background.places": {"text": "Sta cercando dove sono state scattate le tue foto"},
+  "dev.status.background.quality": {"text": "Sta scegliendo le foto migliori per Accadde oggi"},
+  "dev.status.background.smart_search": {"text": "Sta conoscendo le tue foto"},
+  "dev.status.background.thumbnails": {"text": "Sta creando le miniature"},
   "dev.status.bridge.already_on": {"text": "il dispositivo è già sul bridge"},
   "dev.status.bridge.claim_failed": {"text": "impossibile riservare quel nome"},
   "dev.status.bridge.claim_unavailable": {"text": "impossibile riservare quel nome in questo momento"},

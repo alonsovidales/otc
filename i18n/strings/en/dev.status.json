@@ -1,4 +1,34 @@
 {
+  "dev.status.background.analysis": {
+    "text": "Analysing new photos and videos",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the photos and videos just uploaded, which the device makes thumbnails of and works out what they show (tags, faces).",
+    "max": 60
+  },
+  "dev.status.background.dates": {
+    "text": "Fixing photo dates",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device puts right the dates its photos were taken on, read again from each photo.",
+    "max": 60
+  },
+  "dev.status.background.places": {
+    "text": "Finding where your photos were taken",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device reads where each photo or video was taken, for the map in Images (Places), after Places is turned on.",
+    "max": 60
+  },
+  "dev.status.background.quality": {
+    "text": "Choosing the best photos for On this day",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device measures how each photo looks (sharp, well exposed), to pick the nicest for On this day (the memories at the top of Images; the feature's name, as in the apps' Settings).",
+    "max": 60
+  },
+  "dev.status.background.smart_search": {
+    "text": "Getting to know your photos",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: Smart search - the device describes each photo, so it can be found by describing it. Same wording as app.photos.smart_search.reading.",
+    "max": 60
+  },
+  "dev.status.background.thumbnails": {
+    "text": "Making previews",
+    "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device makes the small pictures it shows in the grids (thumbnails) again, or in the sizes a new release uses.",
+    "max": 60
+  },
   "dev.status.bridge.already_on": {
     "text": "the device is already on the bridge",
     "note": "Status the device's root helper writes when the owner asks to switch the bridge on (Settings > Bridge) and the device already uses it. The bridge is off-the.cloud, the relay that makes the device reachable from outside the home."

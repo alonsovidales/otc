@@ -3171,6 +3171,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if ch.mg.sup != nil && !demoMode {
 				st.MirrorCandidates = mirrorCandidatesProto()
 			}
+			// Release 152: what this instance is working through on its
+			// library, in the request's language (files_manager's
+			// background.go).
+			st.BackgroundTasks = ch.mg.filesManager.BackgroundTasks(lang)
 
 			resp.Payload = &pb.RespEnvelope_RespStatus{
 				RespStatus: st,

@@ -4,6 +4,36 @@
 
 package i18n
 
+// DevStatusBackgroundAnalysis is dev.status.background.analysis: "Analysing new photos and videos".
+func DevStatusBackgroundAnalysis() Msg {
+	return Msg{Key: "dev.status.background.analysis"}
+}
+
+// DevStatusBackgroundDates is dev.status.background.dates: "Fixing photo dates".
+func DevStatusBackgroundDates() Msg {
+	return Msg{Key: "dev.status.background.dates"}
+}
+
+// DevStatusBackgroundPlaces is dev.status.background.places: "Finding where your photos were taken".
+func DevStatusBackgroundPlaces() Msg {
+	return Msg{Key: "dev.status.background.places"}
+}
+
+// DevStatusBackgroundQuality is dev.status.background.quality: "Choosing the best photos for On this day".
+func DevStatusBackgroundQuality() Msg {
+	return Msg{Key: "dev.status.background.quality"}
+}
+
+// DevStatusBackgroundSmartSearch is dev.status.background.smart_search: "Getting to know your photos".
+func DevStatusBackgroundSmartSearch() Msg {
+	return Msg{Key: "dev.status.background.smart_search"}
+}
+
+// DevStatusBackgroundThumbnails is dev.status.background.thumbnails: "Making previews".
+func DevStatusBackgroundThumbnails() Msg {
+	return Msg{Key: "dev.status.background.thumbnails"}
+}
+
 // DevStatusBridgeAlreadyOn is dev.status.bridge.already_on: "the device is already on the bridge".
 func DevStatusBridgeAlreadyOn() Msg {
 	return Msg{Key: "dev.status.bridge.already_on"}

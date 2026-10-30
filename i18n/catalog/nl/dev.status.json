@@ -1,4 +1,10 @@
 {
+  "dev.status.background.analysis": {"text": "Analyseert nieuwe foto’s en video’s"},
+  "dev.status.background.dates": {"text": "Corrigeert de datums van foto’s"},
+  "dev.status.background.places": {"text": "Zoekt uit waar je foto’s zijn gemaakt"},
+  "dev.status.background.quality": {"text": "Kiest de beste foto’s voor Op deze dag"},
+  "dev.status.background.smart_search": {"text": "Leert je foto’s kennen"},
+  "dev.status.background.thumbnails": {"text": "Maakt miniaturen"},
   "dev.status.bridge.already_on": {"text": "het apparaat is al verbonden met de bridge"},
   "dev.status.bridge.claim_failed": {"text": "kan die naam niet reserveren"},
   "dev.status.bridge.claim_unavailable": {"text": "kan die naam nu niet reserveren"},

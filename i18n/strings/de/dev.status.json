@@ -1,4 +1,28 @@
 {
+  "dev.status.background.analysis": {
+    "text": "Analysiert neue Fotos und Videos",
+    "en": "Analysing new photos and videos"
+  },
+  "dev.status.background.dates": {
+    "text": "Korrigiert die Aufnahmedaten der Fotos",
+    "en": "Fixing photo dates"
+  },
+  "dev.status.background.places": {
+    "text": "Ermittelt, wo deine Fotos aufgenommen wurden",
+    "en": "Finding where your photos were taken"
+  },
+  "dev.status.background.quality": {
+    "text": "Wählt die besten Fotos für An diesem Tag aus",
+    "en": "Choosing the best photos for On this day"
+  },
+  "dev.status.background.smart_search": {
+    "text": "Lernt deine Fotos kennen",
+    "en": "Getting to know your photos"
+  },
+  "dev.status.background.thumbnails": {
+    "text": "Erstellt Miniaturen",
+    "en": "Making previews"
+  },
   "dev.status.bridge.already_on": {
     "text": "das Gerät nutzt die Bridge bereits",
     "en": "the device is already on the bridge"

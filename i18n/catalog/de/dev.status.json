@@ -1,4 +1,10 @@
 {
+  "dev.status.background.analysis": {"text": "Analysiert neue Fotos und Videos"},
+  "dev.status.background.dates": {"text": "Korrigiert die Aufnahmedaten der Fotos"},
+  "dev.status.background.places": {"text": "Ermittelt, wo deine Fotos aufgenommen wurden"},
+  "dev.status.background.quality": {"text": "Wählt die besten Fotos für An diesem Tag aus"},
+  "dev.status.background.smart_search": {"text": "Lernt deine Fotos kennen"},
+  "dev.status.background.thumbnails": {"text": "Erstellt Miniaturen"},
   "dev.status.bridge.already_on": {"text": "das Gerät nutzt die Bridge bereits"},
   "dev.status.bridge.claim_failed": {"text": "dieser Name konnte nicht reserviert werden"},
   "dev.status.bridge.claim_unavailable": {"text": "dieser Name kann gerade nicht reserviert werden"},

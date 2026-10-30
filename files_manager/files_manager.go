@@ -150,6 +150,11 @@ type Manager struct {
 	smartSrc   smartModelSource
 	smartLocal *localModel
 	smart      smartState
+	// background is the passes working through the library now, and spell
+	// the processing lanes' busy spell, for Status.background_tasks
+	// (background.go).
+	background backgroundWork
+	spell      analysisSpell
 	// Issue #192 (out_of_images.go): outOfImagesMu serialises deciding and
 	// recording what is kept out of Images - the analysis guard, flagging
 	// and unflagging, reconcileAnalysis - and every write of the flagged

@@ -74,6 +74,10 @@ func (mg *Manager) FitStoredThumbnails(ses *session.Session) {
 		fix:        func(hash string) thumbFix { return mg.fixThumbnailsSafely(ses, hash, maxSide) },
 		checkPause: cThumbPassCheckPause,
 		minPause:   cThumbPassMinPause,
+		begin: func(after string) *BackgroundPass {
+			n, _ := mg.dao.CountMediaFilesAfter(after)
+			return mg.BeginBackground(BackgroundThumbnails, n)
+		},
 	}
 	p.run()
 }
@@ -104,6 +108,9 @@ type thumbPass struct {
 	// fix is fixThumbnails for one hash.
 	fix                  func(hash string) thumbFix
 	checkPause, minPause time.Duration
+	// begin lists the pass in Status from after on (background.go); nil:
+	// not listed.
+	begin func(after string) *BackgroundPass
 }
 
 type thumbPassState struct {
@@ -182,6 +189,11 @@ func (p *thumbPass) run() {
 	if !run {
 		return
 	}
+	var bg *BackgroundPass
+	if p.begin != nil {
+		bg = p.begin(after)
+	}
+	defer bg.End()
 	started := time.Now()
 	checked, fixed := 0, 0
 	for {
@@ -200,6 +212,7 @@ func (p *thumbPass) run() {
 				p.saveState(after, false)
 				return
 			}
+			bg.Step(1)
 			if isMedia(f) {
 				t := time.Now()
 				res := p.fix(f.Hash)

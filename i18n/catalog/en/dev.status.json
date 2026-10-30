@@ -1,4 +1,10 @@
 {
+  "dev.status.background.analysis": {"text": "Analysing new photos and videos"},
+  "dev.status.background.dates": {"text": "Fixing photo dates"},
+  "dev.status.background.places": {"text": "Finding where your photos were taken"},
+  "dev.status.background.quality": {"text": "Choosing the best photos for On this day"},
+  "dev.status.background.smart_search": {"text": "Getting to know your photos"},
+  "dev.status.background.thumbnails": {"text": "Making previews"},
   "dev.status.bridge.already_on": {"text": "the device is already on the bridge"},
   "dev.status.bridge.claim_failed": {"text": "could not reserve that name"},
   "dev.status.bridge.claim_unavailable": {"text": "could not reserve that name right now"},

@@ -1,4 +1,28 @@
 {
+  "dev.status.background.analysis": {
+    "text": "Sta analizzando le nuove foto e i nuovi video",
+    "en": "Analysing new photos and videos"
+  },
+  "dev.status.background.dates": {
+    "text": "Sta correggendo le date delle foto",
+    "en": "Fixing photo dates"
+  },
+  "dev.status.background.places": {
+    "text": "Sta cercando dove sono state scattate le tue foto",
+    "en": "Finding where your photos were taken"
+  },
+  "dev.status.background.quality": {
+    "text": "Sta scegliendo le foto migliori per Accadde oggi",
+    "en": "Choosing the best photos for On this day"
+  },
+  "dev.status.background.smart_search": {
+    "text": "Sta conoscendo le tue foto",
+    "en": "Getting to know your photos"
+  },
+  "dev.status.background.thumbnails": {
+    "text": "Sta creando le miniature",
+    "en": "Making previews"
+  },
   "dev.status.bridge.already_on": {
     "text": "il dispositivo è già sul bridge",
     "en": "the device is already on the bridge"

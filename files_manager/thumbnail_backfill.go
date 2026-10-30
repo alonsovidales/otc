@@ -63,6 +63,10 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 	started := time.Now()
 	// Uploads the lanes are still on (ResumePendingAnalysis ran first).
 	pending := mg.pendingAnalysisSet()
+	// Listed in Status from the first thumbnail it has to make
+	// (background.go): finding none is a quick look, not work to show.
+	var bg *BackgroundPass
+	defer func() { bg.End() }()
 
 	for {
 		batch, err := mg.dao.ListMediaForReprocess(lastHash, cBackfillBatchSize)
@@ -112,6 +116,9 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 				done() // made by the lanes meanwhile
 				continue
 			}
+			if bg == nil {
+				bg = mg.BeginBackground(BackgroundThumbnails, 0)
+			}
 			log.Debug("thumbnail backfill: rebuilding", file.Path)
 			// The marker goes down first and comes off once there's a
 			// thumbnail (issue #165): a file that takes the process down
@@ -120,6 +127,7 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			_ = os.WriteFile(marker, []byte(cDecoders), 0o600)                                                  // perms: rw-------
 			mg.safelyOn("making a thumbnail for", file, func() { mg.reprocessOneFile(ses, file, storagePath) }) // i18n-ignore: a log line
 			repaired++
+			bg.Step(1)
 			if _, statErr := os.Stat(thumb); statErr == nil {
 				_ = os.Remove(marker)
 			}

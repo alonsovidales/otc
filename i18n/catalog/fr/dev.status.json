@@ -1,4 +1,10 @@
 {
+  "dev.status.background.analysis": {"text": "Analyse les nouvelles photos et vidéos"},
+  "dev.status.background.dates": {"text": "Corrige les dates des photos"},
+  "dev.status.background.places": {"text": "Recherche où vos photos ont été prises"},
+  "dev.status.background.quality": {"text": "Choisit les meilleures photos pour Ce jour-là"},
+  "dev.status.background.smart_search": {"text": "Apprend à connaître vos photos"},
+  "dev.status.background.thumbnails": {"text": "Crée les vignettes"},
   "dev.status.bridge.already_on": {"text": "l’appareil est déjà sur la passerelle"},
   "dev.status.bridge.claim_failed": {"text": "impossible de réserver ce nom"},
   "dev.status.bridge.claim_unavailable": {"text": "impossible de réserver ce nom pour le moment"},

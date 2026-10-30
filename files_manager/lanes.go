@@ -106,6 +106,11 @@ func (l *lane) work() {
 
 type mediaLanes struct {
 	fast, analysis *lane
+	// finished, when set, is told of each file that leaves the lanes: the
+	// thumbnail lane's that don't go on, and every analysis
+	// (Status.background_tasks' "analysis", background.go). Set before
+	// anything is pushed.
+	finished func()
 }
 
 // newMediaLanes starts both lanes, with fast and analysis workers.
@@ -115,9 +120,16 @@ func newMediaLanes(fast, analysis int, thumbnail func(mediaJob) bool, analyse fu
 	ls.fast = newLane(fast, func(j mediaJob) {
 		if thumbnail(j) {
 			ls.analysis.push(j)
+		} else if ls.finished != nil {
+			ls.finished()
 		}
 	}, nil)
-	ls.analysis = newLane(analysis, analyse, func() bool { return !ls.fast.busy() })
+	ls.analysis = newLane(analysis, func(j mediaJob) {
+		analyse(j)
+		if ls.finished != nil {
+			ls.finished()
+		}
+	}, func() bool { return !ls.fast.busy() })
 	ls.fast.onIdle = ls.analysis.wake
 	return ls
 }
@@ -175,8 +187,24 @@ func (mg *Manager) mediaLanes() *mediaLanes {
 		fast, analysis := processingWorkers()
 		log.Info(fmt.Sprintf("processing: %d thumbnails and %d analyses at once (%d CPUs, %d GB of memory)", fast, analysis, cpuCount(), CurrentMemoryProfile().NominalGB())) // i18n-ignore: a log line
 		mg.lanes = newMediaLanes(fast, analysis, mg.thumbnailJob, mg.analysisJob)
+		mg.lanes.finished = mg.analysisFinished
 	})
 	return mg.lanes
+}
+
+// queueThumbnail and queueAnalysis put a file in the lanes - the thumbnail
+// lane (which goes on to the analysis) or the analysis lane - counted in
+// the busy spell Status lists (background.go).
+func (mg *Manager) queueThumbnail(j mediaJob) {
+	ls := mg.mediaLanes()
+	mg.analysisQueued()
+	ls.fast.push(j)
+}
+
+func (mg *Manager) queueAnalysis(j mediaJob) {
+	ls := mg.mediaLanes()
+	mg.analysisQueued()
+	ls.analysis.push(j)
 }
 
 // isMedia is whether processing has anything to do with file - not an
@@ -198,7 +226,7 @@ func (mg *Manager) enqueueMedia(ses *session.Session, file *pb.File, target stri
 	if err := mg.dao.AddPendingAnalysis(file.Hash); err != nil {
 		log.Error("could not record the analysis to do for", file.Hash, ":", err)
 	}
-	mg.mediaLanes().fast.push(mediaJob{ses: ses, file: file, target: target})
+	mg.queueThumbnail(mediaJob{ses: ses, file: file, target: target})
 }
 
 // processStoredStages runs stages of processing on a file already on
@@ -282,9 +310,9 @@ func (mg *Manager) enqueueAnalysis(ses *session.Session, hash string) {
 	}
 	j := mediaJob{ses: ses, file: file, target: blobPath(hash)}
 	if mg.hasThumbnail(hash) {
-		mg.mediaLanes().analysis.push(j)
+		mg.queueAnalysis(j)
 	} else {
-		mg.mediaLanes().fast.push(j)
+		mg.queueThumbnail(j)
 	}
 }
 
@@ -311,7 +339,6 @@ func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 	if len(hashes) == 0 {
 		return
 	}
-	lanes := mg.mediaLanes()
 	resumed := 0
 	for _, hash := range hashes {
 		file, err := mg.dao.GetFileByHash(hash)
@@ -330,9 +357,9 @@ func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 		target := blobPath(hash)
 		j := mediaJob{ses: ses, file: file, target: target}
 		if _, statErr := os.Stat(target + "_thumbnail"); statErr == nil {
-			lanes.analysis.push(j)
+			mg.queueAnalysis(j)
 		} else {
-			lanes.fast.push(j)
+			mg.queueThumbnail(j)
 		}
 		resumed++
 	}

@@ -653,6 +653,12 @@ func (mg *Manager) BackfillEmbeddings(ses *session.Session) {
 		log.Error("smart search: could not read the folders kept out of Images, nothing described:", err)
 		return
 	}
+	// Listed in Status while there is something to describe (background.go).
+	var bg *BackgroundPass
+	if n, err := mg.dao.CountPhotosToEmbed(cEmbedModel, excluded); err != nil || n > 0 {
+		bg = mg.BeginBackground(BackgroundSmartSearch, n)
+	}
+	defer bg.End()
 	started := time.Now()
 	described, failed := 0, 0
 	after := ""
@@ -668,6 +674,7 @@ func (mg *Manager) BackfillEmbeddings(ses *session.Session) {
 		}
 		for _, file := range batch {
 			after = file.Hash
+			bg.Step(1)
 			if s.turn.Load() != turn || !mg.SmartSearchEnabled() {
 				log.Info("smart search: turned off, the describing stops after", described, "photo(s)")
 				return
