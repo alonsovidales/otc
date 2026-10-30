@@ -152,6 +152,8 @@
     <string name="app_settings_reprocess_title">Reprocesar multimedia</string>
     <string name="app_settings_sharing_title">Compartir</string>
     <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_download_note">La primera vez que la activas, tu dispositivo descarga unos 400 MB.</string>
+    <string name="app_settings_smart_search_downloading">Descargando lo que necesita… %1$s %%</string>
     <string name="app_settings_smart_search_footer">Encuentra fotos describiéndolas, en cualquiera de los idiomas de la app. Tu dispositivo lo calcula por sí mismo y lo guarda cifrado. Al desactivarla, se borra lo que aprendió.</string>
     <string name="app_settings_smart_search_off_confirm">Desactivar</string>
     <string name="app_settings_smart_search_off_text">Tu dispositivo borra lo que aprendió de tus fotos. Si la vuelves a activar, tendrá que mirarlas todas de nuevo, y eso lleva un rato.</string>

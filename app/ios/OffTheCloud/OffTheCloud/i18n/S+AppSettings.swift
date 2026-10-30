@@ -650,6 +650,18 @@ extension S {
     /// Small badge next to the Smart search switch's label in Settings: the feature is new and still being tried out. One short word.
     static var appSettingsSmartSearchBeta: String { L("app.settings.smart_search.beta", table: "AppSettings") }
 
+    /// Turning it on the first time downloads about 400 MB to your device.
+    ///
+    /// Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed.
+    static var appSettingsSmartSearchDownloadNote: String { L("app.settings.smart_search.download_note", table: "AppSettings") }
+
+    /// Downloading what it needs… {percent}%
+    ///
+    /// Under the Smart search switch in Settings while the device downloads the model Smart search needs (once, after it is first turned on; about 400 MB). {percent} is how far along it is.
+    static func appSettingsSmartSearchDownloading(percent: Int) -> String {
+        L("app.settings.smart_search.downloading", table: "AppSettings", percent)
+    }
+
     /// Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.
     ///
     /// Explanation under the Smart search switch in Settings: the user types a description and finds matching photos; the device itself works out what each photo shows (nothing is sent anywhere) and keeps that encrypted; turning it off deletes it.

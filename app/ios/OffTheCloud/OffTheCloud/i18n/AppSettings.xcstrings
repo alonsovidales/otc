@@ -6779,6 +6779,100 @@
         }
       }
     },
+    "app.settings.smart_search.download_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn du sie zum ersten Mal einschaltest, lädt dein Gerät etwa 400 MB herunter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning it on the first time downloads about 400 MB to your device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La primera vez que la activas, tu dispositivo descarga unos 400 MB."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La première fois que vous l’activez, votre appareil télécharge environ 400 Mo."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La prima volta che la attivi, il tuo dispositivo scarica circa 400 MB."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da primeira vez que a ativas, o teu dispositivo transfere cerca de 400 MB."
+          }
+        }
+      }
+    },
+    "app.settings.smart_search.downloading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lädt herunter, was sie braucht… %1$lld %%"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading what it needs… %1$lld%%"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando lo que necesita… %1$lld %%"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement de ce dont elle a besoin… %1$lld %%"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download di ciò che le serve… %1$lld%%"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaden wat het nodig heeft… %1$lld%%"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transferir o que precisa… %1$lld%%"
+          }
+        }
+      }
+    },
     "app.settings.smart_search.footer" : {
       "extractionState" : "manual",
       "localizations" : {

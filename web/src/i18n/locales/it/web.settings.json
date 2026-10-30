@@ -128,6 +128,8 @@
   "web.settings.session.title": "Sessione",
   "web.settings.smart_search.beta": "Beta",
   "web.settings.smart_search.disable": "Disattiva la ricerca intelligente",
+  "web.settings.smart_search.download_note": "La prima volta che la attivi, il tuo dispositivo scarica circa 400 MB.",
+  "web.settings.smart_search.downloading": "Download di ciò che le serve… {percent}%",
   "web.settings.smart_search.enable": "Attiva la ricerca intelligente",
   "web.settings.smart_search.hint": "Trova le foto descrivendole, in qualsiasi lingua dell’app. Il tuo dispositivo lo calcola da solo e lo conserva cifrato. Disattivandola, si cancella ciò che ha imparato.",
   "web.settings.smart_search.off_confirm": "Disattiva",

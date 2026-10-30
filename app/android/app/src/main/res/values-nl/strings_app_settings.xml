@@ -144,6 +144,8 @@
     <string name="app_settings_reprocess_title">Media opnieuw verwerken</string>
     <string name="app_settings_sharing_title">Delen</string>
     <string name="app_settings_smart_search_beta">Bèta</string>
+    <string name="app_settings_smart_search_download_note">De eerste keer dat je het aanzet, downloadt je apparaat ongeveer 400 MB.</string>
+    <string name="app_settings_smart_search_downloading">Downloaden wat het nodig heeft… %1$s%%</string>
     <string name="app_settings_smart_search_footer">Vind foto’s door ze te beschrijven, in elke taal van de app. Je apparaat werkt dit zelf uit en bewaart het versleuteld. Uitzetten verwijdert wat het heeft geleerd.</string>
     <string name="app_settings_smart_search_off_confirm">Uitzetten</string>
     <string name="app_settings_smart_search_off_text">Je apparaat verwijdert wat het over je foto’s heeft geleerd. Zet je het weer aan, dan moet het ze allemaal opnieuw bekijken, en dat duurt even.</string>

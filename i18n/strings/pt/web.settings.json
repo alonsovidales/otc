@@ -515,6 +515,14 @@
     "text": "Desativar a pesquisa inteligente",
     "en": "Disable Smart search"
   },
+  "web.settings.smart_search.download_note": {
+    "text": "Da primeira vez que a ativas, o teu dispositivo transfere cerca de 400 MB.",
+    "en": "Turning it on the first time downloads about 400 MB to your device."
+  },
+  "web.settings.smart_search.downloading": {
+    "text": "A transferir o que precisa… {percent}%",
+    "en": "Downloading what it needs… {percent}%"
+  },
   "web.settings.smart_search.enable": {
     "text": "Ativar a pesquisa inteligente",
     "en": "Enable Smart search"

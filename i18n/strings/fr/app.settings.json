@@ -553,6 +553,14 @@
     "text": "Bêta",
     "en": "Beta"
   },
+  "app.settings.smart_search.download_note": {
+    "text": "La première fois que vous l’activez, votre appareil télécharge environ 400 Mo.",
+    "en": "Turning it on the first time downloads about 400 MB to your device."
+  },
+  "app.settings.smart_search.downloading": {
+    "text": "Téléchargement de ce dont elle a besoin… {percent} %",
+    "en": "Downloading what it needs… {percent}%"
+  },
   "app.settings.smart_search.footer": {
     "text": "Trouvez des photos en les décrivant, dans n’importe quelle langue de l’app. Votre appareil fait ce travail lui-même et le conserve chiffré. La désactiver supprime ce qu’il a appris.",
     "en": "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned."

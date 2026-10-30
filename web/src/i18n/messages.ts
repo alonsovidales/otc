@@ -647,6 +647,8 @@ export type MessageKey =
   | "web.settings.session.title"
   | "web.settings.smart_search.beta"
   | "web.settings.smart_search.disable"
+  | "web.settings.smart_search.download_note"
+  | "web.settings.smart_search.downloading"
   | "web.settings.smart_search.enable"
   | "web.settings.smart_search.hint"
   | "web.settings.smart_search.off_confirm"
@@ -1759,6 +1761,8 @@ export interface MessageArgs {
   "web.settings.session.title": undefined;
   "web.settings.smart_search.beta": undefined;
   "web.settings.smart_search.disable": undefined;
+  "web.settings.smart_search.download_note": undefined;
+  "web.settings.smart_search.downloading": { percent: number };
   "web.settings.smart_search.enable": undefined;
   "web.settings.smart_search.hint": undefined;
   "web.settings.smart_search.off_confirm": undefined;

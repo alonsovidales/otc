@@ -967,7 +967,9 @@ export interface SearchPhotos {
    * embedding for yet isn't among them. Pages like a tag search (token,
    * have); before and newer_than don't apply. Send it only while
    * Settings.smart_search_enabled is on: off, the answer is error_code
-   * "smart_search_off"; on a device without the model,
+   * "smart_search_off"; while the model is still downloading
+   * (Settings.smart_search_model, release 152), "smart_search_downloading" -
+   * the apps don't offer it then; on a device without the model,
    * "smart_search_unavailable". Devices before Smart search ignore it and
    * answer the whole library, so never send it to one whose Settings lack
    * smart_search_enabled. "" (or only spaces) is no text.
@@ -1983,7 +1985,39 @@ export interface Settings {
    * it; absent means the device predates it, and the apps show neither the
    * switch nor the free-text search.
    */
-  smartSearchEnabled?: boolean | undefined;
+  smartSearchEnabled?:
+    | boolean
+    | undefined;
+  /**
+   * Smart search's model (since release 152 the device downloads it, about
+   * 400 MB, only once Smart search is first turned on, at a capped speed,
+   * instead of with every update). Always set by devices that have it, for
+   * the user's own library; absent means an older device, which had the
+   * model or answered "smart_search_unavailable".
+   */
+  smartSearchModel?: SmartSearchModel | undefined;
+}
+
+/**
+ * Where Smart search's model is (Settings.smart_search_model). Neither ready
+ * nor downloading: not on the device yet, and nothing asked for it - the
+ * apps say turning it on downloads it.
+ */
+export interface SmartSearchModel {
+  /** On the device: Smart search works. */
+  ready: boolean;
+  /**
+   * Being downloaded, or waiting to try again (problem says why); asked for
+   * by turning Smart search on, on this or another of the device's users.
+   */
+  downloading: boolean;
+  /** How far the download is, 0-100, while downloading. */
+  percent: number;
+  /**
+   * The last try failed, in the device's words in the request's language;
+   * the device tries again by itself while Smart search is on. "" otherwise.
+   */
+  problem: string;
 }
 
 /**
@@ -2199,11 +2233,14 @@ export interface SetMemoriesEnabled {
 /**
  * Smart search's switch (Settings.smart_search_enabled), for the user's own
  * library. On: the device describes the photos it holds in the background,
- * with this session's key; off: every description is deleted before the
- * answer. Answers with the generic Ack; error_code
- * "smart_search_unavailable" (turning it on) on a device without the
- * model. A demo device refuses it, and devices before it answer error_code
- * "unknown_payload".
+ * with this session's key - once its model is there: since release 152,
+ * turning it on where the model isn't starts its download
+ * (Settings.smart_search_model), and the photos are described after it;
+ * off: every description is deleted before the answer, and a download asked
+ * for by no other user stops. Answers with the generic Ack; error_code
+ * "smart_search_unavailable" (turning it on) on a device that can't get the
+ * model at all (and, before 152, on one without it). A demo device refuses
+ * it, and devices before it answer error_code "unknown_payload".
  */
 export interface SetSmartSearchEnabled {
   enabled: boolean;
@@ -12003,6 +12040,7 @@ function createBaseSettings(): Settings {
     placesEnabled: undefined,
     memoriesEnabled: undefined,
     smartSearchEnabled: undefined,
+    smartSearchModel: undefined,
   };
 }
 
@@ -12040,6 +12078,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.smartSearchEnabled !== undefined) {
       writer.uint32(80).bool(message.smartSearchEnabled);
+    }
+    if (message.smartSearchModel !== undefined) {
+      SmartSearchModel.encode(message.smartSearchModel, writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -12131,6 +12172,14 @@ export const Settings: MessageFns<Settings> = {
           message.smartSearchEnabled = reader.bool();
           continue;
         }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.smartSearchModel = SmartSearchModel.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12155,6 +12204,91 @@ export const Settings: MessageFns<Settings> = {
     message.placesEnabled = object.placesEnabled ?? undefined;
     message.memoriesEnabled = object.memoriesEnabled ?? undefined;
     message.smartSearchEnabled = object.smartSearchEnabled ?? undefined;
+    message.smartSearchModel = (object.smartSearchModel !== undefined && object.smartSearchModel !== null)
+      ? SmartSearchModel.fromPartial(object.smartSearchModel)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSmartSearchModel(): SmartSearchModel {
+  return { ready: false, downloading: false, percent: 0, problem: "" };
+}
+
+export const SmartSearchModel: MessageFns<SmartSearchModel> = {
+  encode(message: SmartSearchModel, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ready !== false) {
+      writer.uint32(8).bool(message.ready);
+    }
+    if (message.downloading !== false) {
+      writer.uint32(16).bool(message.downloading);
+    }
+    if (message.percent !== 0) {
+      writer.uint32(24).int32(message.percent);
+    }
+    if (message.problem !== "") {
+      writer.uint32(34).string(message.problem);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SmartSearchModel {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSmartSearchModel();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.ready = reader.bool();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.downloading = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.percent = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.problem = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SmartSearchModel>, I>>(base?: I): SmartSearchModel {
+    return SmartSearchModel.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SmartSearchModel>, I>>(object: I): SmartSearchModel {
+    const message = createBaseSmartSearchModel();
+    message.ready = object.ready ?? false;
+    message.downloading = object.downloading ?? false;
+    message.percent = object.percent ?? 0;
+    message.problem = object.problem ?? "";
     return message;
   },
 };

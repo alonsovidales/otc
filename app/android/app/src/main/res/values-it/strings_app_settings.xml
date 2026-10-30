@@ -152,6 +152,8 @@
     <string name="app_settings_reprocess_title">Rielabora media</string>
     <string name="app_settings_sharing_title">Condivisione</string>
     <string name="app_settings_smart_search_beta">Beta</string>
+    <string name="app_settings_smart_search_download_note">La prima volta che la attivi, il tuo dispositivo scarica circa 400 MB.</string>
+    <string name="app_settings_smart_search_downloading">Download di ciò che le serve… %1$s%%</string>
     <string name="app_settings_smart_search_footer">Trova le foto descrivendole, in qualsiasi lingua dell’app. Il tuo dispositivo lo calcola da solo e lo conserva cifrato. Disattivandola, si cancella ciò che ha imparato.</string>
     <string name="app_settings_smart_search_off_confirm">Disattiva</string>
     <string name="app_settings_smart_search_off_text">Il tuo dispositivo cancella ciò che ha imparato sulle tue foto. Se la riattivi, dovrà riguardarle tutte, e ci vorrà un po’.</string>

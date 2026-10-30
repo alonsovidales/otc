@@ -615,6 +615,15 @@
     "note": "Button in Settings > Smart search that turns it off, after a confirmation: what the device learned is deleted.",
     "max": 40
   },
+  "web.settings.smart_search.download_note": {
+    "text": "Turning it on the first time downloads about 400 MB to your device.",
+    "note": "Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed. The phones' app.settings.smart_search.download_note."
+  },
+  "web.settings.smart_search.downloading": {
+    "text": "Downloading what it needs… {percent}%",
+    "args": [["percent", "int"]],
+    "note": "Under the Smart search switch in Settings while the device downloads the model Smart search needs (once, after it is first turned on; about 400 MB). {percent} is how far along it is. The phones' app.settings.smart_search.downloading."
+  },
   "web.settings.smart_search.enable": {
     "text": "Enable Smart search",
     "note": "Button in Settings > Smart search that turns it on: the device starts describing the photos it holds.",

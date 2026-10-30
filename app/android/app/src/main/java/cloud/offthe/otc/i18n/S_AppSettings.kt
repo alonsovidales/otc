@@ -478,6 +478,14 @@ fun S.appSettingsSharingTitle(): UiText =
 fun S.appSettingsSmartSearchBeta(): UiText =
     UiText.Res(R.string.app_settings_smart_search_beta)
 
+/** "Turning it on the first time downloads about 400 MB to your device.": Under the Smart search switch in Settings while its model isn't on the device yet: since release 152 the device downloads the model (about 400 MB) only when Smart search is first turned on, at a capped speed. */
+fun S.appSettingsSmartSearchDownloadNote(): UiText =
+    UiText.Res(R.string.app_settings_smart_search_download_note)
+
+/** "Downloading what it needs… {percent}%": Under the Smart search switch in Settings while the device downloads the model Smart search needs (once, after it is first turned on; about 400 MB). {percent} is how far along it is. */
+fun S.appSettingsSmartSearchDownloading(percent: Int): UiText =
+    UiText.Res(R.string.app_settings_smart_search_downloading, listOf(percent))
+
 /** "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.": Explanation under the Smart search switch in Settings: the user types a description and finds matching photos; the device itself works out what each photo shows (nothing is sent anywhere) and keeps that encrypted; turning it off deletes it. */
 fun S.appSettingsSmartSearchFooter(): UiText =
     UiText.Res(R.string.app_settings_smart_search_footer)

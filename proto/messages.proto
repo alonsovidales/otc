@@ -670,7 +670,9 @@ message SearchPhotos {
   // embedding for yet isn't among them. Pages like a tag search (token,
   // have); before and newer_than don't apply. Send it only while
   // Settings.smart_search_enabled is on: off, the answer is error_code
-  // "smart_search_off"; on a device without the model,
+  // "smart_search_off"; while the model is still downloading
+  // (Settings.smart_search_model, release 152), "smart_search_downloading" -
+  // the apps don't offer it then; on a device without the model,
   // "smart_search_unavailable". Devices before Smart search ignore it and
   // answer the whole library, so never send it to one whose Settings lack
   // smart_search_enabled. "" (or only spaces) is no text.
@@ -1508,6 +1510,28 @@ message Settings {
   // it; absent means the device predates it, and the apps show neither the
   // switch nor the free-text search.
   optional bool smart_search_enabled = 10;
+  // Smart search's model (since release 152 the device downloads it, about
+  // 400 MB, only once Smart search is first turned on, at a capped speed,
+  // instead of with every update). Always set by devices that have it, for
+  // the user's own library; absent means an older device, which had the
+  // model or answered "smart_search_unavailable".
+  optional SmartSearchModel smart_search_model = 11;
+}
+
+// Where Smart search's model is (Settings.smart_search_model). Neither ready
+// nor downloading: not on the device yet, and nothing asked for it - the
+// apps say turning it on downloads it.
+message SmartSearchModel {
+  // On the device: Smart search works.
+  bool ready = 1;
+  // Being downloaded, or waiting to try again (problem says why); asked for
+  // by turning Smart search on, on this or another of the device's users.
+  bool downloading = 2;
+  // How far the download is, 0-100, while downloading.
+  int32 percent = 3;
+  // The last try failed, in the device's words in the request's language;
+  // the device tries again by itself while Smart search is on. "" otherwise.
+  string problem = 4;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -1706,11 +1730,14 @@ message SetMemoriesEnabled {
 
 // Smart search's switch (Settings.smart_search_enabled), for the user's own
 // library. On: the device describes the photos it holds in the background,
-// with this session's key; off: every description is deleted before the
-// answer. Answers with the generic Ack; error_code
-// "smart_search_unavailable" (turning it on) on a device without the
-// model. A demo device refuses it, and devices before it answer error_code
-// "unknown_payload".
+// with this session's key - once its model is there: since release 152,
+// turning it on where the model isn't starts its download
+// (Settings.smart_search_model), and the photos are described after it;
+// off: every description is deleted before the answer, and a download asked
+// for by no other user stops. Answers with the generic Ack; error_code
+// "smart_search_unavailable" (turning it on) on a device that can't get the
+// model at all (and, before 152, on one without it). A demo device refuses
+// it, and devices before it answer error_code "unknown_payload".
 message SetSmartSearchEnabled {
   bool enabled = 1;
 }

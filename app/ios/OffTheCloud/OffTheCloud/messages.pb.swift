@@ -1657,7 +1657,9 @@ public nonisolated struct Msg_SearchPhotos: @unchecked Sendable {
   /// embedding for yet isn't among them. Pages like a tag search (token,
   /// have); before and newer_than don't apply. Send it only while
   /// Settings.smart_search_enabled is on: off, the answer is error_code
-  /// "smart_search_off"; on a device without the model,
+  /// "smart_search_off"; while the model is still downloading
+  /// (Settings.smart_search_model, release 152), "smart_search_downloading" -
+  /// the apps don't offer it then; on a device without the model,
   /// "smart_search_unavailable". Devices before Smart search ignore it and
   /// answer the whole library, so never send it to one whose Settings lack
   /// smart_search_enabled. "" (or only spaces) is no text.
@@ -3525,6 +3527,20 @@ public nonisolated struct Msg_Settings: Sendable {
   /// Clears the value of `smartSearchEnabled`. Subsequent reads from it will return its default value.
   public mutating func clearSmartSearchEnabled() {self._smartSearchEnabled = nil}
 
+  /// Smart search's model (since release 152 the device downloads it, about
+  /// 400 MB, only once Smart search is first turned on, at a capped speed,
+  /// instead of with every update). Always set by devices that have it, for
+  /// the user's own library; absent means an older device, which had the
+  /// model or answered "smart_search_unavailable".
+  public var smartSearchModel: Msg_SmartSearchModel {
+    get {_smartSearchModel ?? Msg_SmartSearchModel()}
+    set {_smartSearchModel = newValue}
+  }
+  /// Returns true if `smartSearchModel` has been explicitly set.
+  public var hasSmartSearchModel: Bool {self._smartSearchModel != nil}
+  /// Clears the value of `smartSearchModel`. Subsequent reads from it will return its default value.
+  public mutating func clearSmartSearchModel() {self._smartSearchModel = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3533,6 +3549,34 @@ public nonisolated struct Msg_Settings: Sendable {
   fileprivate var _placesEnabled: Bool? = nil
   fileprivate var _memoriesEnabled: Bool? = nil
   fileprivate var _smartSearchEnabled: Bool? = nil
+  fileprivate var _smartSearchModel: Msg_SmartSearchModel? = nil
+}
+
+/// Where Smart search's model is (Settings.smart_search_model). Neither ready
+/// nor downloading: not on the device yet, and nothing asked for it - the
+/// apps say turning it on downloads it.
+public nonisolated struct Msg_SmartSearchModel: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// On the device: Smart search works.
+  public var ready: Bool = false
+
+  /// Being downloaded, or waiting to try again (problem says why); asked for
+  /// by turning Smart search on, on this or another of the device's users.
+  public var downloading: Bool = false
+
+  /// How far the download is, 0-100, while downloading.
+  public var percent: Int32 = 0
+
+  /// The last try failed, in the device's words in the request's language;
+  /// the device tries again by itself while Smart search is on. "" otherwise.
+  public var problem: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -3928,11 +3972,14 @@ public nonisolated struct Msg_SetMemoriesEnabled: Sendable {
 
 /// Smart search's switch (Settings.smart_search_enabled), for the user's own
 /// library. On: the device describes the photos it holds in the background,
-/// with this session's key; off: every description is deleted before the
-/// answer. Answers with the generic Ack; error_code
-/// "smart_search_unavailable" (turning it on) on a device without the
-/// model. A demo device refuses it, and devices before it answer error_code
-/// "unknown_payload".
+/// with this session's key - once its model is there: since release 152,
+/// turning it on where the model isn't starts its download
+/// (Settings.smart_search_model), and the photos are described after it;
+/// off: every description is deleted before the answer, and a download asked
+/// for by no other user stops. Answers with the generic Ack; error_code
+/// "smart_search_unavailable" (turning it on) on a device that can't get the
+/// model at all (and, before 152, on one without it). A demo device refuses
+/// it, and devices before it answer error_code "unknown_payload".
 public nonisolated struct Msg_SetSmartSearchEnabled: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -12821,7 +12868,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12839,6 +12886,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 8: try { try decoder.decodeSingularBoolField(value: &self._placesEnabled) }()
       case 9: try { try decoder.decodeSingularBoolField(value: &self._memoriesEnabled) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self._smartSearchEnabled) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._smartSearchModel) }()
       default: break
       }
     }
@@ -12879,6 +12927,9 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._smartSearchEnabled {
       try visitor.visitSingularBoolField(value: v, fieldNumber: 10)
     } }()
+    try { if let v = self._smartSearchModel {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -12893,6 +12944,52 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs._placesEnabled != rhs._placesEnabled {return false}
     if lhs._memoriesEnabled != rhs._memoriesEnabled {return false}
     if lhs._smartSearchEnabled != rhs._smartSearchEnabled {return false}
+    if lhs._smartSearchModel != rhs._smartSearchModel {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SmartSearchModel: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SmartSearchModel"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ready\0\u{1}downloading\0\u{1}percent\0\u{1}problem\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.ready) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.downloading) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.percent) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.problem) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.ready != false {
+      try visitor.visitSingularBoolField(value: self.ready, fieldNumber: 1)
+    }
+    if self.downloading != false {
+      try visitor.visitSingularBoolField(value: self.downloading, fieldNumber: 2)
+    }
+    if self.percent != 0 {
+      try visitor.visitSingularInt32Field(value: self.percent, fieldNumber: 3)
+    }
+    if !self.problem.isEmpty {
+      try visitor.visitSingularStringField(value: self.problem, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SmartSearchModel, rhs: Msg_SmartSearchModel) -> Bool {
+    if lhs.ready != rhs.ready {return false}
+    if lhs.downloading != rhs.downloading {return false}
+    if lhs.percent != rhs.percent {return false}
+    if lhs.problem != rhs.problem {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
