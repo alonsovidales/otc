@@ -211,7 +211,9 @@ fi
 docker buildx inspect --bootstrap "$BUILDER" >/dev/null
 
 index_digest() {
-    docker buildx imagetools inspect "$IMAGE:$1" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest // empty'
+    # A tag not published yet fails the inspect: with pipefail that would
+    # end the script under set -e, at the very first publish of a release.
+    docker buildx imagetools inspect "$IMAGE:$1" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest // empty' 2>/dev/null || true
 }
 # The release a tag points at, from its version annotation (empty: none).
 tag_release() {
