@@ -340,6 +340,12 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	if !bridgeConfigured() {
 		log.Info("no bridge-addr configured - this instance stays local-only")
 	} else {
+		// The bridge's addresses, kept beside the run marker: a resolver
+		// that stops answering (a home link saturated by an update's
+		// downloads) no longer keeps the device off the bridge.
+		if wd, err := os.Getwd(); err == nil {
+			wsframe.KeepAddressesIn(filepath.Join(wd, ".bridge-addresses.json"))
+		}
 		mg.ensureBridgePool()
 		// A cable plugged in or out, another Wi-Fi network: the pool's
 		// idle connections went with the old route.

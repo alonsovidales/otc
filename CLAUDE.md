@@ -1524,7 +1524,14 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   one-off calls) is a `wsframe.Client` (`wsframe.Dial`): 15 s handshake, 30 s per write/read,
   64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes
   each friend's socket after its pass, and Web Push uses a 15 s HTTP client. The pooled bridge
-  relay socket clears the deadlines once registered.
+  relay socket clears the deadlines once registered. Its dialer (`wsframe/addresses.go`) looks a
+  name up within 5 s (`LookupTimeout`) and remembers what it resolved to; a lookup that fails
+  dials those addresses instead, each with an even share of the time left, and TLS still checks
+  the certificate against the name. Kept in `.bridge-addresses.json` in the instance's working
+  directory (`KeepAddressesIn`, from websocket's `Init`; at most 256 names, written temp + rename
+  only when they change). Seen on Cala on 2026-10-30: an update's downloads saturated its home
+  link, the router stopped answering its DNS, and with the bridge's 60 s TTL every pool dial
+  failed for 20 minutes while the device ran fine at home.
   **Friend post sync** (`social.updateFriendEvents`): a file whose hash fails `dao.IsContentHash`
   is dropped (`NewSocialPublication` refuses one too, storing a post and its files in one
   transaction); the size recorded is what the files take on this disk (int64; release 92 clamped it to MaxInt32); media is pulled in

@@ -34,6 +34,7 @@ const (
 var dialer = &gorilla.Dialer{
 	Proxy:            http.ProxyFromEnvironment,
 	HandshakeTimeout: DialTimeout,
+	NetDialContext:   dialContext,
 }
 
 // Client is an outgoing websocket with deadlines and read limits.
