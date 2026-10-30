@@ -18,14 +18,15 @@
 // With Smart search on (smartSearch.ts), the panel's first row searches the
 // photos for the words as a description, within the chips, and is what
 // Enter takes unless they are exactly a tag or a named person's name; the
-// description then shows as a chip of its own.
+// description then shows as a chip of its own. Not while the device is
+// still downloading Smart search's model: the row comes once it is there.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
-import { useSmartSearchOn } from "./smartSearch";
+import { useSmartSearchOffered } from "./smartSearch";
 import { useFaceRecognition } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
@@ -166,8 +167,9 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const people = usePeople();
   const tags = useTags();
   const faces = useFaceRecognition() === true;
-  // Smart search on: the typed words can be searched as a description.
-  const smart = useSmartSearchOn() === true;
+  // Smart search on, with its model on the device: the typed words can be
+  // searched as a description.
+  const smart = useSmartSearchOffered();
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);

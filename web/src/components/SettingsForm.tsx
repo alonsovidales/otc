@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection } from "../net/pwCrypto";
 import { signOut } from "../net/signOut";
@@ -18,7 +18,10 @@ import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
-import { setSmartSearchOn, useSmartSearchOn } from "./smartSearch";
+import {
+  announcement, applySmartSearchSettings, followSmartSearchDownload, modelView, refreshSmartSearch, setSmartSearchOn,
+  useSmartSearchModel, useSmartSearchOn, type Announcement, type ModelView, type SmartModel,
+} from "./smartSearch";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
@@ -84,11 +87,17 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [memoriesBusy, setMemoriesBusy] = useState(false);
   const [memoriesHidden, setMemoriesHidden] = useState(0);
   // Smart search's switch (smartSearch.ts), on a device that has it: on at
-  // once, off after the confirmation (what the device learned goes).
+  // once, off after the confirmation (what the device learned goes). Its
+  // model's download, which turning it on starts where the model isn't
+  // there yet (release 152), shows under the hint; the device is asked
+  // again every 3 s while it goes on and this shows.
   const smartOn = useSmartSearchOn() === true;
+  const smartModel = useSmartSearchModel();
   const [smartKnown, setSmartKnown] = useState(false);
   const [smartBusy, setSmartBusy] = useState(false);
   const [smartOffAsk, setSmartOffAsk] = useState(false);
+  const followSmart = smartKnown && smartOn && smartModel.downloading;
+  useEffect(() => (followSmart ? followSmartSearchDownload() : undefined), [followSmart]);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -177,7 +186,8 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   };
 
   // Smart search: the device's answer to its switch - null once done, else
-  // its words (or ours when it gave none).
+  // its words (or ours when it gave none). Done, the model's state is asked
+  // again: turned on, its download may have started; off, stopped.
   const sendSmartSearch = async (enabled: boolean): Promise<UiText | null> => {
     try {
       const resp: RespEnvelope = await useWS.request((e) => {
@@ -185,6 +195,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setSmartSearchOn(enabled);
+        await refreshSmartSearch();
         return null;
       }
       const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
@@ -396,9 +407,10 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
           // Absent: a device before On this day.
           setMemoriesOnHere(s.memoriesEnabled ?? null);
-          // Absent: a device before Smart search, with no switch.
+          // Absent: a device before Smart search, with no switch (and
+          // its model: a device before release 152, which had it).
           setSmartKnown(s.smartSearchEnabled !== undefined);
-          if (s.smartSearchEnabled !== undefined) setSmartSearchOn(s.smartSearchEnabled);
+          if (s.smartSearchEnabled !== undefined) applySmartSearchSettings(s);
           if (s.memoriesEnabled) void countHiddenMemories();
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
@@ -624,12 +636,13 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       )}
 
       {smartKnown && (
-        <section className="sf-section">
-          <h3>
+        <section className="sf-section" aria-labelledby="sf-smart-title">
+          <h3 id="sf-smart-title">
             {t("web.settings.smart_search.title")}
             <span className="sf-beta">{t("web.settings.smart_search.beta")}</span>
           </h3>
           <p className="sf-hint">{t("web.settings.smart_search.hint")}</p>
+          <SmartSearchModelNote model={smartModel} labelId="sf-smart-title" />
           <button className="sf-btn" disabled={smartBusy} onClick={() => void toggleSmartSearch()}>
             {smartBusy ? t("web.settings.general.working") : smartOn ? t("web.settings.smart_search.disable") : t("web.settings.smart_search.enable")}
           </button>
@@ -783,3 +796,48 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   );
 }
 
+
+const cSaidMs = 5000;
+
+// Smart search's model under the section's hint (smartSearch.ts' modelView):
+// that turning it on downloads it, or the download - a bar and its percent,
+// or the device's words while a try failed (it tries again by itself).
+// Nothing once it is there. A screen reader hears only when the download
+// starts, runs into a problem and is done (announcement), not every percent.
+function SmartSearchModelNote({ model, labelId }: { model: SmartModel; labelId: string }) {
+  const t = useT();
+  const view = modelView(model);
+  const [said, setSaid] = useState<Announcement | null>(null);
+  const shown = useRef<ModelView | null>(null);
+  useEffect(() => {
+    const now = modelView(model);
+    const next = announcement(shown.current, now);
+    shown.current = now;
+    if (next) setSaid(next);
+  }, [model]);
+  // Said, then emptied: no old words left for a screen reader to come
+  // across later, and the same words said again are heard again.
+  useEffect(() => {
+    if (!said) return;
+    const timer = setTimeout(() => setSaid(null), cSaidMs);
+    return () => clearTimeout(timer);
+  }, [said]);
+  const live = !said ? "" : said.kind === "problem" ? said.text : t("web.settings.smart_search.downloading", { percent: said.percent });
+  return (
+    <>
+      {view.kind === "note" && <p className="sf-hint">{t("web.settings.smart_search.download_note")}</p>}
+      {view.kind === "downloading" && (
+        <div className="sf-progress sf-smart-dl">
+          <div className="sf-progress-track" role="progressbar" aria-labelledby={labelId} aria-describedby="sf-smart-dl-text"
+            aria-valuemin={0} aria-valuemax={100} aria-valuenow={view.percent}>
+            <div className="sf-progress-fill" style={{ width: `${view.percent}%` }} />
+          </div>
+          <p id="sf-smart-dl-text" className="sf-hint">
+            {view.problem || t("web.settings.smart_search.downloading", { percent: view.percent })}
+          </p>
+        </div>
+      )}
+      <span className="sf-sr" role="status">{live}</span>
+    </>
+  );
+}

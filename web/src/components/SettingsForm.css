@@ -97,3 +97,9 @@
   text-transform: uppercase;
   vertical-align: middle;
 }
+/* Smart search's model downloading (release 152): the bar and its words
+   under the hint, before the switch. */
+.sf-smart-dl { margin-bottom: 2px; }
+.sf-smart-dl .sf-hint { margin: 0; }
+/* Heard, not seen: what a screen reader is told as the download goes. */
+.sf-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

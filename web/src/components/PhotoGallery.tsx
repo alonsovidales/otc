@@ -42,7 +42,7 @@ import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { areaKey, clearSearch, clearText, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropPlaces } from "./places";
-import { setSmartSearchOn } from "./smartSearch";
+import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
@@ -530,14 +530,18 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
             if (myGen !== searchGenRef.current) return;
           }
         }
-        // Smart search refused (turned off on another app, or a device
-        // without its model): its words in a note, and the description goes,
+        // Smart search refused (turned off on another app, a device without
+        // its model, or one still downloading it - turned on on another app
+        // a moment ago): its words in a note, and the description goes,
         // which searches the chips by date again; turned off, the app's
-        // switch follows.
-        if (resp.errorCode === "smart_search_off" || resp.errorCode === "smart_search_unavailable") {
+        // switch follows; downloading, it stays on and the model's state is
+        // asked again (the search offers descriptions once it is there).
+        const refused = resp.errorCode;
+        if (refused === "smart_search_off" || refused === "smart_search_unavailable" || refused === "smart_search_downloading") {
           setSmartRefused(resp.errorMessage);
-          if (resp.errorCode === "smart_search_off") setSmartSearchOn(false);
+          if (refused === "smart_search_off") setSmartSearchOn(false);
           else clearText();
+          if (refused === "smart_search_downloading") void refreshSmartSearch();
           return;
         }
         if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }

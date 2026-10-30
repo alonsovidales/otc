@@ -1855,21 +1855,32 @@ from main with demo photos dated on 30 October of earlier years.
 `PhotoGallery.tsx`, Settings; Android's rules; texts `web.shell.search.smart_for`, `web.images.smart_search.*`,
 `web.settings.smart_search.*`, the phones' English and translations where they say the same). Whether it is on
 is `smartSearch.ts` (`GetSettings`' `smart_search_enabled` at each sign-in, `otc_smart_search` as
-`otc_places`; absent = a device before it = off: no Settings section, no panel row, `text` never sent). While
-on, the search panel's first row is "Search photos for “x”" (sparkle), and Enter takes it - unless the words
+`otc_places`; absent = a device before it = off: no Settings section, no panel row, `text` never sent). Beside it
+the model's state (`Settings.smart_search_model`, release 152: the device downloads the model only once Smart search
+is first turned on; absent = an older device = ready): while on and not ready there is no panel row. Settings
+asks `GetSettings` again every 3 s while it shows the download (`followSmartSearchDownload`: until ready, off or
+left); elsewhere it is the last answer's (sign-in, Settings, a refused search), as on the phones. An answer to a
+question asked before a switch change is dropped. `node web/scripts/smart-search-test.mjs`. While
+on and ready, the search panel's first row is "Search photos for “x”" (sparkle), and Enter takes it - unless the words
 are exactly a tag or a named person's name, which Enter takes, the row then following things and people
 (a partial match never wins: "beac" searches by description, "beach" is the tag); the documents row stays
 after it. Picked, the words are `photoFilter.text` (`searchText`; one at a time, a new one replaces it),
 shown as a chip of its own after the tags (sparkle, ×, Backspace takes it first); the clear button and
 Images in the menu remove it too. Images sends it as `SearchPhotos.text` with the chips' filters: ranked as
 the device answers, `isDateOrdered` false - no month titles, buckets, scrubber or upward pages - and no
-person header or On this day strip (`isFiltered`). `smart_search_off` or `smart_search_unavailable`: the
-device's words in Images' note (else `web.images.smart_search.failed`) and the text dropped, so the chips are
-searched by date again; `smart_search_off` also turns it off in the app. `smart_search_reading` on a page
+person header or On this day strip (`isFiltered`). `smart_search_off`, `smart_search_unavailable` or
+`smart_search_downloading` (another app turned it on a moment ago): the device's words in Images' note (else
+`web.images.smart_search.failed`) and the text dropped, so the chips are searched by date again;
+`smart_search_off` also turns it off in the app, `smart_search_downloading` keeps it on and asks the model's state. `smart_search_reading` on a page
 shows "Your device is still getting to know your photos…" above the results (`role="status"`), gone on the
 first page without it; nothing is asked again for it. Settings' section after Memories: the heading with a
 Beta badge (`.sf-beta`), the footer text, Enable (at once) / Disable (an in-page `ConfirmDialog` first: what
-the device learned is deleted); refusals show the device's words. Checked end to end in muted headless Chrome
+the device learned is deleted); refusals show the device's words; after either the model's state is asked. Under
+the hint, `download_note` while the model is neither ready nor downloading; while it downloads, a
+`role="progressbar"` bar and `downloading` with its percent, or the device's `problem` in its place (it retries by
+itself); a hidden `role="status"` says only the start, a problem and the end (`announcement`), never each percent,
+emptied after 5 s.
+The download states were checked in muted headless Chrome against a fake socket. Checked end to end in muted headless Chrome
 against a Docker test device built from main with the SigLIP files copied in and the demo library: English
 and Spanish descriptions, a description within a tag chip, the reading note, off with its confirmation.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
