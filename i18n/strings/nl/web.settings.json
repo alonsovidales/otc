@@ -507,6 +507,38 @@
     "text": "Sessie",
     "en": "Session"
   },
+  "web.settings.smart_search.beta": {
+    "text": "Bèta",
+    "en": "Beta"
+  },
+  "web.settings.smart_search.disable": {
+    "text": "Slim zoeken uitschakelen",
+    "en": "Disable Smart search"
+  },
+  "web.settings.smart_search.enable": {
+    "text": "Slim zoeken inschakelen",
+    "en": "Enable Smart search"
+  },
+  "web.settings.smart_search.hint": {
+    "text": "Vind foto’s door ze te beschrijven, in elke taal van de app. Je apparaat werkt dit zelf uit en bewaart het versleuteld. Uitzetten verwijdert wat het heeft geleerd.",
+    "en": "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned."
+  },
+  "web.settings.smart_search.off_confirm": {
+    "text": "Uitzetten",
+    "en": "Turn Off"
+  },
+  "web.settings.smart_search.off_text": {
+    "text": "Je apparaat verwijdert wat het over je foto’s heeft geleerd. Zet je het weer aan, dan moet het ze allemaal opnieuw bekijken, en dat duurt even.",
+    "en": "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while."
+  },
+  "web.settings.smart_search.off_title": {
+    "text": "Slim zoeken uitzetten?",
+    "en": "Turn off Smart search?"
+  },
+  "web.settings.smart_search.title": {
+    "text": "Slim zoeken",
+    "en": "Smart search"
+  },
   "web.settings.social.failed": {
     "text": "Kan de limiet niet opslaan.",
     "en": "Could not save the limit."

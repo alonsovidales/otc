@@ -40,8 +40,9 @@ import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
-import { areaKey, clearSearch, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
+import { areaKey, clearSearch, clearText, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropPlaces } from "./places";
+import { setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
@@ -354,6 +355,9 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   const t = useT();
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
+  // Smart search: a description to rank the photos by (photoFilter.ts;
+  // only while it is on). "" is none.
+  const text = filter.text;
   const groupId = group?.id ?? "";
   // A place opened from Places (photoFilter.ts): its area goes on every
   // search, page and month count, as the collection does. The key changes
@@ -442,6 +446,11 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   const [endReached, setEndReached] = useState(false);
   // The last page failed and waits for its retry (usePageRetry).
   const [pageError, setPageError] = useState(false);
+  // Smart search: the device refused the description (its words, "" for
+  // none) - said in a note once the toasts exist, below - and whether it is
+  // still describing photos.
+  const [smartRefused, setSmartRefused] = useState<string | null>(null);
+  const [smartReading, setSmartReading] = useState(false);
   const footRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
@@ -482,6 +491,9 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
             groupId,
             // Places: inside the place's area.
             area,
+            // Smart search: the photos best matching it, best first,
+            // within the filters above (no date order, no jump).
+            text,
             // Issue #106: videos belong in Images too.
             includeVideos: true,
             token: tok,
@@ -518,9 +530,21 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
             if (myGen !== searchGenRef.current) return;
           }
         }
+        // Smart search refused (turned off on another app, or a device
+        // without its model): its words in a note, and the description goes,
+        // which searches the chips by date again; turned off, the app's
+        // switch follows.
+        if (resp.errorCode === "smart_search_off" || resp.errorCode === "smart_search_unavailable") {
+          setSmartRefused(resp.errorMessage);
+          if (resp.errorCode === "smart_search_off") setSmartSearchOn(false);
+          else clearText();
+          return;
+        }
         if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }
 
         const lof = resp.payload.respListOfFiles;
+        // Still describing the photos it held before: some may be missing.
+        setSmartReading(text !== "" && lof.smartSearchReading);
         const map = new Map(mapRef.current);
         const added: MsgFile[] = [];
         (lof.files ?? []).forEach((f, i) => {
@@ -552,7 +576,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [tags, personIds, groupId, areaNow, token, loading, endReached, retryLater, resetRetry, refreshPicked] // eslint-disable-line react-hooks/exhaustive-deps
+    [tags, personIds, groupId, areaNow, text, token, loading, endReached, retryLater, resetRetry, refreshPicked] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // -------- date buckets and the scrubber (issue #77) -------------------------
@@ -624,7 +648,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
   // Where the page was when a scrub began, under which filter: its first
   // preview scrolls to the top, and a scrub cancelled without a jump goes
   // back there (restoreRef, once the photos are back).
-  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}|${areaNow}`;
+  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}|${areaNow}|${text}`;
   const filterKeyRef = useRef(filterKey);
   useLayoutEffect(() => { filterKeyRef.current = filterKey; });
   const scrubFromRef = useRef<{ y: number; filter: string } | null>(null);
@@ -833,6 +857,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
     setToken(null);
     setEndReached(false);
     setPageError(false);
+    setSmartReading(false);
     anchorRef.current = null;
     topTileRef.current = null;
     void fetchPage("", true);
@@ -843,7 +868,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
     resetBucketRetry();
     void loadDateBuckets();
     window.scrollTo(0, 0);
-  }, [tags, personIds, groupId, areaNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tags, personIds, groupId, areaNow, text]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one page at a time ------------------------------
   // Not under the scrubber's grey tiles: those stand in for another month,
@@ -1057,6 +1082,13 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
 
   // -------- toasts (useToasts.ts, shared with Files) ----------------------------
   const { toast, showToast, dismissToast, toastError } = useToasts();
+  // Smart search's refusal (fetchPage above), said once.
+  useEffect(() => {
+    if (smartRefused === null) return;
+    const said = smartRefused;
+    showToast({ text: said ? (() => said) : say("web.images.smart_search.failed"), error: true });
+    setSmartRefused(null);
+  }, [smartRefused, showToast]);
 
   // -------- dialogs, menus and sharing -----------------------------------------
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -1708,7 +1740,7 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
           onError={toastError}
         />
       )}
-      {!group && personIds.length > 0 && tags.length === 0 && (
+      {!group && personIds.length > 0 && tags.length === 0 && !text && (
         <PersonHeader personIds={personIds} total={bucketsFresh ? bucketTotal : null} />
       )}
       {/* On this day (MemoriesStrip.tsx): over the whole library from its
@@ -1722,6 +1754,9 @@ function PhotoGalleryView({ onShowCollections }: PhotoGalleryProps) {
           it failed, the end's spinner or its error over the top of the
           photos, under the top bar, moving nothing - only while the top is
           within reach (upNear), as the phones show it only near the top. */}
+      {/* Smart search, just turned on: the device is still describing the
+          photos it held before, so some may be missing for now. */}
+      {smartReading && <p className="pg-smart-note" role="status">{t("web.images.smart_search.reading")}</p>}
       {upOn && !upEnd && <div className="pg-up-mark" ref={topRef} aria-hidden="true" />}
       {upOn && !upEnd && upNear && (upLoading || upError) && (
         <div className="pg-up">

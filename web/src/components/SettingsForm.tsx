@@ -18,6 +18,8 @@ import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
+import { setSmartSearchOn, useSmartSearchOn } from "./smartSearch";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
 import type {
@@ -81,6 +83,12 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [memoriesOn, setMemoriesOnHere] = useState<boolean | null>(null);
   const [memoriesBusy, setMemoriesBusy] = useState(false);
   const [memoriesHidden, setMemoriesHidden] = useState(0);
+  // Smart search's switch (smartSearch.ts), on a device that has it: on at
+  // once, off after the confirmation (what the device learned goes).
+  const smartOn = useSmartSearchOn() === true;
+  const [smartKnown, setSmartKnown] = useState(false);
+  const [smartBusy, setSmartBusy] = useState(false);
+  const [smartOffAsk, setSmartOffAsk] = useState(false);
   // Issue #153: the space friends' posts may take (GB in the field, MB on
   // the device), and what they take now.
   const [socialLimitGB, setSocialLimitGB] = useState("");
@@ -166,6 +174,33 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
     } finally {
       setMemoriesBusy(false);
     }
+  };
+
+  // Smart search: the device's answer to its switch - null once done, else
+  // its words (or ours when it gave none).
+  const sendSmartSearch = async (enabled: boolean): Promise<UiText | null> => {
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqSetSmartSearchEnabled", reqSetSmartSearchEnabled: { enabled } };
+      });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+        setSmartSearchOn(enabled);
+        return null;
+      }
+      const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+      return said ? asIs(said) : say("web.settings.general.update_failed");
+    } catch (err) {
+      return asIs(err instanceof Error ? err.message : String(err));
+    }
+  };
+  const toggleSmartSearch = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setStatus(null);
+    if (smartOn) { setSmartOffAsk(true); return; }
+    setSmartBusy(true);
+    const said = await sendSmartSearch(true);
+    setSmartBusy(false);
+    if (said) setStatus({ kind: "error", text: said });
   };
 
   const showHiddenMemories = async () => {
@@ -361,6 +396,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
           if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
           // Absent: a device before On this day.
           setMemoriesOnHere(s.memoriesEnabled ?? null);
+          // Absent: a device before Smart search, with no switch.
+          setSmartKnown(s.smartSearchEnabled !== undefined);
+          if (s.smartSearchEnabled !== undefined) setSmartSearchOn(s.smartSearchEnabled);
           if (s.memoriesEnabled) void countHiddenMemories();
           const limitMb = s.socialStorageLimitMb || 5120;
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
@@ -583,6 +621,33 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
             )}
           </div>
         </section>
+      )}
+
+      {smartKnown && (
+        <section className="sf-section">
+          <h3>
+            {t("web.settings.smart_search.title")}
+            <span className="sf-beta">{t("web.settings.smart_search.beta")}</span>
+          </h3>
+          <p className="sf-hint">{t("web.settings.smart_search.hint")}</p>
+          <button className="sf-btn" disabled={smartBusy} onClick={() => void toggleSmartSearch()}>
+            {smartBusy ? t("web.settings.general.working") : smartOn ? t("web.settings.smart_search.disable") : t("web.settings.smart_search.enable")}
+          </button>
+        </section>
+      )}
+      {smartOffAsk && (
+        <ConfirmDialog
+          title={t("web.settings.smart_search.off_title")}
+          text={t("web.settings.smart_search.off_text")}
+          confirm={t("web.settings.smart_search.off_confirm")}
+          busyText={t("web.settings.general.working")}
+          onConfirm={async () => {
+            const said = await sendSmartSearch(false);
+            if (!said) setSmartOffAsk(false);
+            return said;
+          }}
+          onCancel={() => setSmartOffAsk(false)}
+        />
       )}
 
       <section className="sf-section">

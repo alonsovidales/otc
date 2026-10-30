@@ -507,6 +507,38 @@
     "text": "Sitzung",
     "en": "Session"
   },
+  "web.settings.smart_search.beta": {
+    "text": "Beta",
+    "en": "Beta"
+  },
+  "web.settings.smart_search.disable": {
+    "text": "Intelligente Suche ausschalten",
+    "en": "Disable Smart search"
+  },
+  "web.settings.smart_search.enable": {
+    "text": "Intelligente Suche einschalten",
+    "en": "Enable Smart search"
+  },
+  "web.settings.smart_search.hint": {
+    "text": "Finde Fotos, indem du sie beschreibst, in jeder Sprache der App. Dein Gerät ermittelt das selbst und speichert es verschlüsselt. Wenn du sie ausschaltest, wird gelöscht, was es gelernt hat.",
+    "en": "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned."
+  },
+  "web.settings.smart_search.off_confirm": {
+    "text": "Ausschalten",
+    "en": "Turn Off"
+  },
+  "web.settings.smart_search.off_text": {
+    "text": "Dein Gerät löscht, was es über deine Fotos gelernt hat. Schaltest du sie wieder ein, muss es sich alle erneut ansehen, und das dauert eine Weile.",
+    "en": "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while."
+  },
+  "web.settings.smart_search.off_title": {
+    "text": "Intelligente Suche ausschalten?",
+    "en": "Turn off Smart search?"
+  },
+  "web.settings.smart_search.title": {
+    "text": "Intelligente Suche",
+    "en": "Smart search"
+  },
   "web.settings.social.failed": {
     "text": "Das Limit konnte nicht gespeichert werden.",
     "en": "Could not save the limit."

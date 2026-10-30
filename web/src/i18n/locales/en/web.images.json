@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Save them on this device",
   "web.images.share.zip_ready": "Your ZIP is ready",
   "web.images.share.zip_tab": "Preparing the ZIP… It downloads from here once it's ready.",
+  "web.images.smart_search.failed": "Smart search isn't available right now.",
+  "web.images.smart_search.reading": "Your device is still getting to know your photos…",
   "web.images.trim.end": "End of the cut",
   "web.images.trim.keeping": "Keeping \u003cb\u003e{kept}\u003c/b\u003e of {total}",
   "web.images.trim.play": "Play cut",

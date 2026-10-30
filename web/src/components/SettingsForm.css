@@ -82,3 +82,18 @@
 .sf-section .pc-card { border: 0; background: transparent; padding: 0; margin: 0; max-width: none; }
 /* Memories: its switch and "Show hidden memories again", side by side. */
 .sf-mem-btns { margin-top: 8px; flex-wrap: wrap; }
+/* Smart search's Beta badge beside its heading. */
+.sf-beta {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}

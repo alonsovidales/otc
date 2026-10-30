@@ -18,6 +18,7 @@ import { leaveArea, showAll } from "./components/photoFilter";
 import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecognition";
 import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
+import { watchSmartSearch } from "./components/smartSearch";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -224,6 +225,8 @@ function App() {
   // On this day (memories.ts): each sign-in starts empty and asks at once;
   // a sign-out forgets it.
   useEffect(() => (authenticated ? watchMemories() : undefined), [authenticated]);
+  // Smart search (smartSearch.ts): whether it is on, asked at each sign-in.
+  useEffect(() => (authenticated ? watchSmartSearch() : undefined), [authenticated]);
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and

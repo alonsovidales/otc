@@ -494,6 +494,8 @@ export type MessageKey =
   | "web.images.share.zip_hint"
   | "web.images.share.zip_ready"
   | "web.images.share.zip_tab"
+  | "web.images.smart_search.failed"
+  | "web.images.smart_search.reading"
   | "web.images.trim.end"
   | "web.images.trim.play"
   | "web.images.trim.reading"
@@ -643,6 +645,14 @@ export type MessageKey =
   | "web.settings.session.sign_out"
   | "web.settings.session.signing_out"
   | "web.settings.session.title"
+  | "web.settings.smart_search.beta"
+  | "web.settings.smart_search.disable"
+  | "web.settings.smart_search.enable"
+  | "web.settings.smart_search.hint"
+  | "web.settings.smart_search.off_confirm"
+  | "web.settings.smart_search.off_text"
+  | "web.settings.smart_search.off_title"
+  | "web.settings.smart_search.title"
   | "web.settings.social.failed"
   | "web.settings.social.hint"
   | "web.settings.social.limit"
@@ -1126,6 +1136,7 @@ export type RichKey =
   | "web.settings.update.version_to"
   | "web.settings.users.delete_confirm"
   | "web.shell.search.documents"
+  | "web.shell.search.smart_for"
   | "web.shell.update.critical"
   | "web.social.alerts.commented"
   | "web.social.alerts.friend_accepted"
@@ -1589,6 +1600,8 @@ export interface MessageArgs {
   "web.images.share.zip_hint": undefined;
   "web.images.share.zip_ready": undefined;
   "web.images.share.zip_tab": undefined;
+  "web.images.smart_search.failed": undefined;
+  "web.images.smart_search.reading": undefined;
   "web.images.trim.end": undefined;
   "web.images.trim.keeping": { kept: string; total: string };
   "web.images.trim.play": undefined;
@@ -1744,6 +1757,14 @@ export interface MessageArgs {
   "web.settings.session.sign_out": undefined;
   "web.settings.session.signing_out": undefined;
   "web.settings.session.title": undefined;
+  "web.settings.smart_search.beta": undefined;
+  "web.settings.smart_search.disable": undefined;
+  "web.settings.smart_search.enable": undefined;
+  "web.settings.smart_search.hint": undefined;
+  "web.settings.smart_search.off_confirm": undefined;
+  "web.settings.smart_search.off_text": undefined;
+  "web.settings.smart_search.off_title": undefined;
+  "web.settings.smart_search.title": undefined;
   "web.settings.social.failed": undefined;
   "web.settings.social.hint": undefined;
   "web.settings.social.limit": undefined;
@@ -1956,6 +1977,7 @@ export interface MessageArgs {
   "web.shell.search.photo_in": { name: string; folder: string };
   "web.shell.search.remove": { name: string };
   "web.shell.search.remove_person": undefined;
+  "web.shell.search.smart_for": { text: string };
   "web.shell.search.suggestion_count": { count: number };
   "web.shell.search.suggestions": undefined;
   "web.shell.search.summary": { items: string };
@@ -2253,6 +2275,7 @@ export interface RichTags {
   "web.settings.update.version_to": "b";
   "web.settings.users.delete_confirm": "b";
   "web.shell.search.documents": "mark";
+  "web.shell.search.smart_for": "b";
   "web.shell.update.critical": "b";
   "web.social.alerts.commented": "b";
   "web.social.alerts.friend_accepted": "b";

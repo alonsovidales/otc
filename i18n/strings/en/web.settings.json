@@ -605,6 +605,44 @@
     "note": "Heading of the last section in Settings, about this browser staying signed in.",
     "max": 24
   },
+  "web.settings.smart_search.beta": {
+    "text": "Beta",
+    "note": "Small badge beside the Smart search heading in Settings: the feature is still being tried out.",
+    "max": 8
+  },
+  "web.settings.smart_search.disable": {
+    "text": "Disable Smart search",
+    "note": "Button in Settings > Smart search that turns it off, after a confirmation: what the device learned is deleted.",
+    "max": 40
+  },
+  "web.settings.smart_search.enable": {
+    "text": "Enable Smart search",
+    "note": "Button in Settings > Smart search that turns it on: the device starts describing the photos it holds.",
+    "max": 40
+  },
+  "web.settings.smart_search.hint": {
+    "text": "Find photos by describing them, in any of the app's languages. Your device works this out itself and keeps it encrypted. Turning it off deletes what it learned.",
+    "note": "Under the Smart search heading in Settings: what it does and where the work happens. The phones' app.settings.smart_search.footer."
+  },
+  "web.settings.smart_search.off_confirm": {
+    "text": "Turn Off",
+    "note": "Button of the confirmation that turns Smart search off (Cancel beside it).",
+    "max": 20
+  },
+  "web.settings.smart_search.off_text": {
+    "text": "Your device deletes what it learned about your photos. Turned on again, it has to look at all of them again, which takes a while.",
+    "note": "Text of the confirmation before Smart search is turned off in Settings."
+  },
+  "web.settings.smart_search.off_title": {
+    "text": "Turn off Smart search?",
+    "note": "Title of the confirmation before Smart search is turned off in Settings.",
+    "max": 60
+  },
+  "web.settings.smart_search.title": {
+    "text": "Smart search",
+    "note": "Heading of the section in Settings that turns Smart search (finding photos by describing them) on or off. The phones' app.settings.smart_search.title.",
+    "max": 30
+  },
   "web.settings.social.failed": {
     "text": "Could not save the limit.",
     "note": "Error under the limit field in Settings > Friends' posts storage when the device refused the new limit and gave no reason."

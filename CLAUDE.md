@@ -1844,6 +1844,27 @@ the device's Settings carry `memories_enabled`): Enable/Disable On this day (`Se
 `setMemoriesOn`) and "Show hidden memories again (N)" while today's day answer's `hidden_count` is above 0
 (`HideMemory show_all`). Checked end to end in muted headless Chrome against a Docker test device built
 from main with demo photos dated on 30 October of earlier years.
+**Smart search on the web** (beta, 2026-10-30; `smartSearch.ts`, `photoFilter.ts`'s `text`, `TopSearch.tsx`,
+`PhotoGallery.tsx`, Settings; Android's rules; texts `web.shell.search.smart_for`, `web.images.smart_search.*`,
+`web.settings.smart_search.*`, the phones' English and translations where they say the same). Whether it is on
+is `smartSearch.ts` (`GetSettings`' `smart_search_enabled` at each sign-in, `otc_smart_search` as
+`otc_places`; absent = a device before it = off: no Settings section, no panel row, `text` never sent). While
+on, the search panel's first row is "Search photos for “x”" (sparkle), and Enter takes it - unless the words
+are exactly a tag or a named person's name, which Enter takes, the row then following things and people
+(a partial match never wins: "beac" searches by description, "beach" is the tag); the documents row stays
+after it. Picked, the words are `photoFilter.text` (`searchText`; one at a time, a new one replaces it),
+shown as a chip of its own after the tags (sparkle, ×, Backspace takes it first); the clear button and
+Images in the menu remove it too. Images sends it as `SearchPhotos.text` with the chips' filters: ranked as
+the device answers, `isDateOrdered` false - no month titles, buckets, scrubber or upward pages - and no
+person header or On this day strip (`isFiltered`). `smart_search_off` or `smart_search_unavailable`: the
+device's words in Images' note (else `web.images.smart_search.failed`) and the text dropped, so the chips are
+searched by date again; `smart_search_off` also turns it off in the app. `smart_search_reading` on a page
+shows "Your device is still getting to know your photos…" above the results (`role="status"`), gone on the
+first page without it; nothing is asked again for it. Settings' section after Memories: the heading with a
+Beta badge (`.sf-beta`), the footer text, Enable (at once) / Disable (an in-page `ConfirmDialog` first: what
+the device learned is deleted); refusals show the device's words. Checked end to end in muted headless Chrome
+against a Docker test device built from main with the SigLIP files copied in and the demo library: English
+and Spanish descriptions, a description within a tag chip, the reading note, off with its confirmation.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
 and code keep `ImageGroup`/`groupId`. Inside an open collection the selection bar has **Remove from
 collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the

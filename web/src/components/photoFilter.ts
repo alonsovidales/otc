@@ -13,7 +13,9 @@ import type { PlaceArea } from "../proto/messages";
 // area through it. Tags are kept across a reload (issue #53); people, the
 // open collection and the area are not, as before. A collection is an
 // image group in the protocol (ImageGroup, groupId), so the code here says
-// group.
+// group. With Smart search on (smartSearch.ts), `text` is a description to
+// find photos by (SearchPhotos.text), ranked best first within the rest;
+// kept only for the page's session, and gone when Smart search is off.
 
 export type OpenGroup = { id: string; name: string; fileCount: number };
 
@@ -22,9 +24,10 @@ export type PhotoFilter = {
   personIds: string[];
   group: OpenGroup | null;
   area: PlaceArea | null;
+  text: string;
 };
 
-let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null, area: null };
+let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null, area: null, text: "" };
 const listeners = new Set<() => void>();
 
 // Arrays are replaced, never changed in place: the grid restarts its
@@ -43,18 +46,33 @@ function subscribe(l: () => void) {
 export const getPhotoFilter = () => state;
 export const usePhotoFilter = () => useSyncExternalStore(subscribe, getPhotoFilter);
 
-/** Anything narrowing the grid: a tag, a person, a group or an area. */
-export const isFiltered = (f: PhotoFilter) => f.tags.length > 0 || f.personIds.length > 0 || f.group != null || f.area != null;
+/** Anything narrowing the grid: a tag, a person, a group, an area or a
+ *  description. */
+export const isFiltered = (f: PhotoFilter) => f.tags.length > 0 || f.personIds.length > 0 || f.group != null || f.area != null || f.text !== "";
 /** The area as a key: the grid searches again when it changes. */
 export const areaKey = (a: PlaceArea | null) => (a ? `${a.south},${a.west},${a.north},${a.east}` : "");
-/** A tag search is sorted by how well photos match, not by date: no date
- *  headers and no date scrubber then. */
-export const isDateOrdered = (f: PhotoFilter) => f.tags.length === 0;
+/** A tag search, and a search by description, are sorted by how well
+ *  photos match, not by date: no date headers and no date scrubber then. */
+export const isDateOrdered = (f: PhotoFilter) => f.tags.length === 0 && f.text === "";
 
 export function addTag(tag: string) {
   const t = tag.trim();
   if (!t || state.tags.includes(t)) return;
   set({ ...state, tags: [...state.tags, t] });
+}
+
+/** Smart search: the photos best matching this description, within the
+ *  chips. */
+export function searchText(text: string) {
+  const t = text.trim();
+  if (!t || t === state.text) return;
+  set({ ...state, text: t });
+}
+
+/** The description's chip closed, or Smart search off: no free text. */
+export function clearText() {
+  if (!state.text) return;
+  set({ ...state, text: "" });
 }
 
 export function removeTag(tag: string) {
@@ -83,12 +101,12 @@ export function clearPeople() {
 
 /** One person's photos, from the People page: a new search. */
 export function showPerson(id: string) {
-  set({ tags: [], personIds: [id], group: null, area: null });
+  set({ tags: [], personIds: [id], group: null, area: null, text: "" });
 }
 
 /** A collection's photos, from the Collections page: a new search. */
 export function openGroup(g: OpenGroup) {
-  set({ tags: [], personIds: [], group: g, area: null });
+  set({ tags: [], personIds: [], group: g, area: null, text: "" });
 }
 
 /** A place's photos, from Places: what the map showed (its tags, people
@@ -114,15 +132,15 @@ export function leaveGroup() {
   set({ ...state, group: null });
 }
 
-/** The search box's clear button: tags and people go, an open group and
- *  an area stay. */
+/** The search box's clear button: tags, people and the description go,
+ *  an open group and an area stay. */
 export function clearSearch() {
-  if (!state.tags.length && !state.personIds.length) return;
-  set({ ...state, tags: [], personIds: [] });
+  if (!state.tags.length && !state.personIds.length && !state.text) return;
+  set({ ...state, tags: [], personIds: [], text: "" });
 }
 
 /** Images in the menu: the whole library. */
 export function showAll() {
   if (!isFiltered(state)) return;
-  set({ tags: [], personIds: [], group: null, area: null });
+  set({ tags: [], personIds: [], group: null, area: null, text: "" });
 }

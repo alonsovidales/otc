@@ -98,6 +98,7 @@
   "web.shell.search.photo_in": "\u2068{name}\u2069, foto na pasta \u2068{folder}\u2069",
   "web.shell.search.remove": "Remover \u2068{name}\u2069",
   "web.shell.search.remove_person": "Remover esta pessoa",
+  "web.shell.search.smart_for": "Pesquisar fotos de «\u003cb\u003e\u2068{text}\u2069\u003c/b\u003e»",
   "web.shell.search.suggestion_count": {
     "one": "{count} sugestão",
     "other": "{count} sugestões",

@@ -1127,3 +1127,6 @@
 
 /* The empty library's way to the apps, under its upload button. */
 .pg-empty-apps { margin: 4px 0 0; max-width: 420px; color: var(--mist-dim); font-size: 14px; }
+
+/* Smart search: the note while the device is still describing photos. */
+.pg-smart-note { margin: 12px var(--pg-pad) 0; font-size: 13px; line-height: 18px; color: var(--mist-dim); }

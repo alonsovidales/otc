@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Auf diesem Computer oder Handy speichern",
   "web.images.share.zip_ready": "Deine ZIP-Datei ist bereit",
   "web.images.share.zip_tab": "ZIP-Datei wird vorbereitet… Der Download startet hier, sobald sie fertig ist.",
+  "web.images.smart_search.failed": "Intelligente Suche ist gerade nicht verfügbar.",
+  "web.images.smart_search.reading": "Dein Gerät lernt deine Fotos noch kennen…",
   "web.images.trim.end": "Ende des Ausschnitts",
   "web.images.trim.keeping": "Behalten: \u003cb\u003e{kept}\u003c/b\u003e von {total}",
   "web.images.trim.play": "Ausschnitt abspielen",

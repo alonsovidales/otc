@@ -1192,6 +1192,14 @@
     "text": "De ZIP wordt voorbereid… De download begint hier zodra die klaar is.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.smart_search.failed": {
+    "text": "Slim zoeken is nu niet beschikbaar.",
+    "en": "Smart search isn't available right now."
+  },
+  "web.images.smart_search.reading": {
+    "text": "Je apparaat leert je foto’s nog kennen…",
+    "en": "Your device is still getting to know your photos…"
+  },
   "web.images.trim.end": {
     "text": "Einde van het fragment",
     "en": "End of the cut"

@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Guárdalas en este ordenador o teléfono",
   "web.images.share.zip_ready": "Tu ZIP está listo",
   "web.images.share.zip_tab": "Preparando el ZIP… Se descargará desde aquí cuando esté listo.",
+  "web.images.smart_search.failed": "La Búsqueda inteligente no está disponible ahora mismo.",
+  "web.images.smart_search.reading": "Tu dispositivo aún está conociendo tus fotos…",
   "web.images.trim.end": "Fin del recorte",
   "web.images.trim.keeping": "Se conservan \u003cb\u003e{kept}\u003c/b\u003e de {total}",
   "web.images.trim.play": "Reproducir recorte",

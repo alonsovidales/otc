@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Les enregistrer sur l’appareil que vous utilisez",
   "web.images.share.zip_ready": "Votre ZIP est prêt",
   "web.images.share.zip_tab": "Préparation du ZIP… Le téléchargement démarrera ici dès qu’il sera prêt.",
+  "web.images.smart_search.failed": "La Recherche intelligente n’est pas disponible pour le moment.",
+  "web.images.smart_search.reading": "Votre appareil apprend encore à connaître vos photos…",
   "web.images.trim.end": "Fin de l’extrait",
   "web.images.trim.keeping": "Extrait conservé : \u003cb\u003e{kept}\u003c/b\u003e sur {total}",
   "web.images.trim.play": "Lire l’extrait",

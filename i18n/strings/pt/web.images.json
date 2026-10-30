@@ -1192,6 +1192,14 @@
     "text": "A preparar o ZIP… A transferência começa aqui quando estiver pronto.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.smart_search.failed": {
+    "text": "A Pesquisa inteligente não está disponível de momento.",
+    "en": "Smart search isn't available right now."
+  },
+  "web.images.smart_search.reading": {
+    "text": "O teu dispositivo ainda está a conhecer as tuas fotos…",
+    "en": "Your device is still getting to know your photos…"
+  },
   "web.images.trim.end": {
     "text": "Fim do corte",
     "en": "End of the cut"

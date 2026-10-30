@@ -440,6 +440,12 @@
     "text": "Remove this person",
     "note": "Screen-reader name of the × on the chip of a person without a name, in the search field."
   },
+  "web.shell.search.smart_for": {
+    "text": "Search photos for “<b>{text}</b>”",
+    "args": [["text", "user"]],
+    "note": "Row of the top bar's search suggestions while Smart search is on, first, and what Enter takes when what was typed isn't a tag or a person: finds the photos that best match it as a description (\"kids in the snow\"), within the chips already in the search. {text} is what was typed. The phones' app.photos.smart_search.search_for.",
+    "rich": ["b"]
+  },
   "web.shell.search.suggestion_count": {
     "text": {
       "one": "{count} suggestion",

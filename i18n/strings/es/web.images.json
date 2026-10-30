@@ -1192,6 +1192,14 @@
     "text": "Preparando el ZIP… Se descargará desde aquí cuando esté listo.",
     "en": "Preparing the ZIP… It downloads from here once it's ready."
   },
+  "web.images.smart_search.failed": {
+    "text": "La Búsqueda inteligente no está disponible ahora mismo.",
+    "en": "Smart search isn't available right now."
+  },
+  "web.images.smart_search.reading": {
+    "text": "Tu dispositivo aún está conociendo tus fotos…",
+    "en": "Your device is still getting to know your photos…"
+  },
   "web.images.trim.end": {
     "text": "Fin del recorte",
     "en": "End of the cut"

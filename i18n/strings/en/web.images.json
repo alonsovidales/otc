@@ -1278,6 +1278,16 @@
     "text": "Preparing the ZIP… It downloads from here once it's ready.",
     "note": "The only text of the new browser tab opened for a ZIP download while the device makes the ZIP; the download starts in that tab."
   },
+  "web.images.smart_search.failed": {
+    "text": "Smart search isn't available right now.",
+    "note": "Title over Images when a search by description (Smart search) couldn't run and the device gave no reason.",
+    "max": 80
+  },
+  "web.images.smart_search.reading": {
+    "text": "Your device is still getting to know your photos…",
+    "note": "Quiet note over the photos a Smart search (a search by description) found, while the device is still describing the photos it held before Smart search was turned on: some may be missing for now.",
+    "max": 70
+  },
   "web.images.trim.end": {
     "text": "End of the cut",
     "note": "Screen-reader name of the slider that sets where the part of the video to keep ends (Trim video panel)."

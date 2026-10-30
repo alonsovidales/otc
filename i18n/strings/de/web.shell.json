@@ -379,6 +379,10 @@
     "text": "Diese Person entfernen",
     "en": "Remove this person"
   },
+  "web.shell.search.smart_for": {
+    "text": "Fotos nach „<b>{text}</b>“ durchsuchen",
+    "en": "Search photos for “<b>{text}</b>”"
+  },
   "web.shell.search.suggestion_count": {
     "text": {
       "one": "{count} Vorschlag",

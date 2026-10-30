@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Guardá-las neste computador ou telemóvel",
   "web.images.share.zip_ready": "O teu ZIP está pronto",
   "web.images.share.zip_tab": "A preparar o ZIP… A transferência começa aqui quando estiver pronto.",
+  "web.images.smart_search.failed": "A Pesquisa inteligente não está disponível de momento.",
+  "web.images.smart_search.reading": "O teu dispositivo ainda está a conhecer as tuas fotos…",
   "web.images.trim.end": "Fim do corte",
   "web.images.trim.keeping": "A manter \u003cb\u003e{kept}\u003c/b\u003e de {total}",
   "web.images.trim.play": "Reproduzir corte",

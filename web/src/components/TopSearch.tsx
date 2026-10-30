@@ -15,12 +15,17 @@
 // shows Images; picking a folder shows it in Files, and a file opens there
 // as a click on it would. Enter takes a file or a folder only when the
 // arrow keys or the mouse went to it. With nothing typed there is no panel.
+// With Smart search on (smartSearch.ts), the panel's first row searches the
+// photos for the words as a description, within the chips, and is what
+// Enter takes unless they are exactly a tag or a named person's name; the
+// description then shows as a chip of its own.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
-import { addTag, clearSearch, leaveArea, leaveGroup, removeTag, togglePerson, usePhotoFilter } from "./photoFilter";
+import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
+import { useSmartSearchOn } from "./smartSearch";
 import { useFaceRecognition } from "./faceRecognition";
 import {
   asFolder, deviceCantSearchFiles, fold, foundParts, matchIn, parentFolder, searchInFiles, showInFiles, useNoFileSearch,
@@ -47,6 +52,7 @@ type Option =
   | { kind: "tag"; key: string; tag: string; span?: Span }
   | { kind: "person"; key: string; person: Person; span?: Span }
   | { kind: "docs"; key: string; text: string }
+  | { kind: "smart"; key: string; text: string }
   | { kind: "file"; key: string; file: PbFile; type: FileKind; name: string; dir: string; nameSpan?: Span; dirSpan?: Span };
 
 const MATCH_TAGS = 5;
@@ -127,6 +133,13 @@ const DocSearchIcon = () => (
 );
 const BackIcon = () => <Icon><path d="M19 12H5m6-6-6 6 6 6" /></Icon>;
 const CloseIcon = ({ size = 20 }: { size?: number }) => <Icon size={size} stroke={1.8}><path d="m6.5 6.5 11 11m0-11-11 11" /></Icon>;
+// Sparkles: Smart search, photos found by a description.
+const SparkleIcon = ({ size = 20 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d="M10 3.5c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6Z" />
+    <path d="M17.5 14.5c.3 1.6 1 2.3 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5Z" />
+  </Icon>
+);
 const TagIcon = () => (
   <Icon><path d="M3.5 12V5.5a2 2 0 0 1 2-2H12a2 2 0 0 1 1.4.6l6.9 6.9a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0l-6.9-6.9A2 2 0 0 1 3.5 12Z" /><circle cx="8.5" cy="8.5" r="1.4" /></Icon>
 );
@@ -153,6 +166,8 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const people = usePeople();
   const tags = useTags();
   const faces = useFaceRecognition() === true;
+  // Smart search on: the typed words can be searched as a description.
+  const smart = useSmartSearchOn() === true;
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -192,7 +207,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const listId = `${id}list`;
   const optId = (i: number) => `${id}opt${i}`;
 
-  const chipCount = (filter.group ? 1 : 0) + (filter.area ? 1 : 0) + filter.personIds.length + filter.tags.length;
+  const chipCount = (filter.group ? 1 : 0) + (filter.area ? 1 : 0) + filter.personIds.length + filter.tags.length + (filter.text ? 1 : 0);
   const shownChips = useRef(chipCount);
   // Whether the chips row shows its end, the newest chips: set by its
   // scrolling, unknown until first measured.
@@ -289,8 +304,18 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     const docs: Option[] = noFileSearch ? [] : [{ kind: "docs", key: "docs", text: typed }];
     if (!out.length) out.push(...docs, ...fileHits);
     else out.push(...fileHits, ...docs);
+    // Smart search: the words as a description - first, and what Enter
+    // takes; when they are exactly a tag or a person's name, that is taken
+    // and this row follows the things and people. A partial match never
+    // wins over it ("beac" searches by description, "beach" is the tag).
+    if (smart) {
+      const smartRow: Option = { kind: "smart", key: "smart", text: typed };
+      if (exact) out.splice(out.filter((o) => o.kind === "tag" || o.kind === "person").length, 0, smartRow);
+      else out.unshift(smartRow);
+      return { options: out, best: exact ?? "smart" };
+    }
     return { options: out, best: exact ?? out.find((o) => o.kind !== "file")?.key ?? null };
-  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits, noFileSearch]);
+  }, [q, typed, filter.tags, faces, named, tagIndex, fileHits, noFileSearch, smart]);
 
   const activeKey = moved === null || (moved !== NONE && !options.some((o) => o.key === moved)) ? best : moved;
   const active = activeKey ? options.findIndex((o) => o.key === activeKey) : -1;
@@ -471,6 +496,10 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         searchInFiles(o.text);
         onShowFiles();
         return;
+      case "smart":
+        searchText(o.text);
+        onShowPhotos();
+        return;
       case "file":
         // A folder opens; a file opens in its folder, as a click there.
         if (o.type === "folder") showInFiles(asFolder(o.file.path));
@@ -496,6 +525,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         // typed. A device that can't do that leaves the panel showing that
         // nothing matches.
         if (typed && active >= 0) pick(options[active], "key");
+        else if (typed && smart) pick({ kind: "smart", key: "smart", text: typed }, "key");
         else if (typed && !noFileSearch) pick({ kind: "docs", key: "docs", text: typed }, "key");
         else if (typed) setOpen(true);
         else {
@@ -512,7 +542,8 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         // The last chip goes: the last tag, then the last person. Not on
         // a held key, which would empty the whole search at once.
         if (query || e.repeat) return;
-        if (filter.tags.length) removeTag(filter.tags[filter.tags.length - 1]);
+        if (filter.text) clearText();
+        else if (filter.tags.length) removeTag(filter.tags[filter.tags.length - 1]);
         else if (filter.personIds.length) togglePerson(filter.personIds[filter.personIds.length - 1]);
         return;
       default:
@@ -556,7 +587,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     inputRef.current?.blur();
   };
 
-  const clearable = query !== "" || filter.tags.length > 0 || filter.personIds.length > 0;
+  const clearable = query !== "" || filter.tags.length > 0 || filter.personIds.length > 0 || filter.text !== "";
   const onClear = (e: React.MouseEvent) => {
     setQuery("");
     setMoved(null);
@@ -614,6 +645,15 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           </div>
         );
       }
+      case "smart":
+        return (
+          <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
+            <span className="ts-row-icon"><SparkleIcon /></span>
+            <span className="ts-row-label">
+              <Trans k="web.shell.search.smart_for" args={{ text: o.text }} parts={{ b: (s) => <mark className="ts-mark">{s}</mark> }} />
+            </span>
+          </div>
+        );
       case "docs":
         return (
           <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
@@ -654,12 +694,15 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const personOpts = numbered.filter(([o]) => o.kind === "person");
   const fileOpts = numbered.filter(([o]) => o.kind === "file");
   const docsOpt = numbered.find(([o]) => o.kind === "docs");
+  const smartOpt = numbered.find(([o]) => o.kind === "smart");
+  // First, or after the things and people when the words are one of them.
+  const smartRow = smartOpt && <div role="presentation" className="ts-section">{renderOption(smartOpt[0], smartOpt[1])}</div>;
   // The row to search the documents: first when no tag or person matches.
   const docsFirst = !tagOpts.length && !personOpts.length;
   const docsRow = docsOpt && <div role="presentation" className="ts-section">{renderOption(docsOpt[0], docsOpt[1])}</div>;
 
   // What matches, not counting the row to search the documents.
-  const matches = options.length - (docsOpt ? 1 : 0);
+  const matches = options.length - (docsOpt ? 1 : 0) - (smartOpt ? 1 : 0);
   const status = !shown ? "" : !matches ? t("web.shell.search.no_matches") : t("web.shell.search.suggestion_count", { count: matches });
   const alreadyIn = filter.tags.some((tag) => fold(tag).text === q);
   // The chips, read out with the field.
@@ -668,6 +711,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     filter.area && t("web.shell.search.area"),
     ...filter.personIds.map((pid) => { const p = byId.get(pid); return p ? personLabel(p) : t("web.shell.search.a_person"); }),
     ...filter.tags,
+    filter.text,
   ].filter(Boolean).join(", ");
 
   return (
@@ -746,6 +790,21 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
               </button>
             </span>
           ))}
+          {filter.text && (
+            <span className="ts-chip has-icon">
+              <span className="ts-chip-icon"><SparkleIcon size={18} /></span>
+              <span className="ts-chip-label">{filter.text}</span>
+              <button
+                type="button"
+                className="ts-chip-x"
+                aria-label={t("web.shell.search.remove", { name: filter.text })}
+                onMouseDown={keepFocus}
+                onClick={(e) => { clearText(); refocus(e); }}
+              >
+                <CloseIcon size={16} />
+              </button>
+            </span>
+          )}
         </div>
         <input
           ref={inputRef}
@@ -791,8 +850,10 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             onPointerMove={onPanelPointerMove}
           >
             <div role="listbox" id={listId} aria-label={t("web.shell.search.suggestions")}>
+              {smartOpt && smartOpt[1] === 0 && smartRow}
               {tagOpts.length > 0 && section("things", t("web.shell.search.things"), tagOpts.map(([o, i]) => renderOption(o, i)))}
               {personOpts.length > 0 && section("people", t("web.shell.search.people"), personOpts.map(([o, i]) => renderOption(o, i)))}
+              {smartOpt && smartOpt[1] > 0 && smartRow}
               {docsFirst && docsRow}
               {fileOpts.length > 0 && section("files", t("web.shell.search.files"), fileOpts.map(([o, i]) => renderOption(o, i)))}
               {!docsFirst && docsRow}

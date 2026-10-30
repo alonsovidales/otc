@@ -372,6 +372,8 @@
   "web.images.share.zip_hint": "Ze opslaan op het apparaat dat je nu gebruikt",
   "web.images.share.zip_ready": "Je ZIP is klaar",
   "web.images.share.zip_tab": "De ZIP wordt voorbereid… De download begint hier zodra die klaar is.",
+  "web.images.smart_search.failed": "Slim zoeken is nu niet beschikbaar.",
+  "web.images.smart_search.reading": "Je apparaat leert je foto’s nog kennen…",
   "web.images.trim.end": "Einde van het fragment",
   "web.images.trim.keeping": "\u003cb\u003e{kept}\u003c/b\u003e van {total} behouden",
   "web.images.trim.play": "Fragment afspelen",
