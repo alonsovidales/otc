@@ -89,12 +89,12 @@ func (mg *Manager) rebuildPeopleLocked(ses *session.Session, ids ...string) {
 
 // ErrPersonCoverNoFace: none of the faces in the photo chosen for a
 // person's face is theirs.
-var ErrPersonCoverNoFace = errors.New("no face of this person in that photo")
+var ErrPersonCoverNoFace = errors.New("no face of this person in that photo") // i18n-ignore: the websocket layer answers dev.files.person_cover_no_face
 
 // ErrPersonCoverImage: the picture sent for a person's face isn't one the
 // device takes (a JPEG of at most cMaxPersonCoverBytes, sides of 16 to
 // cMaxPersonCoverSide pixels).
-var ErrPersonCoverImage = errors.New("not a picture the device takes")
+var ErrPersonCoverImage = errors.New("not a picture the device takes") // i18n-ignore: the websocket layer answers dev.files.person_cover_image
 
 const (
 	// The apps' crop makes a square JPEG of a few dozen KB (the profile
