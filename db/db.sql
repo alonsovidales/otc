@@ -633,6 +633,16 @@ create table people
   -- that predates this column - ListPeople treats NULL as "not
   -- disqualified" rather than penalizing it.
   `cohesion` float default null,
+  -- The face the owner chose for this person (owner, 2026-10-31): 1 keeps
+  -- cover_face_id as they set it - one of their photos' faces - or, with
+  -- cover_image, shows that picture instead; processFaces then updates
+  -- cohesion alone. Back to 0 (the medoid again) when the chosen face is
+  -- gone without a picture to show (dao.SetPersonCover).
+  `cover_chosen` tinyint(1) not null default 0,
+  -- A picture of the owner's own for this person, as the app's crop made
+  -- it (a small square JPEG or PNG), encrypted at rest like the faces'
+  -- thumbnails. NULL: their face from a photo.
+  `cover_image` mediumblob default null,
 
   primary key (`id`)
 ) engine=InnoDB;

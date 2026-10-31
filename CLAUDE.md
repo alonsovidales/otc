@@ -2044,7 +2044,15 @@ orders it first; `ImageGroup.favourites` marks it and the device names it in the
 (paths in, the paths whose photo is a favourite out, `resp_favourites`) and `SetFavourite` (paths in or out,
 Ack); a device before them answers `unknown_payload` and the apps show no heart. Members are photos as in
 any collection, so Add to collection and Remove from collection work on it unchanged (`TestFavouritesMySQL`,
-`websocket/favourites_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
+`websocket/favourites_test.go`). **A person's face** (owner, 2026-10-31) can be chosen: `SetPersonCover`
+takes one of their photos (`hash`: that photo's face of theirs, the biggest; `dev.files.person_cover_no_face`
+otherwise), a picture of the owner's own (`image`: the apps' square crop, a JPEG of at most 256 KB, stored
+encrypted like the faces' thumbnails in `people.cover_image`; `dev.files.person_cover_image` otherwise) or
+neither (the device's choice again). `people.cover_chosen` (release 157) keeps a chosen face as more photos
+of them come in (`SetPersonCoverFace` updates the cohesion only); a chosen face gone (the photo deleted, Not
+this person) is the device's choice again, a picture stays. `ListPeople` shows the picture, else the cover
+face, and says `Person.cover_chosen` (the apps' Choose automatically). Older devices answer
+`unknown_payload` (`TestPersonCoverMySQL`, `websocket/person_cover_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
 day's See all, Places), before Download; its rules are `favourites.ts` (`node web/scripts/favourites-test.mjs`; the
 page's store in `useFavourites.ts`): one `GetFavourites` for the photo and its neighbours (a burst of steps asks
 where it stops), answers kept by path for the page (still shown but asked again at each viewer opening, forgotten

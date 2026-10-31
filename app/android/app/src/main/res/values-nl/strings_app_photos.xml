@@ -214,6 +214,16 @@
     <string name="app_photos_people_slow_text">Het laden van personen duurt langer dan normaal.</string>
     <string name="app_photos_people_sort_name">Naam</string>
     <string name="app_photos_people_sort_photos">Meeste foto’s</string>
+    <string name="app_photos_person_cover_auto">Automatisch kiezen</string>
+    <string name="app_photos_person_cover_change">Gezicht wijzigen</string>
+    <string name="app_photos_person_cover_done">Gezicht bijgewerkt</string>
+    <string name="app_photos_person_cover_failed">Gezicht wijzigen is niet gelukt. Probeer het opnieuw.</string>
+    <string name="app_photos_person_cover_hint">Of selecteer een foto van deze persoon en kies Dit gezicht gebruiken.</string>
+    <string name="app_photos_person_cover_needs_update">Je apparaat heeft een update nodig om het gezicht van een persoon te wijzigen.</string>
+    <string name="app_photos_person_cover_upload">Foto uploaden…</string>
+    <string name="app_photos_person_cover_use">Dit gezicht gebruiken</string>
+    <string name="app_photos_person_crop_hint">Sleep de foto om het gezicht in het midden te zetten.</string>
+    <string name="app_photos_person_crop_title">Gezicht kiezen</string>
     <string name="app_photos_person_move_failed">Ze konden niet worden verplaatst. Probeer het opnieuw.</string>
     <string name="app_photos_person_move_none">Er is nog niemand anders gevonden.</string>
     <plurals name="app_photos_person_move_title">

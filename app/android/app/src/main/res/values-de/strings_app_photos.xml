@@ -214,6 +214,16 @@
     <string name="app_photos_people_slow_text">Die Personen brauchen länger als sonst zum Laden.</string>
     <string name="app_photos_people_sort_name">Name</string>
     <string name="app_photos_people_sort_photos">Meiste Fotos</string>
+    <string name="app_photos_person_cover_auto">Automatisch wählen</string>
+    <string name="app_photos_person_cover_change">Gesicht ändern</string>
+    <string name="app_photos_person_cover_done">Gesicht aktualisiert</string>
+    <string name="app_photos_person_cover_failed">Gesicht ändern hat nicht geklappt. Versuch es noch einmal.</string>
+    <string name="app_photos_person_cover_hint">Oder wähle ein Foto dieser Person aus und dann „Dieses Gesicht verwenden“.</string>
+    <string name="app_photos_person_cover_needs_update">Dein Gerät braucht ein Update, um das Gesicht einer Person zu ändern.</string>
+    <string name="app_photos_person_cover_upload">Foto hochladen…</string>
+    <string name="app_photos_person_cover_use">Dieses Gesicht verwenden</string>
+    <string name="app_photos_person_crop_hint">Ziehe das Foto, um das Gesicht zu zentrieren.</string>
+    <string name="app_photos_person_crop_title">Gesicht auswählen</string>
     <string name="app_photos_person_move_failed">Sie konnten nicht verschoben werden. Versuche es erneut.</string>
     <string name="app_photos_person_move_none">Noch niemand anderes gefunden.</string>
     <plurals name="app_photos_person_move_title">

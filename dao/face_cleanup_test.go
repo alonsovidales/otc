@@ -39,7 +39,7 @@ func TestDelFacesByHashClearsCoversAndEmptyUnnamedPeople(t *testing.T) {
 	mock.ExpectQuery("select `id`, `person_id` from `faces` where `hash` = \\?").WithArgs("h1").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id"}).AddRow("f1", "p1").AddRow("f2", "p2").AddRow("f3", "p1"))
 	mock.ExpectBegin()
-	mock.ExpectExec("update `people` set `cover_face_id` = null where `cover_face_id` in \\(select `id` from `faces` where `hash` = \\?\\)").
+	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in \\(select `id` from `faces` where `hash` = \\?\\)").
 		WithArgs("h1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `faces` where `hash` = \\?").WithArgs("h1").
 		WillReturnResult(sqlmock.NewResult(0, 3))

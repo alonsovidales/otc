@@ -811,6 +811,42 @@
     "text": "La personne fusionnée s’appellera <b>{name}</b>.",
     "en": "The merged person will be called <b>{name}</b>."
   },
+  "web.images.person.cover_auto": {
+    "text": "Choisir automatiquement",
+    "en": "Choose automatically"
+  },
+  "web.images.person.cover_change": {
+    "text": "Changer le visage",
+    "en": "Change face"
+  },
+  "web.images.person.cover_done": {
+    "text": "Visage mis à jour",
+    "en": "Face updated"
+  },
+  "web.images.person.cover_failed": {
+    "text": "Impossible de changer le visage. Réessayez.",
+    "en": "Couldn't change the face. Try again."
+  },
+  "web.images.person.cover_hint": {
+    "text": "Ou sélectionnez une photo de cette personne, puis Utiliser ce visage.",
+    "en": "Or select one of their photos and choose Use this face."
+  },
+  "web.images.person.cover_upload": {
+    "text": "Envoyer une photo…",
+    "en": "Upload a photo…"
+  },
+  "web.images.person.cover_use": {
+    "text": "Utiliser ce visage",
+    "en": "Use this face"
+  },
+  "web.images.person.crop_hint": {
+    "text": "Faites glisser la photo pour centrer le visage.",
+    "en": "Drag the photo to centre the face."
+  },
+  "web.images.person.crop_title": {
+    "text": "Choisir le visage",
+    "en": "Choose the face"
+  },
   "web.images.person.more": {
     "text": {
       "one": "{first}, {second} et {count} autre",

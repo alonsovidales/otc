@@ -44,6 +44,8 @@
   "dev.files.nothing_to_share": {"text": "rien à partager"},
   "dev.files.nothing_to_stream": {"text": "rien à diffuser"},
   "dev.files.out_of_images_list_failed": {"text": "erreur lors de la lecture de la liste des dossiers hors d’Images : {detail}"},
+  "dev.files.person_cover_image": {"text": "cette image ne peut pas être utilisée : il faut un JPEG de 256 Ko au plus"},
+  "dev.files.person_cover_no_face": {"text": "cette photo ne contient aucun visage de cette personne"},
   "dev.files.person_gone": {"text": "cette personne n’est plus sur cet appareil"},
   "dev.files.person_missing": {"text": "aucune personne indiquée"},
   "dev.files.person_no_photos": {"text": "aucune photo indiquée"},

@@ -235,6 +235,9 @@ var headEnglish = []struct {
 	// Favourites: new, so their English is the catalog's from the start.
 	{"dev.files.favourites", i18n.DevFilesFavourites(), "Favourites"},
 	{"dev.files.favourites_fixed", i18n.DevFilesFavouritesFixed(), "the Favourites collection can't be renamed or deleted"},
+	// A person's face chosen by the owner: new, as above.
+	{"dev.files.person_cover_no_face", i18n.DevFilesPersonCoverNoFace(), "that photo has no face of this person"},
+	{"dev.files.person_cover_image", i18n.DevFilesPersonCoverImage(), "that picture can't be used: it must be a JPEG of at most 256 KB"},
 }
 
 // The catalog's English is the device's English as it was.

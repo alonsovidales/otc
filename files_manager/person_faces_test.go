@@ -64,11 +64,11 @@ func TestRemoveFromPersonRebuildsBothPeople(t *testing.T) {
 	mock.ExpectCommit()
 	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("alice").
 		WillReturnRows(faceRows(storedFace(ses, "alice-1", "alice", []float32{1, 0}), storedFace(ses, "alice-2", "alice", []float32{0.9, 0.1})))
-	mock.ExpectExec("update `people` set `cover_face_id` = \\?, `cohesion` = \\? where `id` = \\?").
+	mock.ExpectExec("update `people` set `cover_face_id` = if\\(`cover_chosen`, `cover_face_id`, \\?\\), `cohesion` = \\? where `id` = \\?").
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "alice").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("select `id`, `person_id`, `embedding` from `faces` where `person_id` = \\?").WithArgs("bob").
 		WillReturnRows(faceRows(storedFace(ses, "bob-1", "bob", []float32{0, 1}), storedFace(ses, "alice-3", "bob", []float32{0.1, 0.9})))
-	mock.ExpectExec("update `people` set `cover_face_id` = \\?, `cohesion` = \\? where `id` = \\?").
+	mock.ExpectExec("update `people` set `cover_face_id` = if\\(`cover_chosen`, `cover_face_id`, \\?\\), `cohesion` = \\? where `id` = \\?").
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "bob").WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := mg.RemoveFromPerson(ses, "alice", []string{"h3"}, "bob"); err != nil {

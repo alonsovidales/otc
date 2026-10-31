@@ -448,7 +448,7 @@ func TestKeepingOutDropsAnalysisOfContentOnlyThere(t *testing.T) {
 	mock.ExpectQuery("select `id`, `person_id`, `hash` from `faces` where `hash` in").WithArgs(only).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "person_id", "hash"}).AddRow(gone, "p1", only))
 	mock.ExpectBegin()
-	mock.ExpectExec("update `people` set `cover_face_id` = null where `cover_face_id` in").WithArgs(only).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in").WithArgs(only).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("delete from `faces` where `hash` in").WithArgs(only).WillReturnResult(sqlmock.NewResult(0, 1))
 	// Unnamed and left with no face: goes; a named one stays (the query's
 	// `name` = '').

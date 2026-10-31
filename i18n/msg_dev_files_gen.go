@@ -229,6 +229,16 @@ func DevFilesOutOfImagesListFailed(detail string) Msg {
 	return Msg{Key: "dev.files.out_of_images_list_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesPersonCoverImage is dev.files.person_cover_image: "that picture can't be used: it must be a JPEG of at most 256 KB".
+func DevFilesPersonCoverImage() Msg {
+	return Msg{Key: "dev.files.person_cover_image"}
+}
+
+// DevFilesPersonCoverNoFace is dev.files.person_cover_no_face: "that photo has no face of this person".
+func DevFilesPersonCoverNoFace() Msg {
+	return Msg{Key: "dev.files.person_cover_no_face"}
+}
+
 // DevFilesPersonGone is dev.files.person_gone: "that person is no longer on this device".
 func DevFilesPersonGone() Msg {
 	return Msg{Key: "dev.files.person_gone"}

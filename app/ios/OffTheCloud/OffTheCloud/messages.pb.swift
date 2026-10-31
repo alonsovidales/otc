@@ -4091,6 +4091,11 @@ public nonisolated struct Msg_Person: Sendable {
 
   public var coverThumbnail: Data = Data()
 
+  /// The owner chose this person's face (SetPersonCover): one of their
+  /// photos' faces or a picture of their own. The apps offer Choose
+  /// automatically then.
+  public var coverChosen: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -4199,6 +4204,53 @@ public nonisolated struct Msg_RemoveFromPerson: Sendable {
   public var toPersonID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The face People shows for a person, chosen by the owner (owner,
+/// 2026-10-31): the face found in one of their photos (hash, the photo's
+/// content hash: the device takes that photo's face of this person), a
+/// picture of the owner's own (image: the apps' square crop, as for the
+/// profile photo - a JPEG of at most 256 KB), or, with neither, the one the
+/// device works out again (the most typical of their faces). A chosen one
+/// stays as more photos of them come in, until its face is gone (the photo
+/// deleted, or the face taken off them). Answered with the generic Ack;
+/// refused, in the request's language, for no such person (any more), a
+/// photo with no face of theirs, or a picture the device doesn't take.
+/// Devices before it answer error_code "unknown_payload".
+public nonisolated struct Msg_SetPersonCover: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var personID: String = String()
+
+  public var cover: Msg_SetPersonCover.OneOf_Cover? = nil
+
+  public var hash: String {
+    get {
+      if case .hash(let v)? = cover {return v}
+      return String()
+    }
+    set {cover = .hash(newValue)}
+  }
+
+  public var image: Data {
+    get {
+      if case .image(let v)? = cover {return v}
+      return Data()
+    }
+    set {cover = .image(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public nonisolated enum OneOf_Cover: Equatable, Sendable {
+    case hash(String)
+    case image(Data)
+
+  }
 
   public init() {}
 }
@@ -7157,6 +7209,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqSetFavourite(newValue)}
   }
 
+  /// People: the face chosen for a person. Answers with the generic Ack;
+  /// devices before it with error_code "unknown_payload".
+  public var reqSetPersonCover: Msg_SetPersonCover {
+    get {
+      if case .reqSetPersonCover(let v)? = payload {return v}
+      return Msg_SetPersonCover()
+    }
+    set {payload = .reqSetPersonCover(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -7416,6 +7478,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// "unknown_payload", and the apps show no heart.
     case reqGetFavourites(Msg_GetFavourites)
     case reqSetFavourite(Msg_SetFavourite)
+    /// People: the face chosen for a person. Answers with the generic Ack;
+    /// devices before it with error_code "unknown_payload".
+    case reqSetPersonCover(Msg_SetPersonCover)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -13957,7 +14022,7 @@ nonisolated extension Msg_SetLanguage: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Person"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}face_count\0\u{3}cover_thumbnail\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}face_count\0\u{3}cover_thumbnail\0\u{3}cover_chosen\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -13969,6 +14034,7 @@ nonisolated extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.faceCount) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self.coverThumbnail) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.coverChosen) }()
       default: break
       }
     }
@@ -13987,6 +14053,9 @@ nonisolated extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if !self.coverThumbnail.isEmpty {
       try visitor.visitSingularBytesField(value: self.coverThumbnail, fieldNumber: 4)
     }
+    if self.coverChosen != false {
+      try visitor.visitSingularBoolField(value: self.coverChosen, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -13995,6 +14064,7 @@ nonisolated extension Msg_Person: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if lhs.name != rhs.name {return false}
     if lhs.faceCount != rhs.faceCount {return false}
     if lhs.coverThumbnail != rhs.coverThumbnail {return false}
+    if lhs.coverChosen != rhs.coverChosen {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -14184,6 +14254,68 @@ nonisolated extension Msg_RemoveFromPerson: SwiftProtobuf.Message, SwiftProtobuf
     if lhs.personID != rhs.personID {return false}
     if lhs.hashes != rhs.hashes {return false}
     if lhs.toPersonID != rhs.toPersonID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetPersonCover: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetPersonCover"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}person_id\0\u{1}hash\0\u{1}image\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.personID) }()
+      case 2: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.cover != nil {try decoder.handleConflictingOneOf()}
+          self.cover = .hash(v)
+        }
+      }()
+      case 3: try {
+        var v: Data?
+        try decoder.decodeSingularBytesField(value: &v)
+        if let v = v {
+          if self.cover != nil {try decoder.handleConflictingOneOf()}
+          self.cover = .image(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.personID.isEmpty {
+      try visitor.visitSingularStringField(value: self.personID, fieldNumber: 1)
+    }
+    switch self.cover {
+    case .hash?: try {
+      guard case .hash(let v)? = self.cover else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    }()
+    case .image?: try {
+      guard case .image(let v)? = self.cover else { preconditionFailure() }
+      try visitor.visitSingularBytesField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetPersonCover, rhs: Msg_SetPersonCover) -> Bool {
+    if lhs.personID != rhs.personID {return false}
+    if lhs.cover != rhs.cover {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -17445,7 +17577,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -19301,6 +19433,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqSetFavourite(v)
         }
       }()
+      case 155: try {
+        var v: Msg_SetPersonCover?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetPersonCover(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetPersonCover(v)
+        }
+      }()
       default: break
       }
     }
@@ -19885,6 +20030,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqSetFavourite?: try {
       guard case .reqSetFavourite(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 154)
+    }()
+    case .reqSetPersonCover?: try {
+      guard case .reqSetPersonCover(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 155)
     }()
     case nil: break
     }

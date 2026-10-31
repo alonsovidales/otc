@@ -602,6 +602,46 @@ fun S.appPhotosPeopleSortName(): UiText =
 fun S.appPhotosPeopleSortPhotos(): UiText =
     UiText.Res(R.string.app_photos_people_sort_photos)
 
+/** "Choose automatically": Menu item under the person's face, shown once a face was chosen: the device picks the best-looking of their faces again (sharp, large, well-lit photos). */
+fun S.appPhotosPersonCoverAuto(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_auto)
+
+/** "Change face": Screen-reader name and tooltip of the person's face at the top of their photos: opens a menu to upload a photo for it (app.photos.person.cover_upload) or let the device choose (app.photos.person.cover_auto). */
+fun S.appPhotosPersonCoverChange(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_change)
+
+/** "Face updated": Note after the face People shows for a person was changed (Use this face, an uploaded photo, or Choose automatically). */
+fun S.appPhotosPersonCoverDone(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_done)
+
+/** "Couldn't change the face. Try again.": Note when the device didn't change the face People shows for a person and gave no reason. */
+fun S.appPhotosPersonCoverFailed(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_failed)
+
+/** "Or select one of their photos and choose Use this face.": Line in the menu under the person's face (Change face), after its items: the other way to choose the face. Use this face is the button's name, the same words. */
+fun S.appPhotosPersonCoverHint(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_hint)
+
+/** "Your device needs an update to change a person's face.": Message shown when Use this face, Upload a photo… or Choose automatically is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner. */
+fun S.appPhotosPersonCoverNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_needs_update)
+
+/** "Upload a photo…": Menu item under the person's face (Change face): pick a picture, centre the face in the crop that follows, and People shows it for this person. Upload as elsewhere in the app. */
+fun S.appPhotosPersonCoverUpload(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_upload)
+
+/** "Use this face": Button on a photo of one person (the selection bar with exactly one photo selected among one person's photos, and the photo viewer there): the face found in this photo becomes the one People shows for them. */
+fun S.appPhotosPersonCoverUse(): UiText =
+    UiText.Res(R.string.app_photos_person_cover_use)
+
+/** "Drag the photo to centre the face.": Hint in the crop shown after a photo is picked for a person's face: the photo can be dragged and zoomed so the face is in the middle of the circle. */
+fun S.appPhotosPersonCropHint(): UiText =
+    UiText.Res(R.string.app_photos_person_crop_hint)
+
+/** "Choose the face": Title of the crop shown after a photo is picked for a person's face (Upload a photo…): drag and zoom to centre the face. */
+fun S.appPhotosPersonCropTitle(): UiText =
+    UiText.Res(R.string.app_photos_person_crop_title)
+
 /** "Couldn't move them. Try again.": Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person). */
 fun S.appPhotosPersonMoveFailed(): UiText =
     UiText.Res(R.string.app_photos_person_move_failed)

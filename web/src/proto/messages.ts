@@ -2308,6 +2308,12 @@ export interface Person {
   name: string;
   faceCount: number;
   coverThumbnail: Uint8Array;
+  /**
+   * The owner chose this person's face (SetPersonCover): one of their
+   * photos' faces or a picture of their own. The apps offer Choose
+   * automatically then.
+   */
+  coverChosen: boolean;
 }
 
 export interface ListPeople {
@@ -2372,6 +2378,24 @@ export interface RemoveFromPerson {
   personId: string;
   hashes: string[];
   toPersonId: string;
+}
+
+/**
+ * The face People shows for a person, chosen by the owner (owner,
+ * 2026-10-31): the face found in one of their photos (hash, the photo's
+ * content hash: the device takes that photo's face of this person), a
+ * picture of the owner's own (image: the apps' square crop, as for the
+ * profile photo - a JPEG of at most 256 KB), or, with neither, the one the
+ * device works out again (the most typical of their faces). A chosen one
+ * stays as more photos of them come in, until its face is gone (the photo
+ * deleted, or the face taken off them). Answered with the generic Ack;
+ * refused, in the request's language, for no such person (any more), a
+ * photo with no face of theirs, or a picture the device doesn't take.
+ * Devices before it answer error_code "unknown_payload".
+ */
+export interface SetPersonCover {
+  personId: string;
+  cover?: { $case: "hash"; hash: string } | { $case: "image"; image: Uint8Array } | undefined;
 }
 
 /**
@@ -3633,6 +3657,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqGetFavourites"; reqGetFavourites: GetFavourites }
     | { $case: "reqSetFavourite"; reqSetFavourite: SetFavourite }
+    | //
+    /**
+     * People: the face chosen for a person. Answers with the generic Ack;
+     * devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqSetPersonCover"; reqSetPersonCover: SetPersonCover }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -13752,7 +13782,7 @@ export const SetLanguage: MessageFns<SetLanguage> = {
 };
 
 function createBasePerson(): Person {
-  return { id: "", name: "", faceCount: 0, coverThumbnail: new Uint8Array(0) };
+  return { id: "", name: "", faceCount: 0, coverThumbnail: new Uint8Array(0), coverChosen: false };
 }
 
 export const Person: MessageFns<Person> = {
@@ -13768,6 +13798,9 @@ export const Person: MessageFns<Person> = {
     }
     if (message.coverThumbnail.length !== 0) {
       writer.uint32(34).bytes(message.coverThumbnail);
+    }
+    if (message.coverChosen !== false) {
+      writer.uint32(40).bool(message.coverChosen);
     }
     return writer;
   },
@@ -13811,6 +13844,14 @@ export const Person: MessageFns<Person> = {
           message.coverThumbnail = reader.bytes();
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.coverChosen = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13829,6 +13870,7 @@ export const Person: MessageFns<Person> = {
     message.name = object.name ?? "";
     message.faceCount = object.faceCount ?? 0;
     message.coverThumbnail = object.coverThumbnail ?? new Uint8Array(0);
+    message.coverChosen = object.coverChosen ?? false;
     return message;
   },
 };
@@ -14141,6 +14183,90 @@ export const RemoveFromPerson: MessageFns<RemoveFromPerson> = {
     message.personId = object.personId ?? "";
     message.hashes = object.hashes?.map((e) => e) || [];
     message.toPersonId = object.toPersonId ?? "";
+    return message;
+  },
+};
+
+function createBaseSetPersonCover(): SetPersonCover {
+  return { personId: "", cover: undefined };
+}
+
+export const SetPersonCover: MessageFns<SetPersonCover> = {
+  encode(message: SetPersonCover, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.personId !== "") {
+      writer.uint32(10).string(message.personId);
+    }
+    switch (message.cover?.$case) {
+      case "hash":
+        writer.uint32(18).string(message.cover.hash);
+        break;
+      case "image":
+        writer.uint32(26).bytes(message.cover.image);
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetPersonCover {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetPersonCover();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.personId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.cover = { $case: "hash", hash: reader.string() };
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.cover = { $case: "image", image: reader.bytes() };
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetPersonCover>, I>>(base?: I): SetPersonCover {
+    return SetPersonCover.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetPersonCover>, I>>(object: I): SetPersonCover {
+    const message = createBaseSetPersonCover();
+    message.personId = object.personId ?? "";
+    switch (object.cover?.$case) {
+      case "hash": {
+        if (object.cover?.hash !== undefined && object.cover?.hash !== null) {
+          message.cover = { $case: "hash", hash: object.cover.hash };
+        }
+        break;
+      }
+      case "image": {
+        if (object.cover?.image !== undefined && object.cover?.image !== null) {
+          message.cover = { $case: "image", image: object.cover.image };
+        }
+        break;
+      }
+    }
     return message;
   },
 };
@@ -20176,6 +20302,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetFavourite":
         SetFavourite.encode(message.payload.reqSetFavourite, writer.uint32(1234).fork()).join();
         break;
+      case "reqSetPersonCover":
+        SetPersonCover.encode(message.payload.reqSetPersonCover, writer.uint32(1242).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21568,6 +21697,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqSetFavourite", reqSetFavourite: SetFavourite.decode(reader, reader.uint32()) };
           continue;
         }
+        case 155: {
+          if (tag !== 1242) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetPersonCover",
+            reqSetPersonCover: SetPersonCover.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -22856,6 +22996,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqSetFavourite",
             reqSetFavourite: SetFavourite.fromPartial(object.payload.reqSetFavourite),
+          };
+        }
+        break;
+      }
+      case "reqSetPersonCover": {
+        if (object.payload?.reqSetPersonCover !== undefined && object.payload?.reqSetPersonCover !== null) {
+          message.payload = {
+            $case: "reqSetPersonCover",
+            reqSetPersonCover: SetPersonCover.fromPartial(object.payload.reqSetPersonCover),
           };
         }
         break;

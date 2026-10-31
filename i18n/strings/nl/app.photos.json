@@ -737,6 +737,46 @@
     "text": "Meeste foto’s",
     "en": "Most photos"
   },
+  "app.photos.person.cover_auto": {
+    "text": "Automatisch kiezen",
+    "en": "Choose automatically"
+  },
+  "app.photos.person.cover_change": {
+    "text": "Gezicht wijzigen",
+    "en": "Change face"
+  },
+  "app.photos.person.cover_done": {
+    "text": "Gezicht bijgewerkt",
+    "en": "Face updated"
+  },
+  "app.photos.person.cover_failed": {
+    "text": "Gezicht wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change the face. Try again."
+  },
+  "app.photos.person.cover_hint": {
+    "text": "Of selecteer een foto van deze persoon en kies Dit gezicht gebruiken.",
+    "en": "Or select one of their photos and choose Use this face."
+  },
+  "app.photos.person.cover_needs_update": {
+    "text": "Je apparaat heeft een update nodig om het gezicht van een persoon te wijzigen.",
+    "en": "Your device needs an update to change a person's face."
+  },
+  "app.photos.person.cover_upload": {
+    "text": "Foto uploaden…",
+    "en": "Upload a photo…"
+  },
+  "app.photos.person.cover_use": {
+    "text": "Dit gezicht gebruiken",
+    "en": "Use this face"
+  },
+  "app.photos.person.crop_hint": {
+    "text": "Sleep de foto om het gezicht in het midden te zetten.",
+    "en": "Drag the photo to centre the face."
+  },
+  "app.photos.person.crop_title": {
+    "text": "Gezicht kiezen",
+    "en": "Choose the face"
+  },
   "app.photos.person.move_failed": {
     "text": "Ze konden niet worden verplaatst. Probeer het opnieuw.",
     "en": "Couldn't move them. Try again."

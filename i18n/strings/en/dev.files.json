@@ -206,6 +206,14 @@
     "args": [["detail", "text"]],
     "note": "Error reply when the list of folders kept out of Images could not be read. Images is the photos section; a folder kept out of it shows no photos there and gets no tags or faces. {detail} is the reason, usually an error in English the device can't translate."
   },
+  "dev.files.person_cover_image": {
+    "text": "that picture can't be used: it must be a JPEG of at most 256 KB",
+    "note": "Error reply when the picture an app sends for a person's face (People: a photo of the owner's own, cropped in the app) isn't a JPEG, is larger than 256 KB, or isn't a picture at all (an app fault)."
+  },
+  "dev.files.person_cover_no_face": {
+    "text": "that photo has no face of this person",
+    "note": "Error reply when the app asks to use the face in a photo for a person (People: Use this face) and none of the faces found in that photo is theirs (taken off them meanwhile, on another app)."
+  },
   "dev.files.person_gone": {
     "text": "that person is no longer on this device",
     "note": "Error reply to Someone else… (moving photos from one person found by face recognition to another) when the person picked was deleted, or merged into another, meanwhile - from another phone or browser, for example. Nothing was moved."

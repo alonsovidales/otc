@@ -25,7 +25,7 @@ func TestRemoveFromPersonGivesTheFacesToNoOne(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("f1").AddRow("f2"))
 	mock.ExpectExec("update `faces` set `person_id` = \\? where `id` in \\(\\?,\\?\\)").
 		WithArgs("", "f1", "f2").WillReturnResult(sqlmock.NewResult(0, 2))
-	mock.ExpectExec("update `people` set `cover_face_id` = null where `cover_face_id` in \\(\\?,\\?\\)").
+	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in \\(\\?,\\?\\)").
 		WithArgs("f1", "f2").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `people` where `id` = \\? and `name` = '' and not exists \\(select 1 from `faces` where `faces`.`person_id` = `people`.`id`\\)").
 		WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 0))
@@ -56,7 +56,7 @@ func TestRemoveFromPersonMovesTheFacesToAnotherPerson(t *testing.T) {
 		WithArgs("p1", "A").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("f1"))
 	mock.ExpectExec("update `faces` set `person_id` = \\? where `id` in \\(\\?\\)").
 		WithArgs("p2", "f1").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("update `people` set `cover_face_id` = null where `cover_face_id` in \\(\\?\\)").
+	mock.ExpectExec("update `people` set `cover_face_id` = null, `cover_chosen` = \\(`cover_image` is not null\\) where `cover_face_id` in \\(\\?\\)").
 		WithArgs("f1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("delete from `people` where `id` = \\?").WithArgs("p1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()

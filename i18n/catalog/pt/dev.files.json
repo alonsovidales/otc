@@ -44,6 +44,8 @@
   "dev.files.nothing_to_share": {"text": "nada para partilhar"},
   "dev.files.nothing_to_stream": {"text": "nada para reproduzir"},
   "dev.files.out_of_images_list_failed": {"text": "erro ao listar as pastas fora de Imagens: {detail}"},
+  "dev.files.person_cover_image": {"text": "essa imagem não pode ser usada: tem de ser um JPEG com 256 KB no máximo"},
+  "dev.files.person_cover_no_face": {"text": "essa foto não tem nenhum rosto desta pessoa"},
   "dev.files.person_gone": {"text": "essa pessoa já não está neste dispositivo"},
   "dev.files.person_missing": {"text": "não foi indicada nenhuma pessoa"},
   "dev.files.person_no_photos": {"text": "não foi indicada nenhuma foto"},

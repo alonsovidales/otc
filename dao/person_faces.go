@@ -94,7 +94,7 @@ func (dao *Dao) RemoveFromPerson(personID string, hashes []string, toPersonID st
 		if _, err := tx.Exec("update `faces` set `person_id` = ? where `id` in ("+ph+")", append([]any{toPersonID}, args...)...); err != nil {
 			return 0, fmt.Errorf("moving faces: %w", err)
 		}
-		if _, err := tx.Exec("update `people` set `cover_face_id` = null where `cover_face_id` in ("+ph+")", args...); err != nil {
+		if _, err := tx.Exec("update `people` set `cover_face_id` = null, `cover_chosen` = (`cover_image` is not null) where `cover_face_id` in ("+ph+")", args...); err != nil {
 			return 0, fmt.Errorf("clearing covers: %w", err)
 		}
 	}

@@ -235,6 +235,16 @@
     <string name="app_photos_people_slow_text">As pessoas estão a demorar mais do que o habitual a carregar.</string>
     <string name="app_photos_people_sort_name">Nome</string>
     <string name="app_photos_people_sort_photos">Mais fotos</string>
+    <string name="app_photos_person_cover_auto">Escolher automaticamente</string>
+    <string name="app_photos_person_cover_change">Mudar o rosto</string>
+    <string name="app_photos_person_cover_done">Rosto atualizado</string>
+    <string name="app_photos_person_cover_failed">Não foi possível mudar o rosto. Tenta de novo.</string>
+    <string name="app_photos_person_cover_hint">Ou seleciona uma foto desta pessoa e escolhe Usar este rosto.</string>
+    <string name="app_photos_person_cover_needs_update">O teu dispositivo precisa de uma atualização para mudar o rosto de uma pessoa.</string>
+    <string name="app_photos_person_cover_upload">Carregar uma foto…</string>
+    <string name="app_photos_person_cover_use">Usar este rosto</string>
+    <string name="app_photos_person_crop_hint">Arrasta a foto para centrares o rosto.</string>
+    <string name="app_photos_person_crop_title">Escolher o rosto</string>
     <string name="app_photos_person_move_failed">Não foi possível movê-las. Tenta novamente.</string>
     <string name="app_photos_person_move_none">Ainda não foi encontrado mais ninguém.</string>
     <plurals name="app_photos_person_move_title" tools:ignore="ImpliedQuantity">

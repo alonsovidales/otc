@@ -3,7 +3,10 @@
 package filesmanager
 
 import (
+	"bytes"
 	"errors"
+	"image"
+	_ "image/jpeg" // validPersonCover
 
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
@@ -82,4 +85,78 @@ func (mg *Manager) rebuildPeopleLocked(ses *session.Session, ids ...string) {
 		}
 		updatePersonCoverFace(mg.dao, id, p)
 	}
+}
+
+// ErrPersonCoverNoFace: none of the faces in the photo chosen for a
+// person's face is theirs.
+var ErrPersonCoverNoFace = errors.New("no face of this person in that photo")
+
+// ErrPersonCoverImage: the picture sent for a person's face isn't one the
+// device takes (a JPEG of at most cMaxPersonCoverBytes, sides of 16 to
+// cMaxPersonCoverSide pixels).
+var ErrPersonCoverImage = errors.New("not a picture the device takes")
+
+const (
+	// The apps' crop makes a square JPEG of a few dozen KB (the profile
+	// photo's): plenty of room, and no more.
+	cMaxPersonCoverBytes = 256 << 10
+	cMaxPersonCoverSide  = 2048
+)
+
+// SetPersonCoverFace makes the face found in one of the person's photos
+// (its content hash) their cover - the owner's choice, which stays as more
+// photos of them come in (dao.SetPersonCover). ErrPersonCoverNoFace when
+// none of that photo's faces is theirs, dao.ErrNoSuchPerson when there is
+// no such person.
+func (mg *Manager) SetPersonCoverFace(personID, hash string) error {
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	faceID, err := mg.dao.PersonFaceIn(personID, hash)
+	if err != nil {
+		return err
+	}
+	if faceID == "" {
+		if ok, err := mg.dao.PersonExists(personID); err != nil {
+			return err
+		} else if !ok {
+			return dao.ErrNoSuchPerson
+		}
+		return ErrPersonCoverNoFace
+	}
+	return mg.dao.SetPersonCover(personID, faceID, nil)
+}
+
+// SetPersonCoverImage makes a picture of the owner's own the person's
+// cover: the apps' square crop, kept encrypted at rest as the faces'
+// thumbnails are. ErrPersonCoverImage for anything but a small JPEG.
+func (mg *Manager) SetPersonCoverImage(ses *session.Session, personID string, image []byte) error {
+	if !validPersonCover(image) {
+		return ErrPersonCoverImage
+	}
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	return mg.dao.SetPersonCover(personID, "", ses.Encrypt(image))
+}
+
+// ResetPersonCover gives the person the cover the device works out again:
+// the most typical of their faces, as before anything was chosen.
+func (mg *Manager) ResetPersonCover(ses *session.Session, personID string) error {
+	mg.faceRefsMu.Lock()
+	defer mg.faceRefsMu.Unlock()
+	if err := mg.dao.SetPersonCover(personID, "", nil); err != nil {
+		return err
+	}
+	mg.rebuildPeopleLocked(ses, personID)
+	return nil
+}
+
+func validPersonCover(b []byte) bool {
+	if len(b) == 0 || len(b) > cMaxPersonCoverBytes {
+		return false
+	}
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(b))
+	if err != nil || format != "jpeg" {
+		return false
+	}
+	return cfg.Width >= 16 && cfg.Height >= 16 && cfg.Width <= cMaxPersonCoverSide && cfg.Height <= cMaxPersonCoverSide
 }

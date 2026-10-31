@@ -44,6 +44,8 @@
   "dev.files.nothing_to_share": {"text": "nichts zu teilen"},
   "dev.files.nothing_to_stream": {"text": "nichts abzuspielen"},
   "dev.files.out_of_images_list_failed": {"text": "Fehler beim Auflisten der in „Bilder“ ausgeblendeten Ordner: {detail}"},
+  "dev.files.person_cover_image": {"text": "dieses Bild kann nicht verwendet werden: Es muss ein JPEG mit höchstens 256 KB sein"},
+  "dev.files.person_cover_no_face": {"text": "auf diesem Foto ist kein Gesicht dieser Person"},
   "dev.files.person_gone": {"text": "diese Person ist nicht mehr auf diesem Gerät"},
   "dev.files.person_missing": {"text": "keine Person angegeben"},
   "dev.files.person_no_photos": {"text": "keine Fotos angegeben"},

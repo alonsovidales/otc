@@ -271,7 +271,7 @@ func TestUpdatePersonCoverFaceWritesTargetPerson(t *testing.T) {
 		"bob":   {{0, 1}},
 	})
 
-	mock.ExpectExec("update `people` set `cover_face_id` = \\?, `cohesion` = \\? where `id` = \\?").
+	mock.ExpectExec("update `people` set `cover_face_id` = if\\(`cover_chosen`, `cover_face_id`, \\?\\), `cohesion` = \\? where `id` = \\?").
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "alice").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 

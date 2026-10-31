@@ -47,7 +47,7 @@ func (dao *Dao) DelFacesByHash(hash string) (faces []DeletedFace, err error) {
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.Exec("update `people` set `cover_face_id` = null where `cover_face_id` in (select `id` from `faces` where `hash` = ?)", hash); err != nil {
+	if _, err = tx.Exec("update `people` set `cover_face_id` = null, `cover_chosen` = (`cover_image` is not null) where `cover_face_id` in (select `id` from `faces` where `hash` = ?)", hash); err != nil {
 		return nil, fmt.Errorf("clearing covers: %w", err)
 	}
 	if _, err = tx.Exec("delete from `faces` where `hash` = ?", hash); err != nil {
@@ -121,7 +121,7 @@ func (dao *Dao) DelFacesByHashes(hashes []string) (faces []DeletedFace, err erro
 	defer tx.Rollback()
 	for _, chunk := range hashChunks(affected) {
 		ph, args := inPlaceholders(chunk)
-		if _, err = tx.Exec("update `people` set `cover_face_id` = null where `cover_face_id` in (select `id` from `faces` where `hash` in ("+ph+"))", args...); err != nil {
+		if _, err = tx.Exec("update `people` set `cover_face_id` = null, `cover_chosen` = (`cover_image` is not null) where `cover_face_id` in (select `id` from `faces` where `hash` in ("+ph+"))", args...); err != nil {
 			return nil, fmt.Errorf("clearing covers: %w", err)
 		}
 		if _, err = tx.Exec("delete from `faces` where `hash` in ("+ph+")", args...); err != nil {

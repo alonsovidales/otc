@@ -870,6 +870,56 @@ extension S {
     /// In People's Sort by menu: the people with the most photos first (the order the device gives, and the default).
     static var appPhotosPeopleSortPhotos: String { L("app.photos.people.sort_photos", table: "AppPhotos") }
 
+    /// Choose automatically
+    ///
+    /// Menu item under the person's face, shown once a face was chosen: the device picks the best-looking of their faces again (sharp, large, well-lit photos).
+    static var appPhotosPersonCoverAuto: String { L("app.photos.person.cover_auto", table: "AppPhotos") }
+
+    /// Change face
+    ///
+    /// Screen-reader name and tooltip of the person's face at the top of their photos: opens a menu to upload a photo for it (app.photos.person.cover_upload) or let the device choose (app.photos.person.cover_auto).
+    static var appPhotosPersonCoverChange: String { L("app.photos.person.cover_change", table: "AppPhotos") }
+
+    /// Face updated
+    ///
+    /// Note after the face People shows for a person was changed (Use this face, an uploaded photo, or Choose automatically).
+    static var appPhotosPersonCoverDone: String { L("app.photos.person.cover_done", table: "AppPhotos") }
+
+    /// Couldn't change the face. Try again.
+    ///
+    /// Note when the device didn't change the face People shows for a person and gave no reason.
+    static var appPhotosPersonCoverFailed: String { L("app.photos.person.cover_failed", table: "AppPhotos") }
+
+    /// Or select one of their photos and choose Use this face.
+    ///
+    /// Line in the menu under the person's face (Change face), after its items: the other way to choose the face. Use this face is the button's name, the same words.
+    static var appPhotosPersonCoverHint: String { L("app.photos.person.cover_hint", table: "AppPhotos") }
+
+    /// Your device needs an update to change a person's face.
+    ///
+    /// Message shown when Use this face, Upload a photo… or Choose automatically is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner.
+    static var appPhotosPersonCoverNeedsUpdate: String { L("app.photos.person.cover_needs_update", table: "AppPhotos") }
+
+    /// Upload a photo…
+    ///
+    /// Menu item under the person's face (Change face): pick a picture, centre the face in the crop that follows, and People shows it for this person. Upload as elsewhere in the app.
+    static var appPhotosPersonCoverUpload: String { L("app.photos.person.cover_upload", table: "AppPhotos") }
+
+    /// Use this face
+    ///
+    /// Button on a photo of one person (the selection bar with exactly one photo selected among one person's photos, and the photo viewer there): the face found in this photo becomes the one People shows for them.
+    static var appPhotosPersonCoverUse: String { L("app.photos.person.cover_use", table: "AppPhotos") }
+
+    /// Drag the photo to centre the face.
+    ///
+    /// Hint in the crop shown after a photo is picked for a person's face: the photo can be dragged and zoomed so the face is in the middle of the circle.
+    static var appPhotosPersonCropHint: String { L("app.photos.person.crop_hint", table: "AppPhotos") }
+
+    /// Choose the face
+    ///
+    /// Title of the crop shown after a photo is picked for a person's face (Upload a photo…): drag and zoom to centre the face.
+    static var appPhotosPersonCropTitle: String { L("app.photos.person.crop_title", table: "AppPhotos") }
+
     /// Couldn't move them. Try again.
     ///
     /// Error at the foot of Images when the device didn't move the selected photos to the person picked (app.shell.move_to_person).

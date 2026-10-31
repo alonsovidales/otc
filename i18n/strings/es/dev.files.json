@@ -181,6 +181,14 @@
     "text": "error al listar las carpetas fuera de Imágenes: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_cover_image": {
+    "text": "esa imagen no se puede usar: debe ser un JPEG de 256 KB como máximo",
+    "en": "that picture can't be used: it must be a JPEG of at most 256 KB"
+  },
+  "dev.files.person_cover_no_face": {
+    "text": "esa foto no tiene ninguna cara de esta persona",
+    "en": "that photo has no face of this person"
+  },
   "dev.files.person_gone": {
     "text": "esa persona ya no está en este dispositivo",
     "en": "that person is no longer on this device"

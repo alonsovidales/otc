@@ -737,6 +737,46 @@
     "text": "Meiste Fotos",
     "en": "Most photos"
   },
+  "app.photos.person.cover_auto": {
+    "text": "Automatisch wählen",
+    "en": "Choose automatically"
+  },
+  "app.photos.person.cover_change": {
+    "text": "Gesicht ändern",
+    "en": "Change face"
+  },
+  "app.photos.person.cover_done": {
+    "text": "Gesicht aktualisiert",
+    "en": "Face updated"
+  },
+  "app.photos.person.cover_failed": {
+    "text": "Gesicht ändern hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't change the face. Try again."
+  },
+  "app.photos.person.cover_hint": {
+    "text": "Oder wähle ein Foto dieser Person aus und dann „Dieses Gesicht verwenden“.",
+    "en": "Or select one of their photos and choose Use this face."
+  },
+  "app.photos.person.cover_needs_update": {
+    "text": "Dein Gerät braucht ein Update, um das Gesicht einer Person zu ändern.",
+    "en": "Your device needs an update to change a person's face."
+  },
+  "app.photos.person.cover_upload": {
+    "text": "Foto hochladen…",
+    "en": "Upload a photo…"
+  },
+  "app.photos.person.cover_use": {
+    "text": "Dieses Gesicht verwenden",
+    "en": "Use this face"
+  },
+  "app.photos.person.crop_hint": {
+    "text": "Ziehe das Foto, um das Gesicht zu zentrieren.",
+    "en": "Drag the photo to centre the face."
+  },
+  "app.photos.person.crop_title": {
+    "text": "Gesicht auswählen",
+    "en": "Choose the face"
+  },
   "app.photos.person.move_failed": {
     "text": "Sie konnten nicht verschoben werden. Versuche es erneut.",
     "en": "Couldn't move them. Try again."

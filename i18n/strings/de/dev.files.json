@@ -181,6 +181,14 @@
     "text": "Fehler beim Auflisten der in „Bilder“ ausgeblendeten Ordner: {detail}",
     "en": "error listing the folders kept out of Images: {detail}"
   },
+  "dev.files.person_cover_image": {
+    "text": "dieses Bild kann nicht verwendet werden: Es muss ein JPEG mit höchstens 256 KB sein",
+    "en": "that picture can't be used: it must be a JPEG of at most 256 KB"
+  },
+  "dev.files.person_cover_no_face": {
+    "text": "auf diesem Foto ist kein Gesicht dieser Person",
+    "en": "that photo has no face of this person"
+  },
   "dev.files.person_gone": {
     "text": "diese Person ist nicht mehr auf diesem Gerät",
     "en": "that person is no longer on this device"

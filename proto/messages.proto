@@ -1792,6 +1792,10 @@ message Person {
   string name = 2;
   int32 face_count = 3;
   bytes cover_thumbnail = 4;
+  // The owner chose this person's face (SetPersonCover): one of their
+  // photos' faces or a picture of their own. The apps offer Choose
+  // automatically then.
+  bool cover_chosen = 5;
 }
 
 message ListPeople {
@@ -1848,6 +1852,25 @@ message RemoveFromPerson {
   string person_id = 1;
   repeated string hashes = 2;
   string to_person_id = 3;
+}
+
+// The face People shows for a person, chosen by the owner (owner,
+// 2026-10-31): the face found in one of their photos (hash, the photo's
+// content hash: the device takes that photo's face of this person), a
+// picture of the owner's own (image: the apps' square crop, as for the
+// profile photo - a JPEG of at most 256 KB), or, with neither, the one the
+// device works out again (the most typical of their faces). A chosen one
+// stays as more photos of them come in, until its face is gone (the photo
+// deleted, or the face taken off them). Answered with the generic Ack;
+// refused, in the request's language, for no such person (any more), a
+// photo with no face of theirs, or a picture the device doesn't take.
+// Devices before it answer error_code "unknown_payload".
+message SetPersonCover {
+  string person_id = 1;
+  oneof cover {
+    string hash = 2;
+    bytes image = 3;
+  }
 }
 
 // Issue #115: image groups (albums). cover_thumbnail is one member's
@@ -2907,6 +2930,9 @@ message ReqEnvelope {
     // "unknown_payload", and the apps show no heart.
     GetFavourites req_get_favourites = 153;
     SetFavourite req_set_favourite = 154;
+    // People: the face chosen for a person. Answers with the generic Ack;
+    // devices before it with error_code "unknown_payload".
+    SetPersonCover req_set_person_cover = 155;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

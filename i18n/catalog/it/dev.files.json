@@ -44,6 +44,8 @@
   "dev.files.nothing_to_share": {"text": "niente da condividere"},
   "dev.files.nothing_to_stream": {"text": "niente da riprodurre"},
   "dev.files.out_of_images_list_failed": {"text": "errore durante l’elenco delle cartelle fuori da Immagini: {detail}"},
+  "dev.files.person_cover_image": {"text": "quell'immagine non si può usare: deve essere un JPEG di al massimo 256 KB"},
+  "dev.files.person_cover_no_face": {"text": "in quella foto non c'è il viso di questa persona"},
   "dev.files.person_gone": {"text": "quella persona non è più su questo dispositivo"},
   "dev.files.person_missing": {"text": "nessuna persona indicata"},
   "dev.files.person_no_photos": {"text": "nessuna foto indicata"},

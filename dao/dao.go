@@ -2305,9 +2305,60 @@ func (dao *Dao) CreatePerson(id string) (err error) {
 // only get more representative over time, and its ordering (see
 // ListPeople's own doc comment) can tell a real, recurring person from
 // faces chained together by nearest-neighbor matching.
+//
+// A face the owner chose (cover_chosen, SetPersonCover) stays: only the
+// cohesion follows.
 func (dao *Dao) SetPersonCoverFace(personID, faceID string, cohesion float32) (err error) {
-	_, err = dao.db.Exec("update `people` set `cover_face_id` = ?, `cohesion` = ? where `id` = ?", faceID, cohesion, personID)
+	_, err = dao.db.Exec("update `people` set `cover_face_id` = if(`cover_chosen`, `cover_face_id`, ?), `cohesion` = ? where `id` = ?", faceID, cohesion, personID)
 	return
+}
+
+// PersonExists says whether there is a person with this id.
+func (dao *Dao) PersonExists(personID string) (bool, error) {
+	var one int
+	err := dao.db.QueryRow("select 1 from `people` where `id` = ?", personID).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// PersonFaceIn is the id of personID's face in the photo with this content
+// hash - the biggest, should they be in it more than once - or "" when
+// none of the photo's faces is theirs.
+func (dao *Dao) PersonFaceIn(personID, hash string) (string, error) {
+	var id string
+	err := dao.db.QueryRow("select `id` from `faces` where `person_id` = ? and `hash` = ? order by `bbox_w` * `bbox_h` desc, `id` limit 1",
+		personID, hash).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
+// SetPersonCover is the face the owner chose for a person (owner,
+// 2026-10-31): one of their faces (faceID), a picture of the owner's own
+// (image, already encrypted), or neither - the medoid again, which the
+// caller works out (files_manager.SetPersonCover). A chosen one stays as
+// more photos of them come in (SetPersonCoverFace), until the face is gone
+// (the photo deleted, or the face taken off them: back to the medoid).
+// ErrNoSuchPerson when there is no such person.
+func (dao *Dao) SetPersonCover(personID, faceID string, image []byte) error {
+	if ok, err := dao.PersonExists(personID); err != nil {
+		return err
+	} else if !ok {
+		return ErrNoSuchPerson
+	}
+	var err error
+	switch {
+	case faceID != "":
+		_, err = dao.db.Exec("update `people` set `cover_face_id` = ?, `cover_image` = null, `cover_chosen` = 1 where `id` = ?", faceID, personID)
+	case image != nil:
+		_, err = dao.db.Exec("update `people` set `cover_image` = ?, `cover_chosen` = 1 where `id` = ?", image, personID)
+	default:
+		_, err = dao.db.Exec("update `people` set `cover_image` = null, `cover_chosen` = 0 where `id` = ?", personID)
+	}
+	return err
 }
 
 // AddFace stores one detected face (issue #52), already resolved to
@@ -2420,7 +2471,8 @@ func (dao *Dao) faceEmbeddings(query string, args ...any) (faces []FaceEmbedding
 
 // ListPeople returns every recognized person (issue #52), legitimate and
 // well-photographed people first, each with its face count and one
-// representative face thumbnail - their medoid face (see
+// representative face thumbnail - the picture or face the owner chose for
+// them (SetPersonCover), else their medoid face (see
 // face_recognition.MedoidAndCohesion's own doc comment: the most
 // "typical" example of their face already on file, kept up to date
 // incrementally by files_manager.processFaces) once one's been computed,
@@ -2448,10 +2500,10 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	rows, err := dao.db.Query(
 		"select `p`.`id`, `p`.`name`, "+
 			"(select count(*) from `faces` as `f` where `f`.`person_id` = `p`.`id`) as `face_count`, "+
-			"case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
+			"coalesce(`p`.`cover_image`, case when `p`.`cover_face_id` is not null and `p`.`cover_face_id` <> '' "+
 			"then (select `c`.`thumbnail` from `faces` as `c` where `c`.`id` = `p`.`cover_face_id`) "+
 			"else (select `o`.`thumbnail` from `faces` as `o` where `o`.`person_id` = `p`.`id` order by `o`.`created` asc limit 1) "+
-			"end as `cover_thumbnail` "+
+			"end) as `cover_thumbnail`, `p`.`cover_chosen` "+
 			"from `people` as `p` "+
 			"order by (`p`.`cohesion` is null or `p`.`cohesion` >= ?) desc, `face_count` desc, `p`.`created` desc",
 		cohesionThreshold)
@@ -2463,7 +2515,7 @@ func (dao *Dao) ListPeople(cohesionThreshold float64) (people []*pb.Person, err 
 	for rows.Next() {
 		p := new(pb.Person)
 		var thumb []byte
-		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &thumb); err != nil {
+		if err := rows.Scan(&p.Id, &p.Name, &p.FaceCount, &thumb, &p.CoverChosen); err != nil {
 			return nil, err
 		}
 		p.CoverThumbnail = thumb

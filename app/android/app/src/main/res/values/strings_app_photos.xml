@@ -213,6 +213,16 @@
     <string name="app_photos_people_slow_text">People are taking longer than usual to load.</string>
     <string name="app_photos_people_sort_name">Name</string>
     <string name="app_photos_people_sort_photos">Most photos</string>
+    <string name="app_photos_person_cover_auto">Choose automatically</string>
+    <string name="app_photos_person_cover_change">Change face</string>
+    <string name="app_photos_person_cover_done">Face updated</string>
+    <string name="app_photos_person_cover_failed">Couldn\'t change the face. Try again.</string>
+    <string name="app_photos_person_cover_hint">Or select one of their photos and choose Use this face.</string>
+    <string name="app_photos_person_cover_needs_update">Your device needs an update to change a person\'s face.</string>
+    <string name="app_photos_person_cover_upload">Upload a photo…</string>
+    <string name="app_photos_person_cover_use">Use this face</string>
+    <string name="app_photos_person_crop_hint">Drag the photo to centre the face.</string>
+    <string name="app_photos_person_crop_title">Choose the face</string>
     <string name="app_photos_person_move_failed">Couldn\'t move them. Try again.</string>
     <string name="app_photos_person_move_none">No one else has been found yet.</string>
     <plurals name="app_photos_person_move_title">

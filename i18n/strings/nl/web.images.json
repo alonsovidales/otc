@@ -811,6 +811,42 @@
     "text": "De samengevoegde persoon gaat <b>{name}</b> heten.",
     "en": "The merged person will be called <b>{name}</b>."
   },
+  "web.images.person.cover_auto": {
+    "text": "Automatisch kiezen",
+    "en": "Choose automatically"
+  },
+  "web.images.person.cover_change": {
+    "text": "Gezicht wijzigen",
+    "en": "Change face"
+  },
+  "web.images.person.cover_done": {
+    "text": "Gezicht bijgewerkt",
+    "en": "Face updated"
+  },
+  "web.images.person.cover_failed": {
+    "text": "Gezicht wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change the face. Try again."
+  },
+  "web.images.person.cover_hint": {
+    "text": "Of selecteer een foto van deze persoon en kies Dit gezicht gebruiken.",
+    "en": "Or select one of their photos and choose Use this face."
+  },
+  "web.images.person.cover_upload": {
+    "text": "Foto uploaden…",
+    "en": "Upload a photo…"
+  },
+  "web.images.person.cover_use": {
+    "text": "Dit gezicht gebruiken",
+    "en": "Use this face"
+  },
+  "web.images.person.crop_hint": {
+    "text": "Sleep de foto om het gezicht in het midden te zetten.",
+    "en": "Drag the photo to centre the face."
+  },
+  "web.images.person.crop_title": {
+    "text": "Gezicht kiezen",
+    "en": "Choose the face"
+  },
   "web.images.person.more": {
     "text": {
       "one": "{first}, {second} en nog {count} persoon",

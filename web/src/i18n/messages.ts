@@ -416,6 +416,15 @@ export type MessageKey =
   | "web.images.people.sort_name"
   | "web.images.people.sort_photos"
   | "web.images.people.title"
+  | "web.images.person.cover_auto"
+  | "web.images.person.cover_change"
+  | "web.images.person.cover_done"
+  | "web.images.person.cover_failed"
+  | "web.images.person.cover_hint"
+  | "web.images.person.cover_upload"
+  | "web.images.person.cover_use"
+  | "web.images.person.crop_hint"
+  | "web.images.person.crop_title"
   | "web.images.person.more"
   | "web.images.person.move_failed"
   | "web.images.person.move_find"
@@ -1536,6 +1545,15 @@ export interface MessageArgs {
   "web.images.people.sort_photos": undefined;
   "web.images.people.title": undefined;
   "web.images.people.will_be_called": { name: string };
+  "web.images.person.cover_auto": undefined;
+  "web.images.person.cover_change": undefined;
+  "web.images.person.cover_done": undefined;
+  "web.images.person.cover_failed": undefined;
+  "web.images.person.cover_hint": undefined;
+  "web.images.person.cover_upload": undefined;
+  "web.images.person.cover_use": undefined;
+  "web.images.person.crop_hint": undefined;
+  "web.images.person.crop_title": undefined;
   "web.images.person.more": { first: string; second: string; count: number };
   "web.images.person.move_failed": undefined;
   "web.images.person.move_find": undefined;

@@ -3667,6 +3667,42 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
+	// People: the face chosen for a person.
+	case *pb.ReqEnvelope_ReqSetPersonCover:
+		req := p.ReqSetPersonCover
+		log.Info("Set a person's face:", req.PersonId)
+		if req.PersonId == "" {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonMissing().Render(lang)
+			break
+		}
+		var err error
+		switch c := req.Cover.(type) {
+		case *pb.SetPersonCover_Hash:
+			err = ch.mg.filesManager.SetPersonCoverFace(req.PersonId, c.Hash)
+		case *pb.SetPersonCover_Image:
+			err = ch.mg.filesManager.SetPersonCoverImage(ses, req.PersonId, c.Image)
+		default:
+			err = ch.mg.filesManager.ResetPersonCover(ses, req.PersonId)
+		}
+		switch {
+		case err == nil:
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		case errors.Is(err, dao.ErrNoSuchPerson):
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonGone().Render(lang)
+		case errors.Is(err, filesmanager.ErrPersonCoverNoFace):
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonCoverNoFace().Render(lang)
+		case errors.Is(err, filesmanager.ErrPersonCoverImage):
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesPersonCoverImage().Render(lang)
+		default:
+			log.Error("error setting a person's face:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		}
+
 	case *pb.ReqEnvelope_ReqStartReprocess:
 		log.Info("Start reprocess")
 		if err := ch.mg.filesManager.Reprocess(ses, p.ReqStartReprocess.ForceRestart); err != nil {

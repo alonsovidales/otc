@@ -884,6 +884,43 @@
     "note": "Under the faces of the Merge dialog (People page): the name the merged person gets. {name} is that name, shown in bold (<b>).",
     "rich": ["b"]
   },
+  "web.images.person.cover_auto": {
+    "text": "Choose automatically",
+    "note": "Menu item under the person's face, shown once a face was chosen: the device picks the best-looking of their faces again (sharp, large, well-lit photos)."
+  },
+  "web.images.person.cover_change": {
+    "text": "Change face",
+    "note": "Screen-reader name and tooltip of the person's face at the top of their photos: opens a menu to upload a photo for it (web.images.person.cover_upload) or let the device choose (web.images.person.cover_auto)."
+  },
+  "web.images.person.cover_done": {
+    "text": "Face updated",
+    "note": "Note after the face People shows for a person was changed (Use this face, an uploaded photo, or Choose automatically)."
+  },
+  "web.images.person.cover_failed": {
+    "text": "Couldn't change the face. Try again.",
+    "note": "Note when the device didn't change the face People shows for a person and gave no reason.",
+    "max": 60
+  },
+  "web.images.person.cover_hint": {
+    "text": "Or select one of their photos and choose Use this face.",
+    "note": "Line in the menu under the person's face (Change face), after its items: the other way to choose the face. Use this face is the button's name, the same words."
+  },
+  "web.images.person.cover_upload": {
+    "text": "Upload a photo…",
+    "note": "Menu item under the person's face (Change face): pick a picture, centre the face in the crop that follows, and People shows it for this person. Upload as elsewhere in the app."
+  },
+  "web.images.person.cover_use": {
+    "text": "Use this face",
+    "note": "Button on a photo of one person (the selection bar with exactly one photo selected among one person's photos, and the photo viewer there): the face found in this photo becomes the one People shows for them."
+  },
+  "web.images.person.crop_hint": {
+    "text": "Drag the photo to centre the face.",
+    "note": "Hint in the crop shown after a photo is picked for a person's face: the photo can be dragged and zoomed so the face is in the middle of the circle."
+  },
+  "web.images.person.crop_title": {
+    "text": "Choose the face",
+    "note": "Title of the crop shown after a photo is picked for a person's face (Upload a photo…): drag and zoom to centre the face."
+  },
   "web.images.person.more": {
     "text": {
       "one": "{first}, {second} & {count} other",
