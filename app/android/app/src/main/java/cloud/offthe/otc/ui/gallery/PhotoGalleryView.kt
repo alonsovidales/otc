@@ -62,6 +62,20 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import cloud.offthe.otc.ui.animationsOff
+import cloud.offthe.otc.ui.common.Toast
+import kotlinx.coroutines.delay
 import androidx.compose.material3.AlertDialog
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.MemoriesSupport
@@ -247,6 +261,8 @@ import cloud.offthe.otc.i18n.appPhotosViewerInfoTitle
 import cloud.offthe.otc.i18n.appPhotosViewerLowRes
 import cloud.offthe.otc.i18n.appPhotosViewerMoreInfo
 import cloud.offthe.otc.i18n.appPhotosViewerSaving
+import cloud.offthe.otc.i18n.appPhotosViewerFavouriteAdd
+import cloud.offthe.otc.i18n.appPhotosViewerFavouriteRemove
 import cloud.offthe.otc.i18n.appShellCollectionsGoToImages
 import cloud.offthe.otc.i18n.appShellSearchClear
 import cloud.offthe.otc.i18n.appShellSearchUnnamed
@@ -683,9 +699,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         // Leaving it, not just looking away: the search is the
                         // whole library again.
                         onBack = { vm.leaveGroup(); onPage(GalleryPage.COLLECTIONS) },
-                        onRename = { renameGroupName = group.name },
+                        // Favourites can't be renamed or deleted (the device refuses both).
+                        onRename = if (group.favourites) null else { { renameGroupName = group.name } },
                         onShare = { gallerySource = SharedGallerySource.newBuilder().setGroupId(group.id).build() },
-                        onDelete = { confirmDeleteGroup = true },
+                        onDelete = if (group.favourites) null else { { confirmDeleteGroup = true } },
                         wallpaperOn = wallpaper?.groupId == group.id,
                         onWallpaper = { wallpaperFor = group },
                         wallpaperProgress = wallpaperProgress?.takeIf { it.groupId == group.id && wallpaper?.groupId == group.id },
@@ -859,7 +876,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                             with(LocalDensity.current) { 44.dp.roundToPx() },
                         ) { g.coverThumbnail.toByteArray() }
                         if (cover != null) Image(cover.asImageBitmap(), null, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentScale = ContentScale.Crop)
-                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) { Icon(NavIcons.Collections, null) }
+                        else Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x26808080)), contentAlignment = Alignment.Center) {
+                            // An empty Favourites: its heart.
+                            if (g.favourites) Icon(Icons.Filled.Favorite, null, tint = MaterialTheme.colorScheme.primary) else Icon(NavIcons.Collections, null)
+                        }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(g.name)
@@ -1412,12 +1432,13 @@ internal fun AreaBackButton(metrics: GridMetrics, onClick: () -> Unit) {
  * An open collection, above its photos (the web's CollectionHeader): back
  * to Collections, its name (a tap renames it), how many photos and the
  * months they span, and sharing it as a gallery or deleting it - icons
- * when [compact], labelled buttons on a wide window.
+ * when [compact], labelled buttons on a wide window. [onRename] and
+ * [onDelete] null: neither (Favourites).
  */
 @Composable
 private fun CollectionHeader(
     g: ImageGroup, span: String, compact: Boolean, metrics: GridMetrics,
-    onBack: () -> Unit, onRename: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
+    onBack: () -> Unit, onRename: (() -> Unit)?, onShare: () -> Unit, onDelete: (() -> Unit)?,
     // The phone's wallpaper (WallpaperBox.kt): this collection is it now
     // ([wallpaperOn]: "Wallpaper settings…", else "Use as wallpaper…"), and
     // how far its copies are while they are stored.
@@ -1446,10 +1467,10 @@ private fun CollectionHeader(
                     Text(
                         g.name,
                         Modifier.weight(1f, fill = false).clip(RoundedCornerShape(8.dp))
-                            .clickable(onClickLabel = rename, onClick = onRename).semantics { heading() },
+                            .let { if (onRename != null) it.clickable(onClickLabel = rename, onClick = onRename) else it }.semantics { heading() },
                         style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
-                    IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
+                    if (onRename != null) IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
                         Icon(Icons.Outlined.Edit, rename, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
                     }
                 }
@@ -1462,7 +1483,7 @@ private fun CollectionHeader(
             if (compact) Row {
                 IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
                 IconButton(onClick = onWallpaper) { Icon(Icons.Outlined.Wallpaper, wallpaper, tint = if (wallpaperOn) colors.primary else colors.onSurfaceVariant) }
-                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
+                if (onDelete != null) IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
                     Icon(Icons.Outlined.Public, null, Modifier.size(20.dp))
@@ -1474,7 +1495,7 @@ private fun CollectionHeader(
                     Spacer(Modifier.width(8.dp))
                     Text(wallpaper)
                 }
-                OutlinedButton(
+                if (onDelete != null) OutlinedButton(
                     onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
                 ) {
@@ -1832,6 +1853,10 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             )
         }
     }
+    // Favourites: the open photo's heart - none (nor its room) on a device
+    // before Favourites, its room kept until the device has said.
+    val hearts = !st.favouritesOff
+    val heart = st.items.getOrNull(idx)?.let { st.favourites[it.path] }
     val pagerState = rememberPagerState(initialPage = idx) { st.items.size }
     // By the photo, not its place: newer ones landing above it (issue #194) leave it open.
     val pageKey: (Int) -> Any = { st.items.getOrNull(it)?.id ?: it }
@@ -1855,6 +1880,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                 // place in the composition either way, so a rotation re-lays
                 // it out without disposing it (or restarting the video in it).
                 val landscape = controlsBeside(maxWidth, maxHeight)
+                val width = maxWidth
                 Column(Modifier.fillMaxSize()) {
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(8.dp)) {
                         ViewerInfoButton(vm)
@@ -1876,14 +1902,26 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight()) {
                             Box(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) { ViewerCloseButton(vm) }
                             Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
+                                ViewerActions(
+                                    st.saving, hearts, heart, onFavourite = vm::toggleFavourite,
+                                    onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true },
+                                )
                             }
                         }
                     }
-                    if (!landscape) Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)) {
-                        ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
+                    if (!landscape) Row(
+                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        // 48 dp apart, closer where the heart's fourth button wouldn't fit so.
+                        horizontalArrangement = Arrangement.spacedBy(actionsGap(width, if (hearts) 4 else 3), Alignment.CenterHorizontally),
+                    ) {
+                        ViewerActions(
+                            st.saving, hearts, heart, onFavourite = vm::toggleFavourite,
+                            onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true },
+                        )
                     }
                 }
+                // A heart's change the device didn't take: why, for a few seconds.
+                Toast(st.favouriteNote?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = 56.dp, start = 16.dp, end = 16.dp))
             }
         }
     }
@@ -1905,6 +1943,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false },
         )
     }
+    st.favouriteNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.favouriteNoteShown() } }
     LaunchedEffect(personShown) { if (personShown == null) { confirmNotPerson = false; pickPerson = false } }
     if (confirmNotPerson && personShown != null) {
         ConfirmDialog(
@@ -1927,6 +1966,10 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) { FileInfoView(st.infoLoading, st.infoData) }
 }
+
+/** The gap between [buttons] 48 dp buttons in a row [width] wide: 48 dp, less where that wouldn't fit (8 dp at least). */
+private fun actionsGap(width: Dp, buttons: Int): Dp =
+    ((width - 48.dp * buttons - 32.dp) / (buttons - 1)).coerceIn(8.dp, 48.dp)
 
 /** How wide each side column of the viewer is in landscape: a 48 dp button with a little room. */
 private val VIEWER_SIDE_COLUMN = 56.dp
@@ -1985,13 +2028,19 @@ private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
 }
 
 /**
- * Share, save and delete: a row under the photo in portrait, a column
- * beside it in landscape. [saving] (issue #201): the original is on its
- * way to the phone's library - Save spins, and waits.
+ * Share, the heart, save and delete: a row under the photo in portrait, a
+ * column beside it in landscape. [saving] (issue #201): the original is on
+ * its way to the phone's library - Save spins, and waits. [hearts]: the
+ * device has Favourites (or hasn't said) - the heart, [favourite] (null
+ * until the device has said), tapped [onFavourite].
  */
 @Composable
-private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
+private fun ViewerActions(
+    saving: Boolean, hearts: Boolean, favourite: Boolean?, onFavourite: () -> Unit,
+    onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit,
+) {
     IconButton(onClick = onShare) { Icon(Icons.Default.Share, S.commonShare().resolve(), tint = Color.White) }
+    if (hearts) FavouriteButton(favourite, onFavourite)
     if (saving) {
         val label = S.appPhotosViewerSaving().resolve()
         IconButton(onClick = {}, enabled = false, modifier = Modifier.semantics { contentDescription = label }) {
@@ -1999,6 +2048,49 @@ private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Un
         }
     } else IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
     IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
+}
+
+// How long the viewer's note about a heart stays.
+private const val FAVOURITE_NOTE_MS = 4_000L
+
+/**
+ * The heart (Favourites, owner 2026-10-31): empty, or full in the app's
+ * ember while the photo is in Favourites; a tap puts it in or takes it out
+ * (toggleFavourite). [on] null: the device hasn't said yet - its room is
+ * kept and left empty, so a heart never shows the wrong way first. As it
+ * fills, a light tap of the phone and a small pop (none with animations
+ * off). A switch for TalkBack, named for what a tap does.
+ */
+@Composable
+private fun FavouriteButton(on: Boolean?, onToggle: () -> Unit) {
+    if (on == null) { Spacer(Modifier.size(48.dp)); return }
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+    val still = remember { animationsOff(context) }
+    val pop = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    val label = (if (on) S.appPhotosViewerFavouriteRemove() else S.appPhotosViewerFavouriteAdd()).resolve()
+    Box(
+        Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape)
+            .toggleable(value = on, role = Role.Switch) { fill ->
+                if (fill) {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    if (!still) scope.launch {
+                        pop.snapTo(1f)
+                        pop.animateTo(1.3f, tween(90))
+                        pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow))
+                    }
+                }
+                onToggle()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (on) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, label,
+            Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
+            tint = if (on) MaterialTheme.colorScheme.primary else Color.White,
+        )
+    }
 }
 
 @Composable

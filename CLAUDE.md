@@ -3380,6 +3380,21 @@ map (`State.activeArea`, Places on, the grid showing) starts with `AreaBackButto
 `headerCount`; outlined, 48 dp, an arrow and "Back to the map") on narrow and wide windows, doing what
 the "Map area" chip's tap does (`onPage(GalleryPage.PLACES)`: the map where it was); the chip stays. A
 debug-only `PageSortPreviewActivity` draws them on sample data. Tests: `PageSortTest.kt`.
+**Favourites on Android** (2026-10-31; the device side under "Image groups are called collections"; iOS must
+match): the viewer (`ImageModal`: Images, People, Collections, Places, On this day, Files) has a heart between
+Share and Save (`FavouriteButton`, a `Role.Switch` named by `app.photos.viewer.favourite_add`/`_remove`, ember
+when full). Each photo shown asks `GetFavourites` for it and its neighbours in one request (`askFavourites`;
+no answer: again with the pages' backoff, 5 tries at most, `FAVOURITES_TRIES`); until the open one's answer is
+in (`State.favourites`, by path, forgotten as the viewer closes) its room stays empty. A tap draws at once
+(every tile of the photo, `samePhoto`), with a ToggleOn haptic and a pop as it fills (no pop with animations
+off), and `SetFavourite` goes one per path at a time (`sendFavourite`: the device ends with the last tap);
+refused or unanswered, the heart goes back and a `Toast` in the viewer says the device's words or
+`favourite_failed` (`favouriteRefusal`). `unknown_payload`: no heart, nor its room, until the next sign-in.
+Inside Favourites a photo taken out stays in the viewer and leaves the grid as it closes (`dropUnfavourited`);
+the collections are listed again once it has closed. Favourites is first in either Sort by
+(`PageSort.collections`), has no Rename or Delete, and an empty one's cover is a heart (card and sheet). A
+debug-only `FavouritesPreviewActivity` (`--es device demo|old|silent`, `--es show collections`) draws them on
+sample data. Tests: `PhotoGalleryFavouritesTest.kt`, `PageSortTest.kt`.
 **Sort by and Back to the map on iOS** (2026-10-30, the owner's request after user feedback;
 `SortBy.swift`, `AreaBackButton` in `Places.swift`, tests `SortByTests.swift`; Android's rules above,
 case for case): People and Collections have a Sort by menu (`SortByMenu`: the sort icon at the

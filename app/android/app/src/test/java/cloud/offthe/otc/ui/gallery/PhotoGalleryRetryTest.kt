@@ -5,6 +5,7 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.Patience
 import cloud.offthe.otc.net.WSClient
 import cloud.offthe.otc.proto.Ack
+import cloud.offthe.otc.proto.Favourites
 import cloud.offthe.otc.proto.File
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ImageGroups
@@ -502,6 +503,8 @@ class PhotoGalleryRetryTest {
             // The grid's tiles (small ones) apart from the viewer's big one.
             ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS ->
                 if (req.reqGetThumbnails.smallThumbnails) noThumbs else thumbs(req.reqGetThumbnails.getPaths(0))
+            // The viewer's hearts (Favourites): none in it, so its asks wait for nothing here.
+            ReqEnvelope.PayloadCase.REQ_GET_FAVOURITES -> RespEnvelope.newBuilder().setRespFavourites(Favourites.getDefaultInstance()).build()
             else -> null
         }
     }

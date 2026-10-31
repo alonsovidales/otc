@@ -301,14 +301,15 @@ class PhotoGalleryPersonTest {
         // The last one: the one before it.
         on { vm.dismissAlert() }
         on { vm.takeOpenOffPerson(to = leo) }
-        await("the note") { vm.state.value.alert != null }
+        // The note comes just before the viewer moves on: both awaited.
+        await("the note") { vm.state.value.alert != null && vm.state.value.openIndex == 0 }
         assertEquals("p2", dev.removes().last().toPersonId)
         assertEquals(listOf("a"), paths(vm))
         assertEquals(0, vm.state.value.openIndex)
         // The only one: the viewer closes.
         on { vm.dismissAlert() }
         on { vm.takeOpenOffPerson() }
-        await("the note") { vm.state.value.alert != null }
+        await("the note") { vm.state.value.alert != null && vm.state.value.openIndex == null }
         assertTrue(paths(vm).isEmpty())
         assertNull(vm.state.value.openIndex)
     }

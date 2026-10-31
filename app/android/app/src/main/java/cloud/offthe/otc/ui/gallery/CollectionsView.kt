@@ -32,6 +32,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -90,8 +92,9 @@ import cloud.offthe.otc.i18n.LanguageSettings
 // own - on a phone's narrow window Images' Collections button lists them
 // in a sheet instead. Every collection (an image group in the protocol) as
 // a card with its cover, newest first as the device lists them or by name
-// (Sort by, PageSort.kt); a card opens Images on that collection, which is
-// where one is renamed, shared or deleted.
+// (Sort by, PageSort.kt) - Favourites first either way; a card opens Images
+// on that collection, which is where one is renamed, shared or deleted
+// (Favourites neither).
 
 private const val SKELETON_CARDS = 8
 // How long the first listing may take before the page offers to ask again.
@@ -184,7 +187,7 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
     }
 }
 
-/** A collection: its square cover (the icon when it has none), the name and how many items. */
+/** A collection: its square cover (the icon when it has none, Favourites' heart), the name and how many items. */
 @Composable
 private fun CollectionCard(g: ImageGroup, coverPx: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
@@ -202,6 +205,8 @@ private fun CollectionCard(g: ImageGroup, coverPx: Int, modifier: Modifier = Mod
             contentAlignment = Alignment.Center,
         ) {
             if (cover != null) Image(cover.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            // An empty Favourites: its heart.
+            else if (g.favourites) Icon(Icons.Filled.Favorite, null, Modifier.size(36.dp), tint = colors.primary)
             else Icon(NavIcons.Collections, null, Modifier.size(36.dp), tint = colors.onSurfaceVariant)
         }
         Text(

@@ -13,8 +13,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
-// Sort by on People and Collections (PageSort.kt), and when Images shows
-// "Back to the map" (showsAreaBack). iOS's PeopleSort / CollectionsSort /
+// Sort by on People and Collections (PageSort.kt) - Favourites first in
+// either order -, and when Images shows "Back to the map" (showsAreaBack). iOS's PeopleSort / CollectionsSort /
 // AreaBackButton follow the same rules: change them together.
 class PageSortTest {
     private val en: Locale = Locale.ENGLISH
@@ -112,6 +112,17 @@ class PageSortTest {
             listOf("bday", "bday2", "easter", "trip2", "trip10", "zoo", "x1", "x2"),
             collections(groups, CollectionsSort.NAME),
         )
+    }
+
+    @Test fun favouritesStaysFirstWhateverTheOrder() {
+        // The device lists it first, named in the session's language; a name
+        // that sorts late, or a list from elsewhere, doesn't move it.
+        val fav = ImageGroup.newBuilder().setId("favourites").setName("Favoritos").setFavourites(true).build()
+        val all = listOf(g("zoo", "zoo"), fav, g("bday", "Birthday"), g("x1", ""))
+        assertEquals(listOf("favourites", "zoo", "bday", "x1"), collections(all, CollectionsSort.NEWEST))
+        assertEquals(listOf("favourites", "bday", "zoo", "x1"), collections(all, CollectionsSort.NAME))
+        assertEquals(listOf("favourites", "bday"), collections(listOf(g("bday", "Birthday"), fav), CollectionsSort.NAME))
+        assertEquals(listOf("favourites"), collections(listOf(fav), CollectionsSort.NAME))
     }
 
     @Test fun collectionsSortAsKept() {

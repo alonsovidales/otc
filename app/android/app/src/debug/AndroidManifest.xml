@@ -28,5 +28,12 @@
             android:name=".PageSortPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- Favourites: the viewer's heart and Collections' empty Favourites on
+             sample data (adb shell am start -n cloud.offthe.otc/.FavouritesPreviewActivity
+             [- -es device demo|old|silent] [- -es show collections]). -->
+        <activity
+            android:name=".FavouritesPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

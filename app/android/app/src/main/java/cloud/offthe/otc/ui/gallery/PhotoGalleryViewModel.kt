@@ -13,6 +13,7 @@ import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.i18n.appPhotosSmartSearchFailed
+import cloud.offthe.otc.i18n.appPhotosViewerFavouriteFailed
 import cloud.offthe.otc.ui.settings.deviceOr
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
@@ -30,6 +31,7 @@ import cloud.offthe.otc.proto.CreateImageGroup
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.DeleteImageGroup
 import cloud.offthe.otc.proto.FileExifInfo
+import cloud.offthe.otc.proto.GetFavourites
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetFileInfo
 import cloud.offthe.otc.proto.GetTags
@@ -46,6 +48,7 @@ import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.ReqPhotoDateBuckets
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
+import cloud.offthe.otc.proto.SetFavourite
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
@@ -154,6 +157,11 @@ private const val BIG_THUMBS_KEPT = 4
 // neighbours are fetched: a run of quick swipes is past it by then, so only
 // the photo it stops on readies them (the web viewer's cRapidStepMs).
 private const val NEIGHBOURS_AFTER_MS = 250L
+
+// How many times the viewer asks for the hearts of a photo it stays on
+// while no answer comes (1 s doubling to 10 s between): about half a
+// minute; then the next photo shown asks again.
+private const val FAVOURITES_TRIES = 5
 
 // Port of PhotoGalleryVM (PhotoGallery.swift). Tag chips, the person
 // filter (issue #52, AND semantics), image groups (issue #115, which the
@@ -342,6 +350,18 @@ class PhotoGalleryViewModel(
         val upLanded: Int = 0,
         // Issue #201: the viewer's Save is downloading an original (its spinner).
         val saving: Boolean = false,
+        // Favourites, the viewer's heart (owner, 2026-10-31): whether each
+        // path's photo is in it, as the device said (GetFavourites, asked as
+        // a photo shows, with its neighbours) and as the heart was tapped
+        // since; forgotten as the viewer closes. A path not in it isn't
+        // known yet: no heart is drawn for it, its room kept.
+        val favourites: Map<String, Boolean> = emptyMap(),
+        // The device answered unknown_payload (one before Favourites): no
+        // heart, nor its room, until the next sign-in.
+        val favouritesOff: Boolean = false,
+        // The viewer's short note when a heart's change didn't go through:
+        // the device's words, else favourite_failed.
+        val favouriteNote: UiText? = null,
     ) {
         /** A tag search, and a Smart search's text, are sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
         val dateOrdered get() = chips.isEmpty() && smartText == null
@@ -979,7 +999,11 @@ class PhotoGalleryViewModel(
             val r = call { it.setReqCreateImageGroup(CreateImageGroup.newBuilder().setName(name).addAllPaths(paths).setSmallThumbnails(true)) }
             if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert(S.appPhotosNoticeCreateFailed()); return }
             pickedAway = emptyMap()
-            _state.update { st -> st.copy(groups = listOf(r.respImageGroup.group) + st.groups, selected = emptySet()) }
+            // First among the collections, after Favourites (always first).
+            _state.update { st ->
+                val (favourites, others) = st.groups.partition { it.favourites }
+                st.copy(groups = favourites + r.respImageGroup.group + others, selected = emptySet())
+            }
             alert(S.appPhotosNoticeCreated(name))
         } catch (e: Exception) { alert(S.appPhotosNoticeCreateFailed()) }
     }
@@ -1655,6 +1679,7 @@ class PhotoGalleryViewModel(
         _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
+        askFavourites(index)
     }
 
     /**
@@ -1683,9 +1708,21 @@ class PhotoGalleryViewModel(
     }
 
     fun closeModal() {
+        // Before the hearts are forgotten: inside Favourites, the photos
+        // taken out leave its grid now.
+        val dropped = dropUnfavourited()
         hiResOrder.clear()
         stopBigThumb()
-        _state.update { it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet()) }
+        viewerClosings++
+        // What the device said goes with the hearts; a change still on its
+        // way keeps its own.
+        favouritesSaid.keys.retainAll(favouriteWanted.keys)
+        favouriteTaps.keys.retainAll(favouriteWanted.keys)
+        favouriteSends.values.removeAll { !it.isActive }
+        _state.update {
+            it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null)
+        }
+        if (heartsChanged) heartsLanded(listAgain = !dropped)
         // The Files viewer's list only lives while it is open.
         if (fixedList) _state.update { it.copy(items = emptyList()) }
     }
@@ -1798,6 +1835,184 @@ class PhotoGalleryViewModel(
     }
     fun prev() { _state.value.openIndex?.let { if (it > 0) open(it - 1) } }
     fun next() { _state.value.openIndex?.let { if (it < _state.value.items.size - 1) open(it + 1) } }
+
+    // ---- Favourites: the viewer's heart ----
+
+    // What the device last said of each path's photo (GetFavourites, or a
+    // SetFavourite it took): what a heart whose change failed goes back to.
+    private val favouritesSaid = HashMap<String, Boolean>()
+    // What a heart was last tapped to, by path, while its change is on the
+    // way: one SetFavourite per path at a time (sendFavourite), so the
+    // device ends with the last tap - requests run side by side there.
+    private val favouriteWanted = HashMap<String, Boolean>()
+    private val favouriteSends = HashMap<String, Job>()
+    // Each path's taps: an answer to a GetFavourites asked before one is
+    // older than the heart, and is left.
+    private val favouriteTaps = HashMap<String, Int>()
+    // The sign-in at which the device answered unknown_payload: no heart until the next.
+    private var favouritesOffAt: Int? = null
+    // The latest GetFavourites (only it is asked again after a failure),
+    // and the viewer's closings (an answer that lands after one is left).
+    private var favouritesAsk = 0
+    private var viewerClosings = 0
+    // A heart the device took while the viewer was open: the collections
+    // are asked for again as it closes (heartsLanded).
+    private var heartsChanged = false
+
+    /**
+     * The hearts of the photo at [index] and of its neighbours, so a swipe
+     * finds theirs known: GetFavourites for the three paths in one request,
+     * each time a photo shows (another app may have changed one). An answer
+     * sets each path's heart - not one tapped since it was asked, nor one
+     * whose change is on its way. No answer: asked again, 1 s doubling to
+     * 10 s and at once on a Wake, while the viewer stays on that photo and
+     * its heart isn't known - [FAVOURITES_TRIES] times in all, then the
+     * next photo shown asks. unknown_payload (a device before Favourites):
+     * no heart until the next sign-in, and nothing asked meanwhile.
+     */
+    private fun askFavourites(index: Int) {
+        if (!favouritesAsked()) return
+        val st = _state.value
+        val path = st.items.getOrNull(index)?.path ?: return
+        val paths = favouritePaths(st.items, index)
+        val ask = ++favouritesAsk
+        val opening = viewerClosings
+        scope.launch {
+            var failures = 0
+            while (true) {
+                val taps = paths.associateWith { favouriteTaps[it] ?: 0 }
+                val resp = try {
+                    call { it.setReqGetFavourites(GetFavourites.newBuilder().addAllPaths(paths)) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) { null }
+                if (opening != viewerClosings) return@launch
+                if (resp != null && resp.isUnknownPayload()) { favouritesOff(); return@launch }
+                if (resp?.payloadCase == RespEnvelope.PayloadCase.RESP_FAVOURITES) {
+                    val inFavourites = resp.respFavourites.pathsList.toHashSet()
+                    val fresh = paths.filter { (favouriteTaps[it] ?: 0) == taps[it] && it !in favouriteWanted }
+                    for (p in fresh) favouritesSaid[p] = p in inFavourites
+                    _state.update { s -> s.copy(favourites = s.favourites + fresh.associateWith { it in inFavourites }) }
+                    return@launch
+                }
+                if (ask != favouritesAsk || openPath() != path || path in _state.value.favourites) return@launch
+                if (++failures >= FAVOURITES_TRIES) return@launch
+                pause(retryWaitMs(failures))
+                if (ask != favouritesAsk || opening != viewerClosings || openPath() != path) return@launch
+            }
+        }
+    }
+
+    // Whether to ask: not on a device found before Favourites since this
+    // sign-in; after the next one, again.
+    private fun favouritesAsked(): Boolean {
+        val off = favouritesOffAt ?: return true
+        if (off == signIns()) return false
+        favouritesOffAt = null
+        _state.update { it.copy(favouritesOff = false) }
+        return true
+    }
+
+    private fun favouritesOff() {
+        favouritesOffAt = signIns()
+        _state.update { it.copy(favouritesOff = true, favourites = emptyMap()) }
+    }
+
+    /**
+     * The heart's tap: the open photo into Favourites, or out of it - drawn
+     * at once, on every tile of that photo here (a member is a photo: any
+     * copy counts) - then SetFavourite (sendFavourite). A tap before its
+     * heart is known does nothing (none is drawn). Inside Favourites a
+     * photo taken out stays in the viewer, to be put back; it leaves the
+     * grid as the viewer closes (dropUnfavourited).
+     */
+    fun toggleFavourite() {
+        val st = _state.value
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        val now = st.favourites[item.path] ?: return
+        val paths = samePhoto(st.items, item)
+        for (p in paths) favouriteTaps[p] = (favouriteTaps[p] ?: 0) + 1
+        favouriteWanted[item.path] = !now
+        _state.update { s -> s.copy(favourites = s.favourites + paths.associateWith { !now }, favouriteNote = null) }
+        if (favouriteSends[item.path]?.isActive != true) favouriteSends[item.path] = scope.launch { sendFavourite(item.path, paths) }
+    }
+
+    /**
+     * [path]'s heart to the device, a request at a time, until the device
+     * holds what it was last tapped to ([paths]: every tile of the photo).
+     * Refused or unanswered, the heart goes back to what the device last
+     * said, whatever was tapped since, and the viewer's note says why
+     * (favouriteRefusal): the device's words - the demo device refuses -,
+     * else favourite_failed.
+     */
+    private suspend fun sendFavourite(path: String, paths: List<String>) {
+        while (true) {
+            val want = favouriteWanted[path] ?: return
+            if (want == favouritesSaid[path]) {
+                favouriteWanted.remove(path)
+                // The viewer opened again meanwhile: its heart is known now.
+                if (_state.value.openIndex != null) _state.update { s -> s.copy(favourites = s.favourites + paths.associateWith { want }) }
+                return
+            }
+            val resp = try {
+                call { it.setReqSetFavourite(SetFavourite.newBuilder().addPaths(path).setFavourite(want)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            val refused = favouriteRefusal(resp)
+            if (refused == null) {
+                for (p in paths) favouritesSaid[p] = want
+                heartsLanded()
+                continue
+            }
+            favouriteWanted.remove(path)
+            for (p in paths) favouriteTaps[p] = (favouriteTaps[p] ?: 0) + 1
+            if (resp != null && resp.isUnknownPayload()) favouritesOff()
+            val said = favouritesSaid[path] ?: !want
+            if (_state.value.openIndex != null) {
+                _state.update { s -> s.copy(favourites = if (s.favouritesOff) s.favourites else s.favourites + paths.associateWith { said }, favouriteNote = refused) }
+            }
+            // Taken off Favourites' grid as the viewer closed: back in it.
+            val st = _state.value
+            if (said && !fixedList && st.activeGroup?.favourites == true && paths.any { p -> st.items.none { it.path == p } }) restartSearch()
+            return
+        }
+    }
+
+    /** The viewer's note was shown long enough. */
+    fun favouriteNoteShown() = _state.update { it.copy(favouriteNote = null) }
+
+    /**
+     * Inside Favourites, as the viewer closes: the photos whose heart it
+     * left empty leave the grid, as photos taken out of a collection do
+     * (with the months' and the collection's counts, the collections
+     * listed again). While it was open they stayed, to be put back. True
+     * when some left.
+     */
+    private fun dropUnfavourited(): Boolean {
+        val st = _state.value
+        if (fixedList || st.activeGroup?.favourites != true) return false
+        val out = unfavourited(st.items, st.favourites)
+        if (out.isEmpty()) return false
+        scope.launch {
+            removeDeleted(out, keepThumbs = true)
+            countsChanged()
+        }
+        return true
+    }
+
+    // A heart the device took: the collections' counts and covers change -
+    // asked for again once the viewer has closed (not at every tap), so the
+    // next look at them is right - and Favourites shown as the wallpaper
+    // gets its copies again. [listAgain]: false when they are listed
+    // again anyway (dropUnfavourited).
+    private fun heartsLanded(listAgain: Boolean = true) {
+        if (_state.value.openIndex != null) { heartsChanged = true; return }
+        heartsChanged = false
+        val st = _state.value
+        st.groups.firstOrNull { it.favourites }?.let { Wallpaper.collectionChanged(it.id) }
+        if (listAgain && !fixedList && (st.groupsLoaded || st.activeGroup != null)) scope.launch { loadGroups() }
+    }
 
     fun openInfo() {
         val idx = _state.value.openIndex ?: return
@@ -2416,6 +2631,35 @@ fun deleteRefusalNotes(refusals: List<DeleteRefusal>): List<UiText> {
         if (copies > 0) add(S.appPhotosNoticeDeleteCopyUploadOnly(copies))
         for (said in others) add(S.appPhotosNoticeDeleteFailed(said))
     }
+}
+
+/** Favourites: the paths whose hearts are asked for as the photo at [index] shows - its own and its neighbours'. */
+internal fun favouritePaths(items: List<PhotoGalleryViewModel.Item>, index: Int): List<String> =
+    (index - 1..index + 1).mapNotNull { items.getOrNull(it)?.path }.distinct()
+
+/**
+ * Favourites: every tile of [item]'s photo among [items], its own path
+ * first - a member is a photo (by its hash), so one heart is all of them.
+ */
+internal fun samePhoto(items: List<PhotoGalleryViewModel.Item>, item: PhotoGalleryViewModel.Item): List<String> =
+    if (item.hash.isEmpty()) listOf(item.path)
+    else (listOf(item.path) + items.filter { it.hash == item.hash }.map { it.path }).distinct()
+
+/** Favourites: the paths of [items] whose heart is known to be empty - what leaves its grid as the viewer closes. */
+internal fun unfavourited(items: List<PhotoGalleryViewModel.Item>, favourites: Map<String, Boolean>): Set<String> =
+    items.filter { favourites[it.path] == false }.mapTo(HashSet()) { it.path }
+
+/**
+ * What a SetFavourite answer means: null when the device took it, else the
+ * viewer's note - the device's words (the demo device's refusal), else
+ * favourite_failed (no answer, an older device's, or none in words).
+ */
+internal fun favouriteRefusal(resp: RespEnvelope?): UiText? = when {
+    resp == null || resp.isUnknownPayload() -> S.appPhotosViewerFavouriteFailed()
+    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok -> null
+    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK -> deviceOr(resp.respAck.errorMsg, S.appPhotosViewerFavouriteFailed())
+    resp.error -> deviceOr(resp.errorMessage, S.appPhotosViewerFavouriteFailed())
+    else -> S.appPhotosViewerFavouriteFailed()
 }
 
 /**

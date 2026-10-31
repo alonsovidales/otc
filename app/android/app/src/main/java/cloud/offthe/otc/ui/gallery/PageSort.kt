@@ -62,6 +62,7 @@ import java.util.Locale
 // - Collections: Newest first (the default: the device's order, the
 //   collections made most recently first) or Name, A to Z the same way,
 //   collections without a name ("Untitled") last, in the device's order;
+//   Favourites (ImageGroup.favourites, owner 2026-10-31) first in either;
 // - two with the same name keep the default order between them;
 // - one choice per page for the app, kept in otc_settings as Files' view
 //   mode is (people_sort, collections_sort): backed up, wiped at Log Out.
@@ -102,11 +103,17 @@ object PageSort {
         collator: (Locale) -> NameCollator = NameCollator::icu,
     ): List<Person> = if (sort == PeopleSort.NAME) byName(shown, { it.name }, locale, collator) else shown
 
-    /** The collections (as the device lists them: newest first) in [sort]. */
+    /**
+     * The collections (as the device lists them: Favourites, then the
+     * newest first) in [sort], Favourites first whatever the order.
+     */
     fun collections(
         groups: List<ImageGroup>, sort: CollectionsSort, locale: Locale,
         collator: (Locale) -> NameCollator = NameCollator::icu,
-    ): List<ImageGroup> = if (sort == CollectionsSort.NAME) byName(groups, { it.name }, locale, collator) else groups
+    ): List<ImageGroup> {
+        val (favourites, others) = groups.partition { it.favourites }
+        return favourites + if (sort == CollectionsSort.NAME) byName(others, { it.name }, locale, collator) else others
+    }
 
     /**
      * [items] with a name A to Z, then those without one ([name] blank) in
