@@ -523,6 +523,9 @@ export type MessageKey =
   | "web.images.viewer.dimensions"
   | "web.images.viewer.download_it"
   | "web.images.viewer.exposure"
+  | "web.images.viewer.favourite_add"
+  | "web.images.viewer.favourite_failed"
+  | "web.images.viewer.favourite_remove"
   | "web.images.viewer.focal_length"
   | "web.images.viewer.info"
   | "web.images.viewer.iso"
@@ -1641,6 +1644,9 @@ export interface MessageArgs {
   "web.images.viewer.dimensions": undefined;
   "web.images.viewer.download_it": undefined;
   "web.images.viewer.exposure": undefined;
+  "web.images.viewer.favourite_add": undefined;
+  "web.images.viewer.favourite_failed": undefined;
+  "web.images.viewer.favourite_remove": undefined;
   "web.images.viewer.focal_length": undefined;
   "web.images.viewer.info": undefined;
   "web.images.viewer.iso": undefined;

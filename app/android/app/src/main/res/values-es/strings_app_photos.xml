@@ -308,6 +308,9 @@
     <string name="app_photos_viewer_delete_title">¿Eliminar esta foto?</string>
     <string name="app_photos_viewer_delete_video">Eliminar vídeo</string>
     <string name="app_photos_viewer_delete_video_title">¿Eliminar este vídeo?</string>
+    <string name="app_photos_viewer_favourite_add">Añadir a Favoritos</string>
+    <string name="app_photos_viewer_favourite_failed">No se pudo cambiar Favoritos. Inténtalo de nuevo.</string>
+    <string name="app_photos_viewer_favourite_remove">Quitar de Favoritos</string>
     <string name="app_photos_viewer_info_aperture">Apertura</string>
     <string name="app_photos_viewer_info_camera">Cámara</string>
     <string name="app_photos_viewer_info_dimensions">Dimensiones</string>

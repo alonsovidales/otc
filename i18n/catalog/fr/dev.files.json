@@ -14,6 +14,8 @@
   "dev.files.delete_failed": {"text": "erreur lors de la suppression du fichier : {detail}"},
   "dev.files.download_failed": {"text": "erreur lors du téléchargement du fichier : {detail}"},
   "dev.files.exif_unsupported": {"text": "type MIME non pris en charge pour EXIF : {mime}"},
+  "dev.files.favourites": {"text": "Favoris"},
+  "dev.files.favourites_fixed": {"text": "la collection Favoris ne peut être ni renommée ni supprimée"},
   "dev.files.file_not_found": {"text": "fichier introuvable"},
   "dev.files.file_offset": {"text": "position {offset} hors du fichier"},
   "dev.files.folder_update_failed": {"text": "erreur lors de la mise à jour du dossier : {detail}"},

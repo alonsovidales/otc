@@ -1027,6 +1027,19 @@
     "review": "required",
     "reviewed": "claude-backtranslation 2026-10-14 #adc476b7"
   },
+  "app.photos.viewer.favourite_add": {
+    "text": "Add to Favourites",
+    "note": "Accessibility label of the empty heart in the photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections."
+  },
+  "app.photos.viewer.favourite_failed": {
+    "text": "Couldn't change Favourites. Try again.",
+    "note": "Note in the photo viewer when the device didn't put the photo in Favourites or take it out (the heart goes back as it was).",
+    "max": 60
+  },
+  "app.photos.viewer.favourite_remove": {
+    "text": "Remove from Favourites",
+    "note": "Accessibility label of the full heart in the photo viewer (the photo is in Favourites): takes it out of Favourites. The photo itself stays."
+  },
   "app.photos.viewer.info_aperture": {
     "text": "Aperture",
     "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the aperture (f/1.8).",

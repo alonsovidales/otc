@@ -77,7 +77,7 @@ func TestImageGroupSelectRepeatsTheExclusion(t *testing.T) {
 	if err != nil || g.FileCount != 1 || g.CoverHash != "h1" {
 		t.Fatalf("%+v, %v", g, err)
 	}
-	mock.ExpectQuery("from `image_groups` as `g` order by `g`.`created` desc").WithArgs().
+	mock.ExpectQuery("from `image_groups` as `g` order by `g`.`id` = 'favourites' desc, `g`.`created` desc").WithArgs().
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}))
 	if _, err := d.ListImageGroups(nil); err != nil {
 		t.Fatal(err)

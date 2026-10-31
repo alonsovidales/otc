@@ -7,6 +7,7 @@
     {"en": "Collections", "text": "Sammlungen", "note": "Tab name. Groups of images are always called collections, in every app and on the site; never albums.", "enforce": true},
     {"en": "collection", "text": "Sammlung", "note": "One group of images. Feminine.", "enforce": true},
     {"en": "Add to collection", "text": "Zur Sammlung hinzufügen", "note": "Action in Images. Other texts quote it, so it is always these exact words.", "enforce": true},
+    {"en": "Favourites", "text": "Favoriten", "note": "The collection every device has, listed first; photos go in with the viewer's heart. Always this name, with a capital, never translated as a plain word like likes. Plural.", "enforce": true},
     {"en": "Files", "text": "Dateien", "note": "Tab name: the folders and files on the device. Also the generic plural files.", "enforce": true},
     {"en": "file", "text": "Datei", "note": "One file. Feminine.", "enforce": false},
     {"en": "folder", "text": "Ordner", "note": "A folder on the device or on a computer. Masculine.", "enforce": true},

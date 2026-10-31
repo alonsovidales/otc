@@ -2813,16 +2813,66 @@ type ImageGroup struct {
 	CoverHash string
 }
 
-// ListImageGroups lists every group, newest first, with a live member
-// count and a random cover. Both are computed against `files` rather
-// than image_group_files alone, so a member whose last copy was deleted
-// is neither counted nor offered as a cover (see the table's comment in
-// db.sql for why there is no FK doing this for us). excluded (issue #192):
-// a member only folders kept out of Images hold is neither either - it
-// stays a member, and is back once shown in Images again.
+// FavouritesGroupID is the Favourites collection's id: one row every
+// database gets (EnsureFavourites), listed first, never renamed or deleted.
+// Members are photos like any group's, so Add to / Remove from collection
+// work on it unchanged.
+const FavouritesGroupID = "favourites"
+
+// IsFavourites says whether g is the Favourites collection.
+func (g *ImageGroup) IsFavourites() bool {
+	return g.ID == FavouritesGroupID
+}
+
+// EnsureFavourites makes the Favourites row if it isn't there yet. Its
+// name is only what a direct read of the table shows: the device names it
+// in the session's language when it lists it.
+func (dao *Dao) EnsureFavourites() error {
+	_, err := dao.db.Exec("insert ignore into `image_groups` (`id`, `name`, `created`) values (?, 'Favourites', ?)",
+		FavouritesGroupID, time.Now())
+	return err
+}
+
+// FavouritePaths is the subset of paths whose photo is in Favourites.
+func (dao *Dao) FavouritePaths(paths []string) ([]string, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	ph := strings.Repeat("?,", len(paths))
+	ph = ph[:len(ph)-1]
+	args := []any{FavouritesGroupID}
+	for _, p := range paths {
+		args = append(args, p)
+	}
+	rows, err := dao.db.Query(
+		"select `f`.`path` from `files` as `f` join `image_group_files` as `m`"+
+			" on `m`.`hash` = `f`.`hash` and `m`.`group_id` = ? where `f`.`path` in ("+ph+")", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// ListImageGroups lists every group, Favourites first and then newest
+// first, with a live member count and a random cover. Both are computed
+// against `files` rather than image_group_files alone, so a member whose
+// last copy was deleted is neither counted nor offered as a cover (see the
+// table's comment in db.sql for why there is no FK doing this for us).
+// excluded (issue #192): a member only folders kept out of Images hold is
+// neither either - it stays a member, and is back once shown in Images
+// again.
 func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err error) {
 	query, args := imageGroupSelect(excluded)
-	rows, err := dao.db.Query(query+" order by `g`.`created` desc", args...)
+	rows, err := dao.db.Query(query+" order by `g`.`id` = '"+FavouritesGroupID+"' desc, `g`.`created` desc", args...)
 	if err != nil {
 		return nil, err
 	}

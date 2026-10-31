@@ -1316,6 +1316,18 @@
     "text": "Belichtung",
     "en": "Exposure"
   },
+  "web.images.viewer.favourite_add": {
+    "text": "Zu Favoriten hinzufügen",
+    "en": "Add to Favourites"
+  },
+  "web.images.viewer.favourite_failed": {
+    "text": "Favoriten ändern hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't change Favourites. Try again."
+  },
+  "web.images.viewer.favourite_remove": {
+    "text": "Aus Favoriten entfernen",
+    "en": "Remove from Favourites"
+  },
   "web.images.viewer.focal_length": {
     "text": "Brennweite",
     "en": "Focal length"

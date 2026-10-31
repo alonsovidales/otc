@@ -61,6 +61,14 @@
     "text": "niet-ondersteund MIME-type voor EXIF: {mime}",
     "en": "unsupported mime type for EXIF: {mime}"
   },
+  "dev.files.favourites": {
+    "text": "Favorieten",
+    "en": "Favourites"
+  },
+  "dev.files.favourites_fixed": {
+    "text": "de collectie Favorieten kan geen andere naam krijgen en niet worden verwijderd",
+    "en": "the Favourites collection can't be renamed or deleted"
+  },
   "dev.files.file_not_found": {
     "text": "bestand niet gevonden",
     "en": "file not found"

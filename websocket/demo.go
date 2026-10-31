@@ -140,6 +140,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqGetMediaRange{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListPeople{}):         demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListImageGroups{}):    demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetFavourites{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetReprocessStatus{}): demoAllow,
 
 	// Social, sharing and notifications, to read.
@@ -214,6 +215,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqRemoveFromImageGroup{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRenameImageGroup{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqDeleteImageGroup{}):          demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqSetFavourite{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqNewSocialPublication{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqDelSocialPublication{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqNewSocialComment{}):          demoRefuse,

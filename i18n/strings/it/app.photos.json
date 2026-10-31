@@ -944,6 +944,18 @@
     "en": "Delete this video?",
     "reviewed": "claude-backtranslation 2026-10-14 #c4e5e314"
   },
+  "app.photos.viewer.favourite_add": {
+    "text": "Aggiungi ai Preferiti",
+    "en": "Add to Favourites"
+  },
+  "app.photos.viewer.favourite_failed": {
+    "text": "Impossibile modificare i Preferiti. Riprova.",
+    "en": "Couldn't change Favourites. Try again."
+  },
+  "app.photos.viewer.favourite_remove": {
+    "text": "Rimuovi dai Preferiti",
+    "en": "Remove from Favourites"
+  },
   "app.photos.viewer.info_aperture": {
     "text": "Apertura",
     "en": "Aperture"

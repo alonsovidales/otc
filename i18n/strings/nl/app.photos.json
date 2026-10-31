@@ -944,6 +944,18 @@
     "en": "Delete this video?",
     "reviewed": "claude-backtranslation 2026-10-14 #3434687b"
   },
+  "app.photos.viewer.favourite_add": {
+    "text": "Toevoegen aan Favorieten",
+    "en": "Add to Favourites"
+  },
+  "app.photos.viewer.favourite_failed": {
+    "text": "Favorieten wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change Favourites. Try again."
+  },
+  "app.photos.viewer.favourite_remove": {
+    "text": "Verwijderen uit Favorieten",
+    "en": "Remove from Favourites"
+  },
   "app.photos.viewer.info_aperture": {
     "text": "Diafragma",
     "en": "Aperture"

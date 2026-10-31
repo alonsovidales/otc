@@ -1316,6 +1316,18 @@
     "text": "Sluitertijd",
     "en": "Exposure"
   },
+  "web.images.viewer.favourite_add": {
+    "text": "Toevoegen aan Favorieten",
+    "en": "Add to Favourites"
+  },
+  "web.images.viewer.favourite_failed": {
+    "text": "Favorieten wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change Favourites. Try again."
+  },
+  "web.images.viewer.favourite_remove": {
+    "text": "Verwijderen uit Favorieten",
+    "en": "Remove from Favourites"
+  },
   "web.images.viewer.focal_length": {
     "text": "Brandpuntsafstand",
     "en": "Focal length"

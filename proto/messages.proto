@@ -1859,6 +1859,11 @@ message ImageGroup {
   string name = 2;
   int32 file_count = 3;
   bytes cover_thumbnail = 4;
+  // The Favourites collection: there is always one, listed first, named in
+  // the session's language. It can't be renamed or deleted (the device
+  // refuses both); photos go in and out with the viewer's heart
+  // (SetFavourite) as well as with Add to / Remove from collection.
+  bool favourites = 5;
 }
 
 message ListImageGroups {
@@ -1912,6 +1917,27 @@ message RenameImageGroup {
 // the pictures themselves. Answered with the generic Ack.
 message DeleteImageGroup {
   string id = 1;
+}
+
+// Favourites (ImageGroup.favourites). GetFavourites says which of `paths`
+// hold a favourite photo - the viewer's heart, full or empty - and answers
+// with resp_favourites. A member is a photo, as in any collection: every
+// copy of a favourite is one.
+message GetFavourites {
+  repeated string paths = 1;
+}
+
+message Favourites {
+  // The paths asked for whose photo is in Favourites.
+  repeated string paths = 1;
+}
+
+// SetFavourite puts the photos at `paths` in Favourites, or takes them out
+// with favourite false. Already in, or already out, is not an error.
+// Answered with the generic Ack.
+message SetFavourite {
+  repeated string paths = 1;
+  bool favourite = 2;
 }
 
 // StartReprocess kicks off issue #73's full-library reprocess: every
@@ -2876,6 +2902,11 @@ message ReqEnvelope {
     // Smart search's switch. Answers with the generic Ack; devices before it
     // with error_code "unknown_payload".
     SetSmartSearchEnabled req_set_smart_search_enabled = 152;
+    // Favourites: GetFavourites answers with resp_favourites, SetFavourite
+    // with the generic Ack. Devices before them answer error_code
+    // "unknown_payload", and the apps show no heart.
+    GetFavourites req_get_favourites = 153;
+    SetFavourite req_set_favourite = 154;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -3001,5 +3032,7 @@ message RespEnvelope {
     PhotoPlaces resp_photo_places = 72;
     // On this day: the answer to GetMemories.
     Memories resp_memories = 73;
+    // Favourites: the answer to GetFavourites.
+    Favourites resp_favourites = 74;
   }
 }

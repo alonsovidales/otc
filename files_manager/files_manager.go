@@ -1349,10 +1349,14 @@ func (mg *Manager) PhotoDateBucketsWithin(area *dao.MediaArea, tags []string, pe
 // (empty, or every member since deleted) just has no picture. Members
 // only folders kept out of Images hold neither count nor make the cover
 // (issue #192), as the group's photos leave them out. small sends the
-// cover's small thumbnail (ListImageGroups.small_thumbnails).
+// cover's small thumbnail (ListImageGroups.small_thumbnails). Favourites
+// is always there: made here the first time it is listed.
 func (mg *Manager) ListImageGroups(session *session.Session, small bool) ([]*pb.ImageGroup, error) {
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
+		return nil, err
+	}
+	if err := mg.dao.EnsureFavourites(); err != nil {
 		return nil, err
 	}
 	groups, err := mg.dao.ListImageGroups(excluded)
@@ -1381,7 +1385,7 @@ func (mg *Manager) GetImageGroup(session *session.Session, id string, small bool
 }
 
 func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup, small bool) *pb.ImageGroup {
-	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
+	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount), Favourites: g.IsFavourites()}
 	if g.CoverHash != "" {
 		if thumb, _, err := mg.readGridThumbnail(session, &pb.File{Hash: g.CoverHash}, small); err == nil {
 			item.CoverThumbnail = thumb
@@ -1390,6 +1394,22 @@ func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup, s
 		}
 	}
 	return item
+}
+
+// FavouritePaths is the subset of paths whose photo is in Favourites.
+func (mg *Manager) FavouritePaths(paths []string) ([]string, error) {
+	return mg.dao.FavouritePaths(paths)
+}
+
+// SetFavourite puts the photos at paths in Favourites, or takes them out.
+func (mg *Manager) SetFavourite(paths []string, favourite bool) error {
+	if !favourite {
+		return mg.dao.RemovePathsFromImageGroup(dao.FavouritesGroupID, paths)
+	}
+	if err := mg.dao.EnsureFavourites(); err != nil {
+		return err
+	}
+	return mg.dao.AddPathsToImageGroup(dao.FavouritesGroupID, paths)
 }
 
 // GetFile serves the current content of path, or (issue #132) the older

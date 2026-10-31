@@ -232,6 +232,9 @@ var headEnglish = []struct {
 	{"dev.device.mirror_not_candidate", i18n.DevDeviceMirrorNotCandidate(), "That disk is no longer offered for the mirror: it was unplugged, or it was added already."},
 	{"dev.device.mirror_not_degraded", i18n.DevDeviceMirrorNotDegraded(), "The mirror has both of its disks, so it doesn't need this one."},
 	{"dev.device.mirror_busy", i18n.DevDeviceMirrorBusy(), "A disk was chosen for the mirror a moment ago. Wait a few seconds and look again."},
+	// Favourites: new, so their English is the catalog's from the start.
+	{"dev.files.favourites", i18n.DevFilesFavourites(), "Favourites"},
+	{"dev.files.favourites_fixed", i18n.DevFilesFavouritesFixed(), "the Favourites collection can't be renamed or deleted"},
 }
 
 // The catalog's English is the device's English as it was.

@@ -66,3 +66,44 @@ func TestRemovePathsFromImageGroupMySQL(t *testing.T) {
 		t.Errorf("members %s after removing again", got)
 	}
 }
+
+// Favourites, against a real MySQL/MariaDB: one row however often it is
+// ensured, listed first, and a photo is a favourite through any of its
+// copies.
+func TestFavouritesMySQL(t *testing.T) {
+	db, d := outOfImagesTestDB(t)
+	insertMediaRows(t, db, "files",
+		mediaRow{"A", "image/jpeg", "/Phone/a.jpg", month(1)},
+		mediaRow{"A", "image/jpeg", "/Backup/a.jpg", month(1)},
+		mediaRow{"B", "image/jpeg", "/Phone/b.jpg", month(1)},
+	)
+	if _, err := db.Exec("insert into `image_groups` values ('g1', 'Trip', now() + interval 1 day)"); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := d.EnsureFavourites(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	groups, err := d.ListImageGroups(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 2 || !groups[0].IsFavourites() || groups[1].ID != "g1" {
+		t.Fatalf("groups %+v, want Favourites first and then g1, newer", groups)
+	}
+
+	if err := d.AddPathsToImageGroup(FavouritesGroupID, []string{"/Phone/a.jpg"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := d.FavouritePaths([]string{"/Backup/a.jpg", "/Phone/b.jpg", "/Nowhere/x.jpg"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "/Backup/a.jpg" {
+		t.Errorf("favourite paths %v, want the other copy of A only", got)
+	}
+	if got, err := d.FavouritePaths(nil); err != nil || got != nil {
+		t.Errorf("no paths: %v, %v", got, err)
+	}
+}

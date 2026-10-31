@@ -14,6 +14,8 @@
   "dev.files.delete_failed": {"text": "Fehler beim Löschen der Datei: {detail}"},
   "dev.files.download_failed": {"text": "Fehler beim Herunterladen der Datei: {detail}"},
   "dev.files.exif_unsupported": {"text": "nicht unterstützter MIME-Typ für EXIF: {mime}"},
+  "dev.files.favourites": {"text": "Favoriten"},
+  "dev.files.favourites_fixed": {"text": "die Sammlung Favoriten kann nicht umbenannt oder gelöscht werden"},
   "dev.files.file_not_found": {"text": "Datei nicht gefunden"},
   "dev.files.file_offset": {"text": "Position {offset} außerhalb der Datei"},
   "dev.files.folder_update_failed": {"text": "Fehler beim Aktualisieren des Ordners: {detail}"},

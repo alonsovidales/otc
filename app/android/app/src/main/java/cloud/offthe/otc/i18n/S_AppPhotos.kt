@@ -750,6 +750,18 @@ fun S.appPhotosViewerDeleteVideo(): UiText =
 fun S.appPhotosViewerDeleteVideoTitle(): UiText =
     UiText.Res(R.string.app_photos_viewer_delete_video_title)
 
+/** "Add to Favourites": Accessibility label of the empty heart in the photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections. */
+fun S.appPhotosViewerFavouriteAdd(): UiText =
+    UiText.Res(R.string.app_photos_viewer_favourite_add)
+
+/** "Couldn't change Favourites. Try again.": Note in the photo viewer when the device didn't put the photo in Favourites or take it out (the heart goes back as it was). */
+fun S.appPhotosViewerFavouriteFailed(): UiText =
+    UiText.Res(R.string.app_photos_viewer_favourite_failed)
+
+/** "Remove from Favourites": Accessibility label of the full heart in the photo viewer (the photo is in Favourites): takes it out of Favourites. The photo itself stays. */
+fun S.appPhotosViewerFavouriteRemove(): UiText =
+    UiText.Res(R.string.app_photos_viewer_favourite_remove)
+
 /** "Aperture": Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the aperture (f/1.8). */
 fun S.appPhotosViewerInfoAperture(): UiText =
     UiText.Res(R.string.app_photos_viewer_info_aperture)

@@ -7,6 +7,7 @@
     {"en": "Collections", "text": "Collecties", "note": "Tab name. Groups of images are always called collections, in every app and on the site; never albums.", "enforce": true},
     {"en": "collection", "text": "collectie", "note": "One group of images. De collectie; plural collecties.", "enforce": true},
     {"en": "Add to collection", "text": "Toevoegen aan collectie", "note": "Action in Images. Other texts quote it, so it is always these exact words.", "enforce": true},
+    {"en": "Favourites", "text": "Favorieten", "note": "The collection every device has, listed first; photos go in with the viewer's heart. Always this name, with a capital, never translated as a plain word like likes. Plural.", "enforce": true},
     {"en": "Files", "text": "Bestanden", "note": "Tab name: the folders and files on the device. Also the generic plural files.", "enforce": true},
     {"en": "file", "text": "bestand", "note": "One file. Het bestand; plural bestanden.", "enforce": false},
     {"en": "folder", "text": "map", "note": "A folder on the device or on a computer. De map; plural mappen.", "enforce": true},

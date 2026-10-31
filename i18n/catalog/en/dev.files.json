@@ -14,6 +14,8 @@
   "dev.files.delete_failed": {"text": "error trying to delete file: {detail}", "args": [["detail", "text"]]},
   "dev.files.download_failed": {"text": "error trying to download file: {detail}", "args": [["detail", "text"]]},
   "dev.files.exif_unsupported": {"text": "unsupported mime type for EXIF: {mime}", "args": [["mime", "text"]]},
+  "dev.files.favourites": {"text": "Favourites"},
+  "dev.files.favourites_fixed": {"text": "the Favourites collection can't be renamed or deleted"},
   "dev.files.file_not_found": {"text": "file not found"},
   "dev.files.file_offset": {"text": "offset {offset} outside the file", "args": [["offset", "int"]]},
   "dev.files.folder_update_failed": {"text": "error updating the folder: {detail}", "args": [["detail", "text"]]},

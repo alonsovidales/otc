@@ -2385,6 +2385,13 @@ export interface ImageGroup {
   name: string;
   fileCount: number;
   coverThumbnail: Uint8Array;
+  /**
+   * The Favourites collection: there is always one, listed first, named in
+   * the session's language. It can't be renamed or deleted (the device
+   * refuses both); photos go in and out with the viewer's heart
+   * (SetFavourite) as well as with Add to / Remove from collection.
+   */
+  favourites: boolean;
 }
 
 export interface ListImageGroups {
@@ -2448,6 +2455,31 @@ export interface RenameImageGroup {
  */
 export interface DeleteImageGroup {
   id: string;
+}
+
+/**
+ * Favourites (ImageGroup.favourites). GetFavourites says which of `paths`
+ * hold a favourite photo - the viewer's heart, full or empty - and answers
+ * with resp_favourites. A member is a photo, as in any collection: every
+ * copy of a favourite is one.
+ */
+export interface GetFavourites {
+  paths: string[];
+}
+
+export interface Favourites {
+  /** The paths asked for whose photo is in Favourites. */
+  paths: string[];
+}
+
+/**
+ * SetFavourite puts the photos at `paths` in Favourites, or takes them out
+ * with favourite false. Already in, or already out, is not an error.
+ * Answered with the generic Ack.
+ */
+export interface SetFavourite {
+  paths: string[];
+  favourite: boolean;
 }
 
 /**
@@ -3594,6 +3626,14 @@ export interface ReqEnvelope {
      */
     { $case: "reqSetSmartSearchEnabled"; reqSetSmartSearchEnabled: SetSmartSearchEnabled }
     | //
+    /**
+     * Favourites: GetFavourites answers with resp_favourites, SetFavourite
+     * with the generic Ack. Devices before them answer error_code
+     * "unknown_payload", and the apps show no heart.
+     */
+    { $case: "reqGetFavourites"; reqGetFavourites: GetFavourites }
+    | { $case: "reqSetFavourite"; reqSetFavourite: SetFavourite }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3751,6 +3791,9 @@ export interface RespEnvelope {
     | //
     /** On this day: the answer to GetMemories. */
     { $case: "respMemories"; respMemories: Memories }
+    | //
+    /** Favourites: the answer to GetFavourites. */
+    { $case: "respFavourites"; respFavourites: Favourites }
     | undefined;
 }
 
@@ -14103,7 +14146,7 @@ export const RemoveFromPerson: MessageFns<RemoveFromPerson> = {
 };
 
 function createBaseImageGroup(): ImageGroup {
-  return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0) };
+  return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0), favourites: false };
 }
 
 export const ImageGroup: MessageFns<ImageGroup> = {
@@ -14119,6 +14162,9 @@ export const ImageGroup: MessageFns<ImageGroup> = {
     }
     if (message.coverThumbnail.length !== 0) {
       writer.uint32(34).bytes(message.coverThumbnail);
+    }
+    if (message.favourites !== false) {
+      writer.uint32(40).bool(message.favourites);
     }
     return writer;
   },
@@ -14162,6 +14208,14 @@ export const ImageGroup: MessageFns<ImageGroup> = {
           message.coverThumbnail = reader.bytes();
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.favourites = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -14180,6 +14234,7 @@ export const ImageGroup: MessageFns<ImageGroup> = {
     message.name = object.name ?? "";
     message.fileCount = object.fileCount ?? 0;
     message.coverThumbnail = object.coverThumbnail ?? new Uint8Array(0);
+    message.favourites = object.favourites ?? false;
     return message;
   },
 };
@@ -14610,6 +14665,156 @@ export const DeleteImageGroup: MessageFns<DeleteImageGroup> = {
   fromPartial<I extends Exact<DeepPartial<DeleteImageGroup>, I>>(object: I): DeleteImageGroup {
     const message = createBaseDeleteImageGroup();
     message.id = object.id ?? "";
+    return message;
+  },
+};
+
+function createBaseGetFavourites(): GetFavourites {
+  return { paths: [] };
+}
+
+export const GetFavourites: MessageFns<GetFavourites> = {
+  encode(message: GetFavourites, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetFavourites {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetFavourites();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetFavourites>, I>>(base?: I): GetFavourites {
+    return GetFavourites.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetFavourites>, I>>(object: I): GetFavourites {
+    const message = createBaseGetFavourites();
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseFavourites(): Favourites {
+  return { paths: [] };
+}
+
+export const Favourites: MessageFns<Favourites> = {
+  encode(message: Favourites, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Favourites {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFavourites();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Favourites>, I>>(base?: I): Favourites {
+    return Favourites.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Favourites>, I>>(object: I): Favourites {
+    const message = createBaseFavourites();
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseSetFavourite(): SetFavourite {
+  return { paths: [], favourite: false };
+}
+
+export const SetFavourite: MessageFns<SetFavourite> = {
+  encode(message: SetFavourite, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.favourite !== false) {
+      writer.uint32(16).bool(message.favourite);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetFavourite {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetFavourite();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.favourite = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetFavourite>, I>>(base?: I): SetFavourite {
+    return SetFavourite.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetFavourite>, I>>(object: I): SetFavourite {
+    const message = createBaseSetFavourite();
+    message.paths = object.paths?.map((e) => e) || [];
+    message.favourite = object.favourite ?? false;
     return message;
   },
 };
@@ -19965,6 +20170,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetSmartSearchEnabled":
         SetSmartSearchEnabled.encode(message.payload.reqSetSmartSearchEnabled, writer.uint32(1218).fork()).join();
         break;
+      case "reqGetFavourites":
+        GetFavourites.encode(message.payload.reqGetFavourites, writer.uint32(1226).fork()).join();
+        break;
+      case "reqSetFavourite":
+        SetFavourite.encode(message.payload.reqSetFavourite, writer.uint32(1234).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21338,6 +21549,25 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 153: {
+          if (tag !== 1226) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetFavourites",
+            reqGetFavourites: GetFavourites.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 154: {
+          if (tag !== 1234) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetFavourite", reqSetFavourite: SetFavourite.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -22612,6 +22842,24 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetFavourites": {
+        if (object.payload?.reqGetFavourites !== undefined && object.payload?.reqGetFavourites !== null) {
+          message.payload = {
+            $case: "reqGetFavourites",
+            reqGetFavourites: GetFavourites.fromPartial(object.payload.reqGetFavourites),
+          };
+        }
+        break;
+      }
+      case "reqSetFavourite": {
+        if (object.payload?.reqSetFavourite !== undefined && object.payload?.reqSetFavourite !== null) {
+          message.payload = {
+            $case: "reqSetFavourite",
+            reqSetFavourite: SetFavourite.fromPartial(object.payload.reqSetFavourite),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -22891,6 +23139,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respMemories":
         Memories.encode(message.payload.respMemories, writer.uint32(586).fork()).join();
+        break;
+      case "respFavourites":
+        Favourites.encode(message.payload.respFavourites, writer.uint32(594).fork()).join();
         break;
     }
     return writer;
@@ -23546,6 +23797,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respMemories", respMemories: Memories.decode(reader, reader.uint32()) };
           continue;
         }
+        case 74: {
+          if (tag !== 594) {
+            break;
+          }
+
+          message.payload = { $case: "respFavourites", respFavourites: Favourites.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -24111,6 +24370,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       case "respMemories": {
         if (object.payload?.respMemories !== undefined && object.payload?.respMemories !== null) {
           message.payload = { $case: "respMemories", respMemories: Memories.fromPartial(object.payload.respMemories) };
+        }
+        break;
+      }
+      case "respFavourites": {
+        if (object.payload?.respFavourites !== undefined && object.payload?.respFavourites !== null) {
+          message.payload = {
+            $case: "respFavourites",
+            respFavourites: Favourites.fromPartial(object.payload.respFavourites),
+          };
         }
         break;
       }

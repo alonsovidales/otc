@@ -1316,6 +1316,18 @@
     "text": "Esposizione",
     "en": "Exposure"
   },
+  "web.images.viewer.favourite_add": {
+    "text": "Aggiungi ai Preferiti",
+    "en": "Add to Favourites"
+  },
+  "web.images.viewer.favourite_failed": {
+    "text": "Impossibile modificare i Preferiti. Riprova.",
+    "en": "Couldn't change Favourites. Try again."
+  },
+  "web.images.viewer.favourite_remove": {
+    "text": "Rimuovi dai Preferiti",
+    "en": "Remove from Favourites"
+  },
   "web.images.viewer.focal_length": {
     "text": "Lunghezza focale",
     "en": "Focal length"

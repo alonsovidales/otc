@@ -74,6 +74,14 @@
     "args": [["mime", "text"]],
     "note": "Error shown after \"error trying to retrieve file info: \" when the photo details (camera, date, place) are asked for a file that isn't a photo or video. {mime} is the file's type, such as application/pdf. EXIF is the name of the photo details format; keep it."
   },
+  "dev.files.favourites": {
+    "text": "Favourites",
+    "note": "Name of the collection (a group of photos chosen by the owner) every device has, listed first in Collections. Photos go in with the heart in the photo viewer."
+  },
+  "dev.files.favourites_fixed": {
+    "text": "the Favourites collection can't be renamed or deleted",
+    "note": "Error reply when an app asks to rename or delete the Favourites collection, which every device keeps."
+  },
   "dev.files.file_not_found": {
     "text": "file not found",
     "note": "Error reply when a video to play no longer exists at that path on the device."

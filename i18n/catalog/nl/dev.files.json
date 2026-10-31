@@ -14,6 +14,8 @@
   "dev.files.delete_failed": {"text": "fout bij het verwijderen van het bestand: {detail}"},
   "dev.files.download_failed": {"text": "fout bij het downloaden van het bestand: {detail}"},
   "dev.files.exif_unsupported": {"text": "niet-ondersteund MIME-type voor EXIF: {mime}"},
+  "dev.files.favourites": {"text": "Favorieten"},
+  "dev.files.favourites_fixed": {"text": "de collectie Favorieten kan geen andere naam krijgen en niet worden verwijderd"},
   "dev.files.file_not_found": {"text": "bestand niet gevonden"},
   "dev.files.file_offset": {"text": "positie {offset} valt buiten het bestand"},
   "dev.files.folder_update_failed": {"text": "fout bij het bijwerken van de map: {detail}"},

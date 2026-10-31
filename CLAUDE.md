@@ -2034,7 +2034,17 @@ and code keep `ImageGroup`/`groupId`. Inside an open collection the selection ba
 collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the
 file). The web app always has a device that knows it (the device serves it); the phones may not, and turn
 its `unknown_payload` into "needs an update" with an Update button for the primary's owner (`ReqApplyUpdate`)
-or, for a user, who to ask. Among one person's photos (exactly one person in the filter, tags allowed) the
+or, for a user, who to ask. **Favourites** (owner, 2026-10-31) is a collection every device has, listed
+first, that can't be renamed or deleted and fills from a heart in the viewer (empty, or full while the photo
+is in it). It is the `image_groups` row `favourites` (`dao.FavouritesGroupID`): `EnsureFavourites` inserts it,
+ignoring the duplicate, on every listing and before the first heart, so no migration; `ListImageGroups`
+orders it first; `ImageGroup.favourites` marks it and the device names it in the request's language
+(`dev.files.favourites`; the stored "Favourites" is only what an older app shows); `RenameImageGroup` and
+`DeleteImageGroup` on it answer `dev.files.favourites_fixed`. The heart's requests are `GetFavourites`
+(paths in, the paths whose photo is a favourite out, `resp_favourites`) and `SetFavourite` (paths in or out,
+Ack); a device before them answers `unknown_payload` and the apps show no heart. Members are photos as in
+any collection, so Add to collection and Remove from collection work on it unchanged (`TestFavouritesMySQL`,
+`websocket/favourites_test.go`). Among one person's photos (exactly one person in the filter, tags allowed) the
 bar also has **Not this person** and **Someone else…** (`personFix.tsx`, the note in `personFixDone.ts` -
 `node web/scripts/person-fix-test.mjs` -, `RemoveFromPerson`): the first asks (`ConfirmDialog`, ember -
 the photos stay), the second lists the other people (`usePeople`, faces and names, a name field past 8)

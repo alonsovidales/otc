@@ -3478,6 +3478,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
+			for _, g := range groups {
+				if g.Favourites {
+					g.Name = i18n.DevFilesFavourites().Render(lang)
+				}
+			}
 			resp.Payload = &pb.RespEnvelope_RespImageGroups{
 				RespImageGroups: &pb.ImageGroups{Groups: groups},
 			}
@@ -3535,6 +3540,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqRenameImageGroup:
 		name := strings.TrimSpace(p.ReqRenameImageGroup.Name)
 		log.Info("Rename image group:", p.ReqRenameImageGroup.Id)
+		if p.ReqRenameImageGroup.Id == dao.FavouritesGroupID {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesFavouritesFixed().Render(lang)
+			break
+		}
 		if name == "" {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesCollectionNeedsName().Render(lang)
@@ -3550,8 +3560,34 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	case *pb.ReqEnvelope_ReqDeleteImageGroup:
 		log.Info("Delete image group:", p.ReqDeleteImageGroup.Id)
+		if p.ReqDeleteImageGroup.Id == dao.FavouritesGroupID {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesFavouritesFixed().Render(lang)
+			break
+		}
 		if err := ch.mg.dao.DeleteImageGroup(p.ReqDeleteImageGroup.Id); err != nil {
 			log.Error("error deleting image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// Favourites: the viewer's heart.
+	case *pb.ReqEnvelope_ReqGetFavourites:
+		paths, err := ch.mg.filesManager.FavouritePaths(p.ReqGetFavourites.Paths)
+		if err != nil {
+			log.Error("error reading favourites:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFavourites{RespFavourites: &pb.Favourites{Paths: paths}}
+		}
+
+	case *pb.ReqEnvelope_ReqSetFavourite:
+		log.Info("Set favourite:", p.ReqSetFavourite.Favourite, len(p.ReqSetFavourite.Paths))
+		if err := ch.mg.filesManager.SetFavourite(p.ReqSetFavourite.Paths, p.ReqSetFavourite.Favourite); err != nil {
+			log.Error("error setting a favourite:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {

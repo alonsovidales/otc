@@ -1090,6 +1090,21 @@ extension S {
     /// Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title).
     static var appPhotosViewerDeleteVideoTitle: String { L("app.photos.viewer.delete_video_title", table: "AppPhotos") }
 
+    /// Add to Favourites
+    ///
+    /// Accessibility label of the empty heart in the photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections.
+    static var appPhotosViewerFavouriteAdd: String { L("app.photos.viewer.favourite_add", table: "AppPhotos") }
+
+    /// Couldn't change Favourites. Try again.
+    ///
+    /// Note in the photo viewer when the device didn't put the photo in Favourites or take it out (the heart goes back as it was).
+    static var appPhotosViewerFavouriteFailed: String { L("app.photos.viewer.favourite_failed", table: "AppPhotos") }
+
+    /// Remove from Favourites
+    ///
+    /// Accessibility label of the full heart in the photo viewer (the photo is in Favourites): takes it out of Favourites. The photo itself stays.
+    static var appPhotosViewerFavouriteRemove: String { L("app.photos.viewer.favourite_remove", table: "AppPhotos") }
+
     /// Aperture
     ///
     /// Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the aperture (f/1.8).

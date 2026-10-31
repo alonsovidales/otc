@@ -1425,6 +1425,19 @@
     "note": "Label in the photo viewer's details panel, before the exposure time (1/120 s).",
     "max": 20
   },
+  "web.images.viewer.favourite_add": {
+    "text": "Add to Favourites",
+    "note": "Screen-reader name and tooltip of the empty heart in the full-screen photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections."
+  },
+  "web.images.viewer.favourite_failed": {
+    "text": "Couldn't change Favourites. Try again.",
+    "note": "Note in the full-screen photo viewer when the device didn't put the photo in Favourites or take it out (the heart goes back as it was).",
+    "max": 60
+  },
+  "web.images.viewer.favourite_remove": {
+    "text": "Remove from Favourites",
+    "note": "Screen-reader name and tooltip of the full heart in the full-screen photo viewer (the photo is in Favourites): takes it out of Favourites. The photo itself stays."
+  },
   "web.images.viewer.focal_length": {
     "text": "Focal length",
     "note": "Label in the photo viewer's details panel, before the lens focal length (26 mm).",

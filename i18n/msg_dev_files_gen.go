@@ -79,6 +79,16 @@ func DevFilesExifUnsupported(mime string) Msg {
 	return Msg{Key: "dev.files.exif_unsupported", Args: map[string]any{"mime": mime}}
 }
 
+// DevFilesFavourites is dev.files.favourites: "Favourites".
+func DevFilesFavourites() Msg {
+	return Msg{Key: "dev.files.favourites"}
+}
+
+// DevFilesFavouritesFixed is dev.files.favourites_fixed: "the Favourites collection can't be renamed or deleted".
+func DevFilesFavouritesFixed() Msg {
+	return Msg{Key: "dev.files.favourites_fixed"}
+}
+
 // DevFilesFileNotFound is dev.files.file_not_found: "file not found".
 func DevFilesFileNotFound() Msg {
 	return Msg{Key: "dev.files.file_not_found"}

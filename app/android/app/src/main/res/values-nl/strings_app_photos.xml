@@ -278,6 +278,9 @@
     <string name="app_photos_viewer_delete_title">Deze foto verwijderen?</string>
     <string name="app_photos_viewer_delete_video">Video verwijderen</string>
     <string name="app_photos_viewer_delete_video_title">Deze video verwijderen?</string>
+    <string name="app_photos_viewer_favourite_add">Toevoegen aan Favorieten</string>
+    <string name="app_photos_viewer_favourite_failed">Favorieten wijzigen is niet gelukt. Probeer het opnieuw.</string>
+    <string name="app_photos_viewer_favourite_remove">Verwijderen uit Favorieten</string>
     <string name="app_photos_viewer_info_aperture">Diafragma</string>
     <string name="app_photos_viewer_info_camera">Camera</string>
     <string name="app_photos_viewer_info_dimensions">Afmetingen</string>
