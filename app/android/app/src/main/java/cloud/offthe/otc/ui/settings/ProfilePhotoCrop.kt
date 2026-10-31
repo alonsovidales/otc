@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +41,10 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -120,10 +125,15 @@ fun renderProfilePhoto(bmp: Bitmap, side: Float, z: Float, pan: Offset): ByteArr
 /**
  * Full-screen crop dialog. `onUse` gets the side of the on-screen square,
  * the zoom and the pan - the caller renders them with renderProfilePhoto
- * off the main thread.
+ * off the main thread. [title] (none for the profile photo) heads it
+ * between its buttons and [hint] says what to do (the profile's own when
+ * null): a person's face has its own words (Images' Upload a photo…).
  */
 @Composable
-fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: Float, zoom: Float, pan: Offset) -> Unit) {
+fun ProfilePhotoCropDialog(
+    bitmap: Bitmap, onCancel: () -> Unit, title: String? = null, hint: String? = null,
+    onUse: (side: Float, zoom: Float, pan: Offset) -> Unit,
+) {
     var side by remember { mutableFloatStateOf(0f) }
     var zoom by remember(bitmap) { mutableFloatStateOf(1f) }
     var panX by remember(bitmap) { mutableFloatStateOf(0f) }
@@ -146,10 +156,17 @@ fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: F
         Column(Modifier.fillMaxSize().background(Color(0xFF111214)).systemBarsPadding().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onCancel) { Text(S.commonCancel().resolve()) }
-                Spacer(Modifier.weight(1f))
+                if (title == null) Spacer(Modifier.weight(1f))
+                else Text(
+                    title, Modifier.weight(1f).padding(horizontal = 8.dp).semantics { heading() }, color = Color.White,
+                    style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
                 Button(onClick = { if (side > 0f) onUse(side, zoom, Offset(panX, panY)) }) { Text(S.appSettingsCropUse().resolve()) }
             }
-            Text(S.androidSettingsCropHint().resolve(), color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
+            Text(
+                hint ?: S.androidSettingsCropHint().resolve(), color = Color.White, textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
+            )
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Canvas(
                     // Clipped: a Canvas draws past its bounds, so the zoomed

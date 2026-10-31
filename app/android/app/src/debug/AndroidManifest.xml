@@ -35,5 +35,13 @@
             android:name=".FavouritesPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- A person's face: the face's menu at the top of their photos and Use
+             this face in the selection bar and the viewer, on sample data
+             (adb shell am start -n cloud.offthe.otc/.PersonCoverPreviewActivity
+             [- -es device demo|old]). -->
+        <activity
+            android:name=".PersonCoverPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

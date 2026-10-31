@@ -273,7 +273,24 @@ import cloud.offthe.otc.i18n.appShellMoveToPerson
 import cloud.offthe.otc.i18n.appShellNotThisPerson
 import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptions
 import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptionsUnnamed
+import cloud.offthe.otc.i18n.appPhotosPersonCoverAuto
+import cloud.offthe.otc.i18n.appPhotosPersonCoverChange
+import cloud.offthe.otc.i18n.appPhotosPersonCoverFailed
+import cloud.offthe.otc.i18n.appPhotosPersonCoverHint
+import cloud.offthe.otc.i18n.appPhotosPersonCoverUpload
+import cloud.offthe.otc.i18n.appPhotosPersonCoverUse
+import cloud.offthe.otc.i18n.appPhotosPersonCropHint
+import cloud.offthe.otc.i18n.appPhotosPersonCropTitle
 import cloud.offthe.otc.i18n.appPhotosPersonRemoveText
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.AutoAwesome
+import cloud.offthe.otc.ui.common.SelectionActionTask
+import cloud.offthe.otc.ui.settings.ProfilePhotoCropDialog
+import cloud.offthe.otc.ui.settings.decodeProfilePhoto
+import cloud.offthe.otc.ui.settings.renderProfilePhoto
 import cloud.offthe.otc.i18n.commonRemove
 import cloud.offthe.otc.i18n.appPhotosWallpaperMenu
 import cloud.offthe.otc.i18n.appPhotosWallpaperMenuOn
@@ -349,6 +366,19 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // selection (the one person whose photos show: State.personShown).
     var confirmNotPerson by remember { mutableStateOf(false) }
     var pickPerson by remember { mutableStateOf(false) }
+    // Upload a photo… under a person's face: the phone's picker, as the
+    // profile photo's (SettingsView), then its crop (ProfilePhotoCrop.kt)
+    // with words of its own; Cancel sends nothing. coverFor: whose face.
+    var coverFor by rememberSaveable { mutableStateOf<String?>(null) }
+    var coverCrop by remember { mutableStateOf<Bitmap?>(null) }
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) coverFor = null
+        else scope.launch {
+            coverCrop = withContext(Dispatchers.IO) { decodeProfilePhoto(context, uri) }
+            // A picture the phone can't read: said as any other failure.
+            if (coverCrop == null) { coverFor = null; vm.alert(S.appPhotosPersonCoverFailed()) }
+        }
+    }
     // The open collection as the phone's wallpaper: its box (WallpaperBox.kt).
     var wallpaperFor by remember { mutableStateOf<ImageGroup?>(null) }
     val wallpaper by Wallpaper.active.collectAsState()
@@ -709,7 +739,13 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     )
                 }
                 if (personHeader) item(key = "head:people", contentType = "head") {
-                    PersonHeader(st.allPeople, st.peopleLoaded, st.selectedPeople, total = if (st.bucketsFresh) st.totalPhotos else null, metrics = metrics)
+                    PersonHeader(
+                        st.allPeople, st.peopleLoaded, st.selectedPeople, total = if (st.bucketsFresh) st.totalPhotos else null, metrics = metrics,
+                        // One person's: their face's menu (Upload a photo…, Choose automatically).
+                        coverBusy = st.preparing == SelectionActionTask.PERSON_COVER, coverEnabled = st.preparing == null,
+                        onUploadCover = { p -> coverFor = p.id; coverPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        onAutoCover = { p -> vm.resetPersonCover(p.id) },
+                    )
                 }
                 if (smartNote) item(key = "head:smart", contentType = "note") {
                     Text(
@@ -825,6 +861,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             }
             // Not this person and Someone else…: one person's photos, while face recognition is on.
             val personActions = st.personShown != null && faces == true
+            // Use this face: there too, with exactly one photo (not a video) picked.
+            val coverPick = remember(st.selected, st.items) { if (st.selected.size == 1) coverPhoto(vm.pickedItems()) else null }
             if (st.selected.isNotEmpty()) {
                 // How much of the grid's bottom it floats over: a drag scrolls from above it.
                 Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = it.height }) {
@@ -837,6 +875,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         // Only among one person's photos: face recognition was wrong.
                         onNotThisPerson = if (personActions) { { confirmNotPerson = true } } else null,
                         onMoveToPerson = if (personActions) { { pickPerson = true } } else null,
+                        onUseFace = if (personActions && coverPick != null) { { vm.useSelectionAsCover() } } else null,
                         // Issue #180: the selected photos, as a gallery - no group needed.
                         onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                         // Out of selection mode: a tap opens a photo again.
@@ -989,6 +1028,18 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             st.allPeople, st.peopleLoaded, personShown, st.selected.size,
             onPick = { p -> pickPerson = false; vm.takeSelectionOffPerson(to = p) }, onDismiss = { pickPerson = false },
         )
+    }
+
+    coverCrop?.let { bmp ->
+        ProfilePhotoCropDialog(
+            bmp, onCancel = { coverCrop = null; coverFor = null },
+            title = S.appPhotosPersonCropTitle().resolve(), hint = S.appPhotosPersonCropHint().resolve(),
+        ) { side, zoom, pan ->
+            val person = coverFor
+            coverCrop = null
+            coverFor = null
+            if (person != null) scope.launch { vm.uploadPersonCover(person, withContext(Dispatchers.Default) { renderProfilePhoto(bmp, side, zoom, pan) }) }
+        }
     }
 
     st.needsUpdate?.let { DeviceNeedsUpdateDialog(it, onDismiss = { vm.dismissNeedsUpdate() }) }
@@ -1516,7 +1567,11 @@ private fun CollectionHeader(
  * buckets; the line is kept until it comes, so nothing moves).
  */
 @Composable
-private fun PersonHeader(people: List<Person>, loaded: Boolean, ids: List<String>, total: Int?, metrics: GridMetrics) {
+private fun PersonHeader(
+    people: List<Person>, loaded: Boolean, ids: List<String>, total: Int?, metrics: GridMetrics,
+    coverBusy: Boolean = false, coverEnabled: Boolean = true,
+    onUploadCover: ((Person) -> Unit)? = null, onAutoCover: ((Person) -> Unit)? = null,
+) {
     val colors = MaterialTheme.colorScheme
     val face = if (metrics.phone) 48.dp else 56.dp
     val picked = if (loaded) ids.mapNotNull { id -> people.firstOrNull { it.id == id } } else emptyList()
@@ -1525,8 +1580,14 @@ private fun PersonHeader(people: List<Person>, loaded: Boolean, ids: List<String
         Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (metrics.phone) 12.dp else 16.dp),
     ) {
-        // Overlapping, the first on top.
-        Row(horizontalArrangement = Arrangement.spacedBy((-16).dp)) {
+        // Overlapping, the first on top. One person's face opens its menu.
+        val one = picked.singleOrNull()
+        if (one != null && ids.size == 1 && onUploadCover != null) {
+            CoverFace(
+                one, face, coverBusy, coverEnabled, onUpload = { onUploadCover(one) },
+                onAuto = if (onAutoCover != null && one.coverChosen) { { onAutoCover(one) } } else null,
+            )
+        } else Row(horizontalArrangement = Arrangement.spacedBy((-16).dp)) {
             if (!loaded) FaceCircle(null, face, 0f)
             picked.take(3).forEachIndexed { i, p -> FaceCircle(p, face, 3f - i) }
         }
@@ -1566,6 +1627,53 @@ private fun FaceCircle(p: Person?, size: Dp, z: Float) {
         // The ring (the Box's border) is drawn over the face.
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else if (p != null) Icon(Icons.Outlined.Face, null, Modifier.size(size * 0.5f), tint = colors.onSurfaceVariant)
+    }
+}
+
+/**
+ * The face of the one person whose photos show, at the top of them: a
+ * button ("Change face", its tooltip too) with a small pencil, opening a
+ * menu - Upload a photo… ([onUpload]: the picker and the crop), Choose
+ * automatically ([onAuto], only once a face was chosen) - and the other
+ * way, Use this face, in words. [busy]: a change is on its way.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CoverFace(p: Person, size: Dp, busy: Boolean, enabled: Boolean, onUpload: () -> Unit, onAuto: (() -> Unit)?) {
+    var open by remember { mutableStateOf(false) }
+    val label = S.appPhotosPersonCoverChange().resolve()
+    val colors = MaterialTheme.colorScheme
+    Box {
+        TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(label) } }, state = rememberTooltipState()) {
+            Box(
+                Modifier.size(size).clip(CircleShape)
+                    .clickable(enabled = enabled, role = Role.Button) { open = true }
+                    .semantics { contentDescription = label },
+            ) {
+                FaceCircle(p, size, 0f)
+                if (busy) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(size * 0.45f), color = Color.White, strokeWidth = 2.dp)
+                } else Box(
+                    Modifier.align(Alignment.BottomEnd).size(size * 0.36f).clip(CircleShape).background(colors.surfaceContainerHighest)
+                        .border(1.5.dp, colors.surface, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Outlined.Edit, null, Modifier.size(size * 0.22f), tint = colors.onSurfaceVariant) }
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(S.appPhotosPersonCoverUpload().resolve()) }, leadingIcon = { Icon(Icons.Outlined.AddPhotoAlternate, null) },
+                onClick = { open = false; onUpload() },
+            )
+            if (onAuto != null) DropdownMenuItem(
+                text = { Text(S.appPhotosPersonCoverAuto().resolve()) }, leadingIcon = { Icon(Icons.Outlined.AutoAwesome, null) },
+                onClick = { open = false; onAuto() },
+            )
+            Text(
+                S.appPhotosPersonCoverHint().resolve(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                modifier = Modifier.widthIn(max = 280.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
     }
 }
 
@@ -1845,10 +1953,13 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // Someone else… for the photo open.
     val faces by FaceRecognition.enabled.collectAsState()
     val personShown = st.personShown?.takeIf { faces == true }
+    // Use this face too, for a photo (not a video).
+    val openPhoto = st.items.getOrNull(idx)?.let { coverPhoto(listOf(it)) } != null
     val personMenu: (@Composable () -> Unit)? = personShown?.let {
         {
             ViewerPersonMenu(
                 st.personShownListed, enabled = st.preparing == null,
+                onUseFace = if (openPhoto) { { vm.useOpenAsCover() } } else null,
                 onNotThisPerson = { confirmNotPerson = true }, onMoveToPerson = { pickPerson = true },
             )
         }
@@ -1999,17 +2110,22 @@ private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
 
 /**
  * The viewer's menu among one person's photos ([person]: as listed, null
- * when not): Not this person and Someone else… for the photo open, named
- * for TalkBack as a face's menu on the People page is.
+ * when not): Use this face (a photo, [onUseFace]), Not this person and
+ * Someone else… for the photo open, named for TalkBack as a face's menu
+ * on the People page is.
  */
 @Composable
-private fun ViewerPersonMenu(person: Person?, enabled: Boolean, onNotThisPerson: () -> Unit, onMoveToPerson: () -> Unit) {
+private fun ViewerPersonMenu(person: Person?, enabled: Boolean, onUseFace: (() -> Unit)?, onNotThisPerson: () -> Unit, onMoveToPerson: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val name = personName(person)
     val label = (if (name.isEmpty()) S.appPhotosPeopleMoreOptionsUnnamed() else S.appPhotosPeopleMoreOptions(name)).resolve()
     Box {
         IconButton(onClick = { open = true }, enabled = enabled) { Icon(Icons.Default.MoreVert, label, tint = if (enabled) Color.White else Color.White.copy(alpha = 0.4f)) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (onUseFace != null) DropdownMenuItem(
+                text = { Text(S.appPhotosPersonCoverUse().resolve()) }, leadingIcon = { Icon(NavIcons.UseThisFace, null) },
+                onClick = { open = false; onUseFace() },
+            )
             DropdownMenuItem(
                 text = { Text(S.appShellNotThisPerson().resolve()) }, leadingIcon = { Icon(NavIcons.NotThisPerson, null) },
                 onClick = { open = false; onNotThisPerson() },

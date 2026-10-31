@@ -3203,7 +3203,13 @@ on Android; it sends nothing that changes anything (only the reads its sections 
 (tags may join), the selection bar and the viewer's ⋮/… menu add Not this person (asks first) and
 Someone else… (a sheet of the other people, a name filter past 8; iOS `PersonMove.swift`, Android
 `ui/gallery/PersonMove.kt`): `RemoveFromPerson`, the tiles leave at once, People reloads,
-`unknown_payload` -> DeviceNeedsUpdate (`app.photos.person.needs_update`). Files' List view on a wide
+`unknown_payload` -> DeviceNeedsUpdate (`app.photos.person.needs_update`). Android: Use this face (the bar
+with one photo picked, not a video - `coverPhoto` -, and the viewer's menu) and the header face's menu
+(`CoverFace`: Upload a photo… through the phone's picker and `ProfilePhotoCropDialog` with `crop_title`/
+`crop_hint`, a JPEG of at most 256 KB - `personCoverFits` -, Choose automatically while `cover_chosen`) send
+`SetPersonCover` (`setPersonCover`, busy `PERSON_COVER`): `cover_done` and People listed again, else the
+device's words or `cover_failed`, `unknown_payload` -> DeviceNeedsUpdate (`cover_needs_update`)
+(`PhotoGalleryCoverTest.kt`; debug-only `PersonCoverPreviewActivity`, `--es device demo|old`). Files' List view on a wide
 window (the 600 dp/pt wide layout; iOS also needs `FilesColumns.fits`) has Name/Size/Created/Modified
 headings, a port of web `filesColumns.ts` (iOS `FilesColumns.swift` + `FilesColumnsView.swift`, Android
 `ui/files/FilesColumns.kt` + `FilesColumnsView.kt`): a heading tap is `pickSort`, an edge handle drags

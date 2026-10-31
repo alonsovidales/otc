@@ -53,6 +53,7 @@ import androidx.compose.ui.zIndex
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
+import cloud.offthe.otc.i18n.appPhotosPersonCoverUse
 import cloud.offthe.otc.i18n.appShellAddToCollection
 import cloud.offthe.otc.i18n.appShellClearSelection
 import cloud.offthe.otc.i18n.appShellKeepOutOfImages
@@ -68,7 +69,7 @@ import cloud.offthe.otc.i18n.commonShare
 import cloud.offthe.otc.i18n.commonUpload
 
 /** Which action is waiting on the device, if any. */
-enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON }
+enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON, PERSON_COVER }
 
 // One item of the bar, as it is drawn.
 private class BarItem(
@@ -93,6 +94,9 @@ fun SelectionActionBar(
     // person whose photos Images shows (face recognition was wrong) - only there.
     onNotThisPerson: (() -> Unit)? = null,
     onMoveToPerson: (() -> Unit)? = null,
+    // Use this face: the one photo picked (not a video) shows its face of
+    // that person in People - only there.
+    onUseFace: (() -> Unit)? = null,
     onUpload: (() -> Unit)? = null,
     // Issue #180: "Share as gallery", offered when the selection is one folder.
     onGallery: (() -> Unit)? = null,
@@ -119,6 +123,10 @@ fun SelectionActionBar(
         if (onUncollect != null) add(BarItem(
             S.appShellRemoveFromCollection().resolve(), NavIcons.RemoveFromCollection, count > 0 && busy == null, onUncollect,
             busy = busy == SelectionActionTask.UNCOLLECT,
+        ))
+        if (onUseFace != null) add(BarItem(
+            S.appPhotosPersonCoverUse().resolve(), NavIcons.UseThisFace, count > 0 && busy == null, onUseFace,
+            busy = busy == SelectionActionTask.PERSON_COVER,
         ))
         if (onNotThisPerson != null) add(BarItem(
             S.appShellNotThisPerson().resolve(), NavIcons.NotThisPerson, count > 0 && busy == null, onNotThisPerson,

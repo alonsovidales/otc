@@ -49,6 +49,7 @@ import cloud.offthe.otc.proto.ReqPhotoDateBuckets
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.SetFavourite
+import cloud.offthe.otc.proto.SetPersonCover
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
@@ -102,6 +103,9 @@ import cloud.offthe.otc.i18n.appPhotosNoticeRemoved
 import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeSaved
 import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
+import cloud.offthe.otc.i18n.appPhotosPersonCoverDone
+import cloud.offthe.otc.i18n.appPhotosPersonCoverFailed
+import cloud.offthe.otc.i18n.appPhotosPersonCoverNeedsUpdate
 import cloud.offthe.otc.i18n.appPhotosPersonMoveFailed
 import cloud.offthe.otc.i18n.appPhotosPersonMoved
 import cloud.offthe.otc.i18n.appPhotosPersonMovedUnnamed
@@ -1142,6 +1146,80 @@ class PhotoGalleryViewModel(
             else -> alert(failed)
         }
         return false
+    }
+
+    /**
+     * Use this face on the selection: its one photo ([coverPhoto]: not a
+     * video) shows its face of the person Images shows
+     * ([State.personShown]) in People from now on (see [setPersonCover]).
+     * Done, the selection is left.
+     */
+    fun useSelectionAsCover() = scope.launch {
+        val st = _state.value
+        val person = st.personShown ?: return@launch
+        val item = coverPhoto(pickedByPath(st.items, pickedAway, st.selected).values) ?: return@launch
+        if (st.preparing != null) return@launch
+        if (coverTask { setPersonCover(person, hash = item.hash) }) clearSelection()
+    }
+
+    /** The viewer's Use this face, for the photo open (not a video): the viewer stays on it. */
+    fun useOpenAsCover() = scope.launch {
+        val st = _state.value
+        val person = st.personShown ?: return@launch
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return@launch
+        if (st.preparing != null || coverPhoto(listOf(item)) == null) return@launch
+        coverTask { setPersonCover(person, hash = item.hash) }
+    }
+
+    /**
+     * Upload a photo… under [person]'s face at the top of their photos:
+     * [jpeg], the crop's square, is their face from now on - a JPEG of at
+     * most 256 KB ([personCoverFits]), or nothing is sent.
+     */
+    fun uploadPersonCover(person: String, jpeg: ByteArray) = scope.launch {
+        if (_state.value.preparing != null) return@launch
+        if (!personCoverFits(jpeg)) { alert(S.appPhotosPersonCoverFailed()); return@launch }
+        coverTask { setPersonCover(person, image = jpeg) }
+    }
+
+    /** Choose automatically: [person]'s face is the device's choice again. */
+    fun resetPersonCover(person: String) = scope.launch {
+        if (_state.value.preparing != null) return@launch
+        coverTask { setPersonCover(person) }
+    }
+
+    private suspend fun coverTask(block: suspend () -> Boolean): Boolean {
+        _state.update { it.copy(preparing = SelectionActionTask.PERSON_COVER) }
+        try { return block() } finally { _state.update { it.copy(preparing = null) } }
+    }
+
+    /**
+     * SetPersonCover for [person]: one of their photos' face ([hash]), a
+     * picture of the owner's own ([image]), or neither. True once the
+     * device took it: the note says so and the people are asked again, so
+     * the face at the top of their photos and in People changes at once. A
+     * device from before the request answers unknown_payload: it needs an
+     * update (needsUpdate's dialog); anything else is the device's words
+     * (its refusal, the demo's), else cover_failed ([personCoverRefusal]).
+     */
+    private suspend fun setPersonCover(person: String, hash: String? = null, image: ByteArray? = null): Boolean {
+        // Nothing to name the photo by (no device sends photos without their hash now).
+        if (hash != null && hash.isEmpty()) { alert(S.appPhotosPersonCoverFailed()); return false }
+        val r = try {
+            call { it.setReqSetPersonCover(personCoverRequest(person, hash, image)) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { null }
+        if (r != null && r.isUnknownPayload()) {
+            val ask = deviceNeedsUpdate(S.appPhotosPersonCoverNeedsUpdate()) { build -> call(build) }
+            _state.update { it.copy(needsUpdate = ask) }
+            return false
+        }
+        val refused = personCoverRefusal(r)
+        if (refused != null) { alert(refused); return false }
+        scope.launch { loadPeople() }
+        alert(S.appPhotosPersonCoverDone())
+        return true
     }
 
     fun togglePerson(id: String) {
@@ -2694,6 +2772,43 @@ internal fun personName(p: Person?): String = p?.name?.replace(Regex("\\s+"), " 
 /** RemoveFromPerson: the photos with [hashes] off [personId], to [toPersonId] (null: matched to no one). */
 internal fun removeFromPersonRequest(personId: String, hashes: List<String>, toPersonId: String?): RemoveFromPerson =
     RemoveFromPerson.newBuilder().setPersonId(personId).addAllHashes(hashes).also { if (toPersonId != null) it.toPersonId = toPersonId }.build()
+
+/** The most a picture of the owner's own for a person's face may weigh (SetPersonCover.image): the device refuses more. */
+internal const val PERSON_COVER_MAX_BYTES = 256 * 1024
+
+/**
+ * SetPersonCover for [personId]: the face of theirs in the photo with
+ * [hash], a picture of the owner's own ([image]: the crop's JPEG), or,
+ * with neither, the device's choice again.
+ */
+internal fun personCoverRequest(personId: String, hash: String? = null, image: ByteArray? = null): SetPersonCover =
+    SetPersonCover.newBuilder().setPersonId(personId).also { b ->
+        when {
+            hash != null -> b.hash = hash
+            image != null -> b.image = com.google.protobuf.ByteString.copyFrom(image)
+        }
+    }.build()
+
+/** Use this face's photo among [picked]: the one picked, unless it is a video; null otherwise. */
+internal fun coverPhoto(picked: Collection<PhotoGalleryViewModel.Item>): PhotoGalleryViewModel.Item? =
+    picked.singleOrNull()?.takeIf { !it.mime.startsWith("video/") }
+
+/** Whether [jpeg] is a picture the device takes for a face: a JPEG (its start marker) of at most [PERSON_COVER_MAX_BYTES]. */
+internal fun personCoverFits(jpeg: ByteArray): Boolean =
+    jpeg.size in 4..PERSON_COVER_MAX_BYTES && jpeg[0] == 0xFF.toByte() && jpeg[1] == 0xD8.toByte()
+
+/**
+ * What a SetPersonCover answer means: null when the device took it, else
+ * the note - the device's words (a refusal, in the request's language; the
+ * demo device's), else cover_failed (no answer, or none in words).
+ */
+internal fun personCoverRefusal(resp: RespEnvelope?): UiText? = when {
+    resp == null -> S.appPhotosPersonCoverFailed()
+    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok -> null
+    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK -> deviceOr(resp.respAck.errorMsg, S.appPhotosPersonCoverFailed())
+    resp.error -> deviceOr(resp.errorMessage, S.appPhotosPersonCoverFailed())
+    else -> S.appPhotosPersonCoverFailed()
+}
 
 /** Not this person's question, for [count] photos off [person] (null: not in the people's list). */
 fun notThisPersonTitle(person: Person?, count: Int): UiText {

@@ -109,6 +109,11 @@ object NavIcons {
         outlineIcon("MoveToPerson", circlePath(9.5f, 8f, 3.2f), "M3.5 19.5c.7-3.3 3-5.2 6-5.2s5.3 1.9 6 5.2", "M15.5 8.5h5.5", "m18.5 6 2.5 2.5-2.5 2.5")
     }
 
+    /** Images' "Use this face": the same person with a tick beside them (the app's alone; the web has none yet). */
+    val UseThisFace: ImageVector by lazy {
+        outlineIcon("UseThisFace", circlePath(9.5f, 8f, 3.2f), "M3.5 19.5c.7-3.3 3-5.2 6-5.2s5.3 1.9 6 5.2", "m15.5 8.5 2 2 3.5-4")
+    }
+
     val Files: ImageVector by lazy {
         outlineIcon("Files", "M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z")
     }
