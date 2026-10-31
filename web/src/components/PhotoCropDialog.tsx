@@ -9,7 +9,9 @@ import "./PhotoCropDialog.css";
 // The profile picture's circle crop (issue #178) - the same one the setup
 // wizard's page has: drag the photo to centre the face, zoom with the
 // slider (or the wheel), and what's inside the square is saved as a small
-// JPEG, never the photo as picked (several MB, or HEIC).
+// JPEG, never the photo as picked (several MB, or HEIC). A person's face
+// picked from this computer (Images, PhotoGallery.tsx's PersonFace) goes
+// through it too, with its own title and hint.
 
 const VIEW = 280;
 const OUT = 320;
@@ -19,9 +21,15 @@ type Props = {
   file: File;
   onCancel: () => void;
   onDone: (jpeg: Uint8Array, url: string) => void;
+  // Its words, already in the page's language; the profile picture's
+  // without them.
+  title?: string;
+  hint?: string;
+  // The dialog's name for a screen reader.
+  label?: string;
 };
 
-export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
+export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, label }: Props) {
   const t = useT();
   // Back is Cancel (backStack.ts).
   useBackLayer(true, onCancel);
@@ -104,9 +112,9 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
   const cssK = () => VIEW / (canvas.current?.getBoundingClientRect().width || VIEW);
 
   return (
-    <div className="pcd-backdrop" role="dialog" aria-modal="true" aria-label={t("web.images.crop.label")}>
+    <div className="pcd-backdrop" role="dialog" aria-modal="true" aria-label={label ?? t("web.images.crop.label")}>
       <div className="pcd-dialog">
-        <h3>{t("web.images.crop.title")}</h3>
+        <h3>{title ?? t("web.images.crop.title")}</h3>
         {error ? (
           <p className="pcd-error">{error(t)}</p>
         ) : (
@@ -134,7 +142,7 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
               {t("web.images.crop.zoom")}
               <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoomClamped(Number(e.target.value))} />
             </label>
-            <p className="pcd-hint">{t("web.images.crop.hint")}</p>
+            <p className="pcd-hint">{hint ?? t("web.images.crop.hint")}</p>
           </>
         )}
         <div className="pcd-actions">

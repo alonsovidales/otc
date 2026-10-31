@@ -2078,8 +2078,14 @@ the photos stay), the second lists the other people (`usePeople`, faces and name
 and moves the photos to the one picked; they then leave the grid as deleted ones do (`dropDeleted`), with
 a note, and the people are listed again (the header's face may have been one of them). The viewer has both
 for the photo open (`MediaViewer`'s `personId`/`onPersonFixed`, round buttons before Delete), moving on as
-after its Delete. With them the bar's labels give way to icons below 1200px, 1440px with Remove from
-collection too (`barCompact`, `.pg-selbar[data-crowd]`). What Images shows is `photoFilter.ts` (tags, people, open
+after its Delete. **Use this face** joins them in both for exactly one photo, not a video (`faceHash`,
+`personCover.ts`, `node web/scripts/person-cover-test.mjs`); the person's face atop their photos is a
+button (`PersonFace`) whose menu has Upload a photo… (the file chooser, then `PhotoCropDialog` with the
+face's title and hint) and, with `coverChosen`, Choose automatically. Each sends `SetPersonCover`
+(`libraryStore.ts`' `choosePersonCover`, `refuseOnDemo` first), says `cover_done` or the device's words,
+and lists the people again. With them the bar's labels give way to icons below 1440px, 1680px with Remove
+from collection too (Use this face counted even unshown, so a second pick doesn't relayout the bar;
+`barCompact`, `.pg-selbar[data-crowd]`). What Images shows is `photoFilter.ts` (tags, people, open
 collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

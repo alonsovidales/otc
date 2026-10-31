@@ -95,6 +95,9 @@ describe("a change on a demo device", () => {
     assert.equal(del.payload.respAck.code, "demo");
     // People's Not this person / Someone else… changes the device too.
     assert.equal(m.demoRequestReply(req("reqRemoveFromPerson"), "refused").errorCode, "demo");
+    // So does choosing a person's face (Use this face, Upload a photo…,
+    // Choose automatically).
+    assert.equal(m.demoRequestReply(req("reqSetPersonCover"), "refused").errorCode, "demo");
     // The viewer's heart changes Favourites; asking what it shows doesn't.
     assert.equal(m.demoRequestReply(req("reqSetFavourite"), "refused").errorCode, "demo");
     assert.equal(m.demoRequestReply(req("reqGetFavourites"), "refused"), undefined);

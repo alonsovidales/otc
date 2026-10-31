@@ -8,8 +8,12 @@
 // to no one, and face recognition never files them under anyone again;
 // Someone else… lists the other people found and moves the faces to the
 // one picked. Images then drops the photos from the person's grid, as after
-// a delete, and says what was done (personFixDone.ts). The phones word it
-// the same (app.photos.person.*). Styled in PhotoGallery.css (.pg-pick*).
+// a delete, and says what was done (personFixDone.ts). Use this face, beside
+// them for one photo, makes that photo's face of theirs the one People shows
+// (libraryStore.ts' choosePersonCover, its rules in personCover.ts; its icon
+// is here; the header's face takes a picture of the owner's own:
+// PhotoGallery.tsx's PersonFace). The phones word it the same
+// (app.photos.person.*). Styled in PhotoGallery.css (.pg-pick*).
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useT } from "../i18n";
@@ -33,7 +37,8 @@ async function removeFromPerson(personId: string, hashes: string[], toPersonId: 
 }
 
 // Icons in Images' style (PhotoGallery.tsx's Svg): 24px box, round 1.6
-// strokes. A head and shoulders with a minus, and with an arrow.
+// strokes. A head and shoulders with a minus, with an arrow, and in a
+// round frame.
 function Glyph({ size, children }: { size: number; children: ReactNode }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}
@@ -47,6 +52,10 @@ export const NotThisPersonIcon = ({ size = 22 }: { size?: number }) => (
 );
 export const SomeoneElseIcon = ({ size = 22 }: { size?: number }) => (
   <Glyph size={size}><circle cx="10" cy="8.5" r="3.5" /><path d="M3.5 19.5c1-3.3 3.4-5 6.5-5 1.4 0 2.6.3 3.6 1" /><path d="M15.5 17.5h5.5M18.5 15l2.5 2.5-2.5 2.5" /></Glyph>
+);
+// Use this face: a face in its round frame, as People shows it.
+export const UseFaceIcon = ({ size = 22 }: { size?: number }) => (
+  <Glyph size={size}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="10" r="2.75" /><path d="M7.4 18.3c1.1-2.1 2.7-3.2 4.6-3.2s3.5 1.1 4.6 3.2" /></Glyph>
 );
 const FaceGlyph = () => (
   <Glyph size={22}><circle cx="12" cy="9.5" r="3.5" /><path d="M5.5 19.5c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" /></Glyph>

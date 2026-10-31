@@ -2,9 +2,11 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
-import type { ImageGroup, Person, RespEnvelope, TagsList } from "../proto/messages";
+import type { ImageGroup, Person, ReqEnvelope, RespEnvelope, TagsList } from "../proto/messages";
 import { forgetPerson, getPhotoFilter } from "./photoFilter";
 import { t } from "../i18n";
+import { coverOutcome, coverPayload, type CoverChoice } from "./personCover";
+import { say, type UiText } from "./uiText";
 
 // The library's people, groups and tags, each loaded once and shared by
 // the top bar's search, the People and Groups pages and the Images grid.
@@ -186,6 +188,26 @@ export function useTags() {
   const v = useSyncExternalStore(subscribe, getTags);
   useEffect(() => watchTags(), []);
   return v;
+}
+
+/** A person's face chosen (SetPersonCover, owner 2026-10-31; its rules in
+ *  personCover.ts): one of their photos' (Use this face), a picture of the
+ *  owner's own, or none - the device's choice again. Null once the device
+ *  took it, else the note to show: its words, ours when it gave none. The
+ *  people are listed again either way, and each list makes new cover URLs,
+ *  so the new face shows at the top of their photos, on the People page and
+ *  in the search at once (a person gone meanwhile goes). */
+export async function choosePersonCover(personId: string, cover: CoverChoice): Promise<UiText | null> {
+  let resp: RespEnvelope;
+  try {
+    resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = coverPayload(personId, cover);
+    });
+  } catch {
+    return say("web.images.error.unreachable");
+  }
+  void reloadPeople().catch(() => {});
+  return coverOutcome(resp);
 }
 
 /** After a rename the device acknowledged: no need to list everyone again. */

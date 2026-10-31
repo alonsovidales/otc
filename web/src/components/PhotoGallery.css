@@ -35,7 +35,7 @@
 
 /* index.css draws every button as an ember pill: these start from nothing. */
 .pg-tile-open, .pg-tile-check, .pg-icon-btn, .pg-btn, .pg-bar-btn, .pg-back, .pg-title-text,
-.pg-menu-item, .pg-pick, .pg-strip-remove, .pg-strip-btn, .pg-toast-action {
+.pg-menu-item, .pg-pick, .pg-strip-remove, .pg-strip-btn, .pg-toast-action, .pg-face-btn {
   margin: 0;
   padding: 0;
   border: 0;
@@ -48,7 +48,7 @@
 }
 .pg-tile-open:hover, .pg-tile-check:hover, .pg-icon-btn:hover, .pg-btn:hover, .pg-bar-btn:hover, .pg-back:hover,
 .pg-title-text:hover, .pg-menu-item:hover, .pg-pick:hover, .pg-strip-remove:hover, .pg-strip-btn:hover,
-.pg-toast-action:hover {
+.pg-toast-action:hover, .pg-face-btn:hover {
   filter: none;
 }
 
@@ -518,6 +518,57 @@
 }
 .pg-face + .pg-face { margin-left: -16px; }
 .pg-face-blank { background: var(--ink-3); }
+/* One person's face is a button (PhotoGallery.tsx's PersonFace): a pencil
+   in its corner, and its menu under it. Its own stacking context, over the
+   tiles and the scrubber but under the top bar, holds the menu and the
+   catcher under it. */
+.pg-face-anchor { position: relative; z-index: 8; }
+.pg-face-btn { position: relative; display: block; border-radius: 50%; }
+.pg-face-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pg-face-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  display: grid;
+  place-items: center;
+  background: var(--ink-3);
+  color: var(--mist);
+  transition: background-color .15s ease, color .15s ease;
+}
+.pg-face-btn:hover .pg-face-badge,
+.pg-face-btn[aria-expanded="true"] .pg-face-badge { background: var(--ember); color: var(--ember-ink); }
+.pg-face-busy {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .5);
+  color: var(--mist);
+  font-size: 20px;
+}
+/* Under the face, from its left edge. */
+.pg-menu.pg-face-menu { left: 0; right: auto; transform-origin: top left; }
+.pg-face-menu .pg-menu-item { min-height: 48px; }
+/* A line under the items, as wide as they make the menu (it adds no width
+   of its own: width 0, then the whole). */
+.pg-menu-hint {
+  box-sizing: border-box;
+  width: 0;
+  min-width: 100%;
+  margin: 8px 0 0;
+  padding: 10px 20px 4px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist-dim);
+  overflow-wrap: anywhere;
+}
 @media (max-width: 599px) {
   .pg-head { padding-top: 8px; }
   .pg-head-row { gap: 12px; }
@@ -591,17 +642,17 @@
   .pg-selbar-actions { gap: 0; }
 }
 /* More actions than the bar has room for with their labels (data-crowd:
-   Not this person and Someone else… among one person's photos, 2, and
-   Remove from Collection too, 3): icons with tooltips on wider windows
-   (PhotoGallery.tsx's barCompact follows the same widths), and narrower
-   buttons on a phone, so the count keeps some room. */
-@media (max-width: 1199px) {
+   Not this person, Someone else… and Use this face among one person's
+   photos, 3, and Remove from Collection too, 4): icons with tooltips on
+   wider windows (PhotoGallery.tsx's barCompact follows the same widths),
+   and narrower buttons on a phone, so the count keeps some room. */
+@media (max-width: 1439px) {
   .pg-selbar[data-crowd] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
   .pg-selbar[data-crowd] .pg-bar-label { display: none; }
 }
-@media (max-width: 1439px) {
-  .pg-selbar[data-crowd="3"] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  .pg-selbar[data-crowd="3"] .pg-bar-label { display: none; }
+@media (max-width: 1679px) {
+  .pg-selbar[data-crowd="4"] .pg-bar-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .pg-selbar[data-crowd="4"] .pg-bar-label { display: none; }
 }
 @media (max-width: 599px) {
   .pg-selbar[data-crowd] .pg-bar-btn { width: 40px; }
@@ -948,7 +999,7 @@
   .pg-tile-skel, .pg-skel-rows, .pg-month-skel span, .pg-title-skel, .pg-sub-skel, .pg-pick-skel .pg-pick-cover, .pg-pick-skel .pg-pick-text span,
   .pg-selbar, .pg-menu, .pg-dlg-backdrop, .pg-dlg, .pg-toast,
   .pg-icon-btn, .pg-btn, .pg-bar-btn, .pg-back, .pg-title-text, .pg-menu-item, .pg-pick,
-  .pg-strip-remove, .pg-strip-btn, .pg-toast-action, .pg-input {
+  .pg-strip-remove, .pg-strip-btn, .pg-toast-action, .pg-input, .pg-face-badge {
     transition: none;
     animation: none;
   }
@@ -1022,9 +1073,9 @@
 .pg-modal-del[aria-disabled="true"], .pg-modal-del[aria-disabled="true"]:hover {
   background: var(--panel); color: var(--mist); border-color: var(--line); opacity: .45; cursor: not-allowed;
 }
-/* Not this person and Someone else… (personFix.tsx), on one person's
-   photos: round buttons like Delete's, before it, ember under the pointer
-   as Info and Download are. */
+/* Not this person, Someone else… and Use this face (personFix.tsx), on one
+   person's photos: round buttons like Delete's, before it, ember under the
+   pointer as Info and Download are. */
 .pg-modal-act {
   flex: none; box-sizing: border-box; margin: 0; padding: 0;
   width: 30px; height: 30px; border-radius: 50%;
@@ -1080,6 +1131,9 @@
   font-size: 14px; line-height: 20px; overflow-wrap: anywhere;
 }
 .pg-modal-toast::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+/* One that says something was done (Use this face's): no red. */
+.pg-modal-toast.done { border-color: var(--line); }
+.pg-modal-toast.done::before { content: none; }
 .pg-modal-toast-close {
   flex: none; margin: 0; padding: 0; width: 32px; height: 32px; border: 0; border-radius: 50%;
   background: none; color: var(--mist-dim); font-size: 20px; line-height: 1; cursor: pointer;

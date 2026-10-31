@@ -15,7 +15,8 @@
 // #194, newerPhotos.ts), and deleting a photo the device holds at several
 // paths asks about its other copies (issue #201, photoCopies.ts). Among one
 // person's photos the bar and the viewer also take photos off that person,
-// or move them to someone else (personFix.tsx).
+// or move them to someone else, and make one photo's face theirs
+// (personFix.tsx); the person's face at the top changes it too (PersonFace).
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
@@ -44,12 +45,16 @@ import { areaKey, clearSearch, clearText, isDateOrdered, isFiltered, leaveArea, 
 import { dropPlaces } from "./places";
 import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
-import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
+import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
-import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
+import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
 import { personFixText, uniqueHashes, type PersonFixDone } from "./personFixDone";
+import { coverImageFits, faceHash, type CoverChoice } from "./personCover";
+// The profile picture's crop, which a person's face from this computer goes
+// through (PersonFace); in the first chunk already (App's ProfileCard).
+import PhotoCropDialog from "./PhotoCropDialog";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
@@ -281,6 +286,11 @@ const LinkIcon = ({ size }: IconProps) => (
   <Svg size={size}><path d="M10.5 13.5a3.75 3.75 0 0 0 5.3 0l2.95-2.95a3.75 3.75 0 0 0-5.3-5.3l-1.2 1.2" /><path d="M13.5 10.5a3.75 3.75 0 0 0-5.3 0l-2.95 2.95a3.75 3.75 0 0 0 5.3 5.3l1.2-1.2" /></Svg>
 );
 const DownloadIcon = ({ size }: IconProps) => <Svg size={size}><path d="M12 4v11" /><path d="m7.5 10.5 4.5 4.5 4.5-4.5" /><path d="M5 19.5h14" /></Svg>;
+const UploadIcon = ({ size }: IconProps) => <Svg size={size}><path d="M12 15.5v-11" /><path d="m7.5 9 4.5-4.5L16.5 9" /><path d="M5 19.5h14" /></Svg>;
+// An arrow going round: back to the device's own choice.
+const AutomaticIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M19.5 12a7.5 7.5 0 1 1-7.5-7.5c2.1 0 4.1.83 5.6 2.28l1.9 1.72" /><path d="M19.5 4.5v4h-4" /></Svg>
+);
 const PlusIcon = ({ size }: IconProps) => <Svg size={size}><path d="M12 5.5v13M5.5 12h13" /></Svg>;
 const ChevronLeftIcon = ({ size }: IconProps) => <Svg size={size}><path d="m14.5 6-6 6 6 6" /></Svg>;
 const ChevronRightIcon = ({ size }: IconProps) => <Svg size={size}><path d="m9.5 6 6 6-6 6" /></Svg>;
@@ -376,11 +386,13 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // take photos off them, or move them to someone else (personFix.tsx).
   const onePerson = personIds.length === 1 ? personIds[0] : null;
   // The bar's actions beyond its four (Post, Add to Collection, Share,
-  // Delete): Remove from Collection in a collection, and those two for one
-  // person. With more, its labels give way to icons on wider windows too
+  // Delete): Remove from Collection in a collection, and for one person
+  // those two and Use this face - counted while one photo isn't picked
+  // too, so the bar doesn't change from labels to icons as the second is.
+  // With more, its labels give way to icons on wider windows too
   // (PhotoGallery.css, .pg-selbar[data-crowd]).
-  const crowd = (group ? 1 : 0) + (onePerson ? 2 : 0);
-  const barCompact = useMedia(crowd >= 3 ? "(max-width: 1439px)" : crowd === 2 ? "(max-width: 1199px)" : "(max-width: 899px)");
+  const crowd = (group ? 1 : 0) + (onePerson ? 3 : 0);
+  const barCompact = useMedia(crowd >= 4 ? "(max-width: 1679px)" : crowd === 3 ? "(max-width: 1439px)" : "(max-width: 899px)");
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
@@ -1255,6 +1267,27 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     void reloadPeople().catch(() => {});
   };
 
+  // Use this face (owner, 2026-10-31): with one photo picked among one
+  // person's photos, its face of theirs becomes the one People shows for
+  // them (choosePersonCover lists the people again, so the header's face
+  // changes with it). A demo device refuses it before anything is sent.
+  const faceOf = onePerson ? faceHash(sel) : null;
+  const [facing, setFacing] = useState(false);
+  const chooseFace = async () => {
+    setShareOpen(false);
+    if (!onePerson || !faceOf || facing || refuseOnDemo()) return;
+    setFacing(true);
+    const failed = await choosePersonCover(onePerson, { $case: "hash", hash: faceOf });
+    setFacing(false);
+    if (failed) {
+      toastError(failed);
+      return;
+    }
+    clearSel();
+    showToast({ text: say("web.images.person.cover_done") });
+  };
+  const onCoverNote = useCallback((text: UiText, error: boolean) => showToast({ text, error }), [showToast]);
+
   // Issue #201: a delete refused because a photo's path holds other content
   // now ("changed") loads the grid again, from where its search started:
   // the newest photo, or the jump's month. Both cursors start again, and
@@ -1725,6 +1758,15 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
                   icon={<SomeoneElseIcon />}
                   onClick={() => openDialog({ kind: "movePerson" })}
                 />
+                {faceOf && (
+                  <BarButton
+                    compact={barCompact}
+                    label={t("web.images.person.cover_use")}
+                    icon={facing ? <Spinner /> : <UseFaceIcon />}
+                    onClick={() => void chooseFace()}
+                    disabled={facing}
+                  />
+                )}
               </>
             )}
             <div className="pg-share-anchor">
@@ -1791,7 +1833,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         />
       )}
       {!group && personIds.length > 0 && tags.length === 0 && !text && (
-        <PersonHeader personIds={personIds} total={bucketsFresh ? bucketTotal : null} />
+        <PersonHeader personIds={personIds} total={bucketsFresh ? bucketTotal : null} onCoverNote={onCoverNote} />
       )}
       {/* On this day (MemoriesStrip.tsx): over the whole library from its
           top - not a search, a collection, a place or a jump's month. */}
@@ -2134,8 +2176,13 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
 }
 
 // One person's photos (or several people's together), opened from the
-// People page or the search.
-function PersonHeader({ personIds, total }: { personIds: string[]; total: number | null }) {
+// People page or the search. One person's face is a button (PersonFace).
+function PersonHeader({ personIds, total, onCoverNote }: {
+  personIds: string[];
+  total: number | null;
+  // What their face's menu did, or why it didn't (Images' toast).
+  onCoverNote: (text: UiText, error: boolean) => void;
+}) {
   const t = useT();
   const people = usePeople();
   if (!people.loaded) {
@@ -2160,14 +2207,18 @@ function PersonHeader({ personIds, total }: { personIds: string[]; total: number
   return (
     <header className="pg-head">
       <div className="pg-head-row">
-        <div className="pg-faces" aria-hidden="true">
-          {picked.slice(0, 3).map((p) => {
-            const face = people.thumbs.get(p.id);
-            return face
-              ? <img key={p.id} className="pg-face" src={face} alt="" />
-              : <span key={p.id} className="pg-face pg-face-blank"><FaceIcon size={28} /></span>;
-          })}
-        </div>
+        {picked.length === 1 ? (
+          <PersonFace key={picked[0].id} person={picked[0]} face={people.thumbs.get(picked[0].id)} onNote={onCoverNote} />
+        ) : (
+          <div className="pg-faces" aria-hidden="true">
+            {picked.slice(0, 3).map((p) => {
+              const face = people.thumbs.get(p.id);
+              return face
+                ? <img key={p.id} className="pg-face" src={face} alt="" />
+                : <span key={p.id} className="pg-face pg-face-blank"><FaceIcon size={28} /></span>;
+            })}
+          </div>
+        )}
         <div className="pg-head-main">
           <h1 className="pg-title"><span className="pg-clamp">{title}</span></h1>
           {/* The line is there before the count is: nothing moves when it comes. */}
@@ -2175,6 +2226,174 @@ function PersonHeader({ personIds, total }: { personIds: string[]; total: number
         </div>
       </div>
     </header>
+  );
+}
+
+// The face at the top of one person's photos (owner, 2026-10-31): a button
+// whose menu takes a picture of the owner's own for it - Upload a photo…:
+// picked on this computer, then centred in the profile picture's crop - or,
+// once a face was chosen, gives the choice back to the device; its last line
+// says how to take one of their photos' (Use this face, personFix.tsx). Sent
+// with SetPersonCover, the new face shows once the people are listed again.
+function PersonFace({ person, face, onNote }: {
+  person: Person;
+  // Its picture's URL (libraryStore.ts); none while it has none.
+  face?: string;
+  onNote: (text: UiText, error: boolean) => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [cropping, setCropping] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const label = t("web.images.person.cover_change");
+
+  const close = useCallback((refocus: boolean) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus();
+  }, []);
+  const send = async (cover: CoverChoice) => {
+    setBusy(true);
+    const failed = await choosePersonCover(person.id, cover);
+    setBusy(false);
+    onNote(failed ?? say("web.images.person.cover_done"), failed != null);
+  };
+  // A demo device (net/demo.ts) refuses either before the file chooser
+  // opens or anything is sent.
+  const upload = () => {
+    close(false);
+    if (refuseOnDemo()) return;
+    fileRef.current?.click();
+  };
+  const automatic = () => {
+    close(false);
+    if (refuseOnDemo()) return;
+    void send(undefined);
+  };
+  // The crop's JPEG is far under what the device takes (PhotoCropDialog's
+  // MAX_BYTES); checked all the same, as it is what goes.
+  const cropped = (jpeg: Uint8Array, url: string) => {
+    URL.revokeObjectURL(url);
+    setCropping(null);
+    if (!coverImageFits(jpeg)) {
+      onNote(say("web.images.person.cover_failed"), true);
+      return;
+    }
+    void send({ $case: "image", image: jpeg });
+  };
+
+  return (
+    <>
+      <div className="pg-faces pg-face-anchor">
+        <button
+          ref={btnRef}
+          type="button"
+          className="pg-face-btn"
+          onClick={() => {
+            if (busy) return;
+            swallowSecondClick();
+            setOpen((v) => !v);
+          }}
+          aria-label={label}
+          // Not over its own menu.
+          data-tip={open ? undefined : label}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-busy={busy || undefined}
+        >
+          {face
+            ? <img className="pg-face" src={face} alt="" />
+            : <span className="pg-face pg-face-blank"><FaceIcon size={28} /></span>}
+          {busy && <span className="pg-face-busy"><Spinner /></span>}
+          <span className="pg-face-badge" aria-hidden="true"><PencilIcon size={14} /></span>
+        </button>
+        {open && <FaceMenu chosen={person.coverChosen} onUpload={upload} onAutomatic={automatic} onClose={close} />}
+      </div>
+      {/* Outside the face's stacking context, so the crop is over the top
+          bar as the profile picture's is. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) setCropping(file);
+        }}
+      />
+      {cropping && (
+        <PhotoCropDialog
+          file={cropping}
+          title={t("web.images.person.crop_title")}
+          hint={t("web.images.person.crop_hint")}
+          label={t("web.images.person.crop_title")}
+          onCancel={() => setCropping(null)}
+          onDone={cropped}
+        />
+      )}
+    </>
+  );
+}
+
+// The face's menu, under it (the share menu's look): its items, then the
+// line about Use this face, which isn't an item.
+function FaceMenu({ chosen, onUpload, onAutomatic, onClose }: {
+  // A face was chosen: Choose automatically gives the choice back.
+  chosen: boolean;
+  onUpload: () => void;
+  onAutomatic: () => void;
+  // refocus: give the focus back to the face (Escape).
+  onClose: (refocus: boolean) => void;
+}) {
+  const t = useT();
+  const hintId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+  }, []);
+  // Up and down move between the items; Escape (and Tab) close it - and
+  // only it: Images' selection stays (its Escape skips a handled key).
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" || e.key === "Tab") {
+      e.preventDefault();
+      onClose(true);
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    const all = [...(ref.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+    if (!all.length) return;
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    const next = e.key === "Home" ? 0
+      : e.key === "End" ? all.length - 1
+      : e.key === "ArrowDown" ? (at + 1) % all.length
+      : (at - 1 + all.length) % all.length;
+    all[next].focus();
+  };
+
+  return (
+    <>
+      {/* Catches the click that closes the menu, so it doesn't also open
+          the photo under it (nor a double click's second). */}
+      <div className="pg-menu-catcher" aria-hidden="true" onClick={() => { swallowSecondClick(); onClose(false); }} />
+      <div className="pg-menu pg-face-menu">
+        <div ref={ref} role="menu" aria-label={t("web.images.person.cover_change")} aria-describedby={hintId} onKeyDown={onKeyDown}>
+          <button type="button" role="menuitem" className="pg-menu-item" onClick={onUpload}>
+            <UploadIcon size={22} />
+            <span className="pg-menu-text"><strong>{t("web.images.person.cover_upload")}</strong></span>
+          </button>
+          {chosen && (
+            <button type="button" role="menuitem" className="pg-menu-item" onClick={onAutomatic}>
+              <AutomaticIcon size={22} />
+              <span className="pg-menu-text"><strong>{t("web.images.person.cover_auto")}</strong></span>
+            </button>
+          )}
+        </div>
+        <p id={hintId} className="pg-menu-hint">{t("web.images.person.cover_hint")}</p>
+      </div>
+    </>
   );
 }
 

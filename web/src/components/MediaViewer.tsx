@@ -5,10 +5,10 @@
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download, and Delete where the caller allows it
-// (issue #199) - and, opened on one person's photos, Not this person and
-// Someone else… (personFix.tsx); on this device's own library, the heart
-// that puts a photo in Favourites or takes it out (useFavourites.ts). The
-// apps do the same with ImageModal.
+// (issue #199) - and, opened on one person's photos, Not this person,
+// Someone else… and Use this face (personFix.tsx); on this device's own
+// library, the heart that puts a photo in Favourites or takes it out
+// (useFavourites.ts). The apps do the same with ImageModal.
 // Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
 // layer's Part); Back closes it.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -27,10 +27,11 @@ import { asIs, say, type UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
 import { useBackLayer } from "./backStack";
-import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
+import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
 import type { PersonFixDone } from "./personFixDone";
+import { faceHash } from "./personCover";
 import { favourites, useFavourite, useNoFavourites } from "./useFavourites";
-import { groupsChanged } from "./libraryStore";
+import { choosePersonCover, groupsChanged } from "./libraryStore";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -130,8 +131,9 @@ async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: 
   return { error: (t) => t("web.images.delete.failed", { count: 1 }), changed: null };
 }
 
-// How long the note of a heart the device refused stays.
-const cFavouriteNoteMs = 6000;
+// How long a note over the photo stays: a heart the device refused, a face
+// chosen or not (Use this face).
+const cNoteMs = 6000;
 
 // The heart: an outline, filled while the photo is in Favourites (CSS).
 const HeartGlyph = () => (
@@ -451,6 +453,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     const it = items[index];
     if (canFix && it && !refuseOnDemo()) setFixing({ kind, item: it });
   };
+  // Use this face, beside them for a photo (not a video): its face of the
+  // person becomes the one People shows for them (libraryStore.ts'
+  // choosePersonCover lists the people again). Said over the photo; the
+  // viewer stays where it is. One at a time.
+  const faceOf = canFix && item ? faceHash([item]) : null;
+  const [facing, setFacing] = useState(false);
+  const chooseFace = async () => {
+    if (!personId || !faceOf || facing || refuseOnDemo()) return;
+    setFacing(true);
+    setNote(null);
+    const failed = await choosePersonCover(personId, { $case: "hash", hash: faceOf });
+    if (!mountedRef.current) return;
+    setFacing(false);
+    setNote({ text: failed ?? say("web.images.person.cover_done"), seq: Date.now(), done: failed == null });
+  };
   const blockedWhy = item && deleteBlocked ? deleteBlocked(item) : null;
   const canDelete = !!onDeleted && !!item && !blockedWhy;
   const askDelete = useCallback(() => {
@@ -533,13 +550,14 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
   // The heart pressed (or F): shown at once, then sent. Refused, it goes
   // back and a note says so - in the device's words when it gave some. A
-  // demo device refuses it before anything changes.
-  const [favNote, setFavNote] = useState<{ text: UiText; seq: number } | null>(null);
+  // demo device refuses it before anything changes. (`done`: a note that
+  // isn't about a failure - Use this face's.)
+  const [note, setNote] = useState<{ text: UiText; seq: number; done?: boolean } | null>(null);
   useEffect(() => {
-    if (!favNote) return;
-    const timer = setTimeout(() => setFavNote(null), cFavouriteNoteMs);
+    if (!note) return;
+    const timer = setTimeout(() => setNote(null), cNoteMs);
     return () => clearTimeout(timer);
-  }, [favNote]);
+  }, [note]);
   // A heart changed while it was open: the collections' counts and covers
   // are listed again as it closes, as after Add to collection.
   const favChangedRef = useRef(false);
@@ -552,11 +570,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     if (now === undefined || refuseOnDemo()) return;
     // A small pop as it fills (none under reduced motion: PhotoGallery.css).
     setPopped(now ? null : it.path);
-    setFavNote(null);
+    setNote(null);
     favChangedRef.current = true;
     void favourites.toggle(it).then((said) => {
       if (said == null || !mountedRef.current) return;
-      setFavNote({ text: said ? asIs(said) : say("web.images.viewer.favourite_failed"), seq: Date.now() });
+      setNote({ text: said ? asIs(said) : say("web.images.viewer.favourite_failed"), seq: Date.now() });
     });
   }, [heart, items, index]);
 
@@ -754,6 +772,18 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               >
                 <SomeoneElseIcon size={18} />
               </button>
+              {faceOf && (
+                <button
+                  type="button"
+                  className="pg-modal-act"
+                  data-tip={t("web.images.person.cover_use")}
+                  aria-label={t("web.images.person.cover_use")}
+                  aria-busy={facing || undefined}
+                  onClick={() => void chooseFace()}
+                >
+                  {facing ? <span className="pg-modal-dl-spin" aria-hidden="true" /> : <UseFaceIcon size={18} />}
+                </button>
+              )}
             </>
           )}
           {/* Issue #199: where the caller allows it. Greyed out, with
@@ -973,11 +1003,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         )}
 
         <DownloadNote failed={saveError} />
-        {/* The heart the device didn't take, back as it was. */}
-        {favNote && (
-          <div className="pg-modal-toast" role="alert" key={favNote.seq}>
-            <span>{favNote.text(t)}</span>
-            <button type="button" className="pg-modal-toast-close" aria-label={t("common.close")} onClick={() => setFavNote(null)}>×</button>
+        {/* The heart the device didn't take, back as it was; the face
+            chosen, or why not. */}
+        {note && (
+          <div className={"pg-modal-toast" + (note.done ? " done" : "")} role={note.done ? "status" : "alert"} key={note.seq}>
+            <span>{note.text(t)}</span>
+            <button type="button" className="pg-modal-toast-close" aria-label={t("common.close")} onClick={() => setNote(null)}>×</button>
           </div>
         )}
         {asking && (() => {
