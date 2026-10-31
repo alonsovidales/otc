@@ -14,6 +14,11 @@ func DevStatusBackgroundDates() Msg {
 	return Msg{Key: "dev.status.background.dates"}
 }
 
+// DevStatusBackgroundFaces is dev.status.background.faces: "Choosing the best face for each person".
+func DevStatusBackgroundFaces() Msg {
+	return Msg{Key: "dev.status.background.faces"}
+}
+
 // DevStatusBackgroundPlaces is dev.status.background.places: "Finding where your photos were taken".
 func DevStatusBackgroundPlaces() Msg {
 	return Msg{Key: "dev.status.background.places"}

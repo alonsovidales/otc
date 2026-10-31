@@ -267,6 +267,10 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// On this day: how what was stored before looks - from the
 			// thumbnails, behind the uploads and the lanes (quality.go).
 			mg.filesManager.BackfillQuality(ses)
+			// People: the looks of the faces found before release 157,
+			// after the photos' own (above), and everyone's face chosen
+			// again from them (face_covers.go).
+			mg.filesManager.BackfillFaceQuality(ses)
 			// Smart search: what was stored before, described while it is
 			// on (smart_search.go).
 			mg.filesManager.BackfillEmbeddings(ses)

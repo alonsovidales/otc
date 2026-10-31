@@ -9,6 +9,10 @@
     "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device puts right the dates its photos were taken on, read again from each photo.",
     "max": 60
   },
+  "dev.status.background.faces": {
+    "text": "Choosing the best face for each person",
+    "note": "Settings › Background work: the device is measuring how good the faces it found look (sharp, large, well lit) and choosing the best-looking one to show for each person in People. Same style as dev.status.background.quality (\"Choosing the best photos for On this day\")."
+  },
   "dev.status.background.places": {
     "text": "Finding where your photos were taken",
     "note": "A row of the Background work section in Settings (Status.background_tasks): what the device is working through by itself, with a progress bar and how many photos or videos it has dealt with under it. Here: the device reads where each photo or video was taken, for the map in Images (Places), after Places is turned on.",

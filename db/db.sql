@@ -408,7 +408,11 @@ create table settings
   -- the last content hash it read, so a restart goes on from there, and
   -- whether it has read everything.
   `dates_taken_cursor` varchar(64) not null default '',
-  `dates_taken_backfilled` tinyint(1) not null default 0
+  `dates_taken_backfilled` tinyint(1) not null default 0,
+  -- Release 157: the faces stored before it have their looks measured
+  -- (faces.quality) and every person's face is chosen again from them,
+  -- once, in the background after a sign-in (files_manager/face_covers.go).
+  `face_quality_done` tinyint(1) not null default 0
 ) engine=InnoDB;
 
 create table profile
@@ -616,12 +620,15 @@ create table people
   `id` varchar(36) not null,
   `name` varchar(150) not null default '',
   `created` datetime not null,
-  -- This person's medoid face (see face_recognition.MedoidAndCohesion) -
-  -- the most representative face already on file, used as ListPeople's
-  -- cover thumbnail. Recomputed by files_manager.processFaces every time
-  -- a new face is added to this person. NULL until their first face (or
-  -- for a person that predates this column) - ListPeople falls back to
-  -- their oldest face in that case, same as the original behavior.
+  -- The face ListPeople shows for this person: since release 157 the
+  -- best-looking of their faces that is clearly them (faces.quality,
+  -- files_manager/face_covers.go), else their medoid face (see
+  -- face_recognition.MedoidAndCohesion) - chosen again by
+  -- files_manager.processFaces when a new face changes their references or
+  -- looks better - or the one the owner chose (cover_chosen). NULL until
+  -- their first face (or for a person that predates this column) -
+  -- ListPeople falls back to their oldest face in that case, same as the
+  -- original behavior.
   `cover_face_id` varchar(36) default null,
   -- The medoid's own cohesion score (that face's average cosine
   -- similarity to every other face this person has) - see
@@ -676,6 +683,12 @@ create table faces
   `embedding` blob not null,
   `thumbnail` mediumblob not null,
   `created` datetime not null,
+  -- How good the face looks, 0 to 1 (images_quality.FaceQuality: sharp,
+  -- large, well lit, frontal), measured from the crop when it is found;
+  -- NULL for one found before release 157 until the background pass has
+  -- measured it. The face People shows for a person is the best-looking of
+  -- those that are clearly them (dao.BestFaces), unless the owner chose one.
+  `quality` float default null,
 
   primary key (`id`),
   key (`hash`),

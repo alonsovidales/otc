@@ -7,6 +7,10 @@
     "text": "Corrige les dates des photos",
     "en": "Fixing photo dates"
   },
+  "dev.status.background.faces": {
+    "text": "Choisit le meilleur visage de chaque personne",
+    "en": "Choosing the best face for each person"
+  },
   "dev.status.background.places": {
     "text": "Recherche où vos photos ont été prises",
     "en": "Finding where your photos were taken"

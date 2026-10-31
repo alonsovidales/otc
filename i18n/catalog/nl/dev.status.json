@@ -1,6 +1,7 @@
 {
   "dev.status.background.analysis": {"text": "Analyseert nieuwe foto’s en video’s"},
   "dev.status.background.dates": {"text": "Corrigeert de datums van foto’s"},
+  "dev.status.background.faces": {"text": "Kiest het beste gezicht van elke persoon"},
   "dev.status.background.places": {"text": "Zoekt uit waar je foto’s zijn gemaakt"},
   "dev.status.background.quality": {"text": "Kiest de beste foto’s voor Op deze dag"},
   "dev.status.background.smart_search": {"text": "Leert je foto’s kennen"},

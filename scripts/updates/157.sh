@@ -5,9 +5,16 @@
 #
 # A person's face chosen by the owner (owner, 2026-10-31): a face from one
 # of their photos, or a picture of the owner's own, cropped in the app.
-# people.cover_chosen keeps the choice from being replaced by the medoid as
-# more photos of them come in, and people.cover_image holds the picture,
-# encrypted at rest like the faces' thumbnails - see db.sql.
+# people.cover_chosen keeps the choice from being replaced as more photos of
+# them come in, and people.cover_image holds the picture, encrypted at rest
+# like the faces' thumbnails - see db.sql.
+#
+# The face the device chooses is the best-looking one that is clearly them
+# (owner: "it would be better to get the best looking one"): faces.quality
+# measures each face, and settings.face_quality_done marks the background
+# pass that measures the faces stored before and chooses everyone's face
+# again (files_manager/face_covers.go). Nothing is measured here: the
+# crops are encrypted, so the device does it after a sign-in.
 #
 # Idempotent: ADD COLUMN IF NOT EXISTS.
 #
@@ -21,6 +28,8 @@ apply_to() {
     mysql "$db" <<'SQL'
 ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_chosen TINYINT(1) NOT NULL DEFAULT 0;
 ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_image MEDIUMBLOB NULL;
+ALTER TABLE faces ADD COLUMN IF NOT EXISTS quality FLOAT NULL;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_quality_done TINYINT(1) NOT NULL DEFAULT 0;
 SQL
 }
 
@@ -41,4 +50,4 @@ for db in $(mysql -N -B -e "SELECT db_name FROM users" otc 2>/dev/null || true);
     apply_to "$db"
 done
 
-echo "release 157 applied: people.cover_chosen, people.cover_image"
+echo "release 157 applied: people.cover_chosen, people.cover_image, faces.quality, settings.face_quality_done"

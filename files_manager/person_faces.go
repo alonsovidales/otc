@@ -83,7 +83,7 @@ func (mg *Manager) rebuildPeopleLocked(ses *session.Session, ids ...string) {
 			}
 			delete(mg.faceRefsStale, id)
 		}
-		updatePersonCoverFace(mg.dao, id, p)
+		mg.chooseCoverLocked(ses, id, p)
 	}
 }
 

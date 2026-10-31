@@ -34,6 +34,11 @@ type personFaceRefs struct {
 	// sim[i][j] is CosineSimilarity(refs[i].emb, refs[j].emb); the
 	// diagonal is unused.
 	sim [][]float32
+	// The face chosen for them in this process (chooseCoverLocked): known
+	// once one was, and how good it looks (0 for the medoid) - a new face
+	// that looks better chooses again (coverMayChange).
+	coverKnown   bool
+	coverQuality float64
 }
 
 // faceRefs is the whole library's matching set, person id -> references.

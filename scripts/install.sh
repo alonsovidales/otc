@@ -1293,10 +1293,13 @@ SQL
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS dates_taken_backfilled TINYINT(1) NOT NULL DEFAULT 0;
 SQL
     # Release 157 (updates/157.sh): a person's face chosen by the owner -
-    # one of their photos' faces, or a picture of their own (see db.sql).
+    # one of their photos' faces, or a picture of their own - and how good
+    # each face looks, for the one the device chooses (see db.sql).
     mysql "$db" <<'SQL'
     ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_chosen TINYINT(1) NOT NULL DEFAULT 0;
     ALTER TABLE people ADD COLUMN IF NOT EXISTS cover_image MEDIUMBLOB NULL;
+    ALTER TABLE faces ADD COLUMN IF NOT EXISTS quality FLOAT NULL;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_quality_done TINYINT(1) NOT NULL DEFAULT 0;
 SQL
 }
 

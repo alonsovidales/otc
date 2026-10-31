@@ -2052,7 +2052,16 @@ neither (the device's choice again). `people.cover_chosen` (release 157) keeps a
 of them come in (`SetPersonCoverFace` updates the cohesion only); a chosen face gone (the photo deleted, Not
 this person) is the device's choice again, a picture stays. `ListPeople` shows the picture, else the cover
 face, and says `Person.cover_chosen` (the apps' Choose automatically). Older devices answer
-`unknown_payload` (`TestPersonCoverMySQL`, `websocket/person_cover_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
+`unknown_payload` (`TestPersonCoverMySQL`, `websocket/person_cover_test.go`). The face the device chooses
+(owner, same day: "the best looking one") is the best-looking of theirs that is clearly them
+(`files_manager/face_covers.go`): `faces.quality` (release 157) is `images_quality.FaceQuality` of the
+crop when found - sharpness, the box's size, light, and frontal (the crop's halves mirrored) -;
+`dao.BestFaces` ranks a person's measured faces by 0.8 of it and 0.2 of their photo's NIMA score, and
+`chooseCoverLocked` keeps the first whose average similarity to their references reaches the same-person
+threshold and 0.85 of their cohesion, else the medoid as before. It runs when a new face changes the
+references or looks better than the chosen one (`coverMayChange`); the faces found before are measured
+once after a sign-in (`BackfillFaceQuality`, Background work "faces", `settings.face_quality_done`), then
+everyone's face is chosen again (`TestBestFacesMySQL`, `face_covers_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
 day's See all, Places), before Download; its rules are `favourites.ts` (`node web/scripts/favourites-test.mjs`; the
 page's store in `useFavourites.ts`): one `GetFavourites` for the photo and its neighbours (a burst of steps asks
 where it stops), answers kept by path for the page (still shown but asked again at each viewer opening, forgotten

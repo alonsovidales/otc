@@ -1,6 +1,7 @@
 {
   "dev.status.background.analysis": {"text": "A analisar fotos e vídeos novos"},
   "dev.status.background.dates": {"text": "A corrigir as datas das fotos"},
+  "dev.status.background.faces": {"text": "A escolher o melhor rosto de cada pessoa"},
   "dev.status.background.places": {"text": "A descobrir onde as tuas fotos foram tiradas"},
   "dev.status.background.quality": {"text": "A escolher as melhores fotos para Neste dia"},
   "dev.status.background.smart_search": {"text": "A conhecer as tuas fotos"},

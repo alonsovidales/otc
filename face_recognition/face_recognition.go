@@ -488,7 +488,7 @@ func ClusterCohesion(faces []IdentifiedEmbedding) float32 {
 
 // MedoidAndCohesion computes the medoid and its cohesion score together,
 // in one O(n^2) pass - split out so a caller wanting both (files_manager.
-// updatePersonCoverFace) doesn't pay for the pairwise comparisons twice.
+// chooseCoverLocked) doesn't pay for the pairwise comparisons twice.
 // O(n^2) is fine at personal-library scale for one person's own face
 // count (see ListFaceEmbeddings' own doc comment on the same assumption),
 // especially now that cMinFaceSizeFraction/cMinFaceSharpness keep a

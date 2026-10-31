@@ -256,9 +256,10 @@ func TestMatchOrNewPersonUsesReferencesOnly(t *testing.T) {
 	}
 }
 
-// updatePersonCoverFace recomputes a person's medoid cover face (issue
-// #52 follow-up: previously just "the oldest face") over their references
-// (issue #173) and writes it for that person only.
+// chooseCoverLocked works a person's face out (issue #52 follow-up:
+// previously just "the oldest face") over their references (issue #173) -
+// the medoid without a session to read their best-looking faces with - and
+// writes it for that person only.
 func TestUpdatePersonCoverFaceWritesTargetPerson(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -275,10 +276,10 @@ func TestUpdatePersonCoverFaceWritesTargetPerson(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "alice").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	updatePersonCoverFace(dao.NewWithDB(db), "alice", refs["alice"])
+	NewWithDAO(dao.NewWithDB(db)).chooseCoverLocked(nil, "alice", refs["alice"])
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("updatePersonCoverFace didn't update the right person (or updated the wrong one/none): %v", err)
+		t.Errorf("chooseCoverLocked didn't update the right person (or updated the wrong one/none): %v", err)
 	}
 }
 
@@ -291,11 +292,12 @@ func TestUpdatePersonCoverFaceNoRefsIsNoOp(t *testing.T) {
 
 	// No mock.ExpectExec at all - a person with no references must not
 	// write a garbage cover_face_id.
-	updatePersonCoverFace(dao.NewWithDB(db), "someone-else", nil)
-	updatePersonCoverFace(dao.NewWithDB(db), "someone-else", &personFaceRefs{})
+	mg := NewWithDAO(dao.NewWithDB(db))
+	mg.chooseCoverLocked(nil, "someone-else", nil)
+	mg.chooseCoverLocked(nil, "someone-else", &personFaceRefs{})
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("updatePersonCoverFace made an unexpected database call: %v", err)
+		t.Errorf("chooseCoverLocked made an unexpected database call: %v", err)
 	}
 }
 

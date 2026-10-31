@@ -2365,11 +2365,14 @@ func (dao *Dao) SetPersonCover(personID, faceID string, image []byte) error {
 // whichever person it was matched to (see CreatePerson). embedding is the
 // raw feature vector, encoded via face_recognition.EncodeEmbedding -
 // opaque to this layer, never interpreted here.
-func (dao *Dao) AddFace(id, hash, personID string, x, y, w, h int, embedding, thumbnail []byte) (err error) {
+//
+// quality is how good the face looks (images_quality.FaceQuality), for
+// the face the device chooses for its person (BestFaces).
+func (dao *Dao) AddFace(id, hash, personID string, x, y, w, h int, embedding, thumbnail []byte, quality float64) (err error) {
 	_, err = dao.db.Exec(
-		"insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, now())",
-		id, hash, personID, x, y, w, h, embedding, thumbnail)
+		"insert into `faces` (`id`, `hash`, `person_id`, `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `embedding`, `thumbnail`, `created`, `quality`) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?)",
+		id, hash, personID, x, y, w, h, embedding, thumbnail, quality)
 	return
 }
 

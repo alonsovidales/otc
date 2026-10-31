@@ -40,12 +40,15 @@ const (
 	// BackgroundSmartSearch: Smart search's descriptions
 	// (BackfillEmbeddings).
 	BackgroundSmartSearch = "smart_search"
+	// BackgroundFaces: the looks of the faces found before release 157, and
+	// everyone's face chosen again (BackfillFaceQuality).
+	BackgroundFaces = "faces"
 )
 
 // backgroundOrder is the order Status lists them in: the uploads first,
 // then the passes in the order startBackfillOnce runs them.
 var backgroundOrder = []string{
-	BackgroundAnalysis, BackgroundThumbnails, BackgroundDates, BackgroundPlaces, BackgroundQuality, BackgroundSmartSearch,
+	BackgroundAnalysis, BackgroundThumbnails, BackgroundDates, BackgroundPlaces, BackgroundQuality, BackgroundFaces, BackgroundSmartSearch,
 }
 
 // backgroundText is what a kind is doing, in the device's words.
@@ -63,6 +66,8 @@ func backgroundText(kind string) (i18n.Msg, bool) {
 		return i18n.DevStatusBackgroundQuality(), true
 	case BackgroundSmartSearch:
 		return i18n.DevStatusBackgroundSmartSearch(), true
+	case BackgroundFaces:
+		return i18n.DevStatusBackgroundFaces(), true
 	}
 	return i18n.Msg{}, false
 }

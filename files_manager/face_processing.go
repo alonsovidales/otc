@@ -92,7 +92,8 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 
 		encoded := facerecognition.EncodeEmbedding(det.Embedding)
 		faceID := uuid.New().String()
-		if err := mg.dao.AddFace(faceID, file.Hash, personID, det.X, det.Y, det.W, det.H, ses.Encrypt(encoded), ses.Encrypt(det.Thumbnail)); err != nil {
+		quality := faceQuality(det.Thumbnail, det.W, det.H)
+		if err := mg.dao.AddFace(faceID, file.Hash, personID, det.X, det.Y, det.W, det.H, ses.Encrypt(encoded), ses.Encrypt(det.Thumbnail), quality); err != nil {
 			log.Error("error storing a detected face:", err)
 			continue
 		}
@@ -100,10 +101,12 @@ func (mg *Manager) processFaces(ses *session.Session, file *pb.File, img image.I
 		// So a second face in this same photo (or a later photo) can also
 		// match this person through this face - subject to the reference
 		// rule (issue #173, see personFaceRefs.add). The face row above is
-		// stored either way; the cover face only needs recomputing when
-		// the references actually changed.
-		if refs.add(personID, faceID, det.Embedding) {
-			updatePersonCoverFace(mg.dao, personID, refs[personID])
+		// stored either way; the person's face is chosen again when the
+		// references changed or this one looks better than theirs
+		// (face_covers.go).
+		kept := refs.add(personID, faceID, det.Embedding)
+		if p := refs[personID]; coverMayChange(p, kept, quality) {
+			mg.chooseCoverLocked(ses, personID, p)
 		}
 	}
 }
@@ -274,28 +277,6 @@ func (mg *Manager) sweepOrphanFaces() {
 	}
 	if len(hashes) > 0 {
 		log.Info("removed the faces of", len(hashes), "deleted photo(s)")
-	}
-}
-
-// updatePersonCoverFace recomputes and persists a person's medoid cover
-// face (face_recognition.MedoidFaceID's own doc comment has the full
-// reasoning) over that person's references only - at most
-// cMaxFaceRefsPerPerson faces, so <=400 comparisons instead of O(k^2) over
-// every face they have (issue #173). The references are kept diverse and
-// free of outliers, so their medoid is still a representative face, and
-// its cohesion still flags a chained-together non-person. Run whenever a
-// person's references change, not just for new people, since the medoid
-// can move as more (possibly better) photos of them come in.
-func updatePersonCoverFace(d *dao.Dao, personID string, p *personFaceRefs) {
-	if p == nil {
-		return
-	}
-	medoidID, cohesion := facerecognition.MedoidAndCohesion(p.identified())
-	if medoidID == "" {
-		return
-	}
-	if err := d.SetPersonCoverFace(personID, medoidID, cohesion); err != nil {
-		log.Error("error updating person cover face:", err)
 	}
 }
 

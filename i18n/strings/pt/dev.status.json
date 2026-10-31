@@ -7,6 +7,10 @@
     "text": "A corrigir as datas das fotos",
     "en": "Fixing photo dates"
   },
+  "dev.status.background.faces": {
+    "text": "A escolher o melhor rosto de cada pessoa",
+    "en": "Choosing the best face for each person"
+  },
   "dev.status.background.places": {
     "text": "A descobrir onde as tuas fotos foram tiradas",
     "en": "Finding where your photos were taken"
