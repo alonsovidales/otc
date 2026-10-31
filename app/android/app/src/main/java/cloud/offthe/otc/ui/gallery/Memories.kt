@@ -230,14 +230,20 @@ private fun touchExploring(context: Context): Boolean =
  * A memory opened: its photos one after the other, 4 s each, like stories -
  * a tap on the right goes on, on the left goes back, holding pauses; the
  * progress segments on top, the line (how long ago, the days, the place) and
- * the named people, Pause, the hide menu and See all. With TalkBack it
+ * the named people, Pause, the hide menu and See all. After a memory's last
+ * photo the strip's next memory starts ([onMove]), and after the last one it
+ * closes; back from a first photo is the memory before (iOS's and the web's
+ * rule); Pause holds from one to the next. With TalkBack it
  * starts paused, and the sides are buttons. Animations off
  * (ANIMATOR_DURATION_SCALE 0) drop the cross-fade, not the advance, which is
  * timed by frames. [memory] is looked up again in the model's answers by
  * key: hidden meanwhile (here or on another app), it closes.
  */
 @Composable
-internal fun MemoryViewer(model: MemoriesModel, memory: Memory, people: List<Person>, onClose: () -> Unit, onSeeAll: (Memory) -> Unit) {
+internal fun MemoryViewer(
+    model: MemoriesModel, memory: Memory, people: List<Person>,
+    onClose: () -> Unit, onMove: (Memory) -> Unit, onSeeAll: (Memory) -> Unit,
+) {
     val st by model.state.collectAsState()
     val m = st.answers.values.asSequence().flatMap { it.memoriesList.asSequence() }.firstOrNull { it.key == memory.key }
     LaunchedEffect(m == null, st.answers.size) { if (m == null && st.answers.isNotEmpty()) onClose() }
@@ -246,8 +252,9 @@ internal fun MemoryViewer(model: MemoriesModel, memory: Memory, people: List<Per
     if (files.isEmpty()) return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var index by remember { mutableIntStateOf(0) }
-    var elapsed by remember { mutableLongStateOf(0L) }
+    // Each memory starts at its first photo; Pause stays from one to the next.
+    var index by remember(memory.key) { mutableIntStateOf(0) }
+    var elapsed by remember(memory.key) { mutableLongStateOf(0L) }
     var held by remember { mutableStateOf(false) }
     var userPaused by remember { mutableStateOf(touchExploring(context)) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -257,9 +264,19 @@ internal fun MemoryViewer(model: MemoriesModel, memory: Memory, people: List<Per
         index = to.coerceIn(0, files.lastIndex)
         elapsed = 0
     }
+    fun next() {
+        if (index < files.lastIndex) return go(index + 1)
+        menuOpen = false
+        MemoriesRules.neighbour(st.shown, mem.key, 1)?.let(onMove) ?: onClose()
+    }
+    fun prev() {
+        if (index > 0) return go(index - 1)
+        elapsed = 0
+        MemoriesRules.neighbour(st.shown, mem.key, -1)?.let(onMove)
+    }
     LaunchedEffect(mem.key) { model.noteThumbs(files) }
     // Frames, not an animation: with animations off an animation ends at once.
-    LaunchedEffect(index, paused, files.size) {
+    LaunchedEffect(mem.key, index, paused, files.size) {
         if (paused) return@LaunchedEffect
         var last = withFrameMillis { it }
         while (elapsed < STEP_MS) {
@@ -267,7 +284,7 @@ internal fun MemoryViewer(model: MemoriesModel, memory: Memory, people: List<Per
             elapsed += t - last
             last = t
         }
-        if (index < files.lastIndex) go(index + 1)
+        next()
     }
     // The next photo's picture, ahead of it.
     LaunchedEffect(index) { files.getOrNull(index + 1)?.let { model.bigThumb(it.path) } }
@@ -280,18 +297,18 @@ internal fun MemoryViewer(model: MemoriesModel, memory: Memory, people: List<Per
             }
             // The sides: back a photo on the left third, on otherwise; held, paused.
             Row(Modifier.fillMaxSize().systemBarsPadding()) {
-                val prev = S.appPhotosMemoriesPreviousPhoto().resolve()
-                val next = S.appPhotosMemoriesNextPhoto().resolve()
+                val prevText = S.appPhotosMemoriesPreviousPhoto().resolve()
+                val nextText = S.appPhotosMemoriesNextPhoto().resolve()
                 val position = S.appPhotosMemoriesPhotoPosition(index + 1, files.size).resolve()
                 Box(
                     Modifier.weight(1f).fillMaxHeight()
-                        .pointerInput(index) { detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }, onTap = { go(index - 1) }) }
-                        .semantics { contentDescription = prev; role = Role.Button; onClick { go(index - 1); true } },
+                        .pointerInput(mem.key, index) { detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }, onTap = { prev() }) }
+                        .semantics { contentDescription = prevText; role = Role.Button; onClick { prev(); true } },
                 )
                 Box(
                     Modifier.weight(2f).fillMaxHeight()
-                        .pointerInput(index) { detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }, onTap = { go(index + 1) }) }
-                        .semantics { contentDescription = "$position. $next"; role = Role.Button; onClick { go(index + 1); true } },
+                        .pointerInput(mem.key, index) { detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }, onTap = { next() }) }
+                        .semantics { contentDescription = "$position. $nextText"; role = Role.Button; onClick { next(); true } },
                 )
             }
             Column(Modifier.fillMaxWidth().systemBarsPadding().displayCutoutPadding().padding(top = 8.dp)) {

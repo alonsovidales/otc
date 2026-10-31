@@ -19,10 +19,13 @@
 //      Nothing in any period - or the device still measuring with nothing
 //      to show - and the strip isn't there at all.
 //    - A card per memory (an earlier year): its cover, "3 years ago", the
-//      place. A tap opens it full screen as a slideshow (`MemoryViewer`):
-//      4 s a photo, a tap on the left third goes back and elsewhere on, a
-//      press held pauses, Pause/Resume, segments on top, a swipe down
-//      closes; with VoiceOver it starts paused and its sides are buttons.
+//      place. A tap opens it full screen as a slideshow (`MemoryStories`
+//      around `MemoryViewer`): 4 s a photo, a tap on the left third goes
+//      back and elsewhere on, a press held pauses, Pause/Resume, segments
+//      on top, a swipe down closes; after a memory's last photo the next
+//      memory of the strip starts, and after the last one it closes (back
+//      from a first photo is the memory before); with VoiceOver it starts
+//      paused and its sides are buttons.
 //      See all shows its photos in a grid that opens the viewer; the …
 //      menu hides the photo (the viewer stays), the memory, the photo's day
 //      or a named person (HideMemory; the last three close it), with Undo
@@ -553,9 +556,18 @@ struct MemoriesStrip: View {
             .padding(.top, 12)
             .padding(.bottom, 6)
             .fullScreenCover(item: $open) { o in
-                MemoryViewer(model: model, memory: o.memory, period: o.period, people: people)
+                MemoryStories(model: model, memory: o.memory, period: o.period, people: people)
             }
         }
+    }
+}
+
+/// The memory before or after one in the strip's order (the most recent
+/// year first): nil at either end, or when it isn't there any more.
+enum MemoryStep {
+    static func neighbour(of key: String, by: Int, in list: [Msg_Memory]) -> Msg_Memory? {
+        guard let i = list.firstIndex(where: { $0.key == key }), list.indices.contains(i + by) else { return nil }
+        return list[i + by]
     }
 }
 
@@ -709,20 +721,65 @@ final class MemoryPhotos: ObservableObject {
     }
 }
 
+/// The memories of the strip's period full screen, one after the other (the
+/// web's and Android's rule): after a memory's last photo the next one
+/// starts, and after the last one it closes; back from a memory's first
+/// photo is the memory before. Pause holds from one to the next.
+struct MemoryStories: View {
+    @ObservedObject var model: MemoriesModel
+    let period: Msg_MemoryPeriod
+    let people: [Msg_Person]
+
+    @State private var current: Msg_Memory
+    /// Paused with the Pause button; a VoiceOver user starts paused.
+    @State private var userPaused = UIAccessibility.isVoiceOverRunning
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(model: MemoriesModel, memory: Msg_Memory, period: Msg_MemoryPeriod, people: [Msg_Person]) {
+        self.model = model
+        self.period = period
+        self.people = people
+        _current = State(initialValue: memory)
+    }
+
+    var body: some View {
+        MemoryViewer(model: model, memory: current, period: period, people: people, userPaused: $userPaused,
+                     onEnd: { move(by: 1) }, onBefore: { move(by: -1) })
+            // A slideshow of its own for each memory: photos, place, menu.
+            .id(current.key)
+    }
+
+    private func move(by: Int) {
+        let list = model.answers[period]?.memories ?? []
+        guard let m = MemoryStep.neighbour(of: current.key, by: by, in: list) else {
+            if by > 0 { dismiss() }
+            return
+        }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { current = m }
+    }
+}
+
 /// A memory full screen, as a slideshow.
 struct MemoryViewer: View {
     @ObservedObject var model: MemoriesModel
     let memory: Msg_Memory
     let period: Msg_MemoryPeriod
     let people: [Msg_Person]
+    @Binding var userPaused: Bool
+    /// After its last photo: the next memory, or the viewer closes.
+    let onEnd: () -> Void
+    /// Back from its first photo: the memory before, if there is one.
+    let onBefore: () -> Void
 
     @StateObject private var photos: MemoryPhotos
     @State private var index = 0
     /// How far into the photo on screen, 0 to 1.
     @State private var progress: Double = 0
     @State private var held = false
-    /// Paused with the Pause button; a VoiceOver user starts paused.
-    @State private var userPaused = UIAccessibility.isVoiceOverRunning
+    /// Past the last photo: nothing steps any more (the next memory or the
+    /// close is on its way).
+    @State private var ended = false
     @State private var menuOpen = false
     @State private var seeAll = false
     @State private var dragDown: CGFloat = 0
@@ -735,11 +792,15 @@ struct MemoryViewer: View {
     private static let tick: Double = 0.05
     private let clock = Timer.publish(every: MemoryViewer.tick, on: .main, in: .common).autoconnect()
 
-    init(model: MemoriesModel, memory: Msg_Memory, period: Msg_MemoryPeriod, people: [Msg_Person]) {
+    init(model: MemoriesModel, memory: Msg_Memory, period: Msg_MemoryPeriod, people: [Msg_Person],
+         userPaused: Binding<Bool>, onEnd: @escaping () -> Void, onBefore: @escaping () -> Void) {
         self.model = model
         self.memory = memory
         self.period = period
         self.people = people
+        _userPaused = userPaused
+        self.onEnd = onEnd
+        self.onBefore = onBefore
         _photos = StateObject(wrappedValue: MemoryPhotos(files: memory.files.isEmpty && memory.hasCover ? [memory.cover] : memory.files))
     }
 
@@ -928,25 +989,37 @@ struct MemoryViewer: View {
     // MARK: Stepping
 
     private func advance() {
-        guard !paused, count > 0 else { return }
+        guard !paused, !ended, count > 0 else { return }
         progress += Self.tick / Self.perPhoto
         if progress >= 1 {
             if index + 1 < count {
                 go(to: index + 1)
             } else {
-                // The last photo stays.
-                progress = 1
+                finish()
             }
         }
     }
 
     private func step(_ by: Int) {
+        guard !ended else { return }
         let to = index + by
-        guard (0..<count).contains(to) else {
-            if by > 0 { progress = 1 } else { progress = 0 }
-            return
+        if to >= count {
+            finish()
+        } else if to < 0 {
+            progress = 0
+            onBefore()
+        } else {
+            go(to: to)
         }
-        go(to: to)
+    }
+
+    /// Past the last photo: once, the next memory or the close.
+    private func finish() {
+        guard !ended else { return }
+        ended = true
+        progress = 1
+        menuOpen = false
+        onEnd()
     }
 
     private func go(to i: Int) {

@@ -376,7 +376,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     }
     LaunchedEffect(memoriesChanged) { if (memoriesChanged > 0) vm.memories.refresh() }
     openMemory?.let { m ->
-        MemoryViewer(vm.memories, m, st.allPeople, onClose = { openMemory = null }, onSeeAll = { seeAllMemory = it })
+        MemoryViewer(vm.memories, m, st.allPeople, onClose = { openMemory = null }, onMove = { openMemory = it }, onSeeAll = { seeAllMemory = it })
     }
     seeAllMemory?.let { m -> MemoryGrid(vm.memories, m, onClose = { seeAllMemory = null }) }
 

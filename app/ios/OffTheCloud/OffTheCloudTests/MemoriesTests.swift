@@ -145,6 +145,25 @@ struct MemoryHidingTests {
     }
 }
 
+struct MemoryStepTests {
+    @Test func theNextMemoryAfterTheLastPhotoAndNoneAfterTheLast() {
+        let list = [
+            memory("day:2025-10-31", years: 1, start: "2025-10-31"),
+            memory("day:2023-10-31", years: 3, start: "2023-10-31"),
+            memory("day:2020-10-31", years: 6, start: "2020-10-31"),
+        ]
+        #expect(MemoryStep.neighbour(of: "day:2025-10-31", by: 1, in: list)?.key == "day:2023-10-31")
+        #expect(MemoryStep.neighbour(of: "day:2023-10-31", by: 1, in: list)?.key == "day:2020-10-31")
+        // After the last one: none, so the viewer closes.
+        #expect(MemoryStep.neighbour(of: "day:2020-10-31", by: 1, in: list) == nil)
+        // Back from the first photo: the memory before, none before the first.
+        #expect(MemoryStep.neighbour(of: "day:2023-10-31", by: -1, in: list)?.key == "day:2025-10-31")
+        #expect(MemoryStep.neighbour(of: "day:2025-10-31", by: -1, in: list) == nil)
+        // Gone from the answers meanwhile: none.
+        #expect(MemoryStep.neighbour(of: "day:2019-10-31", by: 1, in: list) == nil)
+    }
+}
+
 struct MemoryPeopleMatchTests {
     private func person(_ id: String, _ name: String) -> Msg_Person {
         var p = Msg_Person()

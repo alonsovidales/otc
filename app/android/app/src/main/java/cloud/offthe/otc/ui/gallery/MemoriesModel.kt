@@ -109,6 +109,14 @@ object MemoriesRules {
         people.filter { it.name == n }.singleOrNull()
     }
 
+    /**
+     * The memory before or after [key] in the strip's order (the most recent
+     * year first, iOS's MemoryStep): null at either end, or when it isn't
+     * there any more - after the last one the viewer closes.
+     */
+    fun neighbour(list: List<Memory>, key: String, by: Int): Memory? =
+        list.indexOfFirst { it.key == key }.takeIf { it >= 0 }?.let { list.getOrNull(it + by) }
+
     /** What shows once [kind]/[value] is hidden, before the device answers again: a photo or a memory goes at once. */
     fun withoutHidden(m: Memories, kind: MemoryHideKind, value: String): Memories {
         val kept = m.memoriesList.mapNotNull { mem ->

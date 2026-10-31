@@ -97,7 +97,7 @@ class MemoriesPreviewActivity : ComponentActivity() {
                             }
                         }
                     }
-                    open?.let { m -> MemoryViewer(model, m, people, onClose = { open = null }, onSeeAll = { seeAll = it }) }
+                    open?.let { m -> MemoryViewer(model, m, people, onClose = { open = null }, onMove = { open = it }, onSeeAll = { seeAll = it }) }
                     seeAll?.let { m -> MemoryGrid(model, m, onClose = { seeAll = null }) }
                 }
             }

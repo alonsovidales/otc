@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // A memory's slideshow (On this day, memories.ts): its photos one after
-// another, 4 s each, the next memory after the last one. A tap on the right
+// another, 4 s each, the next memory after the last one and closed after the
+// last memory (the phones' rule). A tap on the right
 // goes on, on the left back; held down (or Space) it waits; the arrows step
 // and Esc closes. "See all" lays its photos out as a grid that opens the
 // shared viewer (MediaViewer). The menu hides the photo, the memory, the
@@ -90,7 +91,6 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
   const [menuOpen, setMenuOpen] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
-  const [ended, setEnded] = useState(false);
   const [loadedKey, setLoadedKey] = useState("");
   const [waitedKey, setWaitedKey] = useState("");
 
@@ -125,24 +125,19 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
   }, [ready, stepKey]);
 
   // What the user asked for (the button), and whether the clock runs now.
-  const playing = !paused && !ended;
+  const playing = !paused;
   const running = playing && !holding && !menuOpen && !allOpen && viewing === null && ready;
 
   const next = useCallback(() => {
-    setEnded(false);
     if (fi < files.length - 1) setFi(fi + 1);
     else if (mi < mems.length - 1) { setMi(mi + 1); setFi(0); }
-    else setEnded(true);
-  }, [fi, files.length, mi, mems.length]);
+    else onClose();
+  }, [fi, files.length, mi, mems.length, onClose]);
   const prev = useCallback(() => {
-    setEnded(false);
     if (fi > 0) setFi(fi - 1);
     else if (mi > 0) { setMi(mi - 1); setFi(0); }
   }, [fi, mi]);
-  const togglePause = useCallback(() => {
-    if (ended) { setEnded(false); setMi(0); setFi(0); setPaused(false); return; }
-    setPaused((p) => !p);
-  }, [ended]);
+  const togglePause = useCallback(() => setPaused((p) => !p), []);
 
   // The keyboard, while nothing is over the slideshow: on the document, so
   // the keys work wherever the focus went (the note's Undo, a click on the
@@ -263,7 +258,7 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
           <span key={f.path + i} className="mem-seg">
             <span
               key={i === fi ? stepKey : undefined}
-              className={`mem-seg-fill${i < fi || (i === fi && ended) ? " done" : i === fi ? " now" : ""}`}
+              className={`mem-seg-fill${i < fi ? " done" : i === fi ? " now" : ""}`}
               style={i === fi ? { animationDuration: `${cPhotoMs}ms`, animationPlayState: running ? "running" : "paused" } : undefined}
               onAnimationEnd={i === fi ? next : undefined}
             />

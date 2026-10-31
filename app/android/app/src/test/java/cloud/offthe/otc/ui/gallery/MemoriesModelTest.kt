@@ -122,6 +122,19 @@ class MemoriesModelTest {
         assertEquals(listOf("p1"), MemoriesRules.hideablePeople(listOf("Leo", "Ana", "Eva"), people).map { it.id })
     }
 
+    @Test fun theNextMemoryAfterTheLastPhotoAndNoneAfterTheLast() {
+        val list = listOf(memory("day:2025-10-31", 1, "a"), memory("day:2023-10-31", 3, "b"), memory("day:2020-10-31", 6, "c"))
+        assertEquals("day:2023-10-31", MemoriesRules.neighbour(list, "day:2025-10-31", 1)?.key)
+        assertEquals("day:2020-10-31", MemoriesRules.neighbour(list, "day:2023-10-31", 1)?.key)
+        // After the last one: none, so the viewer closes.
+        assertNull(MemoriesRules.neighbour(list, "day:2020-10-31", 1))
+        // Back from the first photo: the memory before, none before the first.
+        assertEquals("day:2025-10-31", MemoriesRules.neighbour(list, "day:2023-10-31", -1)?.key)
+        assertNull(MemoriesRules.neighbour(list, "day:2025-10-31", -1))
+        // Gone from the answers meanwhile: none.
+        assertNull(MemoriesRules.neighbour(list, "day:2019-10-31", 1))
+    }
+
     @Test fun aHiddenPhotoOrMemoryGoesAtOnce() {
         val m = answer(memory("day:2023-10-30", 3, "a", "b"), memory("day:2022-10-30", 4, "c"))
         val noA = MemoriesRules.withoutHidden(m, MemoryHideKind.MemoryHidePhoto, "a")

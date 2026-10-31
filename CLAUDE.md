@@ -1974,7 +1974,7 @@ scrolls the page by its height. Cards: the cover's small thumbnail by path (`fet
 `MemoryViewer` (fixed, z 55, black): 4 s a photo as the progress segment's CSS animation
 (`animationend` steps, `animation-play-state` pauses: the button, a press held 250 ms, the menu, See all,
 the viewer over it, a picture not yet drawn - 8 s at most), a tap on the left third back, elsewhere on, the
-side buttons with a mouse, the next memory after the last photo; keys on the document while it is open (←
+side buttons with a mouse, the next memory after the last photo and closed after the last memory; keys on the document while it is open (←
 →, Space, Esc - the focus may be on the Undo note), Tab kept inside; opened from the keyboard (`detail` 0)
 it starts paused, the web's stand-in for the phones' screen-reader rule. The line: "N years ago · 30 Oct
 2023 · place" (`fmtDate`/`fmtDateRange`, a new formatter: `Intl.DateTimeFormat.formatRange`), "With …"
@@ -3281,7 +3281,9 @@ counted in `headerCount`; landing while the grid is at its top it scrolls into v
 choice, Day / Week / Month chips, a card per memory (cover by hash from the thumbnail cache, else
 `GetThumbnails` by path; "N years ago", the place). A card opens `MemoryViewer`: a full-screen dialog,
 4 s a photo timed by frames (animations off drop the cross-fade, never the advance), a tap on the left
-third goes back, elsewhere on, holding pauses, Pause/Resume, progress segments, the line
+third goes back, elsewhere on, holding pauses, after a memory's last photo the strip's next memory
+(`MemoriesRules.neighbour`, `onMove`), closed after the last, back from a first photo the memory
+before, Pause/Resume, progress segments, the line
 (`memoryDays`: "30 Oct 2023", "27 Oct - 2 Nov 2023" by `week_in_year`, "October 2023") and the named
 people (`peopleTitle`), the big thumbnail (`GetThumbnails` without small, 8 kept) over the tile; starts
 paused with TalkBack, whose sides are buttons. Its menu hides the photo (the viewer stays), the memory,
@@ -3394,7 +3396,9 @@ opens `MemoryViewer` full screen: the big thumbnails by path (`MemoryPhotos`, Ge
 small_thumbnails, the cached tile meanwhile), 4 s a photo, the left third back and elsewhere on, a
 press held, Pause/Resume, the menu or See all pause it (See all leaves it paused), segments on top,
 the line (`MemoryText.header`: "3 years ago · 30 Oct 2023 · Asturias", the days as Android's
-`memoryDays`) and the named people, a swipe down closes, the last photo stays; with VoiceOver it
+`memoryDays`) and the named people, a swipe down closes; after a memory's last photo the strip's
+next memory (`MemoryStories`, `MemoryStep`), closed after the last, back from a first photo the
+memory before, Pause held across them; with VoiceOver it
 starts paused and its sides are buttons ("Previous photo", "Photo 2 of 6. Next photo"). See all is a
 grid opening `ImageModal` on a fixed list. The menu hides the photo (it leaves the slideshow, the
 viewer stays), the memory, the photo's day (its date in the phone's zone) or a named person - only
