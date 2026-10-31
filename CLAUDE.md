@@ -3215,7 +3215,14 @@ with one photo picked, not a video - `coverPhoto` -, and the viewer's menu) and 
 `crop_hint`, a JPEG of at most 256 KB - `personCoverFits` -, Choose automatically while `cover_chosen`) send
 `SetPersonCover` (`setPersonCover`, busy `PERSON_COVER`): `cover_done` and People listed again, else the
 device's words or `cover_failed`, `unknown_payload` -> DeviceNeedsUpdate (`cover_needs_update`)
-(`PhotoGalleryCoverTest.kt`; debug-only `PersonCoverPreviewActivity`, `--es device demo|old`). Files' List view on a wide
+(`PhotoGalleryCoverTest.kt`; debug-only `PersonCoverPreviewActivity`, `--es device demo|old`). A person's face on iOS
+(`PersonCover.swift`, `PersonCoverTests.swift`): Use this face (`NavIcon.useFace`, the face with a tick)
+in that bar (one photo picked, not a video) and first in the viewer's menu sends `SetPersonCover` `hash`;
+their face in `PersonHeader` is a Change face menu - Upload a photo… (PhotosPicker, then
+`ProfilePhotoCropView` with `crop_title`/`crop_hint` and a 256 KB budget, `image`), Choose automatically
+while `cover_chosen`, `cover_hint` as its last line. Done: `cover_done`, the pick cleared, People listed
+again (a picture shows at once); refused: the device's words or `cover_failed`; `unknown_payload` ->
+DeviceNeedsUpdate (`cover_needs_update`). Files' List view on a wide
 window (the 600 dp/pt wide layout; iOS also needs `FilesColumns.fits`) has Name/Size/Created/Modified
 headings, a port of web `filesColumns.ts` (iOS `FilesColumns.swift` + `FilesColumnsView.swift`, Android
 `ui/files/FilesColumns.kt` + `FilesColumnsView.kt`): a heading tap is `pickSort`, an edge handle drags

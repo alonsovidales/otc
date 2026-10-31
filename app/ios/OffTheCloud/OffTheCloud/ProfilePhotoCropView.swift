@@ -9,7 +9,9 @@
 //  the photo aspect-fills a square, drag pans, pinch or the slider zooms
 //  1x-4x, pan is clamped so the square never shows an empty edge, and
 //  "Use photo" renders exactly the square to a 320x320 JPEG, stepping the
-//  quality down until it fits the profile size budget.
+//  quality down until it fits the profile size budget. A person's face
+//  (Upload a photo…, PersonCover.swift) goes through the same crop, with
+//  its own title, hint and budget.
 //
 
 import SwiftUI
@@ -55,13 +57,20 @@ struct ProfilePhotoCropItem: Identifiable {
 
 struct ProfilePhotoCropView: View {
     let image: UIImage
+    /// The screen's title and the hint under the circle: the profile
+    /// photo's unless given (a person's face has its own).
+    var title: String? = nil
+    var hint: String? = nil
+    /// The most the JPEG may weigh: the profile photo's budget unless
+    /// given (a person's face: PersonCover.maxImageBytes).
+    var maxBytes = ProfilePhotoCropView.profileMaxBytes
     let onCancel: () -> Void
     let onUse: (Data) -> Void
 
     /// Same numbers as the wizard: 320px output, JPEG quality ladder.
     private static let outputSide: CGFloat = 320
     private static let qualities: [CGFloat] = [0.85, 0.7, 0.55, 0.4]
-    private static let maxBytes = 45 * 1024
+    static let profileMaxBytes = 45 * 1024
 
     @State private var zoom: CGFloat = 1
     /// Pan offset of the image centre from the square's centre, in points
@@ -95,7 +104,7 @@ struct ProfilePhotoCropView: View {
                 }
                 .padding(.horizontal)
 
-                Text(S.iosSettingsCropHint)
+                Text(hint ?? S.iosSettingsCropHint)
                     .font(.footnote)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -103,7 +112,7 @@ struct ProfilePhotoCropView: View {
             .padding(.top)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
-            .navigationTitle(S.iosSettingsCropTitle)
+            .navigationTitle(title ?? S.iosSettingsCropTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -212,7 +221,7 @@ struct ProfilePhotoCropView: View {
         var data: Data?
         for q in Self.qualities {
             data = rendered.jpegData(compressionQuality: q)
-            if let d = data, d.count <= Self.maxBytes { return d }
+            if let d = data, d.count <= maxBytes { return d }
         }
         return data
     }

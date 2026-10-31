@@ -27,9 +27,10 @@ enum NavIcon: CaseIterable, Hashable {
     // inside an open collection (PhotoGallery.tsx).
     case addToCollection, removeFromCollection
     // Images' selection bar among one person's photos, and the viewer's
-    // menu there: a face with a cross (Not this person) and with an arrow
-    // (Someone else…).
-    case notThisPerson, moveToPerson
+    // menu there: a face with a cross (Not this person), with an arrow
+    // (Someone else…) and with a tick (Use this face, iOS's own drawing
+    // until the web and Android have one).
+    case notThisPerson, moveToPerson, useFace
     // People's selection bar: two lines joining into one (PeopleView.tsx).
     case merge
     // The top bar's search (TopSearch.tsx). A folder is `files` and a
@@ -108,6 +109,13 @@ enum NavIcon: CaseIterable, Hashable {
                 .circle(10, 9.5, 3.5),
                 .path("M3.5 19.5c1.1-3.2 3.6-4.8 6.5-4.8 1.2 0 2.3.3 3.3.8"),
                 .path("M15 17.5h6M18.5 15l2.5 2.5-2.5 2.5"),
+            ]
+        case .useFace:
+            // The same face, a tick beside its shoulder.
+            return [
+                .circle(10, 9.5, 3.5),
+                .path("M3.5 19.5c1.1-3.2 3.6-4.8 6.5-4.8 1.2 0 2.3.3 3.3.8"),
+                .path("m15.5 17.5 2 2 4-4.5"),
             ]
         case .merge:
             return [

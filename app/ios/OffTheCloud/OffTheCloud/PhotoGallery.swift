@@ -1674,6 +1674,94 @@ final class PhotoGalleryVM: ObservableObject {
         say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name))
     }
 
+    // MARK: A person's face (SetPersonCover)
+    //
+    // Among one person's photos the owner chooses the face People shows for
+    // them: Use this face on one photo (the selection bar, the viewer's
+    // menu), or, from their face at the top of the photos (PersonHeader),
+    // Upload a photo… (cropped as the profile photo, PersonCoverUpload) and
+    // Choose automatically. The rules are PersonCover's; the same on
+    // Android.
+
+    /// The photo Use this face would take the face from: the one photo
+    /// picked (the bar) or the open one (the viewer), among one person's
+    /// photos; nil where it isn't offered (several picked, a video, a photo
+    /// only on this phone).
+    func coverPhoto(from: PersonPhotos.From) -> Item? {
+        guard personInFilter != nil else { return nil }
+        switch from {
+        case .selection:
+            guard selected.count == 1 else { return nil }
+            return PersonCover.photo(Array(pickedItems().values))
+        case .viewer:
+            guard let i = openIndex, items.indices.contains(i) else { return nil }
+            return PersonCover.photo([items[i]])
+        }
+    }
+
+    /// The person whose face the face at the top of their photos changes:
+    /// the one person in the filter while that header shows (no tags, no
+    /// collection, no words), as the list of people has them.
+    var coverPerson: Msg_Person? {
+        guard let pid = personInFilter, personFilter != nil else { return nil }
+        return allPeople.first { $0.id == pid }
+    }
+
+    /// Upload a photo… tapped for this person: PersonCoverUpload picks the
+    /// picture and crops it.
+    @Published var coverUploadFor: String?
+
+    /// Use this face: the face of theirs in coverPhoto(from:).
+    func useFace(from: PersonPhotos.From) async {
+        guard let person = personInFilter, let photo = coverPhoto(from: from) else { return }
+        await setPersonCover(person, .photo(photo.hash), from: from)
+    }
+
+    /// Makes `choice` `person`'s face (`from`: the bar or the viewer; nil:
+    /// the face's own menu). Done: said, the pick cleared, and the people
+    /// listed again so the face at the top and People's change at once - a
+    /// picture of the owner's is theirs before the list comes. Refused: the
+    /// device's words, else app.photos.person.cover_failed. A device from
+    /// before it answers unknown_payload: it needs an update.
+    func setPersonCover(_ person: String, _ choice: PersonCover.Choice, from: PersonPhotos.From? = nil) async {
+        guard preparing == nil else { return }
+        preparing = .personCover
+        defer { preparing = nil }
+        // A picture comes from the crop, which goes as it is sent: what
+        // came of it is said once it has gone (sheetCloses).
+        let began = Date()
+        let cropGone = { [sheetCloses] in
+            guard case .image = choice else { return }
+            let left = sheetCloses - Date().timeIntervalSince(began)
+            if left > 0 { try? await Task.sleep(nanoseconds: UInt64(left * 1_000_000_000)) }
+        }
+        if case .image(let data) = choice, !PersonCover.fits(data) {
+            await cropGone()
+            say(.coverFailed(nil))
+            return
+        }
+        let resp = try? await peopleRequest(.reqSetPersonCover(PersonCover.request(person: person, choice)), nil)
+        switch PersonCover.outcome(resp) {
+        case .needsUpdate:
+            let send = peopleRequest
+            let update = await DeviceNeedsUpdate.asking(title: S.appPhotosPersonCoverNeedsUpdate) { try await send($0, nil) }
+            await cropGone()
+            needsUpdate = update
+        case .refused(let words):
+            await cropGone()
+            say(.coverFailed(words))
+        case .done:
+            if case .image(let data) = choice, let i = allPeople.firstIndex(where: { $0.id == person }) {
+                allPeople[i].coverThumbnail = data
+                allPeople[i].coverChosen = true
+            }
+            if from == .selection { clearSelection() }
+            Task { await loadPeople() }
+            await cropGone()
+            say(.coverDone)
+        }
+    }
+
     func togglePerson(_ id: String) {
         if let idx = selectedPeople.firstIndex(of: id) {
             selectedPeople.remove(at: idx)
@@ -3342,6 +3430,10 @@ enum GalleryNotice {
     case personRemoved(Int, String)
     /// This many photos moved to the person of this name ("": unnamed).
     case personMoved(Int, String)
+    /// A person's face changed (PersonCover).
+    case coverDone
+    /// A person's face didn't change: the device's words, if any.
+    case coverFailed(String?)
     case notLoaded, photosDenied, saved, noShareLink, noDownloadLink
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
     /// The device refused a delete: its own explanation.
@@ -3371,6 +3463,8 @@ enum GalleryNotice {
             return name.isEmpty ? S.appPhotosPersonRemovedUnnamed(count: n) : S.appPhotosPersonRemoved(count: n, name: name)
         case .personMoved(let n, let name):
             return name.isEmpty ? S.appPhotosPersonMovedUnnamed(count: n) : S.appPhotosPersonMoved(count: n, name: name)
+        case .coverDone: return S.appPhotosPersonCoverDone
+        case .coverFailed(let words): return words ?? S.appPhotosPersonCoverFailed
         case .notLoaded: return S.appPhotosNoticeNotLoaded
         case .photosDenied: return S.iosPhotosAccessDenied
         case .saved: return S.appPhotosNoticeSaved
@@ -3517,7 +3611,8 @@ struct PhotoGalleryView: View {
                                 MemoriesStrip(model: memories, people: vm.allPeople)
                             }
                             if let person = vm.personFilter {
-                                PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
+                                PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:),
+                                             changeFace: changeFace)
                             }
                             Color.clear.frame(height: 0).id("photoGridTop")
                             // Smart search: the device is still describing
@@ -3664,6 +3759,10 @@ struct PhotoGalleryView: View {
                             // them wrong - off that person, or to someone else.
                             onNotThisPerson: vm.personInFilter == nil ? nil : { vm.askNotThisPerson(from: .selection) },
                             onMoveToPerson: vm.personInFilter == nil ? nil : { vm.askMoveToPerson(from: .selection) },
+                            // One photo picked there: its face becomes theirs.
+                            onUseFace: vm.coverPhoto(from: .selection) == nil ? nil : {
+                                Task { await vm.useFace(from: .selection) }
+                            },
                             // Issue #180: the selected photos, as a gallery -
                             // no group needed.
                             onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
@@ -3782,6 +3881,8 @@ struct PhotoGalleryView: View {
         // The selection bar's Not this person and Someone else… (the
         // viewer's are its own: PersonMove.swift).
         .modifier(PersonActionsPresenter(vm: vm, from: .selection))
+        // The person's face: Upload a photo…'s picker and crop.
+        .modifier(PersonCoverUpload(vm: vm))
         // Presented once and left up while paging: the previous sheet was
         // keyed by the index, so every swipe dismissed it and presented a
         // new one - the "closes and reopens" the viewer used to do. Full
@@ -3964,6 +4065,20 @@ struct PhotoGalleryView: View {
     /// A group of the map's photos is open in the grid: its chip, and Back
     /// to the map at the grid's top.
     private var areaChipShown: Bool { AreaBackButton.shown(area: vm.activeArea, mapShown: showsMap) }
+
+    /// The person's face at the top of their photos, as a menu to change
+    /// it (PersonCover): one person's photos only.
+    private var changeFace: PersonHeader.ChangeFace? {
+        guard let p = vm.coverPerson else { return nil }
+        let id = p.id
+        return PersonHeader.ChangeFace(
+            chosen: p.coverChosen,
+            busy: vm.preparing == .personCover,
+            disabled: vm.preparing != nil,
+            upload: { vm.coverUploadFor = id },
+            automatic: { Task { await vm.setPersonCover(id, .automatic) } }
+        )
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -4529,18 +4644,37 @@ private struct PersonHeader: View {
     /// A phone's sizes (a window under 600 wide), as the web's.
     let phone: Bool
     let face: (Msg_Person) -> UIImage?
+    /// One person's photos: their face is a menu to change it (PersonCover).
+    var changeFace: ChangeFace?
+
+    /// Change face's menu: Upload a photo…, Choose automatically once a
+    /// face was chosen, and the other way (Use this face) as its last line.
+    struct ChangeFace {
+        /// The owner chose their face: Choose automatically is offered.
+        let chosen: Bool
+        /// The device is changing it: a spinner over the face.
+        let busy: Bool
+        /// Something else is waiting on the device.
+        let disabled: Bool
+        let upload: () -> Void
+        let automatic: () -> Void
+    }
 
     private var faceSide: CGFloat { phone ? 48 : 56 }
 
     var body: some View {
         HStack(spacing: phone ? 12 : 16) {
             if filter.loaded {
-                HStack(spacing: -16) {
-                    ForEach(filter.people.prefix(3), id: \.id) { p in
-                        faceView(face(p))
+                if let changeFace, let p = filter.people.first {
+                    faceMenu(p, changeFace)
+                } else {
+                    HStack(spacing: -16) {
+                        ForEach(filter.people.prefix(3), id: \.id) { p in
+                            faceView(face(p))
+                        }
                     }
+                    .accessibilityHidden(true)
                 }
-                .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(PhotoMonths.peopleTitle(filter.people.map(Self.name)))
                         .font(phone ? .title2.weight(.semibold) : .title.weight(.semibold))
@@ -4590,6 +4724,47 @@ private struct PersonHeader: View {
         .clipShape(Circle())
         // Ringed in the page's colour, so faces over each other stay apart.
         .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+    }
+
+    /// The one person's face, with a pencil at its foot: tapped, Change
+    /// face's menu.
+    private func faceMenu(_ p: Msg_Person, _ change: ChangeFace) -> some View {
+        Menu {
+            Button(action: change.upload) {
+                Label(S.appPhotosPersonCoverUpload, systemImage: "photo.badge.plus")
+            }
+            if change.chosen {
+                Button(action: change.automatic) {
+                    Label(S.appPhotosPersonCoverAuto, systemImage: "wand.and.stars")
+                }
+            }
+            // The other way, under the items: a line, not a button.
+            Section {
+                Text(S.appPhotosPersonCoverHint)
+            }
+        } label: {
+            faceView(face(p))
+                .overlay {
+                    if change.busy {
+                        Circle().fill(.black.opacity(0.35))
+                        ProgressView().tint(.white)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: phone ? 10 : 12, weight: .semibold))
+                        .foregroundStyle(Color.primary)
+                        .frame(width: phone ? 20 : 22, height: phone ? 20 : 22)
+                        .background(Circle().fill(Color(.secondarySystemBackground)))
+                        .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 1.5))
+                        .offset(x: 2, y: 2)
+                }
+                .contentShape(Circle())
+        }
+        .menuOrder(.fixed)
+        .disabled(change.disabled)
+        .help(S.appPhotosPersonCoverChange)
+        .accessibilityLabel(S.appPhotosPersonCoverChange)
     }
 }
 
@@ -4978,11 +5153,19 @@ struct ImageModal: View {
         .foregroundStyle(.white)
     }
 
-    /// Not this person and Someone else… for the open photo, in a menu
-    /// named by the person it is about; a spinner while the device answers.
+    /// Use this face (a photo), Not this person and Someone else… for the
+    /// open photo, in a menu named by the person it is about; a spinner
+    /// while the device answers.
     private func personMenu(side: CGFloat?) -> some View {
-        let busy = vm.preparing == .notThisPerson || vm.preparing == .moveToPerson
+        let busy = vm.preparing == .notThisPerson || vm.preparing == .moveToPerson || vm.preparing == .personCover
         return Menu {
+            if vm.coverPhoto(from: .viewer) != nil {
+                Button {
+                    Task { await vm.useFace(from: .viewer) }
+                } label: {
+                    Label { Text(S.appPhotosPersonCoverUse) } icon: { NavIcon.useFace.image() }
+                }
+            }
             Button {
                 vm.askNotThisPerson(from: .viewer)
             } label: {

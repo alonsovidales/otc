@@ -31,6 +31,9 @@ enum SelectionActionTask {
     /// Taking the picked photos off the person in the filter, or moving
     /// them to someone else (RemoveFromPerson).
     case notThisPerson, moveToPerson
+    /// A person's face changing (SetPersonCover): Use this face, an
+    /// uploaded photo, Choose automatically.
+    case personCover
 }
 
 struct SelectionActionBar: View {
@@ -59,6 +62,10 @@ struct SelectionActionBar: View {
     /// another. The photos stay on the device.
     var onNotThisPerson: (() -> Void)? = nil
     var onMoveToPerson: (() -> Void)? = nil
+    /// "Use this face": among one person's photos with one photo picked -
+    /// the face of theirs found in it becomes the one People shows for
+    /// them (PersonCover).
+    var onUseFace: (() -> Void)? = nil
     /// Issue #180: "Share as gallery" - the selection as a gallery: Images'
     /// and Files' when the selection is one folder (issue #200, as on
     /// Android); absent otherwise.
@@ -87,7 +94,7 @@ struct SelectionActionBar: View {
     /// How many items the bar has.
     private var itemCount: Int {
         3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil, onRemoveFromGroup != nil,
-             onNotThisPerson != nil, onMoveToPerson != nil].filter { $0 }.count
+             onUseFace != nil, onNotThisPerson != nil, onMoveToPerson != nil].filter { $0 }.count
     }
 
     /// Six items or more (Files with one folder picked, Images in an open
@@ -151,6 +158,11 @@ struct SelectionActionBar: View {
                     item(S.appShellRemoveFromCollection, symbol: "", icon: .removeFromCollection,
                          busy: busy == .removeFromGroup, action: onRemoveFromGroup)
                         .disabled(count == 0)
+                }
+                if let onUseFace {
+                    // A face with a tick: this one for them.
+                    item(S.appPhotosPersonCoverUse, symbol: "", icon: .useFace,
+                         busy: busy == .personCover, action: onUseFace)
                 }
                 if let onNotThisPerson {
                     // A face with a cross: off this person.
