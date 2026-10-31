@@ -36,6 +36,7 @@ import { useFilesColumns } from "./useFilesColumns";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 import { refusedText } from "./photoCopies";
 import { openWaitingTab } from "./zipTab";
+import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
@@ -1776,9 +1777,9 @@ function FilesExplorerView({
   const sortSelect = (
     <label className="fb-sort">
       <span className="fb-label">{t("web.files.sort.label")}</span>
-      <select value={formatOrder(order)} onChange={(e) => chooseOrder(parseOrder(e.target.value))}>
+      <SelectField value={formatOrder(order)} onChange={(e) => chooseOrder(parseOrder(e.target.value))}>
         {cOrderOptions.map((o) => <option key={formatOrder(o)} value={formatOrder(o)}>{orderText(t, o)}</option>)}
-      </select>
+      </SelectField>
     </label>
   );
   // A column's heading sorts by it, and again the other way; the one the

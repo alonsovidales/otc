@@ -361,7 +361,7 @@
 .fb-sort { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .fb-sort .fb-label { flex: none; }
 .fb-sort select {
-  min-width: 0; max-width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px;
+  min-width: 0; max-width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--ink-2); color: var(--mist); font: inherit; font-size: 14px; cursor: pointer;
 }
 .fb-sort select:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }

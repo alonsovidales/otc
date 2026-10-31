@@ -10,10 +10,16 @@
 .sortby { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .sortby-label { flex: none; color: var(--mist-dim); font-size: 14px; }
 .sortby select {
-  min-width: 0; max-width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px;
+  min-width: 0; max-width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--ink-2); color: var(--mist); font: inherit; font-size: 14px; cursor: pointer;
 }
 .sortby select:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
+
+/* SelectField: the select draws no arrow of its own, and the chevron sits
+   10px in from its border, with room left for it after the longest name. */
+.select-field { position: relative; display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
+.select-field select { appearance: none; -webkit-appearance: none; padding: 0 32px 0 10px; text-overflow: ellipsis; }
+.select-field-chevron { position: absolute; right: 10px; pointer-events: none; color: var(--mist-dim); }
 @media (max-width: 599px) {
   .sortby-row { margin: -4px 0 12px; }
   /* A phone's own picker opens on it: 44px to hit, 16px so iOS doesn't zoom. */
