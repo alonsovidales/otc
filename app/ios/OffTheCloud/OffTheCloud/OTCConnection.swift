@@ -638,6 +638,9 @@ final class OTCConnection: ObservableObject {
         // What the device was found not to do is asked again: it may have
         // been updated (issues #194, #195).
         DeviceSupport.shared.signedIn()
+        // The viewer's heart (Favourites) likewise; another device's
+        // answers go.
+        FavouritesModel.shared.connected(endpoint: endpoint)
         // Places: whether this device has the map (release 148) and it is
         // on, asked again - and, from the same answer, On this day
         // (release 150, MemoriesModel) and Smart search (151,

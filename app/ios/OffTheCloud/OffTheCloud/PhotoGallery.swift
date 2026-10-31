@@ -587,6 +587,12 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var notice: GalleryNotice?
     /// A device too old for what was just tapped (DeviceNeedsUpdate).
     @Published var needsUpdate: DeviceNeedsUpdate?
+    /// The viewer's hearts (Favourites.swift): one store for the session,
+    /// every viewer's (tests use their own).
+    var favourites: FavouritesModel = .shared {
+        didSet { watchFavourites() }
+    }
+    private var favouritesWatch: AnyCancellable?
 
     /// Whether the alert (`notice`, `needsUpdate`) shows `overViewer`
     /// (ImageModal) or over the screen under it (Images, Files): over the
@@ -672,6 +678,7 @@ final class PhotoGalleryVM: ObservableObject {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] on in self?.placesSupportChanged(on) }
+        watchFavourites()
         watchCacheCleared()
     }
 
@@ -692,6 +699,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// A wake: a page that failed is asked for again now, not at the end of
     /// its wait, and so are the lists still being asked for.
     func wake() {
+        // The open photo's heart, if its answer never came.
+        if heartShown, openFavourite == nil { askFavourites() }
         guard !fixedList else { return }
         if pageProblem != nil { retryPage() }
         if upProblem != nil { retryNewer() }
@@ -1375,7 +1384,8 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     func renameActiveGroup() async {
-        guard let g = activeGroup else { return }
+        // Favourites keeps its name (the device refuses it too).
+        guard let g = activeGroup, !g.favourites else { return }
         let name = renameGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name != g.name else { return }
         guard let resp = try? await ws.request({ e in
@@ -1395,7 +1405,8 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Removes the group only - the pictures are kept.
     func deleteActiveGroup() async {
-        guard let g = activeGroup else { return }
+        // Favourites is always there (the device refuses it too).
+        guard let g = activeGroup, !g.favourites else { return }
         guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()
             var d = Msg_DeleteImageGroup()
@@ -1448,6 +1459,8 @@ final class PhotoGalleryVM: ObservableObject {
             notice = .addFailed; showAlert = true
             return
         }
+        // Into Favourites: their hearts fill.
+        if g.favourites { favourites.took(favouritePhotos(paths), on: true) }
         selected.removeAll()
         await loadGroups()
         // If that was the open group, its grid has new members to show.
@@ -1484,6 +1497,8 @@ final class PhotoGalleryVM: ObservableObject {
             notice = .removeFailed; showAlert = true
             return
         }
+        // Out of Favourites: their hearts empty.
+        if g.favourites { favourites.took(favouritePhotos(paths), on: false) }
         let picked = Set(paths)
         items.removeAll { picked.contains($0.path) || hashes.contains($0.hash) }
         clearSelection()
@@ -2343,6 +2358,8 @@ final class PhotoGalleryVM: ObservableObject {
         if !fixedList {
             thumbs.readAhead(items[max(0, index - 1)...min(items.count - 1, index + 1)].compactMap(thumbWant))
         }
+        // Its heart, and its neighbours' for the swipe.
+        askFavourites()
     }
     func closeModal() {
         openIndex = nil
@@ -2357,11 +2374,91 @@ final class PhotoGalleryVM: ObservableObject {
         videoPlayer?.pause()
         videoPlayer = nil
         playerWatch = []
+        dropUnfavourited()
     }
 
     /// The open item's path; nil while the viewer is closed.
     var openPath: String? {
         openIndex.flatMap { items.indices.contains($0) ? items[$0].path : nil }
+    }
+
+    // MARK: Favourites (the viewer's heart, Favourites.swift)
+
+    /// The viewer has a heart for the open item: one the device holds, on
+    /// a device with Favourites.
+    var heartShown: Bool {
+        guard let i = openIndex, items.indices.contains(i) else { return false }
+        return FavouriteAsk.eligible(items[i]) && !favourites.unsupported
+    }
+
+    /// The open item's heart: full, empty, or nil while its answer isn't
+    /// known (its place stays empty).
+    var openFavourite: Bool? {
+        guard heartShown, let path = openPath else { return nil }
+        return favourites.favourite(path)
+    }
+
+    /// Whether the open item and its neighbours are in Favourites, in one
+    /// request: a swipe finds its answer here.
+    private func askFavourites() {
+        guard let i = openIndex, !favourites.unsupported else { return }
+        let photos = FavouriteAsk.around(i, in: items)
+        guard !photos.isEmpty else { return }
+        let store = favourites
+        Task { await store.ask(photos) }
+    }
+
+    /// The heart tapped: the open item into Favourites, or out of it. A
+    /// refusal puts the heart back and says why, over the viewer.
+    func toggleFavourite() {
+        guard heartShown, let i = openIndex else { return }
+        let photo = FavouritePhoto(path: items[i].path, hash: items[i].hash)
+        // Shown at once; the device's answer after.
+        let sent = favourites.toggle(photo, by: ObjectIdentifier(self))
+        Task {
+            let outcome = await sent.value
+            if case .failed(let words) = outcome { say(.favouriteFailed(words)) }
+            // Taken off an open Favourites as the viewer closed, yet still
+            // in it: its photos again.
+            if outcome != .done, activeGroup?.favourites == true, openIndex == nil, !fixedList { restartSearch() }
+        }
+    }
+
+    /// Favourites open in the grid: the photos its viewer took out of it
+    /// (an emptied heart) leave the grid as the viewer closes - not while
+    /// it is open, where the heart can be filled again - as Remove from
+    /// collection takes them, every copy shown.
+    private func dropUnfavourited() {
+        guard !fixedList, activeGroup?.favourites == true else { return }
+        let out = items.filter { favourites.state[$0.path] == false }
+        guard !out.isEmpty else { return }
+        let paths = Set(out.map(\.path))
+        let hashes = Set(out.map(\.hash).filter { !$0.isEmpty })
+        items.removeAll { paths.contains($0.path) || hashes.contains($0.hash) }
+        selected.subtract(paths)
+        countsChanged()
+    }
+
+    private func watchFavourites() {
+        favouritesWatch = favourites.$change
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] c in self?.favouritesChanged(by: c.by) }
+    }
+
+    /// A heart the device took. In an open Favourites: its count and cover
+    /// in the chip and - a heart from another viewer (Files', the map's) -
+    /// its photos; this viewer's own leave the grid as it closes.
+    private func favouritesChanged(by: ObjectIdentifier?) {
+        guard !fixedList, activeGroup?.favourites == true else { return }
+        Task { await loadGroups() }
+        if by != ObjectIdentifier(self), openIndex == nil { restartSearch() }
+    }
+
+    /// The picked photos at `paths`, as the hearts know them.
+    private func favouritePhotos(_ paths: [String]) -> [FavouritePhoto] {
+        let picked = pickedItems()
+        return paths.map { FavouritePhoto(path: $0, hash: picked[$0]?.hash ?? "") }
     }
 
     private func stopBigThumb() {
@@ -3254,6 +3351,9 @@ enum GalleryNotice {
     case deletesKept([DeleteCopies.Kept])
     /// Smart search couldn't search the words: the device's words, if any.
     case smartSearch(String?)
+    /// The viewer's heart didn't go through (it is back as it was): the
+    /// device's words, if any (FavouritesModel.verdict).
+    case favouriteFailed(String?)
 
     var text: String {
         switch self {
@@ -3284,6 +3384,7 @@ enum GalleryNotice {
         case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
         case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
         case .smartSearch(let words): return words ?? S.appPhotosSmartSearchFailed
+        case .favouriteFailed(let words): return words ?? S.appPhotosViewerFavouriteFailed
         }
     }
 }
@@ -3969,15 +4070,24 @@ struct PhotoGalleryView: View {
 
     private func collectionChip(_ g: Msg_ImageGroup) -> some View {
         HStack(spacing: 6) {
-            NavIconView(.collections, size: 16)
-            Button(g.name) {
-                vm.renameGroupName = g.name
-                vm.showRenameGroup = true
+            if g.favourites {
+                // Favourites keeps its name and is always there: no Rename,
+                // no Delete.
+                Image(systemName: "heart.fill").font(.caption).foregroundStyle(MenuStyle.ember)
+                Text(g.name)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+            } else {
+                NavIconView(.collections, size: 16)
+                Button(g.name) {
+                    vm.renameGroupName = g.name
+                    vm.showRenameGroup = true
+                }
+                .buttonStyle(.plain)
+                .lineLimit(1)
+                // The name keeps the room; its line gives way first.
+                .layoutPriority(1)
             }
-            .buttonStyle(.plain)
-            .lineLimit(1)
-            // The name keeps the room; its line gives way first.
-            .layoutPriority(1)
             // The dot only sets the line apart from the name: no words.
             Text(verbatim: "· \(collectionLine(g))").foregroundStyle(.secondary).font(.caption).lineLimit(1)
                 // A little smaller rather than cut ("120 elementos · feb. –
@@ -3996,11 +4106,13 @@ struct PhotoGalleryView: View {
                 Image(systemName: wallpaper.inUse(g.id) ? "photo.artframe.circle.fill" : "photo.artframe").font(.caption)
             }
             .accessibilityLabel(wallpaper.inUse(g.id) ? S.appPhotosWallpaperMenuOn : S.appPhotosWallpaperMenu)
-            Button {
-                vm.confirmDeleteGroup = true
-            } label: { Image(systemName: "trash").font(.caption) }
-            .accessibilityLabel(S.appPhotosCollectionsDelete)
-            .foregroundStyle(.red)
+            if !g.favourites {
+                Button {
+                    vm.confirmDeleteGroup = true
+                } label: { Image(systemName: "trash").font(.caption) }
+                .accessibilityLabel(S.appPhotosCollectionsDelete)
+                .foregroundStyle(.red)
+            }
             Button("×") { vm.leaveGroup() }
                 .accessibilityLabel(S.appShellSearchCloseCollection(name: g.name))
         }
@@ -4210,7 +4322,10 @@ struct PhotoGalleryView: View {
         switch vm.emptyKind {
         case .collection:
             PhotosStateView(
-                art: AnyView(NavIconView(.collections, size: 40, stroke: 1.2)),
+                // An empty Favourites: its heart, as its cover.
+                art: vm.activeGroup?.favourites == true
+                    ? AnyView(Image(systemName: "heart").font(.system(size: 36, weight: .light)))
+                    : AnyView(NavIconView(.collections, size: 40, stroke: 1.2)),
                 title: S.appPhotosGridEmptyCollectionTitle,
                 text: S.appPhotosGridEmptyCollectionText,
                 button: S.appShellCollectionsGoToImages
@@ -4718,8 +4833,8 @@ struct ImageModal: View {
                         strip
                         if landscape {
                             // Trailing column: close at the top, share,
-                            // save and delete in the middle, under the
-                            // right thumb.
+                            // the heart, save and delete in the middle,
+                            // under the right thumb.
                             VStack(spacing: 20) { actionButtons(landscape: true) }
                                 .frame(maxHeight: .infinity)
                                 .overlay(alignment: .top) { closeButton(landscape: true).padding(.top, 8) }
@@ -4817,8 +4932,8 @@ struct ImageModal: View {
         .accessibilityLabel(S.commonClose)
     }
 
-    /// Share, save and delete: a row under the photo in portrait, a
-    /// column beside it in landscape.
+    /// Share, the heart, save and delete: a row under the photo in
+    /// portrait, a column beside it in landscape.
     @ViewBuilder
     private func actionButtons(landscape: Bool) -> some View {
         let side: CGFloat? = landscape ? 44 : nil
@@ -4827,6 +4942,9 @@ struct ImageModal: View {
                 Image(systemName: "square.and.arrow.up").frame(width: side, height: side).contentShape(Rectangle())
             }
             .accessibilityLabel(S.commonShare)
+            // Favourites: the heart, where the Photos app has it (after
+            // Share).
+            FavouriteButton(vm: vm, store: vm.favourites, side: side)
             // Issue #201: a spinner while the original downloads and is
             // saved.
             let saving = vm.savingPath != nil && vm.savingPath == vm.openPath

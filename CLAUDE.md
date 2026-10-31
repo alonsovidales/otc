@@ -3399,6 +3399,20 @@ ember outline, an arrow - `arrow.backward`, mirrored right to left - and "Back t
 high, read as a button by its words), above a person's header, on both layouts:
 it sets `vm.showMap` as the chip does - the narrow window's map in the grid's place, the wide one's
 Places page (MainView) - the map where it was; the chip stays.
+**Favourites on iOS** (2026-10-31; `Favourites.swift`, tests `FavouritesTests.swift` and `SortByTests.swift`;
+Android's rules, case for case): `CollectionsSort.ordered` puts the `favourites` group first in both
+orders; its chip has no Rename or Delete, and an empty one shows a heart for its cover. Every
+`ImageModal` (Images, Files, Places, a memory's See all) has `FavouriteButton` after Share for the
+device's own items (`FavouriteAsk.eligible`: never a photo only on this phone). `FavouritesModel` (one
+for the session, by path; a heart changes every copy it knows by hash) asks `GetFavourites` for the
+open item and its neighbours at each `open(index:)`, leaves the heart's place empty until that
+answer, shows a tap at once and sends `SetFavourite` one at a time per path (a tap meanwhile goes
+after the answer; answers read before a tap are dropped by `stamps`), puts it back on a refusal with
+the device's words or `favourite_failed` over the viewer, a light haptic and a bounce (none with
+Reduce Motion) as it fills; `unknown_payload` hides it until `OTCConnection.connected` (another
+endpoint forgets the answers, Log Out resets). In an open Favourites an emptied heart keeps its photo
+in the viewer and `closeModal` drops it from the grid (`dropUnfavourited`, as Remove from collection);
+a heart from another viewer asks for the grid again (`FavouriteChange.by`).
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

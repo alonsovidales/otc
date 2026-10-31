@@ -12,7 +12,8 @@
 //  - People: Most photos (the order the page always had: named people
 //    first, then the unnamed, each in the device's order, most photos
 //    first - the default) or Name;
-//  - Collections: Newest first (the device's order - the default) or Name.
+//  - Collections: Newest first (the device's order - the default) or Name;
+//    Favourites (ImageGroup.favourites, Favourites.swift) first in both.
 //  By Name: A to Z in the app language's collation, case and accents
 //  ignored, numbers by value (FilesSort.compareNames, as Files' names);
 //  those without a name come last, in the device's order, and so do names
@@ -95,13 +96,16 @@ enum CollectionsSort: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The collections as the page and the sheet show them. A name is
-    /// compared as shown, without the spaces at its ends; one without a
-    /// name (shown as Untitled) comes last.
+    /// The collections as the page and the sheet show them: Favourites
+    /// first whatever the order (the device lists it first too), then the
+    /// rest. A name is compared as shown, without the spaces at its ends;
+    /// one without a name (shown as Untitled) comes last.
     func ordered(_ all: [Msg_ImageGroup], locale: Locale) -> [Msg_ImageGroup] {
+        let favourites = all.filter(\.favourites)
+        let rest = all.filter { !$0.favourites }
         switch self {
-        case .newest: return all
-        case .name: return NameOrder.sorted(all, locale: locale) { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+        case .newest: return favourites + rest
+        case .name: return favourites + NameOrder.sorted(rest, locale: locale) { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
         }
     }
 }

@@ -993,10 +993,12 @@ struct TopBarSearchField: View {
                     label: g.name,
                     dim: false,
                     removeLabel: S.appShellSearchCloseCollection(name: g.name),
-                    leading: AnyView(
-                        NavIconView(.collections, size: 18)
-                            .foregroundStyle(MenuStyle.gold)
-                    ),
+                    leading: g.favourites
+                        ? AnyView(Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(MenuStyle.ember))
+                        : AnyView(
+                            NavIconView(.collections, size: 18)
+                                .foregroundStyle(MenuStyle.gold)
+                        ),
                     leadingPad: 8
                 ) { vm.leaveGroup() }
             }
@@ -1194,7 +1196,7 @@ struct CollectionsPage: View {
             onOpenPhotos()
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                CollectionCover(data: g.coverThumbnail)
+                CollectionCover(data: g.coverThumbnail, favourites: g.favourites)
                 Text(Self.name(g))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
@@ -1326,7 +1328,14 @@ struct CollectionsSheet: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.secondary.opacity(0.15))
                         .frame(width: 44, height: 44)
-                        .overlay(NavIconView(.collections, size: 24).foregroundStyle(.secondary))
+                        .overlay {
+                            // An empty Favourites: its heart.
+                            if g.favourites {
+                                Image(systemName: "heart").font(.system(size: 20)).foregroundStyle(MenuStyle.ember)
+                            } else {
+                                NavIconView(.collections, size: 24).foregroundStyle(.secondary)
+                            }
+                        }
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(g.name).foregroundStyle(.primary)
@@ -1355,9 +1364,11 @@ struct CollectionsSheet: View {
 }
 
 /// A collection's cover, decoded once, square from the first frame so
-/// nothing moves when it comes.
+/// nothing moves when it comes. An empty Favourites (no cover) shows a
+/// heart.
 private struct CollectionCover: View {
     let data: Data
+    var favourites = false
     @State private var image: UIImage?
 
     var body: some View {
@@ -1371,7 +1382,13 @@ private struct CollectionCover: View {
                         colors: [Color(.tertiarySystemFill), Color(.quaternarySystemFill)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
-                    .overlay(NavIconView(.collections, size: 36).foregroundStyle(.secondary))
+                    .overlay {
+                        if favourites {
+                            Image(systemName: "heart").font(.system(size: 34)).foregroundStyle(MenuStyle.ember)
+                        } else {
+                            NavIconView(.collections, size: 36).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

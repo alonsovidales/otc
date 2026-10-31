@@ -1112,6 +1112,7 @@ enum AppLogOut {
             PlacesSupport.shared.reset()
             MemoriesModel.shared.reset()
             SmartSearchSupport.shared.reset()
+            FavouritesModel.shared.reset()
             FilesNav.shared.reset()
             OTCConnection.shared.reset()
             MediaStream.reset()

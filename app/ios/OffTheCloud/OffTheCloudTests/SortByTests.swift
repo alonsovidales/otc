@@ -65,6 +65,25 @@ struct SortByTests {
         #expect(CollectionsSort.name.ordered(all, locale: english).map(\.id) == ["3", "7", "6", "8", "4", "1", "2", "5"])
     }
 
+    /// Favourites (ImageGroup.favourites) first whatever the order, the rest
+    /// as before - even where the device didn't list it first.
+    @Test func favouritesFirstWhateverTheOrder() {
+        var favourites = collection("favourites", "Zzz favourites")
+        favourites.favourites = true
+        let all = [collection("1", "Zoo"), collection("2", ""), favourites, collection("3", "Beach")]
+        #expect(CollectionsSort.newest.ordered(all, locale: english).map(\.id) == ["favourites", "1", "2", "3"])
+        #expect(CollectionsSort.name.ordered(all, locale: english).map(\.id) == ["favourites", "3", "1", "2"])
+        // Unnamed, still first.
+        favourites.name = ""
+        let unnamed = [collection("1", "Zoo"), favourites]
+        #expect(CollectionsSort.name.ordered(unnamed, locale: english).map(\.id) == ["favourites", "1"])
+        #expect(CollectionsSort.newest.ordered([favourites], locale: english).map(\.id) == ["favourites"])
+        // Without it, exactly as before.
+        let none = [collection("1", "Zoo"), collection("3", "Beach")]
+        #expect(CollectionsSort.newest.ordered(none, locale: english).map(\.id) == ["1", "3"])
+        #expect(CollectionsSort.name.ordered(none, locale: english).map(\.id) == ["3", "1"])
+    }
+
     @Test func storedChoices() {
         #expect(PeopleSort.storageKey == "people.sort")
         #expect(CollectionsSort.storageKey == "collections.sort")
