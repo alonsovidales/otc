@@ -95,6 +95,9 @@ describe("a change on a demo device", () => {
     assert.equal(del.payload.respAck.code, "demo");
     // People's Not this person / Someone else… changes the device too.
     assert.equal(m.demoRequestReply(req("reqRemoveFromPerson"), "refused").errorCode, "demo");
+    // The viewer's heart changes Favourites; asking what it shows doesn't.
+    assert.equal(m.demoRequestReply(req("reqSetFavourite"), "refused").errorCode, "demo");
+    assert.equal(m.demoRequestReply(req("reqGetFavourites"), "refused"), undefined);
     const like = m.demoRequestReply(req("reqLikePublication"), "refused");
     assert.equal(like.error, false);
     assert.equal(like.payload.respAck.ok, true);

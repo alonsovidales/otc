@@ -2044,8 +2044,18 @@ orders it first; `ImageGroup.favourites` marks it and the device names it in the
 (paths in, the paths whose photo is a favourite out, `resp_favourites`) and `SetFavourite` (paths in or out,
 Ack); a device before them answers `unknown_payload` and the apps show no heart. Members are photos as in
 any collection, so Add to collection and Remove from collection work on it unchanged (`TestFavouritesMySQL`,
-`websocket/favourites_test.go`). Among one person's photos (exactly one person in the filter, tags allowed) the
-bar also has **Not this person** and **Someone else…** (`personFix.tsx`, the note in `personFixDone.ts` -
+`websocket/favourites_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
+day's See all, Places), before Download; its rules are `favourites.ts` (`node web/scripts/favourites-test.mjs`; the
+page's store in `useFavourites.ts`): one `GetFavourites` for the photo and its neighbours (a burst of steps asks
+where it stops), answers kept by path for the page (still shown but asked again at each viewer opening, forgotten
+after Add to or Remove from collection on Favourites), no heart in its kept place until the device has answered,
+a press shown at once (one `SetFavourite` per path at a time; refused, back with the device's words or
+`favourite_failed`; `refuseOnDemo` first, `reqSetFavourite` in demo.ts), F presses it, a pop as it fills (none under
+reduced motion), `unknown_payload` no heart for the page's life. Collections lists it first in either Sort by
+(`sortCollections`), a heart for its empty cover (and in Add to collection); open, it has no rename or Delete;
+photos emptied in its viewer stay there and leave its grid as the viewer closes (`knownOut`, `dropDeleted`), and a
+viewer that changed a heart lists the collections again as it closes (`groupsChanged`). Among one person's photos
+(exactly one person in the filter, tags allowed) the bar also has **Not this person** and **Someone else…** (`personFix.tsx`, the note in `personFixDone.ts` -
 `node web/scripts/person-fix-test.mjs` -, `RemoveFromPerson`): the first asks (`ConfirmDialog`, ember -
 the photos stay), the second lists the other people (`usePeople`, faces and names, a name field past 8)
 and moves the photos to the one picked; they then leave the grid as deleted ones do (`dropDeleted`), with

@@ -10,7 +10,8 @@
 //   order.
 // - Collections: Newest first is the device's order (ListImageGroups'),
 //   the default; Name is A to Z, and the collections without a name come
-//   last, in the device's order.
+//   last, in the device's order. Favourites (ImageGroup.favourites) is
+//   first in both, whatever its name in the language on screen.
 // - Names in the app language's collation (filesSort's nameCollator: case
 //   and accents ignored, the numbers in them in counting order, so
 //   "Birthday 2" before "Birthday 10"), spaces at either end and runs of
@@ -112,9 +113,12 @@ export function sortPeople<T extends { name: string }>(items: readonly T[], orde
   return namedFirst(items, order === "name" ? collator : null);
 }
 
-/** Collections in `order`: a copy, the device's list left as it is. */
-export function sortCollections<T extends { name: string }>(items: readonly T[], order: CollectionsOrder, collator: Intl.Collator): T[] {
-  return order === "name" ? byName(items, collator) : [...items];
+/** Collections in `order`, Favourites first: a copy, the device's list
+ *  left as it is. */
+export function sortCollections<T extends { name: string; favourites?: boolean }>(items: readonly T[], order: CollectionsOrder, collator: Intl.Collator): T[] {
+  const first = items.filter((g) => g.favourites);
+  const rest = items.filter((g) => !g.favourites);
+  return [...first, ...(order === "name" ? byName(rest, collator) : rest)];
 }
 
 /** Forgets the choices read (tests: another storage). */

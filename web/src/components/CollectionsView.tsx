@@ -6,7 +6,7 @@ import { Trans, useT, type TFunction } from "../i18n";
 import type { ImageGroup } from "../proto/messages";
 import { reloadGroups, useGroups } from "./libraryStore";
 import type { Reload } from "./libraryStore";
-import { CollectionsIcon } from "./NavIcons";
+import { CollectionsIcon, FavouritesIcon } from "./NavIcons";
 import { openGroup, showAll } from "./photoFilter";
 import "./CollectionsView.css";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -16,8 +16,11 @@ import { SortBy } from "./SortBy";
 
 // The Collections page: every collection (an image group in the protocol)
 // as a card with its cover, in the order Sort by picks (librarySort.ts:
-// newest first as the device lists them, or by name). A card opens Images
-// on that collection, which is where one is renamed, shared or deleted.
+// newest first as the device lists them, or by name), Favourites always
+// first - a heart where an empty one has no cover. A card opens Images on
+// that collection, which is where one is renamed, shared or deleted
+// (Favourites only shared). With Favourites always listed, the empty
+// state below no longer shows.
 
 type Props = {
   // A collection was opened (photoFilter.openGroup already called): show Images.
@@ -48,7 +51,7 @@ function CollectionsPage({ onOpenPhotos }: Props) {
   const orderOptions = useMemo(() => collectionsOrders.map((o) => ({ value: o, label: orderText(t, o) })), [t]);
 
   const open = (g: ImageGroup) => {
-    openGroup({ id: g.id, name: g.name, fileCount: g.fileCount });
+    openGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
     onOpenPhotos();
   };
 
@@ -76,7 +79,9 @@ function CollectionsPage({ onOpenPhotos }: Props) {
                 <span className="cv-cover">
                   {cover
                     ? <img src={cover} alt="" draggable={false} decoding="async" />
-                    : <span className="cv-cover-ph"><CollectionsIcon size={36} /></span>}
+                    : g.favourites
+                      ? <span className="cv-cover-ph cv-cover-fav"><FavouritesIcon size={36} /></span>
+                      : <span className="cv-cover-ph"><CollectionsIcon size={36} /></span>}
                 </span>
                 <span className="cv-name" title={name}>{name}</span>
                 <span className="cv-count">{t("web.images.count.items", { count: g.fileCount })}</span>

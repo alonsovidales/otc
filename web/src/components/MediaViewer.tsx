@@ -6,7 +6,9 @@
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download, and Delete where the caller allows it
 // (issue #199) - and, opened on one person's photos, Not this person and
-// Someone else… (personFix.tsx). The apps do the same with ImageModal.
+// Someone else… (personFix.tsx); on this device's own library, the heart
+// that puts a photo in Favourites or takes it out (useFavourites.ts). The
+// apps do the same with ImageModal.
 // Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
 // layer's Part); Back closes it.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -21,12 +23,14 @@ import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { ConfirmDialog } from "./ConfirmDialog";
-import type { UiText } from "./uiText";
+import { asIs, say, type UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 import { refuseOnDemo } from "../net/demo";
 import { useBackLayer } from "./backStack";
 import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
 import type { PersonFixDone } from "./personFixDone";
+import { favourites, useFavourite, useNoFavourites } from "./useFavourites";
+import { groupsChanged } from "./libraryStore";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -126,6 +130,17 @@ async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: 
   return { error: (t) => t("web.images.delete.failed", { count: 1 }), changed: null };
 }
 
+// How long the note of a heart the device refused stays.
+const cFavouriteNoteMs = 6000;
+
+// The heart: an outline, filled while the photo is in Favourites (CSS).
+const HeartGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path d="M12 20.5s-7.5-4.6-9.2-9.3C1.6 7.8 3.9 4.5 7.3 4.5c2 0 3.4 1.1 4.7 2.8 1.3-1.7 2.7-2.8 4.7-2.8 3.4 0 5.7 3.3 4.5 6.7-1.7 4.7-9.2 9.3-9.2 9.3Z"
+      strokeWidth="1.8" strokeLinejoin="round" />
+  </svg>
+);
+
 // The Delete button's trash can (Images' selection bar draws the same).
 const TrashGlyph = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
@@ -149,7 +164,7 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -177,6 +192,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
    *  takes it out of `items` and moves `index` on, as after onDeleted. */
   personId?: string;
   onPersonFixed?: (done: PersonFixDone) => void;
+  /** This device's own library (Images, Files, On this day, Places): the
+   *  header has the heart. Never a friend's post or a shared gallery's
+   *  item, which have viewers of their own. */
+  canFavourite?: boolean;
 }) {
   const t = useT();
   // Back closes the viewer (backStack.ts), as its × does.
@@ -198,6 +217,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // the info it was asked on, so another photo's starts without it.
   const [mapFor, setMapFor] = useState<FileExifInfo | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  // The item whose heart was just filled, for its pop (see toggleFavourite).
+  const [popped, setPopped] = useState<string | null>(null);
   // Whether the full-size fetch is still going (for the Low res badge).
   const [hiLoading, setHiLoading] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -223,8 +244,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // show the next one and then the previous one's image over it.
   const viewGenRef = useRef(0);
   useEffect(() => () => { viewGenRef.current += 1; }, []);
-  // When the previous item was opened (see cRapidStepMs).
+  // When the previous item was opened (see cRapidStepMs), and whether the
+  // step to the one on screen was one of a burst.
   const lastStepRef = useRef(0);
+  const rapidRef = useRef(false);
 
   const item = items[index];
 
@@ -308,10 +331,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     setInfoOpen(false);
     setInfoData(null);
     setZoomScale(1);
+    setPopped(null);
     if (!item) return;
     const now = Date.now();
     const rapid = now - lastStepRef.current < cRapidStepMs;
     lastStepRef.current = now;
+    rapidRef.current = rapid;
     // A photo already seen this session (fullSizeCache): at once, with no
     // request and no low-res tile first.
     const kept = fullSizeCache.get(item.hash);
@@ -467,6 +492,74 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     setFixing(null);
     onPersonFixedRef.current?.(done);
   };
+  // Favourites: the heart, for the item on screen (useFavourites.ts). It is
+  // asked about with the items either side of it in one request, so a step
+  // shows theirs at once; until the device has said, the heart's place
+  // stays empty - never an empty heart that then fills. A device without
+  // Favourites has no heart, nor a place for one.
+  const noFavourites = useNoFavourites();
+  const heart = canFavourite && !noFavourites;
+  const favourite = useFavourite(heart ? item?.path : undefined);
+  const { tick: favTick, failed: favFailed, reset: favReset } = usePageRetry();
+  // What this page knew before the viewer opened may have changed on
+  // another app since: still shown, and asked again (favourites.stale).
+  const favStaleRef = useRef(false);
+  const nearPaths = heart ? [index, index + 1, index - 1].map((i) => items[i]?.path ?? "").join("\n") : "";
+  const favUnknown = favourite === undefined;
+  useEffect(() => {
+    if (!heart || !item) return;
+    if (!favStaleRef.current) {
+      favStaleRef.current = true;
+      favourites.stale();
+    }
+    let live = true;
+    const ask = () => {
+      const near = [items[index], items[index + 1], items[index - 1]].filter((x): x is ViewerItem => x != null);
+      void favourites.ask(near).then((how) => {
+        if (!live) return;
+        // No answer: asked again as a grid's page is (usePageRetry).
+        if (how === "failed") favFailed();
+        else favReset();
+      });
+    };
+    // A held arrow key asks only where it stops, as the full size waits.
+    if (!rapidRef.current) {
+      ask();
+      return () => { live = false; };
+    }
+    const timer = setTimeout(ask, cRapidStepMs);
+    return () => { live = false; clearTimeout(timer); };
+  }, [heart, nearPaths, favUnknown, favTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The heart pressed (or F): shown at once, then sent. Refused, it goes
+  // back and a note says so - in the device's words when it gave some. A
+  // demo device refuses it before anything changes.
+  const [favNote, setFavNote] = useState<{ text: UiText; seq: number } | null>(null);
+  useEffect(() => {
+    if (!favNote) return;
+    const timer = setTimeout(() => setFavNote(null), cFavouriteNoteMs);
+    return () => clearTimeout(timer);
+  }, [favNote]);
+  // A heart changed while it was open: the collections' counts and covers
+  // are listed again as it closes, as after Add to collection.
+  const favChangedRef = useRef(false);
+  useEffect(() => () => { if (favChangedRef.current) groupsChanged(); }, []);
+  const heartReady = heart && favourite !== undefined;
+  const toggleFavourite = useCallback(() => {
+    const it = items[index];
+    if (!heart || !it) return;
+    const now = favourites.get(it.path);
+    if (now === undefined || refuseOnDemo()) return;
+    // A small pop as it fills (none under reduced motion: PhotoGallery.css).
+    setPopped(now ? null : it.path);
+    setFavNote(null);
+    favChangedRef.current = true;
+    void favourites.toggle(it).then((said) => {
+      if (said == null || !mountedRef.current) return;
+      setFavNote({ text: said ? asIs(said) : say("web.images.viewer.favourite_failed"), seq: Date.now() });
+    });
+  }, [heart, items, index]);
+
   // The question gone, the viewer has the focus again if it fell out of it
   // (a click on Delete leaves it on nothing once the dialog goes).
   const dialogOpen = asking != null || fixing != null;
@@ -507,8 +600,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   }, []);
 
   // Keyboard: Escape closes, arrows page, Delete (or the Mac's delete
-  // key, Backspace) asks to delete, Tab stays in the viewer. None of it
-  // while a question or a list shows: its keys are its own.
+  // key, Backspace) asks to delete, F presses the heart, Tab stays in the
+  // viewer. None of it while a question or a list shows: its keys are its
+  // own.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (dialogOpen) return;
@@ -523,6 +617,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         if (!field && canDelete) {
           e.preventDefault();
           askDelete();
+        }
+      }
+      if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
+        const field = e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']");
+        if (!field && heartReady) {
+          e.preventDefault();
+          toggleFavourite();
         }
       }
       if (!box) return;
@@ -547,7 +648,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, items.length, onIndexChange, onClose, stops, dialogOpen, canDelete, askDelete]);
+  }, [index, items.length, onIndexChange, onClose, stops, dialogOpen, canDelete, askDelete, heartReady, toggleFavourite]);
 
   // Swipe to page (issue #18) and pinch to zoom (issue #36): a two-finger
   // pinch on touch devices, ctrl+wheel (a trackpad pinch) on desktop.
@@ -611,6 +712,23 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             <span className="pg-info-glyph">i</span> {t("web.images.viewer.info")}
           </button>
           <span className="pg-modal-title">{name}</span>
+          {/* Favourites: empty, or full while the photo is in it; its
+              place kept until the device has said which. */}
+          {heart && (favourite === undefined ? (
+            <span className="pg-modal-fav pg-modal-fav-wait" aria-hidden="true" />
+          ) : (
+            <button
+              type="button"
+              className={"pg-modal-fav" + (favourite && popped === item.path ? " pop" : "")}
+              aria-pressed={favourite}
+              aria-label={favourite ? t("web.images.viewer.favourite_remove") : t("web.images.viewer.favourite_add")}
+              data-tip={favourite ? t("web.images.viewer.favourite_remove") : t("web.images.viewer.favourite_add")}
+              aria-keyshortcuts="F"
+              onClick={toggleFavourite}
+            >
+              <HeartGlyph />
+            </button>
+          ))}
           {/* The original file, under its own name. */}
           <DownloadButton save={save} onClick={download} what={name ?? ""} />
           {/* Opened on one person's photos: this one isn't them, or is
@@ -855,6 +973,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         )}
 
         <DownloadNote failed={saveError} />
+        {/* The heart the device didn't take, back as it was. */}
+        {favNote && (
+          <div className="pg-modal-toast" role="alert" key={favNote.seq}>
+            <span>{favNote.text(t)}</span>
+            <button type="button" className="pg-modal-toast-close" aria-label={t("common.close")} onClick={() => setFavNote(null)}>×</button>
+          </div>
+        )}
         {asking && (() => {
           // Issue #201: a photo the device holds at several paths asks
           // whether to delete only this copy or all of them.

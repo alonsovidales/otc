@@ -2,7 +2,8 @@
 //
 // Tests for People's and Collections' Sort by (src/components/librarySort.ts):
 // the two orders of each, names with accents, case, numbers and spaces, the
-// unnamed last, equal names kept in the device's order, and the choice kept
+// unnamed last, equal names kept in the device's order, Favourites first
+// among the collections whatever the order, and the choice kept
 // in this browser's storage - or for the visit only where it throws. Loaded
 // through Vite's SSR loader in Node, as files-sort-test.mjs does:
 //
@@ -120,6 +121,37 @@ describe("Collections", () => {
   });
   test("Name: A to Z, accents and case ignored, numbers by value, the untitled last", () => {
     assert.deepEqual(ids(m.sortCollections(groups, "name", collator())), ["g3", "g7", "g6", "g4", "g1", "g2", "g5"]);
+  });
+  // Favourites: always first, whatever the order and its name in the
+  // language on screen ("Favoritos" would go after "beach" by name), and
+  // wherever the device put it.
+  const withFavourites = [
+    { id: "g1", name: "Summer 2024" },
+    { id: "g2", name: "zoo trip" },
+    { id: "fav", name: "Favoritos", favourites: true },
+    { id: "g3", name: "Álbum de boda" },
+    { id: "g5", name: "" },
+    { id: "g7", name: "beach", favourites: false },
+  ];
+  test("Favourites first, by Newest first: the rest in the device's order", () => {
+    assert.deepEqual(ids(m.sortCollections(withFavourites, "newest", collator("es"))), ["fav", "g1", "g2", "g3", "g5", "g7"]);
+    const first = [withFavourites[2], ...withFavourites.filter((g) => !g.favourites)];
+    assert.deepEqual(ids(m.sortCollections(first, "newest", collator())), ["fav", "g1", "g2", "g3", "g5", "g7"]);
+  });
+  test("Favourites first, by Name: the rest A to Z, the untitled last", () => {
+    assert.deepEqual(ids(m.sortCollections(withFavourites, "name", collator("es"))), ["fav", "g3", "g7", "g1", "g2", "g5"]);
+  });
+  test("Favourites alone, or untitled, is still first", () => {
+    assert.deepEqual(ids(m.sortCollections([{ id: "fav", name: "Favourites", favourites: true }], "name", collator())), ["fav"]);
+    const untitled = [{ id: "a", name: "Zebra" }, { id: "fav", name: "", favourites: true }];
+    assert.deepEqual(ids(m.sortCollections(untitled, "name", collator())), ["fav", "a"]);
+    assert.deepEqual(ids(m.sortCollections(untitled, "newest", collator())), ["fav", "a"]);
+  });
+  test("a copy: the device's list stays as it came", () => {
+    const before = ids(withFavourites);
+    assert.notEqual(m.sortCollections(withFavourites, "newest", collator()), withFavourites);
+    m.sortCollections(withFavourites, "name", collator());
+    assert.deepEqual(ids(withFavourites), before);
   });
 });
 

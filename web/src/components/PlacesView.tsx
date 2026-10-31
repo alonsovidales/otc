@@ -586,7 +586,7 @@ function PlacesMap({ onOpenPhotos }: { onOpenPhotos: () => void }) {
       )}
       {viewing && (
         <Part kind="layer" onClose={() => setViewing(null)}>
-          <MediaViewer items={[viewing]} index={0} onIndexChange={() => {}} onClose={() => setViewing(null)} />
+          <MediaViewer items={[viewing]} index={0} onIndexChange={() => {}} onClose={() => setViewing(null)} canFavourite />
         </Part>
       )}
     </div>

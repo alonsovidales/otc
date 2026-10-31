@@ -17,7 +17,9 @@ import type { PlaceArea } from "../proto/messages";
 // find photos by (SearchPhotos.text), ranked best first within the rest;
 // kept only for the page's session, and gone when Smart search is off.
 
-export type OpenGroup = { id: string; name: string; fileCount: number };
+/** An open collection; `favourites`: the one every device has
+ *  (ImageGroup.favourites), which can't be renamed or deleted. */
+export type OpenGroup = { id: string; name: string; fileCount: number; favourites?: boolean };
 
 export type PhotoFilter = {
   tags: string[];

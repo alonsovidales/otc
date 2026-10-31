@@ -199,6 +199,14 @@ export function renameGroupLocally(id: string, name: string) {
   emit();
 }
 
+/** The viewer's heart changed Favourites (a count, maybe a cover): listed
+ *  again if a list is held - with one already on its way if there is one -
+ *  as after Add to collection. With none held, the first page to show the
+ *  collections lists them anyway. */
+export function groupsChanged() {
+  if (groups.loaded) void reloadGroups.join().catch(() => {});
+}
+
 export function dropGroupLocally(id: string) {
   const thumb = groups.thumbs.get(id);
   const thumbs = new Map(groups.thumbs);

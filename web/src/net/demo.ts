@@ -71,7 +71,7 @@ const cChanges = new Set([
   "reqDelFile", "reqUploadFile", "reqBeginUpload", "reqUploadChunk", "reqFinishUpload", "reqLinkFile",
   "reqSetUploadOnly", "reqSetOutOfImages", "reqRenamePerson", "reqDeletePerson", "reqMergePeople", "reqRemoveFromPerson",
   "reqStartReprocess", "reqStopReprocess", "reqCreateImageGroup", "reqAddToImageGroup", "reqRemoveFromImageGroup", "reqRenameImageGroup",
-  "reqDeleteImageGroup", "reqNewSocialPublication", "reqNewSocialComment", "reqDelSocialPublication",
+  "reqDeleteImageGroup", "reqSetFavourite", "reqNewSocialPublication", "reqNewSocialComment", "reqDelSocialPublication",
   "reqDelSocialComment", "reqFriendshipRequest", "reqChangeFriendStatus", "reqDeleteFriendship",
   "reqShareFilesLink", "reqCreateSharedGallery", "reqDeleteSharedLink", "reqChangeKey", "reqSetSettings",
   "reqSetProfile", "reqSetFaceRecognitionEnabled", "reqSetImageTaggingEnabled", "reqSetSocialStorageLimit",

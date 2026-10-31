@@ -36,7 +36,7 @@ import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import DateScrubber, { type ScrubBucket } from "./DateScrubber";
-import { CollectionsIcon, ImagesIcon } from "./NavIcons";
+import { CollectionsIcon, FavouritesIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
@@ -46,6 +46,7 @@ import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
+import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
 import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon } from "./personFix";
 import { personFixText, uniqueHashes, type PersonFixDone } from "./personFixDone";
@@ -1198,6 +1199,26 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     anchorRef.current = null;
   };
 
+  // Favourites open: a photo whose heart was emptied in the viewer stays
+  // there - it can be filled again - until the viewer closes; then every
+  // photo the viewer knows is out leaves the grid, as after Remove from
+  // collection (and the count follows). The tile shown last, or the one
+  // after it where it went, gets the focus back. Stable, as closeViewer is,
+  // for the viewer's key listener.
+  const leaveViewerRef = useRef(closeViewer);
+  useLayoutEffect(() => {
+    leaveViewerRef.current = () => {
+      const out = group?.favourites ? new Set(items.filter((f) => favourites.knownOut(f.path)).map((f) => f.path)) : null;
+      if (!out?.size) { closeViewer(); return; }
+      const at = openIdxRef.current ?? 0;
+      const before = items.slice(0, at).filter((f) => out.has(f.path)).length;
+      openIdxRef.current = Math.max(0, Math.min(at - before, items.length - out.size - 1));
+      closeViewer();
+      dropDeleted(out);
+    };
+  });
+  const closeViewerHere = useCallback(() => leaveViewerRef.current(), []);
+
   // Issue #199: the viewer's Delete took the photo it showed. The viewer
   // goes on to the one after it - the one before when it was the last -
   // or closes when none is left, as the apps' viewers do. Called with the
@@ -1348,6 +1369,8 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     try {
       const resp = await ask({ $case: "reqRemoveFromImageGroup", reqRemoveFromImageGroup: { groupId: group.id, paths: files.map((f) => f.path) } });
       if (acked(resp)) {
+        // Out of Favourites: the viewer's hearts it knew are asked again.
+        if (group.favourites) favourites.forget();
         const hashes = new Set(files.map((f) => f.hash));
         dropDeleted(new Set(items.filter((f) => hashes.has(f.hash)).map((f) => f.path)));
         clearSel();
@@ -1609,7 +1632,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     if (group && !tags.length && !personIds.length && !area) {
       body = (
         <Empty
-          icon={<CollectionsIcon size={32} />}
+          icon={group.favourites ? <FavouritesIcon size={32} /> : <CollectionsIcon size={32} />}
           title={t("web.images.grid.empty_collection_title")}
           text={t("web.images.grid.empty_collection_text")}
         >
@@ -1873,7 +1896,8 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
           items={viewerItems}
           index={openIdx}
           onIndexChange={openAt}
-          onClose={closeViewer}
+          onClose={closeViewerHere}
+          canFavourite
           onDeleted={onViewerDeleted}
           // Issue #201: refused as "changed" - the photo's path holds other
           // content now. The viewer closes (its photos are the grid's), the
@@ -1991,10 +2015,13 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   // another tab or on another device, or after photos were deleted here.
   useEffect(() => {
     const g = groups.items.find((x) => x.id === group.id);
-    if (g && (g.name !== group.name || g.fileCount !== group.fileCount)) {
-      updateOpenGroup({ id: g.id, name: g.name, fileCount: g.fileCount });
+    if (g && (g.name !== group.name || g.fileCount !== group.fileCount || g.favourites !== !!group.favourites)) {
+      updateOpenGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
     }
   }, [groups.items, group]);
+  // Favourites can't be renamed or deleted (the device refuses both): its
+  // name is only a title, and it has no Delete.
+  const fixed = !!group.favourites;
 
   // Renaming in place: null when not editing.
   const [draft, setDraft] = useState<string | null>(null);
@@ -2045,7 +2072,9 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
       <div className="pg-head-row">
         <div className="pg-head-main">
           <h1 className="pg-title">
-            {draft != null ? (
+            {fixed ? (
+              <span className="pg-clamp">{shown}</span>
+            ) : draft != null ? (
               <input
                 className="pg-title-input"
                 value={draft}
@@ -2086,16 +2115,18 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
             <GalleryPageIcon size={20} />
             {!compact && <span>{t("web.images.collection.share")}</span>}
           </button>
-          <button
-            type="button"
-            className={compact ? "pg-icon-btn danger" : "pg-btn outline danger"}
-            onClick={onDelete}
-            aria-label={t("web.images.collection.delete")}
-            data-tip={compact ? t("web.images.collection.delete") : undefined}
-          >
-            <TrashIcon size={20} />
-            {!compact && <span>{t("web.images.collection.delete")}</span>}
-          </button>
+          {!fixed && (
+            <button
+              type="button"
+              className={compact ? "pg-icon-btn danger" : "pg-btn outline danger"}
+              onClick={onDelete}
+              aria-label={t("web.images.collection.delete")}
+              data-tip={compact ? t("web.images.collection.delete") : undefined}
+            >
+              <TrashIcon size={20} />
+              {!compact && <span>{t("web.images.collection.delete")}</span>}
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -2445,8 +2476,10 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
     try {
       const resp = await ask({ $case: "reqAddToImageGroup", reqAddToImageGroup: { groupId: g.id, paths } });
       if (acked(resp)) {
+        // Into Favourites: the viewer's hearts it knew are asked again.
+        if (g.favourites) favourites.forget();
         void reloadGroups().catch(() => {});
-        onDone({ id: g.id, name: g.name, fileCount: g.fileCount });
+        onDone({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
         return;
       }
       setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: g.name }));
@@ -2534,7 +2567,9 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
                 <button type="button" className="pg-pick" onClick={() => void add(g)} disabled={busy != null}>
                   {cover
                     ? <img className="pg-pick-cover" src={cover} alt="" />
-                    : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
+                    : g.favourites
+                      ? <span className="pg-pick-cover pg-pick-fav"><FavouritesIcon size={22} /></span>
+                      : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
                   <span className="pg-pick-text">
                     <span className="pg-pick-name">{g.name}</span>
                     <span className="pg-pick-count">{itemsLabel(t, g.fileCount)}</span>

@@ -395,6 +395,7 @@ export default function MemoryViewer({ memories, index, startPaused = false, onC
             index={viewing}
             onIndexChange={setViewing}
             onClose={() => setViewing(null)}
+            canFavourite
           />
         </Part>
       )}

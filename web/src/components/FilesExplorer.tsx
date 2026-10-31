@@ -2306,6 +2306,7 @@ function FilesExplorerView({
             showToast({ text: (tt) => (said ? refusedText(tt, said) : tt("web.images.delete.changed", { count: 1 })), error: true });
           }}
           deleteBlocked={viewerDeleteBlocked}
+          canFavourite
         />
         </Part>
       )}
