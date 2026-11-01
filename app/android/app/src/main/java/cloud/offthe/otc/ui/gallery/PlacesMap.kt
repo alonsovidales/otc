@@ -384,6 +384,7 @@ internal fun PlacesMapView(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.
         Credits(Modifier.align(Alignment.BottomStart))
     }
     if (vst.openIndex != null) ImageModal(viewer, vst)
+    ViewerAlert(viewer, vst)
 }
 
 /** The pin under a tap at [at] (pixels): the nearest whose frame or count holds it. */

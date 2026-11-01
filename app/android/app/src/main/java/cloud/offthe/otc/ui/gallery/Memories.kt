@@ -418,6 +418,7 @@ internal fun MemoryGrid(model: MemoriesModel, memory: Memory, onClose: () -> Uni
                 }
             }
             if (vst.openIndex != null) ImageModal(viewer, vst)
+            ViewerAlert(viewer, vst)
         }
     }
 }

@@ -3468,6 +3468,23 @@ the collections are listed again once it has closed. Favourites is first in eith
 (`PageSort.collections`), has no Rename or Delete, and an empty one's cover is a heart (card and sheet). A
 debug-only `FavouritesPreviewActivity` (`--es device demo|old|silent`, `--es show collections`) draws them on
 sample data. Tests: `PhotoGalleryFavouritesTest.kt`, `PageSortTest.kt`.
+**A photo's faces on Android** (2026-11-01, from a user; the device side under `face_recognition` above;
+`ui/gallery/PhotoFacesInfo.kt`; iOS must match): every viewer's Info (`ImageModal`: Images, Files, Places, a
+memory's See all) asks `GetPhotoFaces` for the photo open as it shows (`openInfo` -> `askPhotoFaces`; never
+for a video; `unknown_payload`: nothing until the next sign-in, quietly; a refusal or no answer leaves the
+rest of Info) and lists them after the details under People (`app.shell.section_people`), left to right:
+the crop at 36 dp (a blank circle without one), the name or `app.shell.search_unnamed`, and a 48 dp ×
+named `app.shell.not_this_person`. Nothing while the device says `face_recognition` false or
+`FaceRecognition` is off. A face opens that person's photos: the viewer closes, `PersonNav` (the person
+asked for, like `FilesNav`) makes MainView show Images, and its gallery takes it (`showPerson`, as from
+People; a memory's grid closes). The × asks Not this person's question (`notThisPersonTitle(person, 1)`,
+`remove_text`, Remove), then sends `RemoveFromPerson{person_id, [PhotoFaces.hash]}` (`removeInfoFace`,
+busy `NOT_PERSON`): the note `person.removed`/`removed_unnamed`, else `remove_failed`; People is listed
+again (not by a viewer of its own). Among that person's photos (`selectedPeople` holds them) the photo
+leaves the grid and the viewer moves on, as after the viewer's Not this person (Info closes with the move);
+otherwise Info drops their faces at once and asks the device again. The map's and a memory's viewers show
+their notes (`ViewerAlert`). Debug-only `PhotoFacesPreviewActivity` (`--es device demo|old|off`). Tests:
+`PhotoGalleryFacesTest.kt`.
 **Sort by and Back to the map on iOS** (2026-10-30, the owner's request after user feedback;
 `SortBy.swift`, `AreaBackButton` in `Places.swift`, tests `SortByTests.swift`; Android's rules above,
 case for case): People and Collections have a Sort by menu (`SortByMenu`: the sort icon at the

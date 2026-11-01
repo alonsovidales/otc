@@ -34,12 +34,14 @@ import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.proto.GetFavourites
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetFileInfo
+import cloud.offthe.otc.proto.GetPhotoFaces
 import cloud.offthe.otc.proto.GetTags
 import cloud.offthe.otc.proto.GetThumbnails
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.ListPeople
 import cloud.offthe.otc.proto.Person
+import cloud.offthe.otc.proto.PhotoFace
 import cloud.offthe.otc.proto.PlaceArea
 import cloud.offthe.otc.proto.RemoveFromImageGroup
 import cloud.offthe.otc.proto.RemoveFromPerson
@@ -343,6 +345,11 @@ class PhotoGalleryViewModel(
         val infoOpen: Boolean = false,
         val infoLoading: Boolean = false,
         val infoData: FileExifInfo? = null,
+        // Info's People (PhotoFacesInfo.kt): the open photo's faces as
+        // GetPhotoFaces listed them; null until they come, and while there
+        // is nothing to show (a video, face recognition off, no face, a
+        // device from before).
+        val infoFaces: PhotoFacesInfo? = null,
         // Issue #194, after a jump: newer photos are still to come above
         // (the top keeps their room, RoomAbove), one of their pages is on
         // its way, or the last one failed (and is asked again meanwhile).
@@ -1754,7 +1761,8 @@ class PhotoGalleryViewModel(
         if (index !in _state.value.items.indices) return
         // Another item: the last one's big thumbnail is no longer asked for.
         if (bigThumbFor != _state.value.items[index].path) stopBigThumb()
-        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null) }
+        photoFacesAsk++
+        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
         askFavourites(index)
@@ -2094,8 +2102,9 @@ class PhotoGalleryViewModel(
 
     fun openInfo() {
         val idx = _state.value.openIndex ?: return
-        val path = _state.value.items.getOrNull(idx)?.path ?: return
-        _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null) }
+        val item = _state.value.items.getOrNull(idx) ?: return
+        val path = item.path
+        _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null, infoFaces = null) }
         scope.launch {
             try {
                 val resp = call { it.setReqGetFileInfo(GetFileInfo.newBuilder().setPath(path)) }
@@ -2105,9 +2114,111 @@ class PhotoGalleryViewModel(
                 _state.update { it.copy(infoLoading = false) }
             }
         }
+        askPhotoFaces(item)
     }
 
-    fun closeInfo() = _state.update { it.copy(infoOpen = false, infoData = null) }
+    fun closeInfo() {
+        photoFacesAsk++
+        _state.update { it.copy(infoOpen = false, infoData = null, infoFaces = null) }
+    }
+
+    // Info's People: the latest GetPhotoFaces (an answer to an older one,
+    // or one that lands after Info closed or the viewer moved, is left),
+    // and the sign-in at which the device answered unknown_payload - no
+    // faces asked for until the next.
+    private var photoFacesAsk = 0
+    private var photoFacesOffAt: Int? = null
+
+    /**
+     * Info's People: the faces in [item] (GetPhotoFaces), asked as Info
+     * shows and again once a face was taken off. None for a video, nor on
+     * a device that answered unknown_payload since this sign-in (quietly).
+     * No answer, or a refusal, leaves what Info shows as it was - nothing
+     * at first: the rest of Info stands.
+     */
+    private fun askPhotoFaces(item: Item) {
+        if (!asksPhotoFaces(item) || !photoFacesAsked()) return
+        val ask = ++photoFacesAsk
+        scope.launch {
+            val resp = try {
+                call { it.setReqGetPhotoFaces(GetPhotoFaces.newBuilder().setPath(item.path)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            if (resp != null && resp.isUnknownPayload()) { photoFacesOffAt = signIns(); return@launch }
+            if (ask != photoFacesAsk || !_state.value.infoOpen || openPath() != item.path) return@launch
+            if (resp?.payloadCase != RespEnvelope.PayloadCase.RESP_PHOTO_FACES) return@launch
+            _state.update { it.copy(infoFaces = photoFacesOf(item.path, resp.respPhotoFaces)) }
+        }
+    }
+
+    // Whether to ask: not on a device found before GetPhotoFaces since this
+    // sign-in; after the next one, again.
+    private fun photoFacesAsked(): Boolean {
+        val off = photoFacesOffAt ?: return true
+        if (off == signIns()) return false
+        photoFacesOffAt = null
+        return true
+    }
+
+    /**
+     * Info's × on [face], once asked (ImageModal): it is taken off its
+     * person in the photo open - RemoveFromPerson with the photo's hash and
+     * no one to move it to, every face of theirs in it, as Not this person
+     * does. Done, the note says so and the people are asked again; then,
+     * among that person's photos (they are in the search), the photo
+     * leaves the grid and the viewer moves on, as after the viewer's Not
+     * this person; otherwise Info loses their faces at once and asks for
+     * the photo's again. A device from before the request answers
+     * unknown_payload (needsUpdate's dialog); anything else is "Couldn't
+     * remove them".
+     */
+    fun removeInfoFace(face: PhotoFace) = scope.launch {
+        val st = _state.value
+        val info = st.infoFaces ?: return@launch
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return@launch
+        if (item.path != info.path || st.preparing != null) return@launch
+        _state.update { it.copy(preparing = SelectionActionTask.NOT_PERSON) }
+        try {
+            // Nothing to name the photo by (no device lists faces without it).
+            if (info.hash.isEmpty()) { alert(S.appPhotosPersonRemoveFailed()); return@launch }
+            val r = try {
+                call { it.setReqRemoveFromPerson(removeFromPersonRequest(face.personId, listOf(info.hash), null)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            when {
+                r != null && r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok -> faceTakenOff(face, info, item)
+                r != null && r.isUnknownPayload() -> {
+                    val ask = deviceNeedsUpdate(S.appPhotosPersonNeedsUpdate()) { build -> call(build) }
+                    _state.update { it.copy(needsUpdate = ask) }
+                }
+                else -> alert(S.appPhotosPersonRemoveFailed())
+            }
+        } finally { _state.update { it.copy(preparing = null) } }
+    }
+
+    // RemoveFromPerson took [face] off its person in [item] (Info's
+    // [info]): see removeInfoFace.
+    private suspend fun faceTakenOff(face: PhotoFace, info: PhotoFacesInfo, item: Item) {
+        val leaves = !fixedList && face.personId in _state.value.selectedPeople
+        val at = _state.value.items.indexOfFirst { it.id == item.id }
+        if (leaves) {
+            val gone = setOf(info.hash, item.hash) - ""
+            removeDeleted(setOf(item.path) + _state.value.items.filter { it.hash in gone }.map { it.path }, keepThumbs = true)
+            countsChanged()
+        } else {
+            _state.update { s -> s.copy(infoFaces = s.infoFaces?.takeIf { it.path == info.path }?.without(face.personId)) }
+        }
+        if (!fixedList) scope.launch { loadPeople() }
+        alert(personTakenOffNote(1, facePerson(face), null))
+        if (leaves) {
+            // Not if it was closed meanwhile.
+            if (_state.value.openIndex == null) return
+            val left = _state.value.items
+            if (left.isEmpty()) closeModal() else open(minOf(at.coerceAtLeast(0), left.size - 1))
+        } else if (_state.value.infoOpen && openPath() == item.path) askPhotoFaces(item)
+    }
 
     /** prefetch: a neighbour readied for the slide (readyNeighbours) - its image is fetched, a video is not started until opened. */
     private suspend fun fetchHiRes(index: Int, prefetch: Boolean = false) {

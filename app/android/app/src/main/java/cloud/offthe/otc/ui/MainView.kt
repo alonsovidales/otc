@@ -107,6 +107,7 @@ import cloud.offthe.otc.ui.files.FilesNav
 import cloud.offthe.otc.ui.files.FilesRequest
 import cloud.offthe.otc.ui.gallery.GalleryPage
 import cloud.offthe.otc.ui.gallery.PeopleViewModel
+import cloud.offthe.otc.ui.gallery.PersonNav
 import cloud.offthe.otc.ui.gallery.PhotoGalleryView
 import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
 import cloud.offthe.otc.ui.gallery.TopSearchField
@@ -259,6 +260,10 @@ fun MainView(secrets: SecretsStore) {
     LaunchedEffect(filesRequest) {
         if (filesRequest is FilesRequest.Show || filesRequest is FilesRequest.Search) go(Section.Files)
     }
+    // A face in a viewer's Info asked for that person's photos (PersonNav):
+    // Images shows and takes it.
+    val personAsked by PersonNav.pending.collectAsState()
+    LaunchedEffect(personAsked) { if (personAsked != null) go(Section.Images) }
 
     // Issue #183: the device's status, at launch and every 5 minutes while
     // in the foreground, for its update alert. A failed fetch keeps the

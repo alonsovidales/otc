@@ -187,6 +187,7 @@ import androidx.compose.ui.unit.Dp
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.Memory
 import cloud.offthe.otc.proto.Person
+import cloud.offthe.otc.proto.PhotoFace
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.outlined.CloudOff
@@ -425,6 +426,20 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         MemoryViewer(vm.memories, m, st.allPeople, onClose = { openMemory = null }, onMove = { openMemory = it }, onSeeAll = { seeAllMemory = it })
     }
     seeAllMemory?.let { m -> MemoryGrid(vm.memories, m, onClose = { seeAllMemory = null }) }
+
+    // A face in a viewer's Info (PhotoFacesInfo.kt; MainView has shown
+    // Images): that person's photos, as a face opened from People - a
+    // memory's grid it was opened over goes too.
+    val personAsked by PersonNav.pending.collectAsState()
+    LaunchedEffect(personAsked) {
+        val id = personAsked ?: return@LaunchedEffect
+        PersonNav.take(id)
+        openMemory = null
+        seeAllMemory = null
+        vm.showPerson(id)
+        onPage(GalleryPage.PHOTOS)
+        listState.scrollToItem(0)
+    }
 
     LaunchedEffect(Unit) { vm.onAppearInitial() }
     // The selection outlives a jump and a filter change, as on the web, but
@@ -1947,6 +1962,8 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // Not this person's question and Someone else…'s list, for the photo open.
     var confirmNotPerson by remember { mutableStateOf(false) }
     var pickPerson by remember { mutableStateOf(false) }
+    // Info's People: the face whose × was tapped, asked about first.
+    var confirmFace by remember { mutableStateOf<PhotoFace?>(null) }
     val idx = st.openIndex ?: return
     // Among one person's photos (Images only: the Files viewer has none),
     // while face recognition is on: the menu with Not this person and
@@ -2069,13 +2086,46 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
             onPick = { p -> pickPerson = false; vm.takeOpenOffPerson(to = p) }, onDismiss = { pickPerson = false },
         )
     }
+    // Info's People (PhotoFacesInfo.kt): the open photo's faces - none for
+    // a video, nor once face recognition is off. A face opens that
+    // person's photos in Images (PersonNav), the viewer closing; its × asks
+    // Not this person's question first.
+    val openItem = st.items.getOrNull(idx)
+    val infoFaces = st.infoFaces?.takeIf { f -> faces != false && f.path == openItem?.path && asksPhotoFaces(openItem) }
     // Fully open, and scrollable (FileInfoView): half-open, the location
     // map - the last thing in the sheet - sat below the visible part, so
     // it was never drawn nor its tiles fetched.
     if (st.infoOpen) ModalBottomSheet(
         onDismissRequest = { vm.closeInfo() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) { FileInfoView(st.infoLoading, st.infoData) }
+    ) {
+        FileInfoView(
+            st.infoLoading, st.infoData, infoFaces, busy = st.preparing != null,
+            onShowPerson = { f -> vm.closeInfo(); vm.closeModal(); PersonNav.show(f.personId) },
+            onRemoveFace = { f -> confirmFace = f },
+        )
+    }
+    LaunchedEffect(st.infoOpen) { if (!st.infoOpen) confirmFace = null }
+    confirmFace?.let { f ->
+        ConfirmDialog(
+            notThisPersonTitle(facePerson(f), 1).resolve(), S.appPhotosPersonRemoveText().resolve(), S.commonRemove().resolve(),
+            onConfirm = { confirmFace = null; vm.removeInfoFace(f) }, onDismiss = { confirmFace = null },
+        )
+    }
+}
+
+/**
+ * The note of a viewer of its own - the map's, a memory's - over it: what
+ * its Info's People, Save or Delete came to, as Images' and Files' own
+ * alerts show theirs.
+ */
+@Composable
+internal fun ViewerAlert(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State) {
+    val text = st.alert ?: return
+    AlertDialog(
+        onDismissRequest = { vm.dismissAlert() }, text = { Text(text.resolve()) },
+        confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } },
+    )
 }
 
 /** The gap between [buttons] 48 dp buttons in a row [width] wide: 48 dp, less where that wouldn't fit (8 dp at least). */
@@ -2327,8 +2377,16 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+/**
+ * The viewer's Info: the photo's details ([info], [loading] while they
+ * come), and under them its People ([faces], PhotoFacesSection) once the
+ * details are in. [busy]: a change is on its way (a face's × waits).
+ */
 @Composable
-private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
+private fun FileInfoView(
+    loading: Boolean, info: FileExifInfo?, faces: PhotoFacesInfo?, busy: Boolean,
+    onShowPerson: (PhotoFace) -> Unit, onRemoveFace: (PhotoFace) -> Unit,
+) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(S.appPhotosViewerInfoTitle().resolve(), style = MaterialTheme.typography.titleMedium)
@@ -2359,6 +2417,7 @@ private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
                 if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        if (!loading && faces != null) PhotoFacesSection(faces, busy, onShow = onShowPerson, onRemove = onRemoveFace)
         Spacer(Modifier.height(24.dp))
     }
 }

@@ -23,6 +23,7 @@ import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.common.ThumbCache
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.files.FilesNav
+import cloud.offthe.otc.ui.gallery.PersonNav
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 import cloud.offthe.otc.wallpaper.Wallpaper
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,7 @@ fun logOut(
         MemoriesSupport.reset()
         SmartSearchSupport.reset()
         FilesNav.reset()
+        PersonNav.reset()
         UploadModel.reset()
         SocialFeedViewModel.reset()
         OTCConnection.reset()
