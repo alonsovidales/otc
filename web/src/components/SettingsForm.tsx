@@ -16,6 +16,7 @@ import LanguagePanel from "./settings/LanguagePanel";
 import WifiPanel from "./settings/WifiPanel";
 import MirrorDiskPanel from "./settings/MirrorDiskPanel";
 import BackgroundWorkPanel from "./settings/BackgroundWorkPanel";
+import { taggingAfterSet, taggingSwitch, type TaggingSwitch } from "./settings/memoryTiers";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { setPlacesOn, usePlacesOn } from "./places";
 import { localDay, setMemoriesOn, showAllMemories } from "./memories";
@@ -74,7 +75,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   // whatever's already in the library. Shared with the menu and the
   // search (faceRecognition.ts), which show People only while it is on.
   const faceRecognitionEnabled = useFaceRecognition() === true;
-  const [imageTaggingEnabled, setImageTaggingEnabled] = useState(true);
+  // Image Tagging's switch: off and disabled on a device whose memory can't
+  // have it (settings/memoryTiers.ts).
+  const [tagging, setTagging] = useState<TaggingSwitch>({ on: true, available: true });
   const [imageTaggingBusy, setImageTaggingBusy] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
   // Places' switch (places.ts), on a device that has Places: its Settings
@@ -258,14 +261,15 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
     if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setImageTaggingBusy(true);
     setStatus(null);
-    const next = !imageTaggingEnabled;
+    const next = !tagging.on;
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqSetImageTaggingEnabled", reqSetImageTaggingEnabled: { enabled: next } };
       });
-      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setImageTaggingEnabled(next);
-      } else {
+      // Taken, or refused for the device's memory (tagging_unavailable:
+      // off and disabled from now on, the device's words below).
+      setTagging((prev) => taggingAfterSet(prev, next, resp));
+      if (!(resp.payload?.$case === "respAck" && resp.payload.respAck.ok)) {
         setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : (resp.payload?.$case === "respAck" ? asIs(resp.payload.respAck.errorMsg) : say("web.settings.general.update_failed")) });
       }
     } catch (err: any) {
@@ -402,7 +406,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
           setFaceRecognition(!!s.faceRecognitionEnabled);
-          setImageTaggingEnabled(!!s.imageTaggingEnabled);
+          // Unavailable (a device under 6 GB): off and disabled; absent
+          // (an older device): available, as before.
+          setTagging(taggingSwitch(s));
           // Absent: a device before Places, with no switch.
           setPlacesKnown(s.placesEnabled !== undefined);
           if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
@@ -673,8 +679,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       <section className="sf-section">
         <h3>{t("web.settings.tagging.title")}</h3>
         <p className="sf-hint">{t("web.settings.tagging.hint")}</p>
-        <button className="sf-btn" disabled={imageTaggingBusy} onClick={() => void toggleImageTagging()}>
-          {imageTaggingBusy ? t("web.settings.general.working") : imageTaggingEnabled ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
+        {/* Unavailable: off and disabled, the hint saying it needs 6 GB. */}
+        <button className="sf-btn" disabled={imageTaggingBusy || !tagging.available} onClick={() => void toggleImageTagging()}>
+          {imageTaggingBusy ? t("web.settings.general.working") : tagging.on ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
         </button>
       </section>
 

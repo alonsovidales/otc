@@ -48,6 +48,9 @@
 .up-bridge-opt input { margin-top: 3px; flex: 0 0 auto; }
 .up-bridge-opt > span { display: flex; flex-direction: column; gap: 2px; }
 
+/* In place of the add row on a device whose memory takes no other user. */
+.sf-hint.up-need-memory { margin: 0; }
+
 /* The empty list's one line, padded like a row would be. */
 .up-list > li.sf-hint { padding: 10px 12px; margin: 0; }
 

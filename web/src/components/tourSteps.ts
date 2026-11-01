@@ -111,8 +111,9 @@ export const cStepTargets: Readonly<Record<TourStepId, readonly (readonly string
   post: [['[data-tour="new-post"]'], [".sv-empty-new"]],
   friends: [[".fr-address", ".add-friend"], [".add-friend"]],
   // The name field and Add User, and the bridge box under them - once the
-  // list above them is in, so they don't move after the scroll.
-  users: [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"]], // i18n-ignore: CSS selectors
+  // list above them is in, so they don't move after the scroll. A device
+  // whose memory takes no other user has a note in their place.
+  users: [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"], [".up-list ~ .up-need-memory"]], // i18n-ignore: CSS selectors
   alerts: [['[data-tour="show-tour"]', '.sb-dock [data-tour="Notifications"]', '.sb-dock [data-tour="Settings"]'], ['[data-tour="show-tour"]']],
 };
 

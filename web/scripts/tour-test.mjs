@@ -235,8 +235,9 @@ describe("what each step rings", () => {
     assert.ok(m.cStepTargets.files.every((g) => g[0] === ".fb-viewmode"));
     assert.deepEqual(m.cStepTargets.post[0], ['[data-tour="new-post"]']);
     assert.ok(m.cStepTargets.friends.every((g) => g.includes(".add-friend")));
-    // Settings › Users' name field and Add User, and the bridge box, once its list is in (UsersPanel).
-    assert.deepEqual(m.cStepTargets.users, [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"]]);
+    // Settings › Users' name field and Add User, and the bridge box, once its list is in (UsersPanel);
+    // the note in their place on a device whose memory takes no other user.
+    assert.deepEqual(m.cStepTargets.users, [[".up-list ~ .up-add-row", ".up-list ~ .up-bridge-opt"], [".up-list ~ .up-need-memory"]]);
     assert.ok(m.cStepTargets.alerts.every((g) => g[0] === '[data-tour="show-tour"]'));
   });
 });

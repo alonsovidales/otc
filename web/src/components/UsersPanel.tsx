@@ -14,6 +14,7 @@ import { asIs, plainNumber, say, unitText, type UiText } from "./uiText";
 import "./SettingsForm.css";
 import "./UsersPanel.css";
 import { refuseOnDemo } from "../net/demo";
+import { canAddAfter } from "./settings/memoryTiers";
 
 type Metrics = { storageMb: number; storagePct: number; activeConnections: number };
 
@@ -53,6 +54,10 @@ export default function UsersPanel() {
     ?.subdomain.split(".").slice(1).join(".") ?? "";
 
   const [creating, setCreating] = useState(false);
+  // False on a device whose memory takes no other user (a 2 GB board,
+  // settings/memoryTiers.ts): no Add User, a note in its place. The users
+  // it has keep working.
+  const [canAdd, setCanAdd] = useState(true);
 
   // The dialog Add User opens: the new account's first password, set on
   // the device as the account is created, so nobody can sign in first and
@@ -88,6 +93,7 @@ export default function UsersPanel() {
     });
     if (resp.payload?.$case === "respUsers") {
       setUsers(resp.payload.respUsers.users);
+      setCanAdd((prev) => canAddAfter(prev, resp));
     }
   }, []);
 
@@ -151,6 +157,9 @@ export default function UsersPanel() {
           },
         };
       });
+      // Refused for the device's memory (users_unavailable): the note in
+      // place of Add User once this dialog, with the device's words, closes.
+      setCanAdd((prev) => canAddAfter(prev, resp));
       if (resp.payload?.$case === "respUsers") {
         setUsers(resp.payload.respUsers.users);
         setNewUsername("");
@@ -285,8 +294,12 @@ export default function UsersPanel() {
         </ul>
       )}
 
+      {/* A device whose memory takes no other user: this note instead of
+          the add row and the bridge box (the tour rings it then). */}
+      {!canAdd && <p className="sf-hint up-need-memory">{t("web.settings.users.need_memory")}</p>}
+
       {/* The tour's Users step rings this row and the box under it (tourSteps.ts). */}
-      <div className="up-add-row">
+      {canAdd && <div className="up-add-row">
         <input
           className="sf-input"
           placeholder={t("web.settings.users.username")}
@@ -309,10 +322,10 @@ export default function UsersPanel() {
         >
           {t("web.settings.users.add")}
         </button>
-      </div>
+      </div>}
 
       {/* Issue #103 */}
-      {onBridge && <label className="up-bridge-opt">
+      {canAdd && onBridge && <label className="up-bridge-opt">
         <input
           type="checkbox"
           checked={requestBridgeAccess}
