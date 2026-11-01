@@ -12,11 +12,13 @@
 // device set up before Places. Smart search (beta) is turned on too - a
 // device without its model downloads it first (release 152), then
 // describes the photos; -smart-search-only turns it on and stops (a demo
-// set up before it).
+// set up before it). The photos in favourites.json go in Favourites;
+// -favourites-only does just that (a demo set up before Favourites).
 //
 //	echo "$PASSWORD" | otc-demo-setup -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 //	echo "$PASSWORD" | otc-demo-setup -places-only -address ws://127.0.0.1:8080/ws
 //	echo "$PASSWORD" | otc-demo-setup -smart-search-only -address ws://127.0.0.1:8080/ws
+//	echo "$PASSWORD" | otc-demo-setup -favourites-only -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 package main
 
 import (
@@ -46,15 +48,29 @@ func main() {
 	dryRun := flag.Bool("n", false, "say what would be done, change nothing")
 	placesOnly := flag.Bool("places-only", false, "turn Places on and stop (a demo set up before Places)")
 	smartOnly := flag.Bool("smart-search-only", false, "turn Smart search on and stop (a demo set up before it)")
+	favouritesOnly := flag.Bool("favourites-only", false, "put favourites.json's photos in Favourites and stop (a demo set up before it)")
 	flag.Parse()
 	if *address == "" || (flag.NArg() != 1 && !*placesOnly && !*smartOnly) {
 		fmt.Fprintln(os.Stderr, "usage: otc-demo-setup [-n] -address <ws-url> <content-dir>   (password on stdin)")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -places-only -address <ws-url>")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -smart-search-only -address <ws-url>")
+		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -favourites-only -address <ws-url> <content-dir>")
 		os.Exit(2)
 	}
 	pw, _ := io.ReadAll(io.LimitReader(os.Stdin, 1024))
 	password := strings.TrimRight(string(pw), "\r\n")
+	if *favouritesOnly {
+		c, done, err := signIn(*address, password)
+		if err == nil {
+			err = favouritesFrom(c, flag.Arg(0), *dryRun)
+			done()
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *placesOnly || *smartOnly {
 		c, done, err := signIn(*address, password)
 		if err == nil {
@@ -164,6 +180,29 @@ func smartSearchOn(c client, dryRun bool) error {
 		if m := resp.GetRespSettings().GetSmartSearchModel(); m.GetDownloading() {
 			fmt.Printf("smart search: the device is downloading its model first (%d%%), then describes the photos\n", m.GetPercent())
 		}
+	}
+	return nil
+}
+
+// favouritesFrom puts the photos favourites.json lists in Favourites, the
+// collection every device has.
+func favouritesFrom(c client, dir string, dryRun bool) error {
+	var favourites []string
+	if err := readJSON(dir, "favourites.json", &favourites); err != nil {
+		return err
+	}
+	paths := make([]string, len(favourites))
+	for i, p := range favourites {
+		paths[i] = remote(p)
+	}
+	fmt.Printf("favourites: %d photos\n", len(paths))
+	if dryRun {
+		return nil
+	}
+	if _, err := c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqSetFavourite{ReqSetFavourite: &pb.SetFavourite{Paths: paths, Favourite: true}}
+	}); err != nil {
+		return fmt.Errorf("favourites: %w", err)
 	}
 	return nil
 }
@@ -295,7 +334,10 @@ func run(address, password, dir string, dryRun bool) error {
 		fmt.Printf("no person found for: %s\n", strings.Join(missing, ", "))
 	}
 
-	// Collections and posts.
+	// Favourites, collections and posts.
+	if err := favouritesFrom(c, dir, dryRun); err != nil {
+		return err
+	}
 	for _, col := range collections {
 		paths := make([]string, len(col.Paths))
 		for i, p := range col.Paths {

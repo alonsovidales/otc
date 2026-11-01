@@ -51,7 +51,9 @@ real usage.
    - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` turns Places on
      (the map in Images, off on every other device until its user turns it on), sets the profile,
      names each person after the name most of their photos list, deletes the rest (the dog,
-     strangers) and makes the collections and posts. A demo set up before Places gets it with
+     strangers), puts `favourites.json`'s photos in Favourites and makes the collections and
+     posts (a demo set up before Favourites gets them with `-favourites-only -address … <content>`).
+     A demo set up before Places gets it with
      `otc-demo-setup -places-only -address …` (password on stdin), with demo mode off for it as
      for the rest of this step. It turns Smart search (beta) on too - a device without its
      model downloads it first (since release 152 nothing else fetches it; it says so and goes

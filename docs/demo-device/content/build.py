@@ -9,7 +9,7 @@
 # - finishes every photo as a camera JPEG (finish.swift: 2400 px long side, EXIF date, offset,
 #   GPS, orientation 1, no make/model) under library/Photos/..., file times = the photo's date;
 # - makes the videos (videos.py) and writes manifest.json, people.json, collections.json,
-#   posts.json and profile.json (+ profile/avatar.jpg).
+#   favourites.json, posts.json and profile.json (+ profile/avatar.jpg).
 import datetime as dt, glob, json, os, random, shutil, subprocess, sys
 
 OUT, FINISH = sys.argv[1], sys.argv[2]
@@ -278,6 +278,13 @@ collections = [
     dict(name="Biscuit", paths=paths(lambda e: e.get("id") in dog)),
 ]
 json.dump(collections, open(os.path.join(OUT, "collections.json"), "w"), ensure_ascii=False, indent=1)
+
+# ------------------------------------------------------------------ favourites
+# The photos the family would heart: one or two from each trip and celebration, the grandparents,
+# the dog, and a couple of landscapes.
+loved = {"s07", "r04", "r15", "r02", "s36", "s68", "r11", "s55", "s59", "s79", "s88", "s93"}
+json.dump(paths(lambda e: e.get("id") in loved), open(os.path.join(OUT, "favourites.json"), "w"),
+          ensure_ascii=False, indent=1)
 
 # ------------------------------------------------------------------ posts
 P = lambda *ids: [by_id[i]["path"] for i in ids]
