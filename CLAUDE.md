@@ -3485,6 +3485,17 @@ leaves the grid and the viewer moves on, as after the viewer's Not this person (
 otherwise Info drops their faces at once and asks the device again. The map's and a memory's viewers show
 their notes (`ViewerAlert`). Debug-only `PhotoFacesPreviewActivity` (`--es device demo|old|off`). Tests:
 `PhotoGalleryFacesTest.kt`.
+**A photo's faces on iOS** (2026-11-01, Android's rules above; `PhotoFaces.swift`, tests
+`PhotoFacesTests.swift`): `FileInfoView` shows People after the details and the map, once they have
+loaded (`loadInfoFaces` when Info opens; not for a video or a photo only on the phone; any error,
+`unknown_payload` included, hides it quietly; an answer for another photo is dropped). The crop is 36 pt
+(growing with the text size up to 72), the × grey with a 44 pt target, a spinner while it is on its way
+and the others disabled meanwhile. A face opens that person (`showPerson` in Images; from Files, the map or
+a memory, `PersonNav` makes MainView show Images on them and closes an open memory). The ×: Not this
+person's question for one photo, `RemoveFromPerson`; among that person's photos the photo leaves the grid
+(`leavePerson`, shared with the viewer's Not this person) and Info closes with the result over the viewer;
+elsewhere the face leaves the list at once and it is asked for again. Alerts raised while Info is open show
+over Info (nothing the viewer presents can cover its own sheet).
 **Sort by and Back to the map on iOS** (2026-10-30, the owner's request after user feedback;
 `SortBy.swift`, `AreaBackButton` in `Places.swift`, tests `SortByTests.swift`; Android's rules above,
 case for case): People and Collections have a Sort by menu (`SortByMenu`: the sort icon at the
