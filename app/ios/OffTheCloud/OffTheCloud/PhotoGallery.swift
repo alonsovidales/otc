@@ -5486,7 +5486,7 @@ private struct LowResBadge: View {
 }
 
 /// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
-/// photo's faces above it, under People (PhotoFaces.swift).
+/// photo's faces after it, under People (PhotoFaces.swift).
 private struct FileInfoView: View {
     @ObservedObject var vm: PhotoGalleryVM
     /// The face whose × was tapped, while Not this person's question asks.
@@ -5503,6 +5503,15 @@ private struct FileInfoView: View {
                     Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                 } else {
                     List {
+                        Section {
+                            if let info = vm.infoData {
+                                details(info)
+                            } else {
+                                Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
+                            }
+                        }
+                        // Last, as on Android and the web: faces that come
+                        // after the details move nothing above them.
                         if !faces.isEmpty {
                             PhotoFacesSection(
                                 rows: faces,
@@ -5510,13 +5519,6 @@ private struct FileInfoView: View {
                                 open: { vm.showFacePerson($0.person) },
                                 remove: { faceAsk = $0 }
                             )
-                        }
-                        Section {
-                            if let info = vm.infoData {
-                                details(info)
-                            } else {
-                                Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
-                            }
                         }
                     }
                 }
