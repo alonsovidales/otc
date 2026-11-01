@@ -59,6 +59,9 @@ final class DeviceSettingsViewModel: ObservableObject {
     // Issue #181: the tagging model, on by default.
     @Published var imageTaggingEnabled = true
     @Published var savingImageTagging = false
+    // Release 160: false on a device with less than 6 GB, whose switch
+    // shows off and disabled (MemoryTiers). True until the device says.
+    @Published var imageTaggingAvailable = true
     // Places, the map in Images: off unless turned on - the device keeps
     // where each photo was taken, unencrypted, only while it is on. nil: a
     // device before Places (or not answered yet), with no switch.
@@ -199,6 +202,7 @@ final class DeviceSettingsViewModel: ObservableObject {
             if case .respSettings(let s) = resp.payload {
                 faceRecognitionEnabled = s.faceRecognitionEnabled
                 imageTaggingEnabled = s.imageTaggingEnabled
+                imageTaggingAvailable = MemoryTiers.taggingAvailable(s)
                 // People shows only while it is on (FaceRecognition.swift).
                 FaceRecognition.shared.set(s.faceRecognitionEnabled)
                 // Places likewise (PlacesSupport), on a device that has it.
@@ -631,14 +635,16 @@ struct SettingsView: View {
                     header: Text(S.appSettingsTaggingTitle),
                     footer: Text(S.appSettingsTaggingFooter)
                 ) {
+                    // Off and disabled on a device without the memory
+                    // for it (the footer says how much it needs).
                     Toggle(
                         S.appSettingsTaggingTitle,
                         isOn: Binding(
-                            get: { device.imageTaggingEnabled },
+                            get: { device.imageTaggingAvailable && device.imageTaggingEnabled },
                             set: { newValue in Task { await device.toggleImageTagging(newValue) } }
                         )
                     )
-                    .disabled(device.savingImageTagging)
+                    .disabled(device.savingImageTagging || !device.imageTaggingAvailable)
                 }
 
                 Section(

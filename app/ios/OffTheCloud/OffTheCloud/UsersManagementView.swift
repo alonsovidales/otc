@@ -23,6 +23,10 @@ final class UsersManagementViewModel: ObservableObject {
     /// shows the section's header and a spinner.
     @Published var answered = false
     @Published var users: [Msg_User] = []
+    /// Whether the device takes another user (release 160: not one with
+    /// less than 3 GB, MemoryTiers): without, Add gives way to a note.
+    /// True until the device says.
+    @Published var canAdd = true
     @Published var loading = false
     @Published var metrics: [String: Msg_RespUserMetrics] = [:]
 
@@ -89,6 +93,7 @@ final class UsersManagementViewModel: ObservableObject {
         }) else { return }
         if case .respUsers(let r) = resp.payload {
             users = r.users
+            canAdd = MemoryTiers.canAddUsers(r)
         }
     }
 
@@ -142,6 +147,7 @@ final class UsersManagementViewModel: ObservableObject {
             }
             if case .respUsers(let r) = resp.payload {
                 users = r.users
+                canAdd = MemoryTiers.canAddUsers(r)
                 newUsername = ""
                 newPort = ""
                 cancelPassword()
@@ -247,39 +253,55 @@ struct UsersManagementSection: View {
                     userRow(u)
                 }
 
-                HStack {
-                    TextField(S.appSettingsUsersUsername, text: $vm.newUsername)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                    TextField(S.appSettingsUsersPort, text: $vm.newPort)
-                        .keyboardType(.numberPad)
-                        .frame(width: 70)
-                    Button(S.commonAdd) {
-                        // The name field's keyboard goes down: the sheet
-                        // has fields of its own.
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        vm.askPassword()
-                    }
-                    .buttonStyle(.bordered)
-                        .disabled(vm.creating || !usernameValid)
-                }
-                .tourTarget(.addUser)
-                .id(TourTarget.addUser)
-
-                // Issue #103, as the web app: the address the new user
-                // gets on the bridge.
-                VStack(alignment: .leading, spacing: 4) {
-                    Toggle(S.appSettingsUsersRequestBridge, isOn: $vm.requestBridgeAccess)
-                    Text(bridgeHint)
+                if vm.canAdd {
+                    addUserRows
+                } else {
+                    // A device without the memory for another user: the
+                    // ones it has keep working, Add gives way to this.
+                    Text(S.appSettingsUsersNeedMemory)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .tourTarget(.addUser)
+                        .id(TourTarget.addUser)
                 }
-                .tourTarget(.bridgeAccess)
             }
         } else if !vm.answered {
             // Asked for by SettingsView (loadDeviceSections).
             LoadingSection(title: S.appSettingsUsersTitle)
         }
+    }
+
+    /// The new user's name, port and Add, then their bridge address.
+    @ViewBuilder
+    private var addUserRows: some View {
+        HStack {
+            TextField(S.appSettingsUsersUsername, text: $vm.newUsername)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+            TextField(S.appSettingsUsersPort, text: $vm.newPort)
+                .keyboardType(.numberPad)
+                .frame(width: 70)
+            Button(S.commonAdd) {
+                // The name field's keyboard goes down: the sheet
+                // has fields of its own.
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                vm.askPassword()
+            }
+            .buttonStyle(.bordered)
+                .disabled(vm.creating || !usernameValid)
+        }
+        .tourTarget(.addUser)
+        .id(TourTarget.addUser)
+
+        // Issue #103, as the web app: the address the new user
+        // gets on the bridge.
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(S.appSettingsUsersRequestBridge, isOn: $vm.requestBridgeAccess)
+            Text(bridgeHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .tourTarget(.bridgeAccess)
     }
 
     @ViewBuilder
