@@ -1593,8 +1593,12 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   the apps show the switch off and disabled, the footer ending "It needs a device with at least 6 GB
   of memory". A 2 GB device takes no other users: `RespUsers.can_add` (3) false in ListUsers, and
   `CreateUser` refused before anything is provisioned (`users_unavailable`, `dev.users.need_memory`);
-  the apps show `*.settings.users.need_memory` in place of Add user; existing users keep working
-  (`websocket/memory_tiers.go`, `deviceMemory` for the tests). Release 158 had made tagging's
+  the apps show `*.settings.users.need_memory` in place of Add user (and the bridge-access switch);
+  existing users keep working (`websocket/memory_tiers.go`, `deviceMemory` for the tests). Unset
+  fields mean available (older devices). The apps' rules: web `components/settings/memoryTiers.ts`
+  (`web/scripts/memory-tiers-test.mjs`), iOS `MemoryTiers.swift` (`MemoryTiersTests.swift`), Android
+  `DeviceSettingsViewModel.State.withSettings` / `UsersManagementViewModel.State.withUsers`
+  (`MemoryTiersTest.kt`); a refusal shows the device's words; the tour's Users step rings the note. Release 158 had made tagging's
   default follow the memory (owner: "perhaps we can disable tagging to run in small devices"):
   elsewhere it is on (`ApplyImageTaggingDefault`) unless `settings.image_tagging_chosen`, which
   `SetImageTaggingEnabled` sets; `updates/158.sh` (and install.sh) add the column once, marking a
