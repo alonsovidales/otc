@@ -265,6 +265,12 @@ recovered device under it.
 6. Wiring the RAID status LEDs to the GPIO pins is still a manual, physical step - see step 4 under
    the manual instructions below for the pinout.
 
+**System updates.** Besides Off The Cloud's own updates (Settings > Device version), the device
+installs its operating system's security updates by itself every day: Debian's, and the
+Raspberry Pi's kernel and firmware. When one needs a restart (a new kernel), it restarts at 04:00,
+offline for about a minute. On a machine of your own installed with the script, set
+`OTC_SECURITY_REBOOT=0` before installing to leave the restarts to you.
+
 **Console access.** The image doesn't enable SSH. If you ever need a shell on the device itself,
 plug in a keyboard and monitor and log in as:
 

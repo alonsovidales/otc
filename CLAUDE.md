@@ -138,7 +138,18 @@ frees the phone binding unless the install has started, so a device opened by mi
 still be set up from another phone. The image has no SSH; its
 console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.sh` and documented
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
-from that console.
+from that console. System updates (release 161, critical; CVE-2026-98432, a Linux IPv4 TCP
+use-after-free with IP options; owner, 2026-11-01): until then a device never updated its OS.
+`otc_os_security` - the same function in install.sh and `updates/161.sh`
+(`updater/os_security_test.go`), skipped in a container - installs unattended-upgrades and
+nftables, enables daily runs (`20auto-upgrades`), allows the Raspberry Pi archive's main component
+besides the distribution's own security origins, reboots at 04:00 when an update needs it
+(`52otc-security-updates`; `OTC_SECURITY_REBOOT=0` or an existing "false" keeps it off), makes apt
+wait 600 s for a lock, and loads `/etc/otc/ipv4-options.nft` at boot (`otc-ipv4-options.service`,
+`WantedBy=sysinit.target`): its own table drops TCP with IPv4 options (`ip hdrlength != 5`; TCP only,
+so IGMP's router-alert option still passes). Tested on the 2 GB Debian 13 VM: the rule loads at
+boot, re-runs are idempotent. The servers got the same rule by hand in ufw's `before.rules`
+(bridge1, bridge2, redis; a `u32` match) until Ubuntu's fixed kernel (6.8.0-149) ships.
 
 The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
 `GOOS=linux GOARCH=amd64 CGO_ENABLED=0` and deploys to every cluster node (`NODES ?= bridge1
