@@ -130,7 +130,7 @@ struct SettingsTextTests {
         #expect(S.appSettingsSyncTitle == "Sync Options")
         #expect(S.appSettingsSyncVideos == "Include videos")
         #expect(S.appSettingsSyncWifiOnly == "Wi-Fi only")
-        #expect(S.appSettingsTaggingFooter == "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.")
+        #expect(S.appSettingsTaggingFooter == "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.")
         #expect(S.appSettingsTaggingTitle == "Image Tagging")
         #expect(S.appSettingsTailscaleAuthKey == "Auth key (optional)")
         #expect(S.appSettingsTailscaleAuthorise == "Authorise this device in the page that just opened, then press Enable again.")
