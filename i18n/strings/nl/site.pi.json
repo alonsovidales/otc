@@ -96,8 +96,8 @@
     "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
   },
   "site.pi.need.pi": {
-    "text": "<b>Een Raspberry Pi 5 met 8 GB geheugen.</b> Een met 4 GB werkt ook, met Beeldherkenning en Gezichtsherkenning uitgeschakeld voordat je een reservekopie van je foto’s maakt: die hebben meer geheugen nodig.",
-    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory."
+    "text": "<b>Een Raspberry Pi 5 met 8 GB geheugen.</b> Een met 4 GB werkt ook: daar staat Beeldherkenning in het begin uit, en Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it."
   },
   "site.pi.need.power": {
     "text": "<b>Een goede voeding en een koeler.</b> De officiële USB-C-voeding van 27 W, of een betere, en een actieve koeler: met een zwakkere voeding kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt.",

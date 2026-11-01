@@ -124,7 +124,7 @@ func SitePiNeedNothing() Rich {
 	return Rich{Key: "site.pi.need.nothing"}
 }
 
-// SitePiNeedPi is site.pi.need.pi: "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image…".
+// SitePiNeedPi is site.pi.need.pi: "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagg…".
 func SitePiNeedPi() Rich {
 	return Rich{Key: "site.pi.need.pi"}
 }

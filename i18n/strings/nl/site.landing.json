@@ -324,16 +324,16 @@
     "en": "How do I move my photos from iCloud?"
   },
   "site.landing.faq.hardware.a": {
-    "text": "Een Raspberry Pi 5 (8 GB) met een microSD-kaart voor het systeem en twee USB-schijven voor de opslag, gespiegeld zodat elk ervan een volledige kopie van je bestanden bevat: USB-sticks, ssd’s, harde schijven of microSD-kaarten in USB-kaartlezers werken allemaal. Steek ze in de twee blauwe USB-poorten van de Pi (de snelle; het apparaat vertelt je dan welke je moet vervangen als er ooit een uitvalt). Voeg een voeding en een actieve koeler toe: allemaal standaardonderdelen. Zie de README voor de precieze lijst met aanbevolen onderdelen. Een Pi 5 met 4 GB kan ook werken, met beeldherkenning en gezichtsherkenning uitgeschakeld.",
-    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
+    "text": "Een Raspberry Pi 5 (8 GB) met een microSD-kaart voor het systeem en twee USB-schijven voor de opslag, gespiegeld zodat elk ervan een volledige kopie van je bestanden bevat: USB-sticks, ssd’s, harde schijven of microSD-kaarten in USB-kaartlezers werken allemaal. Steek ze in de twee blauwe USB-poorten van de Pi (de snelle; het apparaat vertelt je dan welke je moet vervangen als er ooit een uitvalt). Voeg een voeding en een actieve koeler toe: allemaal standaardonderdelen. Zie de README voor de precieze lijst met aanbevolen onderdelen. Een Pi 5 met 4 GB werkt ook, met beeldherkenning uit, daar de standaardinstelling.",
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, with photo tagging off, its default there."
   },
   "site.landing.faq.hardware.q": {
     "text": "Moet ik speciale hardware kopen?",
     "en": "Do I need to buy special hardware?"
   },
   "site.landing.faq.image.a": {
-    "text": "Ja, voor een Raspberry Pi 5 met minstens 8 GB RAM (een met 4 GB werkt alleen als Beeldherkenning en Gezichtsherkenning zijn uitgeschakeld in Instellingen): zie het tabblad <install>Raspberry Pi 5-image</install> bovenaan. Flash de image, zet de Pi aan en stel hem in vanaf je telefoon: tik op “Nieuw apparaat instellen” in de iOS- of Android-app, die de Pi via Bluetooth vindt en je door de rest leidt. Gebruik voor elke andere Debian/Ubuntu-machine het installatiescript.",
-    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with Image Tagging and Face Recognition turned off in Settings): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
+    "text": "Ja, voor een Raspberry Pi 5 met minstens 8 GB RAM (een met 4 GB werkt ook, met beeldherkenning uit, daar de standaardinstelling): zie het tabblad <install>Raspberry Pi 5-image</install> bovenaan. Flash de image, zet de Pi aan en stel hem in vanaf je telefoon: tik op “Nieuw apparaat instellen” in de iOS- of Android-app, die de Pi via Bluetooth vindt en je door de rest leidt. Gebruik voor elke andere Debian/Ubuntu-machine het installatiescript.",
+    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, with Image Tagging off, its default there): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
   },
   "site.landing.faq.image.q": {
     "text": "Is er een kant-en-klare image die ik gewoon kan flashen?",
@@ -845,8 +845,8 @@
     "en": "Runs on"
   },
   "site.landing.glance.hardware.value": {
-    "text": "Een Raspberry Pi 5 met 8 GB (4 GB met beeldherkenning en gezichtsherkenning uit), of een 64-bits Intel/AMD- of ARM-machine met Debian of Ubuntu",
-    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+    "text": "Een Raspberry Pi 5 met 8 GB (4 GB met beeldherkenning uit), of een 64-bits Intel/AMD- of ARM-machine met Debian of Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
   },
   "site.landing.glance.instead.label": {
     "text": "In plaats van",
@@ -995,8 +995,8 @@
     "en": "Recommended"
   },
   "site.landing.install.requirements": {
-    "text": "Voor een <b>Raspberry Pi 5 met minstens 8 GB RAM</b>, een microSD-kaart voor het systeem en eventueel twee USB-schijven voor RAID-1, aangesloten op de <b>twee blauwe USB-poorten</b> van de Pi. Gebruik de <b>officiële Raspberry Pi USB-C-voeding van 27 W</b> (of een betere): met een zwakkere kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt. Geen toetsenbord, monitor of kennis van Linux nodig. <b>Heb je alleen een Pi met 4 GB?</b> Die kan werken, maar alleen als <b>Beeldherkenning</b> en <b>Gezichtsherkenning</b> zijn uitgeschakeld in Instellingen, voordat je een reservekopie van je foto’s maakt: die modellen hebben meer geheugen nodig dan 4 GB overlaat.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
+    "text": "Voor een <b>Raspberry Pi 5 met minstens 8 GB RAM</b>, een microSD-kaart voor het systeem en eventueel twee USB-schijven voor RAID-1, aangesloten op de <b>twee blauwe USB-poorten</b> van de Pi. Gebruik de <b>officiële Raspberry Pi USB-C-voeding van 27 W</b> (of een betere): met een zwakkere kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt. Geen toetsenbord, monitor of kennis van Linux nodig. <b>Heb je alleen een Pi met 4 GB?</b> Die werkt ook, met <b>Beeldherkenning</b> uit, daar de standaardinstelling: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien.",
+    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs too, with <b>Image Tagging</b> off, its default there: Smart search finds photos by what they show without it."
   },
   "site.landing.install.script_intro": {
     "text": "Eén opdracht op elke machine waarop je al kunt inloggen: Ubuntu, Debian, Raspberry Pi OS en andere op Debian gebaseerde distributies (64-bits).",

@@ -96,8 +96,8 @@
     "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
   },
   "site.pi.need.pi": {
-    "text": "<b>Un Raspberry Pi 5 avec 8 Go de mémoire.</b> Un modèle de 4 Go fonctionne aussi, avec l’Étiquetage des images et la Reconnaissance faciale désactivés avant de sauvegarder vos photos : ils demandent plus de mémoire.",
-    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, with Image Tagging and Face Recognition turned off before you back up your photos: those need more memory."
+    "text": "<b>Un Raspberry Pi 5 avec 8 Go de mémoire.</b> Un modèle de 4 Go fonctionne aussi : l’Étiquetage des images y est désactivé au départ, et la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it."
   },
   "site.pi.need.power": {
     "text": "<b>Une bonne alimentation et un ventilateur.</b> L’alimentation USB-C officielle de 27 W, ou une meilleure, et un ventilateur actif : avec une alimentation plus faible, le Pi peut redémarrer à cause d’une tension trop basse pendant qu’il traite vos photos.",

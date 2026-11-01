@@ -39,8 +39,8 @@ instead:
 - A 64-bit Linux server with Docker Engine and Docker Compose (the `docker compose` command). The
   image is built for `linux/amd64` and `linux/arm64`. On amd64 the processor needs SSE4.1; the
   container checks this when it starts.
-- At least 4 GB of memory and 2 CPU cores for the container, and 8 GB to run everything at once. The
-  compose file gives it 8 GB (see [Memory](#memory)).
+- At least 4 GB of memory and 2 CPU cores for the container; with less than 6 GB, Image Tagging
+  starts off. The compose file gives it 8 GB (see [Memory](#memory)).
 - Room for your photos and files on redundant, **local** storage. The database lives in the same
   folder, and it can't run on a network or FUSE share (NFS, SMB, Unraid's `/mnt/user`). Or two empty
   disks for the container to mirror: the mirror holds as much as the smaller one.
@@ -507,10 +507,12 @@ reaches a disk. The `/tmp` line keeps the photos and videos being processed in m
 (`4g`) at no more than half of `mem_limit`, because what is in `/tmp` counts as the container's
 memory.
 
-With less than 6 GB, the device runs in low-memory mode and processes one photo at a time, with
-one model loaded at once. With 4 GB, do as on a 4 GB Raspberry Pi: turn **Image Tagging** and
-**Face Recognition** off in Settings before you back up your photos, and **Smart search** too if
-the device struggles.
+With less than 6 GB, the device runs in low-memory mode: it processes one photo at a time, with
+one model loaded at once, and **Image Tagging** starts off, since the photo-tagging model takes
+most of that memory (Smart search finds photos by what they show without it). Face Recognition,
+Smart search and On this day fit: held to 3.5 GB, the device processed a library with 48-megapixel
+photos and a 4K video in at most 1.4 GB. You can turn Image Tagging on in Settings; it then takes
+about 1 GB more and processes photos about four times slower.
 
 ## Platforms
 

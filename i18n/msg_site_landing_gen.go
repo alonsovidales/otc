@@ -404,7 +404,7 @@ func SiteLandingFaqHardwareQ() Msg {
 	return Msg{Key: "site.landing.faq.hardware.q"}
 }
 
-// SiteLandingFaqImageA is site.landing.faq.image.a: "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with…".
+// SiteLandingFaqImageA is site.landing.faq.image.a: "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, with…".
 func SiteLandingFaqImageA() Rich {
 	return Rich{Key: "site.landing.faq.image.a"}
 }
@@ -1004,7 +1004,7 @@ func SiteLandingGlanceHardwareLabel() Msg {
 	return Msg{Key: "site.landing.glance.hardware.label"}
 }
 
-// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/…".
+// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB with tagging off), or a 64-bit Intel/AMD or ARM…".
 func SiteLandingGlanceHardwareValue() Msg {
 	return Msg{Key: "site.landing.glance.hardware.value"}
 }
