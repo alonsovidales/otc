@@ -3515,6 +3515,10 @@ struct PhotoGalleryView: View {
     /// The open collection's wallpaper screen (WallpaperView.swift).
     @State private var wallpaperTarget: WallpaperTarget?
     @ObservedObject private var wallpaper = WallpaperModel.shared
+    /// The open collection's chip's icons: a fifth bigger than the caption
+    /// (12 pt) they were (owner, 2026-11-01: too small to tap without
+    /// trouble), growing with the text size as it does.
+    @ScaledMetric(relativeTo: .caption) private var chipIconSize: CGFloat = 14.5
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
     // Issue #123: as many columns as fit, so the grid uses the whole width
     // on an iPad instead of the fixed three that only ever made sense on a
@@ -4211,24 +4215,24 @@ struct PhotoGalleryView: View {
             // Issue #180: the group as a gallery behind a link.
             Button {
                 gallerySource = .group(g.id)
-            } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
+            } label: { Image(systemName: "square.and.arrow.up").chipAction(chipIconSize) }
             .accessibilityLabel(S.appShellShareAsGalleryMenu)
             // The collection as the iPhone's wallpaper: its screen, which
             // first says that the photos are stored on the phone.
             Button {
                 wallpaperTarget = WallpaperTarget(id: g.id, name: g.name)
             } label: {
-                Image(systemName: wallpaper.inUse(g.id) ? "photo.artframe.circle.fill" : "photo.artframe").font(.caption)
+                Image(systemName: wallpaper.inUse(g.id) ? "photo.artframe.circle.fill" : "photo.artframe").chipAction(chipIconSize)
             }
             .accessibilityLabel(wallpaper.inUse(g.id) ? S.appPhotosWallpaperMenuOn : S.appPhotosWallpaperMenu)
             if !g.favourites {
                 Button {
                     vm.confirmDeleteGroup = true
-                } label: { Image(systemName: "trash").font(.caption) }
+                } label: { Image(systemName: "trash").chipAction(chipIconSize) }
                 .accessibilityLabel(S.appPhotosCollectionsDelete)
                 .foregroundStyle(.red)
             }
-            Button("×") { vm.leaveGroup() }
+            Button { vm.leaveGroup() } label: { Text(verbatim: "×").chipTarget() }
                 .accessibilityLabel(S.appShellSearchCloseCollection(name: g.name))
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
@@ -5770,4 +5774,21 @@ private final class ObserverToken {
     private let token: NSObjectProtocol
     init(_ token: NSObjectProtocol) { self.token = token }
     deinit { NotificationCenter.default.removeObserver(token) }
+}
+
+private extension View {
+    /// An open collection's chip's icon (share, wallpaper, delete) at
+    /// `size` (chipIconSize), with chipTarget's room.
+    func chipAction(_ size: CGFloat) -> some View {
+        font(.system(size: size)).chipTarget()
+    }
+
+    /// A tap target a little bigger than the chip's button shows - taller
+    /// above and below, and up to half the gap to its neighbours - while
+    /// the chip keeps its size.
+    func chipTarget() -> some View {
+        padding(.horizontal, 3).padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .padding(.horizontal, -3).padding(.vertical, -8)
+    }
 }
