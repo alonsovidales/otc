@@ -141,6 +141,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqListPeople{}):         demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListImageGroups{}):    demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetFavourites{}):      demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetPhotoFaces{}):      demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetReprocessStatus{}): demoAllow,
 
 	// Social, sharing and notifications, to read.

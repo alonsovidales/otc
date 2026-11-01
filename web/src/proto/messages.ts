@@ -2399,6 +2399,47 @@ export interface SetPersonCover {
 }
 
 /**
+ * The faces found in one photo, for the viewer's Info (owner, 2026-11-01,
+ * from a user: "see what face it has, especially on new images ... and be
+ * able to remove faces from there"): path is the photo's. Answered with
+ * PhotoFaces, empty while face recognition is off or when none was found;
+ * a face is taken off its person with RemoveFromPerson (the person and
+ * PhotoFaces.hash). A device from before it answers error_code
+ * "unknown_payload", and the apps show no faces.
+ */
+export interface GetPhotoFaces {
+  path: string;
+}
+
+/**
+ * One face in a photo: the person it is matched to (name "" while they
+ * are unnamed), its crop - a small JPEG, as People's faces - and where it
+ * is in the photo, in the photo's own pixels. Faces taken off everyone
+ * ("Not this person") aren't listed. Two faces matched to the same person
+ * are both listed; RemoveFromPerson takes both off them.
+ */
+export interface PhotoFace {
+  personId: string;
+  name: string;
+  thumbnail: Uint8Array;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The answer to GetPhotoFaces: the faces, left to right; whether face
+ * recognition is on (off: no faces, and the apps show none); and the
+ * photo's content hash, for RemoveFromPerson.
+ */
+export interface PhotoFaces {
+  faces: PhotoFace[];
+  faceRecognition: boolean;
+  hash: string;
+}
+
+/**
  * Issue #115: image groups (albums). cover_thumbnail is one member's
  * thumbnail, chosen at random per listing, so the list can render with
  * a picture per group without a round trip each - same idea as
@@ -3664,6 +3705,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqSetPersonCover"; reqSetPersonCover: SetPersonCover }
     | //
+    /**
+     * The faces in one photo, for the viewer's Info: answers with
+     * PhotoFaces; devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqGetPhotoFaces"; reqGetPhotoFaces: GetPhotoFaces }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3824,6 +3871,9 @@ export interface RespEnvelope {
     | //
     /** Favourites: the answer to GetFavourites. */
     { $case: "respFavourites"; respFavourites: Favourites }
+    | //
+    /** The answer to GetPhotoFaces. */
+    { $case: "respPhotoFaces"; respPhotoFaces: PhotoFaces }
     | undefined;
 }
 
@@ -14271,6 +14321,240 @@ export const SetPersonCover: MessageFns<SetPersonCover> = {
   },
 };
 
+function createBaseGetPhotoFaces(): GetPhotoFaces {
+  return { path: "" };
+}
+
+export const GetPhotoFaces: MessageFns<GetPhotoFaces> = {
+  encode(message: GetPhotoFaces, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetPhotoFaces {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetPhotoFaces();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<GetPhotoFaces>, I>>(base?: I): GetPhotoFaces {
+    return GetPhotoFaces.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetPhotoFaces>, I>>(object: I): GetPhotoFaces {
+    const message = createBaseGetPhotoFaces();
+    message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBasePhotoFace(): PhotoFace {
+  return { personId: "", name: "", thumbnail: new Uint8Array(0), x: 0, y: 0, w: 0, h: 0 };
+}
+
+export const PhotoFace: MessageFns<PhotoFace> = {
+  encode(message: PhotoFace, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.personId !== "") {
+      writer.uint32(10).string(message.personId);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.thumbnail.length !== 0) {
+      writer.uint32(26).bytes(message.thumbnail);
+    }
+    if (message.x !== 0) {
+      writer.uint32(32).int32(message.x);
+    }
+    if (message.y !== 0) {
+      writer.uint32(40).int32(message.y);
+    }
+    if (message.w !== 0) {
+      writer.uint32(48).int32(message.w);
+    }
+    if (message.h !== 0) {
+      writer.uint32(56).int32(message.h);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoFace {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoFace();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.personId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.thumbnail = reader.bytes();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.x = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.y = reader.int32();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.w = reader.int32();
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.h = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoFace>, I>>(base?: I): PhotoFace {
+    return PhotoFace.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoFace>, I>>(object: I): PhotoFace {
+    const message = createBasePhotoFace();
+    message.personId = object.personId ?? "";
+    message.name = object.name ?? "";
+    message.thumbnail = object.thumbnail ?? new Uint8Array(0);
+    message.x = object.x ?? 0;
+    message.y = object.y ?? 0;
+    message.w = object.w ?? 0;
+    message.h = object.h ?? 0;
+    return message;
+  },
+};
+
+function createBasePhotoFaces(): PhotoFaces {
+  return { faces: [], faceRecognition: false, hash: "" };
+}
+
+export const PhotoFaces: MessageFns<PhotoFaces> = {
+  encode(message: PhotoFaces, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.faces) {
+      PhotoFace.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.faceRecognition !== false) {
+      writer.uint32(16).bool(message.faceRecognition);
+    }
+    if (message.hash !== "") {
+      writer.uint32(26).string(message.hash);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoFaces {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoFaces();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.faces.push(PhotoFace.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.faceRecognition = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoFaces>, I>>(base?: I): PhotoFaces {
+    return PhotoFaces.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoFaces>, I>>(object: I): PhotoFaces {
+    const message = createBasePhotoFaces();
+    message.faces = object.faces?.map((e) => PhotoFace.fromPartial(e)) || [];
+    message.faceRecognition = object.faceRecognition ?? false;
+    message.hash = object.hash ?? "";
+    return message;
+  },
+};
+
 function createBaseImageGroup(): ImageGroup {
   return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0), favourites: false };
 }
@@ -20305,6 +20589,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetPersonCover":
         SetPersonCover.encode(message.payload.reqSetPersonCover, writer.uint32(1242).fork()).join();
         break;
+      case "reqGetPhotoFaces":
+        GetPhotoFaces.encode(message.payload.reqGetPhotoFaces, writer.uint32(1250).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21708,6 +21995,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 156: {
+          if (tag !== 1250) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetPhotoFaces",
+            reqGetPhotoFaces: GetPhotoFaces.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -23009,6 +23307,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetPhotoFaces": {
+        if (object.payload?.reqGetPhotoFaces !== undefined && object.payload?.reqGetPhotoFaces !== null) {
+          message.payload = {
+            $case: "reqGetPhotoFaces",
+            reqGetPhotoFaces: GetPhotoFaces.fromPartial(object.payload.reqGetPhotoFaces),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -23291,6 +23598,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respFavourites":
         Favourites.encode(message.payload.respFavourites, writer.uint32(594).fork()).join();
+        break;
+      case "respPhotoFaces":
+        PhotoFaces.encode(message.payload.respPhotoFaces, writer.uint32(602).fork()).join();
         break;
     }
     return writer;
@@ -23954,6 +24264,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respFavourites", respFavourites: Favourites.decode(reader, reader.uint32()) };
           continue;
         }
+        case 75: {
+          if (tag !== 602) {
+            break;
+          }
+
+          message.payload = { $case: "respPhotoFaces", respPhotoFaces: PhotoFaces.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -24527,6 +24845,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respFavourites",
             respFavourites: Favourites.fromPartial(object.payload.respFavourites),
+          };
+        }
+        break;
+      }
+      case "respPhotoFaces": {
+        if (object.payload?.respPhotoFaces !== undefined && object.payload?.respPhotoFaces !== null) {
+          message.payload = {
+            $case: "respPhotoFaces",
+            respPhotoFaces: PhotoFaces.fromPartial(object.payload.respPhotoFaces),
           };
         }
         break;

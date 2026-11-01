@@ -1572,6 +1572,13 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   (under `faceRefsMu`) then rebuilds both people's references from their own faces, works their
   covers out again and calls `noteDelete` (the apps drop the photos from the grid and lower `have`).
   `DeletePerson("")` and `MergePeople` never touch no one's faces. The demo refuses it.
+  A photo's faces, for the viewer's Info (release 159; owner, 2026-11-01, from a user: "see what
+  face it has, especially on new images ... and be able to remove faces from there"):
+  `GetPhotoFaces{path}` (req 156) -> `PhotoFaces` (resp 75: `faces` left to right - person id,
+  name, `""` while unnamed, the crop decrypted, the box in the photo's pixels - `face_recognition`,
+  and the photo's `hash`); none while face recognition is off; no one's faces aren't listed
+  (`dao.FacesInPhoto`, `filesmanager.PhotoFaces`). A face's × in Info is `RemoveFromPerson` with its
+  person and that hash (both faces when one person has two in the photo). The demo allows the list.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (`SetImageTaggingEnabled`, read per file in the slow lane by `imageTaggingEnabled`); when off
   only the place tags from a file's own location data are written. Web, iOS and Android show it

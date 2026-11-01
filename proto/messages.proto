@@ -1873,6 +1873,41 @@ message SetPersonCover {
   }
 }
 
+// The faces found in one photo, for the viewer's Info (owner, 2026-11-01,
+// from a user: "see what face it has, especially on new images ... and be
+// able to remove faces from there"): path is the photo's. Answered with
+// PhotoFaces, empty while face recognition is off or when none was found;
+// a face is taken off its person with RemoveFromPerson (the person and
+// PhotoFaces.hash). A device from before it answers error_code
+// "unknown_payload", and the apps show no faces.
+message GetPhotoFaces {
+  string path = 1;
+}
+
+// One face in a photo: the person it is matched to (name "" while they
+// are unnamed), its crop - a small JPEG, as People's faces - and where it
+// is in the photo, in the photo's own pixels. Faces taken off everyone
+// ("Not this person") aren't listed. Two faces matched to the same person
+// are both listed; RemoveFromPerson takes both off them.
+message PhotoFace {
+  string person_id = 1;
+  string name = 2;
+  bytes thumbnail = 3;
+  int32 x = 4;
+  int32 y = 5;
+  int32 w = 6;
+  int32 h = 7;
+}
+
+// The answer to GetPhotoFaces: the faces, left to right; whether face
+// recognition is on (off: no faces, and the apps show none); and the
+// photo's content hash, for RemoveFromPerson.
+message PhotoFaces {
+  repeated PhotoFace faces = 1;
+  bool face_recognition = 2;
+  string hash = 3;
+}
+
 // Issue #115: image groups (albums). cover_thumbnail is one member's
 // thumbnail, chosen at random per listing, so the list can render with
 // a picture per group without a round trip each - same idea as
@@ -2933,6 +2968,9 @@ message ReqEnvelope {
     // People: the face chosen for a person. Answers with the generic Ack;
     // devices before it with error_code "unknown_payload".
     SetPersonCover req_set_person_cover = 155;
+    // The faces in one photo, for the viewer's Info: answers with
+    // PhotoFaces; devices before it with error_code "unknown_payload".
+    GetPhotoFaces req_get_photo_faces = 156;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -3060,5 +3098,7 @@ message RespEnvelope {
     Memories resp_memories = 73;
     // Favourites: the answer to GetFavourites.
     Favourites resp_favourites = 74;
+    // The answer to GetPhotoFaces.
+    PhotoFaces resp_photo_faces = 75;
   }
 }

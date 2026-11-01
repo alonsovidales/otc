@@ -3671,6 +3671,17 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
+	// The viewer's Info: the faces found in one photo, and who each is.
+	case *pb.ReqEnvelope_ReqGetPhotoFaces:
+		faces, err := ch.mg.filesManager.PhotoFaces(ses, p.ReqGetPhotoFaces.Path, ch.mg.settings.FaceRecognitionEnabled())
+		if err != nil {
+			log.Error("error listing a photo's faces:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespPhotoFaces{RespPhotoFaces: faces}
+		}
+
 	// People: the face chosen for a person.
 	case *pb.ReqEnvelope_ReqSetPersonCover:
 		req := p.ReqSetPersonCover

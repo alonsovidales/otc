@@ -180,6 +180,37 @@ func (dao *Dao) FacesOfHashes(hashes []string) (map[string][]MemoryFace, error) 
 	return out, err
 }
 
+// PhotoFace is one face in a photo (FacesInPhoto): its person and their
+// name ("" while unnamed), its crop as stored (encrypted at rest), and its
+// box in the photo's pixels.
+type PhotoFace struct {
+	PersonID   string
+	Name       string
+	Thumbnail  []byte
+	X, Y, W, H int
+}
+
+// FacesInPhoto is the faces found in the photo with content hash, left to
+// right; faces taken off everyone (person_id '') aren't among them.
+func (dao *Dao) FacesInPhoto(hash string) ([]PhotoFace, error) {
+	rows, err := dao.db.Query("select `f`.`person_id`, coalesce(`p`.`name`, ''), `f`.`thumbnail`, `f`.`bbox_x`, `f`.`bbox_y`, `f`.`bbox_w`, `f`.`bbox_h`"+
+		" from `faces` as `f` left join `people` as `p` on `p`.`id` = `f`.`person_id`"+
+		" where `f`.`hash` = ? and `f`.`person_id` <> '' order by `f`.`bbox_x`, `f`.`id`", hash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PhotoFace
+	for rows.Next() {
+		var f PhotoFace
+		if err := rows.Scan(&f.PersonID, &f.Name, &f.Thumbnail, &f.X, &f.Y, &f.W, &f.H); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // CollectedHashes is which of hashes are in a collection.
 func (dao *Dao) CollectedHashes(hashes []string) (map[string]bool, error) {
 	out := map[string]bool{}
