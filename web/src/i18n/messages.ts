@@ -747,6 +747,7 @@ export type MessageKey =
   | "web.settings.users.inactive"
   | "web.settings.users.load_usage"
   | "web.settings.users.local_hint"
+  | "web.settings.users.need_memory"
   | "web.settings.users.none"
   | "web.settings.users.password"
   | "web.settings.users.password_confirm"
@@ -1890,6 +1891,7 @@ export interface MessageArgs {
   "web.settings.users.inactive": undefined;
   "web.settings.users.load_usage": undefined;
   "web.settings.users.local_hint": undefined;
+  "web.settings.users.need_memory": undefined;
   "web.settings.users.none": undefined;
   "web.settings.users.password": undefined;
   "web.settings.users.password_confirm": undefined;

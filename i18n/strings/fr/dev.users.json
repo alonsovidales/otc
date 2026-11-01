@@ -20,6 +20,10 @@
     "text": "l’adresse {domain} est déjà prise sur la passerelle : choisissez un autre nom d’utilisateur, ou décochez « Demander l’accès à la passerelle » pour créer cet utilisateur pour votre réseau uniquement",
     "en": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only"
   },
+  "dev.users.need_memory": {
+    "text": "pour d’autres utilisateurs, il faut un appareil avec au moins 4 Go de mémoire",
+    "en": "other users need a device with at least 4 GB of memory"
+  },
   "dev.users.port_in_use": {
     "text": "le port {port} est déjà utilisé par un autre utilisateur",
     "en": "port {port} is already in use by another user"

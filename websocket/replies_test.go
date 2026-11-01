@@ -195,6 +195,7 @@ var headEnglish = []struct {
 	{"dev.users.bad_username", i18n.DevUsersBadUsername(), "username must be lowercase letters, digits, or hyphens"},
 	{"dev.users.bridge_check_failed", i18n.DevUsersBridgeCheckFailed("kim.anna.off-the.cloud", "boom"), fmt.Sprintf("could not reach the bridge to check %s, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: %v", "kim.anna.off-the.cloud", "boom")},
 	{"dev.users.confirm_mismatch", i18n.DevUsersConfirmMismatch(), "confirmation username does not match"},
+	{"dev.users.need_memory", i18n.DevUsersNeedMemory(), "other users need a device with at least 4 GB of memory"},
 	{"dev.users.bridge_domain_limit", i18n.DevUsersBridgeDomainLimit("pepe.off-the.cloud"), "pepe.off-the.cloud can't be added: your account on the bridge already holds as many addresses as it may - remove one on its account page, or uncheck \"request bridge access\" to create this user for your own network only"},
 	{"dev.users.name_taken_on_bridge", i18n.DevUsersNameTakenOnBridge("kim.anna.off-the.cloud"), fmt.Sprintf("%s is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only", "kim.anna.off-the.cloud")},
 	{"dev.users.port_in_use", i18n.DevUsersPortInUse("8082"), fmt.Sprintf("port %d is already in use by another user", 8082)},
@@ -203,6 +204,7 @@ var headEnglish = []struct {
 	{"dev.users.username_taken", i18n.DevUsersUsernameTaken(), "username already taken"},
 
 	{"dev.device.already_on_bridge", i18n.DevDeviceAlreadyOnBridge(), "this device is already on the bridge"},
+	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 6 GB of memory"},
 	{"dev.device.bridge_dial_failed", i18n.DevDeviceBridgeDialFailed("boom"), fmt.Sprintf("dialing bridge: %v", "boom")},
 	{"dev.device.bridge_read_failed", i18n.DevDeviceBridgeReadFailed("boom"), fmt.Sprintf("reading from bridge: %v", "boom")},
 	{"dev.device.bridge_secret_managed", i18n.DevDeviceBridgeSecretManaged(), "the bridge secret is managed by the device"},

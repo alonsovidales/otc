@@ -630,7 +630,7 @@ fun S.appSettingsSyncChoiceTitle(): UiText =
 fun S.appSettingsSyncChoiceWarning(): UiText =
     UiText.Res(R.string.app_settings_sync_choice_warning)
 
-/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.": Under the Image Tagging switch in Settings: what it does. */
+/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.": Under the Image Tagging switch in Settings: what it does. */
 fun S.appSettingsTaggingFooter(): UiText =
     UiText.Res(R.string.app_settings_tagging_footer)
 
@@ -905,6 +905,10 @@ fun S.appSettingsUsersLoadUsage(): UiText =
 /** "Turn off to keep this account on your own network only — no remote access, and no friends outside your home.": Second sentence of the explanation under the Request bridge access switch in Settings > Users. */
 fun S.appSettingsUsersLocalHint(): UiText =
     UiText.Res(R.string.app_settings_users_local_hint)
+
+/** "Adding users needs a device with at least 4 GB of memory.": In Settings > Users, in place of the button that adds a user, on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM). */
+fun S.appSettingsUsersNeedMemory(): UiText =
+    UiText.Res(R.string.app_settings_users_need_memory)
 
 /** "Password": Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. */
 fun S.appSettingsUsersPassword(): UiText =

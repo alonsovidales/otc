@@ -114,6 +114,11 @@ func DevDeviceStorageTooMany(chosen int) Msg {
 	return Msg{Key: "dev.device.storage_too_many", Args: map[string]any{"chosen": int64(chosen)}}
 }
 
+// DevDeviceTaggingNeedMemory is dev.device.tagging_need_memory: "Image Tagging needs a device with at least 6 GB of memory".
+func DevDeviceTaggingNeedMemory() Msg {
+	return Msg{Key: "dev.device.tagging_need_memory"}
+}
+
 // DevDeviceUnknownLog is dev.device.unknown_log: "unknown log \"{source}\"".
 func DevDeviceUnknownLog(source string) Msg {
 	return Msg{Key: "dev.device.unknown_log", Args: map[string]any{"source": source}}

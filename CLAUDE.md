@@ -1582,10 +1582,21 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
   (`SetImageTaggingEnabled`, read per file in the slow lane by `imageTaggingEnabled`); when off
   only the place tags from a file's own location data are written. Web, iOS and Android show it
-  under Face Recognition. Since release 158 its default follows the memory
-  (`files_manager/tagging_default.go`; owner, 2026-11-01: "perhaps we can disable tagging to run
-  in small devices"): every instance's `Init` sets it off on a low-memory device and on elsewhere
-  (`ApplyImageTaggingDefault`) unless `settings.image_tagging_chosen`, which
+  under Face Recognition. What a device's memory allows (owner, 2026-11-01: "the 4 gigabytes is
+  going to don't have tagging, and the 2 gigabytes is not going to have tagging and users"; 8 GB
+  everything; `MemoryProfile.TaggingAllowed` - not in low-memory mode - and `ExtraUsersAllowed` -
+  at least `cUsersBelow`, 3 GB, between the 2 and 4 GB boards - in `lowmem.go`). Since release 160 a
+  low-memory device has no Image Tagging: every instance's `Init` turns it off
+  (`TurnOffImageTagging`, chosen or not), `imageTaggingEnabled` is false whatever the setting,
+  `Settings.image_tagging_available` (12) is false and `image_tagging_enabled` false, and
+  `SetImageTaggingEnabled` on is refused (`tagging_unavailable`, `dev.device.tagging_need_memory`);
+  the apps show the switch off and disabled, the footer ending "It needs a device with at least 6 GB
+  of memory". A 2 GB device takes no other users: `RespUsers.can_add` (3) false in ListUsers, and
+  `CreateUser` refused before anything is provisioned (`users_unavailable`, `dev.users.need_memory`);
+  the apps show `*.settings.users.need_memory` in place of Add user; existing users keep working
+  (`websocket/memory_tiers.go`, `deviceMemory` for the tests). Release 158 had made tagging's
+  default follow the memory (owner: "perhaps we can disable tagging to run in small devices"):
+  elsewhere it is on (`ApplyImageTaggingDefault`) unless `settings.image_tagging_chosen`, which
   `SetImageTaggingEnabled` sets; `updates/158.sh` (and install.sh) add the column once, marking a
   switch already off as chosen (the old default was on), and never again. Measured on 2026-11-01
   in the release 157 container held to 3.5 GB, 4 CPUs (`--cpuset-cpus`), the demo library plus

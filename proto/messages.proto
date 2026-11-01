@@ -1539,6 +1539,12 @@ message Settings {
   // the user's own library; absent means an older device, which had the
   // model or answered "smart_search_unavailable".
   optional SmartSearchModel smart_search_model = 11;
+  // Whether this device can have Image Tagging on (release 160; owner,
+  // 2026-11-01): false on one with less than 6 GB of memory, where
+  // image_tagging_enabled is always false and SetImageTaggingEnabled on is
+  // refused (error_code "tagging_unavailable"). The apps show the switch
+  // off and disabled. Unset on older devices: available.
+  optional bool image_tagging_available = 12;
 }
 
 // Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -2632,6 +2638,12 @@ message RespUsers {
   // the field always sets it there; an older one leaves it unset, having
   // ignored the password, so the account's first sign-in sets it.
   optional bool password_set = 2;
+  // Whether this device takes another user (release 160; owner,
+  // 2026-11-01): false on one with less than 3 GB of memory (a 2 GB
+  // board), where CreateUser is refused (error_code "users_unavailable");
+  // the users it has keep working. The apps show no Add User then, but a
+  // note. Unset on older devices: it does.
+  optional bool can_add = 3;
 }
 
 // port is optional - omit it (0) to let the primary pick the next free

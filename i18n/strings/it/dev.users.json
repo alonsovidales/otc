@@ -20,6 +20,10 @@
     "text": "{domain} è già in uso sul bridge: scegli un altro nome utente, oppure deseleziona “Richiedi l’accesso al bridge” per creare questo utente solo per la tua rete",
     "en": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only"
   },
+  "dev.users.need_memory": {
+    "text": "per altri utenti serve un dispositivo con almeno 4 GB di memoria",
+    "en": "other users need a device with at least 4 GB of memory"
+  },
   "dev.users.port_in_use": {
     "text": "la porta {port} è già usata da un altro utente",
     "en": "port {port} is already in use by another user"

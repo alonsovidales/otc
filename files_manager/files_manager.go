@@ -194,6 +194,9 @@ type Manager struct {
 	// there is none.
 	guard *processingGuard
 	run   *runState
+	// profile is this device's memory profile (lowmem.go), decided at Init;
+	// the zero profile (NewWithDAO) allows everything.
+	profile MemoryProfile
 
 	// started is when Init ran: what the start-up sweeps remove is older
 	// (orphan_sweep.go), so they can run while this process writes.
@@ -248,6 +251,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		contentBudget: newMemBudget(budget),
 		sharedLinkTTL: sharedLinkTTLFromCfg(),
 		started:       time.Now(),
+		profile:       memProfile,
 	}
 	// How the previous run ended (runstate.go), before anything is
 	// processed: a run that follows one that died processes later and one
@@ -1996,6 +2000,10 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 // imageTaggingEnabled is issue #181's switch, read per file like face
 // recognition's. Tagging stays on when it can't be read.
 func (mg *Manager) imageTaggingEnabled() bool {
+	if !mg.profile.TaggingAllowed() {
+		// Not on a low-memory device, whatever the setting (tagging_default.go).
+		return false
+	}
 	enabled, err := mg.dao.GetImageTaggingEnabled()
 	if err != nil {
 		log.Error("error checking image_tagging_enabled, tagging:", err)

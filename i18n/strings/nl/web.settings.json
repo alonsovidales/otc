@@ -649,9 +649,9 @@
     "en": "Enable Image Tagging"
   },
   "web.settings.tagging.hint": {
-    "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Op een apparaat met minder dan 6 GB geheugen staat het in het begin uit.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
-    "reviewed": "claude-backtranslation 2026-11-01 #552247ef"
+    "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Het heeft een apparaat met minstens 6 GB geheugen nodig.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
+    "reviewed": "claude-backtranslation 2026-11-01 #edc729a8"
   },
   "web.settings.tagging.title": {
     "text": "Beeldherkenning",
@@ -879,6 +879,10 @@
   "web.settings.users.local_hint": {
     "text": "Vink dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis.",
     "en": "Uncheck to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
+  "web.settings.users.need_memory": {
+    "text": "Voor het toevoegen van gebruikers is een apparaat met minstens 4 GB geheugen nodig.",
+    "en": "Adding users needs a device with at least 4 GB of memory."
   },
   "web.settings.users.none": {
     "text": "Nog geen andere gebruikers.",

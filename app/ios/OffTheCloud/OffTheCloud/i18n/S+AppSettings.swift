@@ -858,7 +858,7 @@ extension S {
     /// Warning in that sheet, above the sync switches. "Wi-Fi only" is the name of the switch below it: use the same words.
     static var appSettingsSyncChoiceWarning: String { L("app.settings.sync_choice.warning", table: "AppSettings") }
 
-    /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.
+    /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.
     ///
     /// Under the Image Tagging switch in Settings: what it does.
     static var appSettingsTaggingFooter: String { L("app.settings.tagging.footer", table: "AppSettings") }
@@ -1234,6 +1234,11 @@ extension S {
     ///
     /// Second sentence of the explanation under the Request bridge access switch in Settings > Users.
     static var appSettingsUsersLocalHint: String { L("app.settings.users.local_hint", table: "AppSettings") }
+
+    /// Adding users needs a device with at least 4 GB of memory.
+    ///
+    /// In Settings > Users, in place of the button that adds a user, on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM).
+    static var appSettingsUsersNeedMemory: String { L("app.settings.users.need_memory", table: "AppSettings") }
 
     /// Password
     ///

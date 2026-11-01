@@ -131,6 +131,31 @@ func CurrentMemoryProfile() MemoryProfile {
 	return profile
 }
 
+// What a device's memory allows (owner, 2026-11-01: "the 4 gigabytes is
+// going to don't have tagging, and the 2 gigabytes is not going to have
+// tagging and users"; everything on 8 GB). Measured in a container held to
+// 3.5 GB and in a 2 GB VM: without RAM++ a 4 GB device has room to spare,
+// with it ~1 GB less and photos four times slower; a 2 GB one runs one
+// library well, and two processing at once left 381 MB free at the worst
+// moment (a run with ~370 MB less was killed six times).
+//
+// cUsersBelow: a device with less memory than this takes no users besides
+// its owner - between the 2 GB and 4 GB boards (MemTotal ~1.9 and ~3.7 GB).
+const cUsersBelow = 3 << 30
+
+// TaggingAllowed says whether Image Tagging can be on: not in low-memory
+// mode (tagging_default.go).
+func (p MemoryProfile) TaggingAllowed() bool {
+	return !p.Low
+}
+
+// ExtraUsersAllowed says whether the device takes users besides its owner:
+// not with less than cUsersBelow (an unknown size does). The users it has
+// keep running.
+func (p MemoryProfile) ExtraUsersAllowed() bool {
+	return p.Total == 0 || p.Total >= cUsersBelow
+}
+
 // GoMemoryLimit is the Go runtime's soft limit in low-memory mode.
 func (p MemoryProfile) GoMemoryLimit() int64 {
 	return int64(float64(p.Total) * cLowGoMemoryShare)

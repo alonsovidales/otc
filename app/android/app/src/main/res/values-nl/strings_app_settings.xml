@@ -182,7 +182,7 @@
     <string name="app_settings_sync_choice_start">Synchronisatie starten</string>
     <string name="app_settings_sync_choice_title">Je foto’s synchroniseren</string>
     <string name="app_settings_sync_choice_warning">Een hele bibliotheek synchroniseren kan lang duren en veel data verbruiken. Met “Alleen via wifi” aan wordt er niets via mobiele data verstuurd.</string>
-    <string name="app_settings_tagging_footer">Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Op een apparaat met minder dan 6 GB geheugen staat het in het begin uit.</string>
+    <string name="app_settings_tagging_footer">Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Het heeft een apparaat met minstens 6 GB geheugen nodig.</string>
     <string name="app_settings_tagging_title">Beeldherkenning</string>
     <string name="app_settings_tailscale_auth_key">Auth key (optioneel)</string>
     <string name="app_settings_tailscale_authorise">Autoriseer dit apparaat op de pagina die net is geopend en tik daarna opnieuw op Inschakelen.</string>
@@ -251,6 +251,7 @@
     <string name="app_settings_users_intro">Elke gebruiker draait als een eigen, volledig gescheiden instantie (eigen poort, eigen database, eigen opslag) en wordt alleen hier beheerd.</string>
     <string name="app_settings_users_load_usage">Gebruik laden</string>
     <string name="app_settings_users_local_hint">Zet dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis.</string>
+    <string name="app_settings_users_need_memory">Voor het toevoegen van gebruikers is een apparaat met minstens 4 GB geheugen nodig.</string>
     <string name="app_settings_users_password">Wachtwoord</string>
     <string name="app_settings_users_password_confirm">Wachtwoord bevestigen</string>
     <string name="app_settings_users_password_hint">Geef het aan %1$s om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het.</string>

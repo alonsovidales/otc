@@ -405,7 +405,7 @@ class SettingsTextTest {
         assertEquals("Sync Options", S.appSettingsSyncTitle().english())
         assertEquals("Include videos", S.appSettingsSyncVideos().english())
         assertEquals("Wi-Fi only", S.appSettingsSyncWifiOnly().english())
-        assertEquals("Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.", S.appSettingsTaggingFooter().english())
+        assertEquals("Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.", S.appSettingsTaggingFooter().english())
         assertEquals("Image Tagging", S.appSettingsTaggingTitle().english())
         assertEquals("Auth key (optional)", S.appSettingsTailscaleAuthKey().english())
         assertEquals("Authorise this device in the page that just opened, then press Enable again.", S.appSettingsTailscaleAuthorise().english())

@@ -778,10 +778,10 @@
     "max": 40
   },
   "web.settings.tagging.hint": {
-    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
     "note": "Explanation under the Image Tagging heading in Settings.",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-01 #613b3ced"
+    "reviewed": "claude-backtranslation 2026-11-01 #4fa84090"
   },
   "web.settings.tagging.title": {
     "text": "Image Tagging",
@@ -1050,6 +1050,10 @@
   "web.settings.users.local_hint": {
     "text": "Uncheck to keep this account on your own network only — no remote access, and no friends outside your home.",
     "note": "Second sentence of the explanation under Request bridge access in Settings > Users."
+  },
+  "web.settings.users.need_memory": {
+    "text": "Adding users needs a device with at least 4 GB of memory.",
+    "note": "In Settings > Users, in place of the Add user button on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM)."
   },
   "web.settings.users.none": {
     "text": "No additional users yet.",

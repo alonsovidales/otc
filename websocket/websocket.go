@@ -3086,7 +3086,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
-			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
+			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users, CanAdd: proto.Bool(deviceMemory().ExtraUsersAllowed())}}
 		}
 
 	case *pb.ReqEnvelope_ReqCreateUser:
@@ -3095,13 +3095,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
+		if !deviceMemory().ExtraUsersAllowed() {
+			// Release 160: a 2 GB device runs its owner's library only
+			// (memory_tiers.go).
+			log.Info("a new user was refused: this device has too little memory for another")
+			resp.Error = true
+			resp.ErrorCode = cCodeUsersUnavailable
+			resp.ErrorMessage = i18n.DevUsersNeedMemory().Render(lang)
+			break
+		}
 		users, passwordSet, err := ch.createUser(p.ReqCreateUser)
 		if err != nil {
 			log.Error("error creating user:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
-			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users, PasswordSet: proto.Bool(passwordSet)}}
+			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users, PasswordSet: proto.Bool(passwordSet), CanAdd: proto.Bool(true)}}
 		}
 
 	case *pb.ReqEnvelope_ReqDeleteUser:
@@ -3325,7 +3334,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			RespSettings: &pb.Settings{
 				Domain:                 ch.mg.settings.Domain(),
 				FaceRecognitionEnabled: ch.mg.settings.FaceRecognitionEnabled(),
-				ImageTaggingEnabled:    ch.mg.settings.ImageTaggingEnabled(),
+				ImageTaggingEnabled:    ch.mg.settings.ImageTaggingEnabled() && deviceMemory().TaggingAllowed(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,
 				// Localization: always set ("" = Automatic), except on a
@@ -3340,6 +3349,8 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				// And where its model is (release 152: downloaded once
 				// Smart search is first turned on).
 				SmartSearchModel: ch.mg.filesManager.SmartSearchModel(lang),
+				// Release 160: none on a low-memory device (memory_tiers.go).
+				ImageTaggingAvailable: proto.Bool(deviceMemory().TaggingAllowed()),
 			},
 		}
 
@@ -3438,6 +3449,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	// Issue #181: the tagging model, like face recognition, can be off.
 	case *pb.ReqEnvelope_ReqSetImageTaggingEnabled:
 		log.Info("Set image tagging enabled:", p.ReqSetImageTaggingEnabled.Enabled)
+		if p.ReqSetImageTaggingEnabled.Enabled && !deviceMemory().TaggingAllowed() {
+			log.Info("image tagging refused: a low-memory device has none")
+			resp.Error = true
+			resp.ErrorCode = cCodeTaggingUnavailable
+			resp.ErrorMessage = i18n.DevDeviceTaggingNeedMemory().Render(lang)
+			break
+		}
 		if err := ch.mg.settings.SetImageTaggingEnabled(p.ReqSetImageTaggingEnabled.Enabled); err != nil {
 			log.Error("error trying to update image_tagging_enabled:", err)
 			resp.Error = true

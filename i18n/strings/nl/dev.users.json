@@ -20,6 +20,10 @@
     "text": "{domain} is al in gebruik op de bridge – kies een andere gebruikersnaam, of vink “Toegang tot de bridge aanvragen” uit om deze gebruiker alleen voor je eigen netwerk te maken",
     "en": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only"
   },
+  "dev.users.need_memory": {
+    "text": "voor andere gebruikers is een apparaat met minstens 4 GB geheugen nodig",
+    "en": "other users need a device with at least 4 GB of memory"
+  },
   "dev.users.port_in_use": {
     "text": "poort {port} is al in gebruik door een andere gebruiker",
     "en": "port {port} is already in use by another user"

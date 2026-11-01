@@ -29,6 +29,11 @@ func DevUsersNameTakenOnBridge(domain string) Msg {
 	return Msg{Key: "dev.users.name_taken_on_bridge", Args: map[string]any{"domain": domain}}
 }
 
+// DevUsersNeedMemory is dev.users.need_memory: "other users need a device with at least 4 GB of memory".
+func DevUsersNeedMemory() Msg {
+	return Msg{Key: "dev.users.need_memory"}
+}
+
 // DevUsersPortInUse is dev.users.port_in_use: "port {port} is already in use by another user".
 func DevUsersPortInUse(port string) Msg {
 	return Msg{Key: "dev.users.port_in_use", Args: map[string]any{"port": port}}

@@ -2296,6 +2296,17 @@ func (dao *Dao) SetImageTaggingEnabled(enabled bool) (err error) {
 	return
 }
 
+// TurnOffImageTagging turns the switch off, chosen or not - a low-memory
+// device has no Image Tagging - and says whether it was on.
+func (dao *Dao) TurnOffImageTagging() (changed bool, err error) {
+	res, err := dao.db.Exec("update `settings` set `image_tagging_enabled` = 0 where `image_tagging_enabled` <> 0")
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // ApplyImageTaggingDefault sets the switch to on unless its user chose
 // (files_manager/tagging_default.go), and says whether that changed it;
 // ErrSchemaBehind before release 158's column.

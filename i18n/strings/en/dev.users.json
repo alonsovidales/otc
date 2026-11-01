@@ -24,6 +24,10 @@
     "args": [["domain", "text"]],
     "note": "Error in Settings > Users when adding a user with \"request bridge access\" ticked and the address the user would get on the bridge (off-the.cloud) already belongs to someone else. {domain} is that address, such as kim.anna.off-the.cloud. \"request bridge access\" is the checkbox's label in the form: translate it as the label is translated."
   },
+  "dev.users.need_memory": {
+    "text": "other users need a device with at least 4 GB of memory",
+    "note": "Error in Settings > Users when adding a user on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM). Lowercase, like the other errors there."
+  },
   "dev.users.port_in_use": {
     "text": "port {port} is already in use by another user",
     "args": [["port", "text"]],

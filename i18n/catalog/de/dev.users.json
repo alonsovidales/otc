@@ -4,6 +4,7 @@
   "dev.users.bridge_domain_limit": {"text": "{domain} kann nicht hinzugefügt werden – dein Konto auf der Bridge hat bereits so viele Adressen, wie es haben darf. Entferne eine auf deiner Kontoseite oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um diesen Benutzer nur für dein eigenes Netzwerk zu erstellen"},
   "dev.users.confirm_mismatch": {"text": "der zur Bestätigung eingegebene Benutzername stimmt nicht überein"},
   "dev.users.name_taken_on_bridge": {"text": "{domain} ist auf der Bridge bereits vergeben – wähle einen anderen Benutzernamen oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um diesen Benutzer nur für dein eigenes Netzwerk zu erstellen"},
+  "dev.users.need_memory": {"text": "für weitere Benutzer braucht es ein Gerät mit mindestens 4 GB Arbeitsspeicher"},
   "dev.users.port_in_use": {"text": "Port {port} wird bereits von einem anderen Benutzer verwendet"},
   "dev.users.stop_failed": {"text": "der Prozess von {username} konnte nicht beendet werden: {detail}"},
   "dev.users.storage_dir_failed": {"text": "beim Anlegen des Speicherordners: {detail}"},

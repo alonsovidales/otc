@@ -90,6 +90,10 @@
     "en": "choose at most 2 devices, got {chosen}",
     "reviewed": "claude-backtranslation 2026-10-11 #4b6bf01a"
   },
+  "dev.device.tagging_need_memory": {
+    "text": "L’Etichettatura delle immagini richiede un dispositivo con almeno 6 GB di memoria",
+    "en": "Image Tagging needs a device with at least 6 GB of memory"
+  },
   "dev.device.unknown_log": {
     "text": "log sconosciuto “{source}”",
     "en": "unknown log \"{source}\""

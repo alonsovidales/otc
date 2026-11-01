@@ -3579,6 +3579,20 @@ public nonisolated struct Msg_Settings: Sendable {
   /// Clears the value of `smartSearchModel`. Subsequent reads from it will return its default value.
   public mutating func clearSmartSearchModel() {self._smartSearchModel = nil}
 
+  /// Whether this device can have Image Tagging on (release 160; owner,
+  /// 2026-11-01): false on one with less than 6 GB of memory, where
+  /// image_tagging_enabled is always false and SetImageTaggingEnabled on is
+  /// refused (error_code "tagging_unavailable"). The apps show the switch
+  /// off and disabled. Unset on older devices: available.
+  public var imageTaggingAvailable: Bool {
+    get {_imageTaggingAvailable ?? false}
+    set {_imageTaggingAvailable = newValue}
+  }
+  /// Returns true if `imageTaggingAvailable` has been explicitly set.
+  public var hasImageTaggingAvailable: Bool {self._imageTaggingAvailable != nil}
+  /// Clears the value of `imageTaggingAvailable`. Subsequent reads from it will return its default value.
+  public mutating func clearImageTaggingAvailable() {self._imageTaggingAvailable = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3588,6 +3602,7 @@ public nonisolated struct Msg_Settings: Sendable {
   fileprivate var _memoriesEnabled: Bool? = nil
   fileprivate var _smartSearchEnabled: Bool? = nil
   fileprivate var _smartSearchModel: Msg_SmartSearchModel? = nil
+  fileprivate var _imageTaggingAvailable: Bool? = nil
 }
 
 /// Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -5864,11 +5879,26 @@ public nonisolated struct Msg_RespUsers: Sendable {
   /// Clears the value of `passwordSet`. Subsequent reads from it will return its default value.
   public mutating func clearPasswordSet() {self._passwordSet = nil}
 
+  /// Whether this device takes another user (release 160; owner,
+  /// 2026-11-01): false on one with less than 3 GB of memory (a 2 GB
+  /// board), where CreateUser is refused (error_code "users_unavailable");
+  /// the users it has keep working. The apps show no Add User then, but a
+  /// note. Unset on older devices: it does.
+  public var canAdd: Bool {
+    get {_canAdd ?? false}
+    set {_canAdd = newValue}
+  }
+  /// Returns true if `canAdd` has been explicitly set.
+  public var hasCanAdd: Bool {self._canAdd != nil}
+  /// Clears the value of `canAdd`. Subsequent reads from it will return its default value.
+  public mutating func clearCanAdd() {self._canAdd = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _passwordSet: Bool? = nil
+  fileprivate var _canAdd: Bool? = nil
 }
 
 /// port is optional - omit it (0) to let the primary pick the next free
@@ -13201,7 +13231,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}image_tagging_available\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -13220,6 +13250,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 9: try { try decoder.decodeSingularBoolField(value: &self._memoriesEnabled) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self._smartSearchEnabled) }()
       case 11: try { try decoder.decodeSingularMessageField(value: &self._smartSearchModel) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self._imageTaggingAvailable) }()
       default: break
       }
     }
@@ -13263,6 +13294,9 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._smartSearchModel {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
     } }()
+    try { if let v = self._imageTaggingAvailable {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -13278,6 +13312,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs._memoriesEnabled != rhs._memoriesEnabled {return false}
     if lhs._smartSearchEnabled != rhs._smartSearchEnabled {return false}
     if lhs._smartSearchModel != rhs._smartSearchModel {return false}
+    if lhs._imageTaggingAvailable != rhs._imageTaggingAvailable {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -17296,7 +17331,7 @@ nonisolated extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUsers"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0\u{3}password_set\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0\u{3}password_set\0\u{3}can_add\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -17306,6 +17341,7 @@ nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._Messa
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.users) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self._passwordSet) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self._canAdd) }()
       default: break
       }
     }
@@ -17322,12 +17358,16 @@ nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._passwordSet {
       try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._canAdd {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_RespUsers, rhs: Msg_RespUsers) -> Bool {
     if lhs.users != rhs.users {return false}
     if lhs._passwordSet != rhs._passwordSet {return false}
+    if lhs._canAdd != rhs._canAdd {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -831,10 +831,10 @@
     "note": "Warning in that sheet, above the sync switches. \"Wi-Fi only\" is the name of the switch below it: use the same words."
   },
   "app.settings.tagging.footer": {
-    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
     "note": "Under the Image Tagging switch in Settings: what it does.",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-01 #613b3ced"
+    "reviewed": "claude-backtranslation 2026-11-01 #4fa84090"
   },
   "app.settings.tagging.title": {
     "text": "Image Tagging",
@@ -1172,6 +1172,10 @@
   "app.settings.users.local_hint": {
     "text": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home.",
     "note": "Second sentence of the explanation under the Request bridge access switch in Settings > Users."
+  },
+  "app.settings.users.need_memory": {
+    "text": "Adding users needs a device with at least 4 GB of memory.",
+    "note": "In Settings > Users, in place of the button that adds a user, on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM)."
   },
   "app.settings.users.password": {
     "text": "Password",

@@ -706,9 +706,9 @@
     "en": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data."
   },
   "app.settings.tagging.footer": {
-    "text": "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Num dispositivo com menos de 6 GB de memória, começa desativada.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
-    "reviewed": "claude-backtranslation 2026-11-01 #66b8b23b"
+    "text": "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Precisa de um dispositivo com pelo menos 6 GB de memória.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
+    "reviewed": "claude-backtranslation 2026-11-01 #442f686f"
   },
   "app.settings.tagging.title": {
     "text": "Etiquetagem de imagens",
@@ -990,6 +990,10 @@
   "app.settings.users.local_hint": {
     "text": "Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa.",
     "en": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
+  "app.settings.users.need_memory": {
+    "text": "Para adicionar utilizadores é preciso um dispositivo com pelo menos 4 GB de memória.",
+    "en": "Adding users needs a device with at least 4 GB of memory."
   },
   "app.settings.users.password": {
     "text": "Palavra-passe",

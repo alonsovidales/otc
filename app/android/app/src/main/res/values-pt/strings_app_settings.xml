@@ -190,7 +190,7 @@
     <string name="app_settings_sync_choice_start">Começar a sincronizar</string>
     <string name="app_settings_sync_choice_title">Sincroniza as tuas fotos</string>
     <string name="app_settings_sync_choice_warning">Sincronizar uma biblioteca inteira pode demorar muito tempo e gastar muitos dados. Com «Apenas por Wi-Fi» ativado, nada é enviado pelos dados móveis.</string>
-    <string name="app_settings_tagging_footer">Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Num dispositivo com menos de 6 GB de memória, começa desativada.</string>
+    <string name="app_settings_tagging_footer">Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Precisa de um dispositivo com pelo menos 6 GB de memória.</string>
     <string name="app_settings_tagging_title">Etiquetagem de imagens</string>
     <string name="app_settings_tailscale_auth_key">Chave de autenticação (opcional)</string>
     <string name="app_settings_tailscale_authorise">Autoriza este dispositivo na página que acabou de abrir e depois toca novamente em «Ativar o Tailscale Funnel».</string>
@@ -259,6 +259,7 @@
     <string name="app_settings_users_intro">Cada utilizador funciona como uma instância própria e totalmente separada (porta própria, base de dados própria, armazenamento próprio), gerida apenas a partir daqui.</string>
     <string name="app_settings_users_load_usage">Ver utilização</string>
     <string name="app_settings_users_local_hint">Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa.</string>
+    <string name="app_settings_users_need_memory">Para adicionar utilizadores é preciso um dispositivo com pelo menos 4 GB de memória.</string>
     <string name="app_settings_users_password">Palavra-passe</string>
     <string name="app_settings_users_password_confirm">Confirmar palavra-passe</string>
     <string name="app_settings_users_password_hint">Dá-a a %1$s para iniciar sessão. Pode alterá-la em Definições › Alterar palavra-passe e, a partir daí, mais ninguém a saberá.</string>

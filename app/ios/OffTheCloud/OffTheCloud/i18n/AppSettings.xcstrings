@@ -8571,43 +8571,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erkennt, was neu hochgeladene Fotos und Videos zeigen (einen Strand, einen Hund, eine Geburtstagstorte), damit du danach suchen kannst. Die Bilderkennung läuft auf diesem Gerät, und nichts verlässt es. Ausschalten spart Rechenzeit und Arbeitsspeicher: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen, und Orte aus den eigenen Standortdaten eines Fotos bleiben durchsuchbar. Das betrifft nur, was hochgeladen wird, während sie ausgeschaltet ist. Auf einem Gerät mit weniger als 6 GB Arbeitsspeicher ist sie anfangs ausgeschaltet."
+            "value" : "Erkennt, was neu hochgeladene Fotos und Videos zeigen (einen Strand, einen Hund, eine Geburtstagstorte), damit du danach suchen kannst. Die Bilderkennung läuft auf diesem Gerät, und nichts verlässt es. Ausschalten spart Rechenzeit und Arbeitsspeicher: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen, und Orte aus den eigenen Standortdaten eines Fotos bleiben durchsuchbar. Das betrifft nur, was hochgeladen wird, während sie ausgeschaltet ist. Sie braucht ein Gerät mit mindestens 6 GB Arbeitsspeicher."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off."
+            "value" : "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. En un dispositivo con menos de 6 GB de memoria viene desactivado."
+            "value" : "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. Necesita un dispositivo con al menos 6 GB de memoria."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Sur un appareil qui a moins de 6 Go de mémoire, il est désactivé au départ."
+            "value" : "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 6 Go de mémoire."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Su un dispositivo con meno di 6 GB di memoria parte disattivata."
+            "value" : "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Richiede un dispositivo con almeno 6 GB di memoria."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Op een apparaat met minder dan 6 GB geheugen staat het in het begin uit."
+            "value" : "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Het heeft een apparaat met minstens 6 GB geheugen nodig."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Num dispositivo com menos de 6 GB de memória, começa desativada."
+            "value" : "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Precisa de um dispositivo com pelo menos 6 GB de memória."
           }
         }
       }
@@ -11804,6 +11804,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa."
+          }
+        }
+      }
+    },
+    "app.settings.users.need_memory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Hinzufügen von Benutzern braucht es ein Gerät mit mindestens 4 GB Arbeitsspeicher."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding users needs a device with at least 4 GB of memory."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para añadir usuarios hace falta un dispositivo con al menos 4 GB de memoria."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour ajouter des utilisateurs, il faut un appareil avec au moins 4 Go de mémoire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per aggiungere utenti serve un dispositivo con almeno 4 GB di memoria."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor het toevoegen van gebruikers is een apparaat met minstens 4 GB geheugen nodig."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para adicionar utilizadores é preciso um dispositivo com pelo menos 4 GB de memória."
           }
         }
       }

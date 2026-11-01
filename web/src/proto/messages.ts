@@ -2024,7 +2024,17 @@ export interface Settings {
    * the user's own library; absent means an older device, which had the
    * model or answered "smart_search_unavailable".
    */
-  smartSearchModel?: SmartSearchModel | undefined;
+  smartSearchModel?:
+    | SmartSearchModel
+    | undefined;
+  /**
+   * Whether this device can have Image Tagging on (release 160; owner,
+   * 2026-11-01): false on one with less than 6 GB of memory, where
+   * image_tagging_enabled is always false and SetImageTaggingEnabled on is
+   * refused (error_code "tagging_unavailable"). The apps show the switch
+   * off and disabled. Unset on older devices: available.
+   */
+  imageTaggingAvailable?: boolean | undefined;
 }
 
 /**
@@ -3269,7 +3279,17 @@ export interface RespUsers {
    * the field always sets it there; an older one leaves it unset, having
    * ignored the password, so the account's first sign-in sets it.
    */
-  passwordSet?: boolean | undefined;
+  passwordSet?:
+    | boolean
+    | undefined;
+  /**
+   * Whether this device takes another user (release 160; owner,
+   * 2026-11-01): false on one with less than 3 GB of memory (a 2 GB
+   * board), where CreateUser is refused (error_code "users_unavailable");
+   * the users it has keep working. The apps show no Add User then, but a
+   * note. Unset on older devices: it does.
+   */
+  canAdd?: boolean | undefined;
 }
 
 /**
@@ -12294,6 +12314,7 @@ function createBaseSettings(): Settings {
     memoriesEnabled: undefined,
     smartSearchEnabled: undefined,
     smartSearchModel: undefined,
+    imageTaggingAvailable: undefined,
   };
 }
 
@@ -12334,6 +12355,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.smartSearchModel !== undefined) {
       SmartSearchModel.encode(message.smartSearchModel, writer.uint32(90).fork()).join();
+    }
+    if (message.imageTaggingAvailable !== undefined) {
+      writer.uint32(96).bool(message.imageTaggingAvailable);
     }
     return writer;
   },
@@ -12433,6 +12457,14 @@ export const Settings: MessageFns<Settings> = {
           message.smartSearchModel = SmartSearchModel.decode(reader, reader.uint32());
           continue;
         }
+        case 12: {
+          if (tag !== 96) {
+            break;
+          }
+
+          message.imageTaggingAvailable = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12460,6 +12492,7 @@ export const Settings: MessageFns<Settings> = {
     message.smartSearchModel = (object.smartSearchModel !== undefined && object.smartSearchModel !== null)
       ? SmartSearchModel.fromPartial(object.smartSearchModel)
       : undefined;
+    message.imageTaggingAvailable = object.imageTaggingAvailable ?? undefined;
     return message;
   },
 };
@@ -19330,7 +19363,7 @@ export const ReqListUsers: MessageFns<ReqListUsers> = {
 };
 
 function createBaseRespUsers(): RespUsers {
-  return { users: [], passwordSet: undefined };
+  return { users: [], passwordSet: undefined, canAdd: undefined };
 }
 
 export const RespUsers: MessageFns<RespUsers> = {
@@ -19340,6 +19373,9 @@ export const RespUsers: MessageFns<RespUsers> = {
     }
     if (message.passwordSet !== undefined) {
       writer.uint32(16).bool(message.passwordSet);
+    }
+    if (message.canAdd !== undefined) {
+      writer.uint32(24).bool(message.canAdd);
     }
     return writer;
   },
@@ -19367,6 +19403,14 @@ export const RespUsers: MessageFns<RespUsers> = {
           message.passwordSet = reader.bool();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.canAdd = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -19383,6 +19427,7 @@ export const RespUsers: MessageFns<RespUsers> = {
     const message = createBaseRespUsers();
     message.users = object.users?.map((e) => User.fromPartial(e)) || [];
     message.passwordSet = object.passwordSet ?? undefined;
+    message.canAdd = object.canAdd ?? undefined;
     return message;
   },
 };

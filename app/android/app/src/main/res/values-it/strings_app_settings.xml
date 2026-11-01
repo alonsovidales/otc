@@ -190,7 +190,7 @@
     <string name="app_settings_sync_choice_start">Avvia la sincronizzazione</string>
     <string name="app_settings_sync_choice_title">Sincronizza le tue foto</string>
     <string name="app_settings_sync_choice_warning">Sincronizzare un’intera libreria può richiedere molto tempo e consumare molti dati. Con “Solo Wi-Fi” attivo, non viene inviato nulla con i dati mobili.</string>
-    <string name="app_settings_tagging_footer">Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Su un dispositivo con meno di 6 GB di memoria parte disattivata.</string>
+    <string name="app_settings_tagging_footer">Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Richiede un dispositivo con almeno 6 GB di memoria.</string>
     <string name="app_settings_tagging_title">Etichettatura delle immagini</string>
     <string name="app_settings_tailscale_auth_key">Auth key (facoltativa)</string>
     <string name="app_settings_tailscale_authorise">Autorizza questo dispositivo nella pagina che si è appena aperta, poi premi di nuovo Attiva.</string>
@@ -259,6 +259,7 @@
     <string name="app_settings_users_intro">Ogni utente funziona come un’istanza propria, completamente separata (porta, database e spazio di archiviazione propri), gestita solo da qui.</string>
     <string name="app_settings_users_load_usage">Mostra utilizzo</string>
     <string name="app_settings_users_local_hint">Disattivalo per tenere questo account solo sulla tua rete: niente accesso remoto e niente amici fuori casa.</string>
+    <string name="app_settings_users_need_memory">Per aggiungere utenti serve un dispositivo con almeno 4 GB di memoria.</string>
     <string name="app_settings_users_password">Password</string>
     <string name="app_settings_users_password_confirm">Conferma la password</string>
     <string name="app_settings_users_password_hint">Dalla a %1$s per accedere. Potrà cambiarla in Impostazioni › Modifica password e, da quel momento, nessun altro la conoscerà.</string>
