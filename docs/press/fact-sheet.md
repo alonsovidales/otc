@@ -39,7 +39,7 @@ since August 2025.
 
 ## How it runs
 
-- **Hardware:** a Raspberry Pi 5 (8 GB; 4 GB with photo tagging off), a microSD card for the
+- **Hardware:** a Raspberry Pi 5 (8 GB; 4 GB without photo tagging; 2 GB for one person), a microSD card for the
   system and two USB drives for storage, mirrored, all off the shelf. Optional: two LEDs and
   resistors. The install script also runs on any 64-bit Debian or Ubuntu machine (an old PC, a
   mini PC, an ARM board).

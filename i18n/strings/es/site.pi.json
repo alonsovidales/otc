@@ -96,8 +96,8 @@
     "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
   },
   "site.pi.need.pi": {
-    "text": "<b>Una Raspberry Pi 5 con 8 GB de memoria.</b> Una de 4 GB también sirve: allí el Etiquetado de imágenes viene desactivado, y la Búsqueda inteligente encuentra fotos por lo que muestran sin él.",
-    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it."
+    "text": "<b>Una Raspberry Pi 5 con 8 GB de memoria.</b> Una de 4 GB también sirve, sin el Etiquetado de imágenes: la Búsqueda inteligente encuentra fotos por lo que muestran sin él. Una de 2 GB basta para una sola persona.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, without Image Tagging: Smart search finds photos by what they show without it. One with 2 GB is enough for one person."
   },
   "site.pi.need.power": {
     "text": "<b>Una buena fuente de alimentación y un disipador.</b> La fuente de alimentación USB-C oficial de 27 W, o una mejor, y un disipador activo: con una fuente más débil, la Pi puede reiniciarse por bajo voltaje mientras procesa tus fotos.",

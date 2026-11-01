@@ -110,7 +110,7 @@
     "rich": ["b"]
   },
   "site.pi.need.pi": {
-    "text": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it.",
+    "text": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, without Image Tagging: Smart search finds photos by what they show without it. One with 2 GB is enough for one person.",
     "note": "Website, the page about running Off The Cloud on a Raspberry Pi 5 as the family's home server (off-the.cloud/raspberry-pi-home-server): section \"What you need\": one card. <b> marks its short title in bold. Image Tagging and Smart search are the names of two switches in the apps' Settings: use the names the apps use in your language. 8 GB and 4 GB are the Pi's memory (RAM).",
     "rich": ["b"]
   },

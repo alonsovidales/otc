@@ -324,16 +324,16 @@
     "en": "How do I move my photos from iCloud?"
   },
   "site.landing.faq.hardware.a": {
-    "text": "Ein Raspberry Pi 5 (8 GB) mit einer microSD-Karte für das System und zwei USB-Laufwerken als Speicher, gespiegelt, sodass jedes eine vollständige Kopie deiner Dateien enthält: USB-Sticks, SSDs, Festplatten oder microSD-Karten in USB-Kartenlesern – alles funktioniert. Sie kommen an die zwei blauen USB-Anschlüsse des Pi (die schnellen; das Gerät sagt dir dann, welches du ersetzen musst, falls eines einmal ausfällt). Dazu ein Netzteil und ein aktiver Kühler: alles Standardteile. Die genaue empfohlene Teileliste steht im README. Ein Pi 5 mit 4 GB funktioniert auch, mit ausgeschalteter Bilderkennung, dort die Voreinstellung.",
-    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, with photo tagging off, its default there."
+    "text": "Ein Raspberry Pi 5 (8 GB) mit einer microSD-Karte für das System und zwei USB-Laufwerken als Speicher, gespiegelt, sodass jedes eine vollständige Kopie deiner Dateien enthält: USB-Sticks, SSDs, Festplatten oder microSD-Karten in USB-Kartenlesern – alles funktioniert. Sie kommen an die zwei blauen USB-Anschlüsse des Pi (die schnellen; das Gerät sagt dir dann, welches du ersetzen musst, falls eines einmal ausfällt). Dazu ein Netzteil und ein aktiver Kühler: alles Standardteile. Die genaue empfohlene Teileliste steht im README. Ein Pi 5 mit 4 GB funktioniert auch, ohne Bilderkennung, und einer mit 2 GB für eine Person.",
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, without photo tagging, and one with 2 GB for a single person."
   },
   "site.landing.faq.hardware.q": {
     "text": "Muss ich spezielle Hardware kaufen?",
     "en": "Do I need to buy special hardware?"
   },
   "site.landing.faq.image.a": {
-    "text": "Ja – für einen Raspberry Pi 5 mit mindestens 8 GB RAM (einer mit 4 GB funktioniert auch, mit ausgeschalteter Bilderkennung, dort die Voreinstellung): Siehe den Tab <install>Image für Raspberry Pi 5</install> oben. Schreib es auf die Karte, schalte den Pi ein und richte ihn über dein Handy ein: Tippe in der App für iOS oder Android auf „Neues Gerät einrichten“; sie findet den Pi über Bluetooth und führt dich durch den Rest. Für jeden anderen Rechner mit Debian/Ubuntu nutze das Installationsskript.",
-    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, with Image Tagging off, its default there): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
+    "text": "Ja – für einen Raspberry Pi 5 mit mindestens 8 GB RAM (einer mit 4 GB funktioniert auch, ohne Bilderkennung, und einer mit 2 GB für eine Person): Siehe den Tab <install>Image für Raspberry Pi 5</install> oben. Schreib es auf die Karte, schalte den Pi ein und richte ihn über dein Handy ein: Tippe in der App für iOS oder Android auf „Neues Gerät einrichten“; sie findet den Pi über Bluetooth und führt dich durch den Rest. Für jeden anderen Rechner mit Debian/Ubuntu nutze das Installationsskript.",
+    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, without Image Tagging, and a 2 GB one for a single person): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
   },
   "site.landing.faq.image.q": {
     "text": "Gibt es ein fertiges Image, das ich einfach aufspielen kann?",
@@ -845,8 +845,8 @@
     "en": "Runs on"
   },
   "site.landing.glance.hardware.value": {
-    "text": "Raspberry Pi 5 mit 8 GB (4 GB bei ausgeschalteter Bilderkennung) oder 64-Bit-Rechner mit Intel/AMD oder ARM und Debian oder Ubuntu",
-    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+    "text": "Raspberry Pi 5 mit 8 GB (4 GB ohne Bilderkennung, 2 GB für eine Person) oder 64-Bit-Rechner mit Intel/AMD oder ARM und Debian oder Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB without tagging, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
   },
   "site.landing.glance.instead.label": {
     "text": "Ersetzt",
@@ -995,8 +995,8 @@
     "en": "Recommended"
   },
   "site.landing.install.requirements": {
-    "text": "Für einen <b>Raspberry Pi 5 mit mindestens 8 GB RAM</b>, eine microSD-Karte für das System und optional zwei USB-Laufwerke für RAID-1, angeschlossen an die <b>zwei blauen USB-Anschlüsse</b> des Pi. Verwende das <b>offizielle USB-C-Netzteil von Raspberry Pi mit 27 W</b> (oder ein besseres): Mit einem schwächeren kann der Pi wegen Unterspannung neu starten, während er deine Fotos verarbeitet. Tastatur, Monitor oder Linux-Kenntnisse sind nicht nötig. <b>Du hast nur einen Pi mit 4 GB?</b> Er läuft auch, mit ausgeschalteter <b>Bilderkennung</b>, dort die Voreinstellung: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs too, with <b>Image Tagging</b> off, its default there: Smart search finds photos by what they show without it."
+    "text": "Für einen <b>Raspberry Pi 5 mit mindestens 8 GB RAM</b>, eine microSD-Karte für das System und optional zwei USB-Laufwerke für RAID-1, angeschlossen an die <b>zwei blauen USB-Anschlüsse</b> des Pi. Verwende das <b>offizielle USB-C-Netzteil von Raspberry Pi mit 27 W</b> (oder ein besseres): Mit einem schwächeren kann der Pi wegen Unterspannung neu starten, während er deine Fotos verarbeitet. Tastatur, Monitor oder Linux-Kenntnisse sind nicht nötig. <b>Du hast nur einen Pi mit 4 GB?</b> Er kann alles außer der <b>Bilderkennung</b>: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen. Einer mit 2 GB reicht für eine Person.",
+    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything but <b>Image Tagging</b>: Smart search finds photos by what they show without it. A 2 GB one is enough for one person."
   },
   "site.landing.install.script_intro": {
     "text": "Ein Befehl auf jedem Rechner, auf dem du dich bereits anmelden kannst: Ubuntu, Debian, Raspberry Pi OS und andere auf Debian basierende Distributionen (64 Bit).",

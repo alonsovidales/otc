@@ -324,16 +324,16 @@
     "en": "How do I move my photos from iCloud?"
   },
   "site.landing.faq.hardware.a": {
-    "text": "Um Raspberry Pi 5 (8 GB) com um cartão microSD para o sistema e duas unidades USB para o armazenamento, em espelho, para que cada uma guarde uma cópia completa dos teus ficheiros: pens USB, SSD, discos rígidos ou cartões microSD em leitores de cartões USB, tudo funciona. Liga-as às duas portas USB azuis do Pi (as rápidas; assim, se uma avariar, o dispositivo diz-te qual delas substituir). Junta uma fonte de alimentação e um sistema de arrefecimento ativo: tudo componentes comuns. Consulta o README para ver a lista exata de componentes recomendados. Um Pi 5 com 4 GB também funciona, com a etiquetagem de imagens desativada, que é como vem nele.",
-    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, with photo tagging off, its default there."
+    "text": "Um Raspberry Pi 5 (8 GB) com um cartão microSD para o sistema e duas unidades USB para o armazenamento, em espelho, para que cada uma guarde uma cópia completa dos teus ficheiros: pens USB, SSD, discos rígidos ou cartões microSD em leitores de cartões USB, tudo funciona. Liga-as às duas portas USB azuis do Pi (as rápidas; assim, se uma avariar, o dispositivo diz-te qual delas substituir). Junta uma fonte de alimentação e um sistema de arrefecimento ativo: tudo componentes comuns. Consulta o README para ver a lista exata de componentes recomendados. Um Pi 5 com 4 GB também funciona, sem a etiquetagem de imagens, e um com 2 GB para uma só pessoa.",
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, without photo tagging, and one with 2 GB for a single person."
   },
   "site.landing.faq.hardware.q": {
     "text": "Preciso de comprar hardware especial?",
     "en": "Do I need to buy special hardware?"
   },
   "site.landing.faq.image.a": {
-    "text": "Sim, para um Raspberry Pi 5 com pelo menos 8 GB de RAM (um de 4 GB também funciona, com a etiquetagem de imagens desativada, que é como vem nele): vê o separador <install>Imagem para Raspberry Pi 5</install> no topo. Grava-a, liga o Pi e configura-o a partir do teu telemóvel: toca em «Configurar um novo dispositivo» na app para iOS ou Android, que encontra o Pi por Bluetooth e te guia no resto. Para qualquer outra máquina Debian/Ubuntu, usa o script de instalação.",
-    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, with Image Tagging off, its default there): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
+    "text": "Sim, para um Raspberry Pi 5 com pelo menos 8 GB de RAM (um de 4 GB também funciona, sem a etiquetagem de imagens, e um de 2 GB para uma só pessoa): vê o separador <install>Imagem para Raspberry Pi 5</install> no topo. Grava-a, liga o Pi e configura-o a partir do teu telemóvel: toca em «Configurar um novo dispositivo» na app para iOS ou Android, que encontra o Pi por Bluetooth e te guia no resto. Para qualquer outra máquina Debian/Ubuntu, usa o script de instalação.",
+    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, without Image Tagging, and a 2 GB one for a single person): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
   },
   "site.landing.faq.image.q": {
     "text": "Há uma imagem pronta que possa simplesmente gravar?",
@@ -845,8 +845,8 @@
     "en": "Runs on"
   },
   "site.landing.glance.hardware.value": {
-    "text": "Um Raspberry Pi 5 com 8 GB (4 GB sem etiquetagem de imagens), ou uma máquina Intel/AMD ou ARM de 64 bits com Debian ou Ubuntu",
-    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+    "text": "Um Raspberry Pi 5 com 8 GB (4 GB sem etiquetagem de imagens, 2 GB para uma pessoa), ou uma máquina Intel/AMD ou ARM de 64 bits com Debian ou Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB without tagging, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
   },
   "site.landing.glance.instead.label": {
     "text": "Em vez de",
@@ -995,8 +995,8 @@
     "en": "Recommended"
   },
   "site.landing.install.requirements": {
-    "text": "Para um <b>Raspberry Pi 5 com pelo menos 8 GB de RAM</b>, um cartão microSD para o sistema e, opcionalmente, dois discos USB para RAID-1, ligados às <b>duas portas USB azuis</b> do Pi. Usa a <b>fonte de alimentação USB-C oficial de 27 W do Raspberry Pi</b> (ou uma melhor): com uma mais fraca, o Pi pode reiniciar por falta de tensão enquanto processa as tuas fotos. Não é preciso teclado, monitor nem conhecimentos de Linux. <b>Só tens um Pi de 4 GB?</b> Também funciona, com a <b>Etiquetagem de imagens</b> desativada, que é como vem nele: a Pesquisa inteligente encontra fotos pelo que mostram sem ela.",
-    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs too, with <b>Image Tagging</b> off, its default there: Smart search finds photos by what they show without it."
+    "text": "Para um <b>Raspberry Pi 5 com pelo menos 8 GB de RAM</b>, um cartão microSD para o sistema e, opcionalmente, dois discos USB para RAID-1, ligados às <b>duas portas USB azuis</b> do Pi. Usa a <b>fonte de alimentação USB-C oficial de 27 W do Raspberry Pi</b> (ou uma melhor): com uma mais fraca, o Pi pode reiniciar por falta de tensão enquanto processa as tuas fotos. Não é preciso teclado, monitor nem conhecimentos de Linux. <b>Só tens um Pi de 4 GB?</b> Funciona com tudo menos a <b>Etiquetagem de imagens</b>: a Pesquisa inteligente encontra fotos pelo que mostram sem ela. Um de 2 GB chega para uma só pessoa.",
+    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It runs everything but <b>Image Tagging</b>: Smart search finds photos by what they show without it. A 2 GB one is enough for one person."
   },
   "site.landing.install.script_intro": {
     "text": "Um comando em qualquer máquina onde já consigas iniciar sessão: Ubuntu, Debian, Raspberry Pi OS e outras distribuições baseadas em Debian (64 bits).",

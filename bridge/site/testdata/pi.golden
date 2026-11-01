@@ -30,7 +30,7 @@ Off The Cloud is free, open-source software that turns a Raspberry Pi 5 and two 
 @a.href=https://demo.off-the.cloud/
 Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
 What you need
-A Raspberry Pi 5 with 8 GB of memory. One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it.
+A Raspberry Pi 5 with 8 GB of memory. One with 4 GB works too, without Image Tagging: Smart search finds photos by what they show without it. One with 2 GB is enough for one person.
 A microSD card for the system. 8 GB or more. Your photos, files and settings live on the drives, not on the card.
 Two USB drives for your files. USB sticks, SSDs, hard disks or microSD cards in USB card readers, in the Pi's two blue USB ports. Each keeps a full copy, so the smaller one sets how much space you have.
 A good power supply and a cooler. The official 27 W USB-C power supply, or a better one, and an active cooler: with a weaker supply the Pi can restart from low voltage while it works through your photos.

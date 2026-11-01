@@ -96,8 +96,8 @@
     "en": "<b>No keyboard, monitor or Linux knowledge.</b> A Mac, Windows or Linux computer prepares the card, and your phone or Mac finishes the setup over Bluetooth."
   },
   "site.pi.need.pi": {
-    "text": "<b>Ein Raspberry Pi 5 mit 8 GB Arbeitsspeicher.</b> Einer mit 4 GB geht auch: Dort ist die Bilderkennung anfangs ausgeschaltet, und die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen.",
-    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too: Image Tagging starts off there, and Smart search finds photos by what they show without it."
+    "text": "<b>Ein Raspberry Pi 5 mit 8 GB Arbeitsspeicher.</b> Einer mit 4 GB geht auch, ohne Bilderkennung: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen. Einer mit 2 GB reicht für eine Person.",
+    "en": "<b>A Raspberry Pi 5 with 8 GB of memory.</b> One with 4 GB works too, without Image Tagging: Smart search finds photos by what they show without it. One with 2 GB is enough for one person."
   },
   "site.pi.need.power": {
     "text": "<b>Ein gutes Netzteil und ein Kühler.</b> Das offizielle USB-C-Netzteil mit 27 W oder ein besseres, dazu ein aktiver Kühler: Mit einem schwächeren Netzteil kann der Pi wegen Unterspannung neu starten, während er deine Fotos verarbeitet.",

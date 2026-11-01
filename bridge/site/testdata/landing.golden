@@ -37,7 +37,7 @@ Computer app Recommended
 Raspberry Pi 5 image
 Install script
 The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step.
-For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs too, with Image Tagging off, its default there: Smart search finds photos by what they show without it.
+For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything but Image Tagging: Smart search finds photos by what they show without it. A 2 GB one is enough for one person.
 @a.href=https://apps.apple.com/app/id6814658734
 @a.download
 @a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
@@ -52,7 +52,7 @@ Make the card. The app downloads the image and checks it against the project's s
 Plug in the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.
 Finish the setup over Bluetooth. On a Mac, right in the app: On this Mac (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap Set up a new device. Either way it asks for your Wi-Fi, a name and password for the device and how to use the disks, then installs the software — about 20 minutes.
 Sign in when it's done: the app connects to the new device by itself with the password you chose, or open https://<name>.off-the.cloud in a browser.
-For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs too, with Image Tagging off, its default there: Smart search finds photos by what they show without it.
+For a Raspberry Pi 5 with at least 8 GB of RAM, a microSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It runs everything but Image Tagging: Smart search finds photos by what they show without it. A 2 GB one is enough for one person.
 @a.href=https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz
 ⬇ Download the image (≈ 530 MB)
 @a.href=https://www.raspberrypi.com/software/
@@ -80,7 +80,7 @@ A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, 
 Instead of
 Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files
 Runs on
-A Raspberry Pi 5 with 8 GB (4 GB with tagging off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu
+A Raspberry Pi 5 with 8 GB (4 GB without tagging, 2 GB for one person), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu
 Storage
 Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers
 Apps
@@ -262,12 +262,12 @@ Apps for phones and computers, an account for each person in the family, and an 
 @a.href=/google-photos-alternative
 How it compares with Google Photos and iCloud
 Do I need to buy special hardware?
-A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, with photo tagging off, its default there.
+A Raspberry Pi 5 (8 GB) with a microSD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or microSD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB works too, without photo tagging, and one with 2 GB for a single person.
 @a.href=/raspberry-pi-home-server
 The Raspberry Pi 5 home server, step by step
 Is there a pre-built image I can just flash?
 @a.href=#install
-Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, with Image Tagging off, its default there): see the Raspberry Pi 5 image tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.
+Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works too, without Image Tagging, and a 2 GB one for a single person): see the Raspberry Pi 5 image tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.
 Can I use something other than a Raspberry Pi, like an Orange Pi or an old PC?
 @a.href=#install
 Yes. The install script works on any 64-bit machine, Intel/AMD or ARM, running Ubuntu, Debian or another Debian-based Linux: an old PC or laptop, a mini PC, or a board such as an Orange Pi with a Debian or Ubuntu image. It builds the software on the machine itself, so you get the same app: photo backup, folder sync, photo tagging, face recognition, friends, sharing and updates from Settings. Give it 8 GB of memory, like the Raspberry Pi 5 it was designed for.
