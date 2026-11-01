@@ -26,6 +26,10 @@ struct MainView: View {
     // The Images search sends Files to a folder, a file or a list of
     // results (TopSearch.swift): Files is shown for it.
     @ObservedObject private var filesNav = FilesNav.shared
+    // A face tapped in the Info of a viewer that isn't Images' own (Files',
+    // the map's, a memory's): Images is shown on that person
+    // (PhotoFaces.swift).
+    @ObservedObject private var personNav = PersonNav.shared
     @Environment(\.scenePhase) private var scenePhase
 
     // The wide layout (AppMenu.swift): a window 600 points wide or more
@@ -145,6 +149,14 @@ struct MainView: View {
                 guard map && wide else { return }
                 gallery.showMap = false
                 page = .places
+            }
+            // A person's photos asked for from a viewer of a list: Images'
+            // grid on them, as a face opened from People.
+            .onChange(of: personNav.sent) { _, _ in
+                guard let person = personNav.take() else { return }
+                gallery.showMap = false
+                gallery.showPerson(person)
+                show(.images)
             }
             .onChange(of: tour.shown, initial: true) { _, shown in tourShownChanged(shown) }
             .onChange(of: tour.step) { _, _ in showTourSection() }

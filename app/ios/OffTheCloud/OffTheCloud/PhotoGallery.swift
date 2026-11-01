@@ -598,9 +598,20 @@ final class PhotoGalleryVM: ObservableObject {
     /// (ImageModal) or over the screen under it (Images, Files): over the
     /// viewer while it is open. Presented from under the full-screen
     /// viewer, an alert takes the viewer away - Save's "Photos access
-    /// denied" used to close it.
+    /// denied" used to close it. While the viewer's Info is open the
+    /// alert shows over Info instead (alertShownOverInfo): nothing
+    /// presented from the viewer shows over a sheet of its own.
     func alertShown(overViewer: Bool) -> Bool {
-        showAlert && (openIndex != nil) == overViewer
+        showAlert && (openIndex != nil) == overViewer && !(overViewer && infoOpen)
+    }
+
+    /// The alert, over the viewer's Info while it is open (a face taken
+    /// off its person there).
+    var alertShownOverInfo: Bool { showAlert && openIndex != nil && infoOpen }
+
+    var infoAlertBinding: Binding<Bool> {
+        Binding(get: { [weak self] in self?.alertShownOverInfo ?? false },
+                set: { [weak self] in self?.showAlert = $0 })
     }
 
     /// The same for `needsUpdate`.
@@ -648,6 +659,13 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var infoOpen = false
     @Published var infoLoading = false
     @Published var infoData: Msg_FileExifInfo? = nil
+    /// Info's People: the open photo's faces (PhotoFaces.swift).
+    @Published var infoFaces: PhotoFacesState = .hidden
+    /// The face whose × is waiting on the device (its row's id).
+    @Published var faceRemoving: Int?
+    /// Bumped by each ask for the faces: an answer to an earlier one is
+    /// dropped.
+    private var facesAsk = 0
 
     /// `thumbCache`: where the tiles' thumbnails are kept (tests use their own).
     init(deviceID: String, localPhotosFolder: URL?, thumbCache: ThumbDiskCache = .shared) {
@@ -1646,13 +1664,21 @@ final class PhotoGalleryVM: ObservableObject {
             say(failed)
             return
         }
-        let paths = Set(ask.paths)
-        let hashes = Set(ask.hashes)
+        leavePerson(paths: Set(ask.paths), hashes: Set(ask.hashes), from: ask.from)
+        // Over the viewer while it goes on; over Images once it closed.
+        await sheetGone()
+        say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name))
+    }
+
+    /// Photos taken off the person in the filter (`paths`, and every tile
+    /// of `hashes`) leave the grid at once; from the viewer it goes on to
+    /// the next photo or closes, as after a delete.
+    private func leavePerson(paths: Set<String>, hashes: Set<String>, from: PersonPhotos.From) {
         let gone = { (it: Item) in paths.contains(it.path) || (!it.hash.isEmpty && hashes.contains(it.hash)) }
         // The viewer's place among the photos that stay.
-        let openAt = ask.from == .viewer ? openIndex.map { at in items.prefix(at).filter { !gone($0) }.count } : nil
+        let openAt = from == .viewer ? openIndex.map { at in items.prefix(at).filter { !gone($0) }.count } : nil
         items.removeAll(where: gone)
-        switch ask.from {
+        switch from {
         case .selection:
             clearSelection()
         case .viewer:
@@ -1669,9 +1695,89 @@ final class PhotoGalleryVM: ObservableObject {
         // the search's suggestions have them).
         countsChanged()
         Task { await loadPeople() }
-        // Over the viewer while it goes on; over Images once it closed.
-        await sheetGone()
-        say(target.map { .personMoved(ask.count, PeopleOrder.tidy($0.name)) } ?? .personRemoved(ask.count, ask.name))
+    }
+
+    // MARK: A photo's faces, in the viewer's Info (GetPhotoFaces)
+    //
+    // Info lists the open photo's faces under People (PhotoFaces.swift):
+    // a tap opens that person's photos, the × takes the face off its
+    // person as Not this person does. The same on Android.
+
+    /// No faces in Info, and an answer still on its way dropped.
+    private func clearInfoFaces() {
+        facesAsk &+= 1
+        infoFaces = .hidden
+        faceRemoving = nil
+    }
+
+    /// Asks for the open photo's faces. Nothing is asked for a video or a
+    /// photo only on this phone; no answer leaves what shows (nothing, the
+    /// first time); an answer for a photo no longer open is dropped.
+    func loadInfoFaces() async {
+        facesAsk &+= 1
+        let ask = facesAsk
+        guard let i = openIndex, items.indices.contains(i), PhotoFacesState.wanted(items[i]) else {
+            infoFaces = .hidden
+            return
+        }
+        let path = items[i].path
+        if infoFaces.path != path { infoFaces = .hidden }
+        var g = Msg_GetPhotoFaces()
+        g.path = path
+        let resp = try? await peopleRequest(.reqGetPhotoFaces(g), nil)
+        guard ask == facesAsk, openPath == path, let resp else { return }
+        infoFaces = .of(resp, path: path)
+    }
+
+    /// A face in Info tapped: the viewer closes and Images shows that
+    /// person's photos, as a face opened from People - this library's own
+    /// search, or Images' by way of PersonNav from a viewer of a list
+    /// (Files', the map's, a memory's).
+    func showFacePerson(_ person: String) {
+        infoOpen = false
+        closeModal()
+        if fixedList {
+            PersonNav.shared.show(person)
+        } else {
+            showPerson(person)
+        }
+    }
+
+    /// A face's × in Info, once asked: the face leaves its person, as with
+    /// Not this person (RemoveFromPerson with the photo's hash: both faces
+    /// when the person has two in it). Among that person's own photos the
+    /// photo then leaves the grid as it does there - the viewer goes on to
+    /// the next photo or closes, Info closing with it - and that is said
+    /// once Info has gone; elsewhere the face leaves the list at once, the
+    /// list is asked for again, and it is said over Info. A refusal, or no
+    /// answer, is said over Info.
+    func removeFace(_ face: PhotoFaceRow) async {
+        guard faceRemoving == nil, case .faces(_, let path, let hash) = infoFaces else { return }
+        faceRemoving = face.id
+        var r = Msg_RemoveFromPerson()
+        r.personID = face.person
+        r.hashes = [hash]
+        let resp = try? await peopleRequest(.reqRemoveFromPerson(r), nil)
+        faceRemoving = nil
+        guard let resp, case .respAck(let ack) = resp.payload, ack.ok else {
+            say(.personRemoveFailed)
+            return
+        }
+        if face.person == personInFilter, openPath == path {
+            let began = Date()
+            infoOpen = false
+            leavePerson(paths: [path], hashes: [hash], from: .viewer)
+            // Said once Info has had time to leave the screen: an alert
+            // presented while a sheet goes away can be dropped unseen.
+            let left = sheetCloses - Date().timeIntervalSince(began)
+            if left > 0 { try? await Task.sleep(nanoseconds: UInt64(left * 1_000_000_000)) }
+        } else {
+            if openPath == path { infoFaces = infoFaces.without(face.person) }
+            // The people's counts and covers, for Images' search and People.
+            if !fixedList { Task { await loadPeople() } }
+            Task { await loadInfoFaces() }
+        }
+        say(.personRemoved(1, face.name))
     }
 
     // MARK: A person's face (SetPersonCover)
@@ -2434,6 +2540,7 @@ final class PhotoGalleryVM: ObservableObject {
         playerWatch = []
         infoOpen = false
         infoData = nil
+        clearInfoFaces()
         // The open photo first, alone; its neighbours once it is on screen.
         let path = items[index].path
         Task {
@@ -2715,19 +2822,16 @@ final class PhotoGalleryVM: ObservableObject {
         let path = items[idx].path
         Task {
             defer { infoLoading = false }
+            var gi = Msg_GetFileInfo()
+            gi.path = path
             do {
-                let resp = try await ws.request { e in
-                    var req = ReqEnvelope()
-                    var gi = Msg_GetFileInfo()
-                    gi.path = path
-                    req.payload = .reqGetFileInfo(gi)
-                    e = req
-                }
+                let resp = try await photoRequest(.reqGetFileInfo(gi), nil)
                 if case .respFileInfo(let info) = resp.payload {
                     infoData = info
                 }
             } catch { /* leave infoData nil, shows "no metadata" */ }
         }
+        Task { await loadInfoFaces() }
     }
     func closeInfo() { infoOpen = false; infoData = nil }
     func prev() { if let i = openIndex, i > 0 { open(index: i-1) } }
@@ -5051,7 +5155,7 @@ struct ImageModal: View {
             if let url = vm.shareURL { ActivityView(items: [url]) }
         }
         .sheet(isPresented: $vm.infoOpen) {
-            FileInfoView(loading: vm.infoLoading, info: vm.infoData)
+            FileInfoView(vm: vm)
         }
         // Its menu's Not this person and Someone else… (PersonMove.swift).
         .modifier(PersonActionsPresenter(vm: vm, from: .viewer))
@@ -5381,51 +5485,40 @@ private struct LowResBadge: View {
     }
 }
 
-/// Issue #41: camera/EXIF metadata panel, with a native map for GPS.
+/// Issue #41: camera/EXIF metadata panel, with a native map for GPS; the
+/// photo's faces above it, under People (PhotoFaces.swift).
 private struct FileInfoView: View {
-    let loading: Bool
-    let info: Msg_FileExifInfo?
+    @ObservedObject var vm: PhotoGalleryVM
+    /// The face whose × was tapped, while Not this person's question asks.
+    @State private var faceAsk: PhotoFaceRow?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        let faces = vm.infoFaces.rows
         NavigationStack {
             Group {
-                if loading {
+                if vm.infoLoading {
                     ProgressView()
-                } else if let info {
+                } else if vm.infoData == nil && faces.isEmpty {
+                    Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
+                } else {
                     List {
-                        if !info.cameraMake.isEmpty || !info.cameraModel.isEmpty {
-                            row(S.appPhotosViewerInfoCamera, [info.cameraMake, info.cameraModel].filter { !$0.isEmpty }.joined(separator: " "))
+                        if !faces.isEmpty {
+                            PhotoFacesSection(
+                                rows: faces,
+                                removing: vm.faceRemoving,
+                                open: { vm.showFacePerson($0.person) },
+                                remove: { faceAsk = $0 }
+                            )
                         }
-                        if info.hasTakenAt {
-                            row(S.appPhotosViewerInfoTaken, info.takenAt.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: L10n.shared.locale)))
-                        }
-                        if info.width > 0 && info.height > 0 {
-                            row(S.appPhotosViewerInfoDimensions, "\(info.width) × \(info.height)")
-                        }
-                        if !info.exposureTime.isEmpty { row(S.appPhotosViewerInfoExposure, info.exposureTime) }
-                        if !info.fNumber.isEmpty { row(S.appPhotosViewerInfoAperture, info.fNumber) }
-                        if info.iso > 0 { row(S.appPhotosViewerInfoIso, "\(info.iso)") }
-                        if !info.focalLength.isEmpty { row(S.appPhotosViewerInfoFocalLength, info.focalLength) }
-                        if !info.city.isEmpty || !info.country.isEmpty {
-                            row(S.appPhotosViewerInfoLocation, [info.city, info.country].filter { !$0.isEmpty }.joined(separator: ", "))
-                        }
-                        if info.hasGps_p {
-                            Map(initialPosition: .region(MKCoordinateRegion(
-                                center: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude),
-                                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                            ))) {
-                                Marker("", coordinate: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude))
+                        Section {
+                            if let info = vm.infoData {
+                                details(info)
+                            } else {
+                                Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                             }
-                            .frame(height: 200)
-                            .listRowInsets(EdgeInsets())
-                        }
-                        if info.cameraMake.isEmpty && info.cameraModel.isEmpty && !info.hasGps_p && info.exposureTime.isEmpty {
-                            Text(S.appPhotosViewerInfoNoExif).foregroundColor(.secondary)
                         }
                     }
-                } else {
-                    Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                 }
             }
             .navigationTitle(S.appPhotosViewerInfoTitle)
@@ -5435,6 +5528,53 @@ private struct FileInfoView: View {
                     Button(S.commonDone) { dismiss() }
                 }
             }
+        }
+        // A face's ×: Not this person's question, for this one photo.
+        .alert(
+            faceAsk?.removeTitle ?? "",
+            isPresented: Binding(get: { faceAsk != nil }, set: { if !$0 { faceAsk = nil } }),
+            presenting: faceAsk
+        ) { face in
+            Button(S.commonRemove, role: .destructive) { Task { await vm.removeFace(face) } }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: { _ in
+            Text(S.appPhotosPersonRemoveText)
+        }
+        // What came of it, over Info: the viewer's own alert can't show
+        // over this sheet.
+        .alert(vm.notice?.text ?? "", isPresented: vm.infoAlertBinding) { Button(S.commonOk, role: .cancel) {} }
+    }
+
+    @ViewBuilder
+    private func details(_ info: Msg_FileExifInfo) -> some View {
+        if !info.cameraMake.isEmpty || !info.cameraModel.isEmpty {
+            row(S.appPhotosViewerInfoCamera, [info.cameraMake, info.cameraModel].filter { !$0.isEmpty }.joined(separator: " "))
+        }
+        if info.hasTakenAt {
+            row(S.appPhotosViewerInfoTaken, info.takenAt.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: L10n.shared.locale)))
+        }
+        if info.width > 0 && info.height > 0 {
+            row(S.appPhotosViewerInfoDimensions, "\(info.width) × \(info.height)")
+        }
+        if !info.exposureTime.isEmpty { row(S.appPhotosViewerInfoExposure, info.exposureTime) }
+        if !info.fNumber.isEmpty { row(S.appPhotosViewerInfoAperture, info.fNumber) }
+        if info.iso > 0 { row(S.appPhotosViewerInfoIso, "\(info.iso)") }
+        if !info.focalLength.isEmpty { row(S.appPhotosViewerInfoFocalLength, info.focalLength) }
+        if !info.city.isEmpty || !info.country.isEmpty {
+            row(S.appPhotosViewerInfoLocation, [info.city, info.country].filter { !$0.isEmpty }.joined(separator: ", "))
+        }
+        if info.hasGps_p {
+            Map(initialPosition: .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude),
+                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            ))) {
+                Marker("", coordinate: CLLocationCoordinate2D(latitude: info.latitude, longitude: info.longitude))
+            }
+            .frame(height: 200)
+            .listRowInsets(EdgeInsets())
+        }
+        if info.cameraMake.isEmpty && info.cameraModel.isEmpty && !info.hasGps_p && info.exposureTime.isEmpty {
+            Text(S.appPhotosViewerInfoNoExif).foregroundColor(.secondary)
         }
     }
 

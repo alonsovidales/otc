@@ -524,6 +524,7 @@ struct MemoriesStrip: View {
     /// Images' named people, for "Don't show <name>".
     let people: [Msg_Person]
     @State private var open: OpenMemory?
+    @ObservedObject private var personNav = PersonNav.shared
 
     var body: some View {
         if let period = model.shownPeriod {
@@ -558,6 +559,9 @@ struct MemoriesStrip: View {
             .fullScreenCover(item: $open) { o in
                 MemoryStories(model: model, memory: o.memory, period: o.period, people: people)
             }
+            // A face tapped in the Info of a photo of it: the memory closes
+            // for Images to show that person (PersonNav).
+            .onChange(of: personNav.sent) { _, _ in open = nil }
         }
     }
 }
