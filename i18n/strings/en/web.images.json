@@ -1462,6 +1462,10 @@
     "note": "Label in the photo viewer's details panel, before the exposure time (1/120 s).",
     "max": 20
   },
+  "web.images.viewer.face_photos": {
+    "text": "Show this person's photos",
+    "note": "Tooltip and screen-reader description of a face in the People block of the photo viewer's Info panel (web.images.viewer.more_info), a button showing the face and the person's name (or Unnamed): pressing it closes the viewer and shows Images with that person's photos, as a face on the People page does."
+  },
   "web.images.viewer.favourite_add": {
     "text": "Add to Favourites",
     "note": "Screen-reader name and tooltip of the empty heart in the full-screen photo viewer: puts the photo in Favourites, the collection every device has, listed first in Collections."

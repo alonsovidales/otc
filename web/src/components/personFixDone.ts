@@ -8,11 +8,12 @@ import type { Person } from "../proto/messages";
 
 /** What was done: the photos (content hashes) that left `from`, for no
  *  one (removed) or for `to` (moved). A person not in the list (yet) is
- *  undefined, and worded as an unnamed one. */
+ *  undefined, and worded as an unnamed one - unless the caller knows their
+ *  name (a face in the viewer's Info). */
 export type PersonFixDone = {
   hashes: ReadonlySet<string>;
-  from?: Person;
-  to?: Person;
+  from?: Pick<Person, "id" | "name">;
+  to?: Pick<Person, "id" | "name">;
   moved: boolean;
 };
 
@@ -21,7 +22,7 @@ export const uniqueHashes = (items: readonly { hash?: string }[]): string[] =>
   [...new Set(items.map((f) => f.hash ?? "").filter((h) => h !== ""))];
 
 /** A person's name, "" for one without (or not in the list). */
-export const named = (p?: Person) => (p?.name.trim() ? p.name.trim() : "");
+export const named = (p?: Pick<Person, "name">) => (p?.name.trim() ? p.name.trim() : "");
 
 /** The note at the foot of Images once it is done. */
 export function personFixText(t: TFunction, done: PersonFixDone): string {

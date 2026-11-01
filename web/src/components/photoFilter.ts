@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import type { PlaceArea } from "../proto/messages";
+import { onlyPerson } from "./photoFaces";
+import { showSection } from "./showSection";
 
 // What the Images grid shows: the whole library, or the photos with every
 // tag and every person here (AND, see dao.SearchMedia), inside one
@@ -10,12 +12,13 @@ import type { PlaceArea } from "../proto/messages";
 // was opened from Places (PlacesView.tsx; SearchPhotos.area, sent only to a
 // device that has Places). The top bar's search edits it; the People,
 // Collections and Places pages open Images on a person, a collection or an
-// area through it. Tags are kept across a reload (issue #53); people, the
-// open collection and the area are not, as before. A collection is an
-// image group in the protocol (ImageGroup, groupId), so the code here says
-// group. With Smart search on (smartSearch.ts), `text` is a description to
-// find photos by (SearchPhotos.text), ranked best first within the rest;
-// kept only for the page's session, and gone when Smart search is off.
+// area through it, and so does a face in the viewer's Info. Tags are kept
+// across a reload (issue #53); people, the open collection and the area
+// are not, as before. A collection is an image group in the protocol
+// (ImageGroup, groupId), so the code here says group. With Smart search on
+// (smartSearch.ts), `text` is a description to find photos by
+// (SearchPhotos.text), ranked best first within the rest; kept only for the
+// page's session, and gone when Smart search is off.
 
 /** An open collection; `favourites`: the one every device has
  *  (ImageGroup.favourites), which can't be renamed or deleted. */
@@ -104,6 +107,18 @@ export function clearPeople() {
 /** One person's photos, from the People page: a new search. */
 export function showPerson(id: string) {
   set({ tags: [], personIds: [id], group: null, area: null, text: "" });
+}
+
+/** One person's photos, from a face in the viewer's Info (MediaViewer.tsx,
+ *  from Images, Files, Places or On this day): Images through the menu's
+ *  own item, which leaves any search (showSection), then that person - as
+ *  a face on the People page opens them. Images already on exactly their
+ *  photos keeps its grid as it was. */
+export function showPersonPhotos(id: string) {
+  const was = state;
+  showSection("PhotoGallery");
+  if (onlyPerson(was, id)) set(was);
+  else showPerson(id);
 }
 
 /** A collection's photos, from the Collections page: a new search. */

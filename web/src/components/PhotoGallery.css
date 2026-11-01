@@ -1169,6 +1169,40 @@
 .pg-info-map { width: 100%; height: 180px; border: 0; border-radius: 8px; margin-top: 4px; }
 /* Before the map is asked for: the button in its place. */
 .pg-info-showmap { margin-top: 4px; align-self: flex-start; }
+/* The photo's faces (MediaViewer.tsx, photoFaces.ts), after the details: a
+   row each - the crop round as People shows faces (a blank circle without
+   one) and the name, one button that opens their photos, then an × for Not
+   this person. Rows are 44px tall, the × a 40px circle, for a finger. */
+.pg-info-faces { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+.pg-info-faces-title { margin: 0; font-weight: inherit; }
+.pg-info-face-list { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; }
+.pg-info-face { display: flex; align-items: center; gap: 2px; }
+.pg-info-face-open, .pg-info-face-remove {
+  margin: 0; border: 0; background: none; color: var(--mist); font: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .12s ease;
+}
+.pg-info-face-open {
+  flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px; border-radius: 8px; text-align: left; font-size: 13px;
+}
+.pg-info-face-img { flex: none; width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--ink-3); }
+.pg-info-face-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.pg-info-face-name.unnamed { font-weight: 500; color: var(--mist-dim); }
+.pg-info-face-remove {
+  flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: inline-grid; place-items: center; color: var(--mist-dim); font-size: 20px; line-height: 1;
+}
+.pg-info-face-open:hover, .pg-info-face-remove:hover { filter: none; }
+@media (hover: hover) {
+  .pg-info-face-open:hover, .pg-info-face-remove:hover { background: rgba(234, 242, 239, .08); }
+  .pg-info-face-remove:hover { color: var(--mist); }
+}
+.pg-info-face-open:active, .pg-info-face-remove:active { background: rgba(234, 242, 239, .14); }
+.pg-info-face-open:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .pg-info-face-open, .pg-info-face-remove { transition: none; }
+}
 /* Issue #130: the arrows live inside the box now (they used to hang 46px
    outside it, off-screen on a phone); swiping still pages too. They come
    after the picture in the page (MediaViewer.tsx), so they are drawn over

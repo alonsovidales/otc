@@ -8,7 +8,9 @@
 // to no one, and face recognition never files them under anyone again;
 // Someone else… lists the other people found and moves the faces to the
 // one picked. Images then drops the photos from the person's grid, as after
-// a delete, and says what was done (personFixDone.ts). Use this face, beside
+// a delete, and says what was done (personFixDone.ts). A face's × in the
+// viewer's Info asks the same about that one photo, for any photo (Info's
+// faces, photoFaces.ts). Use this face, beside
 // them for one photo, makes that photo's face of theirs the one People shows
 // (libraryStore.ts' choosePersonCover, its rules in personCover.ts; its icon
 // is here; the header's face takes a picture of the owner's own:
@@ -62,16 +64,19 @@ const FaceGlyph = () => (
 );
 
 /** Not this person: the question, and the request once it is answered
- *  Remove. Its errors show in it; onDone closes it. */
-export function RemoveFromPersonDialog({ personId, hashes, onCancel, onDone }: {
+ *  Remove. Its errors show in it; onDone closes it. `name`: the person's
+ *  name when the caller has it (a face in the viewer's Info, "" while
+ *  unnamed), for one People hasn't listed (yet). */
+export function RemoveFromPersonDialog({ personId, hashes, name: knownName, onCancel, onDone }: {
   personId: string;
   hashes: string[];
+  name?: string;
   onCancel: () => void;
   onDone: (done: PersonFixDone) => void;
 }) {
   const t = useT();
   const people = usePeople();
-  const person = people.items.find((p) => p.id === personId);
+  const person = people.items.find((p) => p.id === personId) ?? (knownName !== undefined ? { id: personId, name: knownName } : undefined);
   const name = named(person);
   const count = hashes.length;
   const confirm = async (): Promise<UiText | null> => {

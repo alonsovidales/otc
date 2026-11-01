@@ -2111,7 +2111,18 @@ face's title and hint) and, with `coverChosen`, Choose automatically. Each sends
 (`libraryStore.ts`' `choosePersonCover`, `refuseOnDemo` first), says `cover_done` or the device's words,
 and lists the people again. With them the bar's labels give way to icons below 1440px, 1680px with Remove
 from collection too (Use this face counted even unshown, so a second pick doesn't relayout the bar;
-`barCompact`, `.pg-selbar[data-crowd]`). What Images shows is `photoFilter.ts` (tags, people, open
+`barCompact`, `.pg-selbar[data-crowd]`). **A photo's faces** (release 159's `GetPhotoFaces`) are in every
+`MediaViewer`'s Info, under the details once those are in, so nothing above them moves (`photoFaces.ts`,
+`node web/scripts/photo-faces-test.mjs`): asked while Info is open on a photo - never a video, nor while
+`faceRecognition.ts` says off - and after a face's ×; nothing until the device answers, none while it says
+face recognition is off, and none for the page's life after `unknown_payload`. A row is the crop (a blank
+circle without one) and the name or Unnamed - one button, `face_photos` its tip, that closes the viewer
+and opens that person's photos (photoFilter's `showPersonPhotos`: the menu's Images, then `showPerson`;
+Images already on exactly them keeps its grid) - and an × (`not_this_person`, described by the name):
+`refuseOnDemo`, then `RemoveFromPersonDialog` with the face's name and the answer's hash. Opened on that
+person's photos it is the viewer's own Not this person (`onPersonFixed`: the photo leaves the grid);
+elsewhere the photo stays, its faces are asked again, the viewer's note says `removed`, People is listed
+again, and from the keyboard the focus goes to the next ×. What Images shows is `photoFilter.ts` (tags, people, open
 collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

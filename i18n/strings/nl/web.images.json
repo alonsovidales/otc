@@ -1352,6 +1352,10 @@
     "text": "Sluitertijd",
     "en": "Exposure"
   },
+  "web.images.viewer.face_photos": {
+    "text": "Foto's van deze persoon tonen",
+    "en": "Show this person's photos"
+  },
   "web.images.viewer.favourite_add": {
     "text": "Toevoegen aan Favorieten",
     "en": "Add to Favourites"

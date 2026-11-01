@@ -532,6 +532,7 @@ export type MessageKey =
   | "web.images.viewer.dimensions"
   | "web.images.viewer.download_it"
   | "web.images.viewer.exposure"
+  | "web.images.viewer.face_photos"
   | "web.images.viewer.favourite_add"
   | "web.images.viewer.favourite_failed"
   | "web.images.viewer.favourite_remove"
@@ -1662,6 +1663,7 @@ export interface MessageArgs {
   "web.images.viewer.dimensions": undefined;
   "web.images.viewer.download_it": undefined;
   "web.images.viewer.exposure": undefined;
+  "web.images.viewer.face_photos": undefined;
   "web.images.viewer.favourite_add": undefined;
   "web.images.viewer.favourite_failed": undefined;
   "web.images.viewer.favourite_remove": undefined;

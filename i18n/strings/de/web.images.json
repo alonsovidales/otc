@@ -1352,6 +1352,10 @@
     "text": "Belichtung",
     "en": "Exposure"
   },
+  "web.images.viewer.face_photos": {
+    "text": "Fotos dieser Person anzeigen",
+    "en": "Show this person's photos"
+  },
   "web.images.viewer.favourite_add": {
     "text": "Zu Favoriten hinzufügen",
     "en": "Add to Favourites"

@@ -1352,6 +1352,10 @@
     "text": "Exposition",
     "en": "Exposure"
   },
+  "web.images.viewer.face_photos": {
+    "text": "Voir les photos de cette personne",
+    "en": "Show this person's photos"
+  },
   "web.images.viewer.favourite_add": {
     "text": "Ajouter aux Favoris",
     "en": "Add to Favourites"

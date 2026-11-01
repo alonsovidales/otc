@@ -411,6 +411,7 @@
   "web.images.viewer.dimensions": "Dimensões",
   "web.images.viewer.download_it": "Transferir o vídeo",
   "web.images.viewer.exposure": "Exposição",
+  "web.images.viewer.face_photos": "Ver as fotos desta pessoa",
   "web.images.viewer.favourite_add": "Adicionar aos Favoritos",
   "web.images.viewer.favourite_failed": "Não foi possível alterar os Favoritos. Tenta de novo.",
   "web.images.viewer.favourite_remove": "Remover dos Favoritos",
