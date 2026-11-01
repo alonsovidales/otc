@@ -288,6 +288,7 @@ import cloud.offthe.otc.i18n.appSettingsUsersInactive
 import cloud.offthe.otc.i18n.appSettingsUsersIntro
 import cloud.offthe.otc.i18n.appSettingsUsersLoadUsage
 import cloud.offthe.otc.i18n.appSettingsUsersLocalHint
+import cloud.offthe.otc.i18n.appSettingsUsersNeedMemory
 import cloud.offthe.otc.i18n.appSettingsUsersPassword
 import cloud.offthe.otc.i18n.appSettingsUsersPasswordConfirm
 import cloud.offthe.otc.i18n.appSettingsUsersPasswordHint
@@ -670,10 +671,12 @@ fun SettingsView(secrets: SecretsStore) {
 
             ThumbnailCacheSection()
 
+            // Off and disabled on a device with too little memory for it (the
+            // footer says how much it needs).
             Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
-                    Switch(checked = dst.imageTaggingEnabled, enabled = !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
+                    Switch(checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled, enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
                 }
             }
 
@@ -1358,21 +1361,26 @@ private fun UsersManagementSection() {
     Section(S.appSettingsUsersTitle().resolve()) {
         Caption(S.appSettingsUsersIntro().resolve())
         st.users.forEach { u -> UserRow(vm, st, u) }
-        Row(Modifier.fillMaxWidth().tourTarget(TourTarget.ADD_USER), verticalAlignment = Alignment.CenterVertically) {
-            OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { FitText(S.appSettingsUsersUsername().resolve(), minScale = 0.8f) }, singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(6.dp))
-            OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text(S.appSettingsUsersPort().resolve()) }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
-            RowButton(S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { vm.askPassword() }
+        // A device with too little memory for another user (release 160):
+        // the note in place of Add, rung by the tour as Add would be.
+        if (!st.canAdd) Box(Modifier.fillMaxWidth().tourTarget(TourTarget.ADD_USER)) { Caption(S.appSettingsUsersNeedMemory().resolve()) }
+        else {
+            Row(Modifier.fillMaxWidth().tourTarget(TourTarget.ADD_USER), verticalAlignment = Alignment.CenterVertically) {
+                OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { FitText(S.appSettingsUsersUsername().resolve(), minScale = 0.8f) }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(6.dp))
+                OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text(S.appSettingsUsersPort().resolve()) }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
+                RowButton(S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { vm.askPassword() }
+            }
+            // Issue #103, as the web app: the address the new user gets on the bridge.
+            ToggleRow(S.appSettingsUsersRequestBridge().resolve(), st.requestBridgeAccess, vm::setRequestBridgeAccess, Modifier.tourTarget(TourTarget.BRIDGE_ACCESS))
+            val name = st.newUsername.trim()
+            val bridgeDomain = st.users.firstOrNull { it.bridgeAccess && it.subdomain.isNotEmpty() }?.subdomain?.substringAfter('.', "") ?: ""
+            Caption(((if (name.isNotEmpty() && bridgeDomain.isNotEmpty()) S.appSettingsUsersReachableAt("$name.$bridgeDomain") else S.appSettingsUsersReachableOwn()).resolve()) + " " + S.appSettingsUsersLocalHint().resolve())
         }
-        // Issue #103, as the web app: the address the new user gets on the bridge.
-        ToggleRow(S.appSettingsUsersRequestBridge().resolve(), st.requestBridgeAccess, vm::setRequestBridgeAccess, Modifier.tourTarget(TourTarget.BRIDGE_ACCESS))
-        val name = st.newUsername.trim()
-        val bridgeDomain = st.users.firstOrNull { it.bridgeAccess && it.subdomain.isNotEmpty() }?.subdomain?.substringAfter('.', "") ?: ""
-        Caption(((if (name.isNotEmpty() && bridgeDomain.isNotEmpty()) S.appSettingsUsersReachableAt("$name.$bridgeDomain") else S.appSettingsUsersReachableOwn()).resolve()) + " " + S.appSettingsUsersLocalHint().resolve())
     }
-    st.passwordFor?.let { name -> FirstPasswordDialog(vm, st, name) }
+    if (st.canAdd) st.passwordFor?.let { name -> FirstPasswordDialog(vm, st, name) }
     st.toast?.let { AlertDialog(onDismissRequest = { vm.dismissToast() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissToast() }) { Text(S.commonOk().resolve()) } }) }
 }
 

@@ -31,8 +31,10 @@ import cloud.offthe.otc.proto.ReqSetupTailscale
 import cloud.offthe.otc.proto.RestartDevice
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
+import cloud.offthe.otc.proto.RespUsers
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
 import cloud.offthe.otc.proto.SetPlacesEnabled
+import cloud.offthe.otc.proto.Settings
 import cloud.offthe.otc.proto.SetMemoriesEnabled
 import cloud.offthe.otc.proto.SetSmartSearchEnabled
 import cloud.offthe.otc.proto.HideMemory
@@ -197,6 +199,9 @@ class DeviceSettingsViewModel : ViewModel() {
         val toast: UiText? = null,
         val faceRecognitionEnabled: Boolean = false, val savingFaceRecognition: Boolean = false,
         val imageTaggingEnabled: Boolean = true, val savingImageTagging: Boolean = false,
+        // Release 160: a device with less than 6 GB has no Image Tagging - the
+        // switch shows off and can't be turned on. True on a device before it.
+        val imageTaggingAvailable: Boolean = true,
         // Places, the map in Images: off unless turned on - the device keeps
         // where each photo was taken, unencrypted, only while it is on. null:
         // a device before Places (or not answered yet), with no switch.
@@ -216,6 +221,23 @@ class DeviceSettingsViewModel : ViewModel() {
         val startingReprocess: Boolean = false, val cancellingReprocess: Boolean = false, val reprocessConfirm: ReprocessConfirm? = null,
     ) {
         val reprocessPercent: Int get() = if (reprocessTotal <= 0) 0 else ((reprocessProcessed.toDouble() / reprocessTotal) * 100).toInt().coerceIn(0, 100)
+
+        /**
+         * The device's settings shown: the switches it has (null: one it
+         * doesn't), Image Tagging off where its memory has none
+         * (image_tagging_available false; unset, a device before release 160,
+         * has it).
+         */
+        fun withSettings(s: Settings): State {
+            val taggingAvailable = !s.hasImageTaggingAvailable() || s.imageTaggingAvailable
+            return copy(
+                faceRecognitionEnabled = s.faceRecognitionEnabled,
+                imageTaggingAvailable = taggingAvailable, imageTaggingEnabled = taggingAvailable && s.imageTaggingEnabled,
+                placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
+                memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
+                smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null,
+            )
+        }
     }
     val state = MutableStateFlow(State())
     private var reprocessPoll: Job? = null
@@ -274,14 +296,7 @@ class DeviceSettingsViewModel : ViewModel() {
                 // and the section shows where the model is - set first, so
                 // the section never shows with the model of before.
                 SmartSearchSupport.deviceSaid(s)
-                state.update {
-                    it.copy(
-                        faceRecognitionEnabled = s.faceRecognitionEnabled, imageTaggingEnabled = s.imageTaggingEnabled,
-                        placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
-                        memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
-                        smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null,
-                    )
-                }
+                state.update { it.withSettings(s) }
                 // The one place the rest of the app reads it from (People in the search).
                 FaceRecognition.set(s.faceRecognitionEnabled)
                 // Places likewise (PlacesSupport), on a device that has it.
@@ -430,12 +445,19 @@ class DeviceSettingsViewModel : ViewModel() {
         finally { state.update { it.copy(savingPlaces = false) } }
     }
 
-    /** Issue #181: the tagging model, like face recognition, can be off. */
+    /**
+     * Issue #181: the tagging model, like face recognition, can be off. A
+     * low-memory device refuses turning it on (tagging_unavailable) in its
+     * own words, shown as they come.
+     */
     suspend fun toggleImageTagging(enabled: Boolean) {
         state.update { it.copy(savingImageTagging = true, imageTaggingEnabled = enabled) }
         try {
             val resp = OTCConnection.request { it.setReqSetImageTaggingEnabled(SetImageTaggingEnabled.newBuilder().setEnabled(enabled)) }
-            if (!resp.ackOk()) { state.update { it.copy(imageTaggingEnabled = !enabled) }; toast(resp.ackError(S.appSettingsErrorUpdateFailed())) }
+            if (!resp.ackOk()) {
+                state.update { it.copy(imageTaggingEnabled = !enabled) }
+                toast(if (resp.error) deviceOr(resp.errorMessage, S.appSettingsErrorUpdateFailed()) else resp.ackError(S.appSettingsErrorUpdateFailed()))
+            }
         } catch (e: Exception) { state.update { it.copy(imageTaggingEnabled = !enabled) }; toast(S.appSettingsErrorSetting()) }
         finally { state.update { it.copy(savingImageTagging = false) } }
     }
@@ -721,7 +743,14 @@ class UsersManagementViewModel : ViewModel() {
         val passwordFor: String? = null, val newPassword: String = "", val confirmPassword: String = "", val passwordError: UiText? = null,
         val deleteTargetUuid: String? = null, val deleteConfirmText: String = "", val deleting: Boolean = false,
         val busyActiveUuid: String? = null, val toast: UiText? = null,
+        // Release 160: a device with less than 3 GB takes no other users
+        // (RespUsers.can_add false) - no Add, a note in its place; those it
+        // has keep working. True on a device before it.
+        val canAdd: Boolean = true,
     ) {
+        /** The users the device listed, and whether it takes another (can_add unset: it does). */
+        fun withUsers(r: RespUsers) = copy(users = r.usersList, canAdd = !r.hasCanAdd() || r.canAdd)
+
         // The same 8 the device asks for (session.MinPasswordLen).
         val passwordTooShort get() = newPassword.isNotEmpty() && newPassword.length < 8
         val passwordMismatch get() = confirmPassword.isNotEmpty() && newPassword != confirmPassword
@@ -752,7 +781,7 @@ class UsersManagementViewModel : ViewModel() {
         state.update { it.copy(loading = true) }
         try {
             val resp = OTCConnection.request { it.setReqListUsers(ReqListUsers.getDefaultInstance()) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_USERS) state.update { it.copy(users = resp.respUsers.usersList) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_USERS) state.update { it.withUsers(resp.respUsers) }
         } catch (_: Exception) {}
         finally { state.update { it.copy(loading = false) } }
     }
@@ -779,7 +808,7 @@ class UsersManagementViewModel : ViewModel() {
                 // Unset: a device older than the password, which created the
                 // account without one (its first sign-in sets it).
                 val created = if (resp.respUsers.hasPasswordSet()) S.appSettingsUsersCreated(username) else S.appSettingsUsersCreatedNoPassword(username)
-                state.update { it.copy(users = resp.respUsers.usersList, newUsername = "", newPort = "", passwordFor = null, newPassword = "", confirmPassword = "", toast = created) }
+                state.update { it.withUsers(resp.respUsers).copy(newUsername = "", newPort = "", passwordFor = null, newPassword = "", confirmPassword = "", toast = created) }
             } else state.update { it.copy(passwordError = deviceOr(resp.errorMessage, S.appSettingsUsersCreateFailed())) }
         } catch (e: Exception) { state.update { it.copy(passwordError = e.shownText()) } }
         finally { state.update { it.copy(creating = false) } }
