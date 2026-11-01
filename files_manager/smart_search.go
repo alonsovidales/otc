@@ -257,6 +257,9 @@ type smartState struct {
 	index   smartIndex
 	// wait: turned on before the model was there (smart_model.go).
 	wait smartWait
+	// documents: On this day's document check's prompts
+	// (smart_documents.go).
+	documents documentPrompts
 }
 
 // loadSmart reads the switch from the database once. A database before

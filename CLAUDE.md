@@ -565,7 +565,13 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     of a year without a 29th also shows a leap year's 29th), week = ±3 days (a week around New Year
     belongs to the year of its middle day), month = the calendar month. Left out (`leftOut`): what
     the user hid (photo, day, person), screenshot names, document tags (weak ones like "text" only
-    without a camera or people), PNG/GIF/WebP and very tall pictures without a camera, sharpness
+    without a camera or people) or Smart search's vectors saying the same without tags
+    (`smart_documents.go`, release 158: the best of 15 document/screen prompts' cosine less the best
+    of 16 moment prompts', >= 0.025 always, >= 0 without a camera or people; the prompts' vectors
+    made once per process by the text tower; calibrated on the demo's 114 photos, all <= -0.023,
+    against 41 printed pages, screenshots and pages/receipts/phones laid on tables, the frame-filling
+    ones >= +0.02; on a test device with tagging off, release 157 made memories of 21 such
+    pictures dated on one day, 158 of 1, a small phone in a table scene), PNG/GIF/WebP and very tall pictures without a camera, sharpness
     under 15, > 60% clipped or mean luma outside 20-240, under 400 px. Per year: moments split at 2 h
     or a city change; score = people (named, groups; faces on only) + collection + own posts with
     likes/comments + a trip (city/country other than the library's commonest place tags) + tags +
@@ -1421,7 +1427,9 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   allocator keeps of the load), ~1.4 GB while loading, and a run needs ~650 MB more - which the
   default CPU arena keeps after it (three runs at once: +1.3 GB). Loading reads the IO names from a
   whole temporary session (`firstTensorIO`), cached per process (`cachedTensorIO`) for reloads.
-  Outside low-memory mode the primary loads it in the background (`files_manager/tagger_load.go`);
+  Outside low-memory mode the primary loads it in the background (`files_manager/tagger_load.go`)
+  the first time a photo of any of its users needs tags (`startTagger`, from `waitForTagger`; at
+  start until release 158), so a device whose users all have Image Tagging off never holds it;
   a load that fails no longer ends the process (`log.Fatal`, then a restart every 3 s, the device
   unreachable for the Update that would repair it): one Alert (`dev.alert.tagger.not_loaded`), photos
   and videos get their place tags only (`retryTagger` answers `modelserver.ErrNoTagger`, which
@@ -1565,9 +1573,20 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   covers out again and calls `noteDelete` (the apps drop the photos from the grid and lower `have`).
   `DeletePerson("")` and `MergePeople` never touch no one's faces. The demo refuses it.
   Issue #181 (release 74): image tagging has the same kind of switch, `settings.image_tagging_enabled`
-  (on by default, `SetImageTaggingEnabled`, read per file in the slow lane by
-  `imageTaggingEnabled`); when off only the place tags from a file's own location data are
-  written. Web, iOS and Android show it under Face Recognition.
+  (`SetImageTaggingEnabled`, read per file in the slow lane by `imageTaggingEnabled`); when off
+  only the place tags from a file's own location data are written. Web, iOS and Android show it
+  under Face Recognition. Since release 158 its default follows the memory
+  (`files_manager/tagging_default.go`; owner, 2026-11-01: "perhaps we can disable tagging to run
+  in small devices"): every instance's `Init` sets it off on a low-memory device and on elsewhere
+  (`ApplyImageTaggingDefault`) unless `settings.image_tagging_chosen`, which
+  `SetImageTaggingEnabled` sets; `updates/158.sh` (and install.sh) add the column once, marking a
+  switch already off as chosen (the old default was on), and never again. Measured on 2026-11-01
+  in the release 157 container held to 3.5 GB, 4 CPUs (`--cpuset-cpus`), the demo library plus
+  four 48 MP JPEGs, two 48 MP HEICs and a 30 s 4K HEVC video, faces and Smart search on, the
+  cgroup's `memory.peak` and `memory.stat` sampled every 5 s: tagging off 1.37 GB at most (~0.5 GB
+  of it file cache), 0.86 GB anonymous, processed in ~45 s; tagging on 2.55 GB, 1.77 GB, ~3 min 10 s;
+  held to 1.7 GB with tagging off 1.25 GB, 0.65 GB, everything but the HEICs (over the 42 MP decode
+  limit there). The apps' footer and the web's hint say it starts off under 6 GB.
 - `bg_processor` — background job runner invoked from `files_manager`/`websocket`.
 - `websocket` — the `/ws` connection handler and dispatch switch described above; also owns
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay

@@ -2279,15 +2279,33 @@ func (dao *Dao) SetFaceRecognitionEnabled(enabled bool) (err error) {
 
 // GetImageTaggingEnabled/SetImageTaggingEnabled back issue #181's switch
 // for the tagging model. Like face recognition, it applies to what is
-// processed while it is on.
+// processed while it is on. Since release 158 setting it marks it as the
+// user's choice (image_tagging_chosen); until then the device's default
+// holds (ApplyImageTaggingDefault).
 func (dao *Dao) GetImageTaggingEnabled() (enabled bool, err error) {
 	err = dao.db.QueryRow("select `image_tagging_enabled` from `settings`").Scan(&enabled)
 	return
 }
 
 func (dao *Dao) SetImageTaggingEnabled(enabled bool) (err error) {
-	_, err = dao.db.Exec("update `settings` set `image_tagging_enabled` = ?", enabled)
+	_, err = dao.db.Exec("update `settings` set `image_tagging_enabled` = ?, `image_tagging_chosen` = 1", enabled)
+	if isUnknownColumn(err) {
+		// A database release 158's script hasn't reached: the switch alone.
+		_, err = dao.db.Exec("update `settings` set `image_tagging_enabled` = ?", enabled)
+	}
 	return
+}
+
+// ApplyImageTaggingDefault sets the switch to on unless its user chose
+// (files_manager/tagging_default.go), and says whether that changed it;
+// ErrSchemaBehind before release 158's column.
+func (dao *Dao) ApplyImageTaggingDefault(on bool) (changed bool, err error) {
+	res, err := dao.db.Exec("update `settings` set `image_tagging_enabled` = ? where `image_tagging_chosen` = 0 and `image_tagging_enabled` <> ?", on, on)
+	if err != nil {
+		return false, schemaBehind(err)
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
 }
 
 // CreatePerson inserts a brand new, still-unnamed person (issue #52) -

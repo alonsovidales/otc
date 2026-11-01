@@ -159,7 +159,7 @@
   "web.settings.storage.use": "Usá-lo no espelho",
   "web.settings.tagging.disable": "Desativar etiquetagem de imagens",
   "web.settings.tagging.enable": "Ativar etiquetagem de imagens",
-  "web.settings.tagging.hint": "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento; continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada.",
+  "web.settings.tagging.hint": "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Num dispositivo com menos de 6 GB de memória, começa desativada.",
   "web.settings.tagging.title": "Etiquetagem de imagens",
   "web.settings.tailscale.auth_key": "Chave de autenticação (opcional)",
   "web.settings.tailscale.authorise": "Autoriza este dispositivo no Tailscale e depois clica novamente em «Ativar o Tailscale Funnel».",

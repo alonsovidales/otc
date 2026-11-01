@@ -649,9 +649,9 @@
     "en": "Enable Image Tagging"
   },
   "web.settings.tagging.hint": {
-    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement ; les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
-    "reviewed": "claude-backtranslation 2026-10-11 #42c081a7"
+    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Sur un appareil qui a moins de 6 Go de mémoire, il est désactivé au départ.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
+    "reviewed": "claude-backtranslation 2026-11-01 #b1e6c031"
   },
   "web.settings.tagging.title": {
     "text": "Étiquetage des images",

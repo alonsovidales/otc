@@ -190,7 +190,7 @@
     <string name="app_settings_sync_choice_start">Empezar a sincronizar</string>
     <string name="app_settings_sync_choice_title">Sincroniza tus fotos</string>
     <string name="app_settings_sync_choice_warning">Sincronizar toda una biblioteca puede llevar mucho tiempo y gastar muchos datos. Con “Solo con Wi-Fi” activado, no se envía nada con datos móviles.</string>
-    <string name="app_settings_tagging_footer">Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento; se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado.</string>
+    <string name="app_settings_tagging_footer">Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. En un dispositivo con menos de 6 GB de memoria viene desactivado.</string>
     <string name="app_settings_tagging_title">Etiquetado de imágenes</string>
     <string name="app_settings_tailscale_auth_key">Auth key (opcional)</string>
     <string name="app_settings_tailscale_authorise">Autoriza este dispositivo en la página que se acaba de abrir y vuelve a pulsar Activar.</string>

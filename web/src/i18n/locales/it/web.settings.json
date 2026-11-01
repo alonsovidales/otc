@@ -159,7 +159,7 @@
   "web.settings.storage.use": "Usalo per il mirror",
   "web.settings.tagging.disable": "Disattiva l’etichettatura delle immagini",
   "web.settings.tagging.enable": "Attiva l’etichettatura delle immagini",
-  "web.settings.tagging.hint": "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione; i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata.",
+  "web.settings.tagging.hint": "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Su un dispositivo con meno di 6 GB di memoria parte disattivata.",
   "web.settings.tagging.title": "Etichettatura delle immagini",
   "web.settings.tailscale.auth_key": "Auth key (facoltativa)",
   "web.settings.tailscale.authorise": "Autorizza questo dispositivo in Tailscale, poi premi di nuovo Attiva.",

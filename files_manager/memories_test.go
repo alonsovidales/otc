@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"testing"
 	"time"
@@ -219,6 +220,91 @@ func TestMemoryFilters(t *testing.T) {
 		if why := leftOut(p, o); why != "" {
 			t.Errorf("%s: left out as %s", name, why)
 		}
+	}
+}
+
+// Without tags (Image Tagging off), Smart search's vectors leave out
+// pictures of documents and screens: clearly one always, a likely one only
+// when nothing says it is a photo of a moment (a camera, people); a photo
+// without a vector is kept.
+func TestLeftOutDocumentByVector(t *testing.T) {
+	at := time.Date(2020, 10, 30, 12, 0, 0, 0, time.UTC)
+	scores := map[string]float32{}
+	o := dayOpts()
+	o.faces = true
+	o.document = func(hash string) (float32, bool) { s, ok := scores[hash]; return s, ok }
+	noCamera := func(p memPhoto) memPhoto { p.quality.Camera = new(bool); return p }
+	withPeople := func(p memPhoto) memPhoto { p.people = []dao.MemoryFace{{PersonID: "ana", Name: "Ana"}}; return p }
+	for _, c := range []struct {
+		name  string
+		p     memPhoto
+		score float32
+		want  string
+	}{
+		{"a receipt from a camera", photo(1, at), 0.07, "document"},
+		{"a page with people, clearly one", withPeople(photo(2, at)), cDocumentStrong, "document"},
+		{"a likely document from a camera", photo(3, at), 0.01, ""},
+		{"a likely document with people", withPeople(noCamera(photo(4, at))), 0.01, ""},
+		{"a likely document, no camera", noCamera(photo(5, at)), 0.01, "document"},
+		{"a photo of a moment", photo(6, at), -0.03, ""},
+		{"a moment, no camera", noCamera(photo(7, at)), -0.03, ""},
+	} {
+		scores[c.p.hash] = c.score
+		if got := leftOut(c.p, o); got != c.want {
+			t.Errorf("%s (%+.3f): %q, want %q", c.name, c.score, got, c.want)
+		}
+	}
+	if got := leftOut(noCamera(photo(8, at)), o); got != "" {
+		t.Errorf("no vector: left out as %s", got)
+	}
+}
+
+// The document check's prompts are made once, by the text tower, and a
+// failure is tried again next time.
+func TestDocumentPromptsAreMadeOnce(t *testing.T) {
+	var d documentPrompts
+	calls, fail := 0, true
+	embed := func(text string) ([]float32, error) {
+		calls++
+		if fail {
+			return nil, errors.New("no model")
+		}
+		return []float32{1, 0}, nil
+	}
+	if _, _, err := d.vectors(embed); err == nil {
+		t.Fatal("a failed prompt: no error")
+	}
+	fail, calls = false, 0
+	for range 2 {
+		doc, moment, err := d.vectors(embed)
+		if err != nil || len(doc) != len(docPrompts) || len(moment) != len(momentPrompts) {
+			t.Fatalf("vectors: %d, %d, %v", len(doc), len(moment), err)
+		}
+	}
+	if calls != len(docPrompts)+len(momentPrompts) {
+		t.Errorf("%d prompts made, want each once (%d)", calls, len(docPrompts)+len(momentPrompts))
+	}
+}
+
+// A photo's document score is its best document prompt's cosine less its
+// best moment prompt's.
+func TestDocumentScoreFromTheIndex(t *testing.T) {
+	x := &smartIndex{pos: map[string]int{}}
+	x.addLocked("receipt", 1.0/100, []int8{100, 0, 0})
+	x.addLocked("beach", 1.0/100, []int8{0, 100, 0})
+	doc := [][]float32{{0.9, 0.1, 0}, {0.2, 0, 0.9}}
+	moment := [][]float32{{0.1, 0.8, 0}, {0, 0.3, 0.2}}
+	if s, ok := x.documentLocked("receipt", doc, moment); !ok || math.Abs(float64(s-(0.9-0.1))) > 1e-6 {
+		t.Errorf("receipt: %v, %v", s, ok)
+	}
+	if s, ok := x.documentLocked("beach", doc, moment); !ok || math.Abs(float64(s-(0.1-0.8))) > 1e-6 {
+		t.Errorf("beach: %v, %v", s, ok)
+	}
+	if _, ok := x.documentLocked("nothing", doc, moment); ok {
+		t.Error("a photo without a vector has a score")
+	}
+	if _, ok := x.documentLocked("receipt", [][]float32{{1, 0}}, moment); ok {
+		t.Error("prompts of another size give a score")
 	}
 }
 

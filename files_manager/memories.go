@@ -301,7 +301,7 @@ func (mg *Manager) chooseMemories(ses *session.Session, today time.Time, period 
 		p.posts = posted[p.hash]
 	}
 	home := mg.homePlaces()
-	opts := memoryOptions{period: period, today: today, faces: faces, home: home, hidden: hiddenSets(hidden), similar: mg.smartSimilarity(ses)}
+	opts := memoryOptions{period: period, today: today, faces: faces, home: home, hidden: hiddenSets(hidden), similar: mg.smartSimilarity(ses), document: mg.smartDocument(ses)}
 	thumbs := map[string]uint64{}
 	dhash := func(hash string) (uint64, bool) {
 		if h, ok := thumbs[hash]; ok {
@@ -418,6 +418,19 @@ type memoryOptions struct {
 	// (smart_search.go), false when either has none; nil while Smart search
 	// is off: bursts are told apart by difference hashes then.
 	similar func(a, b string) (float32, bool)
+	// document is how document-like a photo looks by its vector
+	// (smart_documents.go), false when it has none; nil while Smart search
+	// is off: its tags alone say it then.
+	document func(hash string) (float32, bool)
+}
+
+// documentLike says whether o.document puts p's vector at least at limit.
+func (o memoryOptions) documentLike(p memPhoto, limit float32) bool {
+	if o.document == nil {
+		return false
+	}
+	score, ok := o.document(p.hash)
+	return ok && score >= limit
 }
 
 type hidden struct {
@@ -517,7 +530,8 @@ var memoryTagWeights = map[string]float64{
 
 // Tags that make a photo a picture of a screen or a document: never a
 // memory. documentTagsWeak only when nothing else says it is a photo of a
-// moment - a camera named in its metadata, or people in it.
+// moment - a camera named in its metadata, or people in it. Smart search's
+// vectors say the same without tags (smart_documents.go).
 var (
 	documentTags     = map[string]bool{"screenshot": true, "document": true, "receipt": true, "whiteboard": true, "handwriting": true, "business card": true, "bill": true, "credit card": true, "passport": true, "computer screen": true, "website": true}
 	documentTagsWeak = map[string]bool{"text": true, "paper": true, "menu": true, "screen": true, "note": true, "label": true, "logo": true, "ticket": true, "map": true}
@@ -676,11 +690,11 @@ func leftOut(p memPhoto, o memoryOptions) string {
 			return "screenshot"
 		}
 	}
-	if hasTag(p, documentTags) {
+	if hasTag(p, documentTags) || o.documentLike(p, cDocumentStrong) {
 		return "document"
 	}
 	moment := p.camera() || (o.faces && len(p.people) > 0)
-	if !moment && hasTag(p, documentTagsWeak) {
+	if !moment && (hasTag(p, documentTagsWeak) || o.documentLike(p, cDocumentWeak)) {
 		return "document"
 	}
 	if !p.camera() && (p.mime == "image/png" || p.mime == "image/gif" || p.mime == "image/webp") {

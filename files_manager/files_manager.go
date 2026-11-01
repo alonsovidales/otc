@@ -93,8 +93,12 @@ type Manager struct {
 	// seconds of a boot dereferences a nil.
 	// Issue #167: the local RAM++ model on the primary instance, the
 	// primary's shared one (modelserver.Client) on a supervised child.
-	tagger        modelserver.Tagger
-	taggerReady   chan struct{}
+	tagger      modelserver.Tagger
+	taggerReady chan struct{}
+	// startTagger starts loading the primary's RAM++ the first time
+	// something asks for it (waitForTagger), outside low-memory mode; nil
+	// elsewhere. A device none of whose users tag never loads it.
+	startTagger   func()
 	searchTokens  *searchTokenCache
 	sharedLinkTTL time.Duration
 	// galleryCache holds shared galleries' decrypted manifests (see
@@ -208,6 +212,9 @@ const cServedAtOnce = 2
 // here is invisible - unlike making the whole device unreachable while it
 // loads (see Init).
 func (mg *Manager) waitForTagger() modelserver.Tagger {
+	if mg.startTagger != nil {
+		mg.startTagger()
+	}
 	<-mg.taggerReady
 	// A low-memory device loads the model at first use (lowmem.go): here,
 	// before the caller's deadline starts, as it does for one loading at
@@ -253,6 +260,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// Content set aside under another binary, or long ago, is tried again
 	// (setaside.go).
 	mg.retrySetAside()
+	// Image Tagging follows the memory until its user chooses
+	// (tagging_default.go) - before Settings reads it (websocket.Init).
+	mg.applyTaggingDefault(memProfile)
 
 	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
 	// takes well over ten seconds on a Pi. It used to happen right here,
@@ -267,6 +277,12 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// tagging, both on the upload path) wait for it via waitForTagger.
 	// A failure is no longer fatal (tagger_load.go): the device serves
 	// without tags, says so once, and tries again.
+	//
+	// And only once something asks for it (release 158): a device whose
+	// users all have Image Tagging off - the default on one with less than
+	// 6 GB, where it took most of the memory - never holds its ~1-2 GB. The
+	// first photo to tag after a start waits for the load, as one arriving
+	// during a load at start always did.
 	//
 	// thresholds-path is optional (issue #33): a per-tag calibration file
 	// alongside the model, more accurate than one flat cutoff for every
@@ -307,7 +323,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	}
 	tagger := &retryTagger{}
 	mg.tagger = tagger
-	go mg.loadTaggerRetrying(tagger, loadRAMTagger, mg.taggerReady, time.Sleep)
+	mg.startTagger = sync.OnceFunc(func() {
+		go mg.loadTaggerRetrying(tagger, loadRAMTagger, mg.taggerReady, time.Sleep)
+	})
 
 	// Issue #52: unlike the tagger above, a missing/misconfigured [faces]
 	// section is not fatal - the feature is opt-in (off by default, see

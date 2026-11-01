@@ -649,9 +649,9 @@
     "en": "Enable Image Tagging"
   },
   "web.settings.tagging.hint": {
-    "text": "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione; i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
-    "reviewed": "claude-backtranslation 2026-10-11 #e797f8b8"
+    "text": "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Su un dispositivo con meno di 6 GB di memoria parte disattivata.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
+    "reviewed": "claude-backtranslation 2026-11-01 #d53103f7"
   },
   "web.settings.tagging.title": {
     "text": "Etichettatura delle immagini",

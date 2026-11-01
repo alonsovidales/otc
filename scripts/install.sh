@@ -1301,6 +1301,15 @@ SQL
     ALTER TABLE faces ADD COLUMN IF NOT EXISTS quality FLOAT NULL;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_quality_done TINYINT(1) NOT NULL DEFAULT 0;
 SQL
+    # Release 158 (updates/158.sh): whether the user chose Image Tagging -
+    # until then the device sets it by its memory. Added once, marking a
+    # switch already off (the old default was on) as their choice.
+    if [ -z "$(mysql "$db" -N -B -e "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'image_tagging_chosen'")" ]; then
+        mysql "$db" <<'SQL'
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_chosen TINYINT(1) NOT NULL DEFAULT 0;
+    UPDATE settings SET image_tagging_chosen = 1 WHERE image_tagging_enabled = 0;
+SQL
+    fi
 }
 
 apply_schema_migrations otc

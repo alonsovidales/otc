@@ -706,9 +706,9 @@
     "en": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data."
   },
   "app.settings.tagging.footer": {
-    "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd; plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
-    "reviewed": "claude-backtranslation 2026-10-11 #bf554995"
+    "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Op een apparaat met minder dan 6 GB geheugen staat het in het begin uit.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.",
+    "reviewed": "claude-backtranslation 2026-11-01 #552247ef"
   },
   "app.settings.tagging.title": {
     "text": "Beeldherkenning",

@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -586,6 +587,26 @@ func TestWaitForTaggerBlocksUntilTheModelIsReady(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("waitForTagger never returned after the model became ready")
+	}
+}
+
+// Release 158: outside low-memory mode the model starts loading the first
+// time a photo needs tags, once - not at start, so a device whose users
+// all have Image Tagging off never holds it.
+func TestWaitForTaggerStartsTheLoadOnce(t *testing.T) {
+	mg := &Manager{taggerReady: make(chan struct{})}
+	starts := 0
+	mg.startTagger = sync.OnceFunc(func() {
+		starts++
+		close(mg.taggerReady)
+	})
+	if starts != 0 {
+		t.Fatal("loaded before anything asked")
+	}
+	mg.waitForTagger()
+	mg.waitForTagger()
+	if starts != 1 {
+		t.Errorf("the load started %d times, want once", starts)
 	}
 }
 

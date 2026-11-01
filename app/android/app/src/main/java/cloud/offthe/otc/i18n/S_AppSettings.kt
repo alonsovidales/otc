@@ -630,7 +630,7 @@ fun S.appSettingsSyncChoiceTitle(): UiText =
 fun S.appSettingsSyncChoiceWarning(): UiText =
     UiText.Res(R.string.app_settings_sync_choice_warning)
 
-/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.": Under the Image Tagging switch in Settings: what it does. */
+/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. On a device with less than 6 GB of memory it starts off.": Under the Image Tagging switch in Settings: what it does. */
 fun S.appSettingsTaggingFooter(): UiText =
     UiText.Res(R.string.app_settings_tagging_footer)
 

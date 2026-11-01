@@ -16,8 +16,9 @@ import (
 	"github.com/alonsovidales/otc/modelserver"
 )
 
-// Outside low-memory mode the primary loads RAM++ in the background at
-// start (Init). A model that failed to load - a damaged or missing file,
+// Outside low-memory mode the primary loads RAM++ in the background, the
+// first time a photo of any of its users needs tags (Init, waitForTagger;
+// at start until release 158). A model that failed to load - a damaged or missing file,
 // ONNX Runtime refusing it - used to end the process (log.Fatal), and
 // systemd started it again three seconds later, for good: the apps could
 // no longer reach the device, nor update it from Settings to repair it.

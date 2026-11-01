@@ -190,7 +190,7 @@
     <string name="app_settings_sync_choice_start">Começar a sincronizar</string>
     <string name="app_settings_sync_choice_title">Sincroniza as tuas fotos</string>
     <string name="app_settings_sync_choice_warning">Sincronizar uma biblioteca inteira pode demorar muito tempo e gastar muitos dados. Com «Apenas por Wi-Fi» ativado, nada é enviado pelos dados móveis.</string>
-    <string name="app_settings_tagging_footer">Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento; continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada.</string>
+    <string name="app_settings_tagging_footer">Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Num dispositivo com menos de 6 GB de memória, começa desativada.</string>
     <string name="app_settings_tagging_title">Etiquetagem de imagens</string>
     <string name="app_settings_tailscale_auth_key">Chave de autenticação (opcional)</string>
     <string name="app_settings_tailscale_authorise">Autoriza este dispositivo na página que acabou de abrir e depois toca novamente em «Ativar o Tailscale Funnel».</string>

@@ -367,6 +367,10 @@ create table settings
   -- affects what is processed while it is on. Place tags from the
   -- photo's own location data are added either way.
   `image_tagging_enabled` tinyint(1) not null default 1,
+  -- Release 158: whether the user chose image_tagging_enabled. Until
+  -- they do, the device sets it at every start: off with less than 6 GB
+  -- of memory, on otherwise (files_manager/tagging_default.go).
+  `image_tagging_chosen` tinyint(1) not null default 0,
   -- Issue #187: the one-off correction of sizes stored wrapped to an int
   -- before release 93 has run (files_manager/size_backfill.go).
   `sizes_backfilled` tinyint(1) not null default 0,
