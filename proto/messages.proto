@@ -1279,6 +1279,16 @@ message RestartingDevice {
   int32 expected_seconds = 1;
 }
 
+// Settings > Shut down device (issue #202, release 164): the owner of the
+// primary instance powers the whole machine off cleanly (systemctl
+// poweroff, run as root by the device runner, as RestartDevice is), so it
+// can be unplugged without risking the SD card. Supervised per-user
+// instances, containers and demo devices are refused. Answers with the
+// generic Ack before it begins; the device then stays off until it is
+// unplugged and plugged in again. A device before it answers error_code
+// "unknown_payload".
+message ShutDownDevice {}
+
 // Settings › Storage: erase a disk Status.mirror_candidates lists and add
 // it to the mirror as its second disk; the mirror then copies every file
 // onto it. The owner of the primary instance only: a user's instance gets
@@ -1590,11 +1600,19 @@ message Settings {
   // model or answered "smart_search_unavailable".
   optional SmartSearchModel smart_search_model = 11;
   // Whether this device can have Image Tagging on (release 160; owner,
-  // 2026-11-01): false on one with less than 6 GB of memory, where
-  // image_tagging_enabled is always false and SetImageTaggingEnabled on is
-  // refused (error_code "tagging_unavailable"). The apps show the switch
-  // off and disabled. Unset on older devices: available.
+  // 2026-11-01): false where image_tagging_enabled is always false and
+  // SetImageTaggingEnabled on is refused (error_code "tagging_unavailable").
+  // The apps show the switch off and disabled. Unset on older devices:
+  // available. Since release 164 (issue #209, owner 2026-11-03: opt-in on
+  // 4 GB) only a device under 3 GB says false; one with less than 6 GB may
+  // turn it on, off by default.
   optional bool image_tagging_available = 12;
+  // Release 164 (issue #209): this device has less memory than Image
+  // Tagging is comfortable with (under 6 GB): the switch is off until the
+  // user turns it on, and the apps say under it that it takes about 1-2 GB
+  // more memory and makes photos slower to process. Unset elsewhere and on
+  // older devices.
+  optional bool image_tagging_heavy = 13;
 }
 
 // Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -3086,6 +3104,8 @@ message ReqEnvelope {
     SetImageGroupRating req_set_image_group_rating = 157;
     SetPhotoRating req_set_photo_rating = 158;
     RateSharedGalleryItem req_rate_shared_gallery_item = 159;
+    // Settings > Shut down device (issue #202): the generic Ack.
+    ShutDownDevice req_shut_down_device = 160;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

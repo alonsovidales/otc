@@ -3034,6 +3034,24 @@ public nonisolated struct Msg_RestartingDevice: Sendable {
   public init() {}
 }
 
+/// Settings > Shut down device (issue #202, release 164): the owner of the
+/// primary instance powers the whole machine off cleanly (systemctl
+/// poweroff, run as root by the device runner, as RestartDevice is), so it
+/// can be unplugged without risking the SD card. Supervised per-user
+/// instances, containers and demo devices are refused. Answers with the
+/// generic Ack before it begins; the device then stays off until it is
+/// unplugged and plugged in again. A device before it answers error_code
+/// "unknown_payload".
+public nonisolated struct Msg_ShutDownDevice: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// Settings › Storage: erase a disk Status.mirror_candidates lists and add
 /// it to the mirror as its second disk; the mirror then copies every file
 /// onto it. The owner of the primary instance only: a user's instance gets
@@ -3693,10 +3711,12 @@ public nonisolated struct Msg_Settings: Sendable {
   public mutating func clearSmartSearchModel() {self._smartSearchModel = nil}
 
   /// Whether this device can have Image Tagging on (release 160; owner,
-  /// 2026-11-01): false on one with less than 6 GB of memory, where
-  /// image_tagging_enabled is always false and SetImageTaggingEnabled on is
-  /// refused (error_code "tagging_unavailable"). The apps show the switch
-  /// off and disabled. Unset on older devices: available.
+  /// 2026-11-01): false where image_tagging_enabled is always false and
+  /// SetImageTaggingEnabled on is refused (error_code "tagging_unavailable").
+  /// The apps show the switch off and disabled. Unset on older devices:
+  /// available. Since release 164 (issue #209, owner 2026-11-03: opt-in on
+  /// 4 GB) only a device under 3 GB says false; one with less than 6 GB may
+  /// turn it on, off by default.
   public var imageTaggingAvailable: Bool {
     get {_imageTaggingAvailable ?? false}
     set {_imageTaggingAvailable = newValue}
@@ -3705,6 +3725,20 @@ public nonisolated struct Msg_Settings: Sendable {
   public var hasImageTaggingAvailable: Bool {self._imageTaggingAvailable != nil}
   /// Clears the value of `imageTaggingAvailable`. Subsequent reads from it will return its default value.
   public mutating func clearImageTaggingAvailable() {self._imageTaggingAvailable = nil}
+
+  /// Release 164 (issue #209): this device has less memory than Image
+  /// Tagging is comfortable with (under 6 GB): the switch is off until the
+  /// user turns it on, and the apps say under it that it takes about 1-2 GB
+  /// more memory and makes photos slower to process. Unset elsewhere and on
+  /// older devices.
+  public var imageTaggingHeavy: Bool {
+    get {_imageTaggingHeavy ?? false}
+    set {_imageTaggingHeavy = newValue}
+  }
+  /// Returns true if `imageTaggingHeavy` has been explicitly set.
+  public var hasImageTaggingHeavy: Bool {self._imageTaggingHeavy != nil}
+  /// Clears the value of `imageTaggingHeavy`. Subsequent reads from it will return its default value.
+  public mutating func clearImageTaggingHeavy() {self._imageTaggingHeavy = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3716,6 +3750,7 @@ public nonisolated struct Msg_Settings: Sendable {
   fileprivate var _smartSearchEnabled: Bool? = nil
   fileprivate var _smartSearchModel: Msg_SmartSearchModel? = nil
   fileprivate var _imageTaggingAvailable: Bool? = nil
+  fileprivate var _imageTaggingHeavy: Bool? = nil
 }
 
 /// Where Smart search's model is (Settings.smart_search_model). Neither ready
@@ -7528,6 +7563,15 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqRateSharedGalleryItem(newValue)}
   }
 
+  /// Settings > Shut down device (issue #202): the generic Ack.
+  public var reqShutDownDevice: Msg_ShutDownDevice {
+    get {
+      if case .reqShutDownDevice(let v)? = payload {return v}
+      return Msg_ShutDownDevice()
+    }
+    set {payload = .reqShutDownDevice(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -7799,6 +7843,8 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqSetImageGroupRating(Msg_SetImageGroupRating)
     case reqSetPhotoRating(Msg_SetPhotoRating)
     case reqRateSharedGalleryItem(Msg_RateSharedGalleryItem)
+    /// Settings > Shut down device (issue #202): the generic Ack.
+    case reqShutDownDevice(Msg_ShutDownDevice)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -12552,6 +12598,25 @@ nonisolated extension Msg_RestartingDevice: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
+nonisolated extension Msg_ShutDownDevice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ShutDownDevice"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_ShutDownDevice, rhs: Msg_ShutDownDevice) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Msg_UseMirrorDisk: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UseMirrorDisk"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}disk\0")
@@ -13596,7 +13661,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}image_tagging_available\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0\u{3}places_enabled\0\u{3}memories_enabled\0\u{3}smart_search_enabled\0\u{3}smart_search_model\0\u{3}image_tagging_available\0\u{3}image_tagging_heavy\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -13616,6 +13681,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 10: try { try decoder.decodeSingularBoolField(value: &self._smartSearchEnabled) }()
       case 11: try { try decoder.decodeSingularMessageField(value: &self._smartSearchModel) }()
       case 12: try { try decoder.decodeSingularBoolField(value: &self._imageTaggingAvailable) }()
+      case 13: try { try decoder.decodeSingularBoolField(value: &self._imageTaggingHeavy) }()
       default: break
       }
     }
@@ -13662,6 +13728,9 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._imageTaggingAvailable {
       try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
     } }()
+    try { if let v = self._imageTaggingHeavy {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -13678,6 +13747,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs._smartSearchEnabled != rhs._smartSearchEnabled {return false}
     if lhs._smartSearchModel != rhs._smartSearchModel {return false}
     if lhs._imageTaggingAvailable != rhs._imageTaggingAvailable {return false}
+    if lhs._imageTaggingHeavy != rhs._imageTaggingHeavy {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -18290,7 +18360,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0\u{3}req_use_mirror_disk\0\u{3}req_remove_from_person\0\u{3}req_get_photo_places\0\u{3}req_set_places_enabled\0\u{3}req_get_memories\0\u{3}req_hide_memory\0\u{3}req_set_memories_enabled\0\u{3}req_set_smart_search_enabled\0\u{3}req_get_favourites\0\u{3}req_set_favourite\0\u{3}req_set_person_cover\0\u{3}req_get_photo_faces\0\u{3}req_set_image_group_rating\0\u{3}req_set_photo_rating\0\u{3}req_rate_shared_gallery_item\0\u{3}req_shut_down_device\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -20211,6 +20281,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqRateSharedGalleryItem(v)
         }
       }()
+      case 160: try {
+        var v: Msg_ShutDownDevice?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqShutDownDevice(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqShutDownDevice(v)
+        }
+      }()
       default: break
       }
     }
@@ -20815,6 +20898,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .reqRateSharedGalleryItem?: try {
       guard case .reqRateSharedGalleryItem(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 159)
+    }()
+    case .reqShutDownDevice?: try {
+      guard case .reqShutDownDevice(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 160)
     }()
     case nil: break
     }

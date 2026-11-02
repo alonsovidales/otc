@@ -1739,6 +1739,19 @@ export interface RestartingDevice {
 }
 
 /**
+ * Settings > Shut down device (issue #202, release 164): the owner of the
+ * primary instance powers the whole machine off cleanly (systemctl
+ * poweroff, run as root by the device runner, as RestartDevice is), so it
+ * can be unplugged without risking the SD card. Supervised per-user
+ * instances, containers and demo devices are refused. Answers with the
+ * generic Ack before it begins; the device then stays off until it is
+ * unplugged and plugged in again. A device before it answers error_code
+ * "unknown_payload".
+ */
+export interface ShutDownDevice {
+}
+
+/**
  * Settings › Storage: erase a disk Status.mirror_candidates lists and add
  * it to the mirror as its second disk; the mirror then copies every file
  * onto it. The owner of the primary instance only: a user's instance gets
@@ -2111,12 +2124,24 @@ export interface Settings {
     | undefined;
   /**
    * Whether this device can have Image Tagging on (release 160; owner,
-   * 2026-11-01): false on one with less than 6 GB of memory, where
-   * image_tagging_enabled is always false and SetImageTaggingEnabled on is
-   * refused (error_code "tagging_unavailable"). The apps show the switch
-   * off and disabled. Unset on older devices: available.
+   * 2026-11-01): false where image_tagging_enabled is always false and
+   * SetImageTaggingEnabled on is refused (error_code "tagging_unavailable").
+   * The apps show the switch off and disabled. Unset on older devices:
+   * available. Since release 164 (issue #209, owner 2026-11-03: opt-in on
+   * 4 GB) only a device under 3 GB says false; one with less than 6 GB may
+   * turn it on, off by default.
    */
-  imageTaggingAvailable?: boolean | undefined;
+  imageTaggingAvailable?:
+    | boolean
+    | undefined;
+  /**
+   * Release 164 (issue #209): this device has less memory than Image
+   * Tagging is comfortable with (under 6 GB): the switch is off until the
+   * user turns it on, and the apps say under it that it takes about 1-2 GB
+   * more memory and makes photos slower to process. Unset elsewhere and on
+   * older devices.
+   */
+  imageTaggingHeavy?: boolean | undefined;
 }
 
 /**
@@ -3875,6 +3900,9 @@ export interface ReqEnvelope {
     { $case: "reqSetImageGroupRating"; reqSetImageGroupRating: SetImageGroupRating }
     | { $case: "reqSetPhotoRating"; reqSetPhotoRating: SetPhotoRating }
     | { $case: "reqRateSharedGalleryItem"; reqRateSharedGalleryItem: RateSharedGalleryItem }
+    | //
+    /** Settings > Shut down device (issue #202): the generic Ack. */
+    { $case: "reqShutDownDevice"; reqShutDownDevice: ShutDownDevice }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -10932,6 +10960,40 @@ export const RestartingDevice: MessageFns<RestartingDevice> = {
   },
 };
 
+function createBaseShutDownDevice(): ShutDownDevice {
+  return {};
+}
+
+export const ShutDownDevice: MessageFns<ShutDownDevice> = {
+  encode(_: ShutDownDevice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ShutDownDevice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseShutDownDevice();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<ShutDownDevice>, I>>(base?: I): ShutDownDevice {
+    return ShutDownDevice.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ShutDownDevice>, I>>(_: I): ShutDownDevice {
+    const message = createBaseShutDownDevice();
+    return message;
+  },
+};
+
 function createBaseUseMirrorDisk(): UseMirrorDisk {
   return { disk: "" };
 }
@@ -12731,6 +12793,7 @@ function createBaseSettings(): Settings {
     smartSearchEnabled: undefined,
     smartSearchModel: undefined,
     imageTaggingAvailable: undefined,
+    imageTaggingHeavy: undefined,
   };
 }
 
@@ -12774,6 +12837,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.imageTaggingAvailable !== undefined) {
       writer.uint32(96).bool(message.imageTaggingAvailable);
+    }
+    if (message.imageTaggingHeavy !== undefined) {
+      writer.uint32(104).bool(message.imageTaggingHeavy);
     }
     return writer;
   },
@@ -12881,6 +12947,14 @@ export const Settings: MessageFns<Settings> = {
           message.imageTaggingAvailable = reader.bool();
           continue;
         }
+        case 13: {
+          if (tag !== 104) {
+            break;
+          }
+
+          message.imageTaggingHeavy = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12909,6 +12983,7 @@ export const Settings: MessageFns<Settings> = {
       ? SmartSearchModel.fromPartial(object.smartSearchModel)
       : undefined;
     message.imageTaggingAvailable = object.imageTaggingAvailable ?? undefined;
+    message.imageTaggingHeavy = object.imageTaggingHeavy ?? undefined;
     return message;
   },
 };
@@ -21309,6 +21384,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRateSharedGalleryItem":
         RateSharedGalleryItem.encode(message.payload.reqRateSharedGalleryItem, writer.uint32(1274).fork()).join();
         break;
+      case "reqShutDownDevice":
+        ShutDownDevice.encode(message.payload.reqShutDownDevice, writer.uint32(1282).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -22756,6 +22834,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 160: {
+          if (tag !== 1282) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqShutDownDevice",
+            reqShutDownDevice: ShutDownDevice.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -24091,6 +24180,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqRateSharedGalleryItem",
             reqRateSharedGalleryItem: RateSharedGalleryItem.fromPartial(object.payload.reqRateSharedGalleryItem),
+          };
+        }
+        break;
+      }
+      case "reqShutDownDevice": {
+        if (object.payload?.reqShutDownDevice !== undefined && object.payload?.reqShutDownDevice !== null) {
+          message.payload = {
+            $case: "reqShutDownDevice",
+            reqShutDownDevice: ShutDownDevice.fromPartial(object.payload.reqShutDownDevice),
           };
         }
         break;

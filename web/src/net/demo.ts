@@ -75,7 +75,7 @@ const cChanges = new Set([
   "reqDelSocialComment", "reqFriendshipRequest", "reqChangeFriendStatus", "reqDeleteFriendship",
   "reqShareFilesLink", "reqCreateSharedGallery", "reqDeleteSharedLink", "reqChangeKey", "reqSetSettings",
   "reqSetProfile", "reqSetFaceRecognitionEnabled", "reqSetImageTaggingEnabled", "reqSetSocialStorageLimit",
-  "reqCreateUser", "reqDeleteUser", "reqSetUserActive", "reqApplyUpdate", "reqRestartDevice", "reqSetupTailscale",
+  "reqCreateUser", "reqDeleteUser", "reqSetUserActive", "reqApplyUpdate", "reqRestartDevice", "reqShutDownDevice", "reqSetupTailscale",
   "reqBridgeSignIn", "reqEnableBridge", "reqDisableBridge", "reqSendLogs", "reqSetupStorage", "reqSetWifi",
   "reqJoinWifi", "reqUseMirrorDisk",
 ]);

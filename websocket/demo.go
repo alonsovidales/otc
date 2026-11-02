@@ -221,6 +221,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqSetImageGroupRating{}):       demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetPhotoRating{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRateSharedGalleryItem{}):     demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqShutDownDevice{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqNewSocialPublication{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqDelSocialPublication{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqNewSocialComment{}):          demoRefuse,
