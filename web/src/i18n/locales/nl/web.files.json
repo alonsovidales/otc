@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "De galerij openen…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} van {total}",
   "web.files.gallery.previous": "Vorige",
+  "web.files.gallery.rating_intro": "Beoordeel de foto’s die je mooi vindt en laat een reactie achter als je iets veranderd wilt hebben.",
   "web.files.gallery.select_all": "Alles selecteren",
   "web.files.gallery.stopped": "Het apparaat is gestopt met het verzenden van het bestand.",
   "web.files.gallery.title": "Gedeelde galerij",
@@ -64,6 +65,7 @@
     "other": "{count} keer geopend, laatst op {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Beoordeling aan",
   "web.files.links.title": "Gedeelde links",
   "web.files.links.total": "Samen nemen ze {size} in beslag.",
   "web.files.links.zip": "Gedeelde bestanden (zip)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Alleen kleine kopieën van de foto’s worden gedeeld (ongeveer 1000 pixels breed), opnieuw versleuteld met een eigen sleutel die alleen de link bevat; de originelen verlaten je apparaat nooit.",
   "web.files.share.note": "Ze worden gekopieerd en opnieuw versleuteld met een eigen sleutel, die alleen de link bevat. Iedereen met de link kan ze zien tot die verloopt; de kopie neemt {size} in beslag op het apparaat.",
   "web.files.share.preview_failed": "Kan niet nagaan wat er wordt gedeeld.",
+  "web.files.share.rating": "Laat mensen de foto’s beoordelen",
+  "web.files.share.rating_hint": "Iedereen met de link kan sterren geven en reacties achterlaten. Je ziet ze in deze collectie.",
   "web.files.share.ready": "Je galerij is klaar. Dit is de enige keer dat de link wordt getoond: kopieer hem nu. Het apparaat bewaart geen kopie van de link, dus die kan niet opnieuw worden getoond.",
   "web.files.share.skipped": {
     "one": "{count} ander bestand wordt niet meegenomen",

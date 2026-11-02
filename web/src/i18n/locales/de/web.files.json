@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "Galerie wird geöffnet…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} von {total}",
   "web.files.gallery.previous": "Zurück",
+  "web.files.gallery.rating_intro": "Bewerte die Fotos, die dir gefallen, und hinterlasse einen Kommentar, wenn du eine Änderung möchtest.",
   "web.files.gallery.select_all": "Alle auswählen",
   "web.files.gallery.stopped": "Das Gerät hat aufgehört, die Datei zu senden.",
   "web.files.gallery.title": "Geteilte Galerie",
@@ -64,6 +65,7 @@
     "other": "{count}-mal geöffnet, zuletzt am {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Bewertung an",
   "web.files.links.title": "Geteilte Links",
   "web.files.links.total": "Zusammen belegen sie {size}.",
   "web.files.links.zip": "Geteilte Dateien (ZIP)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Nur kleine Kopien der Fotos werden geteilt (etwa 1000 Pixel breit), neu verschlüsselt mit einem eigenen Schlüssel, den nur der Link enthält; die Originale verlassen dein Gerät nie.",
   "web.files.share.note": "Die Fotos und Videos werden kopiert und mit einem eigenen Schlüssel neu verschlüsselt, den nur der Link enthält. Jeder mit dem Link kann sie sehen, bis er abläuft; die Kopie belegt {size} auf dem Gerät.",
   "web.files.share.preview_failed": "Es konnte nicht geprüft werden, was geteilt wird.",
+  "web.files.share.rating": "Fotos bewerten lassen",
+  "web.files.share.rating_hint": "Alle mit dem Link können Sterne vergeben und Kommentare hinterlassen. Du siehst sie in dieser Sammlung.",
   "web.files.share.ready": "Deine Galerie ist bereit. Der Link wird nur dieses eine Mal angezeigt: Kopiere ihn jetzt – das Gerät speichert keine Kopie davon, daher kann er nicht erneut angezeigt werden.",
   "web.files.share.skipped": {
     "one": "{count} andere Datei ist nicht enthalten",

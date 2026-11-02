@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "A abrir a galeria…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} de {total}",
   "web.files.gallery.previous": "Anterior",
+  "web.files.gallery.rating_intro": "Classifica as fotos de que gostas e deixa um comentário se quiseres alguma alteração.",
   "web.files.gallery.select_all": "Selecionar tudo",
   "web.files.gallery.stopped": "O dispositivo deixou de enviar o ficheiro.",
   "web.files.gallery.title": "Galeria partilhada",
@@ -64,6 +65,7 @@
     "other": "Aberta {count} vezes, a última em {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Classificação ativada",
   "web.files.links.title": "Ligações partilhadas",
   "web.files.links.total": "No total, ocupam {size}.",
   "web.files.links.zip": "Ficheiros partilhados (zip)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Só são partilhadas cópias pequenas das fotos (cerca de 1000 píxeis de largura), encriptadas novamente com uma chave própria que só a ligação tem; os originais nunca saem do teu dispositivo.",
   "web.files.share.note": "As fotos e os vídeos são copiados e encriptados novamente com uma chave própria, que só a ligação tem. Qualquer pessoa com a ligação pode vê-los até ela expirar; a cópia ocupa {size} no dispositivo.",
   "web.files.share.preview_failed": "Não foi possível ver o que vai ser partilhado.",
+  "web.files.share.rating": "Permitir classificar as fotos",
+  "web.files.share.rating_hint": "Qualquer pessoa com a ligação pode dar estrelas e deixar comentários. Vais vê-los nesta coleção.",
   "web.files.share.ready": "A tua galeria está pronta. Esta é a única vez que a ligação é mostrada: copia-a agora. O dispositivo não guarda nenhuma cópia dela, por isso não pode ser mostrada novamente.",
   "web.files.share.skipped": {
     "one": "{count} outro ficheiro não está incluído",

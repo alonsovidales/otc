@@ -1135,6 +1135,130 @@
     "text": "Kan je apparaat niet bereiken. Controleer de verbinding en probeer het opnieuw.",
     "en": "Couldn't reach your device. Check the connection and try again."
   },
+  "web.images.rating.comment": {
+    "text": "Voeg een reactie toe",
+    "en": "Add a comment"
+  },
+  "web.images.rating.failed": {
+    "text": "Beoordeling opslaan is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "web.images.rating.from_link": {
+    "text": "Via de gedeelde link",
+    "en": "From the shared link"
+  },
+  "web.images.rating.needs_update": {
+    "text": "Je apparaat heeft een update nodig om foto’s te beoordelen.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "web.images.rating.no_match": {
+    "text": "Geen foto’s met deze beoordeling",
+    "en": "No photos match this rating"
+  },
+  "web.images.rating.rate": {
+    "text": "Beoordelen",
+    "en": "Rate"
+  },
+  "web.images.rating.rate_stars": {
+    "text": {
+      "one": "Beoordelen: {count} ster",
+      "other": "Beoordelen: {count} sterren"
+    },
+    "en": {
+      "one": "Rate: {count} star",
+      "other": "Rate: {count} stars"
+    }
+  },
+  "web.images.rating.show": {
+    "text": "Tonen",
+    "en": "Show"
+  },
+  "web.images.rating.show_2": {
+    "text": "2 sterren of meer",
+    "en": "2 stars or more"
+  },
+  "web.images.rating.show_3": {
+    "text": "3 sterren of meer",
+    "en": "3 stars or more"
+  },
+  "web.images.rating.show_4": {
+    "text": "4 sterren of meer",
+    "en": "4 stars or more"
+  },
+  "web.images.rating.show_5": {
+    "text": "5 sterren",
+    "en": "5 stars"
+  },
+  "web.images.rating.show_all": {
+    "text": "Alle foto’s",
+    "en": "All photos"
+  },
+  "web.images.rating.show_comment": {
+    "text": "Met reactie",
+    "en": "With a comment"
+  },
+  "web.images.rating.show_everything": {
+    "text": "Alle foto’s tonen",
+    "en": "Show all photos"
+  },
+  "web.images.rating.show_rated": {
+    "text": "Beoordeeld",
+    "en": "Rated"
+  },
+  "web.images.rating.show_unrated": {
+    "text": "Niet beoordeeld",
+    "en": "Not rated"
+  },
+  "web.images.rating.sort_date": {
+    "text": "Datum",
+    "en": "Date"
+  },
+  "web.images.rating.sort_rating": {
+    "text": "Beoordeling",
+    "en": "Rating"
+  },
+  "web.images.rating.stars": {
+    "text": {
+      "one": "{count} ster",
+      "other": "{count} sterren"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "web.images.rating.tile_both": {
+    "text": "{stars}, met reactie",
+    "en": "{stars}, with a comment"
+  },
+  "web.images.rating.tile_comment": {
+    "text": "Heeft een reactie",
+    "en": "Has a comment"
+  },
+  "web.images.rating.title": {
+    "text": "Beoordeling",
+    "en": "Rating"
+  },
+  "web.images.rating.toggle": {
+    "text": "Beoordeling",
+    "en": "Rating"
+  },
+  "web.images.rating.toggle_failed": {
+    "text": "Beoordeling wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "web.images.rating.toggle_off": {
+    "text": "Beoordeling uit",
+    "en": "Rating off"
+  },
+  "web.images.rating.toggle_on": {
+    "text": "Beoordeling aan",
+    "en": "Rating on"
+  },
+  "web.images.rating.turned_on": {
+    "text": "Beoordeling aan: geef foto’s sterren en reacties",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "web.images.select.clear": {
     "text": "Selectie wissen",
     "en": "Clear selection"

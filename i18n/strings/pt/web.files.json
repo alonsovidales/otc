@@ -103,6 +103,10 @@
     "text": "Anterior",
     "en": "Previous"
   },
+  "web.files.gallery.rating_intro": {
+    "text": "Classifica as fotos de que gostas e deixa um comentário se quiseres alguma alteração.",
+    "en": "Rate the photos you like and leave a comment if you'd like a change."
+  },
   "web.files.gallery.select_all": {
     "text": "Selecionar tudo",
     "en": "Select all"
@@ -221,6 +225,10 @@
       "one": "Opened {count} time, last {date}",
       "other": "Opened {count} times, last {date}"
     }
+  },
+  "web.files.links.rating_on": {
+    "text": "Classificação ativada",
+    "en": "Rating on"
   },
   "web.files.links.title": {
     "text": "Ligações partilhadas",
@@ -504,6 +512,14 @@
   "web.files.share.preview_failed": {
     "text": "Não foi possível ver o que vai ser partilhado.",
     "en": "Could not look at what to share."
+  },
+  "web.files.share.rating": {
+    "text": "Permitir classificar as fotos",
+    "en": "Let people rate the photos"
+  },
+  "web.files.share.rating_hint": {
+    "text": "Qualquer pessoa com a ligação pode dar estrelas e deixar comentários. Vais vê-los nesta coleção.",
+    "en": "Anyone with the link can give stars and leave comments. You see them in this collection."
   },
   "web.files.share.ready": {
     "text": "A tua galeria está pronta. Esta é a única vez que a ligação é mostrada: copia-a agora. O dispositivo não guarda nenhuma cópia dela, por isso não pode ser mostrada novamente.",

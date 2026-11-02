@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "Apertura della galleria…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} di {total}",
   "web.files.gallery.previous": "Precedente",
+  "web.files.gallery.rating_intro": "Valuta le foto che ti piacciono e lascia un commento se vuoi una modifica.",
   "web.files.gallery.select_all": "Seleziona tutto",
   "web.files.gallery.stopped": "Il dispositivo ha smesso di inviare il file.",
   "web.files.gallery.title": "Galleria condivisa",
@@ -64,6 +65,7 @@
     "other": "Aperto {count} volte, ultima apertura: {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Valutazione attiva",
   "web.files.links.title": "Link condivisi",
   "web.files.links.total": "In tutto occupano {size}.",
   "web.files.links.zip": "File condivisi (zip)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Vengono condivise solo copie ridotte delle foto (larghe circa 1000 pixel), crittografate di nuovo con una chiave propria che solo il link contiene; gli originali non lasciano mai il tuo dispositivo.",
   "web.files.share.note": "Vengono copiati e crittografati di nuovo con una chiave propria, che solo il link contiene. Chiunque abbia il link può vederli finché non scade; la copia occupa {size} sul dispositivo.",
   "web.files.share.preview_failed": "Impossibile verificare cosa condividere.",
+  "web.files.share.rating": "Consenti di valutare le foto",
+  "web.files.share.rating_hint": "Chiunque abbia il link può dare stelle e lasciare commenti. Li vedi in questa raccolta.",
   "web.files.share.ready": "La tua galleria è pronta. Questa è l’unica volta in cui il link viene mostrato: copialo ora. Il dispositivo non ne conserva una copia, quindi non potrà essere mostrato di nuovo.",
   "web.files.share.skipped": {
     "one": "{count} altro file non è incluso",

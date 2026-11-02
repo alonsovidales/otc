@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "Ouverture de la galerie…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} sur {total}",
   "web.files.gallery.previous": "Précédent",
+  "web.files.gallery.rating_intro": "Notez les photos qui vous plaisent et laissez un commentaire si vous souhaitez une modification.",
   "web.files.gallery.select_all": "Tout sélectionner",
   "web.files.gallery.stopped": "L’appareil a cessé d’envoyer le fichier.",
   "web.files.gallery.title": "Galerie partagée",
@@ -64,6 +65,7 @@
     "other": "Ouvert {count} fois, dernière fois le {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Notation activée",
   "web.files.links.title": "Liens partagés",
   "web.files.links.total": "Au total, ces partages occupent {size}.",
   "web.files.links.zip": "Fichiers partagés (zip)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Seules des copies réduites des photos sont partagées (environ 1 000 pixels de large), chiffrées de nouveau avec une clé propre que seul le lien contient ; les originaux ne quittent jamais votre appareil.",
   "web.files.share.note": "Elles sont copiées et chiffrées de nouveau avec une clé propre, que seul le lien contient. Toute personne disposant du lien peut les voir jusqu’à son expiration ; la copie occupe {size} sur l’appareil.",
   "web.files.share.preview_failed": "Impossible de déterminer ce qui sera partagé.",
+  "web.files.share.rating": "Permettre de noter les photos",
+  "web.files.share.rating_hint": "Toute personne disposant du lien peut attribuer des étoiles et laisser des commentaires. Vous les voyez dans cette collection.",
   "web.files.share.ready": "Votre galerie est prête. C’est la seule fois que le lien est affiché : copiez-le maintenant. L’appareil n’en conserve aucune copie, il ne pourra donc plus être affiché.",
   "web.files.share.skipped": {
     "one": "{count} autre fichier n’est pas inclus",

@@ -1211,6 +1211,152 @@
     "text": "Couldn't reach your device. Check the connection and try again.",
     "note": "Error in the New Social Post dialog when the device didn't answer."
   },
+  "web.images.rating.comment": {
+    "text": "Add a comment",
+    "note": "Placeholder and screen-reader name of the text box under the stars in the photo viewer: a comment about the photo (for example, a change wanted), kept with its stars.",
+    "max": 40
+  },
+  "web.images.rating.failed": {
+    "text": "Couldn't save the rating. Try again.",
+    "note": "Error note when the device didn't keep a photo's stars or comment and gave no words of its own; they go back to what they were.",
+    "max": 60
+  },
+  "web.images.rating.from_link": {
+    "text": "From the shared link",
+    "note": "Small note under the stars in the photo viewer when the photo's stars or comment were last changed by someone using the collection's shared gallery link, not by its owner.",
+    "max": 40
+  },
+  "web.images.rating.needs_update": {
+    "text": "Your device needs an update to rate photos.",
+    "note": "Error note when the device's software is too old for Rating: stars and a comment for each photo of a collection."
+  },
+  "web.images.rating.no_match": {
+    "text": "No photos match this rating",
+    "note": "Title over the empty grid of a collection with Rating on when its Show menu (web.images.rating.show) leaves no photo.",
+    "max": 60
+  },
+  "web.images.rating.rate": {
+    "text": "Rate",
+    "note": "Button in the photo viewer's top bar on a phone (or a small window) that opens the stars and the comment box under the photo; once the photo has stars it shows their number instead.",
+    "max": 12
+  },
+  "web.images.rating.rate_stars": {
+    "text": {
+      "one": "Rate: {count} star",
+      "other": "Rate: {count} stars"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the Rate button (web.images.rating.rate) once the photo has stars: it opens the stars and the comment box.",
+    "max": 30
+  },
+  "web.images.rating.show": {
+    "text": "Show",
+    "note": "Label before the menu in the header of a collection with Rating on that narrows its photos by their rating (web.images.rating.show_all ... show_comment); next to Sort by.",
+    "max": 20
+  },
+  "web.images.rating.show_2": {
+    "text": "2 stars or more",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos rated 2 to 5 stars.",
+    "max": 30
+  },
+  "web.images.rating.show_3": {
+    "text": "3 stars or more",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos rated 3 to 5 stars.",
+    "max": 30
+  },
+  "web.images.rating.show_4": {
+    "text": "4 stars or more",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos rated 4 or 5 stars.",
+    "max": 30
+  },
+  "web.images.rating.show_5": {
+    "text": "5 stars",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos rated 5 stars out of 5.",
+    "max": 30
+  },
+  "web.images.rating.show_all": {
+    "text": "All photos",
+    "note": "Choice of the Show menu (web.images.rating.show) of a collection with Rating on: every photo, whatever its rating. The default.",
+    "max": 30
+  },
+  "web.images.rating.show_comment": {
+    "text": "With a comment",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos someone left a comment on.",
+    "max": 30
+  },
+  "web.images.rating.show_everything": {
+    "text": "Show all photos",
+    "note": "Button under web.images.rating.no_match: sets the Show menu back to All photos.",
+    "max": 30
+  },
+  "web.images.rating.show_rated": {
+    "text": "Rated",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos with stars (1 or more).",
+    "max": 30
+  },
+  "web.images.rating.show_unrated": {
+    "text": "Not rated",
+    "note": "Choice of the Show menu (web.images.rating.show): only the photos without stars.",
+    "max": 30
+  },
+  "web.images.rating.sort_date": {
+    "text": "Date",
+    "note": "Choice of the Sort by menu of a collection with Rating on (and of a shared gallery's page that takes ratings): the photos in date order, newest first. The default.",
+    "max": 30
+  },
+  "web.images.rating.sort_rating": {
+    "text": "Rating",
+    "note": "Choice of the Sort by menu of a collection with Rating on (and of a shared gallery's page that takes ratings): the photos with the most stars first, those without stars last.",
+    "max": 30
+  },
+  "web.images.rating.stars": {
+    "text": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    },
+    "args": [["count", "count"]],
+    "note": "Name of each of the five star buttons in the photo viewer (1 star ... 5 stars): pressing one gives the photo that many stars, pressing the one it has again takes its stars away. Also what a photo's tile says of its stars to a screen reader.",
+    "max": 20
+  },
+  "web.images.rating.tile_both": {
+    "text": "{stars}, with a comment",
+    "args": [["stars", "text"]],
+    "note": "What a photo's tile says to a screen reader, after its name and date, in a collection with Rating on when the photo has stars and a comment. {stars} is web.images.rating.stars (\"4 stars\")."
+  },
+  "web.images.rating.tile_comment": {
+    "text": "Has a comment",
+    "note": "What a photo's tile says to a screen reader, after its name and date, in a collection with Rating on when the photo has a comment but no stars."
+  },
+  "web.images.rating.title": {
+    "text": "Rating",
+    "note": "Screen-reader name of the row of five stars in the photo viewer (in a collection with Rating on, or on a shared gallery's page that takes ratings), and of the panel that holds them with the comment box.",
+    "max": 30
+  },
+  "web.images.rating.toggle": {
+    "text": "Rating",
+    "note": "Button in an open collection's header, next to Share as gallery and Delete, that turns the collection's Rating on or off: with it on, each photo of the collection can get 1 to 5 stars and a comment, also from anyone with the collection's shared gallery link. A star, outlined while off and filled while on; on a narrow window only the star, with this as its tooltip.",
+    "max": 20
+  },
+  "web.images.rating.toggle_failed": {
+    "text": "Couldn't change Rating. Try again.",
+    "note": "Error note when the device didn't turn the open collection's Rating (web.images.rating.toggle) on or off and gave no words of its own.",
+    "max": 60
+  },
+  "web.images.rating.toggle_off": {
+    "text": "Rating off",
+    "note": "Screen-reader name of the collection header's Rating button (web.images.rating.toggle) while the collection's Rating is off: pressing it turns it on.",
+    "max": 30
+  },
+  "web.images.rating.toggle_on": {
+    "text": "Rating on",
+    "note": "Screen-reader name of the collection header's Rating button (web.images.rating.toggle) while the collection's Rating is on: pressing it turns it off (the stars and comments are kept, hidden, until it is turned on again).",
+    "max": 30
+  },
+  "web.images.rating.turned_on": {
+    "text": "Rating on: rate photos with stars and comments",
+    "note": "One-line note the first time Rating is turned on in a collection (web.images.rating.toggle): in the photo viewer, each photo of the collection can now get 1 to 5 stars and a comment.",
+    "max": 80
+  },
   "web.images.select.clear": {
     "text": "Clear selection",
     "note": "Screen-reader name and tooltip of the × at the left of the selection bar (Images and People): it unselects everything and closes the bar.",

@@ -121,6 +121,7 @@ export type MessageKey =
   | "web.files.gallery.opening"
   | "web.files.gallery.position"
   | "web.files.gallery.previous"
+  | "web.files.gallery.rating_intro"
   | "web.files.gallery.select_all"
   | "web.files.gallery.stopped"
   | "web.files.gallery.title"
@@ -147,6 +148,7 @@ export type MessageKey =
   | "web.files.links.never_opened"
   | "web.files.links.none"
   | "web.files.links.opened"
+  | "web.files.links.rating_on"
   | "web.files.links.title"
   | "web.files.links.total"
   | "web.files.links.zip"
@@ -207,6 +209,8 @@ export type MessageKey =
   | "web.files.share.low_res_note"
   | "web.files.share.note"
   | "web.files.share.preview_failed"
+  | "web.files.share.rating"
+  | "web.files.share.rating_hint"
   | "web.files.share.ready"
   | "web.files.share.skipped"
   | "web.files.share.start_failed"
@@ -482,6 +486,34 @@ export type MessageKey =
   | "web.images.post.remove_video"
   | "web.images.post.title"
   | "web.images.post.unreachable"
+  | "web.images.rating.comment"
+  | "web.images.rating.failed"
+  | "web.images.rating.from_link"
+  | "web.images.rating.needs_update"
+  | "web.images.rating.no_match"
+  | "web.images.rating.rate"
+  | "web.images.rating.rate_stars"
+  | "web.images.rating.show"
+  | "web.images.rating.show_2"
+  | "web.images.rating.show_3"
+  | "web.images.rating.show_4"
+  | "web.images.rating.show_5"
+  | "web.images.rating.show_all"
+  | "web.images.rating.show_comment"
+  | "web.images.rating.show_everything"
+  | "web.images.rating.show_rated"
+  | "web.images.rating.show_unrated"
+  | "web.images.rating.sort_date"
+  | "web.images.rating.sort_rating"
+  | "web.images.rating.stars"
+  | "web.images.rating.tile_both"
+  | "web.images.rating.tile_comment"
+  | "web.images.rating.title"
+  | "web.images.rating.toggle"
+  | "web.images.rating.toggle_failed"
+  | "web.images.rating.toggle_off"
+  | "web.images.rating.toggle_on"
+  | "web.images.rating.turned_on"
   | "web.images.select.clear"
   | "web.images.select.collect"
   | "web.images.select.count"
@@ -1243,6 +1275,7 @@ export interface MessageArgs {
   "web.files.gallery.opening": undefined;
   "web.files.gallery.position": { name: string; index: number; total: number };
   "web.files.gallery.previous": undefined;
+  "web.files.gallery.rating_intro": undefined;
   "web.files.gallery.select_all": undefined;
   "web.files.gallery.stopped": undefined;
   "web.files.gallery.title": undefined;
@@ -1269,6 +1302,7 @@ export interface MessageArgs {
   "web.files.links.never_opened": undefined;
   "web.files.links.none": undefined;
   "web.files.links.opened": { count: number; date: string };
+  "web.files.links.rating_on": undefined;
   "web.files.links.title": undefined;
   "web.files.links.total": { size: string };
   "web.files.links.zip": undefined;
@@ -1333,6 +1367,8 @@ export interface MessageArgs {
   "web.files.share.low_res_note": undefined;
   "web.files.share.note": { size: string };
   "web.files.share.preview_failed": undefined;
+  "web.files.share.rating": undefined;
+  "web.files.share.rating_hint": undefined;
   "web.files.share.ready": undefined;
   "web.files.share.skipped": { count: number };
   "web.files.share.start_failed": undefined;
@@ -1613,6 +1649,34 @@ export interface MessageArgs {
   "web.images.post.remove_video": { number: number };
   "web.images.post.title": undefined;
   "web.images.post.unreachable": undefined;
+  "web.images.rating.comment": undefined;
+  "web.images.rating.failed": undefined;
+  "web.images.rating.from_link": undefined;
+  "web.images.rating.needs_update": undefined;
+  "web.images.rating.no_match": undefined;
+  "web.images.rating.rate": undefined;
+  "web.images.rating.rate_stars": { count: number };
+  "web.images.rating.show": undefined;
+  "web.images.rating.show_2": undefined;
+  "web.images.rating.show_3": undefined;
+  "web.images.rating.show_4": undefined;
+  "web.images.rating.show_5": undefined;
+  "web.images.rating.show_all": undefined;
+  "web.images.rating.show_comment": undefined;
+  "web.images.rating.show_everything": undefined;
+  "web.images.rating.show_rated": undefined;
+  "web.images.rating.show_unrated": undefined;
+  "web.images.rating.sort_date": undefined;
+  "web.images.rating.sort_rating": undefined;
+  "web.images.rating.stars": { count: number };
+  "web.images.rating.tile_both": { stars: string };
+  "web.images.rating.tile_comment": undefined;
+  "web.images.rating.title": undefined;
+  "web.images.rating.toggle": undefined;
+  "web.images.rating.toggle_failed": undefined;
+  "web.images.rating.toggle_off": undefined;
+  "web.images.rating.toggle_on": undefined;
+  "web.images.rating.turned_on": undefined;
   "web.images.select.clear": undefined;
   "web.images.select.collect": undefined;
   "web.images.select.count": { count: number };

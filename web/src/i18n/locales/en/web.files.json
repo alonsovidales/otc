@@ -30,6 +30,7 @@
   "web.files.gallery.opening": "Opening the gallery…",
   "web.files.gallery.position": "\u2068{name}\u2069 · {index} of {total}",
   "web.files.gallery.previous": "Previous",
+  "web.files.gallery.rating_intro": "Rate the photos you like and leave a comment if you'd like a change.",
   "web.files.gallery.select_all": "Select all",
   "web.files.gallery.stopped": "The device stopped sending the file.",
   "web.files.gallery.title": "Shared gallery",
@@ -64,6 +65,7 @@
     "other": "Opened {count} times, last {date}",
     "arg": "count"
   },
+  "web.files.links.rating_on": "Rating on",
   "web.files.links.title": "Shared Links",
   "web.files.links.total": "Together they take {size}.",
   "web.files.links.zip": "Shared files (zip)",
@@ -144,6 +146,8 @@
   "web.files.share.low_res_note": "Only small copies of the photos are shared (about 1000 pixels wide), re-encrypted with a key of their own that only the link carries; the originals never leave your device.",
   "web.files.share.note": "They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {size} on the device.",
   "web.files.share.preview_failed": "Could not look at what to share.",
+  "web.files.share.rating": "Let people rate the photos",
+  "web.files.share.rating_hint": "Anyone with the link can give stars and leave comments. You see them in this collection.",
   "web.files.share.ready": "Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.",
   "web.files.share.skipped": {
     "one": "{count} other file is not included",

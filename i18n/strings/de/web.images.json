@@ -1135,6 +1135,130 @@
     "text": "Dein Gerät war nicht erreichbar. Prüfe die Verbindung und versuche es erneut.",
     "en": "Couldn't reach your device. Check the connection and try again."
   },
+  "web.images.rating.comment": {
+    "text": "Kommentar hinzufügen",
+    "en": "Add a comment"
+  },
+  "web.images.rating.failed": {
+    "text": "Bewertung nicht gespeichert. Versuch es noch einmal.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "web.images.rating.from_link": {
+    "text": "Über den geteilten Link",
+    "en": "From the shared link"
+  },
+  "web.images.rating.needs_update": {
+    "text": "Dein Gerät braucht ein Update, um Fotos zu bewerten.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "web.images.rating.no_match": {
+    "text": "Keine Fotos mit dieser Bewertung",
+    "en": "No photos match this rating"
+  },
+  "web.images.rating.rate": {
+    "text": "Bewerten",
+    "en": "Rate"
+  },
+  "web.images.rating.rate_stars": {
+    "text": {
+      "one": "Bewerten: {count} Stern",
+      "other": "Bewerten: {count} Sterne"
+    },
+    "en": {
+      "one": "Rate: {count} star",
+      "other": "Rate: {count} stars"
+    }
+  },
+  "web.images.rating.show": {
+    "text": "Anzeigen",
+    "en": "Show"
+  },
+  "web.images.rating.show_2": {
+    "text": "2 Sterne oder mehr",
+    "en": "2 stars or more"
+  },
+  "web.images.rating.show_3": {
+    "text": "3 Sterne oder mehr",
+    "en": "3 stars or more"
+  },
+  "web.images.rating.show_4": {
+    "text": "4 Sterne oder mehr",
+    "en": "4 stars or more"
+  },
+  "web.images.rating.show_5": {
+    "text": "5 Sterne",
+    "en": "5 stars"
+  },
+  "web.images.rating.show_all": {
+    "text": "Alle Fotos",
+    "en": "All photos"
+  },
+  "web.images.rating.show_comment": {
+    "text": "Mit Kommentar",
+    "en": "With a comment"
+  },
+  "web.images.rating.show_everything": {
+    "text": "Alle Fotos anzeigen",
+    "en": "Show all photos"
+  },
+  "web.images.rating.show_rated": {
+    "text": "Bewertet",
+    "en": "Rated"
+  },
+  "web.images.rating.show_unrated": {
+    "text": "Nicht bewertet",
+    "en": "Not rated"
+  },
+  "web.images.rating.sort_date": {
+    "text": "Datum",
+    "en": "Date"
+  },
+  "web.images.rating.sort_rating": {
+    "text": "Bewertung",
+    "en": "Rating"
+  },
+  "web.images.rating.stars": {
+    "text": {
+      "one": "{count} Stern",
+      "other": "{count} Sterne"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "web.images.rating.tile_both": {
+    "text": "{stars}, mit Kommentar",
+    "en": "{stars}, with a comment"
+  },
+  "web.images.rating.tile_comment": {
+    "text": "Hat einen Kommentar",
+    "en": "Has a comment"
+  },
+  "web.images.rating.title": {
+    "text": "Bewertung",
+    "en": "Rating"
+  },
+  "web.images.rating.toggle": {
+    "text": "Bewertung",
+    "en": "Rating"
+  },
+  "web.images.rating.toggle_failed": {
+    "text": "Bewertung ändern hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "web.images.rating.toggle_off": {
+    "text": "Bewertung aus",
+    "en": "Rating off"
+  },
+  "web.images.rating.toggle_on": {
+    "text": "Bewertung an",
+    "en": "Rating on"
+  },
+  "web.images.rating.turned_on": {
+    "text": "Bewertung an: Bewerte Fotos mit Sternen und Kommentaren",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "web.images.select.clear": {
     "text": "Auswahl aufheben",
     "en": "Clear selection"

@@ -113,6 +113,10 @@
     "text": "Previous",
     "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): accessibility name of the viewer's button that shows the previous photo or video."
   },
+  "web.files.gallery.rating_intro": {
+    "text": "Rate the photos you like and leave a comment if you'd like a change.",
+    "note": "Line under the title of a shared gallery's public page when its owner lets visitors rate the photos: in the viewer each photo can get 1 to 5 stars and a comment. Written to the visitor - for example a photographer's client choosing photos."
+  },
   "web.files.gallery.select_all": {
     "text": "Select all",
     "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): button while selecting photos to download.",
@@ -241,6 +245,11 @@
     },
     "args": [["count", "count"], ["date", "text"]],
     "note": "Settings > Shared Links: every gallery and download link shared: how often a link was opened, and when last ({date}, already formatted: 7 Oct 2026, 14:05)."
+  },
+  "web.files.links.rating_on": {
+    "text": "Rating on",
+    "note": "Line in a shared link's details in Settings > Shared Links when anyone with the link can rate the collection's photos (stars and comments).",
+    "max": 30
   },
   "web.files.links.title": {
     "text": "Shared Links",
@@ -562,6 +571,15 @@
   "web.files.share.preview_failed": {
     "text": "Could not look at what to share.",
     "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: error when the device couldn't say what it would share."
+  },
+  "web.files.share.rating": {
+    "text": "Let people rate the photos",
+    "note": "Switch in the Share as gallery dialog, shown only when a collection is shared: anyone with the link can give its photos 1 to 5 stars and a comment, which the owner sees in the collection. Off by default; on, it also turns the collection's Rating on.",
+    "max": 50
+  },
+  "web.files.share.rating_hint": {
+    "text": "Anyone with the link can give stars and leave comments. You see them in this collection.",
+    "note": "Under web.files.share.rating in the Share as gallery dialog."
   },
   "web.files.share.ready": {
     "text": "Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.",
