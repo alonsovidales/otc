@@ -730,6 +730,106 @@ fun S.appPhotosPlacesShowGrid(): UiText =
 fun S.appPhotosPlacesShowMap(): UiText =
     UiText.Res(R.string.app_photos_places_show_map)
 
+/** "Comment": What a screen reader names a photo's comment with, read with the photo's tile in a rated collection. A noun. */
+fun S.appPhotosRatingComment(): UiText =
+    UiText.Res(R.string.app_photos_rating_comment)
+
+/** "Add a comment": Placeholder of the text box under the five stars in the photo viewer of a rated collection: a comment about the photo (for example a change the person would like). Saved with common.save. */
+fun S.appPhotosRatingCommentPlaceholder(): UiText =
+    UiText.Res(R.string.app_photos_rating_comment_placeholder)
+
+/** "From the shared link": Small note under a photo's stars in the viewer when its last rating or comment came from someone who opened the collection's shared link, not from the owner. */
+fun S.appPhotosRatingFromLink(): UiText =
+    UiText.Res(R.string.app_photos_rating_from_link)
+
+/** "Your device needs an update to rate photos.": Message shown when the star button of a collection's header (Rating) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner. */
+fun S.appPhotosRatingNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_photos_rating_needs_update)
+
+/** "No photos match this rating": Shown in place of the photos of a rated collection when no photo passes the Show menu's choice (app.photos.rating.show). Under it, the button app.photos.rating.show_everything. */
+fun S.appPhotosRatingNoMatch(): UiText =
+    UiText.Res(R.string.app_photos_rating_no_match)
+
+/** "Rating off": Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is off: an outlined star. Tapping it turns Rating on. */
+fun S.appPhotosRatingOff(): UiText =
+    UiText.Res(R.string.app_photos_rating_off)
+
+/** "Rating on": Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is on: the star is filled. Tapping it turns Rating off (the ratings are kept). */
+fun S.appPhotosRatingOn(): UiText =
+    UiText.Res(R.string.app_photos_rating_on)
+
+/** "Rate": Screen-reader name of the star button in the photo viewer of a rated collection: opens or closes the panel with the photo's five stars and comment box. Its value is the photo's stars (app.photos.rating.stars). A verb. */
+fun S.appPhotosRatingRate(): UiText =
+    UiText.Res(R.string.app_photos_rating_rate)
+
+/** "Couldn't save the rating. Try again.": Note in the photo viewer when the device didn't save a photo's stars or comment (they go back as they were), and gave no words of its own. */
+fun S.appPhotosRatingSaveFailed(): UiText =
+    UiText.Res(R.string.app_photos_rating_save_failed)
+
+/** "Show": Heading of the menu in a collection whose Rating is on that keeps only some of its photos by their rating (All photos, 5 stars, 4 stars or more, Rated, Not rated, With a comment...), and its screen-reader name. A verb: which photos to show. */
+fun S.appPhotosRatingShow(): UiText =
+    UiText.Res(R.string.app_photos_rating_show)
+
+/** "All photos": Choice of the Show menu (app.photos.rating.show) in a rated collection: every photo, whatever its rating (the default). */
+fun S.appPhotosRatingShowAll(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_all)
+
+/** "With a comment": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos someone left a comment on (the owner, or anyone with the collection's shared link). */
+fun S.appPhotosRatingShowCommented(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_commented)
+
+/** "Show all photos": Button under app.photos.rating.no_match: sets the Show menu back to All photos. */
+fun S.appPhotosRatingShowEverything(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_everything)
+
+/** "5 stars": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 5 stars. */
+fun S.appPhotosRatingShowFive(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_five)
+
+/** "4 stars or more": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 4 or 5 stars. */
+fun S.appPhotosRatingShowFour(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_four)
+
+/** "Rated": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given at least one star. Plural adjective about photos. */
+fun S.appPhotosRatingShowRated(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_rated)
+
+/** "3 stars or more": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 3 to 5 stars. */
+fun S.appPhotosRatingShowThree(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_three)
+
+/** "2 stars or more": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 2 to 5 stars. */
+fun S.appPhotosRatingShowTwo(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_two)
+
+/** "Not rated": Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos without stars. Also what a screen reader says for a photo without stars in the viewer. Adjective about photos. */
+fun S.appPhotosRatingShowUnrated(): UiText =
+    UiText.Res(R.string.app_photos_rating_show_unrated)
+
+/** "Date": Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos newest first, by the date they were taken (the default). */
+fun S.appPhotosRatingSortDate(): UiText =
+    UiText.Res(R.string.app_photos_rating_sort_date)
+
+/** "Rating": Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos with the most stars first, those without stars last. */
+fun S.appPhotosRatingSortRating(): UiText =
+    UiText.Res(R.string.app_photos_rating_sort_rating)
+
+/** "{count} stars" (one: "{count} star"): What a screen reader says for a photo's rating: how many stars (1 to 5) it was given, in the viewer's stars and on the photo's tile in a rated collection. */
+fun S.appPhotosRatingStars(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_rating_stars, count, listOf(count))
+
+/** "Rating": Name of a collection's Rating feature: while it is on, its photos can be given 1 to 5 stars and a comment, and anyone with a shared link made with it can too. Shown as the tip of the star button in an open collection's header, which turns it on and off, and as the screen-reader name of the stars in the photo viewer. */
+fun S.appPhotosRatingTitle(): UiText =
+    UiText.Res(R.string.app_photos_rating_title)
+
+/** "Couldn't change Rating. Try again.": Note when the device didn't turn a collection's Rating (app.photos.rating.title) on or off, and gave no words of its own. */
+fun S.appPhotosRatingToggleFailed(): UiText =
+    UiText.Res(R.string.app_photos_rating_toggle_failed)
+
+/** "Rating on: rate photos with stars and comments": One-line note shown for a few seconds the first time Rating (app.photos.rating.title) is turned on for a collection: its photos can now be given stars and a comment in the photo viewer. */
+fun S.appPhotosRatingTurnedOn(): UiText =
+    UiText.Res(R.string.app_photos_rating_turned_on)
+
 /** "“{text}” is already in the search.": Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style. */
 fun S.appPhotosSearchAlready(text: String): UiText =
     UiText.Res(R.string.app_photos_search_already, listOf(text))

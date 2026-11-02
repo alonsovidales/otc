@@ -75,6 +75,7 @@
         <item quantity="one">Opened %1$s time, last %2$s</item>
         <item quantity="other">Opened %1$s times, last %2$s</item>
     </plurals>
+    <string name="app_settings_links_rating">Rating on</string>
     <plurals name="app_settings_links_size_files">
         <item quantity="one">%1$s · %2$s file</item>
         <item quantity="other">%1$s · %2$s files</item>

@@ -52,6 +52,8 @@
     <string name="app_files_gallery_no_link">L’appareil n’a pas renvoyé de lien</string>
     <string name="app_files_gallery_prepare_failed">Impossible de préparer la galerie</string>
     <string name="app_files_gallery_privacy">Elles sont copiées et chiffrées de nouveau avec une clé propre. Seules les personnes disposant du lien peuvent les voir, jusqu’à son expiration.</string>
+    <string name="app_files_gallery_rating">Permettre de noter les photos</string>
+    <string name="app_files_gallery_rating_note">Toute personne disposant du lien peut attribuer des étoiles et laisser des commentaires. Vous les voyez dans cette collection.</string>
     <string name="app_files_gallery_share_link">Partager le lien</string>
     <string name="app_files_gallery_title">Partager en galerie</string>
     <string name="app_files_in_upload_only">Dans un dossier en envoi uniquement</string>

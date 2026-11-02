@@ -52,6 +52,8 @@
     <string name="app_files_gallery_no_link">Il dispositivo non ha restituito un link</string>
     <string name="app_files_gallery_prepare_failed">Impossibile preparare la galleria</string>
     <string name="app_files_gallery_privacy">Vengono copiati e crittografati di nuovo con una chiave propria. Solo chi ha il link può vederli, finché non scade.</string>
+    <string name="app_files_gallery_rating">Consenti di valutare le foto</string>
+    <string name="app_files_gallery_rating_note">Chiunque abbia il link può dare stelle e lasciare commenti. Li vedi in questa raccolta.</string>
     <string name="app_files_gallery_share_link">Condividi link</string>
     <string name="app_files_gallery_title">Condividi come galleria</string>
     <string name="app_files_in_upload_only">In una cartella in solo caricamento</string>

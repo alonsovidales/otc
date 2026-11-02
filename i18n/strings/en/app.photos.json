@@ -980,6 +980,134 @@
     "text": "Show on the map",
     "note": "Screen-reader name of the button at the top of Images on a narrow phone screen, next to the People and Collections buttons: shows the photos and videos on a map, at the places they were taken, in place of the grid of photos."
   },
+  "app.photos.rating.comment": {
+    "text": "Comment",
+    "note": "What a screen reader names a photo's comment with, read with the photo's tile in a rated collection. A noun.",
+    "max": 24
+  },
+  "app.photos.rating.comment_placeholder": {
+    "text": "Add a comment",
+    "note": "Placeholder of the text box under the five stars in the photo viewer of a rated collection: a comment about the photo (for example a change the person would like). Saved with common.save.",
+    "max": 40
+  },
+  "app.photos.rating.from_link": {
+    "text": "From the shared link",
+    "note": "Small note under a photo's stars in the viewer when its last rating or comment came from someone who opened the collection's shared link, not from the owner.",
+    "max": 40
+  },
+  "app.photos.rating.needs_update": {
+    "text": "Your device needs an update to rate photos.",
+    "note": "Message shown when the star button of a collection's header (Rating) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner."
+  },
+  "app.photos.rating.no_match": {
+    "text": "No photos match this rating",
+    "note": "Shown in place of the photos of a rated collection when no photo passes the Show menu's choice (app.photos.rating.show). Under it, the button app.photos.rating.show_everything.",
+    "max": 60
+  },
+  "app.photos.rating.off": {
+    "text": "Rating off",
+    "note": "Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is off: an outlined star. Tapping it turns Rating on.",
+    "max": 30
+  },
+  "app.photos.rating.on": {
+    "text": "Rating on",
+    "note": "Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is on: the star is filled. Tapping it turns Rating off (the ratings are kept).",
+    "max": 30
+  },
+  "app.photos.rating.rate": {
+    "text": "Rate",
+    "note": "Screen-reader name of the star button in the photo viewer of a rated collection: opens or closes the panel with the photo's five stars and comment box. Its value is the photo's stars (app.photos.rating.stars). A verb.",
+    "max": 20
+  },
+  "app.photos.rating.save_failed": {
+    "text": "Couldn't save the rating. Try again.",
+    "note": "Note in the photo viewer when the device didn't save a photo's stars or comment (they go back as they were), and gave no words of its own.",
+    "max": 70
+  },
+  "app.photos.rating.show": {
+    "text": "Show",
+    "note": "Heading of the menu in a collection whose Rating is on that keeps only some of its photos by their rating (All photos, 5 stars, 4 stars or more, Rated, Not rated, With a comment...), and its screen-reader name. A verb: which photos to show.",
+    "max": 20
+  },
+  "app.photos.rating.show_all": {
+    "text": "All photos",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: every photo, whatever its rating (the default).",
+    "max": 28
+  },
+  "app.photos.rating.show_commented": {
+    "text": "With a comment",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos someone left a comment on (the owner, or anyone with the collection's shared link).",
+    "max": 28
+  },
+  "app.photos.rating.show_everything": {
+    "text": "Show all photos",
+    "note": "Button under app.photos.rating.no_match: sets the Show menu back to All photos.",
+    "max": 30
+  },
+  "app.photos.rating.show_five": {
+    "text": "5 stars",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 5 stars.",
+    "max": 28
+  },
+  "app.photos.rating.show_four": {
+    "text": "4 stars or more",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 4 or 5 stars.",
+    "max": 28
+  },
+  "app.photos.rating.show_rated": {
+    "text": "Rated",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given at least one star. Plural adjective about photos.",
+    "max": 28
+  },
+  "app.photos.rating.show_three": {
+    "text": "3 stars or more",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 3 to 5 stars.",
+    "max": 28
+  },
+  "app.photos.rating.show_two": {
+    "text": "2 stars or more",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 2 to 5 stars.",
+    "max": 28
+  },
+  "app.photos.rating.show_unrated": {
+    "text": "Not rated",
+    "note": "Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos without stars. Also what a screen reader says for a photo without stars in the viewer. Adjective about photos.",
+    "max": 28
+  },
+  "app.photos.rating.sort_date": {
+    "text": "Date",
+    "note": "Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos newest first, by the date they were taken (the default).",
+    "max": 24
+  },
+  "app.photos.rating.sort_rating": {
+    "text": "Rating",
+    "note": "Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos with the most stars first, those without stars last.",
+    "max": 24
+  },
+  "app.photos.rating.stars": {
+    "text": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    },
+    "args": [["count", "count"]],
+    "note": "What a screen reader says for a photo's rating: how many stars (1 to 5) it was given, in the viewer's stars and on the photo's tile in a rated collection.",
+    "max": 20
+  },
+  "app.photos.rating.title": {
+    "text": "Rating",
+    "note": "Name of a collection's Rating feature: while it is on, its photos can be given 1 to 5 stars and a comment, and anyone with a shared link made with it can too. Shown as the tip of the star button in an open collection's header, which turns it on and off, and as the screen-reader name of the stars in the photo viewer.",
+    "max": 24
+  },
+  "app.photos.rating.toggle_failed": {
+    "text": "Couldn't change Rating. Try again.",
+    "note": "Note when the device didn't turn a collection's Rating (app.photos.rating.title) on or off, and gave no words of its own.",
+    "max": 70
+  },
+  "app.photos.rating.turned_on": {
+    "text": "Rating on: rate photos with stars and comments",
+    "note": "One-line note shown for a few seconds the first time Rating (app.photos.rating.title) is turned on for a collection: its photos can now be given stars and a comment in the photo viewer.",
+    "max": 90
+  },
   "app.photos.search.already": {
     "text": "“{text}” is already in the search.",
     "args": [["text", "user"]],

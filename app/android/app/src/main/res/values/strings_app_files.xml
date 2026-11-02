@@ -47,6 +47,8 @@
     <string name="app_files_gallery_no_link">The device did not return a link</string>
     <string name="app_files_gallery_prepare_failed">Could not prepare the gallery</string>
     <string name="app_files_gallery_privacy">They are copied and re-encrypted with a key of their own. Only people with the link can see them, until it expires.</string>
+    <string name="app_files_gallery_rating">Let people rate the photos</string>
+    <string name="app_files_gallery_rating_note">Anyone with the link can give stars and leave comments. You see them in this collection.</string>
     <string name="app_files_gallery_share_link">Share Link</string>
     <string name="app_files_gallery_title">Share as Gallery</string>
     <string name="app_files_in_upload_only">In an upload-only folder</string>

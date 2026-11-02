@@ -2215,6 +2215,100 @@
         }
       }
     },
+    "app.files.gallery_rating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewerten der Fotos erlauben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Let people rate the photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir que valoren las fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permettre de noter les photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti di valutare le foto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laat mensen de foto’s beoordelen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir classificar as fotos"
+          }
+        }
+      }
+    },
+    "app.files.gallery_rating_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle mit dem Link können Sterne vergeben und Kommentare hinterlassen. Du siehst sie in dieser Sammlung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anyone with the link can give stars and leave comments. You see them in this collection."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cualquiera con el enlace puede dar estrellas y dejar comentarios. Los verás en esta colección."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toute personne disposant du lien peut attribuer des étoiles et laisser des commentaires. Vous les voyez dans cette collection."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiunque abbia il link può dare stelle e lasciare commenti. Li vedi in questa raccolta."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iedereen met de link kan sterren geven en reacties achterlaten. Je ziet ze in deze collectie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualquer pessoa com a ligação pode dar estrelas e deixar comentários. Vês tudo nesta coleção."
+          }
+        }
+      }
+    },
     "app.files.gallery_share_link" : {
       "extractionState" : "manual",
       "localizations" : {

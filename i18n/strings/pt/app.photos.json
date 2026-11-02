@@ -913,6 +913,112 @@
     "text": "Mostrar no mapa",
     "en": "Show on the map"
   },
+  "app.photos.rating.comment": {
+    "text": "Comentário",
+    "en": "Comment"
+  },
+  "app.photos.rating.comment_placeholder": {
+    "text": "Adiciona um comentário",
+    "en": "Add a comment"
+  },
+  "app.photos.rating.from_link": {
+    "text": "A partir da ligação partilhada",
+    "en": "From the shared link"
+  },
+  "app.photos.rating.needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para classificar fotos.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "app.photos.rating.no_match": {
+    "text": "Nenhuma foto corresponde a esta classificação",
+    "en": "No photos match this rating"
+  },
+  "app.photos.rating.off": {
+    "text": "Classificação desativada",
+    "en": "Rating off"
+  },
+  "app.photos.rating.on": {
+    "text": "Classificação ativada",
+    "en": "Rating on"
+  },
+  "app.photos.rating.rate": {
+    "text": "Classificar",
+    "en": "Rate"
+  },
+  "app.photos.rating.save_failed": {
+    "text": "Não foi possível guardar a classificação. Tenta de novo.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "app.photos.rating.show": {
+    "text": "Mostrar",
+    "en": "Show"
+  },
+  "app.photos.rating.show_all": {
+    "text": "Todas as fotos",
+    "en": "All photos"
+  },
+  "app.photos.rating.show_commented": {
+    "text": "Com um comentário",
+    "en": "With a comment"
+  },
+  "app.photos.rating.show_everything": {
+    "text": "Mostrar todas as fotos",
+    "en": "Show all photos"
+  },
+  "app.photos.rating.show_five": {
+    "text": "5 estrelas",
+    "en": "5 stars"
+  },
+  "app.photos.rating.show_four": {
+    "text": "4 estrelas ou mais",
+    "en": "4 stars or more"
+  },
+  "app.photos.rating.show_rated": {
+    "text": "Classificadas",
+    "en": "Rated"
+  },
+  "app.photos.rating.show_three": {
+    "text": "3 estrelas ou mais",
+    "en": "3 stars or more"
+  },
+  "app.photos.rating.show_two": {
+    "text": "2 estrelas ou mais",
+    "en": "2 stars or more"
+  },
+  "app.photos.rating.show_unrated": {
+    "text": "Sem classificação",
+    "en": "Not rated"
+  },
+  "app.photos.rating.sort_date": {
+    "text": "Data",
+    "en": "Date"
+  },
+  "app.photos.rating.sort_rating": {
+    "text": "Classificação",
+    "en": "Rating"
+  },
+  "app.photos.rating.stars": {
+    "text": {
+      "one": "{count} estrela",
+      "other": "{count} estrelas"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "app.photos.rating.title": {
+    "text": "Classificação",
+    "en": "Rating"
+  },
+  "app.photos.rating.toggle_failed": {
+    "text": "Não foi possível alterar a classificação. Tenta de novo.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "app.photos.rating.turned_on": {
+    "text": "Classificação ativada: classifica as fotos com estrelas e comentários",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "app.photos.search.already": {
     "text": "«{text}» já está na pesquisa.",
     "en": "“{text}” is already in the search."

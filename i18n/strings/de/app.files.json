@@ -166,6 +166,14 @@
     "en": "They are copied and re-encrypted with a key of their own. Only people with the link can see them, until it expires.",
     "reviewed": "claude-backtranslation 2026-10-11 #ffa65cc5"
   },
+  "app.files.gallery_rating": {
+    "text": "Bewerten der Fotos erlauben",
+    "en": "Let people rate the photos"
+  },
+  "app.files.gallery_rating_note": {
+    "text": "Alle mit dem Link können Sterne vergeben und Kommentare hinterlassen. Du siehst sie in dieser Sammlung.",
+    "en": "Anyone with the link can give stars and leave comments. You see them in this collection."
+  },
   "app.files.gallery_share_link": {
     "text": "Link teilen",
     "en": "Share Link"

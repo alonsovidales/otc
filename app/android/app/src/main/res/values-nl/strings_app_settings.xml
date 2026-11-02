@@ -76,6 +76,7 @@
         <item quantity="one">%1$s keer geopend, laatst %2$s</item>
         <item quantity="other">%1$s keer geopend, laatst %2$s</item>
     </plurals>
+    <string name="app_settings_links_rating">Beoordeling aan</string>
     <plurals name="app_settings_links_size_files">
         <item quantity="one">%1$s · %2$s bestand</item>
         <item quantity="other">%1$s · %2$s bestanden</item>

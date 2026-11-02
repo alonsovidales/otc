@@ -242,6 +242,10 @@ fun S.appSettingsLinksOpened(count: Int): UiText =
 fun S.appSettingsLinksOpenedLast(count: Int, last: String): UiText =
     UiText.Plural(R.plurals.app_settings_links_opened_last, count, listOf(count, last))
 
+/** "Rating on": Line in a shared link's details in Settings › Shared links when anyone who opens the link can rate its photos (stars and comments). */
+fun S.appSettingsLinksRating(): UiText =
+    UiText.Res(R.string.app_settings_links_rating)
+
 /** "{size} · {count} files" (one: "{size} · {count} file"): Line of a link on the Shared Links screen: the space its copies take on the device and how many files it shares. {size} is a size, already formatted with its unit (4.6 GB, 820 MB). */
 fun S.appSettingsLinksSizeFiles(size: String, count: Int): UiText =
     UiText.Plural(R.plurals.app_settings_links_size_files, count, listOf(size, count))

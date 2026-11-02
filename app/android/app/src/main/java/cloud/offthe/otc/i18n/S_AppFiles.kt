@@ -142,6 +142,14 @@ fun S.appFilesGalleryPrepareFailed(): UiText =
 fun S.appFilesGalleryPrivacy(): UiText =
     UiText.Res(R.string.app_files_gallery_privacy)
 
+/** "Let people rate the photos": Switch in the Share as Gallery sheet or dialog when a collection is shared: anyone who opens the link can give its photos stars and leave a comment, as a photographer's customers choose the photos they like. Off by default. */
+fun S.appFilesGalleryRating(): UiText =
+    UiText.Res(R.string.app_files_gallery_rating)
+
+/** "Anyone with the link can give stars and leave comments. You see them in this collection.": Explanation under the switch app.files.gallery_rating in the Share as Gallery sheet or dialog: the stars and comments left through the link show in the collection that was shared. */
+fun S.appFilesGalleryRatingNote(): UiText =
+    UiText.Res(R.string.app_files_gallery_rating_note)
+
 /** "Share Link": Button in the Share as Gallery sheet or dialog once the gallery is ready: opens the phone's share sheet with the gallery's link. Title Case in English. */
 fun S.appFilesGalleryShareLink(): UiText =
     UiText.Res(R.string.app_files_gallery_share_link)

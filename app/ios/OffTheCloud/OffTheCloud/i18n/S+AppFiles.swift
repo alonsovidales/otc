@@ -206,6 +206,16 @@ extension S {
     /// Explanation under the first line (app.files.gallery_contents) of the Share as Gallery sheet or dialog: what sharing as a gallery does with the photos and videos.
     static var appFilesGalleryPrivacy: String { L("app.files.gallery_privacy", table: "AppFiles") }
 
+    /// Let people rate the photos
+    ///
+    /// Switch in the Share as Gallery sheet or dialog when a collection is shared: anyone who opens the link can give its photos stars and leave a comment, as a photographer's customers choose the photos they like. Off by default.
+    static var appFilesGalleryRating: String { L("app.files.gallery_rating", table: "AppFiles") }
+
+    /// Anyone with the link can give stars and leave comments. You see them in this collection.
+    ///
+    /// Explanation under the switch app.files.gallery_rating in the Share as Gallery sheet or dialog: the stars and comments left through the link show in the collection that was shared.
+    static var appFilesGalleryRatingNote: String { L("app.files.gallery_rating_note", table: "AppFiles") }
+
     /// Share Link
     ///
     /// Button in the Share as Gallery sheet or dialog once the gallery is ready: opens the phone's share sheet with the gallery's link. Title Case in English.

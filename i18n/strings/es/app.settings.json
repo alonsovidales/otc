@@ -282,6 +282,10 @@
       "other": "Opened {count} times, last {last}"
     }
   },
+  "app.settings.links.rating": {
+    "text": "Valoración activada",
+    "en": "Rating on"
+  },
   "app.settings.links.size_files": {
     "text": {
       "one": "{size} · {count} archivo",

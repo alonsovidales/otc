@@ -913,6 +913,112 @@
     "text": "Mostra sulla mappa",
     "en": "Show on the map"
   },
+  "app.photos.rating.comment": {
+    "text": "Commento",
+    "en": "Comment"
+  },
+  "app.photos.rating.comment_placeholder": {
+    "text": "Aggiungi un commento",
+    "en": "Add a comment"
+  },
+  "app.photos.rating.from_link": {
+    "text": "Dal link condiviso",
+    "en": "From the shared link"
+  },
+  "app.photos.rating.needs_update": {
+    "text": "Il tuo dispositivo deve essere aggiornato per valutare le foto.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "app.photos.rating.no_match": {
+    "text": "Nessuna foto corrisponde a questa valutazione",
+    "en": "No photos match this rating"
+  },
+  "app.photos.rating.off": {
+    "text": "Valutazione disattivata",
+    "en": "Rating off"
+  },
+  "app.photos.rating.on": {
+    "text": "Valutazione attiva",
+    "en": "Rating on"
+  },
+  "app.photos.rating.rate": {
+    "text": "Valuta",
+    "en": "Rate"
+  },
+  "app.photos.rating.save_failed": {
+    "text": "Impossibile salvare la valutazione. Riprova.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "app.photos.rating.show": {
+    "text": "Mostra",
+    "en": "Show"
+  },
+  "app.photos.rating.show_all": {
+    "text": "Tutte le foto",
+    "en": "All photos"
+  },
+  "app.photos.rating.show_commented": {
+    "text": "Con un commento",
+    "en": "With a comment"
+  },
+  "app.photos.rating.show_everything": {
+    "text": "Mostra tutte le foto",
+    "en": "Show all photos"
+  },
+  "app.photos.rating.show_five": {
+    "text": "5 stelle",
+    "en": "5 stars"
+  },
+  "app.photos.rating.show_four": {
+    "text": "4 stelle o più",
+    "en": "4 stars or more"
+  },
+  "app.photos.rating.show_rated": {
+    "text": "Valutate",
+    "en": "Rated"
+  },
+  "app.photos.rating.show_three": {
+    "text": "3 stelle o più",
+    "en": "3 stars or more"
+  },
+  "app.photos.rating.show_two": {
+    "text": "2 stelle o più",
+    "en": "2 stars or more"
+  },
+  "app.photos.rating.show_unrated": {
+    "text": "Non valutate",
+    "en": "Not rated"
+  },
+  "app.photos.rating.sort_date": {
+    "text": "Data",
+    "en": "Date"
+  },
+  "app.photos.rating.sort_rating": {
+    "text": "Valutazione",
+    "en": "Rating"
+  },
+  "app.photos.rating.stars": {
+    "text": {
+      "one": "{count} stella",
+      "other": "{count} stelle"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "app.photos.rating.title": {
+    "text": "Valutazione",
+    "en": "Rating"
+  },
+  "app.photos.rating.toggle_failed": {
+    "text": "Impossibile modificare la valutazione. Riprova.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "app.photos.rating.turned_on": {
+    "text": "Valutazione attiva: valuta le foto con stelle e commenti",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "app.photos.search.already": {
     "text": "“{text}” è già nella ricerca.",
     "en": "“{text}” is already in the search."

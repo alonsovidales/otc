@@ -913,6 +913,112 @@
     "text": "Auf der Karte zeigen",
     "en": "Show on the map"
   },
+  "app.photos.rating.comment": {
+    "text": "Kommentar",
+    "en": "Comment"
+  },
+  "app.photos.rating.comment_placeholder": {
+    "text": "Kommentar hinzufügen",
+    "en": "Add a comment"
+  },
+  "app.photos.rating.from_link": {
+    "text": "Über den geteilten Link",
+    "en": "From the shared link"
+  },
+  "app.photos.rating.needs_update": {
+    "text": "Dein Gerät braucht ein Update, um Fotos zu bewerten.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "app.photos.rating.no_match": {
+    "text": "Keine Fotos passen zu dieser Bewertung",
+    "en": "No photos match this rating"
+  },
+  "app.photos.rating.off": {
+    "text": "Bewertung aus",
+    "en": "Rating off"
+  },
+  "app.photos.rating.on": {
+    "text": "Bewertung an",
+    "en": "Rating on"
+  },
+  "app.photos.rating.rate": {
+    "text": "Bewerten",
+    "en": "Rate"
+  },
+  "app.photos.rating.save_failed": {
+    "text": "Bewertung speichern hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "app.photos.rating.show": {
+    "text": "Anzeigen",
+    "en": "Show"
+  },
+  "app.photos.rating.show_all": {
+    "text": "Alle Fotos",
+    "en": "All photos"
+  },
+  "app.photos.rating.show_commented": {
+    "text": "Mit Kommentar",
+    "en": "With a comment"
+  },
+  "app.photos.rating.show_everything": {
+    "text": "Alle Fotos anzeigen",
+    "en": "Show all photos"
+  },
+  "app.photos.rating.show_five": {
+    "text": "5 Sterne",
+    "en": "5 stars"
+  },
+  "app.photos.rating.show_four": {
+    "text": "4 Sterne oder mehr",
+    "en": "4 stars or more"
+  },
+  "app.photos.rating.show_rated": {
+    "text": "Bewertet",
+    "en": "Rated"
+  },
+  "app.photos.rating.show_three": {
+    "text": "3 Sterne oder mehr",
+    "en": "3 stars or more"
+  },
+  "app.photos.rating.show_two": {
+    "text": "2 Sterne oder mehr",
+    "en": "2 stars or more"
+  },
+  "app.photos.rating.show_unrated": {
+    "text": "Nicht bewertet",
+    "en": "Not rated"
+  },
+  "app.photos.rating.sort_date": {
+    "text": "Datum",
+    "en": "Date"
+  },
+  "app.photos.rating.sort_rating": {
+    "text": "Bewertung",
+    "en": "Rating"
+  },
+  "app.photos.rating.stars": {
+    "text": {
+      "one": "{count} Stern",
+      "other": "{count} Sterne"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "app.photos.rating.title": {
+    "text": "Bewertung",
+    "en": "Rating"
+  },
+  "app.photos.rating.toggle_failed": {
+    "text": "Bewertung ändern hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "app.photos.rating.turned_on": {
+    "text": "Bewertung an: Bewerte Fotos mit Sternen und Kommentaren",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "app.photos.search.already": {
     "text": "„{text}“ ist bereits in der Suche.",
     "en": "“{text}” is already in the search."

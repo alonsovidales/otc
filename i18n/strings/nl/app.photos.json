@@ -913,6 +913,112 @@
     "text": "Op de kaart tonen",
     "en": "Show on the map"
   },
+  "app.photos.rating.comment": {
+    "text": "Reactie",
+    "en": "Comment"
+  },
+  "app.photos.rating.comment_placeholder": {
+    "text": "Reactie toevoegen",
+    "en": "Add a comment"
+  },
+  "app.photos.rating.from_link": {
+    "text": "Via de gedeelde link",
+    "en": "From the shared link"
+  },
+  "app.photos.rating.needs_update": {
+    "text": "Je apparaat heeft een update nodig om foto’s te beoordelen.",
+    "en": "Your device needs an update to rate photos."
+  },
+  "app.photos.rating.no_match": {
+    "text": "Geen foto’s met deze beoordeling",
+    "en": "No photos match this rating"
+  },
+  "app.photos.rating.off": {
+    "text": "Beoordeling uit",
+    "en": "Rating off"
+  },
+  "app.photos.rating.on": {
+    "text": "Beoordeling aan",
+    "en": "Rating on"
+  },
+  "app.photos.rating.rate": {
+    "text": "Beoordelen",
+    "en": "Rate"
+  },
+  "app.photos.rating.save_failed": {
+    "text": "Beoordeling opslaan is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't save the rating. Try again."
+  },
+  "app.photos.rating.show": {
+    "text": "Tonen",
+    "en": "Show"
+  },
+  "app.photos.rating.show_all": {
+    "text": "Alle foto’s",
+    "en": "All photos"
+  },
+  "app.photos.rating.show_commented": {
+    "text": "Met een reactie",
+    "en": "With a comment"
+  },
+  "app.photos.rating.show_everything": {
+    "text": "Alle foto’s tonen",
+    "en": "Show all photos"
+  },
+  "app.photos.rating.show_five": {
+    "text": "5 sterren",
+    "en": "5 stars"
+  },
+  "app.photos.rating.show_four": {
+    "text": "4 sterren of meer",
+    "en": "4 stars or more"
+  },
+  "app.photos.rating.show_rated": {
+    "text": "Beoordeeld",
+    "en": "Rated"
+  },
+  "app.photos.rating.show_three": {
+    "text": "3 sterren of meer",
+    "en": "3 stars or more"
+  },
+  "app.photos.rating.show_two": {
+    "text": "2 sterren of meer",
+    "en": "2 stars or more"
+  },
+  "app.photos.rating.show_unrated": {
+    "text": "Niet beoordeeld",
+    "en": "Not rated"
+  },
+  "app.photos.rating.sort_date": {
+    "text": "Datum",
+    "en": "Date"
+  },
+  "app.photos.rating.sort_rating": {
+    "text": "Beoordeling",
+    "en": "Rating"
+  },
+  "app.photos.rating.stars": {
+    "text": {
+      "one": "{count} ster",
+      "other": "{count} sterren"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "app.photos.rating.title": {
+    "text": "Beoordeling",
+    "en": "Rating"
+  },
+  "app.photos.rating.toggle_failed": {
+    "text": "Beoordeling wijzigen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't change Rating. Try again."
+  },
+  "app.photos.rating.turned_on": {
+    "text": "Beoordeling aan: beoordeel foto’s met sterren en reacties",
+    "en": "Rating on: rate photos with stars and comments"
+  },
   "app.photos.search.already": {
     "text": "“{text}” staat al in de zoekopdracht.",
     "en": "“{text}” is already in the search."

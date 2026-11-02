@@ -81,6 +81,7 @@
         <item quantity="many">Ouvert %1$s fois, dernière ouverture : %2$s</item>
         <item quantity="other">Ouvert %1$s fois, dernière ouverture : %2$s</item>
     </plurals>
+    <string name="app_settings_links_rating">Notation activée</string>
     <plurals name="app_settings_links_size_files">
         <item quantity="one">%1$s · %2$s fichier</item>
         <item quantity="many">%1$s · %2$s fichiers</item>

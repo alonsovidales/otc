@@ -52,6 +52,8 @@
     <string name="app_files_gallery_no_link">O dispositivo não devolveu nenhuma ligação</string>
     <string name="app_files_gallery_prepare_failed">Não foi possível preparar a galeria</string>
     <string name="app_files_gallery_privacy">As fotos e os vídeos são copiados e encriptados novamente com uma chave própria. Só quem tiver a ligação os pode ver, até ela expirar.</string>
+    <string name="app_files_gallery_rating">Permitir classificar as fotos</string>
+    <string name="app_files_gallery_rating_note">Qualquer pessoa com a ligação pode dar estrelas e deixar comentários. Vês tudo nesta coleção.</string>
     <string name="app_files_gallery_share_link">Partilhar ligação</string>
     <string name="app_files_gallery_title">Partilhar como galeria</string>
     <string name="app_files_in_upload_only">Numa pasta em apenas carregamento</string>

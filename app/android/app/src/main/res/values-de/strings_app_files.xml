@@ -48,6 +48,8 @@
     <string name="app_files_gallery_no_link">Das Gerät hat keinen Link zurückgegeben</string>
     <string name="app_files_gallery_prepare_failed">Die Galerie konnte nicht vorbereitet werden</string>
     <string name="app_files_gallery_privacy">Die Fotos und Videos werden kopiert und mit einem eigenen Schlüssel neu verschlüsselt. Nur Personen mit dem Link können sie sehen, bis er abläuft.</string>
+    <string name="app_files_gallery_rating">Bewerten der Fotos erlauben</string>
+    <string name="app_files_gallery_rating_note">Alle mit dem Link können Sterne vergeben und Kommentare hinterlassen. Du siehst sie in dieser Sammlung.</string>
     <string name="app_files_gallery_share_link">Link teilen</string>
     <string name="app_files_gallery_title">Als Galerie teilen</string>
     <string name="app_files_in_upload_only">In einem Ordner mit „Nur hochladen“</string>

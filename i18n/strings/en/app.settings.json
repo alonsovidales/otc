@@ -328,6 +328,11 @@
     "args": [["count", "count"], ["last", "text"]],
     "note": "Line of a link on the Shared Links screen: how many times someone opened it, and when it was last opened. {last} is already formatted: how long ago (2 hours ago on the iPhone, 2h ago on Android) or a date."
   },
+  "app.settings.links.rating": {
+    "text": "Rating on",
+    "note": "Line in a shared link's details in Settings › Shared links when anyone who opens the link can rate its photos (stars and comments).",
+    "max": 40
+  },
   "app.settings.links.size_files": {
     "text": {
       "one": "{size} · {count} file",

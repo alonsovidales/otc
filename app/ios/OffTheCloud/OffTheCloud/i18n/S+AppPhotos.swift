@@ -1054,6 +1054,134 @@ extension S {
     /// Screen-reader name of the button at the top of Images on a narrow phone screen, next to the People and Collections buttons: shows the photos and videos on a map, at the places they were taken, in place of the grid of photos.
     static var appPhotosPlacesShowMap: String { L("app.photos.places.show_map", table: "AppPhotos") }
 
+    /// Comment
+    ///
+    /// What a screen reader names a photo's comment with, read with the photo's tile in a rated collection. A noun.
+    static var appPhotosRatingComment: String { L("app.photos.rating.comment", table: "AppPhotos") }
+
+    /// Add a comment
+    ///
+    /// Placeholder of the text box under the five stars in the photo viewer of a rated collection: a comment about the photo (for example a change the person would like). Saved with common.save.
+    static var appPhotosRatingCommentPlaceholder: String { L("app.photos.rating.comment_placeholder", table: "AppPhotos") }
+
+    /// From the shared link
+    ///
+    /// Small note under a photo's stars in the viewer when its last rating or comment came from someone who opened the collection's shared link, not from the owner.
+    static var appPhotosRatingFromLink: String { L("app.photos.rating.from_link", table: "AppPhotos") }
+
+    /// Your device needs an update to rate photos.
+    ///
+    /// Message shown when the star button of a collection's header (Rating) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update); others get app.shell.device_update.ask_owner.
+    static var appPhotosRatingNeedsUpdate: String { L("app.photos.rating.needs_update", table: "AppPhotos") }
+
+    /// No photos match this rating
+    ///
+    /// Shown in place of the photos of a rated collection when no photo passes the Show menu's choice (app.photos.rating.show). Under it, the button app.photos.rating.show_everything.
+    static var appPhotosRatingNoMatch: String { L("app.photos.rating.no_match", table: "AppPhotos") }
+
+    /// Rating off
+    ///
+    /// Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is off: an outlined star. Tapping it turns Rating on.
+    static var appPhotosRatingOff: String { L("app.photos.rating.off", table: "AppPhotos") }
+
+    /// Rating on
+    ///
+    /// Screen-reader name of the star button in an open collection's header while the collection's Rating (app.photos.rating.title) is on: the star is filled. Tapping it turns Rating off (the ratings are kept).
+    static var appPhotosRatingOn: String { L("app.photos.rating.on", table: "AppPhotos") }
+
+    /// Rate
+    ///
+    /// Screen-reader name of the star button in the photo viewer of a rated collection: opens or closes the panel with the photo's five stars and comment box. Its value is the photo's stars (app.photos.rating.stars). A verb.
+    static var appPhotosRatingRate: String { L("app.photos.rating.rate", table: "AppPhotos") }
+
+    /// Couldn't save the rating. Try again.
+    ///
+    /// Note in the photo viewer when the device didn't save a photo's stars or comment (they go back as they were), and gave no words of its own.
+    static var appPhotosRatingSaveFailed: String { L("app.photos.rating.save_failed", table: "AppPhotos") }
+
+    /// Show
+    ///
+    /// Heading of the menu in a collection whose Rating is on that keeps only some of its photos by their rating (All photos, 5 stars, 4 stars or more, Rated, Not rated, With a comment...), and its screen-reader name. A verb: which photos to show.
+    static var appPhotosRatingShow: String { L("app.photos.rating.show", table: "AppPhotos") }
+
+    /// All photos
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: every photo, whatever its rating (the default).
+    static var appPhotosRatingShowAll: String { L("app.photos.rating.show_all", table: "AppPhotos") }
+
+    /// With a comment
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos someone left a comment on (the owner, or anyone with the collection's shared link).
+    static var appPhotosRatingShowCommented: String { L("app.photos.rating.show_commented", table: "AppPhotos") }
+
+    /// Show all photos
+    ///
+    /// Button under app.photos.rating.no_match: sets the Show menu back to All photos.
+    static var appPhotosRatingShowEverything: String { L("app.photos.rating.show_everything", table: "AppPhotos") }
+
+    /// 5 stars
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 5 stars.
+    static var appPhotosRatingShowFive: String { L("app.photos.rating.show_five", table: "AppPhotos") }
+
+    /// 4 stars or more
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 4 or 5 stars.
+    static var appPhotosRatingShowFour: String { L("app.photos.rating.show_four", table: "AppPhotos") }
+
+    /// Rated
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given at least one star. Plural adjective about photos.
+    static var appPhotosRatingShowRated: String { L("app.photos.rating.show_rated", table: "AppPhotos") }
+
+    /// 3 stars or more
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 3 to 5 stars.
+    static var appPhotosRatingShowThree: String { L("app.photos.rating.show_three", table: "AppPhotos") }
+
+    /// 2 stars or more
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos given 2 to 5 stars.
+    static var appPhotosRatingShowTwo: String { L("app.photos.rating.show_two", table: "AppPhotos") }
+
+    /// Not rated
+    ///
+    /// Choice of the Show menu (app.photos.rating.show) in a rated collection: only the photos without stars. Also what a screen reader says for a photo without stars in the viewer. Adjective about photos.
+    static var appPhotosRatingShowUnrated: String { L("app.photos.rating.show_unrated", table: "AppPhotos") }
+
+    /// Date
+    ///
+    /// Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos newest first, by the date they were taken (the default).
+    static var appPhotosRatingSortDate: String { L("app.photos.rating.sort_date", table: "AppPhotos") }
+
+    /// Rating
+    ///
+    /// Choice of the Sort by menu (app.photos.sort_by) in a collection whose Rating is on: the photos with the most stars first, those without stars last.
+    static var appPhotosRatingSortRating: String { L("app.photos.rating.sort_rating", table: "AppPhotos") }
+
+    /// one: {count} star
+    /// other: {count} stars
+    ///
+    /// What a screen reader says for a photo's rating: how many stars (1 to 5) it was given, in the viewer's stars and on the photo's tile in a rated collection.
+    static func appPhotosRatingStars(count: Int) -> String {
+        L("app.photos.rating.stars", table: "AppPhotos", count)
+    }
+
+    /// Rating
+    ///
+    /// Name of a collection's Rating feature: while it is on, its photos can be given 1 to 5 stars and a comment, and anyone with a shared link made with it can too. Shown as the tip of the star button in an open collection's header, which turns it on and off, and as the screen-reader name of the stars in the photo viewer.
+    static var appPhotosRatingTitle: String { L("app.photos.rating.title", table: "AppPhotos") }
+
+    /// Couldn't change Rating. Try again.
+    ///
+    /// Note when the device didn't turn a collection's Rating (app.photos.rating.title) on or off, and gave no words of its own.
+    static var appPhotosRatingToggleFailed: String { L("app.photos.rating.toggle_failed", table: "AppPhotos") }
+
+    /// Rating on: rate photos with stars and comments
+    ///
+    /// One-line note shown for a few seconds the first time Rating (app.photos.rating.title) is turned on for a collection: its photos can now be given stars and a comment in the photo viewer.
+    static var appPhotosRatingTurnedOn: String { L("app.photos.rating.turned_on", table: "AppPhotos") }
+
     /// “{text}” is already in the search.
     ///
     /// Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style.

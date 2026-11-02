@@ -340,6 +340,11 @@ extension S {
         L("app.settings.links.opened_last", table: "AppSettings", count, last)
     }
 
+    /// Rating on
+    ///
+    /// Line in a shared link's details in Settings › Shared links when anyone who opens the link can rate its photos (stars and comments).
+    static var appSettingsLinksRating: String { L("app.settings.links.rating", table: "AppSettings") }
+
     /// one: {size} · {count} file
     /// other: {size} · {count} files
     ///

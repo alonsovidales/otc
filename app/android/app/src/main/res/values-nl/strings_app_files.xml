@@ -48,6 +48,8 @@
     <string name="app_files_gallery_no_link">Het apparaat heeft geen link teruggestuurd</string>
     <string name="app_files_gallery_prepare_failed">Kan de galerij niet voorbereiden</string>
     <string name="app_files_gallery_privacy">Ze worden gekopieerd en opnieuw versleuteld met een eigen sleutel. Alleen mensen met de link kunnen ze zien, tot die verloopt.</string>
+    <string name="app_files_gallery_rating">Laat mensen de foto’s beoordelen</string>
+    <string name="app_files_gallery_rating_note">Iedereen met de link kan sterren geven en reacties achterlaten. Je ziet ze in deze collectie.</string>
     <string name="app_files_gallery_share_link">Link delen</string>
     <string name="app_files_gallery_title">Delen als galerij</string>
     <string name="app_files_in_upload_only">In een map met “Alleen uploaden”</string>
