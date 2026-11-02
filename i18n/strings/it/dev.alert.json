@@ -302,6 +302,18 @@
     "text": "Entrambi i dischi di archiviazione funzionano di nuovo",
     "en": "Both storage disks are working again"
   },
+  "dev.alert.rating.new": {
+    "text": "Foto valutate tramite un link condiviso",
+    "en": "Photos rated through a shared link"
+  },
+  "dev.alert.rating.new_detail": {
+    "text": "Qualcuno ha valutato o commentato delle foto in {name} tramite il suo link condiviso. Apri la raccolta per vedere le stelle e i commenti.",
+    "en": "Someone rated or commented on photos in {name} through its shared link. Open the collection to see the stars and comments."
+  },
+  "dev.alert.rating.new_detail_favourites": {
+    "text": "Qualcuno ha valutato o commentato delle foto in Preferiti tramite il suo link condiviso. Apri Preferiti per vedere le stelle e i commenti.",
+    "en": "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments."
+  },
   "dev.alert.setaside.detail": {
     "text": "il dispositivo si è interrotto due volte durante l’elaborazione. Viene conservato così com’è, senza la miniatura, le etichette o i volti che mancavano, e verrà riprovato dopo il prossimo aggiornamento.",
     "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."

@@ -302,6 +302,18 @@
     "text": "Les deux disques de stockage fonctionnent de nouveau",
     "en": "Both storage disks are working again"
   },
+  "dev.alert.rating.new": {
+    "text": "Photos notées via un lien partagé",
+    "en": "Photos rated through a shared link"
+  },
+  "dev.alert.rating.new_detail": {
+    "text": "Quelqu’un a noté ou commenté des photos de {name} via son lien partagé. Ouvrez la collection pour voir les étoiles et les commentaires.",
+    "en": "Someone rated or commented on photos in {name} through its shared link. Open the collection to see the stars and comments."
+  },
+  "dev.alert.rating.new_detail_favourites": {
+    "text": "Quelqu’un a noté ou commenté des photos de Favoris via son lien partagé. Ouvrez Favoris pour voir les étoiles et les commentaires.",
+    "en": "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments."
+  },
   "dev.alert.setaside.detail": {
     "text": "l’appareil s’est arrêté deux fois pendant son traitement. Il est conservé tel quel, sans la vignette, les étiquettes ou les visages qui lui manquaient, et sera de nouveau traité après la prochaine mise à jour.",
     "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."

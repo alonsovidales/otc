@@ -274,6 +274,36 @@ func DevFilesPostContentUnavailable(hash string, detail string) Msg {
 	return Msg{Key: "dev.files.post_content_unavailable", Args: map[string]any{"hash": hash, "detail": detail}}
 }
 
+// DevFilesRatingBadStars is dev.files.rating_bad_stars: "a photo's rating is from 0 to 5 stars".
+func DevFilesRatingBadStars() Msg {
+	return Msg{Key: "dev.files.rating_bad_stars"}
+}
+
+// DevFilesRatingCommentTooLong is dev.files.rating_comment_too_long: "a comment can be at most {max} characters long".
+func DevFilesRatingCommentTooLong(max int) Msg {
+	return Msg{Key: "dev.files.rating_comment_too_long", Args: map[string]any{"max": int64(max)}}
+}
+
+// DevFilesRatingLinkOff is dev.files.rating_link_off: "the photos of this link can't be rated any more".
+func DevFilesRatingLinkOff() Msg {
+	return Msg{Key: "dev.files.rating_link_off"}
+}
+
+// DevFilesRatingNoCollection is dev.files.rating_no_collection: "this collection no longer exists".
+func DevFilesRatingNoCollection() Msg {
+	return Msg{Key: "dev.files.rating_no_collection"}
+}
+
+// DevFilesRatingNotInCollection is dev.files.rating_not_in_collection: "this photo is no longer in the collection".
+func DevFilesRatingNotInCollection() Msg {
+	return Msg{Key: "dev.files.rating_not_in_collection"}
+}
+
+// DevFilesRatingOff is dev.files.rating_off: "Rating is off for this collection: turn it on to rate its photos".
+func DevFilesRatingOff() Msg {
+	return Msg{Key: "dev.files.rating_off"}
+}
+
 // DevFilesReadFailed is dev.files.read_failed: "error reading file: {detail}".
 func DevFilesReadFailed(detail string) Msg {
 	return Msg{Key: "dev.files.read_failed", Args: map[string]any{"detail": detail}}

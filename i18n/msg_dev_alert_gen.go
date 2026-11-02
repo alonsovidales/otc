@@ -324,6 +324,21 @@ func DevAlertRaidWorkingTitle() Msg {
 	return Msg{Key: "dev.alert.raid.working_title"}
 }
 
+// DevAlertRatingNew is dev.alert.rating.new: "Photos rated through a shared link".
+func DevAlertRatingNew() Msg {
+	return Msg{Key: "dev.alert.rating.new"}
+}
+
+// DevAlertRatingNewDetail is dev.alert.rating.new_detail: "Someone rated or commented on photos in {name} through its shared link. Open the…".
+func DevAlertRatingNewDetail(name string) Msg {
+	return Msg{Key: "dev.alert.rating.new_detail", Args: map[string]any{"name": name}}
+}
+
+// DevAlertRatingNewDetailFavourites is dev.alert.rating.new_detail_favourites: "Someone rated or commented on photos in Favourites through its shared link. Open…".
+func DevAlertRatingNewDetailFavourites() Msg {
+	return Msg{Key: "dev.alert.rating.new_detail_favourites"}
+}
+
 // DevAlertSetasideDetail is dev.alert.setaside.detail: "the device stopped twice while processing it. It is kept as it is, without the t…".
 func DevAlertSetasideDetail() Msg {
 	return Msg{Key: "dev.alert.setaside.detail"}

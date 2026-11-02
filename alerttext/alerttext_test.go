@@ -94,6 +94,9 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.raid.replace_detail_working_top":    {i18n.DevAlertRaidReplaceDetailWorkingTop(), "The disk in the top blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with " + blank},
 		"dev.alert.raid.replace_detail_working_bottom": {i18n.DevAlertRaidReplaceDetailWorkingBottom(), "The disk in the bottom blue USB port still works and holds all your files, but they are no longer mirrored. Replace the other one with " + blank},
 		"dev.alert.raid.not_added_title":               {i18n.DevAlertRaidNotAddedTitle(), "A disk was plugged in but not added to the mirror"},
+		"dev.alert.rating.new":                         {i18n.DevAlertRatingNew(), "Photos rated through a shared link"},
+		"dev.alert.rating.new_detail":                  {i18n.DevAlertRatingNewDetail("Wedding"), "Someone rated or commented on photos in Wedding through its shared link. Open the collection to see the stars and comments."},
+		"dev.alert.rating.new_detail_favourites":       {i18n.DevAlertRatingNewDetailFavourites(), "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments."},
 		"dev.alert.raid.not_added_detail":              {i18n.DevAlertRaidNotAddedDetail("sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1)"), notAdded + " (sdb 512.1 GB (Generic Card Reader, xhci-hcd.1 usb4 4-1))"},
 		"dev.alert.raid.not_added_detail_in_use":       {i18n.DevAlertRaidNotAddedDetailInUse(what), inUse + " (" + what + ")"},
 		// New with Settings' Use it for the mirror (no older English).

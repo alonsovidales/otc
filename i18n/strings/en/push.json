@@ -86,6 +86,16 @@
     "note": "Title of the push notification sent when both of the device's storage disks work again after one had stopped.",
     "max": 60
   },
+  "push.rating.body": {
+    "text": "Someone rated or commented on your photos through a link you shared.",
+    "note": "Body of the push notification sent when someone opening a shared gallery link made with \"Let people rate the photos\" gave stars to photos or left comments on them. At most one an hour per link. The title is push.rating.title. It names no collection: Apple and Google can read pushes.",
+    "max": 150
+  },
+  "push.rating.title": {
+    "text": "New ratings on your photos",
+    "note": "Title of the push notification sent when someone gave stars to photos, or left comments, through a shared gallery link that takes ratings.",
+    "max": 60
+  },
   "push.storage.full_body": {
     "text": "Free some space: once it is full, new photos and files can't be saved.",
     "note": "Body of the push notification sent when the device's storage disks are nearly full, under push.storage.full_title.",

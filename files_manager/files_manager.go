@@ -1165,7 +1165,25 @@ func (mg *Manager) ImageSearchWithin(area *dao.MediaArea, session *session.Sessi
 // "" is ImageSearchWithin. ErrSmartSearchOff / ErrSmartSearchDownloading /
 // ErrSmartSearchUnavailable when it can't run.
 func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
+	return mg.ImageSearchRated(nil, text, area, session, path, tags, oldToken, includeVideos, personIDs, groupID, before, newerThan, have, limit, small, omit)
+}
+
+// ImageSearchRated is ImageSearchText of a collection whose Rating is on
+// (release 163): rating (SearchPhotos.rating and by_rating; nil or
+// inactive: none) keeps the photos whose rating passes it and may sort
+// them by stars - a ranked search, as a tag search is: before and
+// newerThan don't apply. In any collection whose Rating is on each photo
+// of a page carries its rating (File.rating); elsewhere rating is
+// ignored.
+func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *dao.MediaArea, session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil, "text:", text != "")
+	rated := mg.GroupRated(groupID)
+	if !rated {
+		rating = nil
+	}
+	if rating.Active() {
+		before, newerThan = nil, nil
+	}
 	text = smartText(text)
 	if text != "" {
 		// Not even a token's next page once it is off.
@@ -1245,7 +1263,7 @@ func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *se
 		if newerThan != nil {
 			files, err = mg.dao.SearchMediaNewerThanWithin(area, path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
 		} else {
-			files, err = mg.dao.SearchMediaWithin(area, path, tags, personIDs, groupID, !includeVideos, before, excluded)
+			files, err = mg.dao.SearchMediaRated(area, path, tags, personIDs, groupID, !includeVideos, before, excluded, rating)
 		}
 		if err != nil {
 			return
@@ -1324,6 +1342,15 @@ func (mg *Manager) ImageSearchText(text string, area *dao.MediaArea, session *se
 	// no "every copy" for it, and the token moves as usual.
 	if copiesErr := mg.setCopies(page); copiesErr != nil {
 		log.Error("error counting the copies of a search page, served without them:", copiesErr)
+	}
+	// Rating (release 163): each photo's stars and comment in a rated
+	// collection, read for the page as it is served (a rating changed
+	// since the search started shows). A failed read serves the page
+	// without them.
+	if rated {
+		if ratingErr := mg.setRatings(session, groupID, page); ratingErr != nil {
+			log.Error("error reading the ratings of a search page, served without them:", ratingErr)
+		}
 	}
 	if next < len(files) {
 		// The rows already served stay in the token only until they
@@ -1407,7 +1434,7 @@ func (mg *Manager) GetImageGroup(session *session.Session, id string, small bool
 }
 
 func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup, small bool) *pb.ImageGroup {
-	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount), Favourites: g.IsFavourites()}
+	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount), Favourites: g.IsFavourites(), Rating: g.Rating}
 	if g.CoverHash != "" {
 		if thumb, _, err := mg.readGridThumbnail(session, &pb.File{Hash: g.CoverHash}, small); err == nil {
 			item.CoverThumbnail = thumb

@@ -452,6 +452,14 @@ create table shared_links
   `opens` int not null default 0,
   `last_opened` datetime null,
   `expires` datetime null,          -- null: created + [otc] shared-link-ttl-hours
+  -- Rating (release 163): a gallery made from a collection with "Let
+  -- people rate the photos": the collection, and whether its visitors may
+  -- rate (RateSharedGalleryItem) - only while the collection exists with
+  -- its Rating on. rating_alerted is the last alert (and push) its ratings
+  -- caused: at most one an hour per link.
+  `group_id` varchar(36) null,
+  `rating` tinyint(1) not null default 0,
+  `rating_alerted` datetime null,
 
   primary key (`uuid`)
 ) engine=InnoDB;
@@ -461,10 +469,19 @@ create table shared_links
 -- salted derivation (see session.New's migration path), non-NULL means the
 -- password is run through Argon2id with this salt. New installs always
 -- get one from the start.
+-- Rating (release 163): the user's X25519 key pair the photos' rating
+-- comments are sealed to (files_manager/rating.go). The public key is in
+-- the clear, so a comment left through a shared link is sealed while the
+-- owner is signed out; the private key is sealed with the user's own key
+-- (the vault's secret, which a password change re-wraps, never changes),
+-- so a comment is read only once the owner has signed in. Made at the
+-- first sign-in that finds them missing.
 create table vault
 (
   `secret` blob not null,
-  `salt` varbinary(32)
+  `salt` varbinary(32),
+  `rating_public` varbinary(32) null,
+  `rating_private` blob null
 );
 
 create table events
@@ -745,6 +762,14 @@ create table image_groups
   `id` varchar(36) not null,
   `name` varchar(150) not null,
   `created` datetime not null,
+  -- Rating (release 163): the collection's photos are rated (photo_ratings).
+  -- Off keeps the ratings, hidden, until it is on again.
+  `rating` tinyint(1) not null default 0,
+  -- Rating: the key a rated shared link's visitors read the comments
+  -- with (photo_ratings.shared_comment), sealed with the owner's key; each
+  -- rated link of the collection carries it in its own sealed manifest.
+  -- Made with the collection's first rated link.
+  `rating_key` blob null,
 
   primary key (`id`)
 ) engine=InnoDB;
@@ -753,6 +778,29 @@ create table image_group_files
   `group_id` varchar(36) not null,
   `hash` varchar(64) not null,
   `added` datetime not null,
+
+  primary key (`group_id`, `hash`),
+  key (`hash`)
+) engine=InnoDB;
+-- Rating (release 163): a photo's stars and comment in a rated collection,
+-- one per photo and collection, the same for the owner and the visitors of
+-- the collection's rated shared links. A row has stars or a comment (both
+-- cleared deletes it), and goes with the photo when it leaves the
+-- collection or the collection is deleted. The stars are readable (the
+-- collection is filtered and sorted by them, as by tags); the comment is
+-- sealed to the user's public key (vault.rating_public) and, once the
+-- collection has a rated link, again with its rating_key for the links'
+-- visitors (shared_comment). link is the shared link the last change
+-- came through (PhotoRating.from_link), null for the owner's own.
+create table photo_ratings
+(
+  `group_id` varchar(36) not null,
+  `hash` varchar(64) not null,
+  `stars` tinyint not null default 0,
+  `comment` blob null,
+  `shared_comment` blob null,
+  `link` varchar(64) null,
+  `updated` datetime not null,
 
   primary key (`group_id`, `hash`),
   key (`hash`)

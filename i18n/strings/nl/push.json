@@ -66,6 +66,14 @@
     "text": "Opslagschijven werken weer",
     "en": "Storage disks working again"
   },
+  "push.rating.body": {
+    "text": "Iemand heeft je foto’s beoordeeld of erop gereageerd via een link die je hebt gedeeld.",
+    "en": "Someone rated or commented on your photos through a link you shared."
+  },
+  "push.rating.title": {
+    "text": "Nieuwe beoordelingen van je foto’s",
+    "en": "New ratings on your photos"
+  },
   "push.storage.full_body": {
     "text": "Maak wat ruimte vrij: zodra het vol is, kunnen er geen nieuwe foto’s en bestanden meer worden opgeslagen.",
     "en": "Free some space: once it is full, new photos and files can't be saved."

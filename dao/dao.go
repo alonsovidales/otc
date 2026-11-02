@@ -908,18 +908,36 @@ type SharedLinkRow struct {
 	LastOpened  sql.NullTime
 	Bytes       int64
 	Files       int
+	// Rating (release 163): anyone with the link can rate its photos now -
+	// made with Rating, and its collection still there with Rating on.
+	Rating bool
 }
 
 // InsertSharedGallery records a gallery (issue #180): never its link.
-func (dao *Dao) InsertSharedGallery(uuid string, bytes int64, files int, description []byte, expires time.Time) error {
-	_, err := dao.db.Exec("insert into `shared_links` (`uuid`, `size`, `created`, `kind`, `description`, `files`, `expires`) values (?, ?, ?, 'gallery', ?, ?, ?)",
-		uuid, bytes, time.Now().UTC(), description, files, expires.UTC())
-	return err
+// ratedGroup (release 163) is the collection whose photos its visitors may
+// rate, "" for a gallery made without Rating.
+func (dao *Dao) InsertSharedGallery(uuid string, bytes int64, files int, description []byte, expires time.Time, ratedGroup string) error {
+	if ratedGroup == "" {
+		_, err := dao.db.Exec("insert into `shared_links` (`uuid`, `size`, `created`, `kind`, `description`, `files`, `expires`) values (?, ?, ?, 'gallery', ?, ?, ?)",
+			uuid, bytes, time.Now().UTC(), description, files, expires.UTC())
+		return err
+	}
+	_, err := dao.db.Exec("insert into `shared_links` (`uuid`, `size`, `created`, `kind`, `description`, `files`, `expires`, `group_id`, `rating`) values (?, ?, ?, 'gallery', ?, ?, ?, ?, 1)",
+		uuid, bytes, time.Now().UTC(), description, files, expires.UTC(), ratedGroup)
+	return schemaBehind(err)
 }
 
 // ListSharedLinks is every share link, newest first.
 func (dao *Dao) ListSharedLinks() ([]SharedLinkRow, error) {
-	rows, err := dao.db.Query("select `uuid`, `kind`, `description`, `created`, `expires`, `opens`, `last_opened`, `size`, `files` from `shared_links` order by `created` desc")
+	const cols = "select `l`.`uuid`, `l`.`kind`, `l`.`description`, `l`.`created`, `l`.`expires`, `l`.`opens`, `l`.`last_opened`, `l`.`size`, `l`.`files`"
+	withRating := true
+	rows, err := dao.db.Query(cols + ", `l`.`rating` = 1 and coalesce(`g`.`rating`, 0) = 1 from `shared_links` as `l`" +
+		" left join `image_groups` as `g` on `g`.`id` = `l`.`group_id` order by `l`.`created` desc")
+	if isUnknownColumn(err) {
+		// A database release 163's script hasn't reached: no Rating.
+		withRating = false
+		rows, err = dao.db.Query(cols + " from `shared_links` as `l` order by `l`.`created` desc")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -927,7 +945,11 @@ func (dao *Dao) ListSharedLinks() ([]SharedLinkRow, error) {
 	var out []SharedLinkRow
 	for rows.Next() {
 		var r SharedLinkRow
-		if err := rows.Scan(&r.Uuid, &r.Kind, &r.Description, &r.Created, &r.Expires, &r.Opens, &r.LastOpened, &r.Bytes, &r.Files); err != nil {
+		dest := []any{&r.Uuid, &r.Kind, &r.Description, &r.Created, &r.Expires, &r.Opens, &r.LastOpened, &r.Bytes, &r.Files}
+		if withRating {
+			dest = append(dest, &r.Rating)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -2683,8 +2705,21 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // rows to media (the mime rule below still applies without the others),
 // and a photo without a position is never in an area.
 func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, area *MediaArea) (from, where, orderBy, selectExtra string, args []any) {
+	return searchMediaRatedClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded, area, nil)
+}
+
+// searchMediaRatedClauses is searchMediaClauses with a rated collection's
+// filter and order (rating, release 163; nil or inactive: none). It needs
+// groupID - the collection's photo_ratings rows are joined to its members
+// (`ig`) - and only a collection whose Rating is on gets one (the caller
+// checks). Its conditions are numbers written into the text, so the
+// placeholders' order stays the other filters'.
+func searchMediaRatedClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, area *MediaArea, rating *RatingQuery) (from, where, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
 	orderBy = " order by `f`.`created` desc, `f`.`path` desc"
+	if groupID == "" || !rating.Active() {
+		rating = nil
+	}
 
 	if len(tags) > 0 {
 		ph := strings.Repeat("?,", len(tags))
@@ -2712,6 +2747,24 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	if groupID != "" {
 		from += " join `image_group_files` as `ig` on `ig`.`hash` = `f`.`hash` and `ig`.`group_id` = ?"
 		args = append(args, groupID)
+	}
+
+	// Rating: the photo's row in the collection, if it has one (a photo
+	// without stars or a comment has none). Ranked like a tag search: the
+	// most stars first, the score (with tags) and the date after; every
+	// copy of a photo has its stars, so its last row is still its oldest
+	// copy (oldestCopies).
+	var ratingParts []string
+	if rating != nil {
+		from += " left join `photo_ratings` as `pr` on `pr`.`group_id` = `ig`.`group_id` and `pr`.`hash` = `f`.`hash`"
+		ratingParts = rating.conditions()
+		if rating.ByRating {
+			if len(tags) > 0 {
+				orderBy = " order by coalesce(`pr`.`stars`, 0) desc, `tg`.`score` desc, `f`.`created` desc, `f`.`path` desc"
+			} else {
+				orderBy = " order by coalesce(`pr`.`stars`, 0) desc, `f`.`created` desc, `f`.`path` desc"
+			}
+		}
 	}
 
 	if area != nil {
@@ -2748,6 +2801,8 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 			whereParts = append(whereParts, "(`f`.`mime` like 'image%' or `f`.`mime` like 'video%')")
 		}
 	}
+	// Rating: no placeholders, so anywhere among the parts.
+	whereParts = append(whereParts, ratingParts...)
 	// Issue #77: the date scrubber's "jump to date" - same left-to-right
 	// arg-ordering rule as above, this is the last WHERE part so its arg
 	// goes last regardless of which of the filters above are also active.
@@ -2776,7 +2831,14 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, grou
 // SearchMediaWithin is SearchMedia of the photos taken inside area (nil:
 // everywhere, as SearchMedia).
 func (dao *Dao) SearchMediaWithin(area *MediaArea, path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (files []*pb.File, err error) {
-	from, where, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded, area)
+	return dao.SearchMediaRated(area, path, tags, personIDs, groupID, imagesOnly, before, excluded, nil)
+}
+
+// SearchMediaRated is SearchMediaWithin of a rated collection, filtered and
+// ordered by its photos' ratings (rating, release 163; nil: as
+// SearchMediaWithin). Only for a collection whose Rating is on.
+func (dao *Dao) SearchMediaRated(area *MediaArea, path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, rating *RatingQuery) (files []*pb.File, err error) {
+	from, where, orderBy, selectExtra, args := searchMediaRatedClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded, area, rating)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
 		from + where + orderBy
@@ -2895,6 +2957,9 @@ type ImageGroup struct {
 	Name      string
 	FileCount int
 	CoverHash string
+	// Rating (release 163): the collection's photos are rated. False on a
+	// database release 163's script hasn't reached.
+	Rating bool
 }
 
 // FavouritesGroupID is the Favourites collection's id: one row every
@@ -2955,8 +3020,16 @@ func (dao *Dao) FavouritePaths(paths []string) ([]string, error) {
 // neither either - it stays a member, and is back once shown in Images
 // again.
 func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err error) {
-	query, args := imageGroupSelect(excluded)
-	rows, err := dao.db.Query(query+" order by `g`.`id` = '"+FavouritesGroupID+"' desc, `g`.`created` desc", args...)
+	withRating := true
+	query, args := imageGroupSelect(excluded, withRating)
+	const order = " order by `g`.`id` = '" + FavouritesGroupID + "' desc, `g`.`created` desc"
+	rows, err := dao.db.Query(query+order, args...)
+	if isUnknownColumn(err) {
+		// A database release 163's script hasn't reached: no Rating.
+		withRating = false
+		query, args = imageGroupSelect(excluded, withRating)
+		rows, err = dao.db.Query(query+order, args...)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2965,7 +3038,11 @@ func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err er
 	for rows.Next() {
 		g := new(ImageGroup)
 		var cover sql.NullString
-		if err := rows.Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
+		dest := []any{&g.ID, &g.Name, &g.FileCount, &cover}
+		if withRating {
+			dest = append(dest, &g.Rating)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 		g.CoverHash = cover.String
@@ -2980,17 +3057,22 @@ func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err er
 // the same condition in both subqueries, so its args come twice. Issue
 // #201: each member once, however many paths hold it - a member row is
 // one photo, kept when some copy may show - so a photo with three copies
-// is no likelier to be the cover than one with a single path.
-func imageGroupSelect(excluded []string) (string, []any) {
+// is no likelier to be the cover than one with a single path. withRating
+// also reads the group's Rating switch (release 163), as the last column.
+func imageGroupSelect(excluded []string, withRating bool) (string, []any) {
 	outside, outsideArgs := outsideFolders("`f`.`path`", excluded)
 	if outside != "" {
 		outside = " and " + outside
 	}
 	shown := " and exists (select 1 from `files` as `f` where `f`.`hash` = `m`.`hash`" + outside + ")"
+	rating := ""
+	if withRating {
+		rating = ", `g`.`rating`"
+	}
 	query := "select `g`.`id`, `g`.`name`," +
 		" (select count(*) from `image_group_files` as `m` where `m`.`group_id` = `g`.`id`" + shown + ")," +
 		" (select `m`.`hash` from `image_group_files` as `m` where `m`.`group_id` = `g`.`id`" + shown + " order by rand() limit 1)" +
-		" from `image_groups` as `g`"
+		rating + " from `image_groups` as `g`"
 	return query, append(append([]any{}, outsideArgs...), outsideArgs...)
 }
 
@@ -2998,8 +3080,14 @@ func imageGroupSelect(excluded []string) (string, []any) {
 func (dao *Dao) GetImageGroup(id string, excluded []string) (*ImageGroup, error) {
 	g := new(ImageGroup)
 	var cover sql.NullString
-	query, args := imageGroupSelect(excluded)
-	if err := dao.db.QueryRow(query+" where `g`.`id` = ?", append(args, id)...).Scan(&g.ID, &g.Name, &g.FileCount, &cover); err != nil {
+	query, args := imageGroupSelect(excluded, true)
+	err := dao.db.QueryRow(query+" where `g`.`id` = ?", append(args, id)...).Scan(&g.ID, &g.Name, &g.FileCount, &cover, &g.Rating)
+	if isUnknownColumn(err) {
+		// A database release 163's script hasn't reached: no Rating.
+		query, args = imageGroupSelect(excluded, false)
+		err = dao.db.QueryRow(query+" where `g`.`id` = ?", append(args, id)...).Scan(&g.ID, &g.Name, &g.FileCount, &cover)
+	}
+	if err != nil {
 		return nil, err
 	}
 	g.CoverHash = cover.String
@@ -3038,7 +3126,8 @@ func (dao *Dao) AddPathsToImageGroup(groupID string, paths []string) error {
 // resolving them to hashes as AddPathsToImageGroup does. A member is one
 // photo (issue #201), so taking out one of its paths takes the photo out
 // whatever other copies it has. Paths that aren't members change nothing.
-// The pictures themselves are untouched.
+// The pictures themselves are untouched; their ratings in the group
+// (release 163) go with them, in the same transaction.
 func (dao *Dao) RemovePathsFromImageGroup(groupID string, paths []string) error {
 	if len(paths) == 0 {
 		return nil
@@ -3049,10 +3138,22 @@ func (dao *Dao) RemovePathsFromImageGroup(groupID string, paths []string) error 
 	for _, p := range paths {
 		args = append(args, p)
 	}
-	_, err := dao.db.Exec(
+	tx, err := dao.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(
 		"delete from `image_group_files` where `group_id` = ?"+
-			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...)
-	return err
+			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		"delete from `photo_ratings` where `group_id` = ?"+
+			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...); err != nil && !isNoSuchTable(err) {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (dao *Dao) RenameImageGroup(id, name string) (err error) {
@@ -3060,9 +3161,9 @@ func (dao *Dao) RenameImageGroup(id, name string) (err error) {
 	return
 }
 
-// DeleteImageGroup removes the group and its memberships. The pictures
-// themselves are untouched - a group is a way of looking at them, not
-// where they live.
+// DeleteImageGroup removes the group, its memberships and its photos'
+// ratings (release 163). The pictures themselves are untouched - a group
+// is a way of looking at them, not where they live.
 func (dao *Dao) DeleteImageGroup(id string) error {
 	tx, err := dao.db.Begin()
 	if err != nil {
@@ -3070,6 +3171,9 @@ func (dao *Dao) DeleteImageGroup(id string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec("delete from `image_group_files` where `group_id` = ?", id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("delete from `photo_ratings` where `group_id` = ?", id); err != nil && !isNoSuchTable(err) {
 		return err
 	}
 	if _, err := tx.Exec("delete from `image_groups` where `id` = ?", id); err != nil {

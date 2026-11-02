@@ -412,6 +412,22 @@
     "note": "Title of an alert in Alerts: both of the device's storage disks work again after one had stopped.",
     "stored": true
   },
+  "dev.alert.rating.new": {
+    "text": "Photos rated through a shared link",
+    "note": "Title of an alert in Alerts: someone opening a shared gallery link (a web page of a collection's photos, made with \"Let people rate the photos\") gave stars to photos or left comments on them. Sent at most once an hour per link. Its detail is dev.alert.rating.new_detail or new_detail_favourites.",
+    "stored": true
+  },
+  "dev.alert.rating.new_detail": {
+    "text": "Someone rated or commented on photos in {name} through its shared link. Open the collection to see the stars and comments.",
+    "args": [["name", "user"]],
+    "note": "Detail of the alert dev.alert.rating.new: someone with a shared link of a collection (a group of photos) gave stars (1 to 5) to its photos or left comments, which the owner sees in that collection. {name} is the collection's name.",
+    "stored": true
+  },
+  "dev.alert.rating.new_detail_favourites": {
+    "text": "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments.",
+    "note": "Detail of the alert dev.alert.rating.new for the Favourites collection (the collection every device has, named as in dev.files.favourites): someone with its shared link gave stars (1 to 5) to its photos or left comments, which the owner sees in Favourites.",
+    "stored": true
+  },
   "dev.alert.setaside.detail": {
     "text": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update.",
     "note": "Detail of the alert dev.alert.setaside.title, shown after it as the reason (the English starts in lower case for that reason): the device's software stopped twice while making the preview or search data (tags, faces) of this file, so it no longer tries. The file itself is untouched. The next update is the next update of the device's software.",

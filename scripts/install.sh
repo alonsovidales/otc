@@ -1390,6 +1390,20 @@ SQL
     UPDATE settings SET image_tagging_chosen = 1 WHERE image_tagging_enabled = 0;
 SQL
     fi
+    # Release 163 (updates/163.sh): collection Rating - a collection's
+    # switch and its link key, the photos' stars and sealed comments, a
+    # gallery's collection and rating, and the user's key pair the comments
+    # are sealed to (see db.sql).
+    mysql "$db" <<'SQL'
+    ALTER TABLE image_groups ADD COLUMN IF NOT EXISTS rating TINYINT(1) NOT NULL DEFAULT 0;
+    ALTER TABLE image_groups ADD COLUMN IF NOT EXISTS rating_key BLOB NULL;
+    CREATE TABLE IF NOT EXISTS photo_ratings (`group_id` VARCHAR(36) NOT NULL, `hash` VARCHAR(64) NOT NULL, `stars` TINYINT NOT NULL DEFAULT 0, `comment` BLOB NULL, `shared_comment` BLOB NULL, `link` VARCHAR(64) NULL, `updated` DATETIME NOT NULL, PRIMARY KEY (`group_id`, `hash`), KEY (`hash`)) ENGINE=InnoDB;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS group_id VARCHAR(36) NULL;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS rating TINYINT(1) NOT NULL DEFAULT 0;
+    ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS rating_alerted DATETIME NULL;
+    ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_public VARBINARY(32) NULL;
+    ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_private BLOB NULL;
+SQL
 }
 
 apply_schema_migrations otc

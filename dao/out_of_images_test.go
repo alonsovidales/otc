@@ -70,15 +70,15 @@ func TestImageGroupSelectRepeatsTheExclusion(t *testing.T) {
 	}
 	defer db.Close()
 	d := NewWithDB(db)
-	mock.ExpectQuery("select `g`.`id`, `g`.`name`, \\(select count.* and not \\(`f`.`path` >= .*\\), \\(select `m`.`hash` .* and not \\(`f`.`path` >= .* order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`.`id` = \\?").
+	mock.ExpectQuery("select `g`.`id`, `g`.`name`, \\(select count.* and not \\(`f`.`path` >= .*\\), \\(select `m`.`hash` .* and not \\(`f`.`path` >= .* order by rand\\(\\) limit 1\\), `g`.`rating` from `image_groups` as `g` where `g`.`id` = \\?").
 		WithArgs("/P/", "/P/", "/P/%", "/P/", "/P/", "/P/%", "g1").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g1", "Trip", 1, "h1"))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover", "rating"}).AddRow("g1", "Trip", 1, "h1", true))
 	g, err := d.GetImageGroup("g1", []string{"/P/"})
-	if err != nil || g.FileCount != 1 || g.CoverHash != "h1" {
+	if err != nil || g.FileCount != 1 || g.CoverHash != "h1" || !g.Rating {
 		t.Fatalf("%+v, %v", g, err)
 	}
 	mock.ExpectQuery("from `image_groups` as `g` order by `g`.`id` = 'favourites' desc, `g`.`created` desc").WithArgs().
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover", "rating"}))
 	if _, err := d.ListImageGroups(nil); err != nil {
 		t.Fatal(err)
 	}

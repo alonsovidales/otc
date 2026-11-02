@@ -84,6 +84,16 @@ func PushRaidWorkingTitle() Msg {
 	return Msg{Key: "push.raid.working_title"}
 }
 
+// PushRatingBody is push.rating.body: "Someone rated or commented on your photos through a link you shared.".
+func PushRatingBody() Msg {
+	return Msg{Key: "push.rating.body"}
+}
+
+// PushRatingTitle is push.rating.title: "New ratings on your photos".
+func PushRatingTitle() Msg {
+	return Msg{Key: "push.rating.title"}
+}
+
 // PushStorageFullBody is push.storage.full_body: "Free some space: once it is full, new photos and files can't be saved.".
 func PushStorageFullBody() Msg {
 	return Msg{Key: "push.storage.full_body"}

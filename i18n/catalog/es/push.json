@@ -15,6 +15,8 @@
   "push.raid.stopped_working_top": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el del puerto USB azul superior: sustituye el otro pronto."},
   "push.raid.working_body": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},
   "push.raid.working_title": {"text": "Los discos de almacenamiento vuelven a funcionar"},
+  "push.rating.body": {"text": "Alguien ha valorado o comentado tus fotos a través de un enlace que compartiste."},
+  "push.rating.title": {"text": "Nuevas valoraciones en tus fotos"},
   "push.storage.full_body": {"text": "Libera algo de espacio: cuando se llene, no se podrán guardar fotos ni archivos nuevos."},
   "push.storage.full_title": {"text": "Tu dispositivo está casi lleno"},
   "push.update.critical_body": {"text": "Instálala desde Ajustes."},

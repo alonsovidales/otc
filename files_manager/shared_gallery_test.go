@@ -118,7 +118,7 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	job := &galleryJob{state: &pb.SharedGalleryJob{}}
-	link, err := mg.buildSharedGallery(ses, files, "Summer 2026", time.Hour, "cala.off-the.cloud", false, job)
+	link, err := mg.buildSharedGallery(ses, files, "Summer 2026", time.Hour, "cala.off-the.cloud", false, nil, job)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestSharedGalleryLowRes(t *testing.T) {
 	defer db.Close()
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
-	link, err := mg.buildSharedGallery(ses, files, "small", time.Hour, "cala.off-the.cloud", true, &galleryJob{state: &pb.SharedGalleryJob{}})
+	link, err := mg.buildSharedGallery(ses, files, "small", time.Hour, "cala.off-the.cloud", true, nil, &galleryJob{state: &pb.SharedGalleryJob{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -529,7 +529,7 @@ func TestSharedGalleryManifestIsCachedButStillChecked(t *testing.T) {
 	defer db.Close()
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), sharedLinkTTL: time.Hour})
 	mock.ExpectExec("insert into `shared_links`").WillReturnResult(sqlmock.NewResult(1, 1))
-	link, err := mg.buildSharedGallery(ses, files, "cache", time.Hour, "cala.off-the.cloud", false, &galleryJob{state: &pb.SharedGalleryJob{}})
+	link, err := mg.buildSharedGallery(ses, files, "cache", time.Hour, "cala.off-the.cloud", false, nil, &galleryJob{state: &pb.SharedGalleryJob{}})
 	if err != nil {
 		t.Fatal(err)
 	}

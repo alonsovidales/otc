@@ -240,6 +240,13 @@ var headEnglish = []struct {
 	// A person's face chosen by the owner: new, as above.
 	{"dev.files.person_cover_no_face", i18n.DevFilesPersonCoverNoFace(), "that photo has no face of this person"},
 	{"dev.files.person_cover_image", i18n.DevFilesPersonCoverImage(), "that picture can't be used: it must be a JPEG of at most 256 KB"},
+	// Collection Rating (release 163): new, as above.
+	{"dev.files.rating_off", i18n.DevFilesRatingOff(), "Rating is off for this collection: turn it on to rate its photos"},
+	{"dev.files.rating_link_off", i18n.DevFilesRatingLinkOff(), "the photos of this link can't be rated any more"},
+	{"dev.files.rating_not_in_collection", i18n.DevFilesRatingNotInCollection(), "this photo is no longer in the collection"},
+	{"dev.files.rating_no_collection", i18n.DevFilesRatingNoCollection(), "this collection no longer exists"},
+	{"dev.files.rating_bad_stars", i18n.DevFilesRatingBadStars(), "a photo's rating is from 0 to 5 stars"},
+	{"dev.files.rating_comment_too_long", i18n.DevFilesRatingCommentTooLong(2000), "a comment can be at most 2,000 characters long"},
 }
 
 // The catalog's English is the device's English as it was.

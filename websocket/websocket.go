@@ -244,6 +244,13 @@ type Manager struct {
 func (mg *Manager) startBackfillOnce(ses *session.Session) {
 	mg.backfillOnce.Do(func() {
 		go func() {
+			// Rating (release 163): the key pair a comment left through a
+			// shared link is sealed to, made at the first sign-in that
+			// finds it missing - rating a photo or sharing a rated
+			// gallery makes it too (files_manager/rating.go).
+			if err := mg.filesManager.EnsureRatingKeys(ses); err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
+				log.Error("could not make the rating key pair:", err)
+			}
 			// Issue #192: what an interrupted keep-out or show-again left,
 			// first - it records in pending_analysis what goes back to
 			// the analysis, which the resume below then queues.
@@ -2106,6 +2113,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGallery{RespSharedGallery: g}
 
+	// Rating (release 163): a visitor rating one of a gallery's photos.
+	// Public like the gallery's other requests - a link that doesn't open
+	// gets their one answer - and limited per address (rating.go).
+	case *pb.ReqEnvelope_ReqRateSharedGalleryItem:
+		log.Debug("Rate shared gallery item")
+		ch.rateSharedGalleryItem(p.ReqRateSharedGalleryItem, resp, lang)
+
 	case *pb.ReqEnvelope_ReqGetSharedGalleryItem:
 		r := p.ReqGetSharedGalleryItem
 		data, size, mime, err := ch.mg.filesManager.ReadSharedGalleryItem(r.Uuid, r.Secret, int(r.Index), r.Part, r.Offset, int(r.Length))
@@ -2525,7 +2539,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqCreateSharedGallery:
 		log.Info("Create shared gallery")
 		r := p.ReqCreateSharedGallery
-		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain(), r.LowRes)
+		job, err := ch.mg.filesManager.StartRatedSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain(), r.LowRes, r.Rating)
 		if err != nil {
 			resp.Error, resp.ErrorMessage = true, errText(lang, err)
 			contentCode(resp, err)
@@ -2916,7 +2930,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 		// Smart search: ranked by the text, within the other filters.
 		text := p.ReqSearchPhotos.Text
-		files, token, err := ch.mg.filesManager.ImageSearchText(text, ch.placesArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
+		// Rating (release 163): a rated collection filtered and sorted by
+		// its photos' stars - ranked, as a tag search.
+		rating := ratingQuery(p.ReqSearchPhotos)
+		files, token, err := ch.mg.filesManager.ImageSearchRated(rating, text, ch.placesArea(p.ReqSearchPhotos.Area), ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
 		if code, message, refused := smartSearchRefusal(lang, err); refused {
 			log.Debug("a text search refused:", code)
 			resp.Error = true
@@ -2937,8 +2954,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 					// Every page of a newer_than search, the last and an
 					// empty one too: how a client tells this device from
 					// one before #194, which answers newest first. A text
-					// search is never one.
-					OldestFirst: newerThan != nil && !smart,
+					// search is never one, nor a rated collection's ranked
+					// by its rating (asked only then: rare).
+					OldestFirst: newerThan != nil && !smart && (rating == nil || !ch.mg.filesManager.GroupRated(p.ReqSearchPhotos.GroupId)),
 					// A text search while photos the device held are still
 					// being described.
 					SmartSearchReading: smart && ch.mg.filesManager.SmartSearchReading(),
@@ -3614,6 +3632,34 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	// Rating (release 163): a collection's Rating on or off, and one
+	// photo's stars and comment in it (rating.go).
+	case *pb.ReqEnvelope_ReqSetImageGroupRating:
+		log.Info("Set a collection's Rating:", p.ReqSetImageGroupRating.On)
+		if err := ch.mg.filesManager.SetImageGroupRating(p.ReqSetImageGroupRating.Id, p.ReqSetImageGroupRating.On); err != nil {
+			if !ratingRefused(err) {
+				log.Error("error setting a collection's Rating:", err)
+			}
+			refuseRating(resp, lang, err, true)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
+	case *pb.ReqEnvelope_ReqSetPhotoRating:
+		req := p.ReqSetPhotoRating
+		log.Info("Rate a photo:", req.Stars, "stars")
+		rating, err := ch.mg.filesManager.SetPhotoRating(ses, req.GroupId, req.Path, req.Stars, req.Comment)
+		if err != nil {
+			if ratingRefused(err) {
+				log.Debug("a rating refused:", ratingCode(err))
+			} else {
+				log.Error("error rating a photo:", err)
+			}
+			refuseRating(resp, lang, err, false)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespPhotoRating{RespPhotoRating: rating}
 		}
 
 	case *pb.ReqEnvelope_ReqRenamePerson:

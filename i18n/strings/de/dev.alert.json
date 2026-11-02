@@ -302,6 +302,18 @@
     "text": "Beide Speicherlaufwerke funktionieren wieder",
     "en": "Both storage disks are working again"
   },
+  "dev.alert.rating.new": {
+    "text": "Fotos über einen geteilten Link bewertet",
+    "en": "Photos rated through a shared link"
+  },
+  "dev.alert.rating.new_detail": {
+    "text": "Jemand hat über den geteilten Link von {name} Fotos bewertet oder kommentiert. Öffne die Sammlung, um die Sterne und Kommentare zu sehen.",
+    "en": "Someone rated or commented on photos in {name} through its shared link. Open the collection to see the stars and comments."
+  },
+  "dev.alert.rating.new_detail_favourites": {
+    "text": "Jemand hat über den geteilten Link von Favoriten Fotos bewertet oder kommentiert. Öffne Favoriten, um die Sterne und Kommentare zu sehen.",
+    "en": "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments."
+  },
   "dev.alert.setaside.detail": {
     "text": "das Gerät ist bei ihrer Verarbeitung zweimal abgestürzt. Sie bleibt, wie sie ist, ohne die Miniatur, Tags oder Gesichter, die ihr fehlten, und wird nach dem nächsten Update erneut verarbeitet.",
     "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."

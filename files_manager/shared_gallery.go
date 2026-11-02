@@ -83,6 +83,11 @@ type galleryManifest struct {
 	Created     int64         `json:"created"`
 	Expires     int64         `json:"expires"`
 	Items       []galleryItem `json:"items"`
+	// RatingKey (release 163) is the collection's link key, in a gallery
+	// made with "Let people rate the photos": what its visitors' comments
+	// are sealed and read with (rating.go). The manifest is sealed under
+	// the link's secret, so only the link opens it.
+	RatingKey []byte `json:"rating_key,omitempty"`
 }
 
 type galleryItem struct {
@@ -92,6 +97,17 @@ type galleryItem struct {
 	Taken   int64  `json:"taken"`
 	Thumb   bool   `json:"thumb"`
 	Preview bool   `json:"preview"`
+	// Hash (release 163) is the photo's content hash in the library: the
+	// photo a visitor's rating is for. Galleries made before have none,
+	// and take no ratings.
+	Hash string `json:"hash,omitempty"`
+}
+
+// galleryRating is a gallery made with Rating: its collection and that
+// collection's link key.
+type galleryRating struct {
+	GroupID string
+	Key     []byte
 }
 
 func galleryDir(id string) string {
@@ -216,6 +232,14 @@ func (j *galleryJob) update(f func(s *pb.SharedGalleryJob)) {
 // lowRes shares only small copies of the photos (their thumbnails), and
 // no videos: the originals never leave the library.
 func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGallerySource, description string, ttlHours int32, domain string, lowRes bool) (*pb.SharedGalleryJob, error) {
+	return mg.StartRatedSharedGallery(ses, src, description, ttlHours, domain, lowRes, false)
+}
+
+// StartRatedSharedGallery is StartSharedGallery whose visitors may rate
+// the photos when rating (CreateSharedGallery.rating, release 163): only
+// for a collection, whose Rating it turns on - for a selection or a
+// folder it is ignored.
+func (mg *Manager) StartRatedSharedGallery(ses *session.Session, src *pb.SharedGallerySource, description string, ttlHours int32, domain string, lowRes, rating bool) (*pb.SharedGalleryJob, error) {
 	files, _, err := mg.sharedGallerySource(src)
 	if err != nil {
 		return nil, err
@@ -253,6 +277,13 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	if err := checkFreeSpace(cfg.GetStr("otc", "storage-path"), need); err != nil {
 		return nil, err
 	}
+	// The last refusal: past it, the collection's Rating is on.
+	var rated *galleryRating
+	if rating && src.GroupId != "" && len(src.Paths) == 0 {
+		if rated, err = mg.prepareRatedGallery(ses, src.GroupId); err != nil {
+			return nil, err
+		}
+	}
 	job := &galleryJob{state: &pb.SharedGalleryJob{JobId: uuid.NewString(), Total: int32(len(files)), BytesTotal: total}}
 	galleryJobs.Lock()
 	for id, j := range galleryJobs.m {
@@ -287,7 +318,7 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 			job.err = err
 			job.mu.Unlock()
 		}()
-		link, err = mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, job)
+		link, err = mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, rated, job)
 	})
 	return job.snapshot(""), nil
 }
@@ -316,7 +347,28 @@ func (j *galleryJob) snapshot(lang string) *pb.SharedGalleryJob {
 	return out
 }
 
-func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, description string, ttl time.Duration, domain string, lowRes bool, job *galleryJob) (link string, err error) {
+// prepareRatedGallery readies a collection for a gallery its visitors may
+// rate: the user's rating key pair, the collection's link key (made now
+// if it has none, the comments so far copied for its links) and its
+// Rating, turned on.
+func (mg *Manager) prepareRatedGallery(ses *session.Session, groupID string) (*galleryRating, error) {
+	if err := mg.EnsureRatingKeys(ses); err != nil {
+		return nil, err
+	}
+	key, err := mg.collectionLinkKey(ses, groupID, true)
+	if err != nil {
+		if errors.Is(err, dao.ErrNoSuchGroup) {
+			return nil, ErrNoSuchCollection
+		}
+		return nil, err
+	}
+	if err := mg.SetImageGroupRating(groupID, true); err != nil {
+		return nil, err
+	}
+	return &galleryRating{GroupID: groupID, Key: key}, nil
+}
+
+func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, description string, ttl time.Duration, domain string, lowRes bool, rated *galleryRating, job *galleryJob) (link string, err error) {
 	galleryCopySlots <- struct{}{}
 	defer func() { <-galleryCopySlots }()
 
@@ -339,9 +391,13 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 
 	now := time.Now()
 	man := galleryManifest{Description: description, LowRes: lowRes, Created: now.Unix(), Expires: now.Add(ttl).Unix()}
+	ratedGroup := ""
+	if rated != nil {
+		man.RatingKey, ratedGroup = rated.Key, rated.GroupID
+	}
 	var stored int64
 	for i, f := range files {
-		item := galleryItem{Name: filepath.Base(f.Path), Mime: f.Mime, Size: dao.FileSize(f)}
+		item := galleryItem{Name: filepath.Base(f.Path), Mime: f.Mime, Size: dao.FileSize(f), Hash: f.Hash}
 		if f.Created != nil {
 			item.Taken = f.Created.AsTime().Unix()
 		}
@@ -419,7 +475,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 	// The description is the owner's, so the list in Settings shows it:
 	// under the owner's own key in the database, under the link's in the
 	// manifest.
-	if err := mg.dao.InsertSharedGallery(id, stored, len(files), ses.Encrypt([]byte(description)), now.Add(ttl)); err != nil {
+	if err := mg.dao.InsertSharedGallery(id, stored, len(files), ses.Encrypt([]byte(description)), now.Add(ttl), ratedGroup); err != nil {
 		return "", err
 	}
 	ok = true
@@ -678,10 +734,15 @@ func (mg *Manager) OpenSharedGallery(id, secret string) (*pb.SharedGallery, erro
 		Created:     timestamppb.New(time.Unix(man.Created, 0)),
 		Expires:     timestamppb.New(time.Unix(man.Expires, 0)),
 	}
+	// Rating (release 163): each photo's rating in the collection now,
+	// while the link takes ratings.
+	rated, stars, comments := mg.galleryRatings(id, man)
+	out.Rating = rated
 	for i, it := range man.Items {
 		out.Items = append(out.Items, &pb.SharedGalleryItem{
 			Index: int32(i), Name: it.Name, Mime: it.Mime, Size: it.Size,
 			Taken: timestamppb.New(time.Unix(it.Taken, 0)), HasPreview: it.Preview,
+			Stars: int32(stars[i]), Comment: comments[i],
 		})
 	}
 	return out, nil
@@ -758,7 +819,7 @@ func (mg *Manager) ListSharedLinks(ses *session.Session) ([]*pb.SharedLinkInfo, 
 	}
 	var out []*pb.SharedLinkInfo
 	for _, r := range rows {
-		info := &pb.SharedLinkInfo{Uuid: r.Uuid, Kind: r.Kind, Created: timestamppb.New(r.Created), Opens: int32(r.Opens), Bytes: r.Bytes, Files: int32(r.Files)}
+		info := &pb.SharedLinkInfo{Uuid: r.Uuid, Kind: r.Kind, Created: timestamppb.New(r.Created), Opens: int32(r.Opens), Bytes: r.Bytes, Files: int32(r.Files), Rating: r.Rating}
 		if len(r.Description) > 0 {
 			if d, err := ses.Decrypt(r.Description); err == nil {
 				info.Description = string(d)

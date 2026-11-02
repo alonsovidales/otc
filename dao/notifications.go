@@ -82,6 +82,13 @@ const cUpdateVersionLen = 16
 // its own, never grouped with other errors, so it isn't buried in them.
 // Its details are the detail alone.
 func (dao *Dao) AddStorageNotification(a alerttext.Alert) error {
+	return dao.AddAlertNotification(a)
+}
+
+// AddAlertNotification is an alert of its own, as AddStorageNotification
+// writes one: an Error row never grouped with the errors, its details the
+// detail alone. Ratings left through a shared link (release 163) use it.
+func (dao *Dao) AddAlertNotification(a alerttext.Alert) error {
 	if key, msgArgs, lines := msgColumns(a, a.DetailLine()); key.Valid {
 		_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `msg_key`, `msg_args`, `msg_lines`) values (?, now(), 'Error', 'This device', '', ?, ?, 1, ?, ?, ?)",
 			uuid.New(), a.Title, a.Detail, key, msgArgs, lines)

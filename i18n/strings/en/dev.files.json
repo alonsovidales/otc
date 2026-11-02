@@ -244,6 +244,31 @@
     "args": [["hash", "text"], ["detail", "text"]],
     "note": "Error shown after \"error trying to create publication: \" when a file chosen for a post could not be read from the device's disks. {hash} is the fingerprint that names the file's content (64 letters and digits); {detail} is the reason, an error in English."
   },
+  "dev.files.rating_bad_stars": {
+    "text": "a photo's rating is from 0 to 5 stars",
+    "note": "Error reply when an app sends a rating with stars outside 0 to 5 (an app fault). 0 means no stars."
+  },
+  "dev.files.rating_comment_too_long": {
+    "text": "a comment can be at most {max} characters long",
+    "args": [["max", "int"]],
+    "note": "Error reply when the comment written under a photo's stars (collection Rating) is too long. {max} is the most characters allowed, 2000."
+  },
+  "dev.files.rating_link_off": {
+    "text": "the photos of this link can't be rated any more",
+    "note": "Error on the page a shared gallery link opens, when a visitor rates a photo but the link no longer takes ratings: its owner turned Rating off for the collection, or deleted the collection."
+  },
+  "dev.files.rating_no_collection": {
+    "text": "this collection no longer exists",
+    "note": "Error reply when an app turns Rating on or off, or rates a photo, in a collection (a group of photos) that was deleted meanwhile, perhaps from another app."
+  },
+  "dev.files.rating_not_in_collection": {
+    "text": "this photo is no longer in the collection",
+    "note": "Error reply, and an error on a shared gallery's page, when a photo is rated in a collection (a group of photos) it was taken out of meanwhile."
+  },
+  "dev.files.rating_off": {
+    "text": "Rating is off for this collection: turn it on to rate its photos",
+    "note": "Error reply when an app rates a photo in a collection whose Rating (1 to 5 stars and a comment per photo) is off, perhaps turned off from another app. Rating is the feature's name, as on the collection's button."
+  },
   "dev.files.read_failed": {
     "text": "error reading file: {detail}",
     "args": [["detail", "text"]],

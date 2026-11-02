@@ -302,6 +302,18 @@
     "text": "Beide opslagschijven werken weer",
     "en": "Both storage disks are working again"
   },
+  "dev.alert.rating.new": {
+    "text": "Foto’s beoordeeld via een gedeelde link",
+    "en": "Photos rated through a shared link"
+  },
+  "dev.alert.rating.new_detail": {
+    "text": "Iemand heeft foto’s in {name} beoordeeld of erop gereageerd via de gedeelde link. Open de collectie om de sterren en reacties te zien.",
+    "en": "Someone rated or commented on photos in {name} through its shared link. Open the collection to see the stars and comments."
+  },
+  "dev.alert.rating.new_detail_favourites": {
+    "text": "Iemand heeft foto’s in Favorieten beoordeeld of erop gereageerd via de gedeelde link. Open Favorieten om de sterren en reacties te zien.",
+    "en": "Someone rated or commented on photos in Favourites through its shared link. Open Favourites to see the stars and comments."
+  },
   "dev.alert.setaside.detail": {
     "text": "het apparaat liep twee keer vast tijdens het verwerken ervan. Het bestand blijft zoals het is, zonder de miniatuur, tags of gezichten die nog ontbraken, en wordt na de volgende update opnieuw geprobeerd.",
     "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."

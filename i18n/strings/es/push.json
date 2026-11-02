@@ -66,6 +66,14 @@
     "text": "Los discos de almacenamiento vuelven a funcionar",
     "en": "Storage disks working again"
   },
+  "push.rating.body": {
+    "text": "Alguien ha valorado o comentado tus fotos a través de un enlace que compartiste.",
+    "en": "Someone rated or commented on your photos through a link you shared."
+  },
+  "push.rating.title": {
+    "text": "Nuevas valoraciones en tus fotos",
+    "en": "New ratings on your photos"
+  },
   "push.storage.full_body": {
     "text": "Libera algo de espacio: cuando se llene, no se podrán guardar fotos ni archivos nuevos.",
     "en": "Free some space: once it is full, new photos and files can't be saved."

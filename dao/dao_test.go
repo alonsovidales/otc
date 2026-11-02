@@ -1339,17 +1339,17 @@ func TestGetImageGroupReadsOneGroupAsTheListDoes(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\) from `image_groups` as `g` order by `g`\\.`id` = 'favourites' desc, `g`\\.`created` desc").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g1", "Trip", 3, "h1"))
-	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`\\.`id` = \\?").
-		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g2", "Empty", 0, nil))
+	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\), `g`\\.`rating` from `image_groups` as `g` order by `g`\\.`id` = 'favourites' desc, `g`\\.`created` desc").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover", "rating"}).AddRow("g1", "Trip", 3, "h1", true))
+	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\), `g`\\.`rating` from `image_groups` as `g` where `g`\\.`id` = \\?").
+		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover", "rating"}).AddRow("g2", "Empty", 0, nil, false))
 
 	d := NewWithDB(db)
-	if gs, err := d.ListImageGroups(nil); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" {
+	if gs, err := d.ListImageGroups(nil); err != nil || len(gs) != 1 || gs[0].CoverHash != "h1" || !gs[0].Rating {
 		t.Fatalf("ListImageGroups: %v, %v", gs, err)
 	}
 	g, err := d.GetImageGroup("g2", nil)
-	if err != nil || g.ID != "g2" || g.Name != "Empty" || g.FileCount != 0 || g.CoverHash != "" {
+	if err != nil || g.ID != "g2" || g.Name != "Empty" || g.FileCount != 0 || g.CoverHash != "" || g.Rating {
 		t.Fatalf("GetImageGroup: %+v, %v", g, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

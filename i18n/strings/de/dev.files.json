@@ -217,6 +217,30 @@
     "text": "der Inhalt von {hash} fehlt oder ist nicht lesbar: {detail}",
     "en": "the content of {hash} is missing or unreadable: {detail}"
   },
+  "dev.files.rating_bad_stars": {
+    "text": "die Bewertung eines Fotos reicht von 0 bis 5 Sternen",
+    "en": "a photo's rating is from 0 to 5 stars"
+  },
+  "dev.files.rating_comment_too_long": {
+    "text": "ein Kommentar darf höchstens {max} Zeichen lang sein",
+    "en": "a comment can be at most {max} characters long"
+  },
+  "dev.files.rating_link_off": {
+    "text": "die Fotos dieses Links können nicht mehr bewertet werden",
+    "en": "the photos of this link can't be rated any more"
+  },
+  "dev.files.rating_no_collection": {
+    "text": "diese Sammlung gibt es nicht mehr",
+    "en": "this collection no longer exists"
+  },
+  "dev.files.rating_not_in_collection": {
+    "text": "dieses Foto ist nicht mehr in der Sammlung",
+    "en": "this photo is no longer in the collection"
+  },
+  "dev.files.rating_off": {
+    "text": "Bewertung ist für diese Sammlung ausgeschaltet: Schalte sie ein, um ihre Fotos zu bewerten",
+    "en": "Rating is off for this collection: turn it on to rate its photos"
+  },
   "dev.files.read_failed": {
     "text": "Fehler beim Lesen der Datei: {detail}",
     "en": "error reading file: {detail}"

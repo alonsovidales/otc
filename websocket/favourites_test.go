@@ -46,8 +46,12 @@ func TestFavouritesRequests(t *testing.T) {
 		t.Errorf("set: %+v", resp)
 	}
 
+	mock.ExpectBegin()
 	mock.ExpectExec("delete from `image_group_files` where `group_id` = \\?").
 		WithArgs("favourites", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\?").
+		WithArgs("favourites", "/a.jpg").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
 	resp, _ = ch.processMessage(setFavouriteReq(false, "/a.jpg"))
 	if ack, ok := resp.GetPayload().(*pb.RespEnvelope_RespAck); resp.Error || !ok || !ack.RespAck.Ok {
 		t.Errorf("unset: %+v", resp)
@@ -75,15 +79,15 @@ func TestFavouritesStays(t *testing.T) {
 	mock.ExpectExec("insert ignore into `image_groups`").WithArgs("favourites", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("from `image_groups` as `g` order by `g`.`id` = 'favourites' desc").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).
-			AddRow("favourites", "Favourites", 0, nil).AddRow("g1", "Trip", 2, nil))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover", "rating"}).
+			AddRow("favourites", "Favourites", 0, nil, false).AddRow("g1", "Trip", 2, nil, true))
 	resp, _ := ch.processMessage(&pb.ReqEnvelope{Id: 9, Lang: "es", Payload: &pb.ReqEnvelope_ReqListImageGroups{ReqListImageGroups: &pb.ListImageGroups{}}})
 	got, ok := resp.GetPayload().(*pb.RespEnvelope_RespImageGroups)
 	if resp.Error || !ok || len(got.RespImageGroups.Groups) != 2 {
 		t.Fatalf("list: %+v", resp)
 	}
 	fav, trip := got.RespImageGroups.Groups[0], got.RespImageGroups.Groups[1]
-	if !fav.Favourites || fav.Name != "Favoritos" || trip.Favourites || trip.Name != "Trip" {
+	if !fav.Favourites || fav.Name != "Favoritos" || fav.Rating || trip.Favourites || trip.Name != "Trip" || !trip.Rating {
 		t.Errorf("list: %+v, %+v", fav, trip)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

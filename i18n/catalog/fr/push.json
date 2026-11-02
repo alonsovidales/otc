@@ -15,6 +15,8 @@
   "push.raid.stopped_working_top": {"text": "L’un des deux disques de stockage est tombé en panne. Vos fichiers sont en sécurité sur celui du port USB bleu du haut : remplacez l’autre bientôt."},
   "push.raid.working_body": {"text": "Le miroir est complet : chaque fichier est de nouveau sur les deux disques."},
   "push.raid.working_title": {"text": "Les disques de stockage fonctionnent de nouveau"},
+  "push.rating.body": {"text": "Quelqu’un a noté ou commenté vos photos via un lien que vous avez partagé."},
+  "push.rating.title": {"text": "Nouvelles notes sur vos photos"},
   "push.storage.full_body": {"text": "Libérez de l’espace : une fois plein, il ne pourra plus enregistrer de nouvelles photos ni de nouveaux fichiers."},
   "push.storage.full_title": {"text": "Votre appareil est presque plein"},
   "push.update.critical_body": {"text": "Installez-la depuis les Paramètres."},

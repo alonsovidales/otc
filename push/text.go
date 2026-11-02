@@ -131,6 +131,16 @@ func StorageFull() Text {
 	}
 }
 
+// LinkRatings is the push for photos rated or commented on through a shared
+// gallery link that takes ratings (collection Rating, release 163; at most
+// one an hour per link): no collection is named - Apple and Google can read
+// it - the alert in the apps names it.
+func LinkRatings() Text {
+	return func(lang string) (string, string) {
+		return i18n.PushRatingTitle().Render(lang), i18n.PushRatingBody().Render(lang)
+	}
+}
+
 // OfflineAlert is the title and body of the bridge's push to a device's
 // phones and browsers when the device has gone unreachable (issue #62), in
 // lang: the product's name as the title, never translated. name is the
