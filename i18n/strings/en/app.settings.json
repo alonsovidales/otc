@@ -761,6 +761,72 @@
     "note": "Inside the storage bar of Settings > Status: how full the device's mirrored disks are. {percent} is a whole number. Write the percent sign as your language does.",
     "max": 14
   },
+  "app.settings.storage.adding": {
+    "text": "Erasing {disk} and adding it to the mirror…",
+    "args": [["disk", "user"]],
+    "note": "Shown with a spinner in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, after the owner confirmed, until the device starts copying the files onto the disk. {disk} names it as in app.settings.storage.new_disk.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #6d491701"
+  },
+  "app.settings.storage.confirm": {
+    "text": "Erase and use it",
+    "note": "The red button of the confirmation app.settings.storage.confirm_title: erases the disk and adds it to the mirror.",
+    "max": 32,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #eb4566f3"
+  },
+  "app.settings.storage.confirm_text": {
+    "text": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "args": [["disk", "user"]],
+    "note": "Text of the confirmation app.settings.storage.confirm_title. {disk} names the disk as in app.settings.storage.new_disk (\"Generic Card Reader · 512.1 GB\"). It must say plainly that nothing on that disk can be recovered afterwards.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #9bfe84fb"
+  },
+  "app.settings.storage.confirm_title": {
+    "text": "Erase this disk and use it for the mirror?",
+    "note": "Title of the confirmation after app.settings.storage.use in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in. Buttons: Cancel and app.settings.storage.confirm.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #993f5b2c"
+  },
+  "app.settings.storage.copying": {
+    "text": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile.",
+    "args": [["disk", "user"]],
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, above a progress bar while the device copies every file onto the disk just added. {disk} names it as in app.settings.storage.new_disk."
+  },
+  "app.settings.storage.failed": {
+    "text": "The disk could not be used for the mirror.",
+    "note": "Shown in red in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device turned down app.settings.storage.confirm without saying why. Nothing was erased."
+  },
+  "app.settings.storage.look_alike": {
+    "text": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, in place of the button app.settings.storage.use when two disks plugged in have the same name and size, so the owner couldn't tell which one would be erased.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #401a634d"
+  },
+  "app.settings.storage.new_disk": {
+    "text": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "args": [["disk", "user"]],
+    "note": "Text of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: a disk was plugged in while the mirror lacks its second disk, and the device didn't add it by itself because something is on it (files, a partition table: most new disks come formatted). {disk} names it by what the disk calls itself and its size, such as \"Generic Card Reader · 512.1 GB\" (or the size alone). The button under it is app.settings.storage.use.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #521ac418"
+  },
+  "app.settings.storage.not_added": {
+    "text": "{disk} wasn't added to the mirror. Alerts says why.",
+    "args": [["disk", "user"]],
+    "note": "Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device didn't add the disk the owner chose (it checks everything again before erasing it). Alerts is the app's page of the device's alerts, where one says why. {disk} names it as in app.settings.storage.new_disk."
+  },
+  "app.settings.storage.title": {
+    "text": "Storage",
+    "note": "Heading of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in.",
+    "max": 24
+  },
+  "app.settings.storage.use": {
+    "text": "Use it for the mirror",
+    "note": "Button under app.settings.storage.new_disk in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: asks to erase that disk and add it as the mirror's second disk (a confirmation follows, app.settings.storage.confirm_title).",
+    "max": 32,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-27 #4422f89b"
+  },
   "app.settings.sync.all": {
     "text": "Sync All",
     "note": "Button in Settings that goes through the whole photo library again, uploading whatever the device lacks.",
@@ -836,10 +902,14 @@
     "note": "Warning in that sheet, above the sync switches. \"Wi-Fi only\" is the name of the switch below it: use the same words."
   },
   "app.settings.tagging.footer": {
-    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.",
     "note": "Under the Image Tagging switch in Settings: what it does.",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-01 #4fa84090"
+    "reviewed": "claude-backtranslation 2026-11-03 #6c3bc0bc"
+  },
+  "app.settings.tagging.heavy": {
+    "text": "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process.",
+    "note": "Under the Image Tagging switch in Settings, on a device with less memory (a Raspberry Pi with 4 GB), where Image Tagging is off until its user turns it on: what turning it on costs there. GB is memory (RAM)."
   },
   "app.settings.tagging.title": {
     "text": "Image Tagging",
@@ -1050,6 +1120,44 @@
   "app.settings.update.restarting_note": {
     "text": "Restarting… the device will be back in about a minute.",
     "note": "Settings > Device version, next to a spinner, while the device restarts."
+  },
+  "app.settings.update.shut_down": {
+    "text": "Shut Down Device",
+    "note": "Button (in red) in Settings > Device version, next to Restart Device (app.settings.update.restart), that turns the whole device off cleanly so it can be unplugged safely; it asks for a confirmation first. Same capitalisation as app.settings.update.restart.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #e5704a38"
+  },
+  "app.settings.update.shut_down_confirm": {
+    "text": "Shut Down",
+    "note": "Button (in red) of the confirmation app.settings.update.shut_down_title: turns the device off.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #fcb5ae09"
+  },
+  "app.settings.update.shut_down_failed": {
+    "text": "Could not shut down the device.",
+    "note": "Error in Settings > Device version when the device didn't shut down and gave no reason."
+  },
+  "app.settings.update.shut_down_message": {
+    "text": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "note": "Message of the confirmation app.settings.update.shut_down_title. The device has no power button: unplugging it and plugging it back in is how it starts again.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #1becdd91"
+  },
+  "app.settings.update.shut_down_needs_update": {
+    "text": "Your device needs an update before it can be shut down from here.",
+    "note": "Title of the message shown when Shut Down Device (app.settings.update.shut_down) is confirmed and the device's software is older than that feature. An Update button under it (common.update) starts the device's update."
+  },
+  "app.settings.update.shut_down_title": {
+    "text": "Shut down your device?",
+    "note": "Title of the confirmation asked before shutting the device down from Settings > Device version. Buttons: Shut Down (app.settings.update.shut_down_confirm) and Cancel.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #f777b906"
+  },
+  "app.settings.update.shutting_down_note": {
+    "text": "Shutting down… Once its lights stop blinking you can unplug it.",
+    "note": "Settings > Device version, after the device accepted Shut Down Device: it is turning itself off. Its lights are the LEDs on the board."
   },
   "app.settings.update.slow": {
     "text": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.",

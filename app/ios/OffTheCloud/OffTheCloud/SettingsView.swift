@@ -59,9 +59,13 @@ final class DeviceSettingsViewModel: ObservableObject {
     // Issue #181: the tagging model, on by default.
     @Published var imageTaggingEnabled = true
     @Published var savingImageTagging = false
-    // Release 160: false on a device with less than 6 GB, whose switch
-    // shows off and disabled (MemoryTiers). True until the device says.
+    // Release 160: false on a device with too little memory (under 3 GB
+    // since release 164), whose switch shows off and disabled
+    // (MemoryTiers). True until the device says.
     @Published var imageTaggingAvailable = true
+    // Release 164 (issue #209): a device under 6 GB, where Image Tagging is
+    // off until turned on: a note under the switch says what it costs.
+    @Published var imageTaggingHeavy = false
     // Places, the map in Images: off unless turned on - the device keeps
     // where each photo was taken, unencrypted, only while it is on. nil: a
     // device before Places (or not answered yet), with no switch.
@@ -203,6 +207,7 @@ final class DeviceSettingsViewModel: ObservableObject {
                 faceRecognitionEnabled = s.faceRecognitionEnabled
                 imageTaggingEnabled = s.imageTaggingEnabled
                 imageTaggingAvailable = MemoryTiers.taggingAvailable(s)
+                imageTaggingHeavy = MemoryTiers.taggingHeavy(s)
                 // People shows only while it is on (FaceRecognition.swift).
                 FaceRecognition.shared.set(s.faceRecognitionEnabled)
                 // Places likewise (PlacesSupport), on a device that has it.
@@ -645,6 +650,13 @@ struct SettingsView: View {
                         )
                     )
                     .disabled(device.savingImageTagging || !device.imageTaggingAvailable)
+                    // Issue #209: on a 4 GB device it is the user's choice,
+                    // and this says what it costs there.
+                    if device.imageTaggingHeavy {
+                        Text(S.appSettingsTaggingHeavy)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section(

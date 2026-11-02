@@ -241,6 +241,7 @@ import cloud.offthe.otc.i18n.appSettingsFreeUpTitle
 import cloud.offthe.otc.i18n.androidSettingsFreeUpFooter
 import cloud.offthe.otc.sync.FreeUpSpace
 import cloud.offthe.otc.i18n.appSettingsTaggingFooter
+import cloud.offthe.otc.i18n.appSettingsTaggingHeavy
 import cloud.offthe.otc.i18n.appSettingsTaggingTitle
 import cloud.offthe.otc.i18n.appSettingsTailscaleAuthKey
 import cloud.offthe.otc.i18n.appSettingsTailscaleEnable
@@ -678,6 +679,9 @@ fun SettingsView(secrets: SecretsStore) {
                     Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled, enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
                 }
+                // Issue #209: on a 4 GB device it is the user's choice, and
+                // this says what it costs there.
+                if (dst.imageTaggingHeavy) Caption(S.appSettingsTaggingHeavy().resolve())
             }
 
             Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {

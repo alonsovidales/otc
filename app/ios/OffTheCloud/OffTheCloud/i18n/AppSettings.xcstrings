@@ -7860,6 +7860,523 @@
         }
       }
     },
+    "app.settings.storage.adding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ wird gelöscht und zur Spiegelung hinzugefügt…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erasing %1$@ and adding it to the mirror…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrando %1$@ y añadiéndolo al espejo…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacement de %1$@ et ajout au miroir…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancellazione di %1$@ e aggiunta al mirror…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ wordt gewist en aan de spiegel toegevoegd…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A apagar %1$@ e a adicioná-lo ao espelho…"
+          }
+        }
+      }
+    },
+    "app.settings.storage.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen und verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase and use it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar y usar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer et utiliser"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella e usalo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wissen en gebruiken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar e usar"
+          }
+        }
+      }
+    },
+    "app.settings.storage.confirm_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles auf %1$@ wird gelöscht: alle Dateien und Partitionen darauf, endgültig. Danach wird es das zweite Laufwerk der Spiegelung, und das Gerät kopiert alle deine Dateien darauf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything on %1$@ will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se borrará todo lo que hay en %1$@: todos sus archivos y particiones, para siempre. Después pasará a ser el segundo disco del espejo, y el dispositivo copiará en él todos tus archivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout ce qui se trouve sur %1$@ sera effacé : tous ses fichiers et toutes ses partitions, définitivement. Il deviendra ensuite le second disque du miroir, et l’appareil y copiera tous vos fichiers."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutto ciò che si trova su %1$@ verrà cancellato: tutti i suoi file e le sue partizioni, per sempre. Poi diventerà il secondo disco del mirror, e il dispositivo ci copierà tutti i tuoi file."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles op %1$@ wordt gewist: al zijn bestanden en partities, voorgoed. Daarna wordt hij de tweede schijf van de spiegel, en het apparaat kopieert al je bestanden erop."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tudo o que está em %1$@ será apagado: todos os ficheiros e partições, para sempre. Depois passa a ser o segundo disco do espelho, e o dispositivo copia para ele todos os teus ficheiros."
+          }
+        }
+      }
+    },
+    "app.settings.storage.confirm_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Laufwerk löschen und für die Spiegelung verwenden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase this disk and use it for the mirror?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Borrar este disco y usarlo para el espejo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer ce disque et l’utiliser pour le miroir ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancellare questo disco e usarlo per il mirror?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze schijf wissen en gebruiken voor de spiegel?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar este disco e usá-lo no espelho?"
+          }
+        }
+      }
+    },
+    "app.settings.storage.copying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist jetzt das zweite Laufwerk der Spiegelung. Das Gerät kopiert alle deine Dateien darauf, was Stunden dauern kann; du kannst das Gerät währenddessen weiter verwenden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ es ahora el segundo disco del espejo. El dispositivo está copiando en él todos tus archivos, lo que puede tardar horas; mientras tanto puedes seguir usando el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ est désormais le second disque du miroir. L’appareil y copie tous vos fichiers, ce qui peut prendre des heures ; vous pouvez continuer à utiliser l’appareil en attendant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ è ora il secondo disco del mirror. Il dispositivo ci sta copiando tutti i tuoi file, il che può richiedere ore; nel frattempo puoi continuare a usare il dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is nu de tweede schijf van de spiegel. Het apparaat kopieert al je bestanden erop, wat uren kan duren; je kunt het apparaat intussen gewoon gebruiken."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ é agora o segundo disco do espelho. O dispositivo está a copiar para ele todos os teus ficheiros, o que pode demorar horas; entretanto podes continuar a usar o dispositivo."
+          }
+        }
+      }
+    },
+    "app.settings.storage.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Laufwerk konnte nicht für die Spiegelung verwendet werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The disk could not be used for the mirror."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido usar el disco para el espejo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le disque n’a pas pu être utilisé pour le miroir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è stato possibile usare il disco per il mirror."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De schijf kon niet voor de spiegel worden gebruikt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível usar o disco no espelho."
+          }
+        }
+      }
+    },
+    "app.settings.storage.look_alike" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein anderes angeschlossenes Laufwerk sieht genauso aus wie dieses, deshalb kann hier keines von beiden ausgewählt werden: Ziehe zuerst das ab, das du behalten möchtest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otro disco conectado parece idéntico a este, así que no se puede elegir ninguno de los dos aquí: desconecta primero el que quieras conservar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un autre disque branché semble identique à celui-ci : aucun des deux ne peut donc être choisi ici. Débranchez d’abord celui à conserver."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un altro disco collegato sembra identico a questo, quindi qui non si può scegliere nessuno dei due: scollega prima quello da tenere."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een andere aangesloten schijf lijkt precies op deze, dus geen van beide kan hier worden gekozen: koppel eerst de schijf los die je wilt houden."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outro disco ligado parece igual a este, por isso nenhum dos dois pode ser escolhido aqui: desliga primeiro o que queres manter."
+          }
+        }
+      }
+    },
+    "app.settings.storage.new_disk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neues Laufwerk gefunden: %1$@. Es enthält Daten, deshalb wurde es nicht zur Spiegelung hinzugefügt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New disk found: %1$@. It has data on it, so it wasn't added to the mirror."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha encontrado un disco nuevo: %1$@. Contiene datos, así que no se ha añadido al espejo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau disque détecté : %1$@. Il contient des données, il n’a donc pas été ajouté au miroir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trovato un nuovo disco: %1$@. Contiene dei dati, quindi non è stato aggiunto al mirror."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieuwe schijf gevonden: %1$@. Er staan gegevens op, dus hij is niet aan de spiegel toegevoegd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foi encontrado um disco novo: %1$@. Tem dados, por isso não foi adicionado ao espelho."
+          }
+        }
+      }
+    },
+    "app.settings.storage.not_added" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ wurde nicht zur Spiegelung hinzugefügt. Unter Hinweise steht, warum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ wasn't added to the mirror. Alerts says why."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ no se ha añadido al espejo. En Alertas se explica por qué."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ n’a pas été ajouté au miroir. Les Alertes en donnent la raison."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ non è stato aggiunto al mirror. In Avvisi trovi il motivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is niet aan de spiegel toegevoegd. Onder Meldingen staat waarom."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ não foi adicionado ao espelho. Em Alertas encontras o motivo."
+          }
+        }
+      }
+    },
+    "app.settings.storage.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speicher"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almacenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stockage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archiviazione"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opslag"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armazenamento"
+          }
+        }
+      }
+    },
+    "app.settings.storage.use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für die Spiegelung verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use it for the mirror"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usarlo para el espejo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’utiliser pour le miroir"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usalo per il mirror"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruiken voor de spiegel"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usá-lo no espelho"
+          }
+        }
+      }
+    },
     "app.settings.sync_choice.all" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8618,43 +9135,90 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erkennt, was neu hochgeladene Fotos und Videos zeigen (einen Strand, einen Hund, eine Geburtstagstorte), damit du danach suchen kannst. Die Bilderkennung läuft auf diesem Gerät, und nichts verlässt es. Ausschalten spart Rechenzeit und Arbeitsspeicher: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen, und Orte aus den eigenen Standortdaten eines Fotos bleiben durchsuchbar. Das betrifft nur, was hochgeladen wird, während sie ausgeschaltet ist. Sie braucht ein Gerät mit mindestens 6 GB Arbeitsspeicher."
+            "value" : "Erkennt, was neu hochgeladene Fotos und Videos zeigen (einen Strand, einen Hund, eine Geburtstagstorte), damit du danach suchen kannst. Die Bilderkennung läuft auf diesem Gerät, und nichts verlässt es. Ausschalten spart Rechenzeit und Arbeitsspeicher: Die Intelligente Suche findet Fotos auch ohne sie nach dem, was sie zeigen, und Orte aus den eigenen Standortdaten eines Fotos bleiben durchsuchbar. Das betrifft nur, was hochgeladen wird, während sie ausgeschaltet ist. Sie braucht ein Gerät mit mindestens 4 GB Arbeitsspeicher."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory."
+            "value" : "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. Necesita un dispositivo con al menos 6 GB de memoria."
+            "value" : "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. Necesita un dispositivo con al menos 4 GB de memoria."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 6 Go de mémoire."
+            "value" : "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 4 Go de mémoire."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Richiede un dispositivo con almeno 6 GB di memoria."
+            "value" : "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione e memoria: la Ricerca intelligente trova le foto in base a ciò che mostrano anche senza di essa, e i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata. Richiede un dispositivo con almeno 4 GB di memoria."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Het heeft een apparaat met minstens 6 GB geheugen nodig."
+            "value" : "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd en geheugen: Slim zoeken vindt foto’s ook zonder deze functie op wat ze laten zien, en plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat. Het heeft een apparaat met minstens 4 GB geheugen nodig."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Precisa de um dispositivo com pelo menos 6 GB de memória."
+            "value" : "Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento e memória: a Pesquisa inteligente encontra fotos pelo que mostram sem ela, e continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada. Precisa de um dispositivo com pelo menos 4 GB de memória."
+          }
+        }
+      }
+    },
+    "app.settings.tagging.heavy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Gerät braucht die Bilderkennung etwa 1–2 GB mehr Arbeitsspeicher, und neue Fotos werden langsamer verarbeitet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En este dispositivo, el Etiquetado de imágenes usa alrededor de 1–2 GB más de memoria, y las fotos nuevas tardan más en procesarse."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur cet appareil, l’Étiquetage des images utilise environ 1 à 2 Go de mémoire en plus, et les nouvelles photos sont plus longues à traiter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su questo dispositivo l’Etichettatura delle immagini usa circa 1–2 GB di memoria in più, e l’elaborazione delle nuove foto richiede più tempo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op dit apparaat gebruikt Beeldherkenning ongeveer 1–2 GB meer geheugen, en duurt het verwerken van nieuwe foto’s langer."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste dispositivo, a Etiquetagem de imagens usa cerca de 1–2 GB de memória a mais, e as fotos novas demoram mais a ser processadas."
           }
         }
       }
@@ -10676,6 +11240,335 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A reiniciar… o dispositivo volta dentro de cerca de um minuto."
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät herunterfahren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shut Down Device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éteindre l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spegni dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparaat uitschakelen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligar dispositivo"
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herunterfahren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shut Down"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éteindre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spegni"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uitschakelen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligar"
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät konnte nicht heruntergefahren werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not shut down the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido apagar el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’éteindre l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile spegnere il dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan het apparaat niet uitschakelen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível desligar o dispositivo."
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es schaltet sich vollständig aus und bleibt aus, bis du es wieder startest: Zieh den Stecker und steck ihn wieder ein. Bis dahin kann niemand darauf zugreifen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se apaga por completo y sigue apagado hasta que lo vuelvas a encender: desconecta su alimentación y vuelve a conectarla. Mientras tanto, nadie podrá acceder a él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il s’éteint complètement et reste éteint jusqu’à ce que vous le rallumiez : débranchez son alimentation puis rebranchez-la. Personne ne pourra y accéder entre-temps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si spegne completamente e resta spento finché non lo riaccendi: scollega l’alimentazione e ricollegala. Nel frattempo nessuno potrà raggiungerlo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het gaat helemaal uit en blijft uit totdat je het weer aanzet: haal de stekker eruit en steek hem er weer in. Intussen kan niemand het bereiken."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliga-se por completo e fica desligado até o voltares a ligar: desliga-o da corrente e volta a ligá-lo. Entretanto, ninguém lhe consegue aceder."
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down_needs_update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät braucht ein Update, bevor es von hier aus heruntergefahren werden kann."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device needs an update before it can be shut down from here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo necesita una actualización para poder apagarse desde aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil doit être mis à jour avant de pouvoir être éteint d’ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo deve essere aggiornato prima di poter essere spento da qui."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat heeft een update nodig voordat het hier kan worden uitgeschakeld."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo precisa de uma atualização antes de poder ser desligado a partir daqui."
+          }
+        }
+      }
+    },
+    "app.settings.update.shut_down_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät herunterfahren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shut down your device?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Apagar tu dispositivo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éteindre votre appareil ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spegnere il tuo dispositivo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat uitschakelen?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligar o teu dispositivo?"
+          }
+        }
+      }
+    },
+    "app.settings.update.shutting_down_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird heruntergefahren… Sobald seine Lichter nicht mehr blinken, kannst du den Stecker ziehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shutting down… Once its lights stop blinking you can unplug it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagando… Cuando sus luces dejen de parpadear, puedes desconectarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêt en cours… Une fois que ses voyants ne clignotent plus, vous pouvez le débrancher."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spegnimento in corso… Quando le sue luci smettono di lampeggiare puoi scollegarlo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uitschakelen… Zodra de lampjes niet meer knipperen, kun je de stekker eruit halen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A desligar… Quando as luzes deixarem de piscar, podes desligá-lo da corrente."
           }
         }
       }

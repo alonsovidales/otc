@@ -783,6 +783,71 @@ extension S {
         L("app.settings.status.used_percent", table: "AppSettings", percent)
     }
 
+    /// Erasing {disk} and adding it to the mirror…
+    ///
+    /// Shown with a spinner in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, after the owner confirmed, until the device starts copying the files onto the disk. {disk} names it as in app.settings.storage.new_disk.
+    static func appSettingsStorageAdding(disk: String) -> String {
+        L("app.settings.storage.adding", table: "AppSettings", L10n.isolate(disk))
+    }
+
+    /// Erase and use it
+    ///
+    /// The red button of the confirmation app.settings.storage.confirm_title: erases the disk and adds it to the mirror.
+    static var appSettingsStorageConfirm: String { L("app.settings.storage.confirm", table: "AppSettings") }
+
+    /// Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.
+    ///
+    /// Text of the confirmation app.settings.storage.confirm_title. {disk} names the disk as in app.settings.storage.new_disk ("Generic Card Reader · 512.1 GB"). It must say plainly that nothing on that disk can be recovered afterwards.
+    static func appSettingsStorageConfirmText(disk: String) -> String {
+        L("app.settings.storage.confirm_text", table: "AppSettings", L10n.isolate(disk))
+    }
+
+    /// Erase this disk and use it for the mirror?
+    ///
+    /// Title of the confirmation after app.settings.storage.use in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in. Buttons: Cancel and app.settings.storage.confirm.
+    static var appSettingsStorageConfirmTitle: String { L("app.settings.storage.confirm_title", table: "AppSettings") }
+
+    /// {disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile.
+    ///
+    /// Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, above a progress bar while the device copies every file onto the disk just added. {disk} names it as in app.settings.storage.new_disk.
+    static func appSettingsStorageCopying(disk: String) -> String {
+        L("app.settings.storage.copying", table: "AppSettings", L10n.isolate(disk))
+    }
+
+    /// The disk could not be used for the mirror.
+    ///
+    /// Shown in red in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device turned down app.settings.storage.confirm without saying why. Nothing was erased.
+    static var appSettingsStorageFailed: String { L("app.settings.storage.failed", table: "AppSettings") }
+
+    /// Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.
+    ///
+    /// Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, in place of the button app.settings.storage.use when two disks plugged in have the same name and size, so the owner couldn't tell which one would be erased.
+    static var appSettingsStorageLookAlike: String { L("app.settings.storage.look_alike", table: "AppSettings") }
+
+    /// New disk found: {disk}. It has data on it, so it wasn't added to the mirror.
+    ///
+    /// Text of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: a disk was plugged in while the mirror lacks its second disk, and the device didn't add it by itself because something is on it (files, a partition table: most new disks come formatted). {disk} names it by what the disk calls itself and its size, such as "Generic Card Reader · 512.1 GB" (or the size alone). The button under it is app.settings.storage.use.
+    static func appSettingsStorageNewDisk(disk: String) -> String {
+        L("app.settings.storage.new_disk", table: "AppSettings", L10n.isolate(disk))
+    }
+
+    /// {disk} wasn't added to the mirror. Alerts says why.
+    ///
+    /// Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device didn't add the disk the owner chose (it checks everything again before erasing it). Alerts is the app's page of the device's alerts, where one says why. {disk} names it as in app.settings.storage.new_disk.
+    static func appSettingsStorageNotAdded(disk: String) -> String {
+        L("app.settings.storage.not_added", table: "AppSettings", L10n.isolate(disk))
+    }
+
+    /// Storage
+    ///
+    /// Heading of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in.
+    static var appSettingsStorageTitle: String { L("app.settings.storage.title", table: "AppSettings") }
+
+    /// Use it for the mirror
+    ///
+    /// Button under app.settings.storage.new_disk in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: asks to erase that disk and add it as the mirror's second disk (a confirmation follows, app.settings.storage.confirm_title).
+    static var appSettingsStorageUse: String { L("app.settings.storage.use", table: "AppSettings") }
+
     /// Sync All
     ///
     /// Button in Settings that goes through the whole photo library again, uploading whatever the device lacks.
@@ -863,10 +928,15 @@ extension S {
     /// Warning in that sheet, above the sync switches. "Wi-Fi only" is the name of the switch below it: use the same words.
     static var appSettingsSyncChoiceWarning: String { L("app.settings.sync_choice.warning", table: "AppSettings") }
 
-    /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.
+    /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.
     ///
     /// Under the Image Tagging switch in Settings: what it does.
     static var appSettingsTaggingFooter: String { L("app.settings.tagging.footer", table: "AppSettings") }
+
+    /// On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process.
+    ///
+    /// Under the Image Tagging switch in Settings, on a device with less memory (a Raspberry Pi with 4 GB), where Image Tagging is off until its user turns it on: what turning it on costs there. GB is memory (RAM).
+    static var appSettingsTaggingHeavy: String { L("app.settings.tagging.heavy", table: "AppSettings") }
 
     /// Image Tagging
     ///
@@ -1102,6 +1172,41 @@ extension S {
     ///
     /// Settings > Device version, next to a spinner, while the device restarts.
     static var appSettingsUpdateRestartingNote: String { L("app.settings.update.restarting_note", table: "AppSettings") }
+
+    /// Shut Down Device
+    ///
+    /// Button (in red) in Settings > Device version, next to Restart Device (app.settings.update.restart), that turns the whole device off cleanly so it can be unplugged safely; it asks for a confirmation first. Same capitalisation as app.settings.update.restart.
+    static var appSettingsUpdateShutDown: String { L("app.settings.update.shut_down", table: "AppSettings") }
+
+    /// Shut Down
+    ///
+    /// Button (in red) of the confirmation app.settings.update.shut_down_title: turns the device off.
+    static var appSettingsUpdateShutDownConfirm: String { L("app.settings.update.shut_down_confirm", table: "AppSettings") }
+
+    /// Could not shut down the device.
+    ///
+    /// Error in Settings > Device version when the device didn't shut down and gave no reason.
+    static var appSettingsUpdateShutDownFailed: String { L("app.settings.update.shut_down_failed", table: "AppSettings") }
+
+    /// It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.
+    ///
+    /// Message of the confirmation app.settings.update.shut_down_title. The device has no power button: unplugging it and plugging it back in is how it starts again.
+    static var appSettingsUpdateShutDownMessage: String { L("app.settings.update.shut_down_message", table: "AppSettings") }
+
+    /// Your device needs an update before it can be shut down from here.
+    ///
+    /// Title of the message shown when Shut Down Device (app.settings.update.shut_down) is confirmed and the device's software is older than that feature. An Update button under it (common.update) starts the device's update.
+    static var appSettingsUpdateShutDownNeedsUpdate: String { L("app.settings.update.shut_down_needs_update", table: "AppSettings") }
+
+    /// Shut down your device?
+    ///
+    /// Title of the confirmation asked before shutting the device down from Settings > Device version. Buttons: Shut Down (app.settings.update.shut_down_confirm) and Cancel.
+    static var appSettingsUpdateShutDownTitle: String { L("app.settings.update.shut_down_title", table: "AppSettings") }
+
+    /// Shutting down… Once its lights stop blinking you can unplug it.
+    ///
+    /// Settings > Device version, after the device accepted Shut Down Device: it is turning itself off. Its lights are the LEDs on the board.
+    static var appSettingsUpdateShuttingDownNote: String { L("app.settings.update.shutting_down_note", table: "AppSettings") }
 
     /// The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.
     ///

@@ -199,9 +199,13 @@ class DeviceSettingsViewModel : ViewModel() {
         val toast: UiText? = null,
         val faceRecognitionEnabled: Boolean = false, val savingFaceRecognition: Boolean = false,
         val imageTaggingEnabled: Boolean = true, val savingImageTagging: Boolean = false,
-        // Release 160: a device with less than 6 GB has no Image Tagging - the
-        // switch shows off and can't be turned on. True on a device before it.
+        // Release 160: a device with too little memory (under 3 GB since
+        // release 164) has no Image Tagging - the switch shows off and can't be
+        // turned on. True on a device before it.
         val imageTaggingAvailable: Boolean = true,
+        // Release 164 (issue #209): a device under 6 GB, where Image Tagging is
+        // off until turned on: a note under the switch says what it costs.
+        val imageTaggingHeavy: Boolean = false,
         // Places, the map in Images: off unless turned on - the device keeps
         // where each photo was taken, unencrypted, only while it is on. null:
         // a device before Places (or not answered yet), with no switch.
@@ -226,13 +230,16 @@ class DeviceSettingsViewModel : ViewModel() {
          * The device's settings shown: the switches it has (null: one it
          * doesn't), Image Tagging off where its memory has none
          * (image_tagging_available false; unset, a device before release 160,
-         * has it).
+         * has it), and the note on what it costs where the device says it is
+         * heavy there (image_tagging_heavy, release 164: under 6 GB) - only
+         * where it can be turned on at all.
          */
         fun withSettings(s: Settings): State {
             val taggingAvailable = !s.hasImageTaggingAvailable() || s.imageTaggingAvailable
             return copy(
                 faceRecognitionEnabled = s.faceRecognitionEnabled,
                 imageTaggingAvailable = taggingAvailable, imageTaggingEnabled = taggingAvailable && s.imageTaggingEnabled,
+                imageTaggingHeavy = taggingAvailable && s.hasImageTaggingHeavy() && s.imageTaggingHeavy,
                 placesEnabled = if (s.hasPlacesEnabled()) s.placesEnabled else null,
                 memoriesEnabled = if (s.hasMemoriesEnabled()) s.memoriesEnabled else null,
                 smartSearchEnabled = if (s.hasSmartSearchEnabled()) s.smartSearchEnabled else null,

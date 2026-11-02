@@ -570,6 +570,50 @@ fun S.appSettingsStatusTitle(): UiText =
 fun S.appSettingsStatusUsedPercent(percent: Int): UiText =
     UiText.Res(R.string.app_settings_status_used_percent, listOf(percent))
 
+/** "Erasing {disk} and adding it to the mirror…": Shown with a spinner in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, after the owner confirmed, until the device starts copying the files onto the disk. {disk} names it as in app.settings.storage.new_disk. */
+fun S.appSettingsStorageAdding(disk: String): UiText =
+    UiText.Res(R.string.app_settings_storage_adding, listOf(disk))
+
+/** "Erase and use it": The red button of the confirmation app.settings.storage.confirm_title: erases the disk and adds it to the mirror. */
+fun S.appSettingsStorageConfirm(): UiText =
+    UiText.Res(R.string.app_settings_storage_confirm)
+
+/** "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.": Text of the confirmation app.settings.storage.confirm_title. {disk} names the disk as in app.settings.storage.new_disk ("Generic Card Reader · 512.1 GB"). It must say plainly that nothing on that disk can be recovered afterwards. */
+fun S.appSettingsStorageConfirmText(disk: String): UiText =
+    UiText.Res(R.string.app_settings_storage_confirm_text, listOf(disk))
+
+/** "Erase this disk and use it for the mirror?": Title of the confirmation after app.settings.storage.use in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in. Buttons: Cancel and app.settings.storage.confirm. */
+fun S.appSettingsStorageConfirmTitle(): UiText =
+    UiText.Res(R.string.app_settings_storage_confirm_title)
+
+/** "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile.": Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, above a progress bar while the device copies every file onto the disk just added. {disk} names it as in app.settings.storage.new_disk. */
+fun S.appSettingsStorageCopying(disk: String): UiText =
+    UiText.Res(R.string.app_settings_storage_copying, listOf(disk))
+
+/** "The disk could not be used for the mirror.": Shown in red in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device turned down app.settings.storage.confirm without saying why. Nothing was erased. */
+fun S.appSettingsStorageFailed(): UiText =
+    UiText.Res(R.string.app_settings_storage_failed)
+
+/** "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.": Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in, in place of the button app.settings.storage.use when two disks plugged in have the same name and size, so the owner couldn't tell which one would be erased. */
+fun S.appSettingsStorageLookAlike(): UiText =
+    UiText.Res(R.string.app_settings_storage_look_alike)
+
+/** "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.": Text of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: a disk was plugged in while the mirror lacks its second disk, and the device didn't add it by itself because something is on it (files, a partition table: most new disks come formatted). {disk} names it by what the disk calls itself and its size, such as "Generic Card Reader · 512.1 GB" (or the size alone). The button under it is app.settings.storage.use. */
+fun S.appSettingsStorageNewDisk(disk: String): UiText =
+    UiText.Res(R.string.app_settings_storage_new_disk, listOf(disk))
+
+/** "{disk} wasn't added to the mirror. Alerts says why.": Shown in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in when the device didn't add the disk the owner chose (it checks everything again before erasing it). Alerts is the app's page of the device's alerts, where one says why. {disk} names it as in app.settings.storage.new_disk. */
+fun S.appSettingsStorageNotAdded(disk: String): UiText =
+    UiText.Res(R.string.app_settings_storage_not_added, listOf(disk))
+
+/** "Storage": Heading of Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in. */
+fun S.appSettingsStorageTitle(): UiText =
+    UiText.Res(R.string.app_settings_storage_title)
+
+/** "Use it for the mirror": Button under app.settings.storage.new_disk in Settings › Storage, a section shown only while the mirror (two disks that each hold a copy of every file) is missing a disk and a disk that isn't blank is plugged in: asks to erase that disk and add it as the mirror's second disk (a confirmation follows, app.settings.storage.confirm_title). */
+fun S.appSettingsStorageUse(): UiText =
+    UiText.Res(R.string.app_settings_storage_use)
+
 /** "Sync All": Button in Settings that goes through the whole photo library again, uploading whatever the device lacks. */
 fun S.appSettingsSyncAll(): UiText =
     UiText.Res(R.string.app_settings_sync_all)
@@ -634,9 +678,13 @@ fun S.appSettingsSyncChoiceTitle(): UiText =
 fun S.appSettingsSyncChoiceWarning(): UiText =
     UiText.Res(R.string.app_settings_sync_choice_warning)
 
-/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.": Under the Image Tagging switch in Settings: what it does. */
+/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.": Under the Image Tagging switch in Settings: what it does. */
 fun S.appSettingsTaggingFooter(): UiText =
     UiText.Res(R.string.app_settings_tagging_footer)
+
+/** "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process.": Under the Image Tagging switch in Settings, on a device with less memory (a Raspberry Pi with 4 GB), where Image Tagging is off until its user turns it on: what turning it on costs there. GB is memory (RAM). */
+fun S.appSettingsTaggingHeavy(): UiText =
+    UiText.Res(R.string.app_settings_tagging_heavy)
 
 /** "Image Tagging": Heading of a section of Settings, and the label of its switch: the device recognises what photos show so they can be searched. */
 fun S.appSettingsTaggingTitle(): UiText =
@@ -809,6 +857,34 @@ fun S.appSettingsUpdateRestarting(): UiText =
 /** "Restarting… the device will be back in about a minute.": Settings > Device version, next to a spinner, while the device restarts. */
 fun S.appSettingsUpdateRestartingNote(): UiText =
     UiText.Res(R.string.app_settings_update_restarting_note)
+
+/** "Shut Down Device": Button (in red) in Settings > Device version, next to Restart Device (app.settings.update.restart), that turns the whole device off cleanly so it can be unplugged safely; it asks for a confirmation first. Same capitalisation as app.settings.update.restart. */
+fun S.appSettingsUpdateShutDown(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down)
+
+/** "Shut Down": Button (in red) of the confirmation app.settings.update.shut_down_title: turns the device off. */
+fun S.appSettingsUpdateShutDownConfirm(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down_confirm)
+
+/** "Could not shut down the device.": Error in Settings > Device version when the device didn't shut down and gave no reason. */
+fun S.appSettingsUpdateShutDownFailed(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down_failed)
+
+/** "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.": Message of the confirmation app.settings.update.shut_down_title. The device has no power button: unplugging it and plugging it back in is how it starts again. */
+fun S.appSettingsUpdateShutDownMessage(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down_message)
+
+/** "Your device needs an update before it can be shut down from here.": Title of the message shown when Shut Down Device (app.settings.update.shut_down) is confirmed and the device's software is older than that feature. An Update button under it (common.update) starts the device's update. */
+fun S.appSettingsUpdateShutDownNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down_needs_update)
+
+/** "Shut down your device?": Title of the confirmation asked before shutting the device down from Settings > Device version. Buttons: Shut Down (app.settings.update.shut_down_confirm) and Cancel. */
+fun S.appSettingsUpdateShutDownTitle(): UiText =
+    UiText.Res(R.string.app_settings_update_shut_down_title)
+
+/** "Shutting down… Once its lights stop blinking you can unplug it.": Settings > Device version, after the device accepted Shut Down Device: it is turning itself off. Its lights are the LEDs on the board. */
+fun S.appSettingsUpdateShuttingDownNote(): UiText =
+    UiText.Res(R.string.app_settings_update_shutting_down_note)
 
 /** "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.": Settings > Device version, in orange: five minutes after the restart the device still doesn't answer. */
 fun S.appSettingsUpdateSlow(): UiText =

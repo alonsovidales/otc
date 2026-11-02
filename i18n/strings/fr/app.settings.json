@@ -645,6 +645,57 @@
     "text": "{percent} %",
     "en": "{percent}%"
   },
+  "app.settings.storage.adding": {
+    "text": "Effacement de {disk} et ajout au miroir…",
+    "en": "Erasing {disk} and adding it to the mirror…",
+    "reviewed": "claude-backtranslation 2026-10-27 #d99975ec"
+  },
+  "app.settings.storage.confirm": {
+    "text": "Effacer et utiliser",
+    "en": "Erase and use it",
+    "reviewed": "claude-backtranslation 2026-10-27 #13808aaa"
+  },
+  "app.settings.storage.confirm_text": {
+    "text": "Tout ce qui se trouve sur {disk} sera effacé : tous ses fichiers et toutes ses partitions, définitivement. Il deviendra ensuite le second disque du miroir, et l’appareil y copiera tous vos fichiers.",
+    "en": "Everything on {disk} will be erased: all its files and partitions, for good. It then becomes the mirror's second disk, and the device copies all your files onto it.",
+    "reviewed": "claude-backtranslation 2026-10-27 #dcd53d8d"
+  },
+  "app.settings.storage.confirm_title": {
+    "text": "Effacer ce disque et l’utiliser pour le miroir ?",
+    "en": "Erase this disk and use it for the mirror?",
+    "reviewed": "claude-backtranslation 2026-10-27 #dc61730f"
+  },
+  "app.settings.storage.copying": {
+    "text": "{disk} est désormais le second disque du miroir. L’appareil y copie tous vos fichiers, ce qui peut prendre des heures ; vous pouvez continuer à utiliser l’appareil en attendant.",
+    "en": "{disk} is now the mirror's second disk. The device is copying all your files onto it, which can take hours; the device can be used meanwhile."
+  },
+  "app.settings.storage.failed": {
+    "text": "Le disque n’a pas pu être utilisé pour le miroir.",
+    "en": "The disk could not be used for the mirror."
+  },
+  "app.settings.storage.look_alike": {
+    "text": "Un autre disque branché semble identique à celui-ci : aucun des deux ne peut donc être choisi ici. Débranchez d’abord celui à conserver.",
+    "en": "Another disk plugged in looks just like this one, so neither can be chosen here: unplug the one to keep first.",
+    "reviewed": "claude-backtranslation 2026-10-27 #fa92d801"
+  },
+  "app.settings.storage.new_disk": {
+    "text": "Nouveau disque détecté : {disk}. Il contient des données, il n’a donc pas été ajouté au miroir.",
+    "en": "New disk found: {disk}. It has data on it, so it wasn't added to the mirror.",
+    "reviewed": "claude-backtranslation 2026-10-27 #327e2f1d"
+  },
+  "app.settings.storage.not_added": {
+    "text": "{disk} n’a pas été ajouté au miroir. Les Alertes en donnent la raison.",
+    "en": "{disk} wasn't added to the mirror. Alerts says why."
+  },
+  "app.settings.storage.title": {
+    "text": "Stockage",
+    "en": "Storage"
+  },
+  "app.settings.storage.use": {
+    "text": "L’utiliser pour le miroir",
+    "en": "Use it for the mirror",
+    "reviewed": "claude-backtranslation 2026-10-27 #428feda3"
+  },
   "app.settings.sync.all": {
     "text": "Tout synchroniser",
     "en": "Sync All"
@@ -710,9 +761,13 @@
     "en": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data."
   },
   "app.settings.tagging.footer": {
-    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 6 Go de mémoire.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
-    "reviewed": "claude-backtranslation 2026-11-01 #7333ac54"
+    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 4 Go de mémoire.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.",
+    "reviewed": "claude-backtranslation 2026-11-03 #f5e77dde"
+  },
+  "app.settings.tagging.heavy": {
+    "text": "Sur cet appareil, l’Étiquetage des images utilise environ 1 à 2 Go de mémoire en plus, et les nouvelles photos sont plus longues à traiter.",
+    "en": "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process."
   },
   "app.settings.tagging.title": {
     "text": "Étiquetage des images",
@@ -891,6 +946,38 @@
   "app.settings.update.restarting_note": {
     "text": "Redémarrage… L’appareil sera de retour dans environ une minute.",
     "en": "Restarting… the device will be back in about a minute."
+  },
+  "app.settings.update.shut_down": {
+    "text": "Éteindre l’appareil",
+    "en": "Shut Down Device",
+    "reviewed": "claude-backtranslation 2026-11-03 #ea037e58"
+  },
+  "app.settings.update.shut_down_confirm": {
+    "text": "Éteindre",
+    "en": "Shut Down",
+    "reviewed": "claude-backtranslation 2026-11-03 #4a737dba"
+  },
+  "app.settings.update.shut_down_failed": {
+    "text": "Impossible d’éteindre l’appareil.",
+    "en": "Could not shut down the device."
+  },
+  "app.settings.update.shut_down_message": {
+    "text": "Il s’éteint complètement et reste éteint jusqu’à ce que vous le rallumiez : débranchez son alimentation puis rebranchez-la. Personne ne pourra y accéder entre-temps.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #db33f13b"
+  },
+  "app.settings.update.shut_down_needs_update": {
+    "text": "Votre appareil doit être mis à jour avant de pouvoir être éteint d’ici.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
+  "app.settings.update.shut_down_title": {
+    "text": "Éteindre votre appareil ?",
+    "en": "Shut down your device?",
+    "reviewed": "claude-backtranslation 2026-11-03 #403f5789"
+  },
+  "app.settings.update.shutting_down_note": {
+    "text": "Arrêt en cours… Une fois que ses voyants ne clignotent plus, vous pouvez le débrancher.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
   },
   "app.settings.update.slow": {
     "text": "L’appareil n’est pas encore revenu. Cela peut prendre un peu plus de temps ; s’il ne revient pas, débranchez-le et rebranchez-le.",
