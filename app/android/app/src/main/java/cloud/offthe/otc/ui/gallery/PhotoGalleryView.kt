@@ -949,10 +949,13 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         }
     }
     if (showGroupPicker) {
+        // Favourites, then A to Z (PageSort.kt's Name), whatever order Collections is in.
+        val sortLocale = LanguageSettings.numberLocale
+        val groups = remember(st.groups, sortLocale) { PageSort.collections(st.groups, CollectionsSort.NAME, sortLocale) }
         ModalBottomSheet(onDismissRequest = { showGroupPicker = false }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(S.appPhotosCollectionsAddTitle(st.selected.size).resolve(), style = MaterialTheme.typography.titleMedium)
-                st.groups.forEach { g -> TextButton(onClick = { showGroupPicker = false; scope.launch { vm.addSelectionToGroup(g) } }) { Text(g.name) } }
+                groups.forEach { g -> TextButton(onClick = { showGroupPicker = false; scope.launch { vm.addSelectionToGroup(g) } }) { Text(g.name) } }
                 TextButton(onClick = { showGroupPicker = false; newGroupName = "" }) { Text(S.appPhotosCollectionsNewItem().resolve()) }
             }
         }

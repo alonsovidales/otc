@@ -3925,8 +3925,9 @@ struct PhotoGalleryView: View {
                 .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
         }
         // The selection bar's "Add to collection": pick an existing group or start a new one.
+        // Favourites, then A to Z (SortBy.swift's Name), whatever order Collections is in.
         .confirmationDialog(S.appPhotosCollectionsAddTitle(count: vm.selected.count), isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
-            ForEach(vm.groups, id: \.id) { g in
+            ForEach(CollectionsSort.name.ordered(vm.groups, locale: L10n.shared.locale), id: \.id) { g in
                 Button(g.name) { Task { await vm.addSelectionToGroup(g) } }
             }
             Button(S.appPhotosCollectionsNewItem) { vm.showNewGroupName = true }

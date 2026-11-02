@@ -45,6 +45,8 @@ import { areaKey, clearSearch, clearText, isDateOrdered, isFiltered, leaveArea, 
 import { dropPlaces } from "./places";
 import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
+import { nameCollator } from "./filesSort";
+import { sortCollections } from "./librarySort";
 import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
 import { say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
@@ -2670,7 +2672,13 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   useEffect(() => {
     if (loadedAtStartRef.current) void reloadGroups().catch(() => {});
   }, []);
-  const list = groups.items.filter((g) => g.id !== exclude);
+  // Favourites, then A to Z (the Collections page's Name order), whatever
+  // order that page is in: a name is easier to find in the alphabet.
+  const collator = useMemo(() => nameCollator(t.lang), [t.lang]);
+  const list = useMemo(
+    () => sortCollections(groups.items.filter((g) => g.id !== exclude), "name", collator),
+    [groups.items, exclude, collator],
+  );
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   // What is being saved: "new", or the id of a collection.
