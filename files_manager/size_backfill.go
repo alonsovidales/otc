@@ -4,11 +4,11 @@ package filesmanager
 
 import (
 	"errors"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
 
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/segcrypt"
@@ -18,7 +18,8 @@ import (
 // columns, so a row written before it for content of 2 GiB or more holds
 // the size wrapped (negative at 2-4 GiB, a small number above). Such
 // content has a blob larger than MaxInt32, and the blob's size on disk
-// gives the content's (segcrypt.PlainSize) without a key, so this
+// gives the content's without a key (segcrypt.Format's PlainSize, by the
+// blob's own format: OTS1 and OTS2 headers differ in size), so this
 // corrects those rows once, in the background at start.
 
 // cSizeBackfillPage is how many hashes the backfill reads at a time.
@@ -171,29 +172,23 @@ func friendFileSize(path string) (n int64, ok bool, err error) {
 // blobContentSize is the content size of the encrypted blob at path when
 // the blob is larger than MaxInt32 - the only ones whose row can hold a
 // wrapped size. ok is false for any other blob, and for one that isn't
-// segmented or whose size no segmented file has: blobstore can't read
-// those either.
+// segmented or whose size no segmented file of its format has: blobstore
+// can't read those either.
 func blobContentSize(path string) (n int64, ok bool, err error) {
 	enc, ok, err := largeFileSize(path)
 	if !ok || err != nil {
 		return 0, false, err
 	}
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
+	format, err := blobstore.FormatOf(path)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
 		return 0, false, nil // deleted meanwhile
-	}
-	if err != nil {
-		return 0, false, err
-	}
-	defer f.Close()
-	head := make([]byte, segcrypt.HeaderSize)
-	if _, err := io.ReadFull(f, head); err != nil {
-		return 0, false, err
-	}
-	if !segcrypt.IsSegmented(head) {
+	case errors.Is(err, segcrypt.ErrFormat):
 		return 0, false, nil
+	case err != nil:
+		return 0, false, err
 	}
-	n, err = segcrypt.PlainSize(enc)
+	n, err = format.PlainSize(enc)
 	if err != nil {
 		return 0, false, nil
 	}

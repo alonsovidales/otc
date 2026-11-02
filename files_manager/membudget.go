@@ -270,7 +270,8 @@ func (mg *Manager) SharedGalleryKnown(id, secret string) bool {
 // before release 93 for content of 2 GiB or more still holds the size
 // wrapped to int32 - negative at 2-4 GiB, which reserved nothing - so a
 // size an int32 could hold is checked against the blob on disk (the
-// content plus 16 bytes a MiB, segcrypt) and the blob's used when it is
+// content plus its header and 16 bytes a MiB, segcrypt: a little more
+// than the content in either format) and the blob's used when it is
 // larger than MaxInt32.
 func (mg *Manager) budgetSize(f *pb.File) int64 {
 	n := dao.FileSize(f)

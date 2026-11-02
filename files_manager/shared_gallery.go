@@ -374,7 +374,7 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 
 	id := uuid.NewString()
 	secret := randomSecret()
-	keys := linkKeys{getCipher(secret)}
+	keys := linkKey(secret)
 	dir := galleryDir(id)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
@@ -625,7 +625,7 @@ func (mg *Manager) openGallery(id, secret string) (*galleryManifest, linkKeys, e
 	if man, keys, ok := mg.cachedGallery(id, tag, fi); ok {
 		return man, keys, nil
 	}
-	keys := linkKeys{getCipher(secret)}
+	keys := linkKey(secret)
 	raw, err := blobstore.ReadAll(manifest, keys)
 	if err != nil {
 		// A wrong secret fails to decrypt, the same as no gallery at all.

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package blobstore reads and writes the device's encrypted files (blobs
-// and their thumbnails) in the segmented format of package segcrypt, so a
-// read decrypts only the part it needs and a write never holds more than
-// one segment. Files written before the format existed (one AES-GCM seal
-// over the whole content) are still read, whole, until they're converted
-// (see Convert).
+// and their thumbnails, a share link's archive and gallery) in the
+// segmented format of package segcrypt, so a read decrypts only the part it
+// needs and a write never holds more than one segment. Files are written
+// in segcrypt.Current (OTS2: a key of their own per file) and read in
+// either format, so a library holds both: what was written before release
+// 164 stays OTS1.
 package blobstore
 
 import (
-	"crypto/cipher"
 	"errors"
 	"fmt"
 	"io"
@@ -19,11 +19,10 @@ import (
 	"github.com/alonsovidales/otc/segcrypt"
 )
 
-// Keys is what opening and sealing need from a signed-in session: its
-// data-key cipher.
-type Keys interface {
-	AEAD() cipher.AEAD
-}
+// Keys is what opening and sealing need: the key a file belongs to - a
+// signed-in session's data key, or a share link's (segcrypt.Key) - as its
+// cipher (OTS1) and the derivation of a file's own key (OTS2).
+type Keys = segcrypt.Keys
 
 // Blob is an open encrypted file: its content, readable at any offset.
 type Blob interface {
@@ -50,12 +49,31 @@ func Open(path string, k Keys) (Blob, error) {
 		f.Close()
 		return nil, err
 	}
-	r, err := segcrypt.NewReader(f, info.Size(), k.AEAD())
+	r, err := segcrypt.NewReader(f, info.Size(), k)
 	if err != nil {
 		f.Close()
 		return nil, fmt.Errorf("opening %s: %w", filepath.Base(path), err)
 	}
 	return &segBlob{Reader: r, f: f}, nil
+}
+
+// FormatOf is the format of the encrypted file at path, read from its
+// first bytes without a key: what its sizes follow (segcrypt.Format's
+// EncryptedSize and PlainSize). segcrypt.ErrFormat when it isn't one.
+func FormatOf(path string) (segcrypt.Format, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	head := make([]byte, segcrypt.MagicSize)
+	if _, err := io.ReadFull(f, head); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return 0, segcrypt.ErrFormat
+		}
+		return 0, err
+	}
+	return segcrypt.FormatOf(head)
 }
 
 // ReadAll is the whole content of the encrypted file at path - for what
@@ -88,7 +106,7 @@ func Create(target string, k Keys) (*Writer, error) {
 	if err != nil {
 		return nil, err
 	}
-	seg, err := segcrypt.NewWriter(tmp, k.AEAD())
+	seg, err := segcrypt.NewWriter(tmp, k)
 	if err != nil {
 		tmp.Close()
 		os.Remove(tmp.Name())

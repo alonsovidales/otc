@@ -4,9 +4,6 @@ package api
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"errors"
 	"mime"
 	"net/http"
 	"net/http/httptest"
@@ -17,21 +14,15 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/mediastream"
+	"github.com/alonsovidales/otc/segcrypt"
 )
-
-type mediaTestKeys struct{ aead cipher.AEAD }
-
-func (k mediaTestKeys) AEAD() cipher.AEAD                { return k.aead }
-func (k mediaTestKeys) Decrypt(b []byte) ([]byte, error) { return nil, errors.New("not used") }
 
 // newMediaServer stores plain as an encrypted library file (as the device
 // keeps every file) and mints a token for it under path and mime.
 func newMediaServer(t *testing.T, plain []byte, path, mimeType string) (*mediastream.Server, string) {
 	t.Helper()
 	dir := t.TempDir()
-	block, _ := aes.NewCipher(make([]byte, 32))
-	aead, _ := cipher.NewGCM(block)
-	keys := mediaTestKeys{aead}
+	keys, _ := segcrypt.NewKey(make([]byte, 32))
 	if err := blobstore.WriteBytes(filepath.Join(dir, "h1"), keys, plain); err != nil {
 		t.Fatal(err)
 	}

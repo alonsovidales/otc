@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/diskspace"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/segcrypt"
 )
 
 // withDisk makes every free-space check see a disk of total bytes with
@@ -70,6 +72,35 @@ func TestCheckFreeSpaceRefusesWhatWouldFillTheDisk(t *testing.T) {
 	diskUsageOf = func(string) (diskspace.Usage, error) { return diskspace.Usage{}, errors.New("statfs: no") }
 	if err := checkFreeSpace("/storage", 1<<40); err != nil {
 		t.Errorf("an unknown disk refused a write: %v", err)
+	}
+}
+
+// Issue #203: the free-space checks ask for what a new blob takes, in the
+// format it is written in - a session writes OTS2, whose header is larger
+// than OTS1's - at least as much as is then written, block rounding on top.
+func TestSealedSizeCoversANewBlob(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	dir := t.TempDir()
+	for _, n := range []int{0, 1, 4096, segcrypt.SegmentSize, segcrypt.SegmentSize + 1, 3*segcrypt.SegmentSize - 5} {
+		path := filepath.Join(dir, "blob")
+		if err := blobstore.WriteBytes(path, ses, make([]byte, n)); err != nil {
+			t.Fatal(err)
+		}
+		fi, _ := os.Stat(path)
+		if fi.Size() != segcrypt.Current.EncryptedSize(int64(n)) {
+			t.Errorf("%d bytes took %d on the disk, %d predicted", n, fi.Size(), segcrypt.Current.EncryptedSize(int64(n)))
+		}
+		if sealedSize(int64(n)) < fi.Size() {
+			t.Errorf("%d bytes: %d asked for, %d written", n, sealedSize(int64(n)), fi.Size())
+		}
+	}
+	for _, n := range []int64{5 << 30, 40<<30 + 7} {
+		if sealedSize(n) < segcrypt.OTS2.EncryptedSize(n) || sealedSize(n) < segcrypt.OTS1.EncryptedSize(n) {
+			t.Errorf("%d bytes: %d asked for", n, sealedSize(n))
+		}
+	}
+	if sealedSize(-5) != sealedSize(0) {
+		t.Error("a negative size asks for less than an empty file")
 	}
 }
 

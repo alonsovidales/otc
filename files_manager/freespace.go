@@ -10,6 +10,7 @@ import (
 	"github.com/alonsovidales/otc/diskspace"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/segcrypt"
 )
 
 // A write that would fill the storage is refused before it starts: an
@@ -85,8 +86,9 @@ func checkFreeSpace(dir string, need int64) error {
 	return nil
 }
 
-// sealedSize is what content of n bytes takes once sealed (segcrypt: a
-// header and a 16-byte tag per MiB segment), rounded up.
+// sealedSize is what content of n bytes takes once sealed in the format
+// new files are written in (segcrypt.Current: its header and a 16-byte tag
+// per MiB segment), and a filesystem block more for the rounding.
 func sealedSize(n int64) int64 {
-	return n + n/(1<<16) + 4096
+	return segcrypt.Current.EncryptedSize(max(n, 0)) + 4096
 }

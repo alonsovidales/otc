@@ -7,8 +7,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -27,6 +25,7 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/modelserver"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/segcrypt"
 	"github.com/alonsovidales/otc/session"
 	"github.com/google/uuid"
 	"github.com/jdeng/goheif"
@@ -723,22 +722,17 @@ func (mg *Manager) cosineSimilarity(a, b []float32) float32 {
 	return dot / (float32(math.Sqrt(float64(na))) * float32(math.Sqrt(float64(nb))))
 }
 
-func getCipher(secret string) (cp cipher.AEAD) {
+// linkKey is the key a share link's archive or gallery is sealed under:
+// SHA-256 of the secret in the link, which the device doesn't keep. Each
+// file under it gets a key of its own from it, as under the data key
+// (segcrypt.OTS2).
+func linkKey(secret string) linkKeys {
 	keyHash := sha256.Sum256([]byte(secret))
-	block, err := aes.NewCipher(keyHash[:])
+	k, err := segcrypt.NewKey(keyHash[:])
 	if err != nil {
 		log.Fatal("error ciper:", err)
-		return
 	}
-
-	// We replace the secret by the one in the DB
-	cp, err = cipher.NewGCM(block)
-	if err != nil {
-		log.Fatal("error ciper:", err)
-		return
-	}
-
-	return
+	return linkKeys{k}
 }
 
 // commonDirPrefix returns the directory (with a trailing slash) shared by
@@ -833,7 +827,7 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 	// is held whole in memory, whatever the share's size. The files go in
 	// as they are stored (a HEIC stays HEIC).
 	secret := randomSecret() // issue #157: not a UUID
-	keys := linkKeys{getCipher(secret)}
+	keys := linkKey(secret)
 	pathUuid := uuid.New().String()
 	targetPath := fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), pathUuid)
 	// The archive is a copy of every file in it: refused before it starts
@@ -940,10 +934,9 @@ func zipLevelFor(mime string) int {
 	return zipDeflateLevel
 }
 
-// linkKeys opens a share link's archive with the key from its secret.
-type linkKeys struct{ aead cipher.AEAD }
-
-func (k linkKeys) AEAD() cipher.AEAD { return k.aead }
+// linkKeys opens a share link's archive or gallery with the key from its
+// secret (linkKey).
+type linkKeys struct{ *segcrypt.Key }
 
 func (mg *Manager) OpenSharedLink(uuid, secret string) (content []byte, err error) {
 	data, _, err := mg.OpenSharedLinkRange(uuid, secret, 0, -1)
@@ -971,7 +964,7 @@ func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length
 		mg.deleteSharedLink(uuid)
 		return nil, 0, devtext.New(i18n.DevFilesLinkExpired())
 	}
-	blob, err := blobstore.Open(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid), linkKeys{getCipher(secret)})
+	blob, err := blobstore.Open(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid), linkKey(secret))
 	if err != nil {
 		return nil, 0, err
 	}

@@ -4,11 +4,10 @@ package mediastream
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/segcrypt"
 	"os"
 	"testing"
 	"time"
@@ -146,23 +145,12 @@ func TestRangeRefusesAnUnknownToken(t *testing.T) {
 	}
 }
 
-// testKeys is a session's data key for the tests.
-type testKeys struct{ aead cipher.AEAD }
-
-func (k testKeys) AEAD() cipher.AEAD { return k.aead }
-func (k testKeys) Decrypt(b []byte) ([]byte, error) {
-	return nil, errors.New("legacy format not used here")
-}
-
 // A library file is stored in segments: a range reads only the segments
 // it covers, and what comes back is the plaintext at that offset - also
 // across a segment boundary.
 func TestLibraryRangesReadTheSegmentedFile(t *testing.T) {
 	dir := t.TempDir()
-	key := make([]byte, 32)
-	block, _ := aes.NewCipher(key)
-	aead, _ := cipher.NewGCM(block)
-	keys := testKeys{aead}
+	keys, _ := segcrypt.NewKey(make([]byte, 32)) // a session's data key
 	plain := make([]byte, 3<<20+777)
 	for i := range plain {
 		plain[i] = byte(i * 7)

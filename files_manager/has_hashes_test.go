@@ -14,6 +14,7 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/segcrypt"
 )
 
 // Free up space: a phone deletes its copy of what HasHashes answers, so
@@ -81,6 +82,44 @@ func TestHasHashesComparesTheSealedSize(t *testing.T) {
 		if got := len(found) == 1; got != tc.want {
 			t.Errorf("row size %d: found %v, want %v", tc.size, found, tc.want)
 		}
+	}
+}
+
+// Issue #203: a library holds blobs written before release 164 (OTS1) and
+// after (OTS2, whose header is 25 bytes longer). Each is whole at the size
+// its own format seals the row's content to, and at no other - a blob is
+// never taken for whole by the other format's size.
+func TestHasHashesInAMixedLibrary(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	hash := func(i int) string { return fmt.Sprintf("%064x", 0x4b00+i) }
+	const size = 3<<20 + 99
+	newBlob, oldBlob, oldAtNewSize, newAtOldSize, notOurs := hash(0), hash(1), hash(2), hash(3), hash(4)
+	if err := blobstore.WriteBytes(blobPath(newBlob), ses, make([]byte, size)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(blobPath(newBlob)) })
+	sparseBlob(t, blobPath(oldBlob), size, segcrypt.OTS1)
+	// The right magic at the other format's size, and no magic at all.
+	sparseBlob(t, blobPath(oldAtNewSize), size, segcrypt.OTS1)
+	os.Truncate(blobPath(oldAtNewSize), segcrypt.OTS2.EncryptedSize(size))
+	sparseBlob(t, blobPath(newAtOldSize), size, segcrypt.OTS2)
+	os.Truncate(blobPath(newAtOldSize), segcrypt.OTS1.EncryptedSize(size))
+	sparseBlob(t, blobPath(notOurs), size, 0)
+
+	all := []string{newBlob, oldBlob, oldAtNewSize, newAtOldSize, notOurs}
+	rows := sqlmock.NewRows([]string{"hash", "size"})
+	for _, h := range all {
+		rows.AddRow(h, size)
+	}
+	db, mock, _ := sqlmock.New()
+	t.Cleanup(func() { db.Close() })
+	mock.ExpectQuery("select `hash`, `size` from `files`").WillReturnRows(rows)
+	found, err := (&Manager{dao: dao.NewWithDB(db)}).HasHashes(all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(found, []string{newBlob, oldBlob}) {
+		t.Errorf("found %v, want the OTS2 and the OTS1 blob at their own sizes", found)
 	}
 }
 

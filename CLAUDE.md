@@ -962,13 +962,30 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   only `files` row is kept out but which a kept version outside holds keeps its tags and faces
   (#132), which the tag list and People show while Images never lists it. Release 108's script
   creates both tables; a database without them reads as nothing kept out.
-  **Storage format and chunked transfers** (security advisory on memory exhaustion, releases 40-42):
-  every blob and thumbnail is encrypted in 1 MiB segments (`segcrypt`: header `OTS1` + a 7-byte
-  nonce prefix, each segment AES-GCM with nonce prefix|index|last-flag and the header as AAD -
-  no reordering, swapping or truncation), read and written through `blobstore` (`Open` gives a
-  `ReaderAt` that decrypts only the segments a read covers; `Create`/`CommitAs` seal as data
-  arrives). There is no other format: devices from before release 40 were reinstalled rather
-  than converted (release 42 removed the whole-seal reader). Files move in
+  **Storage format and chunked transfers** (security advisory on memory exhaustion, releases 40-42;
+  a key per file, issue #203, release 164): every blob and thumbnail - and a share link's archive
+  and gallery files, under the link's key - is encrypted in 1 MiB segments (`segcrypt`), each
+  segment AES-GCM with nonce prefix|index|last-flag and the header as AAD (no reordering, swapping
+  or truncation; an empty file's one segment is opened as it is opened), read and written through
+  `blobstore` (`Open` gives a `ReaderAt` that decrypts only the segments a read covers;
+  `Create`/`CommitAs` seal as data arrives). The first 4 bytes name the format. **OTS2**, all that
+  is written since release 164 (`segcrypt.Current`): `OTS2` + a 32-byte random salt (36-byte
+  header); the file's own key is HKDF-SHA256(key, salt, info `otc segcrypt OTS2 file key`), 32
+  bytes, AES-256-GCM, nonce prefix 7 zero bytes. **OTS1**, releases 40-163, read and never written:
+  `OTS1` + a 7-byte random nonce prefix (11-byte header) under the key itself - two files that drew
+  the same prefix shared every nonce. No migration: a library holds both, each file read by its
+  own header. The key is `segcrypt.Keys` - `AEAD()` (OTS1) and `FileAEAD(salt)` (OTS2): a session
+  (the data key, SHA-256 of the vault's secret, held as a `segcrypt.Key`) or a link's `linkKey`
+  (SHA-256 of the secret in the link). A size worked out from a header goes by the file's own
+  format - `blobstore.FormatOf(path)`, then `Format.EncryptedSize`/`PlainSize` (HasHashes'
+  `wholeBlob`, the size backfill) - and one predicted before a write by `segcrypt.Current`'s
+  (`sealedSize`, the free-space checks). A binary before release 164 can't read OTS2
+  (`segcrypt: not a segmented encrypted file`): rolled back to one (update.sh puts the previous
+  binary back when a new one doesn't start), what the newer binary wrote stays unreadable - never
+  deleted: no path removes content for not opening - until the device updates again, and its
+  HasHashes doesn't count those blobs, so the phones keep their copies. Devices from before
+  release 40 were reinstalled rather than converted (release 42 removed the whole-seal reader).
+  Files move in
   chunks of at most 4 MiB: `ReadFile` (original bytes by range - `GetFile` remains only to show
   a photo, converting HEIC), `BeginUpload`/`UploadChunk`/`FinishUpload` (encrypted as it arrives,
   SHA-256 checked at the end, then `registerUpload` - the same bookkeeping as `UploadFile`),
@@ -1153,7 +1170,8 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   `social_publications_files` are BIGINT; `files_manager/size_backfill.go` corrects, once and in
   the background at start until `settings.sizes_backfilled` is set, the rows stored wrapped (or,
   for friends' posts in release 92, clamped) before it: only blobs over MaxInt32, content size from
-  the size on disk via `segcrypt.PlainSize` (no key needed), own and friends' post files from their
+  the size on disk by the blob's own format (`blobstore.FormatOf`, then `PlainSize`; no key
+  needed), own and friends' post files from their
   copies in `unenc-storage-path`; it waits for the BIGINT columns, and a pass with an error is
   retried at the next start. `checkImageSize` also bounds a HEIC
   grid by its decoded first tile (`checkHeifGrid`). **Large photos** (2026-10-24, `limits.go`,
@@ -3243,8 +3261,9 @@ most once a day (`freeUpLastRun`; a run that found nothing or whose system quest
 counts, one cut short doesn't; turning it on or changing the days makes it due). An asset goes by
 the SHA-256 of what the sync sends, and only once the device confirms that hash on its disk right
 then: `HasHashes` (140, answers `HashesFound` 70, 500 a request, up to 1000 looked at): a `files`
-row with the hash and its blob at exactly `segcrypt.EncryptedSize(row size)` - a stat, never a
-decrypt; older devices answer `unknown_payload` and the phones fall back to `HasFile` per hash. iOS
+row with the hash and its blob at exactly the row's size sealed in the blob's own format
+(`Format.EncryptedSize`, the format from its first 4 bytes: OTS1 and OTS2 headers differ) - a stat
+and a 4-byte read, never a decrypt; older devices answer `unknown_payload` and the phones fall back to `HasFile` per hash. iOS
 reads each original right before deleting it, only when it is on the phone (never from iCloud:
 those stay), as a recorded hash may come from the device's cloud-id map rather than the bytes -
 AssetSyncCache's hash only spares reading what the device doesn't hold - and never deletes edited

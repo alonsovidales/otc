@@ -409,7 +409,7 @@ func TestGetSharedLinkStoresMediaAndDeflatesTheRest(t *testing.T) {
 	}
 	id, secret, _ := strings.Cut(strings.TrimPrefix(link, "https://cala.off-the.cloud/"+CDownloadAttr), "_")
 	defer os.Remove(filepath.Join(storage, id))
-	raw, err := blobstore.ReadAll(filepath.Join(storage, id), linkKeys{getCipher(secret)})
+	raw, err := blobstore.ReadAll(filepath.Join(storage, id), linkKey(secret))
 	if err != nil {
 		t.Fatal(err)
 	}

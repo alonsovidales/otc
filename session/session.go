@@ -13,6 +13,7 @@ import (
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/segcrypt"
 	"golang.org/x/crypto/argon2"
 	"io"
 )
@@ -49,6 +50,9 @@ type Session struct {
 	Uuid   string
 	dao    *dao.Dao
 	cipher cipher.AEAD
+	// files is the data key that seals file content (package segcrypt):
+	// the same key as cipher once New has returned.
+	files *segcrypt.Key
 }
 
 // deriveWrappingKey turns a password into the AES key that wraps the
@@ -185,18 +189,14 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 	secret := secretValidator[len(cValidatorText):]
 
 	keyHash := sha256.Sum256(secret)
-	block, err := aes.NewCipher(keyHash[:])
-	if err != nil {
-		log.Error("error getting block", err)
-		return nil, err
-	}
-
-	// We replace the secret by the one in the DB
-	ses.cipher, err = cipher.NewGCM(block)
+	ses.files, err = segcrypt.NewKey(keyHash[:])
 	if err != nil {
 		log.Error("error creating cipher", err)
 		return nil, err
 	}
+
+	// We replace the secret by the one in the DB
+	ses.cipher = ses.files.AEAD()
 
 	return ses, nil
 }
@@ -289,9 +289,18 @@ func (ses *Session) ChangeKey(oldKey, newKey string) (err error) {
 	return
 }
 
-// AEAD is the session's data-key cipher, for the segmented file format
-// (package segcrypt/blobstore).
+// AEAD is the session's data-key cipher, which sealed the files written
+// before release 164 (segcrypt.OTS1; package segcrypt/blobstore).
 func (ses *Session) AEAD() cipher.AEAD { return ses.cipher }
+
+// FileAEAD is the cipher of a file's own key, derived from the data key
+// and the file's salt (segcrypt.OTS2, issue #203).
+func (ses *Session) FileAEAD(salt []byte) (cipher.AEAD, error) {
+	if ses.files == nil {
+		return nil, errors.New("no data key: not signed in") // i18n-ignore: internal, never a reply of its own
+	}
+	return ses.files.FileAEAD(salt)
+}
 
 func (ses *Session) Encrypt(content []byte) []byte {
 	// GCM requires a unique nonce per encryption

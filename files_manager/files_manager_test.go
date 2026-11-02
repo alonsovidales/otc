@@ -5,6 +5,9 @@ package filesmanager
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
 	"database/sql"
 	"image"
 	"image/color"
@@ -16,11 +19,13 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/exifinfo"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/modelserver"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/segcrypt"
 )
 
 func TestCosineSimilarityIdenticalVectors(t *testing.T) {
@@ -55,8 +60,8 @@ func TestCosineSimilarityOppositeVectors(t *testing.T) {
 	}
 }
 
-func TestGetCipherRoundTrip(t *testing.T) {
-	cp := getCipher("some-secret")
+func TestLinkKeyRoundTrip(t *testing.T) {
+	cp := linkKey("some-secret").AEAD()
 
 	nonce := make([]byte, cp.NonceSize())
 	plain := []byte("round trip me")
@@ -71,9 +76,9 @@ func TestGetCipherRoundTrip(t *testing.T) {
 	}
 }
 
-func TestGetCipherIsDeterministicPerSecret(t *testing.T) {
-	a := getCipher("same-secret")
-	b := getCipher("same-secret")
+func TestLinkKeyIsDeterministicPerSecret(t *testing.T) {
+	a := linkKey("same-secret").AEAD()
+	b := linkKey("same-secret").AEAD()
 
 	nonce := make([]byte, a.NonceSize())
 	plain := []byte("data")
@@ -90,15 +95,45 @@ func TestGetCipherIsDeterministicPerSecret(t *testing.T) {
 	}
 }
 
-func TestGetCipherDifferentSecretsDoNotInteroperate(t *testing.T) {
-	a := getCipher("secret-one")
-	b := getCipher("secret-two")
+func TestLinkKeyDifferentSecretsDoNotInteroperate(t *testing.T) {
+	a := linkKey("secret-one").AEAD()
+	b := linkKey("secret-two").AEAD()
 
 	nonce := make([]byte, a.NonceSize())
 	enc := a.Seal(nonce, nonce, []byte("data"), nil)
 
 	if _, err := b.Open(nil, enc[:b.NonceSize()], enc[b.NonceSize():], nil); err == nil {
 		t.Error("expected a cipher derived from a different secret to fail to decrypt")
+	}
+}
+
+// Issue #203: a share link's archives and galleries are sealed like the
+// library, each file under a key of its own - derived from the link's key,
+// so only the link's secret opens it - and those sealed before release 164
+// under the link's key itself still open with the same secret.
+func TestLinkKeySealsFilesOfTheirOwn(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/archive"
+	if err := blobstore.WriteBytes(path, linkKey("the-secret"), []byte("zip bytes")); err != nil {
+		t.Fatal(err)
+	}
+	if f, err := blobstore.FormatOf(path); err != nil || f != segcrypt.OTS2 {
+		t.Fatalf("an archive is written as %v (%v)", f, err)
+	}
+	if got, err := blobstore.ReadAll(path, linkKey("the-secret")); err != nil || string(got) != "zip bytes" {
+		t.Fatalf("read back: %q, %v", got, err)
+	}
+	if _, err := blobstore.ReadAll(path, linkKey("another-secret")); err == nil {
+		t.Error("another link's secret opened the archive")
+	}
+	// The key itself (what OTS1 archives were sealed with) is still
+	// SHA-256 of the secret.
+	sum := sha256.Sum256([]byte("the-secret"))
+	block, _ := aes.NewCipher(sum[:])
+	old, _ := cipher.NewGCM(block)
+	nonce := make([]byte, 12)
+	if _, err := linkKey("the-secret").AEAD().Open(nil, nonce, old.Seal(nil, nonce, []byte("x"), nil), nil); err != nil {
+		t.Error("the link's key is no longer SHA-256 of its secret")
 	}
 }
 

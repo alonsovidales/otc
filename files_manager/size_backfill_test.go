@@ -17,18 +17,21 @@ import (
 )
 
 // sparseBlob makes, at path, what a blob of plain bytes of content looks
-// like from outside: a segmented file's header and its size on disk.
-func sparseBlob(t *testing.T, path string, plain int64, segmented bool) {
+// like from outside: a header in format (0: not a segmented file, sized as
+// OTS1) and its size on disk.
+func sparseBlob(t *testing.T, path string, plain int64, format segcrypt.Format) {
 	t.Helper()
-	head := make([]byte, segcrypt.HeaderSize)
-	if segmented {
-		copy(head, "OTS1")
+	head := make([]byte, segcrypt.MaxHeaderSize)
+	size := segcrypt.OTS1.EncryptedSize(plain)
+	if format != 0 {
+		copy(head, format.String())
+		size = format.EncryptedSize(plain)
 	}
 	if err := os.WriteFile(path, head, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Remove(path) })
-	if err := os.Truncate(path, segcrypt.EncryptedSize(plain)); err != nil {
+	if err := os.Truncate(path, size); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -64,13 +67,16 @@ func expectClampedFriendFiles(mock sqlmock.Sqlmock, hashes ...string) {
 // Issue #187: a blob larger than MaxInt32 gives its content's size to
 // every row of its hash; smaller, missing and unsegmented blobs are left
 // alone, as are friends' posts. Hashes are read a page at a time, and the
-// pass is recorded once it is done.
+// pass is recorded once it is done. Each blob's size is read by its own
+// format (issue #203): an OTS2 blob's header is 25 bytes longer.
 func TestBackfillSizesCorrectsWrappedRows(t *testing.T) {
 	galleryTestEnv(t)
 	big, small, plain, gone := strings.Repeat("a1", 32), strings.Repeat("a2", 32), strings.Repeat("a3", 32), strings.Repeat("a4", 32)
-	sparseBlob(t, blobPath(big), 3<<30, true)
-	sparseBlob(t, blobPath(small), 1<<20, true)
-	sparseBlob(t, blobPath(plain), 3<<30, false) // not segmented: blobstore can't read it either
+	sparseBlob(t, blobPath(big), 3<<30, segcrypt.OTS1)
+	sparseBlob(t, blobPath(small), 1<<20, segcrypt.OTS1)
+	sparseBlob(t, blobPath(plain), 3<<30, 0) // not segmented: blobstore can't read it either
+	bigNew := strings.Repeat("a5", 32)
+	sparseBlob(t, blobPath(bigNew), 3<<30+12345, segcrypt.OTS2)
 	post, smallPost := strings.Repeat("b1", 32), strings.Repeat("b2", 32)
 	for name, n := range map[string]int64{post: 5 << 30, smallPost: 100} {
 		if err := os.WriteFile(filepath.Join(galleryPosts, name), nil, 0o600); err != nil {
@@ -97,7 +103,11 @@ func TestBackfillSizesCorrectsWrappedRows(t *testing.T) {
 	last := fmt.Sprintf("c%063d", cSizeBackfillPage-1)
 	mock.ExpectQuery("select `hash` from `files` where `hash` > \\?").
 		WithArgs(last, last, cSizeBackfillPage).
-		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(small).AddRow(plain).AddRow(gone))
+		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(small).AddRow(plain).AddRow(gone).AddRow(bigNew))
+	mock.ExpectExec("update `files` set `size` = \\? where `hash` = \\? and `size` <> \\?").
+		WithArgs(int64(3<<30+12345), bigNew, int64(3<<30+12345)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `file_versions` set `size` = \\? where `hash` = \\? and `size` <> \\?").
+		WithArgs(int64(3<<30+12345), bigNew, int64(3<<30+12345)).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("select distinct f.`hash` from `social_publications_files` f join `social_publications` p .* where p.`own_publication` = 1").
 		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow(post).AddRow(smallPost))
 	mock.ExpectExec("update `social_publications_files` f join `social_publications` p .* set f.`size` = \\? where f.`hash` = \\? and p.`own_publication` = 1 and f.`size` <> \\?").
@@ -143,7 +153,7 @@ func TestBackfillSizesWaitsForTheMigrationAndRetriesFailures(t *testing.T) {
 	}
 
 	big := strings.Repeat("d1", 32)
-	sparseBlob(t, blobPath(big), 4<<30, true)
+	sparseBlob(t, blobPath(big), 4<<30, segcrypt.OTS2)
 	mg, mock = backfillMock(t)
 	expectBackfillPending(mock, 3)
 	mock.ExpectQuery("select `hash` from `files` where `hash` > \\?").

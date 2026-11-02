@@ -3,9 +3,6 @@
 package filesmanager
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,12 +14,8 @@ import (
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/exifinfo"
 	"github.com/alonsovidales/otc/mediastream"
+	"github.com/alonsovidales/otc/segcrypt"
 )
-
-type streamKeys struct{ aead cipher.AEAD }
-
-func (k streamKeys) AEAD() cipher.AEAD              { return k.aead }
-func (k streamKeys) Decrypt([]byte) ([]byte, error) { return nil, errors.New("unused") }
 
 // A stored (segmented, encrypted) video reaches ffmpeg over a loopback
 // URL with range requests - the path processing takes instead of loading
@@ -38,9 +31,7 @@ func TestStoredVideoIsProcessedThroughTheStream(t *testing.T) {
 	}
 	plain, _ := os.ReadFile(src)
 
-	block, _ := aes.NewCipher(make([]byte, 32))
-	aead, _ := cipher.NewGCM(block)
-	keys := streamKeys{aead}
+	keys, _ := segcrypt.NewKey(make([]byte, 32))
 	store := filepath.Join(dir, "store")
 	os.Mkdir(store, 0o755)
 	if err := blobstore.WriteBytes(filepath.Join(store, "vidhash"), keys, plain); err != nil {
