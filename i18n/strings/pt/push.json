@@ -67,11 +67,11 @@
     "en": "Storage disks working again"
   },
   "push.rating.body": {
-    "text": "Alguém avaliou ou comentou as tuas fotos através de uma ligação que partilhaste.",
+    "text": "Alguém classificou ou comentou as tuas fotos através de uma ligação que partilhaste.",
     "en": "Someone rated or commented on your photos through a link you shared."
   },
   "push.rating.title": {
-    "text": "Novas avaliações nas tuas fotos",
+    "text": "Novas classificações nas tuas fotos",
     "en": "New ratings on your photos"
   },
   "push.storage.full_body": {

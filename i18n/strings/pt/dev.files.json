@@ -218,7 +218,7 @@
     "en": "the content of {hash} is missing or unreadable: {detail}"
   },
   "dev.files.rating_bad_stars": {
-    "text": "a avaliação de uma foto vai de 0 a 5 estrelas",
+    "text": "a classificação de uma foto vai de 0 a 5 estrelas",
     "en": "a photo's rating is from 0 to 5 stars"
   },
   "dev.files.rating_comment_too_long": {
@@ -226,7 +226,7 @@
     "en": "a comment can be at most {max} characters long"
   },
   "dev.files.rating_link_off": {
-    "text": "as fotos desta ligação já não podem ser avaliadas",
+    "text": "as fotos desta ligação já não podem ser classificadas",
     "en": "the photos of this link can't be rated any more"
   },
   "dev.files.rating_no_collection": {
@@ -238,7 +238,7 @@
     "en": "this photo is no longer in the collection"
   },
   "dev.files.rating_off": {
-    "text": "A avaliação está desativada nesta coleção: ativa-a para avaliares as fotos",
+    "text": "A classificação está desativada nesta coleção: ativa-a para classificares as fotos",
     "en": "Rating is off for this collection: turn it on to rate its photos"
   },
   "dev.files.read_failed": {
