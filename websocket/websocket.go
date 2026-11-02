@@ -3367,8 +3367,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				// And where its model is (release 152: downloaded once
 				// Smart search is first turned on).
 				SmartSearchModel: ch.mg.filesManager.SmartSearchModel(lang),
-				// Release 160: none on a low-memory device (memory_tiers.go).
+				// Release 160: none on a device under 3 GB since release 164
+				// (memory_tiers.go), and on a 4 GB one off until chosen,
+				// with what it costs said under the switch.
 				ImageTaggingAvailable: proto.Bool(deviceMemory().TaggingAllowed()),
+				ImageTaggingHeavy:     taggingHeavy(),
 			},
 		}
 
@@ -3468,7 +3471,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqSetImageTaggingEnabled:
 		log.Info("Set image tagging enabled:", p.ReqSetImageTaggingEnabled.Enabled)
 		if p.ReqSetImageTaggingEnabled.Enabled && !deviceMemory().TaggingAllowed() {
-			log.Info("image tagging refused: a low-memory device has none")
+			log.Info("image tagging refused: a device with this little memory has none")
 			resp.Error = true
 			resp.ErrorCode = cCodeTaggingUnavailable
 			resp.ErrorMessage = i18n.DevDeviceTaggingNeedMemory().Render(lang)

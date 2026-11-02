@@ -21,7 +21,7 @@
   "dev.device.restart_too_soon": {"text": "il dispositivo si è appena avviato; riprova tra un minuto"},
   "dev.device.social_limit_too_low": {"text": "il limite deve essere di almeno 0,1 GB"},
   "dev.device.storage_too_many": {"text": "scegli al massimo 2 dispositivi di archiviazione, ne sono stati scelti {chosen}"},
-  "dev.device.tagging_need_memory": {"text": "L’Etichettatura delle immagini richiede un dispositivo con almeno 6 GB di memoria"},
+  "dev.device.tagging_need_memory": {"text": "L’Etichettatura delle immagini richiede un dispositivo con almeno 4 GB di memoria"},
   "dev.device.unknown_log": {"text": "log sconosciuto “{source}”"},
   "dev.device.wifi_bad_name": {"text": "Il nome di una rete Wi-Fi ha da 1 a 32 caratteri (le lettere accentate e le emoji contano come due o più), senza tabulazioni né interruzioni di riga."},
   "dev.device.wifi_bad_password": {"text": "Una password Wi-Fi ha da 8 a 63 caratteri (le lettere accentate e alcuni simboli contano come due o tre), oppure esattamente 64 cifre esadecimali."},

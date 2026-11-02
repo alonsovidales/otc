@@ -39,9 +39,9 @@ instead:
 - A 64-bit Linux server with Docker Engine and Docker Compose (the `docker compose` command). The
   image is built for `linux/amd64` and `linux/arm64`. On amd64 the processor needs SSE4.1; the
   container checks this when it starts.
-- At least 2 GB of memory and 2 CPU cores for the container: with less than 6 GB there is no Image
-  Tagging, and with less than 3 GB no other users. The compose file gives it 8 GB (see
-  [Memory](#memory)).
+- At least 2 GB of memory and 2 CPU cores for the container: with less than 6 GB Image Tagging
+  is off until you turn it on, with less than 3 GB there is none and no other users. The compose
+  file gives it 8 GB (see [Memory](#memory)).
 - Room for your photos and files on redundant, **local** storage. The database lives in the same
   folder, and it can't run on a network or FUSE share (NFS, SMB, Unraid's `/mnt/user`). Or two empty
   disks for the container to mirror: the mirror holds as much as the smaller one.
@@ -509,11 +509,12 @@ reaches a disk. The `/tmp` line keeps the photos and videos being processed in m
 memory.
 
 With less than 6 GB, the device runs in low-memory mode: it processes one photo at a time, with
-one model loaded at once, and has no **Image Tagging**, whose model would take most of that memory
-(Smart search finds photos by what they show without it). Face Recognition, Smart search and On
-this day fit: held to 3.5 GB, the device processed a library with 48-megapixel photos and a 4K
-video in at most 1.4 GB, and a 2 GB machine ran one person's library with at least 780 MB to
-spare. With less than 3 GB it takes no other users.
+one model loaded at once, and **Image Tagging** is off until you turn it on in Settings: its model
+takes most of that memory (Smart search finds photos by what they show without it). Face
+Recognition, Smart search and On this day fit: held to 3.5 GB, the device processed a library with
+48-megapixel photos and a 4K video in at most 1.4 GB; with Image Tagging on, in at most 2.6 GB and
+about four times slower. A 2 GB machine ran one person's library with at least 780 MB to spare.
+With less than 3 GB it has no Image Tagging and takes no other users.
 
 ## Platforms
 

@@ -648,10 +648,14 @@
     "text": "Activar etiquetado de imágenes",
     "en": "Enable Image Tagging"
   },
+  "web.settings.tagging.heavy": {
+    "text": "En este dispositivo, el Etiquetado de imágenes usa alrededor de 1–2 GB más de memoria, y las fotos nuevas tardan más en procesarse.",
+    "en": "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process."
+  },
   "web.settings.tagging.hint": {
-    "text": "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. Necesita un dispositivo con al menos 6 GB de memoria.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
-    "reviewed": "claude-backtranslation 2026-11-01 #ddb76617"
+    "text": "Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento y memoria: la Búsqueda inteligente encuentra fotos por lo que muestran sin él, y se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado. Necesita un dispositivo con al menos 4 GB de memoria.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.",
+    "reviewed": "claude-backtranslation 2026-11-03 #d63af30c"
   },
   "web.settings.tagging.title": {
     "text": "Etiquetado de imágenes",

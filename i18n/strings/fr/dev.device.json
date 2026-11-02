@@ -91,8 +91,8 @@
     "reviewed": "claude-backtranslation 2026-10-11 #e872f893"
   },
   "dev.device.tagging_need_memory": {
-    "text": "L’Étiquetage des images nécessite un appareil avec au moins 6 Go de mémoire",
-    "en": "Image Tagging needs a device with at least 6 GB of memory"
+    "text": "L’Étiquetage des images nécessite un appareil avec au moins 4 Go de mémoire",
+    "en": "Image Tagging needs a device with at least 4 GB of memory"
   },
   "dev.device.unknown_log": {
     "text": "journal inconnu « {source} »",

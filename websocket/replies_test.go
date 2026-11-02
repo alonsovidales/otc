@@ -204,7 +204,7 @@ var headEnglish = []struct {
 	{"dev.users.username_taken", i18n.DevUsersUsernameTaken(), "username already taken"},
 
 	{"dev.device.already_on_bridge", i18n.DevDeviceAlreadyOnBridge(), "this device is already on the bridge"},
-	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 6 GB of memory"},
+	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 4 GB of memory"},
 	{"dev.device.bridge_dial_failed", i18n.DevDeviceBridgeDialFailed("boom"), fmt.Sprintf("dialing bridge: %v", "boom")},
 	{"dev.device.bridge_read_failed", i18n.DevDeviceBridgeReadFailed("boom"), fmt.Sprintf("reading from bridge: %v", "boom")},
 	{"dev.device.bridge_secret_managed", i18n.DevDeviceBridgeSecretManaged(), "the bridge secret is managed by the device"},

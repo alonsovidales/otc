@@ -648,10 +648,14 @@
     "text": "Activer l’étiquetage des images",
     "en": "Enable Image Tagging"
   },
+  "web.settings.tagging.heavy": {
+    "text": "Sur cet appareil, l’Étiquetage des images utilise environ 1–2 Go de mémoire en plus, et les nouvelles photos sont plus longues à traiter.",
+    "en": "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process."
+  },
   "web.settings.tagging.hint": {
-    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 6 Go de mémoire.",
-    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
-    "reviewed": "claude-backtranslation 2026-11-01 #7333ac54"
+    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement et de la mémoire : la Recherche intelligente trouve les photos d’après ce qu’elles montrent sans lui, et les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé. Il nécessite un appareil avec au moins 4 Go de mémoire.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.",
+    "reviewed": "claude-backtranslation 2026-11-03 #f5e77dde"
   },
   "web.settings.tagging.title": {
     "text": "Étiquetage des images",

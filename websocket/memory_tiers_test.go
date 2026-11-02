@@ -31,45 +31,65 @@ func setTaggingReq(on bool) *pb.ReqEnvelope {
 	return &pb.ReqEnvelope{Id: 4, Lang: "es", Payload: &pb.ReqEnvelope_ReqSetImageTaggingEnabled{ReqSetImageTaggingEnabled: &pb.SetImageTaggingEnabled{Enabled: on}}}
 }
 
-// A low-memory device has no Image Tagging: Settings says it isn't
-// available and off, and turning it on is refused in the request's
-// language; turning it off still works. An 8 GB device takes it.
-func TestImageTaggingByMemory(t *testing.T) {
-	withMemory(t, fourGB)
-	mg, mock := languageManager(t, "", "")
-	ch := &connHandler{mg: mg}
-	ch.setSession(newTestAuthenticatedSession(t))
-
+// getSettings answers GetSettings with the storage figures it reads.
+func getSettings(t *testing.T, ch *connHandler, mock sqlmock.Sqlmock) *pb.Settings {
+	t.Helper()
 	mock.ExpectQuery("select `social_storage_limit_mb` from `settings`").
 		WillReturnRows(sqlmock.NewRows([]string{"social_storage_limit_mb"}).AddRow(5120))
 	mock.ExpectQuery("select sum\\(`size`\\)").WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(nil))
 	resp := mustProcess(t, ch, getSettingsReq())
-	if s := resp.GetRespSettings(); s == nil || s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || *s.ImageTaggingAvailable {
-		t.Errorf("4 GB settings: %+v", resp)
+	s := resp.GetRespSettings()
+	if s == nil {
+		t.Fatalf("settings: %+v", resp)
 	}
+	return s
+}
 
-	resp = mustProcess(t, ch, setTaggingReq(true))
+// A 2 GB device has no Image Tagging: Settings says it isn't available
+// and off, and turning it on is refused in the request's language;
+// turning it off still works. A 4 GB one takes it, Settings saying it is
+// available and heavy (release 164, issue #209: off until its user turns
+// it on); an 8 GB one takes it, neither heavy nor anything to say.
+func TestImageTaggingByMemory(t *testing.T) {
+	withMemory(t, twoGB)
+	mg, mock := languageManager(t, "", "")
+	ch := &connHandler{mg: mg}
+	ch.setSession(newTestAuthenticatedSession(t))
+
+	if s := getSettings(t, ch, mock); s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || *s.ImageTaggingAvailable || s.ImageTaggingHeavy != nil {
+		t.Errorf("2 GB settings: %+v", s)
+	}
+	resp := mustProcess(t, ch, setTaggingReq(true))
 	if !resp.Error || resp.ErrorCode != cCodeTaggingUnavailable || resp.ErrorMessage != i18n.DevDeviceTaggingNeedMemory().Render("es") {
-		t.Errorf("turning it on with 4 GB: %+v", resp)
+		t.Errorf("turning it on with 2 GB: %+v", resp)
 	}
 	mock.ExpectExec("update `settings` set `image_tagging_enabled` = \\?, `image_tagging_chosen` = 1").WithArgs(false).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	if resp := mustProcess(t, ch, setTaggingReq(false)); resp.Error {
-		t.Errorf("turning it off with 4 GB: %+v", resp)
+		t.Errorf("turning it off with 2 GB: %+v", resp)
 	}
 
-	withMemory(t, eightGB)
+	withMemory(t, fourGB)
+	if s := getSettings(t, ch, mock); s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || !*s.ImageTaggingAvailable || s.ImageTaggingHeavy == nil || !*s.ImageTaggingHeavy {
+		t.Errorf("4 GB settings, off: %+v", s)
+	}
 	mock.ExpectExec("update `settings` set `image_tagging_enabled` = \\?, `image_tagging_chosen` = 1").WithArgs(true).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	if resp := mustProcess(t, ch, setTaggingReq(true)); resp.Error {
-		t.Errorf("turning it on with 8 GB: %+v", resp)
+		t.Errorf("turning it on with 4 GB: %+v", resp)
 	}
-	mock.ExpectQuery("select `social_storage_limit_mb` from `settings`").
-		WillReturnRows(sqlmock.NewRows([]string{"social_storage_limit_mb"}).AddRow(5120))
-	mock.ExpectQuery("select sum\\(`size`\\)").WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(nil))
-	resp = mustProcess(t, ch, getSettingsReq())
-	if s := resp.GetRespSettings(); s == nil || !s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || !*s.ImageTaggingAvailable {
-		t.Errorf("8 GB settings: %+v", resp)
+	if s := getSettings(t, ch, mock); !s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || !*s.ImageTaggingAvailable || s.ImageTaggingHeavy == nil || !*s.ImageTaggingHeavy {
+		t.Errorf("4 GB settings, on: %+v", s)
+	}
+
+	withMemory(t, eightGB)
+	if s := getSettings(t, ch, mock); !s.ImageTaggingEnabled || s.ImageTaggingAvailable == nil || !*s.ImageTaggingAvailable || s.ImageTaggingHeavy != nil {
+		t.Errorf("8 GB settings: %+v", s)
+	}
+	mock.ExpectExec("update `settings` set `image_tagging_enabled` = \\?, `image_tagging_chosen` = 1").WithArgs(false).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	if resp := mustProcess(t, ch, setTaggingReq(false)); resp.Error {
+		t.Errorf("turning it off with 8 GB: %+v", resp)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

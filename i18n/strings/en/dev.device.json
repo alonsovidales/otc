@@ -99,8 +99,8 @@
     "reviewed": "shipped 2026-10-11 #ef74d92c"
   },
   "dev.device.tagging_need_memory": {
-    "text": "Image Tagging needs a device with at least 6 GB of memory",
-    "note": "Error in Settings when turning Image Tagging on, on a device with less memory (a Raspberry Pi with 4 or 2 GB): the tagging model needs more. Image Tagging is the name of the switch in the apps' Settings: use the apps' word in your language. 6 GB is memory (RAM)."
+    "text": "Image Tagging needs a device with at least 4 GB of memory",
+    "note": "Error in Settings when turning Image Tagging on, on a device with less memory (a Raspberry Pi with 2 GB): the tagging model needs more. Image Tagging is the name of the switch in the apps' Settings: use the apps' word in your language. 4 GB is memory (RAM)."
   },
   "dev.device.unknown_log": {
     "text": "unknown log \"{source}\"",

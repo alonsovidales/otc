@@ -7,7 +7,7 @@ Off The Cloud is free, open-source software that gives your family its own priva
 
 The social network is decentralised: each family's posts live on its own device, and friends' devices fetch them from each other, with comments, likes and notifications, newest first: no ads, no algorithm, no strangers, and no company server holding everyone's photos. The same device is a NAS for your files: the Mac, Windows and Linux apps keep folders on your computers in sync or backed up, and Files in the apps and the web app works like a drive, with share links and upload-only folders that keep earlier versions. The phone apps back up your photos and videos in the background, in full resolution. The device tags them itself, and recognises faces if you turn that on, so you can search for "beach" or "dog" without any photo being sent away to be analysed, and your files are encrypted at rest under a key only your password unlocks. The device also serves a web app for any browser. The apps are published: the Mac app on the Mac App Store since 2026-10-06, the Android app on Google Play since 2026-10-10 and the iPhone app on the App Store since 2026-10-21.
 
-Off The Cloud (OTC) is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one works too, without Image Tagging, and a 2GB one for a single person) and two USB drives in a RAID 1 configuration to store the data (USB sticks, SSDs, hard disks or MicroSD cards in USB card readers).
+Off The Cloud (OTC) is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one works too, with Image Tagging as an option, and a 2GB one for a single person) and two USB drives in a RAID 1 configuration to store the data (USB sticks, SSDs, hard disks or MicroSD cards in USB card readers).
 
 **OTC is composed of five systems:**
 ====================================
@@ -142,10 +142,11 @@ With this you can access all your data and social network from any browser just 
 **Recommended Hardware**
 ========================
 - 1x [Raspberry Pi 5 with 8GB of RAM](https://www.raspberrypi.com/products/raspberry-pi-5/).
-  8GB is recommended. A 4GB one runs everything but **Image Tagging**, whose model would take most
-  of its memory (Smart search finds photos by what they show without it, and Face Recognition
-  fits), and has room for one extra user at most. A 2GB one runs one person's library: no Image
-  Tagging and no other users.
+  8GB is recommended. A 4GB one runs everything, and has room for one extra user at most. There
+  **Image Tagging** starts off: its model takes about 1-2GB more of the memory and new photos are
+  processed about four times slower, so it is yours to turn on in Settings (Smart search finds
+  photos by what they show without it, and Face Recognition fits either way). A 2GB one runs one
+  person's library: no Image Tagging and no other users.
 - 2x USB drives of the same size for storage (USB sticks, SSDs, hard disks, or MicroSD cards in
   USB card readers), plugged into the Pi 5's two blue (USB 3) ports: they are the fast ones, and
   if a drive fails the device tells you which port it is in (top or bottom)
@@ -157,7 +158,7 @@ With this you can access all your data and social network from any browser just 
 ==============================
 
 There are four ways to set up a device, from least to most work: flash the pre-built image (a
-Raspberry Pi 5 with 8 GB of RAM, or 4 GB without Image Tagging, or 2 GB for one person - no keyboard, monitor or Linux knowledge needed, RAID1
+Raspberry Pi 5 with 8 GB of RAM, or 4 GB (Image Tagging off until you turn it on), or 2 GB for one person - no keyboard, monitor or Linux knowledge needed, RAID1
 included), run the one-line install script against a machine you already have login access to
 (Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, RAID1 and the
 status LEDs included, no WiFi setup), run `Makefile.pi` against a plain Raspberry Pi OS install (if
@@ -213,8 +214,9 @@ everything from a first boot with nothing pre-configured.
 Use the **official Raspberry Pi 27 W USB-C power supply** (or a better one): a Pi 5 on a weaker
 supply, with USB disks attached, can restart or hang from low voltage while it processes photos.
 The image is for a **Raspberry Pi 5 with 8 GB of RAM** (the tagging model and the build from
-source need the memory); a 4 GB one runs everything but Image Tagging and has room for one extra
-user at most, and a 2 GB one runs one person's library, without Image Tagging or other users. It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
+source need the memory); a 4 GB one runs everything, with Image Tagging off until you turn it on in
+Settings, and has room for one extra user at most, and a 2 GB one runs one person's library,
+without Image Tagging or other users. It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
 it and nothing else (about 530 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
 current software with the same `install.sh` as Option 0, showing its progress - so there is never
 an "old image": whatever you flash installs today's release.

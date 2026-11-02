@@ -65,4 +65,28 @@ func TestImageTaggingDefaultMySQL(t *testing.T) {
 	if changed, err := d.ApplyImageTaggingDefault(true); err != nil || changed || enabled() {
 		t.Fatalf("the user's off on a bigger device: changed %v, %v, on %v", changed, err, enabled())
 	}
+
+	// A 4 GB device that ran release 160, which turned it off at every
+	// start whatever was chosen, leaving the choice as it was: release
+	// 164's default there (off unless chosen) keeps it off, chosen or not,
+	// until its user turns it on - which then stays through restarts.
+	for _, chosen := range []bool{false, true} {
+		if _, err := db.Exec("update `settings` set `image_tagging_enabled` = 1, `image_tagging_chosen` = ?", chosen); err != nil {
+			t.Fatal(err)
+		}
+		if changed, err := d.TurnOffImageTagging(); err != nil || !changed || enabled() {
+			t.Fatalf("release 160's start (chosen %v): changed %v, %v, on %v", chosen, changed, err, enabled())
+		}
+		if changed, err := d.ApplyImageTaggingDefault(false); err != nil || changed || enabled() {
+			t.Fatalf("release 164's start after 160 (chosen %v): changed %v, %v, on %v", chosen, changed, err, enabled())
+		}
+	}
+	if err := d.SetImageTaggingEnabled(true); err != nil {
+		t.Fatal(err)
+	}
+	for start := 1; start <= 2; start++ {
+		if changed, err := d.ApplyImageTaggingDefault(false); err != nil || changed || !enabled() {
+			t.Fatalf("start %d after its user turned it on: changed %v, %v, on %v", start, changed, err, enabled())
+		}
+	}
 }

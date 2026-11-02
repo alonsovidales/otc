@@ -1614,31 +1614,44 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   only the place tags from a file's own location data are written. Web, iOS and Android show it
   under Face Recognition. What a device's memory allows (owner, 2026-11-01: "the 4 gigabytes is
   going to don't have tagging, and the 2 gigabytes is not going to have tagging and users"; 8 GB
-  everything; `MemoryProfile.TaggingAllowed` - not in low-memory mode - and `ExtraUsersAllowed` -
-  at least `cUsersBelow`, 3 GB, between the 2 and 4 GB boards - in `lowmem.go`). Since release 160 a
-  low-memory device has no Image Tagging: every instance's `Init` turns it off
-  (`TurnOffImageTagging`, chosen or not), `imageTaggingEnabled` is false whatever the setting,
-  `Settings.image_tagging_available` (12) is false and `image_tagging_enabled` false, and
-  `SetImageTaggingEnabled` on is refused (`tagging_unavailable`, `dev.device.tagging_need_memory`);
-  the apps show the switch off and disabled, the footer ending "It needs a device with at least 6 GB
-  of memory". A 2 GB device takes no other users: `RespUsers.can_add` (3) false in ListUsers, and
+  everything; then 2026-11-03, issue #209 from a user with a 4 GB Pi 4, "Opt-in on 4 GB"), in
+  `lowmem.go`: `MemoryProfile.TaggingAllowed` - outside low-memory mode always, in it from
+  `cTaggingBelow` (3 GB) or of unknown size -, `TaggingHeavy` - allowed and low-memory: a 4 GB
+  board, or `[otc] low-memory = on` - and `ExtraUsersAllowed` - at least `cUsersBelow`, 3 GB,
+  between the 2 and 4 GB boards. Every instance's `Init` (`applyTaggingDefault`,
+  `tagging_default.go`) then: under 3 GB turns Image Tagging off (`TurnOffImageTagging`, chosen or
+  not) - `imageTaggingEnabled` is false whatever the setting, `Settings.image_tagging_available`
+  (12) false and `image_tagging_enabled` false, `SetImageTaggingEnabled` on refused
+  (`tagging_unavailable`, `dev.device.tagging_need_memory`: "at least 4 GB"), the apps show the
+  switch off and disabled, the footer/hint ending "It needs a device with at least 4 GB of memory";
+  heavy, applies the default off (`ApplyImageTaggingDefault(false)`) unless
+  `settings.image_tagging_chosen`, so the user turns it on and it stays on through restarts, and
+  `Settings.image_tagging_heavy` (13) is true, the apps showing under the switch "On this device
+  Image Tagging uses about 1-2 GB more memory, and new photos take longer to process."
+  (`web.settings.tagging.heavy`); elsewhere the default on (`ApplyImageTaggingDefault(true)`) unless
+  chosen. Releases 160-163 turned it off at every start on a 4 GB device too, leaving
+  `image_tagging_chosen` as it was, so those libraries stay off - chosen or not - until their user
+  turns it on (`TestImageTaggingDefaultMySQL`'s release 160 case). In low-memory mode RAM++ keeps
+  its handling (loaded at first use, NoArena, released after 10 idle minutes, one model call at a
+  time). A 2 GB device takes no other users: `RespUsers.can_add` (3) false in ListUsers, and
   `CreateUser` refused before anything is provisioned (`users_unavailable`, `dev.users.need_memory`);
   the apps show `*.settings.users.need_memory` in place of Add user (and the bridge-access switch);
   existing users keep working (`websocket/memory_tiers.go`, `deviceMemory` for the tests). Unset
-  fields mean available (older devices). The apps' rules: web `components/settings/memoryTiers.ts`
-  (`web/scripts/memory-tiers-test.mjs`), iOS `MemoryTiers.swift` (`MemoryTiersTests.swift`), Android
+  fields mean available and nothing to say (older devices). The apps' rules: web
+  `components/settings/memoryTiers.ts` (`taggingSwitch`'s `heavy`; `web/scripts/memory-tiers-test.mjs`),
+  iOS `MemoryTiers.swift` (`MemoryTiersTests.swift`), Android
   `DeviceSettingsViewModel.State.withSettings` / `UsersManagementViewModel.State.withUsers`
   (`MemoryTiersTest.kt`); a refusal shows the device's words; the tour's Users step rings the note. Release 158 had made tagging's
   default follow the memory (owner: "perhaps we can disable tagging to run in small devices"):
-  elsewhere it is on (`ApplyImageTaggingDefault`) unless `settings.image_tagging_chosen`, which
-  `SetImageTaggingEnabled` sets; `updates/158.sh` (and install.sh) add the column once, marking a
-  switch already off as chosen (the old default was on), and never again. Measured on 2026-11-01
+  `updates/158.sh` (and install.sh) add `settings.image_tagging_chosen` once, marking a switch
+  already off as chosen (the old default was on), and never again; `SetImageTaggingEnabled` sets it.
+  Measured on 2026-11-01
   in the release 157 container held to 3.5 GB, 4 CPUs (`--cpuset-cpus`), the demo library plus
   four 48 MP JPEGs, two 48 MP HEICs and a 30 s 4K HEVC video, faces and Smart search on, the
   cgroup's `memory.peak` and `memory.stat` sampled every 5 s: tagging off 1.37 GB at most (~0.5 GB
   of it file cache), 0.86 GB anonymous, processed in ~45 s; tagging on 2.55 GB, 1.77 GB, ~3 min 10 s;
   held to 1.7 GB with tagging off 1.25 GB, 0.65 GB, everything but the HEICs (over the 42 MP decode
-  limit there). The apps' footer and the web's hint say it starts off under 6 GB.
+  limit there).
 - `bg_processor` — background job runner invoked from `files_manager`/`websocket`.
 - `websocket` — the `/ws` connection handler and dispatch switch described above; also owns
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay

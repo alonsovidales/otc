@@ -1004,7 +1004,7 @@ func SiteLandingGlanceHardwareLabel() Msg {
 	return Msg{Key: "site.landing.glance.hardware.label"}
 }
 
-// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB without tagging, 2 GB for one person), or a 64-…".
+// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB with tagging as an option, 2 GB for one person)…".
 func SiteLandingGlanceHardwareValue() Msg {
 	return Msg{Key: "site.landing.glance.hardware.value"}
 }

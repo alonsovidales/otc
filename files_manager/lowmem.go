@@ -133,20 +133,36 @@ func CurrentMemoryProfile() MemoryProfile {
 
 // What a device's memory allows (owner, 2026-11-01: "the 4 gigabytes is
 // going to don't have tagging, and the 2 gigabytes is not going to have
-// tagging and users"; everything on 8 GB). Measured in a container held to
-// 3.5 GB and in a 2 GB VM: without RAM++ a 4 GB device has room to spare,
-// with it ~1 GB less and photos four times slower; a 2 GB one runs one
-// library well, and two processing at once left 381 MB free at the worst
-// moment (a run with ~370 MB less was killed six times).
+// tagging and users"; everything on 8 GB; then 2026-11-03, issue #209:
+// "Opt-in on 4 GB"). Measured in a container held to 3.5 GB and in a 2 GB
+// VM: without RAM++ a 4 GB device has room to spare, with it ~1 GB less
+// (2.55 GB at the peak, nothing killed) and photos four times slower; a
+// 2 GB one runs one library well, and two processing at once left 381 MB
+// free at the worst moment (a run with ~370 MB less was killed six times).
 //
 // cUsersBelow: a device with less memory than this takes no users besides
 // its owner - between the 2 GB and 4 GB boards (MemTotal ~1.9 and ~3.7 GB).
 const cUsersBelow = 3 << 30
 
-// TaggingAllowed says whether Image Tagging can be on: not in low-memory
-// mode (tagging_default.go).
+// cTaggingBelow: a low-memory device with less memory than this has no
+// Image Tagging - the same line, between the 2 GB and 4 GB boards. One with
+// more may turn it on (TaggingHeavy).
+const cTaggingBelow = 3 << 30
+
+// TaggingAllowed says whether Image Tagging can be on: not on a low-memory
+// device under cTaggingBelow (tagging_default.go). Outside low-memory mode
+// it always can (a 2 GB board set to [otc] low-memory = off too, as
+// before), and so can a low-memory device of unknown size.
 func (p MemoryProfile) TaggingAllowed() bool {
-	return !p.Low
+	return !p.Low || p.Total == 0 || p.Total >= cTaggingBelow
+}
+
+// TaggingHeavy says whether Image Tagging, allowed, costs this device more
+// than it is comfortable with (release 164, issue #209): a low-memory one
+// (under 6 GB, or [otc] low-memory = on) where it is off until its user
+// turns it on, and Settings says what it costs (Settings.image_tagging_heavy).
+func (p MemoryProfile) TaggingHeavy() bool {
+	return p.Low && p.TaggingAllowed()
 }
 
 // ExtraUsersAllowed says whether the device takes users besides its owner:

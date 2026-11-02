@@ -777,11 +777,15 @@
     "note": "Button in Settings > Image Tagging that turns image tagging on.",
     "max": 40
   },
+  "web.settings.tagging.heavy": {
+    "text": "On this device Image Tagging uses about 1–2 GB more memory, and new photos take longer to process.",
+    "note": "Under the Image Tagging switch in Settings, on a device with less memory than the product is built for (a Raspberry Pi with 4 GB), where Image Tagging is off until the user turns it on. 1–2 GB is memory (RAM), about one to two gigabytes. Image Tagging is the switch's name: use the words of web.settings.tagging.title."
+  },
   "web.settings.tagging.hint": {
-    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 6 GB of memory.",
-    "note": "Explanation under the Image Tagging heading in Settings.",
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time and memory: Smart search finds photos by what they show without it, and places from a photo's own location data are still searchable. It only affects what is uploaded while it is off. It needs a device with at least 4 GB of memory.",
+    "note": "Explanation under the Image Tagging heading in Settings. Its last sentence: a device with less memory (a Raspberry Pi with 2 GB) has no Image Tagging. 4 GB is memory (RAM).",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-01 #4fa84090"
+    "reviewed": "claude-backtranslation 2026-11-03 #6c3bc0bc"
   },
   "web.settings.tagging.title": {
     "text": "Image Tagging",

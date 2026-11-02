@@ -729,6 +729,7 @@ export type MessageKey =
   | "web.settings.storage.use"
   | "web.settings.tagging.disable"
   | "web.settings.tagging.enable"
+  | "web.settings.tagging.heavy"
   | "web.settings.tagging.hint"
   | "web.settings.tagging.title"
   | "web.settings.tailscale.auth_key"
@@ -1899,6 +1900,7 @@ export interface MessageArgs {
   "web.settings.storage.use": undefined;
   "web.settings.tagging.disable": undefined;
   "web.settings.tagging.enable": undefined;
+  "web.settings.tagging.heavy": undefined;
   "web.settings.tagging.hint": undefined;
   "web.settings.tagging.title": undefined;
   "web.settings.tailscale.auth_key": undefined;

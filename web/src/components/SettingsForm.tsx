@@ -77,7 +77,7 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const faceRecognitionEnabled = useFaceRecognition() === true;
   // Image Tagging's switch: off and disabled on a device whose memory can't
   // have it (settings/memoryTiers.ts).
-  const [tagging, setTagging] = useState<TaggingSwitch>({ on: true, available: true });
+  const [tagging, setTagging] = useState<TaggingSwitch>({ on: true, available: true, heavy: false });
   const [imageTaggingBusy, setImageTaggingBusy] = useState(false);
   const [faceRecognitionBusy, setFaceRecognitionBusy] = useState(false);
   // Places' switch (places.ts), on a device that has Places: its Settings
@@ -406,8 +406,9 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         if (resp.payload?.$case === "respSettings") {
           const s: PbSettings = resp.payload.respSettings;
           setFaceRecognition(!!s.faceRecognitionEnabled);
-          // Unavailable (a device under 6 GB): off and disabled; absent
-          // (an older device): available, as before.
+          // Unavailable (a device under 3 GB): off and disabled; heavy
+          // (under 6 GB): a note under it; absent (an older device):
+          // available, as before.
           setTagging(taggingSwitch(s));
           // Absent: a device before Places, with no switch.
           setPlacesKnown(s.placesEnabled !== undefined);
@@ -679,10 +680,12 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
       <section className="sf-section">
         <h3>{t("web.settings.tagging.title")}</h3>
         <p className="sf-hint">{t("web.settings.tagging.hint")}</p>
-        {/* Unavailable: off and disabled, the hint saying it needs 6 GB. */}
+        {/* Unavailable: off and disabled, the hint saying it needs 4 GB. */}
         <button className="sf-btn" disabled={imageTaggingBusy || !tagging.available} onClick={() => void toggleImageTagging()}>
           {imageTaggingBusy ? t("web.settings.general.working") : tagging.on ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
         </button>
+        {/* Under 6 GB (issue #209): there, but what it costs, on or off. */}
+        {tagging.heavy && <p className="sf-hint">{t("web.settings.tagging.heavy")}</p>}
       </section>
 
       <section className="sf-section">

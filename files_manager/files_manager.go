@@ -2021,7 +2021,8 @@ func (mg *Manager) processMediaContent(session *session.Session, file *pb.File, 
 // recognition's. Tagging stays on when it can't be read.
 func (mg *Manager) imageTaggingEnabled() bool {
 	if !mg.profile.TaggingAllowed() {
-		// Not on a low-memory device, whatever the setting (tagging_default.go).
+		// Not on a device under 3 GB, whatever the setting
+		// (tagging_default.go). A 4 GB one follows its user's choice.
 		return false
 	}
 	enabled, err := mg.dao.GetImageTaggingEnabled()

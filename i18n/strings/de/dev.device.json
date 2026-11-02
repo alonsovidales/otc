@@ -91,8 +91,8 @@
     "reviewed": "claude-backtranslation 2026-10-11 #a7b1090f"
   },
   "dev.device.tagging_need_memory": {
-    "text": "Die Bilderkennung braucht ein Gerät mit mindestens 6 GB Arbeitsspeicher",
-    "en": "Image Tagging needs a device with at least 6 GB of memory"
+    "text": "Die Bilderkennung braucht ein Gerät mit mindestens 4 GB Arbeitsspeicher",
+    "en": "Image Tagging needs a device with at least 4 GB of memory"
   },
   "dev.device.unknown_log": {
     "text": "unbekanntes Protokoll „{source}“",
