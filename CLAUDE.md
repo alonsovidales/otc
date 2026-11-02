@@ -1472,7 +1472,12 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   `useWS.request` opens no new socket meanwhile (a `NoAnswer` in the note's words; a socket still
   open carries on), App ignores the bridge's `device_unreachable` and hides the "Reconnecting…"
   pill (`components/settings/shutDown.ts` for the answer, `web/scripts/shut-down-test.mjs`). iOS
-  `UpdateSection` and Android `UpdateViewModel` follow the same rules.
+  `UpdateSection` and Android `UpdateViewModel` follow the same rules. Tested on the `otc-2gb` Lima
+  VM (2026-11-03, installed by install.sh): update.sh's runner block, run on it with the runner
+  removed and a request left behind, installed and enabled it and removed the request first; the
+  dry run dropped a request while update.sh's lock or the Wi-Fi lock was held; a request written as
+  the otc user powered the VM off, otc and MariaDB stopping cleanly first; one written 8 s after
+  boot was dropped.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section). The model file is 873 MB (int8,
   `ram_plus_int8.onnx`); measured with ONNX Runtime 1.24.3 on arm64 (macOS, 2026-10-08) it is
