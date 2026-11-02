@@ -1003,6 +1003,35 @@ export interface SearchPhotos {
    * smart_search_enabled. "" (or only spaces) is no text.
    */
   text: string;
+  /**
+   * Rating (release 163), only with group_id naming a collection whose
+   * Rating is on (ImageGroup.rating; ignored otherwise): only the photos
+   * whose rating passes the filter, the newest taken first.
+   */
+  rating?:
+    | RatingFilter
+    | undefined;
+  /**
+   * Rating: the highest rated first (more stars first, then the newest
+   * taken; photos without stars last). With either rating field set the
+   * answer is ranked as a tag search's is: pages go by token and have;
+   * before and newer_than don't apply, and there are no month buckets.
+   * Devices before it ignore both and answer by date.
+   */
+  byRating: boolean;
+}
+
+/**
+ * Which photos of a rated collection SearchPhotos keeps. All unset: every
+ * photo.
+ */
+export interface RatingFilter {
+  /** 1-5: at least this many stars; 0: any */
+  minStars: number;
+  /** only the photos without stars (min_stars is then ignored) */
+  unrated: boolean;
+  /** only the photos with a comment */
+  withComment: boolean;
 }
 
 export interface ListOfFiles {
@@ -1286,7 +1315,15 @@ export interface File {
    * photo at its newest copy and don't honour every_copy, so delete only
    * the path.
    */
-  copies?: number | undefined;
+  copies?:
+    | number
+    | undefined;
+  /**
+   * Rating (release 163): in a SearchPhotos answer for a collection whose
+   * Rating is on, the photo's stars and comment there - unset for a photo
+   * with neither, and everywhere else.
+   */
+  rating?: PhotoRating | undefined;
 }
 
 export interface Ack {
@@ -1421,6 +1458,13 @@ export interface CreateSharedGallery {
    * originals never leave the library.
    */
   lowRes: boolean;
+  /**
+   * Rating (release 163): anyone with the link can rate its photos
+   * (RateSharedGalleryItem), and their ratings are the collection's own
+   * (PhotoRating.from_link). Only with source.group_id; it turns that
+   * collection's Rating on. Devices before it ignore it.
+   */
+  rating: boolean;
 }
 
 export interface GetSharedGalleryJob {
@@ -1460,6 +1504,12 @@ export interface SharedGalleryItem {
     | undefined;
   /** a browser-ready JPEG exists (HEIC, RAW...) */
   hasPreview: boolean;
+  /**
+   * Rating: the photo's rating in the collection now, while
+   * SharedGallery.rating is on.
+   */
+  stars: number;
+  comment: string;
 }
 
 export interface SharedGallery {
@@ -1469,6 +1519,28 @@ export interface SharedGallery {
   items: SharedGalleryItem[];
   /** small copies only, not the originals */
   lowRes: boolean;
+  /**
+   * Rating: the visitor may rate the photos (RateSharedGalleryItem). Off
+   * for a link made without it, and once its collection is deleted or its
+   * Rating turned off.
+   */
+  rating: boolean;
+}
+
+/**
+ * Public, Rating (release 163): anyone with a link whose
+ * SharedGallery.rating is on rates one of its photos, stars and comment
+ * both, as SetPhotoRating does. Answers with the generic Ack; error_code
+ * "rating_off" when the link doesn't take ratings (any more),
+ * "not_in_collection" when the photo has left the collection, and the
+ * shared gallery's usual answer for a link that doesn't open.
+ */
+export interface RateSharedGalleryItem {
+  uuid: string;
+  secret: string;
+  index: number;
+  stars: number;
+  comment: string;
 }
 
 export interface GetSharedGalleryItem {
@@ -1524,6 +1596,8 @@ export interface SharedLinkInfo {
   /** what it takes on disk */
   bytes: bigint;
   files: number;
+  /** anyone with it can rate the photos (release 163) */
+  rating: boolean;
 }
 
 export interface SharedLinks {
@@ -2467,6 +2541,55 @@ export interface ImageGroup {
    * (SetFavourite) as well as with Add to / Remove from collection.
    */
   favourites: boolean;
+  /**
+   * Rating (release 163): this collection's photos are rated, 1 to 5 stars
+   * and a comment each (SetPhotoRating; File.rating in its listing), and
+   * can be filtered and sorted by it (SearchPhotos.rating, by_rating).
+   * Turned on and off with SetImageGroupRating; turned off, the ratings
+   * are kept and come back with it. Devices before it never set it.
+   */
+  rating: boolean;
+}
+
+/**
+ * Rating: turns a collection's Rating on or off. Answers with the generic
+ * Ack; devices before it with error_code "unknown_payload".
+ */
+export interface SetImageGroupRating {
+  id: string;
+  on: boolean;
+}
+
+/**
+ * One photo's rating in a collection whose Rating is on. One per photo
+ * and collection, the same for the collection's owner and anyone rating
+ * through its shared link (CreateSharedGallery.rating). The stars are
+ * readable by the device's database, as the tags are (it filters and
+ * sorts by them); the comment is encrypted, readable only once the owner
+ * has signed in.
+ */
+export interface PhotoRating {
+  /** 1-5; 0: none */
+  stars: number;
+  /** "" for none; at most 2000 characters */
+  comment: string;
+  /** The last change came through a shared link, not from the owner. */
+  fromLink: boolean;
+  updated?: Date | undefined;
+}
+
+/**
+ * Rating: one photo's stars and comment in a collection whose Rating is
+ * on, both at once, replacing what it had (0 stars and "" clear it).
+ * Answers with PhotoRating as stored; error_code "rating_off" when the
+ * collection's Rating is off, "not_in_collection" when the photo isn't
+ * in it. Devices before it answer "unknown_payload".
+ */
+export interface SetPhotoRating {
+  groupId: string;
+  path: string;
+  stars: number;
+  comment: string;
 }
 
 export interface ListImageGroups {
@@ -3731,6 +3854,15 @@ export interface ReqEnvelope {
      */
     { $case: "reqGetPhotoFaces"; reqGetPhotoFaces: GetPhotoFaces }
     | //
+    /**
+     * Rating (release 163): a collection's Rating on or off (Ack), one
+     * photo's rating (PhotoRating), and a shared link's visitor rating a
+     * photo (public; Ack). Devices before them answer "unknown_payload".
+     */
+    { $case: "reqSetImageGroupRating"; reqSetImageGroupRating: SetImageGroupRating }
+    | { $case: "reqSetPhotoRating"; reqSetPhotoRating: SetPhotoRating }
+    | { $case: "reqRateSharedGalleryItem"; reqRateSharedGalleryItem: RateSharedGalleryItem }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3894,6 +4026,9 @@ export interface RespEnvelope {
     | //
     /** The answer to GetPhotoFaces. */
     { $case: "respPhotoFaces"; respPhotoFaces: PhotoFaces }
+    | //
+    /** The answer to SetPhotoRating. */
+    { $case: "respPhotoRating"; respPhotoRating: PhotoRating }
     | undefined;
 }
 
@@ -6895,6 +7030,8 @@ function createBaseSearchPhotos(): SearchPhotos {
     newerThan: undefined,
     area: undefined,
     text: "",
+    rating: undefined,
+    byRating: false,
   };
 }
 
@@ -6938,6 +7075,12 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.text !== "") {
       writer.uint32(106).string(message.text);
+    }
+    if (message.rating !== undefined) {
+      RatingFilter.encode(message.rating, writer.uint32(114).fork()).join();
+    }
+    if (message.byRating !== false) {
+      writer.uint32(120).bool(message.byRating);
     }
     return writer;
   },
@@ -7053,6 +7196,22 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.text = reader.string();
           continue;
         }
+        case 14: {
+          if (tag !== 114) {
+            break;
+          }
+
+          message.rating = RatingFilter.decode(reader, reader.uint32());
+          continue;
+        }
+        case 15: {
+          if (tag !== 120) {
+            break;
+          }
+
+          message.byRating = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7080,6 +7239,80 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.newerThan = object.newerThan ?? undefined;
     message.area = (object.area !== undefined && object.area !== null) ? PlaceArea.fromPartial(object.area) : undefined;
     message.text = object.text ?? "";
+    message.rating = (object.rating !== undefined && object.rating !== null)
+      ? RatingFilter.fromPartial(object.rating)
+      : undefined;
+    message.byRating = object.byRating ?? false;
+    return message;
+  },
+};
+
+function createBaseRatingFilter(): RatingFilter {
+  return { minStars: 0, unrated: false, withComment: false };
+}
+
+export const RatingFilter: MessageFns<RatingFilter> = {
+  encode(message: RatingFilter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.minStars !== 0) {
+      writer.uint32(8).int32(message.minStars);
+    }
+    if (message.unrated !== false) {
+      writer.uint32(16).bool(message.unrated);
+    }
+    if (message.withComment !== false) {
+      writer.uint32(24).bool(message.withComment);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RatingFilter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRatingFilter();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.minStars = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.unrated = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.withComment = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RatingFilter>, I>>(base?: I): RatingFilter {
+    return RatingFilter.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RatingFilter>, I>>(object: I): RatingFilter {
+    const message = createBaseRatingFilter();
+    message.minStars = object.minStars ?? 0;
+    message.unrated = object.unrated ?? false;
+    message.withComment = object.withComment ?? false;
     return message;
   },
 };
@@ -7895,6 +8128,7 @@ function createBaseFile(): File {
     outOfImages: false,
     thumbnailSmall: undefined,
     copies: undefined,
+    rating: undefined,
   };
 }
 
@@ -7941,6 +8175,9 @@ export const File: MessageFns<File> = {
     }
     if (message.copies !== undefined) {
       writer.uint32(112).int32(message.copies);
+    }
+    if (message.rating !== undefined) {
+      PhotoRating.encode(message.rating, writer.uint32(122).fork()).join();
     }
     return writer;
   },
@@ -8056,6 +8293,14 @@ export const File: MessageFns<File> = {
           message.copies = reader.int32();
           continue;
         }
+        case 15: {
+          if (tag !== 122) {
+            break;
+          }
+
+          message.rating = PhotoRating.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8083,6 +8328,9 @@ export const File: MessageFns<File> = {
     message.outOfImages = object.outOfImages ?? false;
     message.thumbnailSmall = object.thumbnailSmall ?? undefined;
     message.copies = object.copies ?? undefined;
+    message.rating = (object.rating !== undefined && object.rating !== null)
+      ? PhotoRating.fromPartial(object.rating)
+      : undefined;
     return message;
   },
 };
@@ -8813,7 +9061,7 @@ export const SharedGalleryPreview: MessageFns<SharedGalleryPreview> = {
 };
 
 function createBaseCreateSharedGallery(): CreateSharedGallery {
-  return { source: undefined, description: "", ttlHours: 0, lowRes: false };
+  return { source: undefined, description: "", ttlHours: 0, lowRes: false, rating: false };
 }
 
 export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
@@ -8829,6 +9077,9 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
     }
     if (message.lowRes !== false) {
       writer.uint32(32).bool(message.lowRes);
+    }
+    if (message.rating !== false) {
+      writer.uint32(40).bool(message.rating);
     }
     return writer;
   },
@@ -8872,6 +9123,14 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
           message.lowRes = reader.bool();
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.rating = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -8892,6 +9151,7 @@ export const CreateSharedGallery: MessageFns<CreateSharedGallery> = {
     message.description = object.description ?? "";
     message.ttlHours = object.ttlHours ?? 0;
     message.lowRes = object.lowRes ?? false;
+    message.rating = object.rating ?? false;
     return message;
   },
 };
@@ -9137,7 +9397,7 @@ export const OpenSharedGallery: MessageFns<OpenSharedGallery> = {
 };
 
 function createBaseSharedGalleryItem(): SharedGalleryItem {
-  return { index: 0, name: "", mime: "", size: 0n, taken: undefined, hasPreview: false };
+  return { index: 0, name: "", mime: "", size: 0n, taken: undefined, hasPreview: false, stars: 0, comment: "" };
 }
 
 export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
@@ -9162,6 +9422,12 @@ export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
     }
     if (message.hasPreview !== false) {
       writer.uint32(48).bool(message.hasPreview);
+    }
+    if (message.stars !== 0) {
+      writer.uint32(56).int32(message.stars);
+    }
+    if (message.comment !== "") {
+      writer.uint32(66).string(message.comment);
     }
     return writer;
   },
@@ -9221,6 +9487,22 @@ export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
           message.hasPreview = reader.bool();
           continue;
         }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.stars = reader.int32();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.comment = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9241,12 +9523,14 @@ export const SharedGalleryItem: MessageFns<SharedGalleryItem> = {
     message.size = object.size ?? 0n;
     message.taken = object.taken ?? undefined;
     message.hasPreview = object.hasPreview ?? false;
+    message.stars = object.stars ?? 0;
+    message.comment = object.comment ?? "";
     return message;
   },
 };
 
 function createBaseSharedGallery(): SharedGallery {
-  return { description: "", created: undefined, expires: undefined, items: [], lowRes: false };
+  return { description: "", created: undefined, expires: undefined, items: [], lowRes: false, rating: false };
 }
 
 export const SharedGallery: MessageFns<SharedGallery> = {
@@ -9265,6 +9549,9 @@ export const SharedGallery: MessageFns<SharedGallery> = {
     }
     if (message.lowRes !== false) {
       writer.uint32(40).bool(message.lowRes);
+    }
+    if (message.rating !== false) {
+      writer.uint32(48).bool(message.rating);
     }
     return writer;
   },
@@ -9316,6 +9603,14 @@ export const SharedGallery: MessageFns<SharedGallery> = {
           message.lowRes = reader.bool();
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.rating = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9335,6 +9630,101 @@ export const SharedGallery: MessageFns<SharedGallery> = {
     message.expires = object.expires ?? undefined;
     message.items = object.items?.map((e) => SharedGalleryItem.fromPartial(e)) || [];
     message.lowRes = object.lowRes ?? false;
+    message.rating = object.rating ?? false;
+    return message;
+  },
+};
+
+function createBaseRateSharedGalleryItem(): RateSharedGalleryItem {
+  return { uuid: "", secret: "", index: 0, stars: 0, comment: "" };
+}
+
+export const RateSharedGalleryItem: MessageFns<RateSharedGalleryItem> = {
+  encode(message: RateSharedGalleryItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.uuid !== "") {
+      writer.uint32(10).string(message.uuid);
+    }
+    if (message.secret !== "") {
+      writer.uint32(18).string(message.secret);
+    }
+    if (message.index !== 0) {
+      writer.uint32(24).int32(message.index);
+    }
+    if (message.stars !== 0) {
+      writer.uint32(32).int32(message.stars);
+    }
+    if (message.comment !== "") {
+      writer.uint32(42).string(message.comment);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RateSharedGalleryItem {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRateSharedGalleryItem();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.uuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.index = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.stars = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.comment = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<RateSharedGalleryItem>, I>>(base?: I): RateSharedGalleryItem {
+    return RateSharedGalleryItem.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RateSharedGalleryItem>, I>>(object: I): RateSharedGalleryItem {
+    const message = createBaseRateSharedGalleryItem();
+    message.uuid = object.uuid ?? "";
+    message.secret = object.secret ?? "";
+    message.index = object.index ?? 0;
+    message.stars = object.stars ?? 0;
+    message.comment = object.comment ?? "";
     return message;
   },
 };
@@ -9563,6 +9953,7 @@ function createBaseSharedLinkInfo(): SharedLinkInfo {
     lastOpened: undefined,
     bytes: 0n,
     files: 0,
+    rating: false,
   };
 }
 
@@ -9597,6 +9988,9 @@ export const SharedLinkInfo: MessageFns<SharedLinkInfo> = {
     }
     if (message.files !== 0) {
       writer.uint32(72).int32(message.files);
+    }
+    if (message.rating !== false) {
+      writer.uint32(80).bool(message.rating);
     }
     return writer;
   },
@@ -9680,6 +10074,14 @@ export const SharedLinkInfo: MessageFns<SharedLinkInfo> = {
           message.files = reader.int32();
           continue;
         }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.rating = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9703,6 +10105,7 @@ export const SharedLinkInfo: MessageFns<SharedLinkInfo> = {
     message.lastOpened = object.lastOpened ?? undefined;
     message.bytes = object.bytes ?? 0n;
     message.files = object.files ?? 0;
+    message.rating = object.rating ?? false;
     return message;
   },
 };
@@ -14589,7 +14992,7 @@ export const PhotoFaces: MessageFns<PhotoFaces> = {
 };
 
 function createBaseImageGroup(): ImageGroup {
-  return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0), favourites: false };
+  return { id: "", name: "", fileCount: 0, coverThumbnail: new Uint8Array(0), favourites: false, rating: false };
 }
 
 export const ImageGroup: MessageFns<ImageGroup> = {
@@ -14608,6 +15011,9 @@ export const ImageGroup: MessageFns<ImageGroup> = {
     }
     if (message.favourites !== false) {
       writer.uint32(40).bool(message.favourites);
+    }
+    if (message.rating !== false) {
+      writer.uint32(48).bool(message.rating);
     }
     return writer;
   },
@@ -14659,6 +15065,14 @@ export const ImageGroup: MessageFns<ImageGroup> = {
           message.favourites = reader.bool();
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.rating = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -14678,6 +15092,229 @@ export const ImageGroup: MessageFns<ImageGroup> = {
     message.fileCount = object.fileCount ?? 0;
     message.coverThumbnail = object.coverThumbnail ?? new Uint8Array(0);
     message.favourites = object.favourites ?? false;
+    message.rating = object.rating ?? false;
+    return message;
+  },
+};
+
+function createBaseSetImageGroupRating(): SetImageGroupRating {
+  return { id: "", on: false };
+}
+
+export const SetImageGroupRating: MessageFns<SetImageGroupRating> = {
+  encode(message: SetImageGroupRating, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.on !== false) {
+      writer.uint32(16).bool(message.on);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetImageGroupRating {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetImageGroupRating();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.on = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetImageGroupRating>, I>>(base?: I): SetImageGroupRating {
+    return SetImageGroupRating.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetImageGroupRating>, I>>(object: I): SetImageGroupRating {
+    const message = createBaseSetImageGroupRating();
+    message.id = object.id ?? "";
+    message.on = object.on ?? false;
+    return message;
+  },
+};
+
+function createBasePhotoRating(): PhotoRating {
+  return { stars: 0, comment: "", fromLink: false, updated: undefined };
+}
+
+export const PhotoRating: MessageFns<PhotoRating> = {
+  encode(message: PhotoRating, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.stars !== 0) {
+      writer.uint32(8).int32(message.stars);
+    }
+    if (message.comment !== "") {
+      writer.uint32(18).string(message.comment);
+    }
+    if (message.fromLink !== false) {
+      writer.uint32(24).bool(message.fromLink);
+    }
+    if (message.updated !== undefined) {
+      Timestamp.encode(toTimestamp(message.updated), writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PhotoRating {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePhotoRating();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.stars = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.comment = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.fromLink = reader.bool();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.updated = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<PhotoRating>, I>>(base?: I): PhotoRating {
+    return PhotoRating.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PhotoRating>, I>>(object: I): PhotoRating {
+    const message = createBasePhotoRating();
+    message.stars = object.stars ?? 0;
+    message.comment = object.comment ?? "";
+    message.fromLink = object.fromLink ?? false;
+    message.updated = object.updated ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSetPhotoRating(): SetPhotoRating {
+  return { groupId: "", path: "", stars: 0, comment: "" };
+}
+
+export const SetPhotoRating: MessageFns<SetPhotoRating> = {
+  encode(message: SetPhotoRating, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.groupId !== "") {
+      writer.uint32(10).string(message.groupId);
+    }
+    if (message.path !== "") {
+      writer.uint32(18).string(message.path);
+    }
+    if (message.stars !== 0) {
+      writer.uint32(24).int32(message.stars);
+    }
+    if (message.comment !== "") {
+      writer.uint32(34).string(message.comment);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetPhotoRating {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetPhotoRating();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.stars = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.comment = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<SetPhotoRating>, I>>(base?: I): SetPhotoRating {
+    return SetPhotoRating.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetPhotoRating>, I>>(object: I): SetPhotoRating {
+    const message = createBaseSetPhotoRating();
+    message.groupId = object.groupId ?? "";
+    message.path = object.path ?? "";
+    message.stars = object.stars ?? 0;
+    message.comment = object.comment ?? "";
     return message;
   },
 };
@@ -20637,6 +21274,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetPhotoFaces":
         GetPhotoFaces.encode(message.payload.reqGetPhotoFaces, writer.uint32(1250).fork()).join();
         break;
+      case "reqSetImageGroupRating":
+        SetImageGroupRating.encode(message.payload.reqSetImageGroupRating, writer.uint32(1258).fork()).join();
+        break;
+      case "reqSetPhotoRating":
+        SetPhotoRating.encode(message.payload.reqSetPhotoRating, writer.uint32(1266).fork()).join();
+        break;
+      case "reqRateSharedGalleryItem":
+        RateSharedGalleryItem.encode(message.payload.reqRateSharedGalleryItem, writer.uint32(1274).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -22051,6 +22697,39 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 157: {
+          if (tag !== 1258) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetImageGroupRating",
+            reqSetImageGroupRating: SetImageGroupRating.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 158: {
+          if (tag !== 1266) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqSetPhotoRating",
+            reqSetPhotoRating: SetPhotoRating.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 159: {
+          if (tag !== 1274) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRateSharedGalleryItem",
+            reqRateSharedGalleryItem: RateSharedGalleryItem.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -23361,6 +24040,35 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqSetImageGroupRating": {
+        if (object.payload?.reqSetImageGroupRating !== undefined && object.payload?.reqSetImageGroupRating !== null) {
+          message.payload = {
+            $case: "reqSetImageGroupRating",
+            reqSetImageGroupRating: SetImageGroupRating.fromPartial(object.payload.reqSetImageGroupRating),
+          };
+        }
+        break;
+      }
+      case "reqSetPhotoRating": {
+        if (object.payload?.reqSetPhotoRating !== undefined && object.payload?.reqSetPhotoRating !== null) {
+          message.payload = {
+            $case: "reqSetPhotoRating",
+            reqSetPhotoRating: SetPhotoRating.fromPartial(object.payload.reqSetPhotoRating),
+          };
+        }
+        break;
+      }
+      case "reqRateSharedGalleryItem": {
+        if (
+          object.payload?.reqRateSharedGalleryItem !== undefined && object.payload?.reqRateSharedGalleryItem !== null
+        ) {
+          message.payload = {
+            $case: "reqRateSharedGalleryItem",
+            reqRateSharedGalleryItem: RateSharedGalleryItem.fromPartial(object.payload.reqRateSharedGalleryItem),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -23646,6 +24354,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respPhotoFaces":
         PhotoFaces.encode(message.payload.respPhotoFaces, writer.uint32(602).fork()).join();
+        break;
+      case "respPhotoRating":
+        PhotoRating.encode(message.payload.respPhotoRating, writer.uint32(610).fork()).join();
         break;
     }
     return writer;
@@ -24317,6 +25028,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respPhotoFaces", respPhotoFaces: PhotoFaces.decode(reader, reader.uint32()) };
           continue;
         }
+        case 76: {
+          if (tag !== 610) {
+            break;
+          }
+
+          message.payload = { $case: "respPhotoRating", respPhotoRating: PhotoRating.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -24899,6 +25618,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respPhotoFaces",
             respPhotoFaces: PhotoFaces.fromPartial(object.payload.respPhotoFaces),
+          };
+        }
+        break;
+      }
+      case "respPhotoRating": {
+        if (object.payload?.respPhotoRating !== undefined && object.payload?.respPhotoRating !== null) {
+          message.payload = {
+            $case: "respPhotoRating",
+            respPhotoRating: PhotoRating.fromPartial(object.payload.respPhotoRating),
           };
         }
         break;
