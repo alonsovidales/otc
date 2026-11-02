@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Icon
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -273,6 +274,12 @@ import cloud.offthe.otc.i18n.appSettingsUpdateRestartConfirm
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartMessage
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartNote
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartTitle
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDown
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDownConfirm
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDownMessage
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDownTitle
+import cloud.offthe.otc.i18n.appSettingsUpdateShuttingDownNote
+import cloud.offthe.otc.ui.common.DeviceNeedsUpdateDialog
 import cloud.offthe.otc.i18n.appSettingsUpdateRestarting
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartingNote
 import cloud.offthe.otc.i18n.appSettingsUpdateSlow
@@ -1015,6 +1022,7 @@ private fun UpdateSection() {
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     var confirmRestart by remember { mutableStateOf(false) }
+    var confirmShutDown by remember { mutableStateOf(false) }
     AskDevice(st.answered) { vm.load() }
     if (!st.answered) { LoadingSection(S.appSettingsUpdateTitle().resolve()); return }
     if (!st.isPrimary) return
@@ -1042,13 +1050,22 @@ private fun UpdateSection() {
         if (st.hasUpdate || st.running) Caption(S.appSettingsUpdateRestartNote().resolve())
         st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
         // Settings > Restart device: the whole machine, owner of the primary only.
-        RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running) { confirmRestart = true }
+        RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmRestart = true }
         when (st.restartPhase) {
             "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(S.appSettingsUpdateRestartingNote().resolve()) }
             "back" -> Caption(S.appSettingsUpdateBack().resolve())
             "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), Color(0xFFFF9800))
         }
         st.restartError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        // Settings > Shut down device (issue #202): turned off cleanly, so it
+        // can be unplugged; owner of the primary only, as Restart.
+        RowButton(S.appSettingsUpdateShutDown().resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmShutDown = true }
+        if (st.shutDownPhase == "shutting_down") Row(Modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.PowerSettingsNew, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Caption(S.appSettingsUpdateShuttingDownNote().resolve())
+        }
+        st.shutDownError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }
     if (confirmRestart) AlertDialog(
         onDismissRequest = { confirmRestart = false },
@@ -1057,6 +1074,16 @@ private fun UpdateSection() {
         confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = Color(0xFFE53935)) } },
         dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text(S.commonCancel().resolve()) } },
     )
+    // Cancel is the default; Shut Down is the red button.
+    if (confirmShutDown) AlertDialog(
+        onDismissRequest = { confirmShutDown = false },
+        title = { Text(S.appSettingsUpdateShutDownTitle().resolve()) },
+        text = { Text(S.appSettingsUpdateShutDownMessage().resolve()) },
+        confirmButton = { TextButton(onClick = { confirmShutDown = false; vm.viewModelScope.launch { vm.shutDown() } }) { Text(S.appSettingsUpdateShutDownConfirm().resolve(), color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmShutDown = false }) { Text(S.commonCancel().resolve()) } },
+    )
+    // A device too old to be shut down from here: its update, as elsewhere.
+    st.needsUpdate?.let { DeviceNeedsUpdateDialog(it, onDismiss = { vm.dismissNeedsUpdate() }) }
 }
 
 /** Issue #183: "Major" (orange) or "Critical" (red) next to a release; nothing for a minor one. */

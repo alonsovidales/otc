@@ -462,6 +462,9 @@ final class StatusViewModel: ObservableObject {
                 error = nil
                 LanguageSettings.shared.deviceSaid(status: s)
             }
+        } catch is DeviceShutdown.Quiet {
+            // Shut down from Settings a moment ago: Device version says so,
+            // and the status stays as it last was.
         } catch {
             self.error = .error(error)
         }
@@ -828,6 +831,8 @@ struct SettingsView: View {
             }
         }
         .usersManagementSheets(users)
+        // Shut down device on a device too old for it (UpdateSection).
+        .deviceNeedsUpdate($update.needsUpdate)
         // Back from iOS Settings, where access may just have been given.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             refreshPhotosAuthorized()

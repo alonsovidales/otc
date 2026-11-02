@@ -25,8 +25,9 @@ fun UiText.now(context: Context): String = resolve(context)
  * An error of ours whose message is text for the screen. The message is
  * worded when it is read, in the language shown then; [toString] (what a
  * log line prints) names the error without the text, so logs stay English.
+ * Open for errors the code tells apart by type (DeviceShutdown.Quiet).
  */
-class TextIOException(val text: UiText, cause: Throwable? = null) : IOException(null, cause) {
+open class TextIOException(val text: UiText, cause: Throwable? = null) : IOException(null, cause) {
     override val message: String get() = text.now()
 
     override fun toString(): String = "TextIOException($text)"

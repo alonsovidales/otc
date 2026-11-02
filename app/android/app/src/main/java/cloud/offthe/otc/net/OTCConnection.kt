@@ -309,6 +309,9 @@ object OTCConnection {
     suspend fun ensureConnected() {
         while (true) {
             if (_authenticated.value) return
+            // Issue #202: a device that was just shut down from Settings is
+            // left alone for a moment - nothing dialled, no card raised.
+            if (DeviceShutdown.quiet()) throw DeviceShutdown.Quiet()
             val job = synchronized(connectLock) {
                 connectJob ?: scope.async { connectAndAuth() }.also { d ->
                     connectJob = d
@@ -356,6 +359,9 @@ object OTCConnection {
         // The session is over: a language picked before the next sign-in
         // isn't compared with what this one saw (LanguageSettings).
         cloud.offthe.otc.i18n.LanguageSettings.sessionEnded()
+        // New credentials or Log Out: a device shut down a moment ago is no
+        // reason to leave the next one alone.
+        DeviceShutdown.forget()
     }
 
     /** Log Out: drop the connection and forget what went wrong with the last one. */
@@ -793,7 +799,9 @@ object OTCConnection {
     private fun handleDisconnect() {
         if (!_authenticated.value && connectJob == null) return
         _authenticated.value = false
-        val delayMs = backoffMs
+        // A device shut down from Settings: tried again only once the moment
+        // it is left alone is over (DeviceShutdown).
+        val delayMs = maxOf(backoffMs, DeviceShutdown.quietLeftMs())
         backoffMs = minOf(backoffMs * 2, maxBackoffMs)
         scope.launch {
             delay(delayMs)

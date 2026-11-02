@@ -44,6 +44,14 @@ final class UpdateViewModel: ObservableObject {
     // "back" or "slow".
     @Published var restartPhase = ""
     @Published var restartError: SettingsText?
+    // Settings > Shut down device (issue #202): "" (nothing asked),
+    // "asking" or "shutting_down" (the device said yes and is turning
+    // itself off; until it answers again after DeviceShutdown's moment).
+    @Published var shutDownPhase = ""
+    @Published var shutDownError: SettingsText?
+    /// A device too old to be shut down from here (unknown_payload): the
+    /// "needs an update" alert, which SettingsView presents outside the Form.
+    @Published var needsUpdate: DeviceNeedsUpdate?
 
     private let ws = OTCConnection.shared
     private var pollTask: Task<Void, Never>?
@@ -53,6 +61,8 @@ final class UpdateViewModel: ObservableObject {
     var hasUpdate: Bool { !pending.isEmpty }
     var running: Bool { state == "running" }
     var restarting: Bool { restartPhase == "asking" || restartPhase == "restarting" }
+    /// Shut down asked or under way: neither button can be pressed.
+    var shuttingDown: Bool { !shutDownPhase.isEmpty }
 
     /// Issue #183: "1.1 (build 42)", or "build 42" without a label.
     var installedText: String {
@@ -84,6 +94,9 @@ final class UpdateViewModel: ObservableObject {
             }
             if case .respInstanceRole(let role) = resp.payload {
                 isPrimary = role.isPrimary
+                // The device answers again: one shut down from here is
+                // back (started again), so the section is as always.
+                if shutDownPhase == "shutting_down" && !DeviceShutdown.shared.quiet { shutDownPhase = "" }
             }
         } catch {
             // Not known now: what is shown stays as it is.
@@ -179,6 +192,40 @@ final class UpdateViewModel: ObservableObject {
         }
     }
 
+    /// Shuts the whole device down (issue #202; owner of the primary only,
+    /// the device checks too). Its yes comes before anything happens; then
+    /// it turns itself off and the app leaves it alone for a moment
+    /// (DeviceShutdown) rather than look for it as for a restart.
+    func shutDown() async {
+        shutDownPhase = "asking"
+        shutDownError = nil
+        let answer: ShutDownAnswer
+        do {
+            let resp = try await ws.request { e in
+                e.payload = .reqShutDownDevice(Msg_ShutDownDevice())
+            }
+            answer = ShutDownAnswer.of(resp)
+        } catch {
+            shutDownError = .error(error)
+            shutDownPhase = ""
+            return
+        }
+        switch answer {
+        case .shuttingDown:
+            DeviceShutdown.shared.began()
+            restartTask?.cancel()
+            restartPhase = ""
+            shutDownPhase = "shutting_down"
+        case .needsUpdate:
+            shutDownPhase = ""
+            // Only the primary's owner sees the section, who may update.
+            needsUpdate = DeviceNeedsUpdate(title: S.appSettingsUpdateShutDownNeedsUpdate, canUpdate: true, send: DeviceNeedsUpdate.viaDevice)
+        case .refused(let words):
+            shutDownPhase = ""
+            shutDownError = words.map { .asIs($0) } ?? .say { S.appSettingsUpdateShutDownFailed }
+        }
+    }
+
     private func waitUntilBack(asked: Date) async {
         var failed = false
         try? await Task.sleep(nanoseconds: 20_000_000_000)
@@ -233,6 +280,7 @@ struct UpdateSection: View {
     // Owned and asked for by SettingsView (loadDeviceSections).
     @ObservedObject var vm: UpdateViewModel
     @State private var confirmRestart = false
+    @State private var confirmShutDown = false
 
     var body: some View {
         if !vm.answered {
@@ -315,7 +363,7 @@ struct UpdateSection: View {
                     confirmRestart = true
                 }
                 .buttonStyle(.bordered)
-                .disabled(vm.restarting || vm.running)
+                .disabled(vm.restarting || vm.running || vm.shuttingDown)
 
                 switch vm.restartPhase {
                 case "restarting":
@@ -336,6 +384,25 @@ struct UpdateSection: View {
                 if let error = vm.restartError {
                     Text(error.text).font(.caption).foregroundStyle(.red)
                 }
+
+                // Settings > Shut down device (issue #202): turned off
+                // cleanly, so it can be unplugged; owner of the primary
+                // only, as Restart.
+                Button(S.appSettingsUpdateShutDown, role: .destructive) {
+                    confirmShutDown = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(vm.restarting || vm.running || vm.shuttingDown)
+
+                if vm.shutDownPhase == "shutting_down" {
+                    Label(S.appSettingsUpdateShuttingDownNote, systemImage: "power")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let error = vm.shutDownError {
+                    Text(error.text).font(.caption).foregroundStyle(.red)
+                }
             }
             .alert(S.appSettingsUpdateRestartTitle, isPresented: $confirmRestart) {
                 Button(S.commonCancel, role: .cancel) {}
@@ -344,6 +411,14 @@ struct UpdateSection: View {
                 }
             } message: {
                 Text(S.appSettingsUpdateRestartMessage)
+            }
+            .alert(S.appSettingsUpdateShutDownTitle, isPresented: $confirmShutDown) {
+                Button(S.commonCancel, role: .cancel) {}
+                Button(S.appSettingsUpdateShutDownConfirm, role: .destructive) {
+                    Task { await vm.shutDown() }
+                }
+            } message: {
+                Text(S.appSettingsUpdateShutDownMessage)
             }
         }
     }

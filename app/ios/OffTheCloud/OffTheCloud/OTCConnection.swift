@@ -313,6 +313,9 @@ final class OTCConnection: ObservableObject {
     /// places concurrently — callers share the one in-flight attempt.
     func ensureConnected() async throws {
         if authenticated { return }
+        // Issue #202: a device that was just shut down from Settings is
+        // left alone for a moment - nothing dialled, no card raised.
+        if DeviceShutdown.shared.quiet { throw DeviceShutdown.Quiet() }
         if let existing = connectTask {
             try await existing.value
             return
@@ -347,6 +350,9 @@ final class OTCConnection: ObservableObject {
         // The session is over: a language picked before the next sign-in
         // isn't compared with what this one saw (LanguageSettings).
         LanguageSettings.shared.sessionEnded()
+        // New credentials or Log Out: a device shut down a moment ago is
+        // no reason to leave the next one alone.
+        DeviceShutdown.shared.forget()
     }
 
     /// Log Out: drop the connection and forget what went wrong with the
@@ -924,7 +930,9 @@ final class OTCConnection: ObservableObject {
     private func handleDisconnect() {
         guard authenticated || connectTask != nil else { return }
         authenticated = false
-        let delay = backoffSeconds
+        // A device shut down from Settings: tried again only once the
+        // moment it is left alone is over (DeviceShutdown).
+        let delay = max(backoffSeconds, DeviceShutdown.shared.quietLeft)
         backoffSeconds = min(backoffSeconds * 2, maxBackoffSeconds)
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))

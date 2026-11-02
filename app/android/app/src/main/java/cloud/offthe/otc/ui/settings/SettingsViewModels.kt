@@ -4,7 +4,9 @@ package cloud.offthe.otc.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.DeviceShutdown
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.ShutDownAnswer
 import cloud.offthe.otc.net.PwCrypto
 import cloud.offthe.otc.proto.ChangeKey
 import cloud.offthe.otc.proto.GetProfile
@@ -44,6 +46,7 @@ import cloud.offthe.otc.data.PlacesSupport
 import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
 import cloud.offthe.otc.proto.SetImageTaggingEnabled
+import cloud.offthe.otc.proto.ShutDownDevice
 import cloud.offthe.otc.proto.StartReprocess
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.proto.StopReprocess
@@ -83,6 +86,8 @@ import cloud.offthe.otc.i18n.appSettingsUpdateBuild
 import cloud.offthe.otc.i18n.appSettingsUpdateLabelBuild
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartFailed
 import cloud.offthe.otc.i18n.appSettingsUpdateRestartOld
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDownFailed
+import cloud.offthe.otc.i18n.appSettingsUpdateShutDownNeedsUpdate
 import cloud.offthe.otc.i18n.appSettingsUpdateStartFailed
 import cloud.offthe.otc.i18n.appSettingsUpdateStartingStatus
 import cloud.offthe.otc.i18n.appSettingsUpdateUpdateTo
@@ -98,6 +103,8 @@ import cloud.offthe.otc.i18n.appSettingsWifiJoining
 import cloud.offthe.otc.i18n.appSettingsWifiScanFailed
 import cloud.offthe.otc.i18n.appSettingsWifiUnknownResult
 import cloud.offthe.otc.net.WSClient
+import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
+import cloud.offthe.otc.ui.common.DeviceRequest
 import cloud.offthe.otc.ui.common.TextIOException
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.CancellationException
@@ -536,12 +543,17 @@ class StatusViewModel : ViewModel() {
                 state.update { it.copy(status = resp.respStatus, errorText = null) }
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respStatus)
             }
+        } catch (e: DeviceShutdown.Quiet) {
+            // Shut down from Settings a moment ago: Device version says so,
+            // and the status stays as it last was.
         } catch (e: Exception) { state.update { it.copy(errorText = e.shownText()) } }
     }
 }
 
-/** Issue #94: in-place updates, primary instance only. */
-class UpdateViewModel : ViewModel() {
+/** Issue #94: in-place updates, primary instance only. [request] for Shut down device (tests answer in the device's place). */
+class UpdateViewModel(
+    private val request: DeviceRequest = { build -> OTCConnection.request(build = build) },
+) : ViewModel() {
     data class State(
         // answered: the role is known and, on the primary, the first check came back.
         val answered: Boolean = false,
@@ -553,10 +565,17 @@ class UpdateViewModel : ViewModel() {
         val checking: Boolean = false, val starting: Boolean = false, val error: UiText? = null,
         // Settings > Restart device: "" (nothing asked), "asking", "restarting", "back" or "slow".
         val restartPhase: String = "", val restartError: UiText? = null,
+        // Settings > Shut down device (issue #202): "" (nothing asked), "asking" or
+        // "shutting_down" (the device said yes and is turning itself off; until it
+        // answers again after DeviceShutdown's moment). needsUpdate: a device too
+        // old to be shut down from here (unknown_payload).
+        val shutDownPhase: String = "", val shutDownError: UiText? = null, val needsUpdate: DeviceNeedsUpdate? = null,
     ) {
         val hasUpdate get() = pending.isNotEmpty()
         val running get() = state == "running"
         val restarting get() = restartPhase == "asking" || restartPhase == "restarting"
+        /** Shut down asked or under way: neither button can be pressed. */
+        val shuttingDown get() = shutDownPhase.isNotEmpty()
         /** Issue #183: "1.1 (build 45)", or "build 45" for an older release. */
         val installedText: UiText get() =
             if (currentLabel.isNotEmpty()) S.appSettingsUpdateLabelBuild(currentLabel, "$currentVersion") else S.appSettingsUpdateBuild("$currentVersion")
@@ -574,7 +593,9 @@ class UpdateViewModel : ViewModel() {
     /** The role, then on the primary the update check; with no answer the section stays as it was. */
     suspend fun load() {
         val primary = answeredRole() ?: return
-        state.update { it.copy(isPrimary = primary) }
+        // The device answers again: one shut down from here is back (started
+        // again), so the section is as always.
+        state.update { if (it.shutDownPhase == "shutting_down" && !DeviceShutdown.quiet()) it.copy(isPrimary = primary, shutDownPhase = "") else it.copy(isPrimary = primary) }
         if (primary) check()
         state.update { it.copy(answered = true) }
     }
@@ -632,6 +653,39 @@ class UpdateViewModel : ViewModel() {
     }
 
     private var restartPoll: Job? = null
+
+    /**
+     * Shuts the whole device down (issue #202; owner of the primary only, the
+     * device checks too). Its yes comes before anything happens; then it
+     * turns itself off and the app leaves it alone for a moment
+     * (DeviceShutdown) rather than look for it as for a restart.
+     */
+    suspend fun shutDown() {
+        state.update { it.copy(shutDownPhase = "asking", shutDownError = null) }
+        val answer = try {
+            ShutDownAnswer.of(request { it.setReqShutDownDevice(ShutDownDevice.getDefaultInstance()) })
+        } catch (e: CancellationException) {
+            state.update { it.copy(shutDownPhase = "") }
+            throw e
+        } catch (e: Exception) {
+            state.update { it.copy(shutDownPhase = "", shutDownError = e.shownText() ?: S.appSettingsUpdateShutDownFailed()) }
+            return
+        }
+        when (answer) {
+            ShutDownAnswer.ShuttingDown -> {
+                DeviceShutdown.began()
+                restartPoll?.cancel()
+                state.update { it.copy(restartPhase = "", shutDownPhase = "shutting_down") }
+            }
+            // Only the primary's owner sees the section, who may update.
+            ShutDownAnswer.NeedsUpdate ->
+                state.update { it.copy(shutDownPhase = "", needsUpdate = DeviceNeedsUpdate(S.appSettingsUpdateShutDownNeedsUpdate(), primary = true)) }
+            is ShutDownAnswer.Refused ->
+                state.update { it.copy(shutDownPhase = "", shutDownError = answer.words?.let { w -> UiText.Raw(w) } ?: S.appSettingsUpdateShutDownFailed()) }
+        }
+    }
+
+    fun dismissNeedsUpdate() = state.update { it.copy(needsUpdate = null) }
 
     private suspend fun waitUntilBack(asked: Long) {
         var failed = false
