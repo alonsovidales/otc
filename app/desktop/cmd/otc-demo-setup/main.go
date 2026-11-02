@@ -14,11 +14,18 @@
 // describes the photos; -smart-search-only turns it on and stops (a demo
 // set up before it). The photos in favourites.json go in Favourites;
 // -favourites-only does just that (a demo set up before Favourites).
+// ratings.json, when there is one, turns Rating on for a collection (release
+// 163): the owner's stars and comments, then a rated shared gallery of it
+// through which its "link" entries are rated as a client would - they show
+// as from the shared link, and the device raises its Rating alert; the
+// link lasts 30 days, and one made before with the same description is
+// deleted first. -rating-only does just that (a demo set up before Rating).
 //
 //	echo "$PASSWORD" | otc-demo-setup -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 //	echo "$PASSWORD" | otc-demo-setup -places-only -address ws://127.0.0.1:8080/ws
 //	echo "$PASSWORD" | otc-demo-setup -smart-search-only -address ws://127.0.0.1:8080/ws
 //	echo "$PASSWORD" | otc-demo-setup -favourites-only -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
+//	echo "$PASSWORD" | otc-demo-setup -rating-only -address ws://127.0.0.1:8080/ws ~/src/otc-demo-content
 package main
 
 import (
@@ -28,7 +35,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -36,6 +45,8 @@ import (
 
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/gorilla/websocket"
+	"google.golang.org/protobuf/proto"
 )
 
 type manifestEntry struct {
@@ -49,20 +60,26 @@ func main() {
 	placesOnly := flag.Bool("places-only", false, "turn Places on and stop (a demo set up before Places)")
 	smartOnly := flag.Bool("smart-search-only", false, "turn Smart search on and stop (a demo set up before it)")
 	favouritesOnly := flag.Bool("favourites-only", false, "put favourites.json's photos in Favourites and stop (a demo set up before it)")
+	ratingOnly := flag.Bool("rating-only", false, "rate ratings.json's collection, through its link too, and stop (a demo set up before Rating)")
 	flag.Parse()
 	if *address == "" || (flag.NArg() != 1 && !*placesOnly && !*smartOnly) {
 		fmt.Fprintln(os.Stderr, "usage: otc-demo-setup [-n] -address <ws-url> <content-dir>   (password on stdin)")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -places-only -address <ws-url>")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -smart-search-only -address <ws-url>")
 		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -favourites-only -address <ws-url> <content-dir>")
+		fmt.Fprintln(os.Stderr, "       otc-demo-setup [-n] -rating-only -address <ws-url> <content-dir>")
 		os.Exit(2)
 	}
 	pw, _ := io.ReadAll(io.LimitReader(os.Stdin, 1024))
 	password := strings.TrimRight(string(pw), "\r\n")
-	if *favouritesOnly {
+	if *favouritesOnly || *ratingOnly {
 		c, done, err := signIn(*address, password)
 		if err == nil {
-			err = favouritesFrom(c, flag.Arg(0), *dryRun)
+			if *favouritesOnly {
+				err = favouritesFrom(c, flag.Arg(0), *dryRun)
+			} else {
+				err = ratingFrom(c, *address, flag.Arg(0), *dryRun)
+			}
 			done()
 		}
 		if err != nil {
@@ -205,6 +222,199 @@ func favouritesFrom(c client, dir string, dryRun bool) error {
 		return fmt.Errorf("favourites: %w", err)
 	}
 	return nil
+}
+
+type ratingEntry struct {
+	Path    string `json:"path"`
+	Stars   int32  `json:"stars"`
+	Comment string `json:"comment"`
+}
+
+// ratingFrom turns Rating on for ratings.json's collection, rates it as the
+// owner, then makes a rated shared gallery of it and rates the "link"
+// entries through that, as a client opening the link would. Without
+// ratings.json it does nothing.
+func ratingFrom(c client, address, dir string, dryRun bool) error {
+	var ratings struct {
+		Collection      string        `json:"collection"`
+		LinkDescription string        `json:"link_description"`
+		Owner           []ratingEntry `json:"owner"`
+		Link            []ratingEntry `json:"link"`
+	}
+	if err := readJSON(dir, "ratings.json", &ratings); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Println("rating: no ratings.json, nothing rated")
+			return nil
+		}
+		return err
+	}
+	fmt.Printf("rating: %q, %d rated by the owner, %d through its link\n", ratings.Collection, len(ratings.Owner), len(ratings.Link))
+	if dryRun {
+		return nil
+	}
+	resp, err := c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqListImageGroups{ReqListImageGroups: &pb.ListImageGroups{SmallThumbnails: true}}
+	})
+	if err != nil {
+		return fmt.Errorf("rating: the collections: %w", err)
+	}
+	gid := ""
+	for _, g := range resp.GetRespImageGroups().GetGroups() {
+		if g.Name == ratings.Collection && !g.Favourites {
+			gid = g.Id
+		}
+	}
+	if gid == "" {
+		return fmt.Errorf("rating: no collection %q", ratings.Collection)
+	}
+	if _, err := c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqSetImageGroupRating{ReqSetImageGroupRating: &pb.SetImageGroupRating{Id: gid, On: true}}
+	}); err != nil {
+		return fmt.Errorf("rating: turning it on: %w", err)
+	}
+	for _, e := range ratings.Owner {
+		if _, err := c.do(func(r *pb.ReqEnvelope) {
+			r.Payload = &pb.ReqEnvelope_ReqSetPhotoRating{ReqSetPhotoRating: &pb.SetPhotoRating{GroupId: gid, Path: remote(e.Path), Stars: e.Stars, Comment: e.Comment}}
+		}); err != nil {
+			return fmt.Errorf("rating %s: %w", e.Path, err)
+		}
+	}
+	if len(ratings.Link) == 0 {
+		return nil
+	}
+
+	// The link: an earlier one of the same description goes first.
+	resp, err = c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqListSharedLinks{ReqListSharedLinks: &pb.ListSharedLinks{}}
+	})
+	if err != nil {
+		return fmt.Errorf("rating: the shared links: %w", err)
+	}
+	for _, l := range resp.GetRespSharedLinks().GetLinks() {
+		if l.Kind == "gallery" && l.Description == ratings.LinkDescription {
+			if _, err := c.do(func(r *pb.ReqEnvelope) {
+				r.Payload = &pb.ReqEnvelope_ReqDeleteSharedLink{ReqDeleteSharedLink: &pb.DeleteSharedLink{Uuid: l.Uuid}}
+			}); err != nil {
+				return fmt.Errorf("rating: deleting the earlier link: %w", err)
+			}
+		}
+	}
+	resp, err = c.do(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqCreateSharedGallery{ReqCreateSharedGallery: &pb.CreateSharedGallery{
+			Source: &pb.SharedGallerySource{GroupId: gid}, Description: ratings.LinkDescription, TtlHours: 30 * 24, Rating: true}}
+	})
+	if err != nil {
+		return fmt.Errorf("rating: the link: %w", err)
+	}
+	jobID := resp.GetRespSharedGalleryJob().GetJobId()
+	link := ""
+	for deadline := time.Now().Add(5 * time.Minute); link == ""; time.Sleep(500 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			return errors.New("rating: the link took too long")
+		}
+		resp, err := c.do(func(r *pb.ReqEnvelope) {
+			r.Payload = &pb.ReqEnvelope_ReqGetSharedGalleryJob{ReqGetSharedGalleryJob: &pb.GetSharedGalleryJob{JobId: jobID}}
+		})
+		if err != nil {
+			return fmt.Errorf("rating: the link: %w", err)
+		}
+		if j := resp.GetRespSharedGalleryJob(); j.GetFinished() {
+			if j.GetError() != "" {
+				return fmt.Errorf("rating: the link: %s", j.GetError())
+			}
+			link = j.GetLink()
+		}
+	}
+	uuid, secret, ok := strings.Cut(link[strings.Index(link, "#")+1:], ".")
+	if !ok {
+		return errors.New("rating: the link has no secret")
+	}
+
+	// As the client: a connection that never signs in.
+	v, err := dialVisitor(address)
+	if err != nil {
+		return err
+	}
+	defer v.c.Close()
+	resp, err = v.ask(func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqOpenSharedGallery{ReqOpenSharedGallery: &pb.OpenSharedGallery{Uuid: uuid, Secret: secret}}
+	})
+	if err != nil {
+		return fmt.Errorf("rating: opening the link: %w", err)
+	}
+	index := map[string]int32{}
+	for _, it := range resp.GetRespSharedGallery().GetItems() {
+		if _, twice := index[it.Name]; twice {
+			index[it.Name] = -1
+		} else {
+			index[it.Name] = it.Index
+		}
+	}
+	for _, e := range ratings.Link {
+		i, found := index[path.Base(remote(e.Path))]
+		if !found || i < 0 {
+			return fmt.Errorf("rating: %s isn't once in the link", e.Path)
+		}
+		resp, err := v.ask(func(r *pb.ReqEnvelope) {
+			r.Payload = &pb.ReqEnvelope_ReqRateSharedGalleryItem{ReqRateSharedGalleryItem: &pb.RateSharedGalleryItem{Uuid: uuid, Secret: secret, Index: i, Stars: e.Stars, Comment: e.Comment}}
+		})
+		if err != nil {
+			return fmt.Errorf("rating %s through the link: %w", e.Path, err)
+		}
+		if a := resp.GetRespAck(); a == nil || !a.Ok {
+			return fmt.Errorf("rating %s through the link: %s", e.Path, a.GetErrorMsg())
+		}
+	}
+	fmt.Printf("rating: %d rated through the link, which lasts 30 days\n", len(ratings.Link))
+	return nil
+}
+
+// visitor is a connection to the device that never signs in, as a shared
+// gallery's page has.
+type visitor struct {
+	c  *websocket.Conn
+	id int32
+}
+
+func dialVisitor(address string) (*visitor, error) {
+	h := http.Header{}
+	h.Set("Sec-WebSocket-Protocol", "protobuf")
+	conn, _, err := websocket.DefaultDialer.Dial(address, h)
+	if err != nil {
+		return nil, fmt.Errorf("rating: connecting as the link's visitor: %w", err)
+	}
+	return &visitor{c: conn}, nil
+}
+
+func (v *visitor) ask(build func(*pb.ReqEnvelope)) (*pb.RespEnvelope, error) {
+	v.id++
+	req := &pb.ReqEnvelope{Id: v.id}
+	build(req)
+	b, err := proto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := v.c.WriteMessage(websocket.BinaryMessage, b); err != nil {
+		return nil, err
+	}
+	for {
+		v.c.SetReadDeadline(time.Now().Add(time.Minute))
+		_, data, err := v.c.ReadMessage()
+		if err != nil {
+			return nil, err
+		}
+		var resp pb.RespEnvelope
+		if err := proto.Unmarshal(data, &resp); err != nil {
+			return nil, err
+		}
+		if resp.Id != v.id {
+			continue
+		}
+		if resp.Error {
+			return &resp, errors.New(resp.ErrorMessage)
+		}
+		return &resp, nil
+	}
 }
 
 func run(address, password, dir string, dryRun bool) error {
@@ -351,6 +561,9 @@ func run(address, password, dir string, dryRun bool) error {
 				return fmt.Errorf("collection %q: %w", col.Name, err)
 			}
 		}
+	}
+	if err := ratingFrom(c, address, dir, dryRun); err != nil {
+		return err
 	}
 	for _, post := range posts {
 		paths := make([]string, len(post.Photos))

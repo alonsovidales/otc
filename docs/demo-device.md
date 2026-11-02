@@ -53,6 +53,10 @@ real usage.
      names each person after the name most of their photos list, deletes the rest (the dog,
      strangers), puts `favourites.json`'s photos in Favourites and makes the collections and
      posts (a demo set up before Favourites gets them with `-favourites-only -address … <content>`).
+     With `ratings.json` it turns Rating on for its collection (Mountains), rates it as the owner,
+     then makes a rated shared gallery of it (30 days) and rates the rest through that link, as a
+     client would: those show as from the shared link and Alerts has the Rating alert (a demo set
+     up before Rating gets them with `-rating-only -address … <content>`).
      A demo set up before Places gets it with
      `otc-demo-setup -places-only -address …` (password on stdin), with demo mode off for it as
      for the rest of this step. It turns Smart search (beta) on too - a device without its

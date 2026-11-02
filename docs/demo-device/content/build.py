@@ -9,7 +9,7 @@
 # - finishes every photo as a camera JPEG (finish.swift: 2400 px long side, EXIF date, offset,
 #   GPS, orientation 1, no make/model) under library/Photos/..., file times = the photo's date;
 # - makes the videos (videos.py) and writes manifest.json, people.json, collections.json,
-#   favourites.json, posts.json and profile.json (+ profile/avatar.jpg).
+#   favourites.json, ratings.json, posts.json and profile.json (+ profile/avatar.jpg).
 import datetime as dt, glob, json, os, random, shutil, subprocess, sys
 
 OUT, FINISH = sys.argv[1], sys.argv[2]
@@ -285,6 +285,21 @@ json.dump(collections, open(os.path.join(OUT, "collections.json"), "w"), ensure_
 loved = {"s07", "r04", "r15", "r02", "s36", "s68", "r11", "s55", "s59", "s79", "s88", "s93"}
 json.dump(paths(lambda e: e.get("id") in loved), open(os.path.join(OUT, "favourites.json"), "w"),
           ensure_ascii=False, indent=1)
+
+# ------------------------------------------------------------------ ratings
+# Rating on the Mountains collection (release 163), the photographer's use: Tom rated the shots
+# he'd print, and the family picked theirs through the collection's shared link, with a note where
+# they'd like a change (otc-demo-setup rates the "link" ones through a rated gallery of it).
+R = lambda i, stars, comment="": dict(path=by_id[i]["path"], stars=stars, comment=comment)
+ratings = dict(
+    collection="Mountains",
+    link_description="Mountains - pick the ones to print",
+    owner=[R("r04", 5, "Calendar cover?"), R("r15", 5), R("s18", 4), R("s78", 4), R("s74", 3)],
+    link=[R("s17", 5, "This one for Grandma's wall, please!"), R("s15", 4, "Could you make it a bit brighter?"),
+          R("s71", 5, "Nora wants this one printed big"), R("s77", 3, "Could you crop closer to the kids?"),
+          R("s75", 2)],
+)
+json.dump(ratings, open(os.path.join(OUT, "ratings.json"), "w"), ensure_ascii=False, indent=1)
 
 # ------------------------------------------------------------------ posts
 P = lambda *ids: [by_id[i]["path"] for i in ids]

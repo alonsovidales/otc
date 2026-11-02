@@ -4,8 +4,8 @@ The sample library for the demo device (`docs/demo-device.md`, step 5): a made-u
 videos and files. Everything is invented. The people were generated with Gemini's image models;
 no real photo was used or sent anywhere. The output is kept outside the repository (about
 150 MB, plus `work/` with the raw generations): `library/` (114 photos, 4 videos, 30 files),
-`manifest.json`, `people.json`, `collections.json`, `favourites.json`, `posts.json`, `profile.json`
-and `prompts/`.
+`manifest.json`, `people.json`, `collections.json`, `favourites.json`, `ratings.json`, `posts.json`,
+`profile.json` and `prompts/`.
 
 | Script | Does |
 |---|---|
