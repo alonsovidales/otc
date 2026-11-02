@@ -87,6 +87,31 @@
     "text": "the device has only just started; try again in a minute",
     "note": "Error in Settings when pressing Restart device within two minutes of the device starting."
   },
+  "dev.device.shutdown_in_container": {
+    "text": "not available in Docker: stop the container on the server it runs on",
+    "note": "Error in Settings when pressing Shut down device on a device that runs in Docker (a container on a home server or NAS): there is no machine of its own to switch off, the server stops and starts the container. Lowercase, like the other errors there."
+  },
+  "dev.device.shutdown_needs_update": {
+    "text": "this device can't be shut down from here until it is updated",
+    "note": "Error in Settings when pressing Shut down device on a device whose software is too old for it: install the update first."
+  },
+  "dev.device.shutdown_request_failed": {
+    "text": "could not ask for the shutdown: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings when pressing Shut down device and the device could not pass the request on. {detail} is the reason, an error in English."
+  },
+  "dev.device.shutdown_too_soon": {
+    "text": "the device has only just started; try again in a minute",
+    "note": "Error in Settings when pressing Shut down device within two minutes of the device starting."
+  },
+  "dev.device.shutdown_update_running": {
+    "text": "an update is running; try again once it has finished",
+    "note": "Error in Settings when pressing Shut down device while the device installs an update of its software: switching it off then could leave the update half done."
+  },
+  "dev.device.shutdown_wifi_changing": {
+    "text": "the device's Wi-Fi is being changed; try again in a few minutes",
+    "note": "Error in Settings when pressing Shut down device while the device is switching to another Wi-Fi network (asked in Settings > Wi-Fi)."
+  },
   "dev.device.social_limit_too_low": {
     "text": "the limit must be at least 0.1 GB",
     "note": "Error in Settings when setting the space friends' posts may take on the device below 0.1 GB."

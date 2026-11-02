@@ -619,6 +619,38 @@
     "note": "Heading of the last section in Settings, about this browser staying signed in.",
     "max": 24
   },
+  "web.settings.shutdown.button": {
+    "text": "Shut Down Device",
+    "note": "Button in Settings > Device version, after Restart Device, that turns the whole device off (asks first). Use the same style as web.settings.restart.button.",
+    "max": 24
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Shut Down",
+    "note": "The red button of the confirmation after Shut Down Device in Settings > Device version: turns the device off.",
+    "max": 24
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "note": "Text of the confirmation after Shut Down Device in Settings > Device version. The device is a small computer at home (a Raspberry Pi) with no power button: it starts again when its power is unplugged and plugged back in.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #1becdd91"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Shut down your device?",
+    "note": "Title of the confirmation after Shut Down Device in Settings > Device version."
+  },
+  "web.settings.shutdown.done": {
+    "text": "Shutting down… Once its lights stop blinking you can unplug it.",
+    "note": "Shown in Settings > Device version once the device has agreed to shut down, and on the full page shown in place of the app for a few minutes after, while it can't be reached. Its lights: the small lights on the device (a Raspberry Pi's); unplug: take its power cable out."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Could not shut down the device.",
+    "note": "Error in Settings > Device version when the device could not shut down and gave no reason."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "Your device needs an update before it can be shut down from here.",
+    "note": "Error in Settings > Device version when the device's software is too old to be shut down from Settings."
+  },
   "web.settings.smart_search.beta": {
     "text": "Beta",
     "note": "Small badge beside the Smart search heading in Settings: the feature is still being tried out.",

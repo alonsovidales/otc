@@ -1449,7 +1449,30 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   the Device version section of web `UpdatePanel`, iOS `UpdateSection`, Android `UpdateViewModel`:
   confirm, "Restarting…", then a `GetInstanceRole` every 5 s from 20 s on; back = the device's own
   answer (never the bridge's `device_unreachable` Ack) after a failed look or 90 s; "slow" after 5
-  minutes.
+  minutes. Settings > Shut down device (issue #202, release 164; `shutdown.go`): `ShutDownDevice`
+  (160) -> the generic Ack, the owner of the main instance only (`sup == nil` refused), refused in a
+  container (`dev.device.shutdown_in_container`, code `not_in_container`: the server stops it) and on
+  a demo device, and - under `network.UnlessChanging`'s lock, as ApplyUpdate - while a Wi-Fi change
+  (`wifi_changing`) or an update (`updater.Pending`, `update_running`) runs
+  (`websocket/shutdown.go`); older devices answer `unknown_payload`. `devicerestart.ShutDown` writes
+  `/var/lib/otc/poweroff.request` (`dev.device.shutdown_needs_update` without the runner,
+  `shutdown_too_soon` in the first 2 minutes after boot); `otc-poweroff.path` runs
+  `otc-poweroff-runner` (`scripts/device-runner/otc-poweroff-runner.sh`: removes the request first,
+  drops it in the first 2 minutes after boot - a request left behind must never switch a device off
+  as it starts -, while an update was asked for or runs - the update request, `otc-update.service`
+  active, `/run/otc-update.lock` held - or while `/run/otc-wifi.lock` is held, which it then keeps
+  until the machine goes down; waits 3 s for the answer to leave, `systemctl poweroff`, which stops
+  otc and MariaDB cleanly; `--dry-run` by hand says what it would do). The device then stays off
+  until it is unplugged and plugged in again. Web: Shut Down Device beside Restart Device in
+  `UpdatePanel` (not when `RespUpdateInfo.container`), a `ConfirmDialog` (Cancel first; the device's
+  refusal in it, `unknown_payload` -> `web.settings.shutdown.needs_update`), then "Shutting down…
+  Once its lights stop blinking you can unplug it." (`web.settings.shutdown.done`). After the Ack
+  every app leaves the device alone for 90 s: no reconnect, the note stays, no unreachable screen
+  over it; then everything as usual, and signing out drops it. On the web `net/shutDownHold.ts`:
+  `useWS.request` opens no new socket meanwhile (a `NoAnswer` in the note's words; a socket still
+  open carries on), App ignores the bridge's `device_unreachable` and hides the "Reconnecting…"
+  pill (`components/settings/shutDown.ts` for the answer, `web/scripts/shut-down-test.mjs`). iOS
+  `UpdateSection` and Android `UpdateViewModel` follow the same rules.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section). The model file is 873 MB (int8,
   `ram_plus_int8.onnx`); measured with ONNX Runtime 1.24.3 on arm64 (macOS, 2026-10-08) it is
@@ -4081,9 +4104,12 @@ oneshot has a `TimeoutStartSec`, 2min for the bridge and Tailscale ones): `scrip
 (switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for
 Settings > Restart device and `otc-wifi-restart` for `wifiwatch`; release 115's script installs them
-on older devices from `$OTC_VERIFIED_SRC`; release 140: `otc-wifi-join` for Settings › Wi-Fi, a
+on older devices from `$OTC_VERIFIED_SRC`; release 164: `otc-poweroff` for Settings > Shut down
+device, in the same loops, installed the first time by release 164's own update.sh - the runner
+executes the update.sh of the verified release it installs - which removes a leftover
+`/var/lib/otc/poweroff.request` before `enable --now`; release 140: `otc-wifi-join` for Settings › Wi-Fi, a
 Python runner installed as `/usr/local/bin/otc-wifi-join-runner` with its own install lines rather
-than the `reboot wifi-restart` loops, triggered by `/run/otc/wifi-join.request` - on the tmpfs, not
+than the `reboot poweroff wifi-restart` loops, triggered by `/run/otc/wifi-join.request` - on the tmpfs, not
 in `/var/lib/otc` - and answering in root's `/run/otc-wifi-join/status.json`; 140.sh installs it
 with the restart runner, removes a stale request before `enable --now otc-wifi-join.path`, and
 deletes the plaintext `/var/lib/otc/wifi_join_request.json` the retired SetWifi left).

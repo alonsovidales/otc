@@ -657,6 +657,9 @@ func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
 		// Settings > Restart device restarts the whole machine.
 		{"restart device", &pb.ReqEnvelope{Id: 5, Payload: &pb.ReqEnvelope_ReqRestartDevice{
 			ReqRestartDevice: &pb.RestartDevice{}}}},
+		// And Settings > Shut down device powers it off.
+		{"shut down device", &pb.ReqEnvelope{Id: 6, Payload: &pb.ReqEnvelope_ReqShutDownDevice{
+			ReqShutDownDevice: &pb.ShutDownDevice{}}}},
 	}
 
 	for _, c := range cases {

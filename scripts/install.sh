@@ -1691,11 +1691,11 @@ log "Tailscale switch trigger (otc-tailscale.path)"
 install -m 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
 install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
 install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
-# Settings > Restart device, and the Wi-Fi watchdog's restart of the
-# Wi-Fi (wifiwatch) - the same trigger-file shape, see
+# Settings > Restart device and Shut down device, and the Wi-Fi watchdog's
+# restart of the Wi-Fi (wifiwatch) - the same trigger-file shape, see
 # scripts/device-runner/.
-log "Restart and Wi-Fi restart triggers (otc-reboot.path, otc-wifi-restart.path)"
-for unit in reboot wifi-restart; do
+log "Restart, shutdown and Wi-Fi restart triggers (otc-reboot.path, otc-poweroff.path, otc-wifi-restart.path)"
+for unit in reboot poweroff wifi-restart; do
     install -m 0755 "$SRC_DIR/scripts/device-runner/otc-$unit-runner.sh" "/usr/local/bin/otc-$unit-runner"
     install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.service" "/etc/systemd/system/otc-$unit.service"
     install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.path" "/etc/systemd/system/otc-$unit.path"
@@ -1739,8 +1739,9 @@ systemctl enable otc.service
 systemctl enable --now otc-update.path
 systemctl enable --now otc-bridge.path
 systemctl enable --now otc-tailscale.path
-rm -f /var/lib/otc/reboot.request /var/lib/otc/wifi-restart.request
+rm -f /var/lib/otc/reboot.request /var/lib/otc/poweroff.request /var/lib/otc/wifi-restart.request
 systemctl enable --now otc-reboot.path
+systemctl enable --now otc-poweroff.path
 systemctl enable --now otc-wifi-restart.path
 rm -f /run/otc/wifi-join.request
 systemctl enable --now otc-wifi-join.path

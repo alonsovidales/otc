@@ -699,6 +699,13 @@ export type MessageKey =
   | "web.settings.session.sign_out"
   | "web.settings.session.signing_out"
   | "web.settings.session.title"
+  | "web.settings.shutdown.button"
+  | "web.settings.shutdown.confirm"
+  | "web.settings.shutdown.confirm_text"
+  | "web.settings.shutdown.confirm_title"
+  | "web.settings.shutdown.done"
+  | "web.settings.shutdown.failed"
+  | "web.settings.shutdown.needs_update"
   | "web.settings.smart_search.beta"
   | "web.settings.smart_search.disable"
   | "web.settings.smart_search.download_note"
@@ -1870,6 +1877,13 @@ export interface MessageArgs {
   "web.settings.session.sign_out": undefined;
   "web.settings.session.signing_out": undefined;
   "web.settings.session.title": undefined;
+  "web.settings.shutdown.button": undefined;
+  "web.settings.shutdown.confirm": undefined;
+  "web.settings.shutdown.confirm_text": undefined;
+  "web.settings.shutdown.confirm_title": undefined;
+  "web.settings.shutdown.done": undefined;
+  "web.settings.shutdown.failed": undefined;
+  "web.settings.shutdown.needs_update": undefined;
   "web.settings.smart_search.beta": undefined;
   "web.settings.smart_search.disable": undefined;
   "web.settings.smart_search.download_note": undefined;

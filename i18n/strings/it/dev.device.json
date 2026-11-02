@@ -81,6 +81,30 @@
     "text": "il dispositivo si è appena avviato; riprova tra un minuto",
     "en": "the device has only just started; try again in a minute"
   },
+  "dev.device.shutdown_in_container": {
+    "text": "non disponibile in Docker: arresta il container sul server su cui funziona",
+    "en": "not available in Docker: stop the container on the server it runs on"
+  },
+  "dev.device.shutdown_needs_update": {
+    "text": "questo dispositivo non può essere spento da qui finché non viene aggiornato",
+    "en": "this device can't be shut down from here until it is updated"
+  },
+  "dev.device.shutdown_request_failed": {
+    "text": "impossibile richiedere lo spegnimento: {detail}",
+    "en": "could not ask for the shutdown: {detail}"
+  },
+  "dev.device.shutdown_too_soon": {
+    "text": "il dispositivo si è appena avviato; riprova tra un minuto",
+    "en": "the device has only just started; try again in a minute"
+  },
+  "dev.device.shutdown_update_running": {
+    "text": "è in corso un aggiornamento; riprova quando sarà terminato",
+    "en": "an update is running; try again once it has finished"
+  },
+  "dev.device.shutdown_wifi_changing": {
+    "text": "il Wi-Fi del dispositivo è in fase di modifica; riprova tra qualche minuto",
+    "en": "the device's Wi-Fi is being changed; try again in a few minutes"
+  },
   "dev.device.social_limit_too_low": {
     "text": "il limite deve essere di almeno 0,1 GB",
     "en": "the limit must be at least 0.1 GB"

@@ -519,6 +519,35 @@
     "text": "Session",
     "en": "Session"
   },
+  "web.settings.shutdown.button": {
+    "text": "Éteindre l’appareil",
+    "en": "Shut Down Device"
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Éteindre",
+    "en": "Shut Down"
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "Il s’éteint complètement et reste éteint jusqu’à ce que vous le rallumiez : débranchez son alimentation, puis rebranchez-la. Personne ne peut y accéder entre-temps.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #4202cd36"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Éteindre votre appareil ?",
+    "en": "Shut down your device?"
+  },
+  "web.settings.shutdown.done": {
+    "text": "Arrêt en cours… Une fois que ses voyants ne clignotent plus, vous pouvez le débrancher.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Impossible d’éteindre l’appareil.",
+    "en": "Could not shut down the device."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "Votre appareil doit être mis à jour avant de pouvoir être éteint d’ici.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
   "web.settings.smart_search.beta": {
     "text": "Bêta",
     "en": "Beta"

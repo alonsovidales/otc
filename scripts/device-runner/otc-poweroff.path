@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the trigger the device writes when its owner presses
+# Shut down device in Settings, and starts otc-poweroff.service (as root).
+[Unit]
+Description=Off The Cloud shutdown trigger
+
+[Path]
+PathExists=/var/lib/otc/poweroff.request
+Unit=otc-poweroff.service
+
+[Install]
+WantedBy=multi-user.target

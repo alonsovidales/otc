@@ -580,15 +580,25 @@ if [ -f "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" ]; then
 fi
 # Settings > Restart device and the Wi-Fi watchdog's restart (release
 # 115, which installs them first; reinstalled here so later fixes reach
-# every device).
+# every device), and Settings > Shut down device (release 164: this, the
+# release's own update.sh, installs it the first time too). Each one only
+# from a source that has it.
 if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-restart-runner.sh" ]; then
-    for unit in reboot wifi-restart; do
+    runners=""
+    for unit in reboot poweroff wifi-restart; do
+        [ -f "$SRC_DIR/scripts/device-runner/otc-$unit-runner.sh" ] || continue
         install_atomic 0755 "$SRC_DIR/scripts/device-runner/otc-$unit-runner.sh" "/usr/local/bin/otc-$unit-runner"
         install_atomic 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.service" "/etc/systemd/system/otc-$unit.service"
         install_atomic 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.path" "/etc/systemd/system/otc-$unit.path"
+        runners="$runners $unit"
     done
     systemctl daemon-reload
-    for unit in reboot wifi-restart; do
+    # No shutdown request can be the owner's now - the device refuses one
+    # while an update runs, and the runner drops it - so one found here is
+    # left over: never let it switch the device off as its path unit
+    # starts watching.
+    rm -f /var/lib/otc/poweroff.request
+    for unit in $runners; do
         systemctl enable --now "otc-$unit.path" >/dev/null 2>&1 || echo "WARNING: could not enable otc-$unit.path"
     done
 fi

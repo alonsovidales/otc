@@ -519,6 +519,35 @@
     "text": "Sessie",
     "en": "Session"
   },
+  "web.settings.shutdown.button": {
+    "text": "Apparaat uitschakelen",
+    "en": "Shut Down Device"
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Uitschakelen",
+    "en": "Shut Down"
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "Het schakelt helemaal uit en blijft uit tot je het weer aanzet: haal de stekker eruit en steek hem er weer in. Intussen kan niemand het bereiken.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #213d6a4e"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Je apparaat uitschakelen?",
+    "en": "Shut down your device?"
+  },
+  "web.settings.shutdown.done": {
+    "text": "Bezig met uitschakelen… Zodra de lampjes niet meer knipperen, kun je de stekker eruit halen.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Kan het apparaat niet uitschakelen.",
+    "en": "Could not shut down the device."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "Je apparaat heeft een update nodig voordat het hier kan worden uitgeschakeld.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
   "web.settings.smart_search.beta": {
     "text": "Bèta",
     "en": "Beta"

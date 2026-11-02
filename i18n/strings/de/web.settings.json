@@ -519,6 +519,35 @@
     "text": "Sitzung",
     "en": "Session"
   },
+  "web.settings.shutdown.button": {
+    "text": "Gerät herunterfahren",
+    "en": "Shut Down Device"
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Herunterfahren",
+    "en": "Shut Down"
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "Es schaltet sich vollständig aus und bleibt aus, bis du es wieder startest: Zieh den Netzstecker und steck ihn wieder ein. Bis dahin ist es für niemanden erreichbar.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #76983eca"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Dein Gerät herunterfahren?",
+    "en": "Shut down your device?"
+  },
+  "web.settings.shutdown.done": {
+    "text": "Wird heruntergefahren… Sobald seine Lämpchen nicht mehr blinken, kannst du den Stecker ziehen.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Das Gerät konnte nicht heruntergefahren werden.",
+    "en": "Could not shut down the device."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "Dein Gerät braucht ein Update, bevor es von hier aus heruntergefahren werden kann.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
   "web.settings.smart_search.beta": {
     "text": "Beta",
     "en": "Beta"

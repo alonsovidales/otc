@@ -295,6 +295,11 @@ and the few things listed here:
 - **Restart the device**: Settings > Device version > **Restart Device** (web, iPhone and
   Android; the device's owner only) restarts it cleanly; it is back in about a minute. Settings
   shows when it is. From the console, `sudo reboot` does the same.
+- **Switch the device off**: Settings > Device version > **Shut Down Device** (release 164 or
+  later; the device's owner only) stops everything cleanly and powers it off, so it can be
+  unplugged without risking the microSD card: wait until its lights stop blinking. It stays off
+  until you unplug its power and plug it back in. Not while an update or a Wi-Fi change runs, nor
+  in Docker (`docker compose stop` there). From the console, `sudo poweroff` does the same.
 - **The Wi-Fi restarted by itself**: if the Wi-Fi keeps receiving but stops sending properly
   (most TCP data sent twice, for minutes on end), the device restarts its Wi-Fi once and says so
   in Alerts. If that didn't help it doesn't try again until the Wi-Fi has worked normally for a

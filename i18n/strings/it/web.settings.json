@@ -519,6 +519,35 @@
     "text": "Sessione",
     "en": "Session"
   },
+  "web.settings.shutdown.button": {
+    "text": "Spegni dispositivo",
+    "en": "Shut Down Device"
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Spegni",
+    "en": "Shut Down"
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "Si spegne del tutto e resta spento finché non lo riaccendi: scollegalo dalla corrente e ricollegalo. Nel frattempo nessuno potrà raggiungerlo.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #939a6c8c"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Spegnere il tuo dispositivo?",
+    "en": "Shut down your device?"
+  },
+  "web.settings.shutdown.done": {
+    "text": "Spegnimento in corso… Quando le sue luci smettono di lampeggiare puoi scollegarlo.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Impossibile spegnere il dispositivo.",
+    "en": "Could not shut down the device."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "Il tuo dispositivo deve essere aggiornato prima di poter essere spento da qui.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
   "web.settings.smart_search.beta": {
     "text": "Beta",
     "en": "Beta"

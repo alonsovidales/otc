@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package devicerestart backs Settings > Restart device: the owner of the
-// primary instance restarts the whole machine.
+// Package devicerestart backs Settings > Restart device and Settings > Shut
+// down device (shutdown.go): the owner of the primary instance restarts the
+// whole machine, or powers it off.
 //
 // otc.service runs unprivileged with NoNewPrivileges, so it can't reboot
 // anything itself. Like the Update button it drops a trigger file,

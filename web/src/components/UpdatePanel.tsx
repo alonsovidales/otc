@@ -16,6 +16,9 @@ import Spinner from "./Spinner";
 import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 import { refuseOnDemo } from "../net/demo";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { shutDownRefusal } from "./settings/shutDown";
+import { noteShutDown } from "../net/shutDownHold";
 
 // Issue #183: releases have kinds and "major.minor" labels; one without a
 // label (from before them) shows as a build. The description is the
@@ -85,6 +88,10 @@ export default function UpdatePanel() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [restartPhase, setRestartPhase] = useState<RestartPhase>("");
   const [restartError, setRestartError] = useState<UiText | null>(null);
+  // Settings > Shut Down Device (issue #202): its question open, and
+  // whether the device agreed (it then switches itself off).
+  const [shutDownAsk, setShutDownAsk] = useState(false);
+  const [shutDownAgreed, setShutDownAgreed] = useState(false);
   // Bumped on unmount, so a wait for the device stops with the panel.
   const restartGen = useRef(0);
   useEffect(() => () => { restartGen.current++; }, []);
@@ -237,6 +244,31 @@ export default function UpdatePanel() {
     void waitUntilBack(gen);
   };
 
+  // Asks first (ConfirmDialog, Cancel the default); the device's refusal
+  // stays in the dialog. Agreed, the device switches off in a few seconds:
+  // the note says when it can be unplugged, and the app leaves the device
+  // alone for 90 s - no new socket, no unreachable screen over the note
+  // (net/shutDownHold.ts).
+  const askShutDown = () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+    setShutDownAsk(true);
+  };
+  const shutDown = async (): Promise<UiText | null> => {
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        e.payload = { $case: "reqShutDownDevice", reqShutDownDevice: {} };
+      });
+      const refusal = shutDownRefusal(resp);
+      if (refusal) return refusal;
+    } catch (e) {
+      return asIs(e instanceof Error ? e.message : String(e));
+    }
+    noteShutDown();
+    setShutDownAsk(false);
+    setShutDownAgreed(true);
+    return null;
+  };
+
   if (isPrimary === false) return null;
 
   const running = info?.state === "running";
@@ -327,9 +359,17 @@ export default function UpdatePanel() {
         <div className="up-restart">
           <div className="up-actions">
             <button className="sf-btn sf-danger" onClick={() => void restart()}
-              disabled={restartPhase === "asking" || restartPhase === "restarting" || info?.state === "running"}>
+              disabled={restartPhase === "asking" || restartPhase === "restarting" || shutDownAgreed || info?.state === "running"}>
               {restartPhase === "asking" || restartPhase === "restarting" ? t("web.settings.restart.restarting") : t("web.settings.restart.button")}
             </button>
+            {/* Not in Docker: the server stops the container (the device
+                refuses it there too). */}
+            {info && !info.container && (
+              <button className="sf-btn sf-danger" onClick={askShutDown}
+                disabled={shutDownAgreed || restartPhase === "asking" || restartPhase === "restarting" || info.state === "running"}>
+                {t("web.settings.shutdown.button")}
+              </button>
+            )}
           </div>
           {restartPhase === "restarting" && (
             <div className="up-line"><Spinner label={t("web.settings.restart.wait")} /></div>
@@ -337,7 +377,20 @@ export default function UpdatePanel() {
           {restartPhase === "back" && <p className="up-note">{t("web.settings.restart.back")}</p>}
           {restartPhase === "slow" && <p className="up-warn">{t("web.settings.restart.slow")}</p>}
           {restartError && <p className="up-error">{restartError(t)}</p>}
+          <div role="status">
+            {shutDownAgreed && <p className="up-note">{t("web.settings.shutdown.done")}</p>}
+          </div>
         </div>
+      )}
+      {shutDownAsk && (
+        <ConfirmDialog
+          title={t("web.settings.shutdown.confirm_title")}
+          text={t("web.settings.shutdown.confirm_text")}
+          confirm={t("web.settings.shutdown.confirm")}
+          busyText={t("web.settings.general.working")}
+          onConfirm={shutDown}
+          onCancel={() => setShutDownAsk(false)}
+        />
       )}
     </section>
   );

@@ -104,6 +104,36 @@ func DevDeviceRestartTooSoon() Msg {
 	return Msg{Key: "dev.device.restart_too_soon"}
 }
 
+// DevDeviceShutdownInContainer is dev.device.shutdown_in_container: "not available in Docker: stop the container on the server it runs on".
+func DevDeviceShutdownInContainer() Msg {
+	return Msg{Key: "dev.device.shutdown_in_container"}
+}
+
+// DevDeviceShutdownNeedsUpdate is dev.device.shutdown_needs_update: "this device can't be shut down from here until it is updated".
+func DevDeviceShutdownNeedsUpdate() Msg {
+	return Msg{Key: "dev.device.shutdown_needs_update"}
+}
+
+// DevDeviceShutdownRequestFailed is dev.device.shutdown_request_failed: "could not ask for the shutdown: {detail}".
+func DevDeviceShutdownRequestFailed(detail string) Msg {
+	return Msg{Key: "dev.device.shutdown_request_failed", Args: map[string]any{"detail": detail}}
+}
+
+// DevDeviceShutdownTooSoon is dev.device.shutdown_too_soon: "the device has only just started; try again in a minute".
+func DevDeviceShutdownTooSoon() Msg {
+	return Msg{Key: "dev.device.shutdown_too_soon"}
+}
+
+// DevDeviceShutdownUpdateRunning is dev.device.shutdown_update_running: "an update is running; try again once it has finished".
+func DevDeviceShutdownUpdateRunning() Msg {
+	return Msg{Key: "dev.device.shutdown_update_running"}
+}
+
+// DevDeviceShutdownWifiChanging is dev.device.shutdown_wifi_changing: "the device's Wi-Fi is being changed; try again in a few minutes".
+func DevDeviceShutdownWifiChanging() Msg {
+	return Msg{Key: "dev.device.shutdown_wifi_changing"}
+}
+
 // DevDeviceSocialLimitTooLow is dev.device.social_limit_too_low: "the limit must be at least 0.1 GB".
 func DevDeviceSocialLimitTooLow() Msg {
 	return Msg{Key: "dev.device.social_limit_too_low"}

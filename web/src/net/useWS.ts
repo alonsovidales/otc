@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { wsClient } from "./ws";
+import { NoAnswer, wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 import { isDeviceStatusCode } from "./deviceStatus";
+import { shutDownHeld } from "./shutDownHold";
 import { t } from "../i18n/runtime";
 import { noteLanguageSignedOut, noteLanguageSignIn } from "../i18n/choice";
 
@@ -187,6 +188,10 @@ export function UseWS() {
 
   const request = (async (req: (e: Partial<ReqEnvelope>) => void) => {
     const reconnect = !wsClient || !wsClient.connected;
+    // Issue #202: a device that agreed to shut down is left alone for a
+    // while - no new socket for it (net/shutDownHold.ts); a socket still
+    // open carries on, the bridge answering for the device once it is off.
+    if (reconnect && shutDownHeld()) throw new NoAnswer(t("web.settings.shutdown.done"));
     if (reconnect || authOwed) {
       if (reconnect) await connect();
       if (wsClient.connected && !authPromise) {

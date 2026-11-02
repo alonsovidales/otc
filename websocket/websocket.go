@@ -4109,6 +4109,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			ExpectedSeconds: int32(devicerestart.ExpectedDowntime / time.Second),
 		}}
 
+	// Settings > Shut down device (issue #202): the whole machine too, so
+	// the owner of the main instance only (shutdown.go).
+	case *pb.ReqEnvelope_ReqShutDownDevice:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = notAvailableHere(lang)
+			break
+		}
+		shutDown(resp, lang)
+
 	// Settings › Storage: erase a disk that isn't blank and add it to the
 	// mirror. The machine's disks, so the owner of the main instance only,
 	// as ReqSetupStorage below.

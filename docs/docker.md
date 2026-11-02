@@ -211,7 +211,8 @@ docker logs -f otc        # the container's log
 ```
 
 Settings › Restart Device restarts the device's software; the container and the database keep
-running. The device's own log is in Settings › Logs, and on the server in
+running. Settings › Shut Down Device isn't offered in Docker: stop the container with
+`docker compose stop`. The device's own log is in Settings › Logs, and on the server in
 `<your folder>/state/log/otc.log` (only root can read it). To copy it into `docker logs` as well,
 add `OTC_LOG_STDOUT: "1"` under `environment:`.
 

@@ -519,6 +519,35 @@
     "text": "Sessão",
     "en": "Session"
   },
+  "web.settings.shutdown.button": {
+    "text": "Desligar dispositivo",
+    "en": "Shut Down Device"
+  },
+  "web.settings.shutdown.confirm": {
+    "text": "Desligar",
+    "en": "Shut Down"
+  },
+  "web.settings.shutdown.confirm_text": {
+    "text": "Desliga-se por completo e fica desligado até o voltares a ligar: desliga-o da corrente e volta a ligá-lo. Entretanto, fica inacessível para todos.",
+    "en": "It turns off completely and stays off until you start it again: unplug its power and plug it back in. Nobody can reach it meanwhile.",
+    "reviewed": "claude-backtranslation 2026-11-03 #c76d3897"
+  },
+  "web.settings.shutdown.confirm_title": {
+    "text": "Desligar o teu dispositivo?",
+    "en": "Shut down your device?"
+  },
+  "web.settings.shutdown.done": {
+    "text": "A desligar… Quando as luzes deixarem de piscar, podes desligá-lo da corrente.",
+    "en": "Shutting down… Once its lights stop blinking you can unplug it."
+  },
+  "web.settings.shutdown.failed": {
+    "text": "Não foi possível desligar o dispositivo.",
+    "en": "Could not shut down the device."
+  },
+  "web.settings.shutdown.needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização antes de poder ser desligado a partir daqui.",
+    "en": "Your device needs an update before it can be shut down from here."
+  },
   "web.settings.smart_search.beta": {
     "text": "Beta",
     "en": "Beta"

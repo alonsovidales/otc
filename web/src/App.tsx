@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
 import { useWS } from "./net/useWS";
@@ -43,6 +43,7 @@ import type { TourStepId } from "./components/tourSteps";
 import { backSection, followBackSection, keepSection } from "./components/backStack";
 import { restoreSession } from "./net/sessionRestore";
 import ReconnectingBanner from "./components/ReconnectingBanner";
+import { shutDownHeld, subscribeShutDownHold } from "./net/shutDownHold";
 import ZipLinkPage from "./components/ZipLinkPage";
 import { lazyPart } from "./components/lazyPart";
 import Part from "./components/Part";
@@ -198,8 +199,14 @@ function App() {
   // Issue #56: the bridge's verdict on whether this device is reachable at
   // all, reported from ws.ts's socket callbacks (outside the component
   // tree) via deviceStatus's little store.
-  const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | null>(getDeviceStatus());
+  const [reportedStatus, setDeviceStatus] = useState<DeviceStatus | null>(getDeviceStatus());
   useEffect(() => subscribeDeviceStatus(setDeviceStatus), []);
+  // Issue #202: for 90 s after the device agreed to shut down its going
+  // away is that, not a fault: the app stays as it is, Settings' "Shutting
+  // down…" note included - no unreachable screen, no "Reconnecting…" pill
+  // (net/shutDownHold.ts). Then as usual.
+  const shutDownHold = useSyncExternalStore(subscribeShutDownHold, shutDownHeld);
+  const deviceStatus = shutDownHold ? null : reportedStatus;
 
   // The menu goes with the rest of the app when the session ends or the
   // device stops answering; a drawer left open would come back open over
@@ -626,7 +633,7 @@ function App() {
       {authenticated && demo && <DemoBanner />}
       {demo && <DemoRefusedNotice />}
       {servedByDevice && <DeviceUpdatedNotice />}
-      <ReconnectingBanner active={authenticated} />
+      <ReconnectingBanner active={authenticated && !shutDownHold} />
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}
       <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>
