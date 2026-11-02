@@ -167,6 +167,8 @@ func TestVisitPage(t *testing.T) {
 		"/it/private-social-network":     "/it/private-social-network",
 		"/raspberry-pi-home-server":      "/raspberry-pi-home-server",
 		"/nl/raspberry-pi-home-server":   "/nl/raspberry-pi-home-server",
+		"/client-proofing-gallery":       "/client-proofing-gallery",
+		"/de/client-proofing-gallery":    "/de/client-proofing-gallery",
 		"/privacy":                       "/privacy",
 		"/privacy.html":                  "/privacy",
 		"/terms.html":                    "/terms",

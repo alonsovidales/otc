@@ -431,6 +431,7 @@ func TestLLMs(t *testing.T) {
 		"- [" + mdEscape(i18n.T(en, "site.alt.link", nil)) + "](" + base + "/" + AlternativeSlug + "): " + mdEscape(i18n.T(en, "site.alt.meta.description", nil)) + "\n",
 		"- [" + mdEscape(i18n.T(en, "site.drive.link", nil)) + "](" + base + "/" + DriveSlug + "): " + mdEscape(i18n.T(en, "site.drive.meta.description", nil)) + "\n",
 		"- [" + mdEscape(i18n.T(en, "site.pi.link", nil)) + "](" + base + "/" + PiSlug + "): " + mdEscape(i18n.T(en, "site.pi.meta.description", nil)) + "\n",
+		"- [" + mdEscape(i18n.T(en, "site.proofing.link", nil)) + "](" + base + "/" + ProofingSlug + "): " + mdEscape(i18n.T(en, "site.proofing.meta.description", nil)) + "\n",
 		"](" + base + "/llms-full.txt)",
 		"](" + base + "/privacy)",
 		"](" + base + "/terms)",
@@ -941,6 +942,106 @@ func TestLandingPictures(t *testing.T) {
 	}
 }
 
+// The client proofing page, in every language: at its slug, its pictures
+// (the client's picks and the desk photo) in bridge/static, every link
+// within the page to an id it has, and its way to get started. The landing
+// page's section for photographers links to it with its own words, and
+// every public page's footer links to it, marked current on the page itself.
+func TestProofingPage(t *testing.T) {
+	if PagePath(Proofing, English()) != "/"+ProofingSlug || PagePath(Proofing, "es") != "/es/"+ProofingSlug {
+		t.Errorf("PagePath: %q %q", PagePath(Proofing, English()), PagePath(Proofing, "es"))
+	}
+	if p, ok := Localized(ProofingSlug); !ok || p != Proofing {
+		t.Errorf("Localized(%q) = %q %v", ProofingSlug, p, ok)
+	}
+	for _, l := range i18n.Languages() {
+		tr := func(key string) string { return i18n.T(l.Code, key, nil) }
+		for _, page := range publicPages {
+			out, err := Render(page, l.Code, testOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			what := page + " in " + l.Code
+			ids := map[string]bool{}
+			var links []*html.Node
+			pictures := 0
+			for n := range doc.Descendants() {
+				if id := attr(n, "id"); n.Type == html.ElementNode && id != "" {
+					ids[id] = true
+				}
+				if n.DataAtom == atom.A {
+					links = append(links, n)
+				}
+				if page != Proofing || n.DataAtom != atom.Img && n.DataAtom != atom.Source {
+					continue
+				}
+				urls := []string{attr(n, "src")}
+				for _, c := range strings.Split(attr(n, "srcset"), ",") {
+					if f := strings.Fields(c); len(f) > 0 {
+						urls = append(urls, f[0])
+					}
+				}
+				for _, u := range urls {
+					if u == "" {
+						continue
+					}
+					pictures++
+					if _, err := os.Stat(filepath.Join("..", "static", filepath.FromSlash(strings.Split(u, "?")[0]))); err != nil {
+						t.Errorf("%s: %s: %v", what, u, err)
+					}
+				}
+			}
+			var footer, landing int
+			for _, a := range links {
+				href, text := attr(a, "href"), ""
+				if a.FirstChild != nil {
+					text = a.FirstChild.Data
+				}
+				if page == Proofing && strings.HasPrefix(href, "#") && !ids[href[1:]] {
+					t.Errorf("%s: a link to %s, which isn't on the page", what, href)
+				}
+				if href != PagePath(Proofing, l.Code) || attr(a.Parent, "class") == "lang-switch" {
+					continue
+				}
+				switch text {
+				case tr("site.proofing.footer"):
+					footer++
+					if _, current := attrOK(a, "aria-current"); current != (page == Proofing) {
+						t.Errorf("%s: the footer's link to the proofing page has aria-current %v", what, current)
+					}
+				case tr("site.proofing.link"):
+					landing++
+				default:
+					t.Errorf("%s: a link to the proofing page saying %q", what, text)
+				}
+			}
+			if footer != 1 {
+				t.Errorf("%s: %d footer links to the proofing page, want 1", what, footer)
+			}
+			if want := map[bool]int{true: 1}[page == Landing]; landing != want {
+				t.Errorf("%s: %d links to the proofing page with its own words, want %d", what, landing, want)
+			}
+			if page != Proofing {
+				continue
+			}
+			if pictures < 8 {
+				t.Errorf("%s: only %d pictures", what, pictures)
+			}
+			install := false
+			for _, a := range links {
+				install = install || attr(a, "href") == Path(l.Code)+"#install"
+			}
+			if !install {
+				t.Errorf("%s: no link to %s#install", what, Path(l.Code))
+			}
+		}
+	}
+}
+
 // llms-full.txt is every public page in English, read back from the pages
 // themselves: each page's address and headline, every question of its FAQ,
 // the comparison tables' rows; Markdown only, its links absolute, nothing
@@ -979,6 +1080,8 @@ func TestLLMsFull(t *testing.T) {
 	for _, want := range []string{
 		"## " + mdEscape(i18n.T(en, "site.landing.hero.title_1", nil)),
 		"## " + mdEscape(i18n.T(en, "site.pi.hero.title", nil)) + "\n",
+		"## " + mdEscape(i18n.T(en, "site.proofing.hero.title", nil)) + "\n",
+		mdEscape(i18n.T(en, "site.proofing.faq.where.a", nil)),
 		mdEscape(i18n.T(en, "site.landing.faq.storage.a", nil)),
 		mdEscape(i18n.T(en, "site.pi.recover.text", nil)),
 		"|  | Off The Cloud | Instagram | Facebook | WhatsApp | FamilyAlbum | Pixelfed |\n",

@@ -1,0 +1,93 @@
+@html.lang=en
+Self-hosted client proofing gallery for photographers
+@meta.description=Share a shoot as a gallery link: clients give photos 1 to 5 stars and a note, with no account. Sort by rating. The photos stay on your own device.
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+Menu
+@a.href=/#install
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+@a.href=/account?signup=1
+Get started Download What it is Gallery FAQ GitHub Create an account
+Client proofing for photographers, from your own device
+Share a shoot with your client as a gallery link. They open it on any phone or computer, give stars to the photos they like and leave a note wherever they'd like a change. You get an alert, open the collection and see their picks, best first. The photos stay on your own Off The Cloud device, and the link expires by itself.
+@a.href=/#install
+@a.href=#how
+Get started How it works
+@img.src=/img/proof-1-360.webp
+@img.alt=A family walking along the beach at sunset
+★★★★★5 stars
+Our favourite, we love the light!
+@img.src=/img/proof-2-360.webp
+@img.alt=Children carving pumpkins at the kitchen table
+★★★★★4 stars
+A bit brighter, please
+@img.src=/img/proof-3-360.webp
+@img.alt=Two children walking through an autumn forest
+★★★★★3 stars
+Could you crop closer to the kids?
+What your client leaves on each photo: stars, and a note where they'd like a change.
+How it works
+Put the shoot in a collection. Select its photos in Images and add them to a collection of their own, named after the client or the session.
+Share it as a gallery. Switch on rating, choose how long the link works (1, 7 or 30 days) and whether it carries small copies or the originals, then send it by email or message.
+Your client picks. They open the link on any phone or computer, tap the stars on the photos they like and write a note under any of them: “a bit brighter”, “remove the sign on the left”. No account, no app.
+You see their picks. Off The Cloud lets you know when ratings come in. Open the collection, show 4 stars or more, sort by rating and read each note with its photo.
+What you and your client get
+A link, nothing to install. The gallery opens in the browser on any phone, tablet or computer, and your client can rate straight away, without an account or an app.
+Stars and a note on each photo. One to five stars for the ones they like, and a note wherever they'd like a change: brighter, a closer crop, something taken out.
+An alert as ratings arrive. Off The Cloud lets you know when your client rates a photo or leaves a note through the link.
+Their picks on top. Show 5 stars, 4 stars or more, the rated or unrated photos, or only those with a note, and sort by rating to see the highest rated first.
+Small copies or originals. Send small copies for proofing, while the originals stay in your library, or the originals for your client to download.
+A link that ends by itself. It works for 1, 7 or 30 days, and you can delete it sooner from Settings, under Shared Links.
+@img.src=/img/hero-900.jpg
+@img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
+Your shoots stay on your own device
+Off The Cloud runs on a small device you own, on your desk or in your studio: a Raspberry Pi 5 with two USB drives, each keeping a full copy of your library. Your client's gallery is served straight from it, through your own address at off-the.cloud, so the shoot is never uploaded to someone else's cloud.
+Your photos are encrypted at rest on the device, and so are the notes your client leaves. The gallery itself is a copy encrypted with a key that only its link carries.
+@a.href=/raspberry-pi-home-server
+The Raspberry Pi 5 home server, step by step
+See it before you buy anything
+@a.href=https://demo.off-the.cloud/
+@a.href=/#install
+Try the demo Get your device running
+Look around a real device with a made-up family's photos and files. No sign-up.
+FAQ
+Questions people actually ask
+Does my client need an account or an app?
+No. The link opens the gallery in the browser on any phone, tablet or computer, where they can look through the photos, rate them and leave notes straight away. Anyone with the link can rate until it expires, so send it to the people choosing.
+Where are the photos while the link is open?
+On your Off The Cloud device. Sharing makes a copy of the collection there, encrypted with a key that only the link carries, and your client's browser gets the photos from it. Deleting the link deletes its copy.
+What happens to the ratings when the link expires?
+They stay in the collection, with the notes, for as long as the photos are in it. Turn rating off to hide them, and on again to bring them back.
+Can I rate photos myself?
+Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link.
+What do I need?
+An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps.
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/raspberry-pi-home-server
+@a.href=/client-proofing-gallery
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation Raspberry Pi 5 home server For photographers Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

@@ -25,11 +25,12 @@ import (
 )
 
 // pages are every page the site renders.
-var pages = []string{Landing, Social, Alternative, Drive, Pi, Disabled, Unavailable, Account, NotFound, SignInProblem, ContinueSetup}
+var pages = []string{Landing, Social, Alternative, Drive, Pi, Proofing, Disabled, Unavailable, Account, NotFound, SignInProblem, ContinueSetup}
 
 // publicPages are the pages in the sitemap, in its order (localized's):
-// the landing page, the comparison pages, the Raspberry Pi page.
-var publicPages = []string{Landing, Social, Alternative, Drive, Pi}
+// the landing page, the comparison pages, the Raspberry Pi page, the
+// client proofing page.
+var publicPages = []string{Landing, Social, Alternative, Drive, Pi, Proofing}
 
 // shared is the file of definitions the public pages share: no page.
 const shared = "common.html"
@@ -761,7 +762,7 @@ func TestInstallTabs(t *testing.T) {
 // English address, which would answer with a redirect or the wrong
 // language.
 func TestAccountLinksInPageLanguage(t *testing.T) {
-	for _, page := range []string{Landing, Social, Alternative, Drive, Pi, NotFound} {
+	for _, page := range []string{Landing, Social, Alternative, Drive, Pi, Proofing, NotFound} {
 		for _, l := range i18n.Languages() {
 			out, err := Render(page, l.Code, testOptions)
 			if err != nil {

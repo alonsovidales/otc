@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  {{template "head" (head . (t "site.proofing.meta.title") (t "site.proofing.meta.description"))}}
+  <style nonce="{{.Nonce}}">
+    {{- template "site-style"}}
+    {{- template "compare-style"}}
+    {{- template "proof-style"}}
+    /* Under the opening: a client's picks, as wide as the cards below. */
+    .hero .proof-sheet{width:100%;max-width:1200px;margin-top:14px}
+    /* The steps, numbered. */
+    ol.cards{counter-reset:step}
+    ol.cards li{counter-increment:step}
+    ol.cards li::before{content:counter(step);display:inline-grid;place-items:center;width:26px;height:26px;margin-bottom:10px;
+      border-radius:999px;background:var(--gold);color:var(--ink);font-weight:800;font-size:14.5px}
+    /* Your own device: the desk photo beside the text, stacked (photo
+       first) on narrow screens. */
+    .own{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,52px);align-items:center;max-width:1200px;margin:0 auto}
+    .own > *{min-width:0}
+    .own-photo{display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+    .own-photo img{width:100%;height:auto}
+    .own .prose{margin:0}
+    .own h2{font-size:clamp(25px,3vw,33px);line-height:1.2;margin:0}
+    .own .prose p.more{font-weight:700}
+    @media (max-width:819px){ .own{grid-template-columns:minmax(0,1fr)} }
+  </style>
+</head>
+<body>
+
+  {{template "header" .}}
+
+  <main>
+    <div class="container hero">
+      <h1>{{t "site.proofing.hero.title"}}</h1>
+      <p class="lead">{{t "site.proofing.hero.lead"}}</p>
+      <div class="demo-row">
+        <a class="btn ember" href="{{.Home}}#install">{{t "site.landing.nav.get_started"}}</a>
+        <a class="btn secondary" href="#how">{{t "site.proofing.how.title"}}</a>
+      </div>
+      {{template "proof-sheet" .}}
+    </div>
+
+    <section id="how">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.proofing.how.title"}}</h2>
+        </div>
+        <ol class="cards two">
+          <li>{{template "spans" (rich "site.proofing.how.collection")}}</li>
+          <li>{{template "spans" (rich "site.proofing.how.share")}}</li>
+          <li>{{template "spans" (rich "site.proofing.how.client")}}</li>
+          <li>{{template "spans" (rich "site.proofing.how.you")}}</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="proofing">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.proofing.gives.title"}}</h2>
+        </div>
+        <ul class="cards">
+          <li>{{template "spans" (rich "site.proofing.gives.link")}}</li>
+          <li>{{template "spans" (rich "site.proofing.gives.stars")}}</li>
+          <li>{{template "spans" (rich "site.proofing.gives.alert")}}</li>
+          <li>{{template "spans" (rich "site.proofing.gives.sort")}}</li>
+          <li>{{template "spans" (rich "site.proofing.gives.copies")}}</li>
+          <li>{{template "spans" (rich "site.proofing.gives.expiry")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="yours">
+      <div class="container own">
+        <picture class="own-photo">
+          <source type="image/webp" srcset="/img/hero-900.webp 900w, /img/hero-1280.webp 1280w" sizes="(max-width: 819px) calc(100vw - 48px), 580px">
+          <img src="/img/hero-900.jpg" srcset="/img/hero-900.jpg 900w, /img/hero-1280.jpg 1280w" sizes="(max-width: 819px) calc(100vw - 48px), 580px" width="900" height="502" alt="{{t "site.landing.hero.photo_alt"}}" loading="lazy" decoding="async">
+        </picture>
+        <div class="prose">
+          <h2>{{t "site.proofing.yours.title"}}</h2>
+          <p>{{t "site.proofing.yours.device"}}</p>
+          <p>{{t "site.proofing.yours.encrypted"}}</p>
+          <p class="more"><a href="{{.Pi}}">{{t "site.pi.link"}}</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="try">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.alt.try.title"}}</h2>
+        </div>
+        <div class="try">
+          <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+          <a class="btn" href="{{.Home}}#install">{{t "site.landing.install.label"}}</a>
+        </div>
+        <p class="demo-note try-note">{{t "site.landing.hero.demo_note"}}</p>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.faq.eyebrow"}}</span>
+          <h2>{{t "site.landing.faq.title"}}</h2>
+        </div>
+        <div class="faq">
+          <details id="faq-account" open>
+            <summary>{{t "site.proofing.faq.account.q"}}</summary>
+            <p>{{t "site.proofing.faq.account.a"}}</p>
+          </details>
+          <details id="faq-where">
+            <summary>{{t "site.proofing.faq.where.q"}}</summary>
+            <p>{{t "site.proofing.faq.where.a"}}</p>
+          </details>
+          <details id="faq-after">
+            <summary>{{t "site.proofing.faq.after.q"}}</summary>
+            <p>{{t "site.proofing.faq.after.a"}}</p>
+          </details>
+          <details id="faq-self">
+            <summary>{{t "site.proofing.faq.self.q"}}</summary>
+            <p>{{t "site.proofing.faq.self.a"}}</p>
+          </details>
+          <details id="faq-need">
+            <summary>{{t "site.proofing.faq.need.q"}}</summary>
+            <p>{{t "site.proofing.faq.need.a"}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{template "footer" .}}
+  {{template "faq-script" .}}
+</body>
+</html>

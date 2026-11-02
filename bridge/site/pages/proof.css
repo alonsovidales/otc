@@ -1,0 +1,24 @@
+/* A client's picks, as the client proofing page (proofing.html) and the
+   landing page's section about it draw them (common.html's proof-sheet):
+   three photos, each with its stars and the client's note. A picture of
+   the idea, not a screenshot. On a phone each photo sits beside its
+   stars and note. */
+.proof-sheet{margin:0;display:grid;gap:12px;min-width:0}
+.proof-tiles{list-style:none;margin:0;padding:0;display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));text-align:left}
+.proof-tile{display:grid;grid-template-rows:auto auto 1fr;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.proof-tile img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;background:var(--ink-2)}
+.proof-stars{margin:0;padding:10px 12px 0;color:var(--gold);font-size:18px;letter-spacing:3px;line-height:1.2}
+.proof-stars .off{color:rgba(234,242,239,.22)}
+.proof-note{margin:8px 12px 12px;padding:8px 11px;align-self:start;border-radius:4px 12px 12px 12px;
+  background:var(--ink-2);border:1px solid var(--line);color:var(--mist);font-size:14.5px;line-height:1.45}
+/* The note's quotation marks are the page language's (<q>); French puts
+   a no-break space inside them. */
+:lang(fr) .proof-note q{quotes:"\00AB\00A0" "\00A0\00BB"}
+.proof-sheet figcaption{color:var(--mist-dim);font-size:14.5px;line-height:1.5;text-align:center}
+@media (max-width:620px){
+  .proof-tiles{grid-template-columns:minmax(0,1fr);gap:10px}
+  .proof-tile{grid-template-columns:116px minmax(0,1fr);grid-template-rows:auto 1fr}
+  .proof-tile img{grid-row:1 / 3;grid-column:1;height:100%;min-height:87px;aspect-ratio:auto}
+  .proof-stars,.proof-note{grid-column:2}
+  .proof-note{margin:6px 10px 10px}
+}

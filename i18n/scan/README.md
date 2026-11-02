@@ -104,7 +104,7 @@ tags, keys for storage and preferences, symbols and image names (`systemImage:`,
   engine, flasher, selfupdate, wsclient, config, browser, autostart - not `cmd/otc-sync`).
 - **pages** (the bridge's embedded page templates `bridge/site/pages/landing.html`,
   the comparison pages `social.html`, `alternative.html` and `drive.html`, `pi.html` (the
-  Raspberry Pi home server), `common.html` (what the
+  Raspberry Pi home server), `proofing.html` (client proofing for photographers), `common.html` (what the
   public pages share), `account.html`, `notfound.html` (the 404 page),
   `disabled.html`, `unavailable.html`; nothing in `bridge/static`: `admin.html` is
   the operator's, `privacy.html` and `terms.html` stay English, `index.html` is a stale copy of the

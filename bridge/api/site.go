@@ -33,8 +33,9 @@ import (
 //	/account          the account page: English, or 302 to /<code>/account as / does
 //	/<code>/account   the account page in that language; /en/account is English without the redirect
 //	/private-social-network, /google-photos-alternative, /google-drive-alternative,
-//	/raspberry-pi-home-server, and the same under /<code>/
-//	                  the comparison pages and the Raspberry Pi page, the same way
+//	/raspberry-pi-home-server, /client-proofing-gallery, and the same under /<code>/
+//	                  the comparison pages, the Raspberry Pi page and the client
+//	                  proofing page, the same way
 //	/xx/account       404 for a language this build doesn't carry (and the comparison pages under /xx/)
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
@@ -100,6 +101,8 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Drive) }
 	case "/" + site.PiSlug:
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Pi) }
+	case "/" + site.ProofingSlug:
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Proofing) }
 	case "/landing", "/landing.html":
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
 	case "/account.html":

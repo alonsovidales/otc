@@ -192,6 +192,24 @@ macOS, Windows and Linux apps that keep chosen folders on your computer in two-w
 🌐
 Web app
 Everything above, from any browser — sign in with just your password, no app install required.
+For photographers
+Let your clients pick their favourite photos
+Share a shoot as a gallery link. Your client gives stars to the photos they like and leaves a note where they'd like a change, with no account or app, and you see their picks in the collection, best first. The photos stay on your own device.
+@a.href=/client-proofing-gallery
+How client proofing works
+@img.src=/img/proof-1-360.webp
+@img.alt=A family walking along the beach at sunset
+★★★★★5 stars
+Our favourite, we love the light!
+@img.src=/img/proof-2-360.webp
+@img.alt=Children carving pumpkins at the kitchen table
+★★★★★4 stars
+A bit brighter, please
+@img.src=/img/proof-3-360.webp
+@img.alt=Two children walking through an autumn forest
+★★★★★3 stars
+Could you crop closer to the kids?
+What your client leaves on each photo: stars, and a note where they'd like a change.
 See it running
 Every part of the system, in one place
 The device itself, and the apps that talk to it.
@@ -455,13 +473,14 @@ Everything is documented in the README — architecture, config, and every insta
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme
 @a.href=/raspberry-pi-home-server
+@a.href=/client-proofing-gallery
 @a.href=/private-social-network
 @a.href=/google-photos-alternative
 @a.href=/google-drive-alternative
 @a.href=#contact
 @a.href=/privacy
 @a.href=/terms
-GitHub Documentation Raspberry Pi 5 home server Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms
+GitHub Documentation Raspberry Pi 5 home server For photographers Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms
 @div.aria-label=Screenshot
 @button.aria-label=Close
 ✕

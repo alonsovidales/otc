@@ -186,7 +186,7 @@ func TestCrawlerFiles(t *testing.T) {
 			Loc string `xml:"loc"`
 		} `xml:"url"`
 	}
-	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 5*len(i18n.Languages())+2 {
+	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 6*len(i18n.Languages())+2 {
 		t.Errorf("sitemap: %v, %d addresses", err, len(set.URLs))
 	}
 	if llms := siteGet(api, http.MethodGet, "/llms.txt", nil).Body.String(); !strings.HasPrefix(llms, "# Off The Cloud\n\n> ") || !strings.Contains(llms, "## Questions") {
@@ -216,7 +216,7 @@ func TestSiteAnswersAreGzipped(t *testing.T) {
 	api := siteAPI(t)
 	gz := map[string]string{"Accept-Encoding": "gzip, deflate, br"}
 	for _, target := range []string{"/", "/es/", "/account", "/private-social-network", "/google-photos-alternative", "/google-drive-alternative",
-		"/raspberry-pi-home-server", "/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/unavailable"} {
+		"/raspberry-pi-home-server", "/client-proofing-gallery", "/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/unavailable"} {
 		plain := siteGet(api, http.MethodGet, target, nil)
 		rec := siteGet(api, http.MethodGet, target, gz)
 		if rec.Code != http.StatusOK || rec.Header().Get("Content-Encoding") != "gzip" || plain.Header().Get("Content-Encoding") != "" {
@@ -255,12 +255,12 @@ func TestSiteAnswersAreGzipped(t *testing.T) {
 	}
 }
 
-// The comparison pages and the Raspberry Pi page, at /<slug> and
-// /<code>/<slug>, chosen like the landing page's language; any other
-// /<code>/<x> is still a 404.
+// The comparison pages, the Raspberry Pi page and the client proofing
+// page, at /<slug> and /<code>/<slug>, chosen like the landing page's
+// language; any other /<code>/<x> is still a 404.
 func TestSiteComparisonPages(t *testing.T) {
 	api := siteAPI(t)
-	for _, slug := range []string{site.SocialSlug, site.AlternativeSlug, site.DriveSlug, site.PiSlug} {
+	for _, slug := range []string{site.SocialSlug, site.AlternativeSlug, site.DriveSlug, site.PiSlug, site.ProofingSlug} {
 		for _, al := range []string{"", "en-US,en;q=0.9", "ja-JP"} {
 			rec := siteGet(api, http.MethodGet, "/"+slug, map[string]string{"Accept-Language": al})
 			checkPage(t, "/"+slug+" with "+al, rec, http.StatusOK, site.English())

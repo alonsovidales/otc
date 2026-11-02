@@ -1,0 +1,176 @@
+{
+  "site.proofing.faq.account.a": {
+    "text": "Nee. De link opent de galerij in de browser op elke telefoon, tablet of computer, waar je klant de foto’s kan bekijken, beoordelen en meteen notities kan achterlaten. Iedereen met de link kan beoordelen tot hij verloopt, dus stuur hem alleen naar wie er kiest.",
+    "en": "No. The link opens the gallery in the browser on any phone, tablet or computer, where they can look through the photos, rate them and leave notes straight away. Anyone with the link can rate until it expires, so send it to the people choosing."
+  },
+  "site.proofing.faq.account.q": {
+    "text": "Heeft mijn klant een account of app nodig?",
+    "en": "Does my client need an account or an app?"
+  },
+  "site.proofing.faq.after.a": {
+    "text": "Ze blijven met de notities in de collectie, zolang de foto’s erin staan. Zet beoordelen uit om ze te verbergen en weer aan om ze terug te halen.",
+    "en": "They stay in the collection, with the notes, for as long as the photos are in it. Turn rating off to hide them, and on again to bring them back."
+  },
+  "site.proofing.faq.after.q": {
+    "text": "Wat gebeurt er met de beoordelingen als de link verloopt?",
+    "en": "What happens to the ratings when the link expires?"
+  },
+  "site.proofing.faq.need.a": {
+    "text": "Een Off The Cloud-apparaat, dus een Raspberry Pi 5 met twee USB-schijven of een andere 64-bit computer met Debian of Ubuntu, en het adres van dat apparaat op off-the.cloud, zoals studio.off-the.cloud, waar de link van je klant opent. Je deelt en leest de beoordelingen in de webapp en de telefoonapps.",
+    "en": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps."
+  },
+  "site.proofing.faq.need.q": {
+    "text": "Wat heb ik nodig?",
+    "en": "What do I need?"
+  },
+  "site.proofing.faq.self.a": {
+    "text": "Ja. Zet beoordelen aan in elke collectie, ook in Favorieten, geef foto’s in de fotoweergave sterren en een notitie, en filter en sorteer ze daarna op dezelfde manier. Elke foto heeft één beoordeling per collectie, gedeeld met de galerijlink van die collectie, en de fotoweergave markeert de beoordelingen die via de link kwamen.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+  },
+  "site.proofing.faq.self.q": {
+    "text": "Kan ik zelf foto’s beoordelen?",
+    "en": "Can I rate photos myself?"
+  },
+  "site.proofing.faq.where.a": {
+    "text": "Op je Off The Cloud-apparaat. Bij het delen wordt daar een kopie van de collectie gemaakt, versleuteld met een sleutel die alleen de link bevat, en de browser van je klant haalt de foto’s daarvandaan. Verwijder je de link, dan wordt ook de kopie verwijderd.",
+    "en": "On your Off The Cloud device. Sharing makes a copy of the collection there, encrypted with a key that only the link carries, and your client's browser gets the photos from it. Deleting the link deletes its copy."
+  },
+  "site.proofing.faq.where.q": {
+    "text": "Waar staan de foto’s zolang de link werkt?",
+    "en": "Where are the photos while the link is open?"
+  },
+  "site.proofing.footer": {
+    "text": "Voor fotografen",
+    "en": "For photographers"
+  },
+  "site.proofing.gives.alert": {
+    "text": "<b>Een melding zodra er beoordelingen binnenkomen.</b> Off The Cloud laat het je weten als je klant via de link een foto beoordeelt of een notitie achterlaat.",
+    "en": "<b>An alert as ratings arrive.</b> Off The Cloud lets you know when your client rates a photo or leaves a note through the link."
+  },
+  "site.proofing.gives.copies": {
+    "text": "<b>Kleine kopieën of originelen.</b> Stuur kleine kopieën om uit te kiezen, terwijl de originelen in je bibliotheek blijven, of de originelen zodat je klant ze kan downloaden.",
+    "en": "<b>Small copies or originals.</b> Send small copies for proofing, while the originals stay in your library, or the originals for your client to download."
+  },
+  "site.proofing.gives.expiry": {
+    "text": "<b>Een link die vanzelf verloopt.</b> Hij werkt 1, 7 of 30 dagen, en je kunt hem eerder verwijderen via Instellingen, onder Gedeelde links.",
+    "en": "<b>A link that ends by itself.</b> It works for 1, 7 or 30 days, and you can delete it sooner from Settings, under Shared Links."
+  },
+  "site.proofing.gives.link": {
+    "text": "<b>Een link, niets te installeren.</b> De galerij opent in de browser op elke telefoon, tablet of computer, en je klant kan meteen beoordelen, zonder account of app.",
+    "en": "<b>A link, nothing to install.</b> The gallery opens in the browser on any phone, tablet or computer, and your client can rate straight away, without an account or an app."
+  },
+  "site.proofing.gives.sort": {
+    "text": "<b>De keuzes bovenaan.</b> Toon 5 sterren, 4 sterren of meer, de beoordeelde of niet-beoordeelde foto’s, of alleen die met een notitie, en sorteer op beoordeling om de best beoordeelde eerst te zien.",
+    "en": "<b>Their picks on top.</b> Show 5 stars, 4 stars or more, the rated or unrated photos, or only those with a note, and sort by rating to see the highest rated first."
+  },
+  "site.proofing.gives.stars": {
+    "text": "<b>Sterren en een notitie bij elke foto.</b> Eén tot vijf sterren voor de foto’s die in de smaak vallen, en een notitie waar een aanpassing gewenst is: lichter, strakker bijsnijden, iets weghalen.",
+    "en": "<b>Stars and a note on each photo.</b> One to five stars for the ones they like, and a note wherever they'd like a change: brighter, a closer crop, something taken out."
+  },
+  "site.proofing.gives.title": {
+    "text": "Wat jij en je klant eraan hebben",
+    "en": "What you and your client get"
+  },
+  "site.proofing.hero.lead": {
+    "text": "Deel een fotoshoot met je klant als galerijlink. Je klant opent die op elke telefoon of computer, geeft sterren aan de foto’s die in de smaak vallen en laat een notitie achter waar iets anders moet. Je krijgt een melding, opent de collectie en ziet de keuzes, de beste eerst. De foto’s blijven op je eigen Off The Cloud-apparaat, en de link verloopt vanzelf.",
+    "en": "Share a shoot with your client as a gallery link. They open it on any phone or computer, give stars to the photos they like and leave a note wherever they'd like a change. You get an alert, open the collection and see their picks, best first. The photos stay on your own Off The Cloud device, and the link expires by itself."
+  },
+  "site.proofing.hero.title": {
+    "text": "Klantgalerij voor fotografen, vanaf je eigen apparaat",
+    "en": "Client proofing for photographers, from your own device"
+  },
+  "site.proofing.home.eyebrow": {
+    "text": "Voor fotografen",
+    "en": "For photographers"
+  },
+  "site.proofing.home.text": {
+    "text": "Deel een fotoshoot als galerijlink. Je klant geeft sterren aan de foto’s die in de smaak vallen en laat een notitie achter waar iets anders moet, zonder account of app, en jij ziet de keuzes in de collectie, de beste eerst. De foto’s blijven op je eigen apparaat.",
+    "en": "Share a shoot as a gallery link. Your client gives stars to the photos they like and leaves a note where they'd like a change, with no account or app, and you see their picks in the collection, best first. The photos stay on your own device."
+  },
+  "site.proofing.home.title": {
+    "text": "Laat je klanten hun favoriete foto’s kiezen",
+    "en": "Let your clients pick their favourite photos"
+  },
+  "site.proofing.how.client": {
+    "text": "<b>Je klant kiest.</b> Je klant opent de link op elke telefoon of computer, tikt op de sterren bij de foto’s die in de smaak vallen en schrijft onder elke foto die dat nodig heeft een notitie: “iets lichter”, “haal het bord links weg”. Geen account, geen app.",
+    "en": "<b>Your client picks.</b> They open the link on any phone or computer, tap the stars on the photos they like and write a note under any of them: “a bit brighter”, “remove the sign on the left”. No account, no app."
+  },
+  "site.proofing.how.collection": {
+    "text": "<b>Zet de fotoshoot in een collectie.</b> Selecteer de foto’s in Afbeeldingen en voeg ze toe aan een eigen collectie, met de naam van de klant of de shoot.",
+    "en": "<b>Put the shoot in a collection.</b> Select its photos in Images and add them to a collection of their own, named after the client or the session."
+  },
+  "site.proofing.how.share": {
+    "text": "<b>Deel die als galerij.</b> Zet beoordelen aan, kies hoe lang de link werkt (1, 7 of 30 dagen) en of hij kleine kopieën of de originelen bevat, en stuur hem per e-mail of bericht.",
+    "en": "<b>Share it as a gallery.</b> Switch on rating, choose how long the link works (1, 7 or 30 days) and whether it carries small copies or the originals, then send it by email or message."
+  },
+  "site.proofing.how.title": {
+    "text": "Zo werkt het",
+    "en": "How it works"
+  },
+  "site.proofing.how.you": {
+    "text": "<b>Jij ziet de keuzes.</b> Off The Cloud laat het je weten als er beoordelingen binnenkomen. Open de collectie, toon 4 sterren of meer, sorteer op beoordeling en lees elke notitie bij de foto.",
+    "en": "<b>You see their picks.</b> Off The Cloud lets you know when ratings come in. Open the collection, show 4 stars or more, sort by rating and read each note with its photo."
+  },
+  "site.proofing.link": {
+    "text": "Zo werkt fotoselectie met klanten",
+    "en": "How client proofing works"
+  },
+  "site.proofing.meta.description": {
+    "text": "Deel een fotoshoot via een link: klanten geven foto’s 1 tot 5 sterren en een notitie, zonder account. Sorteer op beoordeling. Alles blijft op je apparaat.",
+    "en": "Share a shoot as a gallery link: clients give photos 1 to 5 stars and a note, with no account. Sort by rating. The photos stay on your own device."
+  },
+  "site.proofing.meta.title": {
+    "text": "Zelf gehoste klantgalerij voor fotografen",
+    "en": "Self-hosted client proofing gallery for photographers"
+  },
+  "site.proofing.sheet.beach_alt": {
+    "text": "Een gezin dat bij zonsondergang over het strand wandelt",
+    "en": "A family walking along the beach at sunset"
+  },
+  "site.proofing.sheet.beach_note": {
+    "text": "Onze favoriet, we zijn dol op het licht!",
+    "en": "Our favourite, we love the light!"
+  },
+  "site.proofing.sheet.caption": {
+    "text": "Wat je klant bij elke foto achterlaat: sterren en een notitie waar iets anders moet.",
+    "en": "What your client leaves on each photo: stars, and a note where they'd like a change."
+  },
+  "site.proofing.sheet.forest_alt": {
+    "text": "Twee kinderen die door een herfstbos lopen",
+    "en": "Two children walking through an autumn forest"
+  },
+  "site.proofing.sheet.forest_note": {
+    "text": "Kun je wat strakker op de kinderen bijsnijden?",
+    "en": "Could you crop closer to the kids?"
+  },
+  "site.proofing.sheet.pumpkins_alt": {
+    "text": "Kinderen die pompoenen uithollen aan de keukentafel",
+    "en": "Children carving pumpkins at the kitchen table"
+  },
+  "site.proofing.sheet.pumpkins_note": {
+    "text": "Iets lichter graag",
+    "en": "A bit brighter, please"
+  },
+  "site.proofing.sheet.stars": {
+    "text": {
+      "one": "{count} ster",
+      "other": "{count} sterren"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "site.proofing.yours.device": {
+    "text": "Off The Cloud draait op een klein apparaat van jezelf, op je bureau of in je studio: een Raspberry Pi 5 met twee USB-schijven die elk een volledige kopie van je bibliotheek bewaren. De galerij voor je klant komt rechtstreeks van dat apparaat, via je eigen adres op off-the.cloud, dus de shoot wordt nooit naar de cloud van iemand anders geüpload.",
+    "en": "Off The Cloud runs on a small device you own, on your desk or in your studio: a Raspberry Pi 5 with two USB drives, each keeping a full copy of your library. Your client's gallery is served straight from it, through your own address at off-the.cloud, so the shoot is never uploaded to someone else's cloud."
+  },
+  "site.proofing.yours.encrypted": {
+    "text": "Je foto’s worden versleuteld op het apparaat opgeslagen, net als de notities van je klant. De galerij zelf is een kopie, versleuteld met een sleutel die alleen de link ervan bevat.",
+    "en": "Your photos are encrypted at rest on the device, and so are the notes your client leaves. The gallery itself is a copy encrypted with a key that only its link carries."
+  },
+  "site.proofing.yours.title": {
+    "text": "Je fotoshoots blijven op je eigen apparaat",
+    "en": "Your shoots stay on your own device"
+  }
+}

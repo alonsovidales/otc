@@ -71,6 +71,16 @@
     .glance-more{max-width:960px;margin:18px auto 0;text-align:center;font-weight:700}
     details p.faq-more{font-weight:700}
 
+    /* For photographers: the text beside a client's picks (proof.css),
+       stacked below 980px; the link leads to the client proofing page. */
+    {{- template "proof-style"}}
+    .proof-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:clamp(24px,4vw,56px);align-items:center}
+    .proof-home > *{min-width:0}
+    .proof-home-text{display:grid;gap:12px;justify-items:start}
+    .proof-home-text h2{font-size:clamp(26.5px,3.4vw,35px);line-height:1.2;margin:0}
+    .proof-home-text p{margin:0 0 6px;color:var(--mist-dim);font-size:17px}
+    @media (max-width:979px){ .proof-home{grid-template-columns:minmax(0,1fr)} }
+
     /* Screenshots */
     .shot-group{margin-bottom:40px}
     .shot-group:last-child{margin-bottom:0}
@@ -449,6 +459,18 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <p>{{t "site.landing.what.web_text"}}</p>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section id="photographers">
+      <div class="container proof-home">
+        <div class="proof-home-text">
+          <span class="eyebrow">{{t "site.proofing.home.eyebrow"}}</span>
+          <h2>{{t "site.proofing.home.title"}}</h2>
+          <p>{{t "site.proofing.home.text"}}</p>
+          <a class="btn" href="{{.Proofing}}">{{t "site.proofing.link"}}</a>
+        </div>
+        {{template "proof-sheet" .}}
       </div>
     </section>
 

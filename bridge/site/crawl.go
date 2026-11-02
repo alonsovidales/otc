@@ -123,6 +123,7 @@ var llmsText = struct {
 		{nameKey: "site.alt.link", href: "/" + AlternativeSlug, key: "site.alt.meta.description"},
 		{nameKey: "site.drive.link", href: "/" + DriveSlug, key: "site.drive.meta.description"},
 		{nameKey: "site.pi.link", href: "/" + PiSlug, key: "site.pi.meta.description"},
+		{nameKey: "site.proofing.link", href: "/" + ProofingSlug, key: "site.proofing.meta.description"},
 		{name: "Privacy notice", href: "/privacy"},
 		{name: "Terms of use", href: "/terms"},
 		{name: "Every page of the site in one file", href: "/llms-full.txt"},

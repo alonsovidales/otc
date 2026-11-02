@@ -280,6 +280,7 @@ func TestSlashedAddressesRedirect(t *testing.T) {
 		"/google-photos-alternative/":  "/google-photos-alternative",
 		"/google-drive-alternative/?x": "/google-drive-alternative?x",
 		"/en/private-social-network/":  "/en/private-social-network",
+		"/client-proofing-gallery/":    "/client-proofing-gallery",
 	}
 	for _, l := range i18n.Languages()[1:] {
 		redirects["/"+l.Code+"/"+site.DriveSlug+"/?utm=a"] = "/" + l.Code + "/" + site.DriveSlug + "?utm=a"

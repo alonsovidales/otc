@@ -1,0 +1,176 @@
+{
+  "site.proofing.faq.account.a": {
+    "text": "Não. A ligação abre a galeria no navegador de qualquer telemóvel, tablet ou computador, onde o teu cliente pode ver as fotos, classificá-las e deixar notas logo. Qualquer pessoa com a ligação pode classificar até ela expirar, por isso envia-a só a quem vai escolher.",
+    "en": "No. The link opens the gallery in the browser on any phone, tablet or computer, where they can look through the photos, rate them and leave notes straight away. Anyone with the link can rate until it expires, so send it to the people choosing."
+  },
+  "site.proofing.faq.account.q": {
+    "text": "O meu cliente precisa de uma conta ou de uma app?",
+    "en": "Does my client need an account or an app?"
+  },
+  "site.proofing.faq.after.a": {
+    "text": "Ficam na coleção, com as notas, enquanto as fotos lá estiverem. Desativa a classificação para as ocultar e volta a ativá-la para as recuperar.",
+    "en": "They stay in the collection, with the notes, for as long as the photos are in it. Turn rating off to hide them, and on again to bring them back."
+  },
+  "site.proofing.faq.after.q": {
+    "text": "O que acontece às classificações quando a ligação expira?",
+    "en": "What happens to the ratings when the link expires?"
+  },
+  "site.proofing.faq.need.a": {
+    "text": "Um dispositivo Off The Cloud, ou seja, um Raspberry Pi 5 com dois discos USB ou outro computador de 64 bits com Debian ou Ubuntu, e o seu endereço em off-the.cloud, como studio.off-the.cloud, onde se abre a ligação do teu cliente. Partilhas e lês as classificações na app web e nas apps para telemóvel.",
+    "en": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps."
+  },
+  "site.proofing.faq.need.q": {
+    "text": "Do que preciso?",
+    "en": "What do I need?"
+  },
+  "site.proofing.faq.self.a": {
+    "text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. Cada foto tem uma só classificação por coleção, partilhada com a ligação de galeria dessa coleção, e o visualizador assinala as classificações que chegaram pela ligação.",
+    "en": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link."
+  },
+  "site.proofing.faq.self.q": {
+    "text": "Posso classificar as fotos eu próprio?",
+    "en": "Can I rate photos myself?"
+  },
+  "site.proofing.faq.where.a": {
+    "text": "No teu dispositivo Off The Cloud. Partilhar cria lá uma cópia da coleção, encriptada com uma chave que só a ligação tem, e o navegador do teu cliente recebe as fotos a partir dela. Apagar a ligação apaga a sua cópia.",
+    "en": "On your Off The Cloud device. Sharing makes a copy of the collection there, encrypted with a key that only the link carries, and your client's browser gets the photos from it. Deleting the link deletes its copy."
+  },
+  "site.proofing.faq.where.q": {
+    "text": "Onde estão as fotos enquanto a ligação está ativa?",
+    "en": "Where are the photos while the link is open?"
+  },
+  "site.proofing.footer": {
+    "text": "Para fotógrafos",
+    "en": "For photographers"
+  },
+  "site.proofing.gives.alert": {
+    "text": "<b>Um alerta quando chegam classificações.</b> O Off The Cloud avisa-te quando o teu cliente classifica uma foto ou deixa uma nota através da ligação.",
+    "en": "<b>An alert as ratings arrive.</b> Off The Cloud lets you know when your client rates a photo or leaves a note through the link."
+  },
+  "site.proofing.gives.copies": {
+    "text": "<b>Cópias pequenas ou originais.</b> Envia cópias pequenas para a seleção, enquanto os originais ficam na tua biblioteca, ou os originais para o teu cliente transferir.",
+    "en": "<b>Small copies or originals.</b> Send small copies for proofing, while the originals stay in your library, or the originals for your client to download."
+  },
+  "site.proofing.gives.expiry": {
+    "text": "<b>Uma ligação que expira sozinha.</b> Funciona durante 1, 7 ou 30 dias, e podes apagá-la antes em Definições, em Ligações partilhadas.",
+    "en": "<b>A link that ends by itself.</b> It works for 1, 7 or 30 days, and you can delete it sooner from Settings, under Shared Links."
+  },
+  "site.proofing.gives.link": {
+    "text": "<b>Uma ligação, nada para instalar.</b> A galeria abre no navegador de qualquer telemóvel, tablet ou computador, e o teu cliente pode classificar logo, sem conta nem app.",
+    "en": "<b>A link, nothing to install.</b> The gallery opens in the browser on any phone, tablet or computer, and your client can rate straight away, without an account or an app."
+  },
+  "site.proofing.gives.sort": {
+    "text": "<b>As escolhidas no topo.</b> Mostra 5 estrelas, 4 estrelas ou mais, as fotos classificadas ou por classificar, ou só as que têm nota, e ordena por classificação para veres primeiro as mais bem classificadas.",
+    "en": "<b>Their picks on top.</b> Show 5 stars, 4 stars or more, the rated or unrated photos, or only those with a note, and sort by rating to see the highest rated first."
+  },
+  "site.proofing.gives.stars": {
+    "text": "<b>Estrelas e uma nota em cada foto.</b> De uma a cinco estrelas para as que agradam, e uma nota onde se quer uma alteração: mais clara, um enquadramento mais apertado, algo a retirar.",
+    "en": "<b>Stars and a note on each photo.</b> One to five stars for the ones they like, and a note wherever they'd like a change: brighter, a closer crop, something taken out."
+  },
+  "site.proofing.gives.title": {
+    "text": "O que tu e o teu cliente ganham",
+    "en": "What you and your client get"
+  },
+  "site.proofing.hero.lead": {
+    "text": "Partilha uma sessão com o teu cliente como uma ligação de galeria. Ele abre-a em qualquer telemóvel ou computador, dá estrelas às fotos de que gosta e deixa uma nota onde quiser uma alteração. Recebes um alerta, abres a coleção e vês as escolhas dele, as melhores primeiro. As fotos ficam no teu próprio dispositivo Off The Cloud, e a ligação expira sozinha.",
+    "en": "Share a shoot with your client as a gallery link. They open it on any phone or computer, give stars to the photos they like and leave a note wherever they'd like a change. You get an alert, open the collection and see their picks, best first. The photos stay on your own Off The Cloud device, and the link expires by itself."
+  },
+  "site.proofing.hero.title": {
+    "text": "Galeria de seleção para clientes, a partir do teu dispositivo",
+    "en": "Client proofing for photographers, from your own device"
+  },
+  "site.proofing.home.eyebrow": {
+    "text": "Para fotógrafos",
+    "en": "For photographers"
+  },
+  "site.proofing.home.text": {
+    "text": "Partilha uma sessão como uma ligação de galeria. O teu cliente dá estrelas às fotos de que gosta e deixa uma nota onde quiser uma alteração, sem conta nem app, e tu vês as escolhas dele na coleção, as melhores primeiro. As fotos ficam no teu próprio dispositivo.",
+    "en": "Share a shoot as a gallery link. Your client gives stars to the photos they like and leaves a note where they'd like a change, with no account or app, and you see their picks in the collection, best first. The photos stay on your own device."
+  },
+  "site.proofing.home.title": {
+    "text": "Deixa os teus clientes escolher as fotos preferidas",
+    "en": "Let your clients pick their favourite photos"
+  },
+  "site.proofing.how.client": {
+    "text": "<b>O teu cliente escolhe.</b> Abre a ligação em qualquer telemóvel ou computador, toca nas estrelas das fotos de que gosta e escreve uma nota em qualquer uma delas: «um pouco mais clara», «tira a placa da esquerda». Sem conta, sem app.",
+    "en": "<b>Your client picks.</b> They open the link on any phone or computer, tap the stars on the photos they like and write a note under any of them: “a bit brighter”, “remove the sign on the left”. No account, no app."
+  },
+  "site.proofing.how.collection": {
+    "text": "<b>Põe a sessão numa coleção.</b> Seleciona as fotos dela em Imagens e adiciona-as a uma coleção própria, com o nome do cliente ou da sessão.",
+    "en": "<b>Put the shoot in a collection.</b> Select its photos in Images and add them to a collection of their own, named after the client or the session."
+  },
+  "site.proofing.how.share": {
+    "text": "<b>Partilha-a como galeria.</b> Ativa a classificação, escolhe quanto tempo dura a ligação (1, 7 ou 30 dias) e se leva cópias pequenas ou os originais, e envia-a por email ou mensagem.",
+    "en": "<b>Share it as a gallery.</b> Switch on rating, choose how long the link works (1, 7 or 30 days) and whether it carries small copies or the originals, then send it by email or message."
+  },
+  "site.proofing.how.title": {
+    "text": "Como funciona",
+    "en": "How it works"
+  },
+  "site.proofing.how.you": {
+    "text": "<b>Vês as escolhas dele.</b> O Off The Cloud avisa-te quando chegam classificações. Abre a coleção, mostra 4 estrelas ou mais, ordena por classificação e lê cada nota junto da respetiva foto.",
+    "en": "<b>You see their picks.</b> Off The Cloud lets you know when ratings come in. Open the collection, show 4 stars or more, sort by rating and read each note with its photo."
+  },
+  "site.proofing.link": {
+    "text": "Como funciona a seleção com clientes",
+    "en": "How client proofing works"
+  },
+  "site.proofing.meta.description": {
+    "text": "Partilha uma sessão por ligação: os clientes dão 1 a 5 estrelas e uma nota a cada foto, sem conta. Ordena por classificação. Tudo fica no teu dispositivo.",
+    "en": "Share a shoot as a gallery link: clients give photos 1 to 5 stars and a note, with no account. Sort by rating. The photos stay on your own device."
+  },
+  "site.proofing.meta.title": {
+    "text": "Galeria de seleção para clientes de fotógrafos",
+    "en": "Self-hosted client proofing gallery for photographers"
+  },
+  "site.proofing.sheet.beach_alt": {
+    "text": "Uma família a passear na praia ao pôr do sol",
+    "en": "A family walking along the beach at sunset"
+  },
+  "site.proofing.sheet.beach_note": {
+    "text": "A nossa preferida, adoramos a luz!",
+    "en": "Our favourite, we love the light!"
+  },
+  "site.proofing.sheet.caption": {
+    "text": "O que o teu cliente deixa em cada foto: estrelas e uma nota onde quiser uma alteração.",
+    "en": "What your client leaves on each photo: stars, and a note where they'd like a change."
+  },
+  "site.proofing.sheet.forest_alt": {
+    "text": "Duas crianças a caminhar numa floresta de outono",
+    "en": "Two children walking through an autumn forest"
+  },
+  "site.proofing.sheet.forest_note": {
+    "text": "Pode enquadrar mais perto das crianças?",
+    "en": "Could you crop closer to the kids?"
+  },
+  "site.proofing.sheet.pumpkins_alt": {
+    "text": "Crianças a esculpir abóboras na mesa da cozinha",
+    "en": "Children carving pumpkins at the kitchen table"
+  },
+  "site.proofing.sheet.pumpkins_note": {
+    "text": "Um pouco mais clara, por favor",
+    "en": "A bit brighter, please"
+  },
+  "site.proofing.sheet.stars": {
+    "text": {
+      "one": "{count} estrela",
+      "other": "{count} estrelas"
+    },
+    "en": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    }
+  },
+  "site.proofing.yours.device": {
+    "text": "O Off The Cloud funciona num pequeno dispositivo teu, na tua secretária ou no teu estúdio: um Raspberry Pi 5 com dois discos USB, cada um com uma cópia completa da tua biblioteca. A galeria do teu cliente é servida diretamente a partir dele, através do teu próprio endereço em off-the.cloud, por isso a sessão nunca é carregada para a nuvem de outra pessoa.",
+    "en": "Off The Cloud runs on a small device you own, on your desk or in your studio: a Raspberry Pi 5 with two USB drives, each keeping a full copy of your library. Your client's gallery is served straight from it, through your own address at off-the.cloud, so the shoot is never uploaded to someone else's cloud."
+  },
+  "site.proofing.yours.encrypted": {
+    "text": "As tuas fotos ficam guardadas encriptadas no dispositivo, tal como as notas do teu cliente. A própria galeria é uma cópia encriptada com uma chave que só a ligação dela tem.",
+    "en": "Your photos are encrypted at rest on the device, and so are the notes your client leaves. The gallery itself is a copy encrypted with a key that only its link carries."
+  },
+  "site.proofing.yours.title": {
+    "text": "As tuas sessões ficam no teu próprio dispositivo",
+    "en": "Your shoots stay on your own device"
+  }
+}

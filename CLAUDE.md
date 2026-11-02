@@ -2231,9 +2231,15 @@ old `account.html` there is never served). `bridge/static/` holds privacy, terms
 and the assets, copied to `/var/www` by the deploy. For search: the
 three comparison pages (`social.html` at `/private-social-network`, `alternative.html` at
 `/google-photos-alternative`, `drive.html` at `/google-drive-alternative`, each also under
-`/<code>/...`, routed like `/account`) and the Raspberry Pi page (`pi.html` at
+`/<code>/...`, routed like `/account`), the Raspberry Pi page (`pi.html` at
 `/raspberry-pi-home-server`: what it needs, the setup, the mirrored drives, the lights, a new Pi;
-linked from the hardware answer and the footer, its claims the landing page's FAQ's) share the
+linked from the hardware answer and the footer, its claims the landing page's FAQ's) and the
+client proofing page for photographers (`proofing.html` at `/client-proofing-gallery`: a shoot
+shared as a gallery link with Rating on, the client's stars and notes, Show and Sort by in the
+collection, the link's 1/7/30 days, small copies or originals; release 163's Rating, its claims
+the Rating spec's only - no watermarks, payments or print orders; linked from the landing page's
+`#photographers` section and the footer; `proof-sheet` in common.html with `pages/proof.css`
+draws three sample-library photos, `img/proof-{1,2,3}-{360,720}.webp`, with stars and notes) share the
 landing page's head, header and footer (`pages/common.html`, `pages/site.css`, plus
 `pages/compare.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
 the same `@id`s in every language, nothing the page doesn't state - no ratings, counts or

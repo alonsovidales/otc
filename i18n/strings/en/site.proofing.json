@@ -1,0 +1,197 @@
+{
+  "site.proofing.faq.account.a": {
+    "text": "No. The link opens the gallery in the browser on any phone, tablet or computer, where they can look through the photos, rate them and leave notes straight away. Anyone with the link can rate until it expires, so send it to the people choosing.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"Does my client need an account or an app?\". The gallery: the web page a shared link opens. Rate: give stars to a photo."
+  },
+  "site.proofing.faq.account.q": {
+    "text": "Does my client need an account or an app?",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question. The client: the photographer's customer, who chooses photos from a shoot."
+  },
+  "site.proofing.faq.after.a": {
+    "text": "They stay in the collection, with the notes, for as long as the photos are in it. Turn rating off to hide them, and on again to bring them back.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"What happens to the ratings when the link expires?\". Rating: the collection's switch that turns stars and notes on; use the apps' word for it in your language."
+  },
+  "site.proofing.faq.after.q": {
+    "text": "What happens to the ratings when the link expires?",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question. Ratings: the stars and notes the client gave."
+  },
+  "site.proofing.faq.need.a": {
+    "text": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"What do I need?\". Keep the address studio.off-the.cloud exactly as it is. The web app and the phone apps: Off The Cloud's own apps."
+  },
+  "site.proofing.faq.need.q": {
+    "text": "What do I need?",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question."
+  },
+  "site.proofing.faq.self.a": {
+    "text": "Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"Can I rate photos myself?\". Rating: the collection's switch that turns stars and notes on; use the apps' word for it. Favourites: the collection every device has, as the apps name it. The viewer: the screen that shows one photo large."
+  },
+  "site.proofing.faq.self.q": {
+    "text": "Can I rate photos myself?",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question. Rate: give stars to a photo."
+  },
+  "site.proofing.faq.where.a": {
+    "text": "On your Off The Cloud device. Sharing makes a copy of the collection there, encrypted with a key that only the link carries, and your client's browser gets the photos from it. Deleting the link deletes its copy.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"Where are the photos while the link is open?\". A security statement: keep its meaning exact."
+  },
+  "site.proofing.faq.where.q": {
+    "text": "Where are the photos while the link is open?",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question. While the link is open: while the gallery link still works."
+  },
+  "site.proofing.footer": {
+    "text": "For photographers",
+    "note": "Website footer: link to the page for photographers about client proofing (off-the.cloud/client-proofing-gallery). Short, like the footer's other links.",
+    "max": 32
+  },
+  "site.proofing.gives.alert": {
+    "text": "<b>An alert as ratings arrive.</b> Off The Cloud lets you know when your client rates a photo or leaves a note through the link.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card. <b> marks its short title in bold. An alert: an entry in the device's Alerts, as the apps name them.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.copies": {
+    "text": "<b>Small copies or originals.</b> Send small copies for proofing, while the originals stay in your library, or the originals for your client to download.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card. <b> marks its short title in bold. Small copies: the low-resolution copies the share option makes (use the apps' words for them); proofing: the client choosing photos from a shoot.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.expiry": {
+    "text": "<b>A link that ends by itself.</b> It works for 1, 7 or 30 days, and you can delete it sooner from Settings, under Shared Links.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card. <b> marks its short title in bold. Settings and Shared Links: the app's tab and its section, as the apps name them.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.link": {
+    "text": "<b>A link, nothing to install.</b> The gallery opens in the browser on any phone, tablet or computer, and your client can rate straight away, without an account or an app.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card. <b> marks its short title in bold. The gallery: the web page the link opens. Rate: give stars to the photos.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.sort": {
+    "text": "<b>Their picks on top.</b> Show 5 stars, 4 stars or more, the rated or unrated photos, or only those with a note, and sort by rating to see the highest rated first.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card about the collection's Show filter (5 stars, 4 stars or more, rated, not rated, with a comment) and its Sort by: Rating. <b> marks its short title in bold. Their picks: the photos the client chose.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.stars": {
+    "text": "<b>Stars and a note on each photo.</b> One to five stars for the ones they like, and a note wherever they'd like a change: brighter, a closer crop, something taken out.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section about what the photographer and the client get: one card. <b> marks its short title in bold. The examples after the colon are the kind of change a client asks a photographer for.",
+    "rich": ["b"]
+  },
+  "site.proofing.gives.title": {
+    "text": "What you and your client get",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): heading of the section listing what the photographer and the client get.",
+    "max": 60
+  },
+  "site.proofing.hero.lead": {
+    "text": "Share a shoot with your client as a gallery link. They open it on any phone or computer, give stars to the photos they like and leave a note wherever they'd like a change. You get an alert, open the collection and see their picks, best first. The photos stay on your own Off The Cloud device, and the link expires by itself.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): the opening paragraph under the main heading. It is often quoted on its own, so keep it plain and complete. A shoot: the photos of one photo session. Their picks: the photos the client chose."
+  },
+  "site.proofing.hero.title": {
+    "text": "Client proofing for photographers, from your own device",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): the main heading at the top of the page. Client proofing: a photographer's client choosing and commenting on the photos of a shoot; use the words photographers in your language use for it.",
+    "max": 70
+  },
+  "site.proofing.home.eyebrow": {
+    "text": "For photographers",
+    "note": "Website landing page: small label above the heading of the short section for photographers (shown in capitals).",
+    "max": 32
+  },
+  "site.proofing.home.text": {
+    "text": "Share a shoot as a gallery link. Your client gives stars to the photos they like and leaves a note where they'd like a change, with no account or app, and you see their picks in the collection, best first. The photos stay on your own device.",
+    "note": "Website landing page: the paragraph of the short section for photographers, above the link to the client proofing page. A shoot: the photos of one photo session. Their picks: the photos the client chose."
+  },
+  "site.proofing.home.title": {
+    "text": "Let your clients pick their favourite photos",
+    "note": "Website landing page: heading of the short section for photographers about client proofing (a photographer's clients choosing the photos they like from a shoot).",
+    "max": 70
+  },
+  "site.proofing.how.client": {
+    "text": "<b>Your client picks.</b> They open the link on any phone or computer, tap the stars on the photos they like and write a note under any of them: “a bit brighter”, “remove the sign on the left”. No account, no app.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section How it works: step 3. <b> marks its short title in bold. The two quoted notes are examples of what a client writes to the photographer: use your language's quotation marks.",
+    "rich": ["b"]
+  },
+  "site.proofing.how.collection": {
+    "text": "<b>Put the shoot in a collection.</b> Select its photos in Images and add them to a collection of their own, named after the client or the session.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section How it works: step 1. <b> marks its short title in bold. Images: the app's tab, as the apps name it. A shoot: the photos of one photo session.",
+    "rich": ["b"]
+  },
+  "site.proofing.how.share": {
+    "text": "<b>Share it as a gallery.</b> Switch on rating, choose how long the link works (1, 7 or 30 days) and whether it carries small copies or the originals, then send it by email or message.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section How it works: step 2. <b> marks its short title in bold. Share it as a gallery: the apps' Share as gallery action. Rating: the share option that lets the client give stars and notes; use the apps' word for it.",
+    "rich": ["b"]
+  },
+  "site.proofing.how.title": {
+    "text": "How it works",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): heading of the section with the four steps, and the button near the top that jumps to it.",
+    "max": 40
+  },
+  "site.proofing.how.you": {
+    "text": "<b>You see their picks.</b> Off The Cloud lets you know when ratings come in. Open the collection, show 4 stars or more, sort by rating and read each note with its photo.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): section How it works: step 4. <b> marks its short title in bold. Show 4 stars or more and sort by rating: the collection's Show filter and Sort by, as the apps word them.",
+    "rich": ["b"]
+  },
+  "site.proofing.link": {
+    "text": "How client proofing works",
+    "note": "Website: the button in the landing page's section for photographers that opens the client proofing page (off-the.cloud/client-proofing-gallery); also the page's name in llms.txt.",
+    "max": 60
+  },
+  "site.proofing.meta.description": {
+    "text": "Share a shoot as a gallery link: clients give photos 1 to 5 stars and a note, with no account. Sort by rating. The photos stay on your own device.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): the description search engines show under the page title (meta description), not visible on the page. Use the words photographers in your language search with. At most 155 characters, so search engines show it whole.",
+    "max": 155
+  },
+  "site.proofing.meta.title": {
+    "text": "Self-hosted client proofing gallery for photographers",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): the page title shown in the browser tab and in search results. Write it the way photographers in your language search for it (a client gallery, a proofing gallery, self-hosted). Search engines show the site's name beside it. At most 60 characters, so they show it whole.",
+    "max": 60
+  },
+  "site.proofing.sheet.beach_alt": {
+    "text": "A family walking along the beach at sunset",
+    "note": "Website: description of a sample photo, read by screen readers, in the picture of a client's picks (on the client proofing page and the landing page's section for photographers)."
+  },
+  "site.proofing.sheet.beach_note": {
+    "text": "Our favourite, we love the light!",
+    "note": "Website: a client's note under a sample photo of a family on a beach at sunset, rated 5 stars, in the picture of a client's picks. Written as a client would write it to the photographer; the page adds the quotation marks.",
+    "max": 50
+  },
+  "site.proofing.sheet.caption": {
+    "text": "What your client leaves on each photo: stars, and a note where they'd like a change.",
+    "note": "Website: caption under the picture of a client's picks (three sample photos, each with its stars and the client's note), on the client proofing page and the landing page's section for photographers."
+  },
+  "site.proofing.sheet.forest_alt": {
+    "text": "Two children walking through an autumn forest",
+    "note": "Website: description of a sample photo, read by screen readers, in the picture of a client's picks."
+  },
+  "site.proofing.sheet.forest_note": {
+    "text": "Could you crop closer to the kids?",
+    "note": "Website: a client's note under a sample photo of two children walking through an autumn forest, rated 3 stars, in the picture of a client's picks. Written as a client would write it to the photographer; the page adds the quotation marks.",
+    "max": 50
+  },
+  "site.proofing.sheet.pumpkins_alt": {
+    "text": "Children carving pumpkins at the kitchen table",
+    "note": "Website: description of a sample photo, read by screen readers, in the picture of a client's picks."
+  },
+  "site.proofing.sheet.pumpkins_note": {
+    "text": "A bit brighter, please",
+    "note": "Website: a client's note under a sample photo of children carving pumpkins in a dim kitchen, rated 4 stars, in the picture of a client's picks. Written as a client would write it to the photographer; the page adds the quotation marks.",
+    "max": 50
+  },
+  "site.proofing.sheet.stars": {
+    "text": {
+      "one": "{count} star",
+      "other": "{count} stars"
+    },
+    "args": [["count", "count"]],
+    "note": "Website: a sample photo's rating, read by screen readers only (the page shows the stars), in the picture of a client's picks."
+  },
+  "site.proofing.yours.device": {
+    "text": "Off The Cloud runs on a small device you own, on your desk or in your studio: a Raspberry Pi 5 with two USB drives, each keeping a full copy of your library. Your client's gallery is served straight from it, through your own address at off-the.cloud, so the shoot is never uploaded to someone else's cloud.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): first paragraph of the section about the photographer's own device, beside a photo of the device on a desk. The gallery: the web page the client's link opens."
+  },
+  "site.proofing.yours.encrypted": {
+    "text": "Your photos are encrypted at rest on the device, and so are the notes your client leaves. The gallery itself is a copy encrypted with a key that only its link carries.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): second paragraph of the section about the photographer's own device. A security statement: keep its meaning exact. At rest: while stored."
+  },
+  "site.proofing.yours.title": {
+    "text": "Your shoots stay on your own device",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): heading of the section about the photographer's own device.",
+    "max": 60
+  }
+}
