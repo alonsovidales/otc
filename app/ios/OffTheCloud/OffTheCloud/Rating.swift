@@ -556,7 +556,8 @@ struct RatingShowMenu: View {
                     .foregroundStyle(active ? MenuStyle.ember : .secondary)
             }
             .font(.subheadline.weight(.medium))
-            .foregroundStyle(active ? MenuStyle.ember : .primary)
+            // As Sort by's beside it; the choice's capsule says it filters.
+            .foregroundStyle(active ? MenuStyle.ember : Color.accentColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(active ? MenuStyle.ember.opacity(0.15) : .clear, in: Capsule())
@@ -609,11 +610,19 @@ struct RateButton: View {
         } label: {
             HStack(spacing: 2) {
                 Image(systemName: mark.stars > 0 ? "star.fill" : "star")
+                    // A comment: a small bubble at the star's corner, so
+                    // the button stays narrow enough for landscape's column.
+                    .overlay(alignment: .topTrailing) {
+                        if mark.hasComment {
+                            Image(systemName: "text.bubble.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .offset(x: 7, y: -5)
+                        }
+                    }
                 if mark.stars > 0 {
                     Text(verbatim: "\(mark.stars)").font(.headline)
-                }
-                if mark.hasComment {
-                    Image(systemName: "text.bubble.fill").font(.caption)
+                        .padding(.leading, mark.hasComment ? 6 : 0)
                 }
             }
             .foregroundStyle(mark.stars > 0 ? RatingStyle.star : .white)
@@ -720,10 +729,14 @@ struct RatingToastView: View {
 
     var body: some View {
         if vm.ratingToast {
-            Text(S.appPhotosRatingTurnedOn)
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+            let text = S.appPhotosRatingTurnedOn
+            // One line where it fits, a size smaller if need be; else as
+            // many as it takes.
+            ViewThatFits(in: .horizontal) {
+                Text(text).font(.subheadline).lineLimit(1)
+                Text(text).font(.footnote).lineLimit(1)
+                Text(text).font(.subheadline).multilineTextAlignment(.center)
+            }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(.regularMaterial, in: Capsule())
