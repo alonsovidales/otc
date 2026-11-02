@@ -3,7 +3,7 @@
   "site.proofing.faq.account.q": {"text": "O meu cliente precisa de uma conta ou de uma app?"},
   "site.proofing.faq.after.a": {"text": "Ficam na coleção, com as notas, enquanto as fotos lá estiverem. Desativa a classificação para as ocultar e volta a ativá-la para as recuperar."},
   "site.proofing.faq.after.q": {"text": "O que acontece às classificações quando a ligação expira?"},
-  "site.proofing.faq.need.a": {"text": "Um dispositivo Off The Cloud, ou seja, um Raspberry Pi 5 com dois discos USB ou outro computador de 64 bits com Debian ou Ubuntu, e o seu endereço em off-the.cloud, como studio.off-the.cloud, onde se abre a ligação do teu cliente. Partilhas e lês as classificações na app web e nas apps para telemóvel."},
+  "site.proofing.faq.need.a": {"text": "Um dispositivo Off The Cloud, ou seja, um Raspberry Pi 5 com dois discos USB ou outro computador de 64 bits com Debian ou Ubuntu, e o seu endereço em off-the.cloud, como studio.off-the.cloud, onde se abre a ligação do teu cliente. Partilhas e lês as classificações na app web."},
   "site.proofing.faq.need.q": {"text": "Do que preciso?"},
   "site.proofing.faq.self.a": {"text": "Sim. Ativa a classificação em qualquer coleção, Favoritos incluída, dá às fotos estrelas e uma nota no visualizador e depois filtra-as e ordena-as da mesma forma. Cada foto tem uma só classificação por coleção, partilhada com a ligação de galeria dessa coleção, e o visualizador assinala as classificações que chegaram pela ligação."},
   "site.proofing.faq.self.q": {"text": "Posso classificar as fotos eu próprio?"},

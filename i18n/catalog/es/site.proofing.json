@@ -3,7 +3,7 @@
   "site.proofing.faq.account.q": {"text": "¿Mi cliente necesita una cuenta o una app?"},
   "site.proofing.faq.after.a": {"text": "Se quedan en la colección, con las notas, mientras las fotos sigan en ella. Desactiva la valoración para ocultarlas y vuelve a activarla para recuperarlas."},
   "site.proofing.faq.after.q": {"text": "¿Qué pasa con las valoraciones cuando caduca el enlace?"},
-  "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, ya sea una Raspberry Pi 5 con dos unidades USB u otro ordenador de 64 bits con Debian o Ubuntu, y su dirección en off-the.cloud, como studio.off-the.cloud, que es donde se abre el enlace de tu cliente. Compartes y lees las valoraciones en la app web y en las apps del teléfono."},
+  "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, ya sea una Raspberry Pi 5 con dos unidades USB u otro ordenador de 64 bits con Debian o Ubuntu, y su dirección en off-the.cloud, como studio.off-the.cloud, que es donde se abre el enlace de tu cliente. Compartes y lees las valoraciones en la app web."},
   "site.proofing.faq.need.q": {"text": "¿Qué necesito?"},
   "site.proofing.faq.self.a": {"text": "Sí. Activa la valoración en cualquier colección, Favoritos incluida, pon estrellas y una nota a las fotos en el visor, y luego fíltralas y ordénalas igual. Cada foto tiene una sola valoración por colección, compartida con el enlace de galería de esa colección, y el visor marca las valoraciones que llegaron por el enlace."},
   "site.proofing.faq.self.q": {"text": "¿Puedo valorar las fotos yo mismo?"},

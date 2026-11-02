@@ -78,7 +78,7 @@ They stay in the collection, with the notes, for as long as the photos are in it
 Can I rate photos myself?
 Yes. Turn on rating in any collection, Favourites included, give photos stars and a note in the viewer, then filter and sort them the same way. Each photo has one rating per collection, shared with the collection's gallery link, and the viewer marks the ratings that came through the link.
 What do I need?
-An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps.
+An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app.
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme

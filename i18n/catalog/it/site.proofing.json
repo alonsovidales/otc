@@ -3,7 +3,7 @@
   "site.proofing.faq.account.q": {"text": "Il mio cliente ha bisogno di un account o di un’app?"},
   "site.proofing.faq.after.a": {"text": "Restano nella raccolta, con le note, finché le foto ci sono. Disattiva la valutazione per nasconderle e riattivala per ritrovarle."},
   "site.proofing.faq.after.q": {"text": "Cosa succede alle valutazioni quando il link scade?"},
-  "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, cioè un Raspberry Pi 5 con due unità USB o un altro computer a 64 bit con Debian o Ubuntu, e il suo indirizzo su off-the.cloud, come studio.off-the.cloud, dove si apre il link del tuo cliente. Condividi e leggi le valutazioni nell’app web e nelle app per telefono."},
+  "site.proofing.faq.need.a": {"text": "Un dispositivo Off The Cloud, cioè un Raspberry Pi 5 con due unità USB o un altro computer a 64 bit con Debian o Ubuntu, e il suo indirizzo su off-the.cloud, come studio.off-the.cloud, dove si apre il link del tuo cliente. Condividi e leggi le valutazioni nell’app web."},
   "site.proofing.faq.need.q": {"text": "Cosa mi serve?"},
   "site.proofing.faq.self.a": {"text": "Sì. Attiva la valutazione in qualsiasi raccolta, Preferiti compresa, dai alle foto stelle e una nota nel visualizzatore, poi filtrale e ordinale allo stesso modo. Ogni foto ha una sola valutazione per raccolta, condivisa con il link della galleria di quella raccolta, e il visualizzatore indica le valutazioni arrivate dal link."},
   "site.proofing.faq.self.q": {"text": "Posso valutare le foto io stesso?"},

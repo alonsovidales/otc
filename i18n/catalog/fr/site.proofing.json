@@ -3,7 +3,7 @@
   "site.proofing.faq.account.q": {"text": "Mon client a-t-il besoin d’un compte ou d’une app ?"},
   "site.proofing.faq.after.a": {"text": "Elles restent dans la collection, avec les commentaires, tant que les photos y sont. Désactivez la notation pour les masquer, puis réactivez-la pour les retrouver."},
   "site.proofing.faq.after.q": {"text": "Que deviennent les notes quand le lien expire ?"},
-  "site.proofing.faq.need.a": {"text": "Un appareil Off The Cloud, c’est-à-dire un Raspberry Pi 5 avec deux disques USB ou un autre ordinateur 64 bits sous Debian ou Ubuntu, et son adresse sur off-the.cloud, comme studio.off-the.cloud, là où s’ouvre le lien de votre client. Vous partagez et lisez les notes dans l’app web et dans les apps pour téléphone."},
+  "site.proofing.faq.need.a": {"text": "Un appareil Off The Cloud, c’est-à-dire un Raspberry Pi 5 avec deux disques USB ou un autre ordinateur 64 bits sous Debian ou Ubuntu, et son adresse sur off-the.cloud, comme studio.off-the.cloud, là où s’ouvre le lien de votre client. Vous partagez et lisez les notes dans l’app web."},
   "site.proofing.faq.need.q": {"text": "De quoi ai-je besoin ?"},
   "site.proofing.faq.self.a": {"text": "Oui. Activez la notation dans n’importe quelle collection, Favoris compris, donnez aux photos des étoiles et un commentaire dans la visionneuse, puis filtrez-les et triez-les de la même façon. Chaque photo a une seule note par collection, partagée avec le lien de galerie de cette collection, et la visionneuse signale les notes arrivées par le lien."},
   "site.proofing.faq.self.q": {"text": "Puis-je noter les photos moi-même ?"},

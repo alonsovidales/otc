@@ -3,7 +3,7 @@
   "site.proofing.faq.account.q": {"text": "Heeft mijn klant een account of app nodig?"},
   "site.proofing.faq.after.a": {"text": "Ze blijven met de notities in de collectie, zolang de foto’s erin staan. Zet beoordelen uit om ze te verbergen en weer aan om ze terug te halen."},
   "site.proofing.faq.after.q": {"text": "Wat gebeurt er met de beoordelingen als de link verloopt?"},
-  "site.proofing.faq.need.a": {"text": "Een Off The Cloud-apparaat, dus een Raspberry Pi 5 met twee USB-schijven of een andere 64-bit computer met Debian of Ubuntu, en het adres van dat apparaat op off-the.cloud, zoals studio.off-the.cloud, waar de link van je klant opent. Je deelt en leest de beoordelingen in de webapp en de telefoonapps."},
+  "site.proofing.faq.need.a": {"text": "Een Off The Cloud-apparaat, dus een Raspberry Pi 5 met twee USB-schijven of een andere 64-bit computer met Debian of Ubuntu, en het adres van dat apparaat op off-the.cloud, zoals studio.off-the.cloud, waar de link van je klant opent. Je deelt en leest de beoordelingen in de webapp."},
   "site.proofing.faq.need.q": {"text": "Wat heb ik nodig?"},
   "site.proofing.faq.self.a": {"text": "Ja. Zet beoordelen aan in elke collectie, ook in Favorieten, geef foto’s in de fotoweergave sterren en een notitie, en filter en sorteer ze daarna op dezelfde manier. Elke foto heeft één beoordeling per collectie, gedeeld met de galerijlink van die collectie, en de fotoweergave markeert de beoordelingen die via de link kwamen."},
   "site.proofing.faq.self.q": {"text": "Kan ik zelf foto’s beoordelen?"},
