@@ -130,6 +130,11 @@ private struct SharedLinkRow: View {
                 Text(opened).font(.caption).foregroundStyle(.secondary)
                 Text(S.appSettingsLinksSizeFiles(size: formatByteCount(link.bytes), count: Int(link.files)))
                     .font(.caption).foregroundStyle(.secondary)
+                // Anyone with it can rate the photos (Rating.swift).
+                if link.rating {
+                    Label(S.appSettingsLinksRating, systemImage: "star")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Button(role: .destructive, action: onDelete) {

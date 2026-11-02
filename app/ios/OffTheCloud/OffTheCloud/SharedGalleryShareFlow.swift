@@ -12,7 +12,10 @@
 //  (CreateSharedGallery, polled with GetSharedGalleryJob). The link that
 //  comes back is shown once: the device never stores its secret, so this
 //  sheet is the only chance to send or copy it. Visitors open it in a
-//  browser (the web app's /shared page). The Android counterpart is
+//  browser (the web app's /shared page). A collection can be shared with
+//  "Let people rate the photos" (CreateSharedGallery.rating, off by
+//  default): visitors give stars and comments that show in the collection,
+//  whose Rating it turns on (Rating.swift). The Android counterpart is
 //  SharedGalleryShareFlow.kt.
 
 import SwiftUI
@@ -92,11 +95,21 @@ final class SharedGalleryShareModel: ObservableObject {
     @Published var expiry: SharedGalleryExpiry = .sevenDays
     /// Only small copies of the photos (their thumbnails), no videos.
     @Published var lowRes = false
+    /// Rating: anyone with the link may rate the photos (a collection only;
+    /// it turns the collection's Rating on). Off by default.
+    @Published var rating = false
     @Published var showActivity = false
     @Published var copied = false
 
     private var source = Msg_SharedGallerySource()
     private var pollTask: Task<Void, Never>?
+    /// The link being made takes ratings: once it is there, the collection's
+    /// Rating is on (Images lists the collections again).
+    private var sentRating = false
+
+    /// A collection is shared: its photos may be rated through the link.
+    /// Not a selection of photos or a folder.
+    var offersRating: Bool { !source.groupID.isEmpty }
 
     var isPresented: Bool {
         if case .idle = stage { return false }
@@ -127,6 +140,8 @@ final class SharedGalleryShareModel: ObservableObject {
         self.source = source
         description = Self.defaultDescription()
         expiry = .sevenDays
+        rating = false
+        sentRating = false
         copied = false
         showActivity = false
         stage = .previewing
@@ -155,6 +170,8 @@ final class SharedGalleryShareModel: ObservableObject {
         req.description_p = description.trimmingCharacters(in: .whitespacesAndNewlines)
         req.ttlHours = expiry.rawValue
         req.lowRes = lowRes
+        req.rating = offersRating && rating
+        sentRating = req.rating
         Task {
             do {
                 let resp = try await ws.request { $0.payload = .reqCreateSharedGallery(req) }
@@ -206,6 +223,11 @@ final class SharedGalleryShareModel: ObservableObject {
         } else {
             stage = .done(job.link)
             showActivity = true
+            // The collection's Rating is on now (on a device that knows it).
+            if sentRating {
+                sentRating = false
+                NotificationCenter.default.post(name: .otcCollectionRatingChanged, object: source.groupID)
+            }
         }
     }
 
@@ -279,6 +301,13 @@ struct SharedGalleryShareSheet: View {
                     ? (p.videos > 0 ? S.appFilesGalleryLowResNoteVideos(count: Int(p.videos)) : S.appFilesGalleryLowResNote)
                     : S.appFilesGalleryFullResNote)) {
                     Toggle(S.appFilesGalleryLowRes, isOn: $model.lowRes)
+                }
+                // A collection: visitors may rate its photos (stars and
+                // comments that show in the collection).
+                if model.offersRating {
+                    Section(footer: Text(S.appFilesGalleryRatingNote)) {
+                        Toggle(S.appFilesGalleryRating, isOn: $model.rating)
+                    }
                 }
                 Section(header: Text(S.iosFilesGalleryExpires)) {
                     Picker(S.iosFilesGalleryExpires, selection: $model.expiry) {

@@ -65,6 +65,9 @@ final class PhotoGalleryVM: ObservableObject {
         /// counts only the photos it brought, so a delete lowers the
         /// right one.
         var up = false
+        /// Its stars and comment in the open collection while its Rating
+        /// is on (File.rating, Rating.swift); none elsewhere.
+        var rating: RatingMark = .none
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -419,10 +422,12 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Why there is nothing to show (the web's and Android's three empty
     /// states).
-    enum EmptyKind: Equatable { case collection, noMatch, noPhotos }
+    enum EmptyKind: Equatable { case collection, noMatch, noPhotos, ratingNoMatch }
 
     var emptyKind: EmptyKind {
         if !chips.isEmpty || !selectedPeople.isEmpty || activeArea != nil || smartText != nil { return .noMatch }
+        // A rated collection's Show keeps none of its photos.
+        if ratingOn && ratingShow != .all { return .ratingNoMatch }
         if activeGroup != nil { return .collection }
         return .noPhotos
     }
@@ -508,7 +513,7 @@ final class PhotoGalleryVM: ObservableObject {
     // through here rather than each spawning its own bare `Task { }` -
     // reported live as clicking a person filter repeatedly sometimes
     // showing unrelated photos mixed into the correct ones.
-    private func restartSearch() {
+    func restartSearch() {
         searchTask?.cancel()
         searchTask = Task { await resetAndLoadFirstPage() }
     }
@@ -593,6 +598,35 @@ final class PhotoGalleryVM: ObservableObject {
         didSet { watchFavourites() }
     }
     private var favouritesWatch: AnyCancellable?
+
+    // MARK: Rating (Rating.swift)
+    /// Sort by and Show in a collection whose Rating is on; back to Date
+    /// and All photos whenever another collection opens.
+    @Published var ratingSort: RatingSort = .date
+    @Published var ratingShow: RatingShow = .all
+    /// SetImageGroupRating is on its way: the header's star waits.
+    @Published var ratingBusy = false
+    /// The one-line note the first time Rating is turned on.
+    @Published var ratingToast = false
+    var ratingToastTask: Task<Void, Never>?
+    /// Whether that note was shown (tests use their own).
+    var ratingDefaults: UserDefaults = .standard
+    /// The viewer's rating panel is open (kept while swiping).
+    @Published var ratingPanelOpen = false
+    /// The viewer's comment box.
+    let ratingDraft = RatingDraft()
+    /// The ratings changed here, sent one at a time, in order.
+    var ratingQueue: Task<Void, Never>?
+    /// What the device last said it holds for a photo changed here: shown
+    /// again when a change is refused.
+    var ratingHeld: [String: RatingMark] = [:]
+    /// The viewer changed a rating: sorted or filtered by rating, the grid
+    /// is asked again as it closes.
+    var ratingChangedInViewer = false
+    /// Rating went on or off while the viewer was open: the grid is asked
+    /// again as it closes.
+    var ratingReloadOnClose = false
+    private var ratingWatch: AnyCancellable?
 
     /// Whether the alert (`notice`, `needsUpdate`) shows `overViewer`
     /// (ImageModal) or over the screen under it (Images, Files): over the
@@ -686,6 +720,12 @@ final class PhotoGalleryVM: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in self?.imagesChanged() }
             }
+        // A shared link made with ratings turned a collection's Rating on.
+        ratingWatch = NotificationCenter.default.publisher(for: .otcCollectionRatingChanged)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.ratingChangedElsewhere() }
+            }
         // Signed in again, a network came up, back in the foreground
         // (OTCConnection.wakes): what failed is asked for again at once.
         wakeWatch = OTCConnection.shared.$wakes
@@ -731,7 +771,7 @@ final class PhotoGalleryVM: ObservableObject {
     // The Files section opens its photos and videos in this same viewer:
     // an instance made with init() only ever shows the list handed to
     // showFiles - no search, no paging, no local merge.
-    private var fixedList = false
+    private(set) var fixedList = false
     /// Called with the path after the viewer deleted a file - or found it
     /// holds other content than was shown (issue #201's "changed") - so the
     /// screen that opened it can re-read its listing.
@@ -946,8 +986,10 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     /// Ordered by how well photos match - tags or a Smart search's words -
-    /// not by date: no months, no date scrubber, no jump.
-    var ranked: Bool { !chips.isEmpty || smartText != nil }
+    /// or by a rated collection's stars (or only some of its photos: Sort
+    /// by and Show, Rating.swift), not by date: no months, no date
+    /// scrubber, no jump.
+    var ranked: Bool { !chips.isEmpty || smartText != nil || ratingRanked }
 
     /// Smart search: the photos that best match these words, within the
     /// other chips. Only while it is on (a device without it would answer
@@ -1160,6 +1202,8 @@ final class PhotoGalleryVM: ObservableObject {
         upArmed = false
         upBreaks = []
         items = []
+        // The new grid's ratings come from the device.
+        ratingHeld = [:]
         jumpBefore = jump
         pageProblem = nil
         slowFirstPage = false
@@ -1208,6 +1252,7 @@ final class PhotoGalleryVM: ObservableObject {
         selectedPeople = []
         activeGroup = nil
         activeArea = nil
+        resetRatingView()
         restartSearch()
     }
 
@@ -1220,6 +1265,7 @@ final class PhotoGalleryVM: ObservableObject {
         selectedPeople = [id]
         activeGroup = nil
         activeArea = nil
+        resetRatingView()
         restartSearch()
     }
 
@@ -1348,6 +1394,9 @@ final class PhotoGalleryVM: ObservableObject {
         // Keep the chip's name/count fresh if the open group changed.
         if let open = activeGroup, let fresh = g.groups.first(where: { $0.id == open.id }) {
             activeGroup = fresh
+            // Its Rating turned on or off elsewhere (another app, a shared
+            // link made with ratings): its photos again (Rating.swift).
+            if fresh.rating != open.rating { ratingTurned() }
         }
         return true
     }
@@ -1361,11 +1410,13 @@ final class PhotoGalleryVM: ObservableObject {
         selectedPeople = []
         activeGroup = g
         activeArea = nil
+        resetRatingView()
         restartSearch()
     }
 
     func leaveGroup() {
         activeGroup = nil
+        resetRatingView()
         restartSearch()
     }
 
@@ -1586,7 +1637,7 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Says `n`: over the viewer while it is open, else over Images
     /// (alertShown).
-    private func say(_ n: GalleryNotice) {
+    func say(_ n: GalleryNotice) {
         notice = n
         showAlert = true
     }
@@ -2136,7 +2187,8 @@ final class PhotoGalleryVM: ObservableObject {
                 created: f.hasCreated ? f.created.date : nil,
                 hash: f.hash,
                 copies: f.hasCopies ? Int(f.copies) : nil,
-                up: true
+                up: true,
+                rating: f.hasRating ? RatingMark(f.rating) : .none
             )
         }
         upHidden += PhotoPaging.hidden(lof.files, own: own, added: new.count)
@@ -2321,13 +2373,15 @@ final class PhotoGalleryVM: ObservableObject {
         let people = selectedPeople
         let group = activeGroup?.id ?? ""
         let area = activeArea
+        // A rated collection's Sort by and Show (Rating.swift): ranked.
+        let rating = ratingQuery
         let requestToken = token ?? ""
         // Issue #194: only what this (downward) search brought - not the
         // photos put above a jump by the upward one - those it brought
         // that show from the upward one included (downHidden).
         let have = items.reduce(0) { $1.up || $1.isLocalOnly ? $0 : $0 + 1 } + downHidden
         let shown = Set(items.map(\.path))
-        let cutoff = text == nil ? jumpBefore : nil
+        let cutoff = text == nil && rating == nil ? jumpBefore : nil
         // What came instead of a page (nil: nothing came), and what was
         // thrown instead of an answer: why the grid says it failed.
         var resp: Msg_RespEnvelope?
@@ -2342,6 +2396,7 @@ final class PhotoGalleryVM: ObservableObject {
             sp.groupID = group // issue #115: inside a group, only its members
             // Places: a group of the map's photos, by its area.
             if let area { sp.area = area }
+            rating?.apply(to: &sp)
             // Issue #106: videos belong in the Images section. They
             // were excluded when this flag arrived (issue #60, where
             // only the composer opted in), which left a device's
@@ -2453,7 +2508,8 @@ final class PhotoGalleryVM: ObservableObject {
                 month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
                 created: f.hasCreated ? f.created.date : nil,
                 hash: f.hash,
-                copies: f.hasCopies ? Int(f.copies) : nil
+                copies: f.hasCopies ? Int(f.copies) : nil,
+                rating: f.hasRating ? RatingMark(f.rating) : .none
             )
         }
         downHidden += PhotoPaging.hidden(lof.files, own: own, added: filtered.count)
@@ -2505,7 +2561,7 @@ final class PhotoGalleryVM: ObservableObject {
         // filter's results coming back mixed with a pile of unrelated
         // photos (a previous unfiltered browse's local files, not a stale
         // server response as first suspected).
-        guard chips.isEmpty && selectedPeople.isEmpty && activeArea == nil && smartText == nil else { return }
+        guard chips.isEmpty && selectedPeople.isEmpty && activeArea == nil && smartText == nil && !ratingRanked else { return }
         let remotePaths = Set(items.map(\.path))
         let locals = scanLocalFiles()
         var adds: [Item] = []
@@ -2555,6 +2611,9 @@ final class PhotoGalleryVM: ObservableObject {
         }
         // Its heart, and its neighbours' for the swipe.
         askFavourites()
+        // In a rated collection: the comment typed for the photo before is
+        // saved, the box holds this one's (Rating.swift).
+        ratingOpened()
     }
     func closeModal() {
         openIndex = nil
@@ -2570,6 +2629,9 @@ final class PhotoGalleryVM: ObservableObject {
         videoPlayer = nil
         playerWatch = []
         dropUnfavourited()
+        // The comment typed is saved; sorted or filtered by rating, the
+        // grid again (Rating.swift).
+        ratingViewerClosed()
     }
 
     /// The open item's path; nil while the viewer is closed.
@@ -3550,6 +3612,12 @@ enum GalleryNotice {
     /// The viewer's heart didn't go through (it is back as it was): the
     /// device's words, if any (FavouritesModel.verdict).
     case favouriteFailed(String?)
+    /// A collection's Rating didn't go on or off: the device's words, if
+    /// any (Rating.swift).
+    case ratingToggleFailed(String?)
+    /// A photo's stars or comment weren't saved (they are back as the
+    /// device holds them): the device's words, if any.
+    case ratingFailed(String?)
 
     var text: String {
         switch self {
@@ -3583,6 +3651,8 @@ enum GalleryNotice {
         case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
         case .smartSearch(let words): return words ?? S.appPhotosSmartSearchFailed
         case .favouriteFailed(let words): return words ?? S.appPhotosViewerFavouriteFailed
+        case .ratingToggleFailed(let words): return words ?? S.appPhotosRatingToggleFailed
+        case .ratingFailed(let words): return words ?? S.appPhotosRatingSaveFailed
         }
     }
 }
@@ -3967,6 +4037,9 @@ struct PhotoGalleryView: View {
         }
         // Hidden from the memories (Undo), or why not.
         .overlay(alignment: .bottom) { MemoryToastView(model: memories).padding(.bottom, 16) }
+        // Rating turned on the first time: what it does.
+        .overlay(alignment: .bottom) { RatingToastView(vm: vm).padding(.bottom, 16) }
+        .animation(.easeInOut(duration: 0.2), value: vm.ratingToast)
         .confirmationDialog(
             S.appPhotosSelectionDeleteTitle(count: vm.selected.count),
             isPresented: $vm.confirmDeleteSelected,
@@ -4119,6 +4192,7 @@ struct PhotoGalleryView: View {
                 isSelected: vm.selected.contains(it.path),
                 hasSelection: !vm.selected.isEmpty,
                 thumbsVersion: vm.thumbsVersion,
+                rating: vm.ratingOn ? it.rating : nil,
                 onTap: { openPath(it.path) },
                 onToggle: { vm.toggleSelect(it.path) },
                 needThumb: { vm.needThumb(it) }
@@ -4202,6 +4276,10 @@ struct PhotoGalleryView: View {
             // keeps working inside it.
             if let g = vm.activeGroup {
                 collectionChip(g)
+                // Its Rating on: Sort by and Show (Rating.swift).
+                if g.rating {
+                    RatingControls(vm: vm)
+                }
             }
             // Places: the photos of one area of the map - tap to go back
             // to the map, × for every place again.
@@ -4322,6 +4400,17 @@ struct PhotoGalleryView: View {
                 gallerySource = .group(g.id)
             } label: { Image(systemName: "square.and.arrow.up").chipAction(chipIconSize) }
             .accessibilityLabel(S.appShellShareAsGalleryMenu)
+            // Rating (Rating.swift): stars and a comment per photo, on or
+            // off - favourites too.
+            Button {
+                Task { await vm.toggleRating() }
+            } label: {
+                Image(systemName: g.rating ? "star.fill" : "star").chipAction(chipIconSize)
+                    .foregroundStyle(g.rating ? RatingStyle.starOnPage : Color.accentColor)
+            }
+            .disabled(vm.ratingBusy)
+            .accessibilityLabel(g.rating ? S.appPhotosRatingOn : S.appPhotosRatingOff)
+            .help(S.appPhotosRatingTitle)
             // The collection as the iPhone's wallpaper: its screen, which
             // first says that the photos are stored on the phone.
             Button {
@@ -4561,6 +4650,14 @@ struct PhotoGalleryView: View {
                 text: vm.activeGroup.map { S.appPhotosGridNoMatchIn(name: $0.name) } ?? S.appPhotosGridNoMatchText,
                 button: S.appShellSearchClear
             ) { vm.clearSearch() }
+        case .ratingNoMatch:
+            // A rated collection's Show keeps none: back to All photos.
+            PhotosStateView(
+                art: AnyView(Image(systemName: "star").font(.system(size: 36, weight: .light))),
+                title: S.appPhotosRatingNoMatch,
+                text: "",
+                button: S.appPhotosRatingShowEverything
+            ) { vm.setRatingShow(.all) }
         case .noPhotos:
             PhotosStateView(
                 art: AnyView(NavIconView(.images, size: 40, stroke: 1.2)),
@@ -4608,12 +4705,14 @@ private struct PhotosStateView: View {
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 16)
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-                .padding(.top, 8)
+            if !text.isEmpty {
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+                    .padding(.top, 8)
+            }
             if let action {
                 action.padding(.top, 20)
             }
@@ -4958,6 +5057,9 @@ private struct PhotoTile: View {
     /// The grid's thumbnails changed (PhotoGalleryVM.thumbsVersion): the
     /// image is looked up again.
     let thumbsVersion: Int
+    /// Its stars and comment in a collection whose Rating is on; nil
+    /// elsewhere (Rating.swift).
+    let rating: RatingMark?
     let onTap: () -> Void
     let onToggle: () -> Void
     /// It has no image to show: from the thumbnail cache, else the device.
@@ -4968,6 +5070,18 @@ private struct PhotoTile: View {
     /// Nearly square corners, as the web's tiles (2px): with 2 pt between
     /// tiles, rounder ones read as separate cards rather than one wall.
     static let corner: CGFloat = 2
+
+    /// Its stars for VoiceOver ("4 stars"); "" without.
+    private var starsSaid: String {
+        guard let rating, rating.stars > 0 else { return "" }
+        return RatingRules.starsText(rating.stars)
+    }
+
+    /// Its comment, read as more content; nil without.
+    private var commentSaid: Text? {
+        guard let rating, rating.hasComment else { return nil }
+        return Text(rating.comment)
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -4981,6 +5095,9 @@ private struct PhotoTile: View {
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
                     .padding(6)
+            } else if let rating {
+                // "★ 4" and a speech bubble for a comment.
+                RatingBadge(mark: rating).padding(4)
             }
         }
         .frame(width: side, height: side)
@@ -4997,6 +5114,9 @@ private struct PhotoTile: View {
         // as the web's tiles are ("Photo, 5 October 2026").
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(PhotoMonths.tileLabel(video: item.mime.hasPrefix("video/"), date: item.created))
+        // Rated: its stars, and its comment as more content.
+        .accessibilityValue(starsSaid)
+        .accessibilityCustomContent(AccessibilityCustomContentKey(Text(S.appPhotosRatingComment), id: "rating.comment"), commentSaid)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction {
             if hasSelection { onToggle() } else { onTap() }
@@ -5082,6 +5202,12 @@ struct ImageModal: View {
     // startAnchor) and snaps back on release - @GestureState resets itself.
     @GestureState private var pinchScale: CGFloat = 1.0
     @GestureState private var pinchAnchor: UnitPoint = .center
+    /// The rating panel's comment box has the keyboard (Rating.swift).
+    @FocusState private var commentFocused: Bool
+
+    /// The rating panel shows: a collection whose Rating is on, its Rate
+    /// button tapped (it stays open while swiping).
+    private var ratingPanelShown: Bool { vm.viewerRates && vm.ratingPanelOpen }
 
     var body: some View {
         ZStack {
@@ -5115,19 +5241,35 @@ struct ImageModal: View {
                                 .padding(.top, 8)
                         }
                         strip
+                        if landscape && ratingPanelShown {
+                            // The rating panel beside the photo, which
+                            // gives way sideways rather than being covered.
+                            ScrollView {
+                                ratingPanel
+                            }
+                            .frame(width: min(320, screen.size.width * 0.42))
+                        }
                         if landscape {
                             // Trailing column: close at the top, share,
                             // the heart, save and delete in the middle,
                             // under the right thumb.
-                            VStack(spacing: 20) { actionButtons(landscape: true) }
+                            VStack(spacing: vm.viewerRates ? 14 : 20) { actionButtons(landscape: true) }
                                 .frame(maxHeight: .infinity)
                                 .overlay(alignment: .top) { closeButton(landscape: true).padding(.top, 8) }
                                 .frame(width: Self.sideColumnWidth)
                         }
                     }
 
-                    if !landscape {
-                        HStack(spacing: 48) { actionButtons(landscape: false) }
+                    if !landscape && ratingPanelShown {
+                        // Under the photo, which gets smaller with it (and
+                        // with the keyboard) rather than covered.
+                        ratingPanel
+                    }
+
+                    // While a comment is typed the photo keeps the room the
+                    // buttons took.
+                    if !landscape && !(ratingPanelShown && commentFocused) {
+                        HStack(spacing: vm.viewerRates ? 30 : 48) { actionButtons(landscape: false) }
                             .font(.title2)
                             .foregroundStyle(.white)
                             .padding(.vertical, 12)
@@ -5164,6 +5306,18 @@ struct ImageModal: View {
         // presented from the screen under it, an alert would close it.
         .alert(vm.notice?.text ?? "", isPresented: vm.alertBinding(overViewer: true)) { Button(S.commonOk, role: .cancel) {} }
         .deviceNeedsUpdate(vm.needsUpdateBinding(overViewer: true))
+    }
+
+    /// The open photo's stars and comment (Rating.swift), with Done over
+    /// the keyboard to put it away without saving.
+    private var ratingPanel: some View {
+        RatingPanel(vm: vm, draft: vm.ratingDraft, focus: $commentFocused)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(S.commonDone) { commentFocused = false }
+                }
+            }
     }
 
     /// The delete question and its button: "Delete this video?" and
@@ -5229,6 +5383,11 @@ struct ImageModal: View {
             // Favourites: the heart, where the Photos app has it (after
             // Share).
             FavouriteButton(vm: vm, store: vm.favourites, side: side)
+            // A collection whose Rating is on: the photo's stars, opening
+            // its rating panel (Rating.swift).
+            if vm.viewerRates {
+                RateButton(vm: vm, side: side)
+            }
             // Issue #201: a spinner while the original downloads and is
             // saved.
             let saving = vm.savingPath != nil && vm.savingPath == vm.openPath

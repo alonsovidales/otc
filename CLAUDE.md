@@ -3597,6 +3597,32 @@ Reduce Motion) as it fills; `unknown_payload` hides it until `OTCConnection.conn
 endpoint forgets the answers, Log Out resets). In an open Favourites an emptied heart keeps its photo
 in the viewer and `closeModal` drops it from the grid (`dropUnfavourited`, as Remove from collection);
 a heart from another viewer asks for the grid again (`FavouriteChange.by`).
+**Rating on iOS** (2026-11-02, release 163's protocol; `Rating.swift`, tests `RatingTests.swift`; texts
+`app.photos.rating.*`, `app.files.gallery_rating*`, `app.settings.links.rating`, shared with Android): the
+open collection's chip has a star after Share (`toggleRating`, SetImageGroupRating; filled while on,
+"Rating on"/"Rating off" to VoiceOver; done, its grid again - the listing carries `File.rating` only while
+on - from Date and All photos; the first time ever, `RatingToastView`'s one-line note, `rating.introduced`
+in UserDefaults; `unknown_payload` -> DeviceNeedsUpdate `needs_update`; refused, the device's words or
+`toggle_failed`). While on, a row under the chip (`RatingControls`): `SortByMenu` Date / Rating
+(`by_rating`) and `RatingShowMenu` (All photos, 5, 4, 3, 2 stars or more, Rated = min 1, Not rated,
+With a comment -> `RatingFilter`; ember while not All photos); either one not the default makes the grid
+`ranked` (`ratingRanked`: no months, buckets or scrubber); both go back to the defaults whenever a
+collection opens or Images leaves it; none matching is `EmptyKind.ratingNoMatch` with Show all photos.
+Tiles show `RatingBadge` ("★ 4", a speech bubble for a comment; VoiceOver: the stars as the tile's value,
+the comment as more content). The viewer (`viewerRates`: never a fixed list - Files, the map, a memory)
+has a Rate button after the heart (the stars and a bubble) that opens `RatingPanel` (`ratingPanelOpen`,
+kept while swiping): under the photo in portrait - the buttons' row gives way while the comment is typed
+-, a 320 pt column beside it in landscape; five stars (`tapStar`: the current one clears; one adjustable
+VoiceOver element), "From the shared link" when `from_link`, the comment box (`RatingDraft`, outside the
+view model so typing doesn't redraw the grid; at most 2000 scalars, `RatingRules.clip`) and Save (enabled
+once `changed`). Stars save at once with the comment as stored; the comment with Save, or by itself when
+the viewer moves to another photo (`ratingOpened`) or closes (`ratingViewerClosed`). Every change shows at
+once and goes through `ratingQueue`, one at a time, in order; refused, the photo shows what the device
+holds (`ratingHeld`) and the device's words or `save_failed`; `rating_off` also turns the collection's
+Rating off. Sorted or filtered, the grid is asked again as the viewer closes. Share as Gallery from a
+collection has "Let people rate the photos" (`offersRating`, off by default, `CreateSharedGallery.rating`);
+the link made, `.otcCollectionRatingChanged` lists the collections again, and a changed `rating` in that
+list reloads the open grid (`ratingTurned`). Settings › Shared links says "Rating on" for such a link.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before
