@@ -21,10 +21,11 @@
 //    - The viewer, only inside such a collection (never Files', the map's
 //      or a memory's), has a Rate button opening a panel: five stars
 //      (tapping the current one clears them) that save at once with the
-//      comment as stored, and a comment box saved with Save, or by itself
-//      when the viewer moves to another photo or closes. One change at a
-//      time is sent, in order; refused, the photo's rating goes back to
-//      what the device holds and the device's words are said.
+//      comment as the box has it, and a comment box saved with Save, with
+//      a star, or by itself when the viewer moves to another photo or
+//      closes. One change at a time is sent, in order; refused, the
+//      photo's rating goes back to what the device holds and the device's
+//      words are said.
 //    - A device from before it answers unknown_payload: it needs an update
 //      (DeviceNeedsUpdate).
 //
@@ -390,14 +391,19 @@ extension PhotoGalleryVM {
     }
 
     /// Star `n` of the open photo tapped: that many stars, or none when it
-    /// is the current one - shown at once, saved with its comment as
-    /// stored.
+    /// is the current one - shown at once, saved with the comment as the
+    /// box has it (as the web and Android do), which is then saved too.
     func tapStar(_ n: Int) {
         guard viewerRates, let i = openIndex else { return }
+        let path = items[i].path
         var mark = items[i].rating
         mark.stars = RatingRules.tapped(n, current: mark.stars)
         mark.fromLink = false
-        rate(items[i].path, mark)
+        if ratingDraft.path == path {
+            mark.comment = RatingRules.tidy(ratingDraft.text)
+            ratingDraft.text = mark.comment
+        }
+        rate(path, mark)
     }
 
     /// Save: the open photo's comment as the box has it.

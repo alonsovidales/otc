@@ -3615,7 +3615,8 @@ kept while swiping): under the photo in portrait - the buttons' row gives way wh
 -, a 320 pt column beside it in landscape; five stars (`tapStar`: the current one clears; one adjustable
 VoiceOver element), "From the shared link" when `from_link`, the comment box (`RatingDraft`, outside the
 view model so typing doesn't redraw the grid; at most 2000 scalars, `RatingRules.clip`) and Save (enabled
-once `changed`). Stars save at once with the comment as stored; the comment with Save, or by itself when
+once `changed`). Stars save at once with the comment as the box has it (the web's and Android's rule: the
+box is saved with them, so Save goes grey); the comment with Save, or by itself when
 the viewer moves to another photo (`ratingOpened`) or closes (`ratingViewerClosed`). Every change shows at
 once and goes through `ratingQueue`, one at a time, in order; refused, the photo shows what the device
 holds (`ratingHeld`) and the device's words or `save_failed`; `rating_off` also turns the collection's

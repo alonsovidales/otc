@@ -432,27 +432,40 @@ struct RatingCollectionTests {
         vm.closeModal()
     }
 
-    @Test func starsSaveAtOnceWithTheCommentAsStored() async {
+    @Test func starsSaveAtOnceWithTheCommentInTheBox() async {
         let (vm, device) = await model()
         vm.open(index: 0)
         #expect(vm.viewerRates)
         #expect(vm.ratingDraft.text == "nice")
-        // Typed but not saved: the stars go with the comment stored.
-        vm.ratingDraft.text = "nicer"
+        // Typed but not saved: the stars go with the box's comment (the web's
+        // and Android's rule), which is then saved - Save goes grey.
+        vm.ratingDraft.text = "  nicer \n"
+        #expect(RatingRules.changed(draft: vm.ratingDraft.text, saved: vm.openRating.comment))
         vm.tapStar(2)
-        #expect(vm.openRating.stars == 2)
+        #expect(vm.openRating == RatingMark(stars: 2, comment: "nicer"))
+        #expect(vm.ratingDraft.text == "nicer")
+        #expect(!RatingRules.changed(draft: vm.ratingDraft.text, saved: vm.openRating.comment))
         await waitUntil { device.rates.count == 1 }
         #expect(device.rates.first?.groupID == "g1")
         #expect(device.rates.first?.path == "/p/0.jpg")
         #expect(device.rates.first?.stars == 2)
-        #expect(device.rates.first?.comment == "nice")
-        // The current star again: none.
+        #expect(device.rates.first?.comment == "nicer")
+        // The current star again: none, the comment kept.
         vm.tapStar(2)
         #expect(vm.openRating.stars == 0)
         await waitUntil { device.rates.count == 2 }
         #expect(device.rates.last?.stars == 0)
-        #expect(vm.ratingDraft.text == "nicer")
+        #expect(device.rates.last?.comment == "nicer")
+        // Emptied, then a star: the comment goes with it.
+        vm.ratingDraft.text = ""
+        vm.tapStar(4)
+        await waitUntil { device.rates.count == 3 }
+        #expect(device.rates.last?.stars == 4)
+        #expect(device.rates.last?.comment == "")
+        // Closing sends nothing more: the box was saved.
         vm.closeModal()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(device.rates.count == 3)
     }
 
     @Test func aRefusedRatingGoesBackWithTheDevicesWords() async {
