@@ -975,6 +975,7 @@ export type MessageKey =
   | "web.shell.unreachable.note"
   | "web.shell.unreachable.title"
   | "web.shell.unreachable.wifi_hint"
+  | "web.social.alerts.collection_gone"
   | "web.social.alerts.friends"
   | "web.social.alerts.load_failed"
   | "web.social.alerts.more"
@@ -2154,6 +2155,7 @@ export interface MessageArgs {
   "web.shell.unreachable.title": undefined;
   "web.shell.unreachable.wifi_hint": undefined;
   "web.shell.update.critical": { version: string; summary: string };
+  "web.social.alerts.collection_gone": undefined;
   "web.social.alerts.commented": { name: string };
   "web.social.alerts.friend_accepted": { name: string };
   "web.social.alerts.friend_request": { name: string };

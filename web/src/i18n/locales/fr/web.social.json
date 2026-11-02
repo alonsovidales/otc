@@ -1,4 +1,5 @@
 {
+  "web.social.alerts.collection_gone": "Cette collection n’existe plus.",
   "web.social.alerts.commented": "\u003cb\u003e\u2068{name}\u2069\u003c/b\u003e a commenté votre publication",
   "web.social.alerts.friend_accepted": "\u003cb\u003e\u2068{name}\u2069\u003c/b\u003e a accepté votre demande d’ami",
   "web.social.alerts.friend_request": "\u003cb\u003e\u2068{name}\u2069\u003c/b\u003e vous a envoyé une demande d’ami",

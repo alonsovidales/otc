@@ -2187,7 +2187,10 @@ viewer closes when something was rated. Share as gallery has "Let people rate th
 only (`CreateSharedGallery.rating`, off by default; the collections are listed again after), Settings › Shared
 links says `rating_on`, and the `/shared` page of a link with `SharedGallery.rating` says `rating_intro`, has
 the badges, the viewer's stars and box (`RateSharedGalleryItem`, no from-link note) and its own Show and Sort
-by over its items (`arrangeItems`; its viewer steps through the order it opened with). What Images shows is `photoFilter.ts` (tags, people, open
+by over its items (`arrangeItems`; its viewer steps through the order it opened with). Alerts show a
+`NotificationRating` row (a gold star, the device's title, its details under it, the time) that opens its
+collection in Images (`libraryStore.findGroup`, listed again first; gone: `web.social.alerts.collection_gone`
+under the row). What Images shows is `photoFilter.ts` (tags, people, open
 collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

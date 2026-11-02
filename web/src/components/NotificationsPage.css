@@ -101,6 +101,13 @@ button.np-open:focus-visible { outline: 2px solid var(--gold); outline-offset: -
 }
 .np-item.np-error:last-child { border-bottom: 0; }
 .np-error-icon { color: var(--ember); background: transparent; }
+/* Rating (release 163): someone rated a collection's photos through its
+   shared link - a gold star, the details on a line of their own, and, when
+   its collection couldn't be opened, why under the row. */
+.np-rating-icon { color: var(--gold); }
+.np-item-details { display: block; margin-top: 2px; color: var(--mist-dim); font-size: 13px; overflow-wrap: anywhere; }
+.np-item:has(> .np-row-note) { flex-wrap: wrap; row-gap: 4px; }
+.np-row-note { flex-basis: 100%; margin: 0; padding-left: 52px; color: var(--danger); font-size: 13px; }
 .np-more { color: var(--mist-dim); font-size: 13px; }
 .np-popover {
   display: none;

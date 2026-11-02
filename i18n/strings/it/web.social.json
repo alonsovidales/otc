@@ -1,4 +1,8 @@
 {
+  "web.social.alerts.collection_gone": {
+    "text": "Questa raccolta non esiste più.",
+    "en": "This collection no longer exists."
+  },
   "web.social.alerts.commented": {
     "text": "<b>{name}</b> ha commentato il tuo post",
     "en": "<b>{name}</b> commented on your post"

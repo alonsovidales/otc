@@ -678,6 +678,7 @@ function App() {
             }}
             onOpenFriendRequests={() => goTo("Friends")}
             onOpenSettings={() => goTo("Settings")}
+            onOpenPhotos={() => goTo("PhotoGallery")}
             onAcknowledged={clearNotificationCount}
           />
         ) : signedOutPlaceholder)}

@@ -17,6 +17,9 @@ import { pollDevice } from "./devicePoll";
 import { asIs, say, type UiText } from "./uiText";
 import Spinner from "./Spinner";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { findGroup } from "./libraryStore";
+import { openGroup } from "./photoFilter";
+import { StarGlyph } from "./RatingPanel";
 
 const POLL_MS = 5000;
 
@@ -87,6 +90,9 @@ type NotificationsProps = {
   onOpenFriendRequests: () => void;
   // Issue #183: an update notification opens Settings, where Update is.
   onOpenSettings?: () => void;
+  // Rating (release 163): a Rating alert opens its collection in Images
+  // (the filter is set here; this shows Images).
+  onOpenPhotos?: () => void;
   // Lets App.tsx zero the TopTabs badge the instant this page marks
   // everything read, rather than waiting for that separate poll to catch up.
   onAcknowledged: () => void;
@@ -101,9 +107,13 @@ function Alerts({
   onOpenPost,
   onOpenFriendRequests,
   onOpenSettings,
+  onOpenPhotos,
   onAcknowledged,
 }: NotificationsProps) {
   const t = useT();
+  // A Rating alert whose collection couldn't be opened: why, under it.
+  const [rowNote, setRowNote] = useState<{ uuid: string; text: UiText } | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<PbNotification[] | null>(null);
   // The list couldn't be read: the device's words, or ours, with Try again.
   const [loadError, setLoadError] = useState<UiText | null>(null);
@@ -200,9 +210,30 @@ function Alerts({
     }
   };
 
+  // Rating: the collection the alert names, in Images - listed again first
+  // (it may have been renamed, or deleted since). Gone: a note says so;
+  // the list not to be had: that the device can't be reached.
+  const openRated = async (n: PbNotification) => {
+    if (opening) return;
+    setRowNote(null);
+    setOpening(n.uuid);
+    const g = await findGroup(n.groupId);
+    setOpening(null);
+    if (!g) {
+      setRowNote({ uuid: n.uuid, text: say(g === null ? "web.social.alerts.collection_gone" : "web.images.error.unreachable") });
+      return;
+    }
+    openGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
+    onOpenPhotos?.();
+  };
+
   const onClickNotification = (n: PbNotification) => {
     if (n.type === NotificationType.NotificationUpdate) {
       onOpenSettings?.();
+      return;
+    }
+    if (n.type === NotificationType.NotificationRating) {
+      void openRated(n);
       return;
     }
     if (n.type === NotificationType.NotificationError) {
@@ -233,17 +264,22 @@ function Alerts({
             const { avatar, thumb } = images.get(n.uuid) ?? { avatar: null, thumb: null };
             const isError = n.type === NotificationType.NotificationError;
             const isUpdate = n.type === NotificationType.NotificationUpdate;
+            const isRating = n.type === NotificationType.NotificationRating;
             const actorKey = describe(n);
             const actor = n.actorName || n.actorDomain;
             // Where the row goes: an error row (with details) opens and
-            // closes its list of errors, an update Settings, the rest the
-            // post or the friend requests. A row with nowhere to go is
-            // text, not a button.
-            const opens = isUpdate || (isError ? !!n.details
+            // closes its list of errors, an update Settings, a rating its
+            // collection, the rest the post or the friend requests. A row
+            // with nowhere to go is text, not a button.
+            const opens = isUpdate || (isRating ? !!n.groupId : isError ? !!n.details
               : n.type === NotificationType.NotificationFriendRequest || n.type === NotificationType.NotificationFriendAccepted || !!n.pubUuid);
             const content = (
               <>
-                {isUpdate ? (
+                {isRating ? (
+                  <div className="np-avatar np-avatar-placeholder np-rating-icon" aria-hidden="true">
+                    {opening === n.uuid ? <Spinner /> : <StarGlyph filled size={20} />}
+                  </div>
+                ) : isUpdate ? (
                   <div className="np-avatar np-avatar-placeholder np-update-icon" aria-hidden="true">
                     <svg width="20" height="20" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -266,7 +302,15 @@ function Alerts({
                 <span className="np-item-text">
                   {/* The device's title and details (an update, an error) as
                       they come: it writes them in the language asked. */}
-                  {isUpdate ? (
+                  {isRating ? (
+                    // Someone rated photos through the collection's link:
+                    // what and when, and under it the device's details.
+                    <>
+                      <strong>{n.title || actor}</strong>
+                      <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>
+                      {n.details && <span className="np-item-details">{n.details}</span>}
+                    </>
+                  ) : isUpdate ? (
                     <><strong>{n.title}</strong>{n.details ? <> - {n.details}</> : null}</>
                   ) : isError ? (
                     <>
@@ -280,7 +324,7 @@ function Alerts({
                   ) : (
                     <><strong>{actor}</strong> </>
                   )}
-                  <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>
+                  {!isRating && <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>}
                 </span>
                 {thumb && <img src={thumb} className="np-thumb" alt="" />}
               </>
@@ -296,6 +340,7 @@ function Alerts({
                     className="np-open"
                     onClick={() => onClickNotification(n)}
                     aria-expanded={isError ? !!pinnedDetails[n.uuid] : undefined}
+                    aria-busy={opening === n.uuid || undefined}
                   >
                     {content}
                   </button>
@@ -310,6 +355,9 @@ function Alerts({
                 )}
                 {isError && n.details && (
                   <pre className="np-popover">{n.details}</pre>
+                )}
+                {rowNote?.uuid === n.uuid && (
+                  <p className="np-row-note" role="status">{rowNote.text(t)}</p>
                 )}
               </li>
             );

@@ -132,6 +132,22 @@ export function reloadAfterImagesChanged() {
   }, () => {});
 }
 
+/** A collection by id, for a way to it from elsewhere (a Rating alert):
+ *  listed again first, as it may be new, renamed or gone. null: the
+ *  device's list, just read, doesn't have it; undefined: no list could be
+ *  read just now and the one held doesn't have it either. */
+export async function findGroup(id: string): Promise<ImageGroup | null | undefined> {
+  const before = groups;
+  try {
+    await reloadGroups();
+  } catch {
+    // The list held, if any.
+  }
+  const found = groups.items.find((g) => g.id === id);
+  if (found) return found;
+  return groups !== before && groups.loaded ? null : undefined;
+}
+
 const getPeople = () => people;
 const getGroups = () => groups;
 const getTags = () => tags;
