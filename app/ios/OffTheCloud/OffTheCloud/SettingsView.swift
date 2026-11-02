@@ -435,14 +435,28 @@ final class StatusViewModel: ObservableObject {
     /// The last ask's error, worded now (the menu's storage line reads it too).
     var errorText: String? { error?.text }
     private var pollTask: Task<Void, Never>?
+    /// Seconds between asks: 5, or 2 while Settings › Storage waits for the
+    /// device to take up a disk (MirrorDiskViewModel.fastPoll).
+    private var every: UInt64 = 5
 
     func start() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while let self, !Task.isCancelled {
                 await self.fetch()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: self.every * 1_000_000_000)
             }
+        }
+    }
+
+    /// Asks every 2 s (`fast`) or 5 s; a poll running starts again at once.
+    func setFast(_ fast: Bool) {
+        let seconds: UInt64 = fast ? 2 : 5
+        guard seconds != every else { return }
+        every = seconds
+        if pollTask != nil {
+            stop()
+            start()
         }
     }
 
@@ -480,6 +494,9 @@ struct SettingsView: View {
     @Environment(\.wideLayout) private var wide
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
+    // Settings › Storage: a disk the mirror could take (StorageSection),
+    // fed by the Status answers above.
+    @StateObject private var mirror = MirrorDiskViewModel()
     // Settings > Users; its sheet is presented here (usersManagementSheets).
     @StateObject private var users = UsersManagementViewModel()
     // The other sections only the device can say it has (DeviceSection).
@@ -545,6 +562,11 @@ struct SettingsView: View {
                 Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
+
+                // Storage (issue #208): a disk that isn't blank, offered
+                // for the mirror - only while there is one, or one asked
+                // for here is being added.
+                StorageSection(model: mirror, status: status)
 
                 // What the device works through by itself (release 152),
                 // from the Status answer above - asked every 5 s while
@@ -833,6 +855,11 @@ struct SettingsView: View {
         .usersManagementSheets(users)
         // Shut down device on a device too old for it (UpdateSection).
         .deviceNeedsUpdate($update.needsUpdate)
+        // Settings › Storage follows every Status answer (equal ones too:
+        // its 20 s wait is counted at each), and asks for them faster while
+        // the device takes a disk up.
+        .onReceive(status.$status) { mirror.sawStatus($0) }
+        .onChange(of: mirror.fastPoll) { _, fast in status.setFast(fast) }
         // Back from iOS Settings, where access may just have been given.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             refreshPhotosAuthorized()
@@ -1280,8 +1307,9 @@ func sizeText(_ mb: Double) -> String {
 
 // Issue #65: a plain, always-visible read of the RAID's own health -
 // "in sync"/"syncing"/"degraded" - rather than something the user has to
-// infer from whether an error banner happens to be showing.
-private func raidStateLabel(_ s: Msg_Status) -> String {
+// infer from whether an error banner happens to be showing. Settings ›
+// Storage shows it under the copy's progress too.
+func raidStateLabel(_ s: Msg_Status) -> String {
     switch s.raidState {
     case .raidNone: return S.appSettingsStatusRaidNone
     case .raidInSync: return S.appSettingsStatusRaidInSync

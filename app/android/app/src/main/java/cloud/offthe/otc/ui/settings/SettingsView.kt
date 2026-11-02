@@ -377,7 +377,7 @@ import cloud.offthe.otc.ui.common.FitText
 // connection, sync options and device updates (#94).
 
 @Composable
-private fun Section(title: String, footer: String? = null, below: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
+internal fun Section(title: String, footer: String? = null, below: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
@@ -530,9 +530,14 @@ fun SettingsView(secrets: SecretsStore) {
     }
     // A8: the status poll only while the app is in front (STARTED), as the
     // wide layout's menu: it used to ask every 5 s with the Activity stopped.
-    LaunchedEffect(lifecycle) {
+    // Every 2 s while Settings › Storage waits for the device to take a disk
+    // up (StorageSection).
+    val mirror: MirrorDiskViewModel = viewModel()
+    val mirrorState by mirror.state.collectAsState()
+    val statusEveryMs = if (mirrorState.fastPoll) MirrorDisks.FAST_POLL_MS else MirrorDisks.POLL_MS
+    LaunchedEffect(lifecycle, statusEveryMs) {
         lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            status.start()
+            status.start(statusEveryMs)
             try { awaitCancellation() } finally { status.stop() }
         }
     }
@@ -598,6 +603,11 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
+
+            // Storage (issue #208): a disk that isn't blank, offered for the
+            // mirror - only while there is one, or one asked for here is
+            // being added.
+            StorageSection(status, mirror)
 
             // What the device works through by itself (release 152), beside
             // its status: only while there is something. From the Status
@@ -976,7 +986,7 @@ private fun ProfileEditorSection() {
     }
 }
 
-private fun raidStateLabel(s: Status): UiText = when (s.raidState) {
+internal fun raidStateLabel(s: Status): UiText = when (s.raidState) {
     RaidState.RaidNone -> S.appSettingsStatusRaidNone()
     RaidState.RaidInSync -> S.appSettingsStatusRaidInSync()
     RaidState.RaidSyncing -> S.appSettingsStatusRaidSyncing(s.raidSyncPercent.toInt())

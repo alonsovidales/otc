@@ -508,7 +508,9 @@ class DeviceSettingsViewModel : ViewModel() {
 }
 
 class StatusViewModel : ViewModel() {
-    data class State(val status: Status? = null, val errorText: UiText? = null)
+    // asks: bumped by every ask, so an answer equal to the last still comes
+    // through the flow (Settings › Storage's 20 s wait is counted at each).
+    data class State(val status: Status? = null, val errorText: UiText? = null, val asks: Int = 0)
     val state = MutableStateFlow(State())
     private var poll: Job? = null
     private var pollMs = 0L
@@ -547,6 +549,8 @@ class StatusViewModel : ViewModel() {
             // Shut down from Settings a moment ago: Device version says so,
             // and the status stays as it last was.
         } catch (e: Exception) { state.update { it.copy(errorText = e.shownText()) } }
+        // Each answer, equal ones too (Settings › Storage counts its 20 s at each).
+        state.update { it.copy(asks = it.asks + 1) }
     }
 }
 

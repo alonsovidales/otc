@@ -1229,7 +1229,8 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   `<storage>/.raid-not-added`); the stopped alerts' details say a replacement that isn't blank is
   erased once the owner confirms in Settings (`dev.alert.raid.replace_detail*`; the old
   `stopped_detail*` keys stay for old rows). Settings › Storage (web `settings/MirrorDiskPanel.tsx`,
-  not in the phone apps yet; two disks of one name and size get no button): only while md0 has a
+  iOS `StorageSection.swift`, Android `ui/settings/StorageSection.kt` - issue #208; two disks of one
+  name and size get no button): only while md0 has a
   slot with no working disk - not while a replacement is copied onto, when md still says degraded
   (`mirror_needs_disk`/`needsDisk`, which also gate the automatic add now) - `Status.mirror_candidates` (19: an opaque id, `sha256(boot id|name|diskseq|
   size)`, the model and the size; primary owner only) lists the disks not-added.json offers (`offer`;
@@ -3764,6 +3765,39 @@ device's order (a kind once, the first; no kind = `#<index>`), the device's `tex
 (`app.settings.background.count`, numbers as the app's other counts) over a `ProgressView(value:)`,
 or a spinner and no count while `total` is 0; done kept within 0...total. One VoiceOver element a
 row: the words, the count as value.
+
+**Storage, Shut down device and Image Tagging on 4 GB on the phones** (2026-11-03, issues #208,
+#202, #209; both apps, the same names; texts `app.settings.storage.*` - copied from
+`web.settings.storage.*` with their translations and reviews -, `app.settings.update.shut_down*`,
+`app.settings.tagging.heavy`). Settings › Storage, right after Status (iOS `StorageSection.swift`:
+`StorageSection`, `MirrorDiskViewModel`, `MirrorDisks`; Android `ui/settings/StorageSection.kt`;
+tests `StorageSectionTests.swift` <-> `StorageSectionTest.kt`), ports the web's MirrorDiskPanel: shown
+while `Status.mirror_candidates` isn't empty or a disk asked for from here is on its way; a disk is
+"<model> · <size>" or its size alone (`MirrorDisks.sizeText`: decimal units, at most one decimal in
+the app's number format, 999.96 GB is "1 TB"); two offered disks of one model and size get the
+look-alike hint instead of the red "Use it for the mirror"; the confirmation defaults to Cancel. After
+`UseMirrorDisk`'s Ack the model follows every Status answer (Settings' poll asks every 2 s meanwhile -
+iOS `StatusViewModel.setFast`, Android `start(FAST_POLL_MS)` - and counts each answer, equal ones too:
+iOS `onReceive(status.$status)`, Android `StatusViewModel.State.asks`): "Erasing … and adding it to
+the mirror…" with a spinner, then the copy's text, bar and RAID state while `RaidSyncing`, gone once
+`RaidInSync` or a copy that stopped, and "wasn't added. Alerts says why." when nothing copies 20 s
+after the Ack (`MirrorDisks.step`); a refusal shows the device's words, else `storage.failed`. Shut
+Down Device sits under Restart Device in Device version (iOS `UpdateSection`/`UpdateViewModel.shutDown`,
+Android `UpdateSection`/`UpdateViewModel.shutDown`), the same style, owner of the primary only, both
+buttons disabled while either runs: a confirmation (Cancel default, red Shut Down), `ShutDownDevice`,
+and its answer read by `ShutDownAnswer` - the Ack shows "Shutting down… Once its lights stop blinking
+you can unplug it." (a power icon, no spinner: nothing is waited for), `unknown_payload` DeviceNeedsUpdate
+(`shut_down_needs_update`, Update offered), other refusals the device's words, else
+`shut_down_failed`. The Ack starts `DeviceShutdown` (iOS `DeviceShutdown.swift`, Android
+`net/DeviceShutdown.kt`): for 90 s `OTCConnection.ensureConnected` throws `DeviceShutdown.Quiet` (the
+note's words) instead of dialling, its disconnect retry waits the moment out, and Settings' Status
+keeps its last answer, so no "isn't available"/"can't connect" card covers the note and no poller
+dials a device powering off; `invalidate()` (new credentials, Log Out) forgets it, and the section
+drops the note once the device answers again after it. Image Tagging (`MemoryTiers.taggingHeavy` /
+`State.withSettings`' `imageTaggingHeavy`): `Settings.image_tagging_heavy` true (under 6 GB) and the
+switch available puts `app.settings.tagging.heavy` under the switch ("On this device Image Tagging
+uses about 1–2 GB more memory, and new photos take longer to process."), whether on or off; the
+footer now ends "It needs a device with at least 4 GB of memory."
 
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
