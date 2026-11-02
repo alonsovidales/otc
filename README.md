@@ -750,6 +750,8 @@ What the device needs in order to find and organise your files is kept in its da
 - file and folder names, types, sizes and dates;
 - the photo tags (including the city and country a photo was taken in), the names you give
   people and collections, and which photos a person appears in;
+- the stars a photo has in a collection with Rating on (from you or from anyone with the
+  collection's shared link), so the collection can be filtered and sorted by them;
 - your posts, comments and alerts, and your friends' names and profiles;
 - each file's SHA-256, which names its encrypted content on disk - so someone who already has a
   particular file can tell whether it is stored there.
@@ -757,6 +759,14 @@ What the device needs in order to find and organise your files is kept in its da
 This is a deliberate trade-off: searching by name, folder, tag or place needs these fields
 readable by the database, and encrypting them would make search slow or impossible. Your
 content stays protected; its names and labels don't.
+
+**Rating comments are encrypted.** The comment under a photo's stars is sealed to a key pair of
+your own: its public half lets the device seal a comment that comes through a shared link while
+you are signed out, and its private half is itself encrypted under your key, so only your
+sign-in opens the comments. A collection shared with "Let people rate the photos" also keeps a
+copy of each comment under a key that only that collection's shared links carry (inside each
+link's encrypted gallery), so the people you shared it with see the current comments; the device
+can read those copies only while it answers someone who has the link.
 
 **Posts are the other exception.** When you post a photo or video, a copy of it (as posted,
 original metadata included) is stored unencrypted, readable only by the service; so are

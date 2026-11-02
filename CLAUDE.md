@@ -2113,7 +2113,23 @@ crop when found - sharpness, the box's size, light, and frontal (the crop's halv
 threshold and 0.85 of their cohesion, else the medoid as before. It runs when a new face changes the
 references or looks better than the chosen one (`coverMayChange`); the faces found before are measured
 once after a sign-in (`BackfillFaceQuality`, Background work "faces", `settings.face_quality_done`), then
-everyone's face is chosen again (`TestBestFacesMySQL`, `face_covers_test.go`). On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
+everyone's face is chosen again (`TestBestFacesMySQL`, `face_covers_test.go`). **Rating** (owner,
+2026-11-02; release 163's `updates/163.sh`; device side `files_manager/rating.go`, `dao/ratings.go`,
+`websocket/rating.go`): `image_groups.rating` turns it on for a collection (off keeps the ratings);
+`photo_ratings` holds one row per (collection, hash) - the stars plain (searched and sorted like
+tags' scores: `searchMediaRatedClauses`, a left join on the member `ig`, ranked), the comment sealed
+to the user's X25519 key pair (`vault.rating_public`/`rating_private`, the private half under
+`ses.Encrypt`, made at the first sign-in that finds none; ephemeral ECDH + HKDF-SHA256 +
+AES-256-GCM, bound to group and hash) and again under the collection's link key
+(`image_groups.rating_key`, sealed with the owner's key, carried in each rated gallery's sealed
+manifest as `rating_key`; `shared_comment`), which is how a link's visitor sees the current comments
+while the owner is signed out. A rating row goes with the photo's membership (same transaction) and
+with the collection; it is inserted from the membership row, so a photo taken out meanwhile leaves
+none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
+`RateSharedGalleryItem` is public (per-address and device-wide token buckets, `visitorRatings`) and
+alerts plus pushes at most once an hour per link (`shared_links.rating_alerted`, a conditional
+update; an ungrouped Error row through `dao.AddAlertNotification`, the push naming no collection).
+On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
 day's See all, Places), before Download; its rules are `favourites.ts` (`node web/scripts/favourites-test.mjs`; the
 page's store in `useFavourites.ts`): one `GetFavourites` for the photo and its neighbours (a burst of steps asks
 where it stops), answers kept by path for the page (still shown but asked again at each viewer opening, forgotten
