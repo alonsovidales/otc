@@ -15,6 +15,8 @@
     <string name="app_social_alerts_liked_comment">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; gostou do teu comentário</string>
     <string name="app_social_alerts_liked_post">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; gostou da tua publicação</string>
     <string name="app_social_alerts_load_failed">Não foi possível carregar as tuas notificações</string>
+    <string name="app_social_alerts_rating_gone">Esta coleção já não existe.</string>
+    <string name="app_social_alerts_rating_open_failed">Não foi possível abrir a coleção. Tenta de novo.</string>
     <string name="app_social_alerts_title">Notificações</string>
     <string name="app_social_compose_camera">Tirar uma foto ou gravar um vídeo</string>
     <string name="app_social_compose_caption_needed">Adiciona uma legenda para publicar</string>

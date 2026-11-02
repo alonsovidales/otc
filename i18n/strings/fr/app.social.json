@@ -41,6 +41,14 @@
     "text": "Impossible de charger vos notifications",
     "en": "Couldn't load your notifications"
   },
+  "app.social.alerts.rating_gone": {
+    "text": "Cette collection n’existe plus.",
+    "en": "This collection no longer exists."
+  },
+  "app.social.alerts.rating_open_failed": {
+    "text": "Impossible d’ouvrir la collection. Réessayez.",
+    "en": "Couldn't open the collection. Try again."
+  },
   "app.social.alerts.title": {
     "text": "Notifications",
     "en": "Notifications"

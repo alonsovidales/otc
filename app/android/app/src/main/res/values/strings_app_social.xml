@@ -13,6 +13,8 @@
     <string name="app_social_alerts_liked_comment">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; liked your comment</string>
     <string name="app_social_alerts_liked_post">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; liked your post</string>
     <string name="app_social_alerts_load_failed">Couldn\'t load your notifications</string>
+    <string name="app_social_alerts_rating_gone">This collection no longer exists.</string>
+    <string name="app_social_alerts_rating_open_failed">Couldn\'t open the collection. Try again.</string>
     <string name="app_social_alerts_title">Notifications</string>
     <string name="app_social_compose_camera">Take a photo or video</string>
     <string name="app_social_compose_caption_needed">Add a caption to publish</string>

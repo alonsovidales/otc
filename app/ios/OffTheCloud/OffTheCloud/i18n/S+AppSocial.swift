@@ -64,6 +64,16 @@ extension S {
     /// Title in Alerts, in place of the list, when the notifications couldn't be loaded; why follows under it (app.shell.problem_alerts_*), then Try again.
     static var appSocialAlertsLoadFailed: String { L("app.social.alerts.load_failed", table: "AppSocial") }
 
+    /// This collection no longer exists.
+    ///
+    /// Short message at the top of Alerts when a Rating alert (someone rated photos of a collection through its shared link) is tapped and that collection has been deleted since, so it can't be opened.
+    static var appSocialAlertsRatingGone: String { L("app.social.alerts.rating_gone", table: "AppSocial") }
+
+    /// Couldn't open the collection. Try again.
+    ///
+    /// Short message at the top of Alerts when a Rating alert is tapped and the device didn't list the collections (no answer, or an error without words of its own), so the collection couldn't be opened.
+    static var appSocialAlertsRatingOpenFailed: String { L("app.social.alerts.rating_open_failed", table: "AppSocial") }
+
     /// Notifications
     ///
     /// Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts).

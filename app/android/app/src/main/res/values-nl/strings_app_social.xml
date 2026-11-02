@@ -14,6 +14,8 @@
     <string name="app_social_alerts_liked_comment">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; vindt je reactie leuk</string>
     <string name="app_social_alerts_liked_post">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; vindt je bericht leuk</string>
     <string name="app_social_alerts_load_failed">Kan je meldingen niet laden</string>
+    <string name="app_social_alerts_rating_gone">Deze collectie bestaat niet meer.</string>
+    <string name="app_social_alerts_rating_open_failed">Collectie openen is niet gelukt. Probeer het opnieuw.</string>
     <string name="app_social_alerts_title">Meldingen</string>
     <string name="app_social_compose_camera">Foto of video maken</string>
     <string name="app_social_compose_caption_needed">Voeg een bijschrift toe om te publiceren</string>

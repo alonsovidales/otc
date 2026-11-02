@@ -42,6 +42,14 @@ fun S.appSocialAlertsLikedPost(name: String): RichText =
 fun S.appSocialAlertsLoadFailed(): UiText =
     UiText.Res(R.string.app_social_alerts_load_failed)
 
+/** "This collection no longer exists.": Short message at the top of Alerts when a Rating alert (someone rated photos of a collection through its shared link) is tapped and that collection has been deleted since, so it can't be opened. */
+fun S.appSocialAlertsRatingGone(): UiText =
+    UiText.Res(R.string.app_social_alerts_rating_gone)
+
+/** "Couldn't open the collection. Try again.": Short message at the top of Alerts when a Rating alert is tapped and the device didn't list the collections (no answer, or an error without words of its own), so the collection couldn't be opened. */
+fun S.appSocialAlertsRatingOpenFailed(): UiText =
+    UiText.Res(R.string.app_social_alerts_rating_open_failed)
+
 /** "Notifications": Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts). */
 fun S.appSocialAlertsTitle(): UiText =
     UiText.Res(R.string.app_social_alerts_title)

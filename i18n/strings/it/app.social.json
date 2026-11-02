@@ -41,6 +41,14 @@
     "text": "Impossibile caricare le tue notifiche",
     "en": "Couldn't load your notifications"
   },
+  "app.social.alerts.rating_gone": {
+    "text": "Questa raccolta non esiste più.",
+    "en": "This collection no longer exists."
+  },
+  "app.social.alerts.rating_open_failed": {
+    "text": "Impossibile aprire la raccolta. Riprova.",
+    "en": "Couldn't open the collection. Try again."
+  },
   "app.social.alerts.title": {
     "text": "Notifiche",
     "en": "Notifications"

@@ -41,6 +41,14 @@
     "text": "Deine Benachrichtigungen konnten nicht geladen werden",
     "en": "Couldn't load your notifications"
   },
+  "app.social.alerts.rating_gone": {
+    "text": "Diese Sammlung gibt es nicht mehr.",
+    "en": "This collection no longer exists."
+  },
+  "app.social.alerts.rating_open_failed": {
+    "text": "Sammlung öffnen hat nicht geklappt. Versuch es noch einmal.",
+    "en": "Couldn't open the collection. Try again."
+  },
   "app.social.alerts.title": {
     "text": "Benachrichtigungen",
     "en": "Notifications"

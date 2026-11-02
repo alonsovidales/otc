@@ -41,6 +41,14 @@
     "text": "Kan je meldingen niet laden",
     "en": "Couldn't load your notifications"
   },
+  "app.social.alerts.rating_gone": {
+    "text": "Deze collectie bestaat niet meer.",
+    "en": "This collection no longer exists."
+  },
+  "app.social.alerts.rating_open_failed": {
+    "text": "Collectie openen is niet gelukt. Probeer het opnieuw.",
+    "en": "Couldn't open the collection. Try again."
+  },
   "app.social.alerts.title": {
     "text": "Meldingen",
     "en": "Notifications"
