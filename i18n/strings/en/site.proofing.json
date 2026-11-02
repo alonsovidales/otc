@@ -16,8 +16,8 @@
     "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: a question. Ratings: the stars and notes the client gave."
   },
   "site.proofing.faq.need.a": {
-    "text": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps.",
-    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"What do I need?\". Keep the address studio.off-the.cloud exactly as it is. The web app and the phone apps: Off The Cloud's own apps."
+    "text": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app.",
+    "note": "Website, the page for photographers about client proofing (off-the.cloud/client-proofing-gallery): questions at the bottom of the page: answer to \"What do I need?\". Keep the address studio.off-the.cloud exactly as it is. The web app: Off The Cloud's own web app."
   },
   "site.proofing.faq.need.q": {
     "text": "What do I need?",

@@ -16,8 +16,8 @@
     "en": "What happens to the ratings when the link expires?"
   },
   "site.proofing.faq.need.a": {
-    "text": "Un dispositivo Off The Cloud, ya sea una Raspberry Pi 5 con dos unidades USB u otro ordenador de 64 bits con Debian o Ubuntu, y su dirección en off-the.cloud, como studio.off-the.cloud, que es donde se abre el enlace de tu cliente. Compartes y lees las valoraciones en la app web y en las apps del teléfono.",
-    "en": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app and the phone apps."
+    "text": "Un dispositivo Off The Cloud, ya sea una Raspberry Pi 5 con dos unidades USB u otro ordenador de 64 bits con Debian o Ubuntu, y su dirección en off-the.cloud, como studio.off-the.cloud, que es donde se abre el enlace de tu cliente. Compartes y lees las valoraciones en la app web.",
+    "en": "An Off The Cloud device, a Raspberry Pi 5 with two USB drives or another 64-bit computer running Debian or Ubuntu, and its address at off-the.cloud, such as studio.off-the.cloud, which is where your client's link opens. You share and read the ratings in the web app."
   },
   "site.proofing.faq.need.q": {
     "text": "¿Qué necesito?",
