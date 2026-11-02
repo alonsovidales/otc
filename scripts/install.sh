@@ -1392,8 +1392,8 @@ SQL
     fi
     # Release 163 (updates/163.sh): collection Rating - a collection's
     # switch and its link key, the photos' stars and sealed comments, a
-    # gallery's collection and rating, and the user's key pair the comments
-    # are sealed to (see db.sql).
+    # gallery's collection and rating, the user's key pair the comments are
+    # sealed to, and the collection a Rating alert names (see db.sql).
     mysql "$db" <<'SQL'
     ALTER TABLE image_groups ADD COLUMN IF NOT EXISTS rating TINYINT(1) NOT NULL DEFAULT 0;
     ALTER TABLE image_groups ADD COLUMN IF NOT EXISTS rating_key BLOB NULL;
@@ -1403,6 +1403,7 @@ SQL
     ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS rating_alerted DATETIME NULL;
     ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_public VARBINARY(32) NULL;
     ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_private BLOB NULL;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS group_id VARCHAR(36) NULL;
 SQL
 }
 

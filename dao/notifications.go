@@ -82,13 +82,6 @@ const cUpdateVersionLen = 16
 // its own, never grouped with other errors, so it isn't buried in them.
 // Its details are the detail alone.
 func (dao *Dao) AddStorageNotification(a alerttext.Alert) error {
-	return dao.AddAlertNotification(a)
-}
-
-// AddAlertNotification is an alert of its own, as AddStorageNotification
-// writes one: an Error row never grouped with the errors, its details the
-// detail alone. Ratings left through a shared link (release 163) use it.
-func (dao *Dao) AddAlertNotification(a alerttext.Alert) error {
 	if key, msgArgs, lines := msgColumns(a, a.DetailLine()); key.Valid {
 		_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `msg_key`, `msg_args`, `msg_lines`) values (?, now(), 'Error', 'This device', '', ?, ?, 1, ?, ?, ?)",
 			uuid.New(), a.Title, a.Detail, key, msgArgs, lines)
@@ -99,6 +92,24 @@ func (dao *Dao) AddAlertNotification(a alerttext.Alert) error {
 	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', '', ?, ?, 1)",
 		uuid.New(), a.Title, a.Detail)
 	return err
+}
+
+// cActorNameLen is what notifications.actor_name holds.
+const cActorNameLen = 255
+
+// AddRatingNotification tells the owner that photos of the collection
+// groupID were rated or commented on through its shared link (release
+// 163): a row of type Rating of its own - never grouped, as only Error rows
+// are - with the alert's English and keys as title and details (rendered
+// in each reader's language: LocalizeNotifications), the collection in
+// group_id, and the title in actor_name too, which is all an app from
+// before the type shows of a row whose type it doesn't know.
+// ErrSchemaBehind on a database without the columns.
+func (dao *Dao) AddRatingNotification(groupID string, a alerttext.Alert) error {
+	key, msgArgs, lines := msgColumns(a, a.DetailLine())
+	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `msg_key`, `msg_args`, `msg_lines`, `group_id`) values (?, now(), 'Rating', ?, '', ?, ?, 1, ?, ?, ?, ?)",
+		uuid.New(), truncateUTF8(a.Title, cActorNameLen), a.Title, a.Detail, key, msgArgs, lines, groupID)
+	return schemaBehind(err)
 }
 
 // errorNotificationWindow is how long a group of errors stays open
@@ -348,7 +359,8 @@ func (dao *Dao) LocalizeNotifications(lang string, notifications []*pb.Notificat
 	byID := map[string]*pb.Notification{}
 	var ids []any
 	for _, n := range notifications {
-		if n.Type == pb.NotificationType_NotificationError || n.Type == pb.NotificationType_NotificationUpdate {
+		switch n.Type {
+		case pb.NotificationType_NotificationError, pb.NotificationType_NotificationUpdate, pb.NotificationType_NotificationRating:
 			byID[n.Uuid] = n
 			ids = append(ids, n.Uuid)
 		}
@@ -377,6 +389,10 @@ func (dao *Dao) localizeBatch(lang string, ids []any, byID map[string]*pb.Notifi
 		}
 		if n := byID[id]; n != nil {
 			n.Title, n.Details = alerttext.Render(lang, key, []byte(args.String), []byte(lines.String), n.Title, n.Details)
+			if n.Type == pb.NotificationType_NotificationRating {
+				// What an app from before the type shows.
+				n.ActorName = n.Title
+			}
 		}
 	}
 	return rows.Err()

@@ -2128,7 +2128,9 @@ with the collection; it is inserted from the membership row, so a photo taken ou
 none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
 `RateSharedGalleryItem` is public (per-address and device-wide token buckets, `visitorRatings`) and
 alerts plus pushes at most once an hour per link (`shared_links.rating_alerted`, a conditional
-update; an ungrouped Error row through `dao.AddAlertNotification`, the push naming no collection).
+update; a `NotificationRating` row through `dao.AddRatingNotification`: never grouped, its keys rendered
+in the reader's language like any alert's, `notifications.group_id` the collection a tap opens, its
+title in `actor_name` too for apps from before the type; the push names no collection).
 On the web the heart is `MediaViewer`'s (`canFavourite`: Images, Files, On this
 day's See all, Places), before Download; its rules are `favourites.ts` (`node web/scripts/favourites-test.mjs`; the
 page's store in `useFavourites.ts`): one `GetFavourites` for the photo and its neighbours (a burst of steps asks

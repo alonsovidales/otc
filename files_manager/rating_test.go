@@ -371,7 +371,7 @@ func TestRatedSharedGallery(t *testing.T) {
 	mock.ExpectExec("update `shared_links` set `rating_alerted` = \\?").WithArgs(sqlmock.AnyArg(), id, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("select `name` from `image_groups` where `id` = \\?").WithArgs("g1").WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Wedding"))
 	notice, err := mg.RateSharedGalleryItem(id, secret, 1, 4, " Brighter, please ")
-	if err != nil || notice == nil || notice.GroupName != "Wedding" || notice.Favourites {
+	if err != nil || notice == nil || notice.GroupID != "g1" || notice.GroupName != "Wedding" || notice.Favourites {
 		t.Fatalf("rate: %+v %v", notice, err)
 	}
 	aad := ratingAAD("g1", files[1].Hash)

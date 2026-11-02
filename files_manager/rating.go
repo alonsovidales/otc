@@ -93,8 +93,9 @@ var (
 )
 
 // RatingNotice is what an alert about ratings left through a link names:
-// the collection.
+// the collection - its id for a tap to open, its name for the text.
 type RatingNotice struct {
+	GroupID    string
 	GroupName  string
 	Favourites bool
 }
@@ -609,5 +610,5 @@ func (mg *Manager) RateSharedGalleryItem(id, secret string, index int, stars int
 	if err != nil {
 		log.Error("reading a rated collection's name:", err)
 	}
-	return &RatingNotice{GroupName: name, Favourites: groupID == dao.FavouritesGroupID}, nil
+	return &RatingNotice{GroupID: groupID, GroupName: name, Favourites: groupID == dao.FavouritesGroupID}, nil
 }

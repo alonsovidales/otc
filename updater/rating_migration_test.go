@@ -42,8 +42,8 @@ func TestRatingSchemaIsTheSameInInstallRelease163AndDBSQL(t *testing.T) {
 			t.Errorf("install.sh's schema migrations lack %q", line)
 		}
 	}
-	if statements != 8 {
-		t.Errorf("163.sh has %d statements, want 8", statements)
+	if statements != 9 {
+		t.Errorf("163.sh has %d statements, want 9", statements)
 	}
 
 	schema := read("../db/db.sql")
@@ -52,6 +52,7 @@ func TestRatingSchemaIsTheSameInInstallRelease163AndDBSQL(t *testing.T) {
 		"photo_ratings": {"group_id", "hash", "stars", "comment", "shared_comment", "link", "updated"},
 		"shared_links":  {"group_id", "rating", "rating_alerted"},
 		"vault":         {"rating_public", "rating_private"},
+		"notifications": {"group_id"},
 	} {
 		def := regexp.MustCompile(`(?s)create table ` + table + `\n\(\n(.*?)\n\)`).FindStringSubmatch(schema)
 		if def == nil {

@@ -16,7 +16,8 @@
 # the next sign-in). image_groups.rating_key is what a rated link's
 # visitors read the comments with (photo_ratings.shared_comment), and
 # shared_links records a gallery's collection, whether it takes ratings,
-# and its last alert - see db.sql and files_manager/rating.go.
+# and its last alert, whose row (type Rating) names the collection in
+# notifications.group_id - see db.sql and files_manager/rating.go.
 #
 # Idempotent: ADD COLUMN / CREATE TABLE IF NOT EXISTS.
 #
@@ -36,6 +37,7 @@ ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS rating TINYINT(1) NOT NULL DEF
 ALTER TABLE shared_links ADD COLUMN IF NOT EXISTS rating_alerted DATETIME NULL;
 ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_public VARBINARY(32) NULL;
 ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_private BLOB NULL;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS group_id VARCHAR(36) NULL;
 SQL
 }
 
@@ -56,4 +58,4 @@ for db in $(mysql -N -B -e "SELECT db_name FROM users" otc 2>/dev/null || true);
     apply_to "$db"
 done
 
-echo "release 163 applied: image_groups.rating, image_groups.rating_key, photo_ratings, shared_links.group_id, shared_links.rating, shared_links.rating_alerted, vault.rating_public, vault.rating_private"
+echo "release 163 applied: image_groups.rating, image_groups.rating_key, photo_ratings, shared_links.group_id, shared_links.rating, shared_links.rating_alerted, vault.rating_public, vault.rating_private, notifications.group_id"

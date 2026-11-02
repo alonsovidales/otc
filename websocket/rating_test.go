@@ -170,8 +170,10 @@ func (k keyArg) Match(v driver.Value) bool {
 	return ok && s == string(k)
 }
 
-// Ratings through a link alert the owner: an alert of its own naming the
-// collection (Favourites by its key), and a push that names none.
+// Ratings through a link alert the owner: an alert of its own, of type
+// Rating, naming the collection (Favourites by its key) and carrying its
+// title as actor_name for the apps from before the type, and a push that
+// names none.
 func TestRatingAlert(t *testing.T) {
 	a := ratingAlert(&filesmanager.RatingNotice{GroupName: "Wedding"})
 	if a.Key != "dev.alert.rating.new" || a.Title != "Photos rated through a shared link" || !strings.Contains(a.Detail, "Wedding") {
@@ -188,10 +190,10 @@ func TestRatingAlert(t *testing.T) {
 	}
 	defer db.Close()
 	mg := &Manager{dao: dao.NewWithDB(db)}
-	mock.ExpectExec("insert into `notifications` .* values \\(\\?, now\\(\\), 'Error', 'This device', '', \\?, \\?, 1, \\?, \\?, \\?\\)").
-		WithArgs(sqlmock.AnyArg(), "Photos rated through a shared link", sqlmock.AnyArg(), keyArg("dev.alert.rating.new"), sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectExec("insert into `notifications` \\(`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `msg_key`, `msg_args`, `msg_lines`, `group_id`\\) values \\(\\?, now\\(\\), 'Rating', \\?, '', \\?, \\?, 1, \\?, \\?, \\?, \\?\\)").
+		WithArgs(sqlmock.AnyArg(), "Photos rated through a shared link", "Photos rated through a shared link", sqlmock.AnyArg(), keyArg("dev.alert.rating.new"), sqlmock.AnyArg(), sqlmock.AnyArg(), "g1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	mg.notifyRatings(&filesmanager.RatingNotice{GroupName: "Wedding"})
+	mg.notifyRatings(&filesmanager.RatingNotice{GroupID: "g1", GroupName: "Wedding"})
 	mg.notifyRatings(nil)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

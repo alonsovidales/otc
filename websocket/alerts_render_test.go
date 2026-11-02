@@ -17,9 +17,11 @@ import (
 
 const listNotifications = "select n\\.uuid, n\\.dt, n\\.type"
 
+var notificationColumns = []string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash", "title", "details", "occurrences", "group_id"}
+
 func notificationRows(title, details string) *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash", "title", "details", "occurrences"}).
-		AddRow("n1", time.Now(), "Error", "This device", "", nil, nil, false, nil, nil, title, details, 1)
+	return sqlmock.NewRows(notificationColumns).
+		AddRow("n1", time.Now(), "Error", "This device", "", nil, nil, false, nil, nil, title, details, 1, nil)
 }
 
 func listNotificationsAs(t *testing.T, lang string, ch *connHandler) *pb.Notification {

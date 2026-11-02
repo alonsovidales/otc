@@ -2167,6 +2167,8 @@ func (dao *Dao) notificationTypeToStr(t pb.NotificationType) string {
 		return "Error"
 	case pb.NotificationType_NotificationUpdate:
 		return "Update"
+	case pb.NotificationType_NotificationRating:
+		return "Rating"
 	}
 	return ""
 }
@@ -2187,6 +2189,8 @@ func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
 		return pb.NotificationType_NotificationError
 	case "Update":
 		return pb.NotificationType_NotificationUpdate
+	case "Rating":
+		return pb.NotificationType_NotificationRating
 	}
 	return pb.NotificationType_NotificationLikePublication
 }
@@ -2227,15 +2231,28 @@ func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorD
 // into actual thumbnail bytes by reading the on-disk *_thumbnail file -
 // that's filesystem I/O, which belongs above this package, not in it (see
 // social.GetPublications' identical split for feed posts' own thumbnails).
+//
+// A Rating row (release 163) carries its collection (Notification.group_id)
+// and its title as actor_name, what an app from before the type shows. A
+// database without the column (release 163's script hasn't reached it) is
+// read without it.
 func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, thumbHashes map[string]string, err error) {
-	rows, err := dao.db.Query(
-		"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash, n.title, n.details, n.occurrences "+
-			"from `notifications` n "+
-			"left join `social_friendship` f on f.domain = n.actor_domain "+
-			"left join `social_publications_files` pf on pf.uuid = n.pub_uuid and pf.pos = 0 "+
-			"order by n.dt desc limit ?",
-		limit,
-	)
+	query := func(groupCol string) (*sql.Rows, error) {
+		return dao.db.Query(
+			"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash, n.title, n.details, n.occurrences"+groupCol+" "+
+				"from `notifications` n "+
+				"left join `social_friendship` f on f.domain = n.actor_domain "+
+				"left join `social_publications_files` pf on pf.uuid = n.pub_uuid and pf.pos = 0 "+
+				"order by n.dt desc limit ?",
+			limit,
+		)
+	}
+	withGroup := true
+	rows, err := query(", n.group_id")
+	if isUnknownColumn(err) {
+		withGroup = false
+		rows, err = query("")
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2247,15 +2264,25 @@ func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, 
 		n := new(pb.Notification)
 		var dt time.Time
 		var typeStr string
-		var pubUuid, commentUuid, thumbHash, title, details sql.NullString
+		var pubUuid, commentUuid, thumbHash, title, details, groupID sql.NullString
 		var actorImage []byte
-		if err := rows.Scan(&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged, &actorImage, &thumbHash, &title, &details, &n.Occurrences); err != nil {
+		dest := []any{&n.Uuid, &dt, &typeStr, &n.ActorName, &n.ActorDomain, &pubUuid, &commentUuid, &n.Acknowledged, &actorImage, &thumbHash, &title, &details, &n.Occurrences}
+		if withGroup {
+			dest = append(dest, &groupID)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, nil, err
 		}
 		n.Title = title.String
 		n.Details = details.String
 		n.Dt = timestamppb.New(dt)
 		n.Type = dao.strToNotificationType(typeStr)
+		if n.Type == pb.NotificationType_NotificationRating {
+			n.GroupId = groupID.String
+			if n.Title != "" {
+				n.ActorName = n.Title
+			}
+		}
 		n.PubUuid = pubUuid.String
 		n.CommentUuid = commentUuid.String
 		if len(actorImage) > 0 {

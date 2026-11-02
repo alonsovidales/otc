@@ -92,13 +92,14 @@ func ratingAlert(n *filesmanager.RatingNotice) alerttext.Alert {
 }
 
 // notifyRatings tells the owner that ratings came through a link: an alert
-// in Alerts and a push (which names no collection).
+// in Alerts of type Rating, naming the collection a tap opens, and a push
+// (which names none).
 func (mg *Manager) notifyRatings(n *filesmanager.RatingNotice) {
 	if n == nil {
 		return
 	}
 	if mg.dao != nil {
-		if err := mg.dao.AddAlertNotification(ratingAlert(n)); err != nil {
+		if err := mg.dao.AddRatingNotification(n.GroupID, ratingAlert(n)); err != nil {
 			log.Error("could not add the ratings alert:", err)
 		}
 	}

@@ -542,6 +542,9 @@ create table notifications
   -- AddUpdateNotification, which also matches the English titles of the
   -- rows written before it).
   `update_version` varchar(16) null,
+  -- Rating (release 163), type Rating only: the collection whose photos
+  -- were rated through its shared link (Notification.group_id).
+  `group_id` varchar(36) null,
 
   unique(`uuid`),
   INDEX USING BTREE (`acknowledged`),
