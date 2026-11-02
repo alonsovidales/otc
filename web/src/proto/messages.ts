@@ -171,6 +171,13 @@ export const NotificationType = {
    * version, details what it changes; opens Settings.
    */
   NotificationUpdate: 6,
+  /**
+   * NotificationRating - Rating (release 163): someone rated or commented on photos of a
+   * collection through its shared link - at most one per link per hour.
+   * title/details carry it, group_id names the collection, which a tap
+   * opens. Apps before it show actor_name, which carries the title too.
+   */
+  NotificationRating: 7,
   UNRECOGNIZED: -1,
 } as const;
 
@@ -184,6 +191,7 @@ export namespace NotificationType {
   export type NotificationFriendAccepted = typeof NotificationType.NotificationFriendAccepted;
   export type NotificationError = typeof NotificationType.NotificationError;
   export type NotificationUpdate = typeof NotificationType.NotificationUpdate;
+  export type NotificationRating = typeof NotificationType.NotificationRating;
   export type UNRECOGNIZED = typeof NotificationType.UNRECOGNIZED;
 }
 
@@ -3327,6 +3335,11 @@ export interface Notification {
   title: string;
   details: string;
   occurrences: number;
+  /**
+   * NotificationRating: the collection (ImageGroup.id) whose photos were
+   * rated.
+   */
+  groupId: string;
 }
 
 export interface ReqListNotifications {
@@ -19354,6 +19367,7 @@ function createBaseNotification(): Notification {
     title: "",
     details: "",
     occurrences: 0,
+    groupId: "",
   };
 }
 
@@ -19397,6 +19411,9 @@ export const Notification: MessageFns<Notification> = {
     }
     if (message.occurrences !== 0) {
       writer.uint32(104).int32(message.occurrences);
+    }
+    if (message.groupId !== "") {
+      writer.uint32(114).string(message.groupId);
     }
     return writer;
   },
@@ -19512,6 +19529,14 @@ export const Notification: MessageFns<Notification> = {
           message.occurrences = reader.int32();
           continue;
         }
+        case 14: {
+          if (tag !== 114) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -19539,6 +19564,7 @@ export const Notification: MessageFns<Notification> = {
     message.title = object.title ?? "";
     message.details = object.details ?? "";
     message.occurrences = object.occurrences ?? 0;
+    message.groupId = object.groupId ?? "";
     return message;
   },
 };

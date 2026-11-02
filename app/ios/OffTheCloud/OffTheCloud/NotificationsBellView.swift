@@ -48,7 +48,7 @@ struct NotificationsListView: View {
         case .notificationNewComment: return S.appSocialAlertsCommented(name: name, b: bold)
         case .notificationFriendRequest: return S.appSocialAlertsFriendRequest(name: name, b: bold)
         case .notificationFriendAccepted: return S.appSocialAlertsFriendAccepted(name: name, b: bold)
-        case .notificationError, .notificationUpdate, .UNRECOGNIZED: return nil
+        case .notificationError, .notificationUpdate, .notificationRating, .UNRECOGNIZED: return nil
         }
     }
 

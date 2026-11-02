@@ -369,6 +369,12 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
   /// Issue #183: a major or critical update is available - title says which
   /// version, details what it changes; opens Settings.
   case notificationUpdate // = 6
+
+  /// Rating (release 163): someone rated or commented on photos of a
+  /// collection through its shared link - at most one per link per hour.
+  /// title/details carry it, group_id names the collection, which a tap
+  /// opens. Apps before it show actor_name, which carries the title too.
+  case notificationRating // = 7
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -384,6 +390,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case 4: self = .notificationFriendAccepted
     case 5: self = .notificationError
     case 6: self = .notificationUpdate
+    case 7: self = .notificationRating
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -397,6 +404,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     case .notificationFriendAccepted: return 4
     case .notificationError: return 5
     case .notificationUpdate: return 6
+    case .notificationRating: return 7
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -410,6 +418,7 @@ public nonisolated enum Msg_NotificationType: SwiftProtobuf.Enum, Swift.CaseIter
     .notificationFriendAccepted,
     .notificationError,
     .notificationUpdate,
+    .notificationRating,
   ]
 
 }
@@ -5864,6 +5873,10 @@ public nonisolated struct Msg_Notification: Sendable {
 
   public var occurrences: Int32 = 0
 
+  /// NotificationRating: the collection (ImageGroup.id) whose photos were
+  /// rated.
+  public var groupID: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -8550,7 +8563,7 @@ nonisolated extension Msg_BridgeOnboardErrorType: SwiftProtobuf._ProtoNameProvid
 }
 
 nonisolated extension Msg_NotificationType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0\u{1}NotificationError\0\u{1}NotificationUpdate\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NotificationLikePublication\0\u{1}NotificationLikeComment\0\u{1}NotificationNewComment\0\u{1}NotificationFriendRequest\0\u{1}NotificationFriendAccepted\0\u{1}NotificationError\0\u{1}NotificationUpdate\0\u{1}NotificationRating\0")
 }
 
 nonisolated extension Msg_StatusErrors: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -17396,7 +17409,7 @@ nonisolated extension Msg_Events: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 
 nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0\u{1}title\0\u{1}details\0\u{1}occurrences\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}uuid\0\u{1}dt\0\u{1}type\0\u{3}actor_name\0\u{3}actor_domain\0\u{3}pub_uuid\0\u{3}comment_uuid\0\u{1}acknowledged\0\u{3}actor_image\0\u{1}thumbnail\0\u{1}title\0\u{1}details\0\u{1}occurrences\0\u{3}group_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -17417,6 +17430,7 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 11: try { try decoder.decodeSingularStringField(value: &self.title) }()
       case 12: try { try decoder.decodeSingularStringField(value: &self.details) }()
       case 13: try { try decoder.decodeSingularInt32Field(value: &self.occurrences) }()
+      case 14: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
       default: break
       }
     }
@@ -17466,6 +17480,9 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.occurrences != 0 {
       try visitor.visitSingularInt32Field(value: self.occurrences, fieldNumber: 13)
     }
+    if !self.groupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 14)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -17483,6 +17500,7 @@ nonisolated extension Msg_Notification: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.title != rhs.title {return false}
     if lhs.details != rhs.details {return false}
     if lhs.occurrences != rhs.occurrences {return false}
+    if lhs.groupID != rhs.groupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

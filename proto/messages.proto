@@ -2632,6 +2632,11 @@ enum NotificationType {
   // Issue #183: a major or critical update is available - title says which
   // version, details what it changes; opens Settings.
   NotificationUpdate = 6;
+  // Rating (release 163): someone rated or commented on photos of a
+  // collection through its shared link - at most one per link per hour.
+  // title/details carry it, group_id names the collection, which a tap
+  // opens. Apps before it show actor_name, which carries the title too.
+  NotificationRating = 7;
 }
 
 message Notification {
@@ -2664,6 +2669,9 @@ message Notification {
   string title = 11;
   string details = 12;
   int32 occurrences = 13;
+  // NotificationRating: the collection (ImageGroup.id) whose photos were
+  // rated.
+  string group_id = 14;
 }
 
 message ReqListNotifications {
