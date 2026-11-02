@@ -569,6 +569,14 @@
   color: var(--mist-dim);
   overflow-wrap: anywhere;
 }
+/* A collection's Rating (RatingPanel.tsx): its button's star is gold while
+   it is on, and Show and Sort by sit under the header's row. */
+.pg-rating-btn.on .rt-glyph { color: var(--gold); }
+.pg-rating-btn[aria-busy="true"] { cursor: progress; }
+.pg-rating-tools { margin-top: 12px; }
+@media (max-width: 599px) {
+  .pg-rating-tools { margin-top: 8px; }
+}
 @media (max-width: 599px) {
   .pg-head { padding-top: 8px; }
   .pg-head-row { gap: 12px; }
@@ -1214,7 +1222,40 @@
   .pg-modal-inner:has(.pg-info-panel) .pg-nav.right { right: 330px; }
 }
 .pg-modal-imgwrap { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; touch-action: none; background: var(--ink); }
-.pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px); object-fit: contain; background: var(--ink); }
+.pg-modal-imgwrap img { width: 100%; height: calc(94vh - 45px - var(--pg-rate-h, 0px)); object-fit: contain; background: var(--ink); }
+
+/* A collection's Rating (RatingPanel.tsx): the stars and comment box in a
+   bar of their own under the photo, which is that much shorter
+   (--pg-rate-h, the bar's fixed height); on a phone or a short window, a
+   sheet over the photo's foot, opened from the header's Rate. */
+.pg-modal-inner.with-rating { --pg-rate-h: 77px; }
+/* Info and the notes keep clear of the bar (its Save on the right). */
+.pg-modal-inner.with-rating .pg-info-panel { bottom: var(--pg-rate-h); }
+.pg-modal-inner.with-rating .pg-modal-toast:not(.pg-modal-toast-page) { bottom: calc(64px + var(--pg-rate-h)); }
+.pg-rate-bar {
+  flex: none;
+  box-sizing: border-box;
+  height: var(--pg-rate-h);
+  padding: 10px 12px 10px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--ink-2);
+}
+.pg-rate-bar .rt-panel { height: 100%; }
+.pg-rate-sheet {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  max-height: calc(100% - 45px);
+  overflow-y: auto;
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 16px;
+  border-top: 1px solid var(--line);
+  border-radius: 12px 12px 0 0;
+  background: var(--ink-2);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, .5);
+}
 
 
 /* The viewer sizes a playing video the same way it sizes a photo - see
@@ -1227,7 +1268,7 @@
    modal's padding rather than being clipped off. */
 .pg-modal-imgwrap video {
   width: 100%;
-  max-height: calc(94vh - 45px);
+  max-height: calc(94vh - 45px - var(--pg-rate-h, 0px));
   object-fit: contain;
   display: block;
   background: var(--ink);

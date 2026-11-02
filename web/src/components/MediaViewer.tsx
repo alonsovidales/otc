@@ -8,11 +8,13 @@
 // and Delete where the caller allows it (issue #199) - and, opened on one
 // person's photos, Not this person, Someone else… and Use this face
 // (personFix.tsx); on this device's own library, the heart that puts a
-// photo in Favourites or takes it out (useFavourites.ts). The apps do the
-// same with ImageModal.
+// photo in Favourites or takes it out (useFavourites.ts); opened in a
+// collection whose Rating is on, the photo's stars and comment (rating.ts,
+// RatingPanel.tsx) - a bar under it, or on a phone a sheet its Rate button
+// opens. The apps do the same with ImageModal.
 // Loaded when first opened (lazyPart.ts: Images and Files wrap it in a
 // layer's Part); Back closes it.
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
@@ -36,6 +38,10 @@ import { choosePersonCover, groupsChanged, personLabel, reloadPeople } from "./l
 import { useFaceRecognition } from "./faceRecognition";
 import { asksFaces, faceKey, facesAnswer, facesPayload, focusAfterRemoval, leavesGrid, removalHash, withoutPerson } from "./photoFaces";
 import { showPersonPhotos } from "./photoFilter";
+import { cNoRating, type RatingRefusal, type Ratings, type ShownRating } from "./rating";
+import { ratingRefusalText } from "./ratingText";
+import { RateButton, RatingPanel } from "./RatingPanel";
+import { useRatingSheet } from "./useRatingSheet";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -46,7 +52,7 @@ const cRapidStepMs = 250;
 // What Tab moves between inside the viewer. A video's controls and the
 // map's links are stops of their own that can't be focused from here, and
 // while one has focus the video or the map is the active element.
-const cFocusable = "button, [href], input, video[controls], iframe, [tabindex]:not([tabindex='-1'])";
+const cFocusable = "button:not(:disabled), [href], input, textarea, video[controls], iframe, [tabindex]:not([tabindex='-1'])";
 // Whether el has stops of its own (above).
 const hasInnerStops = (el: Element) => el instanceof HTMLVideoElement || el instanceof HTMLIFrameElement;
 
@@ -54,7 +60,8 @@ const hasInnerStops = (el: Element) => el instanceof HTMLVideoElement || el inst
  *  Issue #201: the content hash it was shown with (sent with a delete, so
  *  a path holding other content by then is refused, not deleted), and for
  *  Images how many paths hold that content (File.copies; unset where the
- *  device didn't say). */
+ *  device didn't say). In a collection with Rating on, its stars and
+ *  comment as the grid's page said (File.rating). */
 export type ViewerItem = {
   path: string;
   mime?: string;
@@ -62,7 +69,19 @@ export type ViewerItem = {
   thumbURL?: string;
   hash?: string;
   copies?: number;
+  rating?: ShownRating;
 };
+
+/** A collection's Rating, for the viewer's stars and comment box: the
+ *  page's store of what was set (by path), and what to do about a change
+ *  the device turned down - `shown`: the viewer said so itself (it was
+ *  still open). */
+export type ViewerRating = {
+  ratings: Ratings;
+  onRefused: (r: RatingRefusal, shown: boolean) => void;
+};
+
+const noSubscribe = () => () => {};
 
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
 const bytesToBlob = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -174,7 +193,7 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false, personId, onPersonFixed, canFavourite = false, rating }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -206,6 +225,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
    *  header has the heart. Never a friend's post or a shared gallery's
    *  item, which have viewers of their own. */
   canFavourite?: boolean;
+  /** Opened inside a collection whose Rating is on (Images only): the
+   *  item's stars and comment, under the photo or in a phone's sheet. */
+  rating?: ViewerRating;
 }) {
   const t = useT();
   // Back closes the viewer (backStack.ts), as its × does.
@@ -666,6 +688,31 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     });
   }, [heart, items, index]);
 
+  // Rating: the item's stars and comment (RatingPanel), from the page's
+  // store over what its grid said. Where there is room, a bar under the
+  // photo; on a phone (upright or on its side) or a short window, a sheet
+  // over the photo's foot that the header's Rate button opens and closes,
+  // and that stays open from one photo to the next. A change the device
+  // turned down is said here while the viewer is open, by the page after.
+  const ratingSheet = useRatingSheet();
+  const [rateOpen, setRateOpen] = useState(false);
+  // Opened just now: its stars take the focus (once - not at every photo).
+  const [rateFocus, setRateFocus] = useState(false);
+  useEffect(() => { if (rateFocus) setRateFocus(false); }, [rateFocus]);
+  const rateSheetId = useId();
+  const ratingsStore = rating?.ratings;
+  const subscribeRatings = useCallback((l: () => void) => (ratingsStore ? ratingsStore.subscribe(l) : noSubscribe()), [ratingsStore]);
+  useSyncExternalStore(subscribeRatings, () => ratingsStore?.version() ?? 0);
+  const listedRating = item?.rating ?? cNoRating;
+  const shownRating = ratingsStore && item ? (ratingsStore.get(item.path) ?? listedRating) : null;
+  const ratingRef = useRef(rating);
+  useLayoutEffect(() => { ratingRef.current = rating; });
+  const ratingRefused = useCallback((r: RatingRefusal) => {
+    const shown = mountedRef.current;
+    if (shown) setNote({ text: ratingRefusalText(r), seq: Date.now() });
+    ratingRef.current?.onRefused(r, shown);
+  }, []);
+
   // The question gone, the viewer has the focus again if it fell out of it
   // (a click on Delete leaves it on nothing once the dialog goes).
   const dialogOpen = asking != null || fixing != null || unfacing != null;
@@ -724,9 +771,11 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
       const box = boxRef.current;
       const active = document.activeElement;
       const inVideo = keysRef.current && active instanceof HTMLVideoElement && !!box?.contains(active);
+      // In a text box (a rating's comment) the arrows move the caret.
+      const inField = e.target instanceof Element && !!e.target.closest("input, textarea, select, [contenteditable='true']");
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" && !inVideo && index < items.length - 1) onIndexChange(index + 1);
-      if (e.key === "ArrowLeft" && !inVideo && index > 0) onIndexChange(index - 1);
+      if (e.key === "ArrowRight" && !inVideo && !inField && index < items.length - 1) onIndexChange(index + 1);
+      if (e.key === "ArrowLeft" && !inVideo && !inField && index > 0) onIndexChange(index - 1);
       if ((e.key === "Delete" || e.key === "Backspace") && !inVideo && !e.ctrlKey && !e.altKey && !e.repeat) {
         const field = e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']");
         if (!field && canDelete) {
@@ -807,7 +856,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     <div className="pg-modal" onClick={onClose}>
       <div
         ref={boxRef}
-        className="pg-modal-inner"
+        className={"pg-modal-inner" + (shownRating && !ratingSheet ? " with-rating" : "")}
         role="dialog"
         aria-modal="true"
         aria-label={name}
@@ -827,6 +876,19 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             <span className="pg-info-glyph">i</span> {t("web.images.viewer.info")}
           </button>
           <span className="pg-modal-title">{name}</span>
+          {/* Rating on a phone: Rate (or the photo's stars) opens the
+              stars and the comment box over the photo's foot. */}
+          {shownRating && ratingSheet && (
+            <RateButton
+              stars={shownRating.stars}
+              open={rateOpen}
+              controls={rateSheetId}
+              onClick={() => {
+                setRateFocus(!rateOpen);
+                setRateOpen(!rateOpen);
+              }}
+            />
+          )}
           {/* Favourites: empty, or full while the photo is in it; its
               place kept until the device has said which. */}
           {heart && (favourite === undefined ? (
@@ -1013,6 +1075,25 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             Info panel, which covers them. */}
         {index > 0 && <button className="pg-nav left" onClick={() => onIndexChange(index - 1)} aria-label={t("web.images.viewer.previous")}>‹</button>}
         {index < items.length - 1 && <button className="pg-nav right" onClick={() => onIndexChange(index + 1)} aria-label={t("web.images.viewer.next")}>›</button>}
+
+        {/* Rating: the photo's stars and comment, a panel per photo (its
+            comment, unsaved, is saved as the viewer moves on). */}
+        {shownRating && rating && (!ratingSheet || rateOpen) && (
+          <div className={ratingSheet ? "pg-rate-sheet" : "pg-rate-bar"}>
+            <RatingPanel
+              key={item.path}
+              id={rateSheetId}
+              ratingKey={item.path}
+              ratings={rating.ratings}
+              listed={listedRating}
+              fromLinkNote
+              sheet={ratingSheet}
+              autoFocus={rateFocus}
+              onRefused={ratingRefused}
+              beforeChange={refuseOnDemo}
+            />
+          </div>
+        )}
 
         {infoOpen && (
           <div className="pg-info-panel" onClick={(e) => e.stopPropagation()}>

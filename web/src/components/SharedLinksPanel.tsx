@@ -73,6 +73,8 @@ export default function SharedLinksPanel() {
                     : t("web.files.links.details", { size: fmtBytes(t, Number(l.bytes)), made: fmtWhen(t, l.created), until: fmtWhen(t, l.expires) })}
                 </span>
                 <span className="sl-dim">{l.opens > 0 ? t("web.files.links.opened", { count: l.opens, date: fmtWhen(t, l.lastOpened) }) : t("web.files.links.never_opened")}</span>
+                {/* Its visitors may rate the photos (release 163). */}
+                {l.rating && <span className="sl-dim">{t("web.files.links.rating_on")}</span>}
               </div>
               <button className="sf-btn small danger" disabled={deleting === l.uuid} onClick={() => void del(l)}>{deleting === l.uuid ? t("common.deleting") : t("common.delete")}</button>
             </li>

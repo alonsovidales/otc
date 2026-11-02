@@ -1,0 +1,186 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* A collection's Rating (RatingPanel.tsx): the stars and comment box of a
+   viewer, the Rate button that opens them on a phone, a rated tile's
+   badge, and Show beside Sort by over a rated grid. Stars are gold, the
+   colour the app picks and focuses with; the theme's own variables
+   (index.css) everywhere. */
+
+/* index.css draws every button as an ember pill: these start from nothing. */
+.rt-star, .rt-save, .rt-rate {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rt-star:hover, .rt-save:hover, .rt-rate:hover { filter: none; }
+
+.rt-glyph { display: block; flex: none; }
+.rt-glyph path { fill: none; stroke: currentColor; }
+.rt-glyph.filled path { fill: currentColor; }
+
+/* ---- the stars ------------------------------------------------------------- */
+
+.rt-stars { display: inline-flex; align-items: center; min-width: 0; margin-left: -6px; }
+.rt-star {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: var(--mist-dim);
+  transition: color .12s ease, background-color .12s ease, transform .12s ease;
+}
+.rt-star.lit { color: var(--gold); }
+.rt-star:active { transform: scale(.9); }
+.rt-star:focus-visible { outline: 2px solid var(--gold); outline-offset: -1px; }
+@media (hover: hover) {
+  .rt-star:hover { background: rgba(234, 242, 239, .08); }
+}
+
+/* ---- the panel: stars, note, comment, Save ---------------------------------------
+   Under the photo, one row: the stars (the note under them), the box,
+   Save. As a phone's sheet: the stars and Save on top, then the box; on
+   its side, where the width allows, one row again, so it covers less of
+   the photo. */
+
+.rt-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "head comment save";
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.rt-head { grid-area: head; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.rt-note {
+  margin: 0;
+  max-width: 180px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mist-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt-comment {
+  grid-area: comment;
+  box-sizing: border-box;
+  width: 100%;
+  height: 56px;
+  margin: 0;
+  padding: 7px 10px;
+  resize: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--mist);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+}
+.rt-comment::placeholder { color: var(--mist-dim); opacity: 1; }
+.rt-comment:focus { outline: none; border-color: rgba(234, 242, 239, .28); }
+.rt-comment:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: transparent; }
+.rt-save {
+  grid-area: save;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease, filter .15s ease;
+}
+.rt-save:hover:not(:disabled) { filter: brightness(1.08); }
+.rt-save:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rt-save:disabled { background: var(--panel); color: var(--mist-dim); box-shadow: inset 0 0 0 1px var(--line); cursor: default; }
+
+.rt-panel.sheet {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head save"
+    "comment comment";
+}
+@media (min-width: 600px) {
+  .rt-panel.sheet { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "head comment save"; }
+}
+/* 44px to hit with a finger. */
+.rt-panel.sheet .rt-star { width: 44px; height: 44px; }
+.rt-panel.sheet .rt-stars { margin-left: -8px; }
+.rt-panel.sheet .rt-note { max-width: none; white-space: normal; }
+/* 16px, so iOS doesn't zoom into the page when it gets the focus. */
+.rt-panel.sheet .rt-comment { font-size: 16px; line-height: 22px; height: 58px; }
+
+/* ---- the Rate button (a phone's viewer top bar) ------------------------------------ */
+
+.rt-rate {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--mist);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rt-rate .rt-glyph.filled { color: var(--gold); }
+.rt-rate.on { background: var(--ember); color: var(--ember-ink); border-color: transparent; }
+.rt-rate.on .rt-glyph.filled { color: inherit; }
+.rt-rate:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ---- a rated tile's badge ----------------------------------------------------------- */
+
+/* Bottom left: the circle and a video's mark take the top corners. */
+.rt-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 7px 0 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.rt-badge-stars { display: inline-flex; align-items: center; gap: 3px; }
+.rt-badge-stars .rt-glyph { color: var(--gold); }
+@media (max-width: 599px) {
+  .rt-badge { left: 4px; bottom: 4px; height: 18px; gap: 4px; padding: 0 5px 0 4px; font-size: 11px; }
+}
+
+/* ---- Show beside Sort by --------------------------------------------------------------- */
+
+.rt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-width: 0; }
+/* Narrowed: the menu stands out, so the grid never passes for all of it. */
+.rt-show.active .sortby-label { color: var(--ember); }
+.rt-show.active select { border-color: var(--ember); box-shadow: inset 0 0 0 1px var(--ember); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-star, .rt-save { transition: none; }
+  .rt-star:active { transform: none; }
+}

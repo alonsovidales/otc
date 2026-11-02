@@ -32,3 +32,22 @@
 .sl-row .sf-btn.danger { background: var(--danger-bg); color: var(--danger); }
 .sgs-check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 8px 0 2px; }
 .sgs-check input { margin-top: 3px; accent-color: var(--ember); }
+
+/* Rating (release 163): a collection's gallery can let its visitors rate
+   the photos - a switch, with what it means under it. */
+.sgs-rating { display: grid; gap: 2px; }
+.sgs-check-hint { padding-left: 46px; }
+.sgs-rating .sgs-check input {
+  appearance: none; -webkit-appearance: none; flex: none; position: relative;
+  width: 36px; height: 20px; margin: 1px 0 0; border-radius: 999px;
+  background: var(--line); cursor: pointer; transition: background-color .15s ease;
+}
+.sgs-rating .sgs-check input::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--mist); transition: transform .15s ease;
+}
+.sgs-rating .sgs-check input:checked { background: var(--ember); }
+.sgs-rating .sgs-check input:checked::before { transform: translateX(16px); background: var(--ember-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .sgs-rating .sgs-check input, .sgs-rating .sgs-check input::before { transition: none; }
+}

@@ -51,7 +51,7 @@ function CollectionsPage({ onOpenPhotos }: Props) {
   const orderOptions = useMemo(() => collectionsOrders.map((o) => ({ value: o, label: orderText(t, o) })), [t]);
 
   const open = (g: ImageGroup) => {
-    openGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
+    openGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
     onOpenPhotos();
   };
 

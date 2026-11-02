@@ -17,7 +17,11 @@
 // person's photos the bar and the viewer also take photos off that person,
 // or move them to someone else, and make one photo's face theirs
 // (personFix.tsx); the person's face at the top changes it too (PersonFace).
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+// A collection's Rating (rating.ts, release 163) is turned on and off in its
+// header, which then has Show and Sort by; its tiles show their stars and a
+// comment's bubble, and its viewer the stars and the comment box
+// (RatingPanel.tsx).
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { Trans, useT, type TFunction } from "../i18n";
@@ -41,14 +45,20 @@ import { CollectionsIcon, FavouritesIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
 import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
-import { areaKey, clearSearch, clearText, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
+import {
+  areaKey, clearSearch, clearText, getPhotoFilter, isDateOrdered, isFiltered, leaveArea, leaveGroup, openGroup, ratingViewOf, setRatingView, updateOpenGroup,
+  usePhotoFilter, type OpenGroup,
+} from "./photoFilter";
+import { claimRatingHint, createRatings, isRatingRanked, listedRating, ratingSearch, type RatingRefusal, type RatingView } from "./rating";
+import { ratingDescription, ratingRefusalText } from "./ratingText";
+import { RatingBadge, RatingTools, StarGlyph } from "./RatingPanel";
 import { dropPlaces } from "./places";
 import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { nameCollator } from "./filesSort";
 import { sortCollections } from "./librarySort";
-import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
-import { say, type UiText } from "./uiText";
+import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
+import { asIs, say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
 import { MoveToPersonDialog, NotThisPersonIcon, RemoveFromPersonDialog, SomeoneElseIcon, UseFaceIcon } from "./personFix";
@@ -380,6 +390,12 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // only when the area does.
   const areaNow = areaKey(filter.area);
   const area = filter.area ?? undefined;
+  // Rating (rating.ts): the open collection's Show and Sort by while its
+  // Rating is on, else null; the key changes with either, and with Rating
+  // turned on or off (whose answers carry each photo's stars, or don't).
+  const ratingView = ratingViewOf(filter);
+  const rated = ratingView != null;
+  const ratingKey = ratingView ? `${ratingView.show}/${ratingView.sort}` : "";
   const dateOrdered = isDateOrdered(filter);
   // Below this the selection bar shows icons only, each with a tooltip.
   const compact = useMedia("(max-width: 899px)");
@@ -457,6 +473,16 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // One object URL per loaded item, freed once it leaves `items` (a new
   // search, a jump to a date, a delete) - see useObjectURLs.
   const thumbFor = useObjectURLs(items, thumbOf);
+  // Rating: the stars and comments set in the viewer, by path, over what
+  // the pages said (File.rating) - one store per open collection, its
+  // changes sent with SetPhotoRating (rating.ts). The tiles follow it.
+  const ratings = useMemo(() => createRatings(async (path, want) => {
+    const resp = await ask({ $case: "reqSetPhotoRating", reqSetPhotoRating: { groupId, path, stars: want.stars, comment: want.comment } });
+    if (resp.payload?.$case === "respPhotoRating") return { ok: true, stored: listedRating(resp.payload.respPhotoRating) };
+    const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+    return { ok: false, code: resp.errorCode, said };
+  }), [groupId]);
+  const ratingsVersion = useSyncExternalStore(ratings.subscribe, ratings.version);
   const [token, setToken] = useState<string | null>(null);
   // True from the start: the filter effect below starts a search on mount,
   // so the very first paint shows grey tiles rather than an empty page.
@@ -512,6 +538,9 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
             // Smart search: the photos best matching it, best first,
             // within the filters above (no date order, no jump).
             text,
+            // Rating: Show and Sort by, in a collection whose Rating is on
+            // (nothing at their defaults).
+            ...ratingSearch(ratingView),
             // Issue #106: videos belong in Images too.
             includeVideos: true,
             token: tok,
@@ -598,7 +627,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [tags, personIds, groupId, areaNow, text, token, loading, endReached, retryLater, resetRetry, refreshPicked] // eslint-disable-line react-hooks/exhaustive-deps
+    [tags, personIds, groupId, areaNow, text, ratingKey, token, loading, endReached, retryLater, resetRetry, refreshPicked] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // -------- date buckets and the scrubber (issue #77) -------------------------
@@ -670,7 +699,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   // Where the page was when a scrub began, under which filter: its first
   // preview scrolls to the top, and a scrub cancelled without a jump goes
   // back there (restoreRef, once the photos are back).
-  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}|${areaNow}|${text}`;
+  const filterKey = `${tags.join("\n")}|${personIds.join(",")}|${groupId}|${areaNow}|${text}|${ratingKey}`;
   const filterKeyRef = useRef(filterKey);
   useLayoutEffect(() => { filterKeyRef.current = filterKey; });
   const scrubFromRef = useRef<{ y: number; filter: string } | null>(null);
@@ -876,6 +905,8 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     resetRetry();
     setItems([]);
     mapRef.current = new Map();
+    // The pages to come have the device's word on every photo's rating.
+    ratings.settle();
     setToken(null);
     setEndReached(false);
     setPageError(false);
@@ -890,7 +921,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     resetBucketRetry();
     void loadDateBuckets();
     window.scrollTo(0, 0);
-  }, [tags, personIds, groupId, areaNow, text]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tags, personIds, groupId, areaNow, text, ratingKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------- infinite scroll: one page at a time ------------------------------
   // Not under the scrubber's grey tiles: those stand in for another month,
@@ -942,10 +973,18 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   }, []);
   // The viewer shows the grid's own thumbnail while the full size loads.
   const viewerOpen = openIdx != null;
+  // In a rated collection, with what its page said of its stars.
   const viewerItems = useMemo(
-    () => (viewerOpen ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies })) : []),
-    [viewerOpen, items, thumbFor]
+    () => (viewerOpen
+      ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies, ...(rated ? { rating: listedRating(f.rating) } : {}) }))
+      : []),
+    [viewerOpen, items, thumbFor, rated]
   );
+  // Rating: the store's version as the viewer opened. Narrowed or sorted by
+  // rating, a grid whose photos were rated in the viewer is asked for again
+  // as it closes - a photo may have left the choice, or moved.
+  const ratingsAtOpenRef = useRef(0);
+  useEffect(() => { if (viewerOpen) ratingsAtOpenRef.current = ratings.version(); }, [viewerOpen, ratings]);
 
   // -------- newer photos above a jump (issue #194) ------------------------------
   // `update` adds photos above what is on screen: the first photo below the
@@ -1222,6 +1261,15 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   const leaveViewerRef = useRef(closeViewer);
   useLayoutEffect(() => {
     leaveViewerRef.current = () => {
+      // Rating: narrowed or sorted by it, the grid follows what was rated -
+      // after the frame in which the viewer's comment box, closing, saved
+      // what it held.
+      if (ratingView && isRatingRanked(ratingView)) {
+        const at = ratingsAtOpenRef.current;
+        requestAnimationFrame(() => {
+          if (ratings.version() !== at) reloadGrid();
+        });
+      }
       const out = group?.favourites ? new Set(items.filter((f) => favourites.knownOut(f.path)).map((f) => f.path)) : null;
       if (!out?.size) { closeViewer(); return; }
       const at = openIdxRef.current ?? 0;
@@ -1307,6 +1355,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       resetRetry();
       setItems([]);
       mapRef.current = new Map();
+      ratings.settle();
       setToken(null);
       setEndReached(false);
       setPageError(false);
@@ -1386,6 +1435,46 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       onShowCollections();
     });
     return null;
+  };
+
+  // Rating (release 163): the header's button turns the open collection's
+  // Rating on or off (SetImageGroupRating). Turned off, its ratings stay on
+  // the device, hidden, and come back with it; either way the grid is asked
+  // for again (its pages carry the stars only while it is on). The first
+  // time in this browser, a line says what it is for. A device from before
+  // Rating answers unknown_payload: it needs an update. A demo device
+  // refuses it before anything is sent.
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const toggleRating = async () => {
+    if (!group || ratingBusy || refuseOnDemo()) return;
+    const id = group.id;
+    const on = !group.rating;
+    setRatingBusy(true);
+    try {
+      const resp = await ask({ $case: "reqSetImageGroupRating", reqSetImageGroupRating: { id, on } });
+      if (acked(resp)) {
+        setGroupRatingLocally(id, on);
+        const now = getPhotoFilter().group;
+        if (now?.id === id) updateOpenGroup({ ...now, rating: on });
+        if (on && claimRatingHint()) showToast({ text: say("web.images.rating.turned_on") });
+      } else if (resp.errorCode === "unknown_payload") {
+        toastError(say("web.images.rating.needs_update"));
+      } else {
+        const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+        toastError(said ? asIs(said) : say("web.images.rating.toggle_failed"));
+      }
+    } catch {
+      toastError(say("web.images.error.unreachable"));
+    }
+    setRatingBusy(false);
+  };
+  // A rating the device turned down: said in the viewer while it is open
+  // (`shown`), here once it has closed (a comment saved as it closed). Its
+  // Rating turned off elsewhere ("rating_off"): the collections are listed
+  // again, which turns it off here too.
+  const onRatingRefused = (r: RatingRefusal, shown: boolean) => {
+    if (!shown) toastError(ratingRefusalText(r));
+    if (r.code === "rating_off") void reloadGroups().catch(() => {});
   };
 
   // Remove from collection: the selected photos leave the open collection -
@@ -1505,16 +1594,22 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       else runs.push({ month: m, start: i, end: i + 1 });
     });
     return runs.map(({ month, start, end }, r) => {
-      const tiles = items.slice(start, end).map((f, k) => (
-        <Tile
-          key={unique(`${f.path}#${f.hash}`)}
-          file={f}
-          index={start + k}
-          thumb={thumbFor(f)}
-          selNo={selNo.get(f.path) ?? 0}
-          selecting={selecting}
-        />
-      ));
+      const tiles = items.slice(start, end).map((f, k) => {
+        // Rating: what the viewer set, else what the page said.
+        const rating = rated ? (ratings.get(f.path) ?? listedRating(f.rating)) : null;
+        return (
+          <Tile
+            key={unique(`${f.path}#${f.hash}`)}
+            file={f}
+            index={start + k}
+            thumb={thumbFor(f)}
+            selNo={selNo.get(f.path) ?? 0}
+            selecting={selecting}
+            stars={rating?.stars ?? 0}
+            commented={!!rating?.comment}
+          />
+        );
+      });
       if (!dateOrdered) return <div key="all" className="pg-sec" style={sectionStyle(tiles.length, cols)}>{tiles}</div>;
       // The last month may have more photos on the way: it takes the room
       // they will need now, so the next page fills it in instead of moving
@@ -1543,7 +1638,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         </section>
       );
     });
-  }, [items, dateOrdered, endReached, monthCounts, thumbFor, selNo, selecting, reserveTop, jumpMonth, cols]);
+  }, [items, dateOrdered, endReached, monthCounts, thumbFor, selNo, selecting, reserveTop, jumpMonth, cols, rated, ratings, ratingsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bucketTotal = dateBuckets.reduce((sum, b) => sum + b.count, 0);
   const showScrubber = dateOrdered && dateBuckets.length > 0;
@@ -1664,7 +1759,16 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       </Empty>
     );
   } else if (items.length === 0) {
-    if (group && !tags.length && !personIds.length && !area) {
+    if (ratingView && ratingView.show !== "all" && !tags.length && !personIds.length && !area) {
+      // Rating: Show left nothing - the way back to every photo.
+      body = (
+        <Empty icon={<StarGlyph size={32} />} title={t("web.images.rating.no_match")}>
+          <button type="button" className="pg-btn outline" onClick={() => setRatingView({ ...ratingView, show: "all" })}>
+            {t("web.images.rating.show_everything")}
+          </button>
+        </Empty>
+      );
+    } else if (group && !tags.length && !personIds.length && !area) {
       body = (
         <Empty
           icon={group.favourites ? <FavouritesIcon size={32} /> : <CollectionsIcon size={32} />}
@@ -1832,6 +1936,10 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
           onShare={() => { if (!refuseOnDemo()) setSharing({ groupId: group.id }); }}
           onDelete={() => { if (!refuseOnDemo()) setDialog({ kind: "deleteCollection" }); }}
           onError={toastError}
+          onRating={() => void toggleRating()}
+          ratingBusy={ratingBusy}
+          ratingView={ratingView}
+          onRatingView={setRatingView}
         />
       )}
       {!group && personIds.length > 0 && tags.length === 0 && !text && (
@@ -1955,11 +2063,21 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
           // Not this person / Someone else… for the photo on screen.
           personId={onePerson ?? undefined}
           onPersonFixed={onViewerPersonFixed}
+          // A collection with Rating on: the stars and the comment box.
+          rating={rated ? { ratings, onRefused: onRatingRefused } : undefined}
         />
         </Part>
       )}
 
-      {sharing && <SharedGalleryShare source={sharing} onClose={() => setSharing(null)} />}
+      {/* Shared with ratings on, the collection's Rating is on: the
+          collections are listed again, and its header follows. */}
+      {sharing && (
+        <SharedGalleryShare
+          source={sharing}
+          onClose={() => setSharing(null)}
+          onRatingOn={() => void reloadGroups().catch(() => {})}
+        />
+      )}
 
       {showScrubber && (
         <DateScrubber buckets={dateBuckets} currentMonth={currentMonth} onPreview={onScrubPreview} onJump={onScrubJump} />
@@ -1978,6 +2096,10 @@ type TileProps = {
   selNo: number;
   // Anything selected: a click anywhere on a tile picks it.
   selecting: boolean;
+  // In a collection with Rating on: its stars (0: none) and whether it has
+  // a comment, on a badge in its corner.
+  stars: number;
+  commented: boolean;
 };
 
 // Thumbnails fade in once decoded instead of popping in.
@@ -1985,7 +2107,7 @@ const markLoaded = (e: SyntheticEvent<HTMLImageElement>) => { e.currentTarget.da
 
 // Plain markup: the grid's own handlers deal with clicks and presses (see
 // onGridClick), so a tile only renders again when what it shows changes.
-const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TileProps) {
+const Tile = memo(function Tile({ file, index, thumb, selNo, selecting, stars, commented }: TileProps) {
   const t = useT();
   const video = isVideoFile(file);
   const selected = selNo > 0;
@@ -1999,12 +2121,14 @@ const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TilePr
         type="button"
         className="pg-tile-open"
         aria-label={label}
+        aria-description={ratingDescription(t, stars, commented)}
         aria-pressed={selecting ? selected : undefined}
       >
         {thumb
           ? <img className="pg-tile-img" src={thumb} alt="" loading="lazy" decoding="async" draggable={false} onLoad={markLoaded} />
           : <span className="pg-tile-missing"><ImagesIcon size={28} /></span>}
         {video && <span className="pg-tile-video"><PlayGlyph /></span>}
+        <RatingBadge stars={stars} commented={commented} />
       </button>
       {/* Its own button for the keyboard; on a touch screen taps go to the
           tile underneath (CSS), which picks it once anything is picked. */}
@@ -2042,7 +2166,7 @@ const MonthTitle = memo(function MonthTitle({ month, oneTile }: { month: string 
 
 // ---- headers ---------------------------------------------------------------------
 
-function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onError }: {
+function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onError, onRating, ratingBusy, ratingView, onRatingView }: {
   group: OpenGroup;
   // The months its photos span, when known.
   span: string;
@@ -2052,17 +2176,26 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   onShare: () => void;
   onDelete: () => void;
   onError: (text: UiText) => void;
+  // Rating: the button that turns it on or off, busy while the device
+  // answers; and while it is on, Show and Sort by.
+  onRating: () => void;
+  ratingBusy: boolean;
+  ratingView: RatingView | null;
+  onRatingView: (view: RatingView) => void;
 }) {
   const t = useT();
   const groups = useGroups();
   // The name and count as the device lists them: renamed or grown in
-  // another tab or on another device, or after photos were deleted here.
+  // another tab or on another device, or after photos were deleted here;
+  // and its Rating, turned on or off elsewhere (or by a gallery shared
+  // with ratings).
   useEffect(() => {
     const g = groups.items.find((x) => x.id === group.id);
-    if (g && (g.name !== group.name || g.fileCount !== group.fileCount || g.favourites !== !!group.favourites)) {
-      updateOpenGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
+    if (g && (g.name !== group.name || g.fileCount !== group.fileCount || g.favourites !== !!group.favourites || g.rating !== !!group.rating)) {
+      updateOpenGroup({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
     }
   }, [groups.items, group]);
+  const ratingOn = !!group.rating;
   // Favourites can't be renamed or deleted (the device refuses both): its
   // name is only a title, and it has no Delete.
   const fixed = !!group.favourites;
@@ -2149,6 +2282,19 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
           <p className="pg-sub">{itemsLabel(t, group.fileCount)}{span && <> · {span}</>}</p>
         </div>
         <div className="pg-head-actions">
+          {/* Rating: a star, filled while it is on. Named by its state for
+              a screen reader ("Rating on"), which its visible word starts. */}
+          <button
+            type="button"
+            className={(compact ? "pg-icon-btn" : "pg-btn outline") + " pg-rating-btn" + (ratingOn ? " on" : "")}
+            onClick={onRating}
+            aria-busy={ratingBusy || undefined}
+            aria-label={ratingOn ? t("web.images.rating.toggle_on") : t("web.images.rating.toggle_off")}
+            data-tip={compact ? t("web.images.rating.toggle") : undefined}
+          >
+            {ratingBusy ? <Spinner /> : <StarGlyph filled={ratingOn} size={20} />}
+            {!compact && <span>{t("web.images.rating.toggle")}</span>}
+          </button>
           <button
             type="button"
             className={compact ? "pg-icon-btn" : "pg-btn outline"}
@@ -2173,6 +2319,12 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
           )}
         </div>
       </div>
+      {/* With Rating on: which photos, in which order (rating.ts). */}
+      {ratingView && (
+        <div className="pg-rating-tools">
+          <RatingTools view={ratingView} onChange={onRatingView} />
+        </div>
+      )}
     </header>
   );
 }
@@ -2706,7 +2858,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
         // Into Favourites: the viewer's hearts it knew are asked again.
         if (g.favourites) favourites.forget();
         void reloadGroups().catch(() => {});
-        onDone({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites });
+        onDone({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
         return;
       }
       setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: g.name }));
@@ -2875,12 +3027,12 @@ function EmptyLibrary({ onUploaded, onFailed }: { onUploaded: () => void; onFail
   );
 }
 
-function Empty({ icon, title, text, children }: { icon: ReactNode; title: string; text: string; children?: ReactNode }) {
+function Empty({ icon, title, text, children }: { icon: ReactNode; title: string; text?: string; children?: ReactNode }) {
   return (
     <div className="pg-empty">
       <div className="pg-empty-art">{icon}</div>
       <h2 className="pg-empty-title">{title}</h2>
-      <p className="pg-empty-text">{text}</p>
+      {text && <p className="pg-empty-text">{text}</p>}
       {children}
     </div>
   );

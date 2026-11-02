@@ -4,8 +4,10 @@
 // device what it would share (how many files, how much space the copy
 // takes), lets the owner name it and pick how long it lasts, then follows
 // the copy and shows the link - the only time it is ever shown, since the
-// device keeps no copy of it.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+// device keeps no copy of it. A collection's gallery can let anyone with
+// the link rate its photos (release 163: CreateSharedGallery.rating, which
+// turns the collection's Rating on too); off unless the owner turns it on.
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedGallerySource, SharedGalleryPreview, SharedGalleryJob } from "../proto/messages";
 import Spinner from "./Spinner";
@@ -38,7 +40,12 @@ const EXPIRY_HOURS = [24, 168, 720];
 
 const FOCUSABLE = "button, [href], input, [tabindex]:not([tabindex='-1'])";
 
-export default function SharedGalleryShare({ source, onClose }: { source: Partial<SharedGallerySource>; onClose: () => void }) {
+export default function SharedGalleryShare({ source, onClose, onRatingOn }: {
+  source: Partial<SharedGallerySource>;
+  onClose: () => void;
+  /** A collection shared with ratings: its Rating is on now. */
+  onRatingOn?: () => void;
+}) {
   const t = useT();
   const src: SharedGallerySource = { paths: [], groupId: "", directory: "", ...source };
   const [preview, setPreview] = useState<SharedGalleryPreview | null>(null);
@@ -47,6 +54,10 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
   const [description, setDescription] = useState(() => defaultDescription(t));
   const [ttl, setTtl] = useState(168);
   const [lowRes, setLowRes] = useState(false);
+  // Rating: only for a collection - never a selection or a folder.
+  const canRate = !!src.groupId;
+  const [rating, setRating] = useState(false);
+  const ratingHintId = useId();
   const [job, setJob] = useState<SharedGalleryJob | null>(null);
   const [error, setError] = useState<UiText | null>(null);
   const [copied, setCopied] = useState(false);
@@ -100,7 +111,10 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
     let resp: RespEnvelope;
     try {
       resp = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqCreateSharedGallery", reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(t), ttlHours: ttl, lowRes } };
+        (e as any).payload = {
+          $case: "reqCreateSharedGallery",
+          reqCreateSharedGallery: { source: src, description: description.trim() || defaultDescription(t), ttlHours: ttl, lowRes, rating: canRate && rating },
+        };
       });
     } catch {
       // Not retried: the device may have started the copy before the
@@ -117,6 +131,8 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
     }
     let j = resp.payload.respSharedGalleryJob;
     setJob(j);
+    // The device turned the collection's Rating on with the link.
+    if (canRate && rating) onRatingOn?.();
     // A poll that throws used to end here, leaving the dialog on
     // "Copying" with no way to close it while the device finished the
     // copy - and the link, shown only this once, was lost. The device
@@ -146,6 +162,8 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
       j = r.payload.respSharedGalleryJob;
       if (alive.current) setJob(j);
     }
+    // Listed again once the copy is done, whatever came of it.
+    if (canRate && rating) onRatingOn?.();
     // The device's own words for a copy that failed.
     const failure = j.error;
     if (alive.current && failure) setError(() => asIs(failure));
@@ -234,6 +252,16 @@ export default function SharedGalleryShare({ source, onClose }: { source: Partia
               <input type="checkbox" checked={lowRes} onChange={e => setLowRes(e.target.checked)} />
               <span><Trans k="web.files.share.low_res" parts={{ b: (s) => <strong>{s}</strong> }} /></span>
             </label>
+            {/* A collection's gallery: its visitors may rate the photos. */}
+            {canRate && (
+              <div className="sgs-rating">
+                <label className="sgs-check">
+                  <input type="checkbox" role="switch" checked={rating} onChange={e => setRating(e.target.checked)} aria-describedby={ratingHintId} />
+                  <span><strong>{t("web.files.share.rating")}</strong></span>
+                </label>
+                <p id={ratingHintId} className="sgs-dim sgs-check-hint">{t("web.files.share.rating_hint")}</p>
+              </div>
+            )}
             <label className="sgs-label" htmlFor="sgs-desc">{t("web.files.share.description")}</label>
             <input id="sgs-desc" className="sgs-input" value={description} onChange={e => setDescription(e.target.value)} maxLength={200} />
             <span className="sgs-label">{t("web.files.share.available_for")}</span>

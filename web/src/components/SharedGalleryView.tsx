@@ -6,8 +6,13 @@
 // only inside the requests, over the encrypted websocket, and the device
 // keeps no copy of it. Thumbnails first, a viewer for photos (the
 // browser-ready preview) and videos (streamed by range), and downloads of
-// the originals - all of them, or a selection.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// the originals - all of them, or a selection. A collection's gallery whose
+// owner lets visitors rate the photos (SharedGallery.rating, release 163)
+// has the viewer's stars and comment box (RateSharedGalleryItem), the
+// badges on its tiles, and Show and Sort by, which this page does itself
+// over the items it has (rating.ts' arrangeItems). Visitors never see who
+// else rated.
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedGallery, SharedGalleryItem } from "../proto/messages";
 import { GetSharedGalleryItem_Part } from "../proto/messages";
@@ -21,6 +26,10 @@ import { isTooBigForMemory } from "./bigFile";
 import { lazyPart } from "./lazyPart";
 import Part from "./Part";
 import { useBackLayer } from "./backStack";
+import { arrangeItems, cRatingDefault, createRatings, listedRating, type RatingRefusal, type RatingView, type Ratings, type ShownRating } from "./rating";
+import { ratingDescription, ratingRefusalText } from "./ratingText";
+import { RateButton, RatingBadge, RatingPanel, RatingTools } from "./RatingPanel";
+import { useRatingSheet } from "./useRatingSheet";
 
 // The question before a big download (F11 of the 2026-10 review), loaded
 // only when one is asked: this page loads what it shows.
@@ -64,13 +73,31 @@ const failureText = (err: unknown, fallback: PlainKey): UiText => {
 
 const isVideo = (it: SharedGalleryItem) => it.mime.startsWith("video/");
 
+// How long a rating the device turned down is said.
+const cRateNoteMs = 6000;
+
+// The items within cViewerKeep steps of `at` in the viewer's order (it
+// wraps round), the one at `at` included: what the viewer keeps loaded.
+function nearIn(order: readonly number[], at: number): number[] {
+  const pos = order.indexOf(at);
+  if (pos < 0) return [at];
+  const n = order.length;
+  const near = new Set<number>();
+  for (let d = -cViewerKeep; d <= cViewerKeep; d++) near.add(order[(((pos + d) % n) + n) % n]);
+  return [...near];
+}
+
 export default function SharedGalleryView() {
   const t = useT();
   const link = useMemo(parseLink, []);
   const [gallery, setGallery] = useState<SharedGallery | null>(null);
   const [error, setError] = useState<UiText | null>(() => (link ? null : say("web.files.gallery.incomplete")));
   const [thumbs, setThumbs] = useState<Record<number, string>>({});
+  // The item open in the viewer (its index), and the order the viewer steps
+  // through: the grid's as it opened, so rating a photo out of what Show
+  // keeps doesn't move the viewer under the visitor.
   const [open, setOpen] = useState<number | null>(null);
+  const [viewOrder, setViewOrder] = useState<number[]>([]);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dl, setDl] = useState<{ done: number; total: number; bytes: number } | null>(null);
@@ -81,6 +108,49 @@ export default function SharedGalleryView() {
   // The viewer's loaded photos and clips by item index (blob URLs only,
   // never a stream URL, which expires) - see Viewer.
   const viewCache = useRef(new Map<number, string>());
+
+  // Rating: what this visitor set, by item index (as a key), over what the
+  // gallery said; each change sent with RateSharedGalleryItem (rating.ts).
+  // Show and Sort by are this page's: it has every item.
+  const ratings = useMemo(() => createRatings(async (key, want) => {
+    if (!link) return { ok: false, code: "", said: "" };
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = {
+        $case: "reqRateSharedGalleryItem",
+        reqRateSharedGalleryItem: { uuid: link.uuid, secret: link.secret, index: Number(key), stars: want.stars, comment: want.comment },
+      };
+    });
+    if (!resp.error && resp.payload?.$case === "respAck" && resp.payload.respAck.ok) return { ok: true, stored: { ...want, fromLink: false } };
+    const said = resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "");
+    return { ok: false, code: resp.errorCode, said };
+  }), [link]);
+  const ratingsVersion = useSyncExternalStore(ratings.subscribe, ratings.version);
+  const [view, setView] = useState<RatingView>(cRatingDefault);
+  // A rating the device turned down, said for a moment: in the viewer while
+  // it is open, under the title otherwise.
+  const [rateNote, setRateNote] = useState<{ text: UiText; seq: number } | null>(null);
+  useEffect(() => {
+    if (!rateNote) return;
+    const timer = setTimeout(() => setRateNote(null), cRateNoteMs);
+    return () => clearTimeout(timer);
+  }, [rateNote]);
+  // The link no longer takes ratings ("rating_off": its collection's Rating
+  // turned off, or the collection gone): the stars go from the page.
+  const onRatingRefused = useCallback((r: RatingRefusal) => {
+    setRateNote({ text: ratingRefusalText(r), seq: Date.now() });
+    if (r.code === "rating_off") setGallery((g) => (g ? { ...g, rating: false } : g));
+  }, []);
+  const ratingOf = useCallback(
+    (it: SharedGalleryItem): ShownRating => ratings.get(String(it.index)) ?? listedRating({ stars: it.stars, comment: it.comment }),
+    [ratings],
+  );
+  // What the grid shows: every item, or - with ratings - those Show keeps,
+  // in Sort by's order. The key changes only when that does.
+  const shownItems = useMemo(
+    () => (!gallery ? [] : gallery.rating ? arrangeItems(gallery.items, view, ratingOf, (it) => it.taken) : gallery.items),
+    [gallery, view, ratingOf, ratingsVersion], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const shownKey = shownItems.map((it) => it.index).join(",");
 
   // One part of an item, assembled from 4 MB pieces. shouldStop ends it
   // between pieces: an item the viewer has moved past, or a closed page,
@@ -148,8 +218,11 @@ export default function SharedGalleryView() {
   // Thumbnails, four at a time, for the tiles on or near the screen (F14
   // of the 2026-10 review): every one of a big gallery used to be fetched
   // in order however little of it was looked at, each piece of a public
-  // link holding the device's budget.
+  // link holding the device's budget. Watched again when other tiles show
+  // (Show, Sort by), never fetching one twice.
   const gridRef = useRef<HTMLDivElement>(null);
+  const thumbsRef = useRef(thumbs);
+  useLayoutEffect(() => { thumbsRef.current = thumbs; });
   useEffect(() => {
     const grid = gridRef.current;
     if (!gallery || !grid) return;
@@ -202,17 +275,18 @@ export default function SharedGalleryView() {
         if (!en.isIntersecting) continue;
         obs.unobserve(en.target);
         const i = Number((en.target as HTMLElement).dataset.index);
-        if (Number.isInteger(i)) queue.push(i);
+        if (Number.isInteger(i) && !(i in thumbsRef.current) && !(i in pending)) queue.push(i);
       }
       pump();
     }, { rootMargin: "800px 0px" });
     grid.querySelectorAll<HTMLElement>("[data-index]").forEach((el) => obs.observe(el));
     return () => {
+      // What came in and wasn't shown yet is kept.
+      flush();
       cancelled = true;
       obs.disconnect();
-      if (flushTimer != null) clearTimeout(flushTimer);
     };
-  }, [gallery, fetchPart, objectURL]);
+  }, [gallery, fetchPart, objectURL, shownKey]);
 
   // The tab's title: the gallery's description, or ours in the language
   // on screen.
@@ -267,6 +341,22 @@ export default function SharedGalleryView() {
     if (n.has(i)) n.delete(i); else n.add(i);
     return n;
   });
+  const rated = gallery.rating;
+  const byIndex = new Map(items.map((it) => [it.index, it]));
+  const openItem = open !== null ? byIndex.get(open) : undefined;
+  // The viewer steps through the grid's order as it opened.
+  const openAt = (index: number) => {
+    setViewOrder(shownItems.map((it) => it.index));
+    setOpen(index);
+  };
+  const moveBy = (d: number) => setOpen((i) => {
+    if (i === null || !viewOrder.length) return i;
+    const pos = Math.max(0, viewOrder.indexOf(i));
+    const n = viewOrder.length;
+    return viewOrder[(((pos + d) % n) + n) % n];
+  });
+  // A rating turned down, said under the title once the viewer has closed.
+  const noteOnPage = rateNote && open === null;
 
   return (
     <div className="sg-page">
@@ -283,11 +373,13 @@ export default function SharedGalleryView() {
               : t("web.files.gallery.meta", { count: items.length, size: fmtBytes(t, totalBytes) })}
           </p>
           {gallery.lowRes && <p className="sg-lowres">{t("web.files.gallery.low_res")}</p>}
+          {rated && <p className="sg-rate-intro">{t("web.files.gallery.rating_intro")}</p>}
         </div>
         <div className="sg-actions">
           {selecting ? (
             <>
-              <button className="btn" onClick={() => setSelected(new Set(items.map(it => it.index)))}>{t("web.files.gallery.select_all")}</button>
+              {/* Every photo the grid shows (Show may keep only some). */}
+              <button className="btn" onClick={() => setSelected(new Set(shownItems.map(it => it.index)))}>{t("web.files.gallery.select_all")}</button>
               <button className="btn" onClick={() => { setSelecting(false); setSelected(new Set()); }}>{t("common.cancel")}</button>
               {/* With nothing selected (disabled) it read "Download ", space included. */}
               <button className="btn primary" disabled={selected.size === 0 || !!dl}
@@ -310,24 +402,48 @@ export default function SharedGalleryView() {
           <div className="sg-bar"><div style={{ width: `${(100 * dl.done) / dl.total}%` }} /></div>
         </div>
       )}
-      <div className="sg-grid" ref={gridRef}>
-        {items.map(it => (
-          <button key={it.index} data-index={it.index} className={`sg-tile${selected.has(it.index) ? " on" : ""}`}
-            onClick={() => (selecting ? toggle(it.index) : setOpen(it.index))}
-            aria-label={it.name} aria-pressed={selecting ? selected.has(it.index) : undefined}>
-            {thumbs[it.index]
-              ? <img src={thumbs[it.index]} alt="" loading="lazy" />
-              : <span className="sg-name">{it.name}</span>}
-            {isVideo(it) && <span className="sg-play" aria-hidden>▶</span>}
-            {selecting && <span className="sg-check" aria-hidden>{selected.has(it.index) ? "✓" : ""}</span>}
-          </button>
-        ))}
-      </div>
-      {open !== null && (
-        <Viewer item={items[open]} count={items.length} index={open} thumb={thumbs[open]}
+      {rated && (
+        <div className="sg-tools">
+          <RatingTools view={view} onChange={setView} />
+        </div>
+      )}
+      {noteOnPage && <p className="sg-rate-note" role="alert" key={rateNote.seq}>{rateNote.text(t)}</p>}
+      {rated && shownItems.length === 0 ? (
+        // Show left nothing: the way back to every photo.
+        <div className="sg-empty sg-none">
+          <p>{t("web.images.rating.no_match")}</p>
+          <button className="btn" onClick={() => setView({ ...view, show: "all" })}>{t("web.images.rating.show_everything")}</button>
+        </div>
+      ) : (
+        <div className="sg-grid" ref={gridRef}>
+          {shownItems.map(it => {
+            const r = rated ? ratingOf(it) : null;
+            const stars = r?.stars ?? 0;
+            const commented = !!r?.comment;
+            return (
+              <button key={it.index} data-index={it.index} className={`sg-tile${selected.has(it.index) ? " on" : ""}`}
+                onClick={() => (selecting ? toggle(it.index) : openAt(it.index))}
+                aria-label={it.name} aria-description={ratingDescription(t, stars, commented)}
+                aria-pressed={selecting ? selected.has(it.index) : undefined}>
+                {thumbs[it.index]
+                  ? <img src={thumbs[it.index]} alt="" loading="lazy" />
+                  : <span className="sg-name">{it.name}</span>}
+                {isVideo(it) && <span className="sg-play" aria-hidden>▶</span>}
+                {selecting && <span className="sg-check" aria-hidden>{selected.has(it.index) ? "✓" : ""}</span>}
+                <RatingBadge stars={stars} commented={commented} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {open !== null && openItem && (
+        <Viewer item={openItem} index={open} position={Math.max(0, viewOrder.indexOf(open))} count={viewOrder.length || 1}
+          keep={nearIn(viewOrder, open)} thumb={thumbs[open]}
           fetchPart={fetchPart} cache={viewCache.current} link={link!}
-          onClose={() => setOpen(null)} onMove={d => setOpen(i => (i === null ? null : (i + d + items.length) % items.length))}
-          onDownload={() => void download([open])} />
+          onClose={() => setOpen(null)} onMove={moveBy}
+          onDownload={() => void download([open])}
+          rating={rated ? { ratings, listed: listedRating({ stars: openItem.stars, comment: openItem.comment }), onRefused: onRatingRefused } : undefined}
+          note={rateNote} onNoteClose={() => setRateNote(null)} />
       )}
       {bigAsk && (
         <Part kind="layer" onClose={() => setBigAsk(null)}>
@@ -344,11 +460,21 @@ export default function SharedGalleryView() {
 }
 
 function Viewer(props: {
-  item: SharedGalleryItem; index: number; count: number; thumb?: string; link: { uuid: string; secret: string };
+  /** The item, its index in the gallery, and where it is in the order the
+   *  viewer steps through (`position` of `count`). */
+  item: SharedGalleryItem; index: number; position: number; count: number;
+  /** The items to keep loaded: this one and its neighbours in that order. */
+  keep: number[];
+  thumb?: string; link: { uuid: string; secret: string };
   fetchPart: FetchPart; cache: Map<number, string>;
   onClose: () => void; onMove: (d: number) => void; onDownload: () => void;
+  /** A gallery that takes ratings: the item's stars and comment box. */
+  rating?: { ratings: Ratings; listed: ShownRating; onRefused: (r: RatingRefusal) => void };
+  /** A rating the device turned down, said over the photo. */
+  note: { text: UiText; seq: number } | null;
+  onNoteClose: () => void;
 }) {
-  const { item, index, count, thumb, link, fetchPart, cache, onClose, onMove, onDownload } = props;
+  const { item, index, position, count, keep, thumb, link, fetchPart, cache, onClose, onMove, onDownload, rating, note, onNoteClose } = props;
   const t = useT();
   // Back closes it (backStack.ts): on a phone, Back used to leave the
   // gallery for wherever its link was opened from.
@@ -356,6 +482,21 @@ function Viewer(props: {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
+  const keepRef = useRef(keep);
+  useLayoutEffect(() => { keepRef.current = keep; });
+
+  // Rating: the stars and comment box under the photo, or - on a phone, or
+  // a window too short for both - a sheet the bar's Rate button opens,
+  // which stays open from one photo to the next.
+  const sheet = useRatingSheet();
+  const [rateOpen, setRateOpen] = useState(false);
+  const [rateFocus, setRateFocus] = useState(false);
+  useEffect(() => { if (rateFocus) setRateFocus(false); }, [rateFocus]);
+  const sheetId = useId();
+  const ratingsStore = rating?.ratings;
+  const subscribeRatings = useCallback((l: () => void) => (ratingsStore ? ratingsStore.subscribe(l) : () => {}), [ratingsStore]);
+  useSyncExternalStore(subscribeRatings, () => ratingsStore?.version() ?? 0);
+  const shownRating = rating ? (rating.ratings.get(String(index)) ?? rating.listed) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -365,13 +506,13 @@ function Viewer(props: {
     const progress = (n: number, total: number) => { if (!cancelled) setLoaded(l => ({ n: l.n + n, total })); };
     // Every photo and whole clip opened used to stay in memory until the
     // page closed, and a revisit downloaded it again. Now one is kept per
-    // item while the viewer is within cViewerKeep steps of it, and freed
-    // once it is further - never the item on screen or its neighbours.
+    // item while the viewer is within cViewerKeep steps of it (in the
+    // order it steps through), and freed once it is further - never the
+    // item on screen or its neighbours.
     const show = (u: string) => {
       setSrc(u);
       cache.forEach((url, k) => {
-        const d = Math.abs(k - index);
-        if (Math.min(d, count - d) <= cViewerKeep) return;
+        if (k === index || keepRef.current.includes(k)) return;
         URL.revokeObjectURL(url);
         cache.delete(k);
       });
@@ -407,13 +548,16 @@ function Viewer(props: {
       }
     })();
     return () => { cancelled = true; };
-  }, [item, index, count, link, fetchPart, cache]);
+  }, [item, index, link, fetchPart, cache]);
 
+  // Escape closes, the arrows step - not in the comment box, where they
+  // move the caret (the stars keep theirs to themselves).
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      const inField = e.target instanceof Element && !!e.target.closest("input, textarea, select, [contenteditable='true']");
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") onMove(1);
-      if (e.key === "ArrowLeft") onMove(-1);
+      if (e.key === "ArrowRight" && !inField) onMove(1);
+      if (e.key === "ArrowLeft" && !inField) onMove(-1);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -422,7 +566,18 @@ function Viewer(props: {
   return (
     <div className="sg-viewer" role="dialog" aria-label={item.name} onClick={onClose}>
       <div className="sg-viewer-bar" onClick={e => e.stopPropagation()}>
-        <span className="sg-viewer-name">{t("web.files.gallery.position", { name: item.name, index: index + 1, total: count })}</span>
+        <span className="sg-viewer-name">{t("web.files.gallery.position", { name: item.name, index: position + 1, total: count })}</span>
+        {shownRating && sheet && (
+          <RateButton
+            stars={shownRating.stars}
+            open={rateOpen}
+            controls={sheetId}
+            onClick={() => {
+              setRateFocus(!rateOpen);
+              setRateOpen(!rateOpen);
+            }}
+          />
+        )}
         <button className="btn" onClick={onDownload}>{t("common.download")}</button>
         <button className="btn" onClick={onClose} aria-label={t("common.close")}>✕</button>
       </div>
@@ -444,7 +599,29 @@ function Viewer(props: {
           : isVideo(item) ? <video src={src} controls autoPlay playsInline />
           : <img src={src} alt={item.name} />}
         {count > 1 && <button className="sg-nav next" onClick={() => onMove(1)} aria-label={t("web.files.gallery.next")}>›</button>}
+        {note && (
+          <div className="sg-rate-toast" role="alert" key={note.seq}>
+            <span>{note.text(t)}</span>
+            <button type="button" className="sg-rate-toast-close" aria-label={t("common.close")} onClick={onNoteClose}>×</button>
+          </div>
+        )}
       </div>
+      {/* The photo's stars and comment, a panel per photo (its comment,
+          unsaved, is saved as the viewer moves on or closes). */}
+      {shownRating && rating && (!sheet || rateOpen) && (
+        <div className={sheet ? "sg-rate sheet" : "sg-rate"} onClick={e => e.stopPropagation()}>
+          <RatingPanel
+            key={index}
+            id={sheetId}
+            ratingKey={String(index)}
+            ratings={rating.ratings}
+            listed={rating.listed}
+            sheet={sheet}
+            autoFocus={rateFocus}
+            onRefused={rating.onRefused}
+          />
+        </div>
+      )}
     </div>
   );
 }

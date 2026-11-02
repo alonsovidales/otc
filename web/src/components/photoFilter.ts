@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { loadPhotoSearchTags, savePhotoSearchTags } from "../net/uiState";
 import type { PlaceArea } from "../proto/messages";
 import { onlyPerson } from "./photoFaces";
+import { cRatingDefault, isRatingRanked, type RatingView } from "./rating";
 import { showSection } from "./showSection";
 
 // What the Images grid shows: the whole library, or the photos with every
@@ -18,11 +19,15 @@ import { showSection } from "./showSection";
 // (ImageGroup, groupId), so the code here says group. With Smart search on
 // (smartSearch.ts), `text` is a description to find photos by
 // (SearchPhotos.text), ranked best first within the rest; kept only for the
-// page's session, and gone when Smart search is off.
+// page's session, and gone when Smart search is off. Inside a collection
+// whose Rating is on (rating.ts), `rating` is its Show and Sort by - the
+// photos with some stars, the best rated first...; every photo by date
+// again whenever another collection opens, and while Rating is off.
 
 /** An open collection; `favourites`: the one every device has
- *  (ImageGroup.favourites), which can't be renamed or deleted. */
-export type OpenGroup = { id: string; name: string; fileCount: number; favourites?: boolean };
+ *  (ImageGroup.favourites), which can't be renamed or deleted; `rating`:
+ *  its photos are rated (ImageGroup.rating, release 163). */
+export type OpenGroup = { id: string; name: string; fileCount: number; favourites?: boolean; rating?: boolean };
 
 export type PhotoFilter = {
   tags: string[];
@@ -30,9 +35,10 @@ export type PhotoFilter = {
   group: OpenGroup | null;
   area: PlaceArea | null;
   text: string;
+  rating: RatingView;
 };
 
-let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null, area: null, text: "" };
+let state: PhotoFilter = { tags: loadPhotoSearchTags(), personIds: [], group: null, area: null, text: "", rating: cRatingDefault };
 const listeners = new Set<() => void>();
 
 // Arrays are replaced, never changed in place: the grid restarts its
@@ -56,9 +62,16 @@ export const usePhotoFilter = () => useSyncExternalStore(subscribe, getPhotoFilt
 export const isFiltered = (f: PhotoFilter) => f.tags.length > 0 || f.personIds.length > 0 || f.group != null || f.area != null || f.text !== "";
 /** The area as a key: the grid searches again when it changes. */
 export const areaKey = (a: PlaceArea | null) => (a ? `${a.south},${a.west},${a.north},${a.east}` : "");
-/** A tag search, and a search by description, are sorted by how well
- *  photos match, not by date: no date headers and no date scrubber then. */
-export const isDateOrdered = (f: PhotoFilter) => f.tags.length === 0 && f.text === "";
+/** The open collection's Show and Sort by while its Rating is on; null
+ *  when they don't apply (no collection, or one without Rating). */
+export const ratingViewOf = (f: PhotoFilter): RatingView | null => (f.group?.rating ? f.rating : null);
+/** A tag search, a search by description, and a rated collection narrowed
+ *  or sorted by its rating are sorted by how well photos match, not by
+ *  date: no date headers and no date scrubber then. */
+export const isDateOrdered = (f: PhotoFilter) => {
+  const rating = ratingViewOf(f);
+  return f.tags.length === 0 && f.text === "" && !(rating && isRatingRanked(rating));
+};
 
 export function addTag(tag: string) {
   const t = tag.trim();
@@ -106,7 +119,7 @@ export function clearPeople() {
 
 /** One person's photos, from the People page: a new search. */
 export function showPerson(id: string) {
-  set({ tags: [], personIds: [id], group: null, area: null, text: "" });
+  set({ tags: [], personIds: [id], group: null, area: null, text: "", rating: cRatingDefault });
 }
 
 /** One person's photos, from a face in the viewer's Info (MediaViewer.tsx,
@@ -123,7 +136,7 @@ export function showPersonPhotos(id: string) {
 
 /** A collection's photos, from the Collections page: a new search. */
 export function openGroup(g: OpenGroup) {
-  set({ tags: [], personIds: [], group: g, area: null, text: "" });
+  set({ tags: [], personIds: [], group: g, area: null, text: "", rating: cRatingDefault });
 }
 
 /** A place's photos, from Places: what the map showed (its tags, people
@@ -138,15 +151,23 @@ export function leaveArea() {
   set({ ...state, area: null });
 }
 
-/** The open group renamed or grown: same search, fresh name and count. */
+/** The open group renamed or grown: same search, fresh name and count.
+ *  Its Rating turned off: every photo by date again. */
 export function updateOpenGroup(g: OpenGroup) {
   if (state.group?.id !== g.id) return;
-  set({ ...state, group: g });
+  set({ ...state, group: g, rating: g.rating ? state.rating : cRatingDefault });
 }
 
 export function leaveGroup() {
   if (!state.group) return;
-  set({ ...state, group: null });
+  set({ ...state, group: null, rating: cRatingDefault });
+}
+
+/** The open collection's Show or Sort by (only while its Rating is on). */
+export function setRatingView(view: RatingView) {
+  if (!state.group?.rating) return;
+  if (view.show === state.rating.show && view.sort === state.rating.sort) return;
+  set({ ...state, rating: { show: view.show, sort: view.sort } });
 }
 
 /** The search box's clear button: tags, people and the description go,
@@ -159,5 +180,5 @@ export function clearSearch() {
 /** Images in the menu: the whole library. */
 export function showAll() {
   if (!isFiltered(state)) return;
-  set({ tags: [], personIds: [], group: null, area: null, text: "" });
+  set({ tags: [], personIds: [], group: null, area: null, text: "", rating: cRatingDefault });
 }

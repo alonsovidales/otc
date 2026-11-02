@@ -2166,7 +2166,28 @@ Images already on exactly them keeps its grid) - and an × (`not_this_person`, d
 `refuseOnDemo`, then `RemoveFromPersonDialog` with the face's name and the answer's hash. Opened on that
 person's photos it is the viewer's own Not this person (`onPersonFixed`: the photo leaves the grid);
 elsewhere the photo stays, its faces are asked again, the viewer's note says `removed`, People is listed
-again, and from the keyboard the focus goes to the next ×. What Images shows is `photoFilter.ts` (tags, people, open
+again, and from the keyboard the focus goes to the next ×. **A collection's Rating on the web** (release 163;
+rules in `rating.ts`, `node web/scripts/rating-test.mjs`; UI in `RatingPanel.tsx` + `Rating.css`, words in
+`ratingText.ts`, texts `web.images.rating.*`): an open collection's header has a Rating button before Share
+(a star, filled while on; named "Rating on"/"Rating off"; `SetImageGroupRating`, `refuseOnDemo` first; the first
+time in a browser the `turned_on` toast, `otc_rating_hint_seen`; `unknown_payload` = `needs_update`). While on,
+the header has Show (All photos, 5 stars ... With a comment; away from All it is drawn ember) and Sort by (Date /
+Rating), `photoFilter.rating` - back to the defaults on another collection, leaving it, or Rating off -, sent as
+`SearchPhotos.rating`/`by_rating` (`ratingSearch`: nothing at the defaults); either away from its default makes
+`isDateOrdered` false (no months, buckets or scrubber); Show leaving nothing says `no_match` with Show all
+photos. Tiles show `RatingBadge` (bottom left: "★ 4" and a bubble for a comment; the button's
+`aria-description` says it). The viewer (`MediaViewer`'s optional `rating`, Images in a rated collection only)
+has the stars (toggle buttons in a group, one Tab stop, arrows/Home/End move between them and never page;
+the pressed one again clears) and the comment box with Save (Ctrl/Cmd+Enter; an unsaved comment is saved as the
+viewer moves on or closes) - a bar under the photo, or below 600px wide or 560px high a sheet the header's
+Rate button opens (`useRatingSheet.ts`); "From the shared link" while `from_link`. `createRatings` shows a
+change at once and sends one `SetPhotoRating` at a time per path (a refusal goes back, in the viewer's note or
+a toast after it closed; `rating_off` lists the collections again); a ranked grid is asked for again as the
+viewer closes when something was rated. Share as gallery has "Let people rate the photos" for a collection
+only (`CreateSharedGallery.rating`, off by default; the collections are listed again after), Settings › Shared
+links says `rating_on`, and the `/shared` page of a link with `SharedGallery.rating` says `rating_intro`, has
+the badges, the viewer's stars and box (`RateSharedGalleryItem`, no from-link note) and its own Show and Sort
+by over its items (`arrangeItems`; its viewer steps through the order it opened with). What Images shows is `photoFilter.ts` (tags, people, open
 collection, a place's area from Places; a store the search, People, Collections and Places pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

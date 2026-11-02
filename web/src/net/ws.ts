@@ -62,6 +62,7 @@ const cQuick = new Set([
   "reqMarkNotificationsAcknowledged", "reqLikePublication", "reqLikeComment", "reqSetLanguage",
   "reqGetBridgeAccess", "reqGetTailscaleStatus", "reqGetWifiStatus", "reqGetSharedGalleryJob",
   "reqGetSharedGalleryStream", "reqGetVapidPublicKey", "reqGetInstanceRole",
+  "reqSetImageGroupRating", "reqSetPhotoRating",
 ]);
 
 /** What a request may wait for its answer: 0 for no limit. */

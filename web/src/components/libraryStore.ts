@@ -221,6 +221,12 @@ export function renameGroupLocally(id: string, name: string) {
   emit();
 }
 
+/** After the device acknowledged a collection's Rating on or off. */
+export function setGroupRatingLocally(id: string, rating: boolean) {
+  groups = { ...groups, items: groups.items.map((g) => (g.id === id ? { ...g, rating } : g)) };
+  emit();
+}
+
 /** The viewer's heart changed Favourites (a count, maybe a cover): listed
  *  again if a list is held - with one already on its way if there is one -
  *  as after Add to collection. With none held, the first page to show the
