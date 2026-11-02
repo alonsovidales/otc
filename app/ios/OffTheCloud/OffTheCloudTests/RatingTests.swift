@@ -178,6 +178,34 @@ struct RatingRulesTests {
     }
 }
 
+/// A Rating alert (NotificationRating): its tap is a deep link to the
+/// collection it names; one that can't be opened says why in Alerts.
+@MainActor
+struct RatingAlertTests {
+    @Test func aTapOpensTheCollectionItNames() {
+        let model = NotificationsModel()
+        var n = Msg_Notification()
+        n.type = .notificationRating
+        n.title = "Ana rated 3 photos in Wedding"
+        n.groupID = "g1"
+        model.handleTap(n)
+        #expect(model.pendingDeepLink == .collection(id: "g1"))
+        // Without a collection: nothing to open.
+        model.pendingDeepLink = nil
+        n.groupID = ""
+        model.handleTap(n)
+        #expect(model.pendingDeepLink == nil)
+    }
+
+    @Test func aCollectionThatCantBeOpenedIsSaidInAlerts() {
+        let model = NotificationsModel()
+        model.say(.ratingGone)
+        #expect(model.notice == .ratingGone)
+        #expect(AlertsNotice.ratingGone.text == "This collection no longer exists.")
+        #expect(AlertsNotice.ratingOpenFailed.text == "Couldn't open the collection. Try again.")
+    }
+}
+
 /// The device, for a rated collection: its photos with their ratings, and
 /// what it was asked.
 @MainActor
@@ -548,6 +576,34 @@ struct RatingCollectionTests {
         await waitUntil { device.searches.count > asked }
         await waitUntil { !vm.loading && vm.items.count == 3 }
         #expect(vm.items.allSatisfy { $0.rating == .none })
+    }
+
+    /// A Rating alert's tap opens its collection in Images, as from
+    /// Collections - the grid, not the map; one deleted since, or a list
+    /// that didn't come, opens nothing.
+    @Test func anAlertOpensItsCollection() async {
+        let (vm, device) = await model()
+        vm.leaveGroup()
+        #expect(vm.activeGroup == nil)
+        vm.showMap = true
+        let lists = device.groupLists
+        #expect(await vm.openGroup(id: "g1") == .opened)
+        #expect(device.groupLists > lists)
+        #expect(vm.activeGroup?.id == "g1")
+        #expect(!vm.showMap)
+        await waitUntil { vm.items.count == 3 && !vm.loading }
+        #expect(vm.items.first?.rating.stars == 4)
+        // Deleted since: nothing opens.
+        #expect(await vm.openGroup(id: "gone") == .gone)
+        #expect(vm.activeGroup?.id == "g1")
+        // No list: the one here decides.
+        vm.groupsRetry.delay = { _ in 60 }
+        vm.libraryRequest = { _, _ in throw CancellationError() }
+        #expect(await vm.openGroup(id: "other") == .failed)
+        vm.leaveGroup()
+        #expect(await vm.openGroup(id: "g1") == .opened)
+        #expect(vm.activeGroup?.id == "g1")
+        #expect(!vm.showAlert)
     }
 
     @Test func aSharedLinkWithRatingsListsTheCollectionsAgain() async {

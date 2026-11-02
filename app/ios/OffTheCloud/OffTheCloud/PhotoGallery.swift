@@ -1414,6 +1414,29 @@ final class PhotoGalleryVM: ObservableObject {
         restartSearch()
     }
 
+    /// What came of opening a collection by its id (openGroup(id:)).
+    enum GroupLookup: Equatable {
+        /// Open now.
+        case opened
+        /// The device's list hasn't it: deleted since.
+        case gone
+        /// The list didn't come, and the one here hasn't it either.
+        case failed
+    }
+
+    /// A collection by its id, from an alert (a Rating alert names the
+    /// collection rated through its link): the collections asked for, and
+    /// it opened as from Collections - the grid, not the map. Without an
+    /// answer, the list here decides (it is asked for again meanwhile).
+    func openGroup(id: String) async -> GroupLookup {
+        guard !fixedList, !id.isEmpty else { return .gone }
+        let fresh = await loadGroups()
+        guard let g = groups.first(where: { $0.id == id }) else { return fresh ? .gone : .failed }
+        showMap = false
+        openGroup(g)
+        return .opened
+    }
+
     func leaveGroup() {
         activeGroup = nil
         resetRatingView()

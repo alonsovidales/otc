@@ -3624,6 +3624,10 @@ Rating off. Sorted or filtered, the grid is asked again as the viewer closes. Sh
 collection has "Let people rate the photos" (`offersRating`, off by default, `CreateSharedGallery.rating`);
 the link made, `.otcCollectionRatingChanged` lists the collections again, and a changed `rating` in that
 list reloads the open grid (`ratingTurned`). Settings › Shared links says "Rating on" for such a link.
+Alerts lists a Rating alert (`NotificationRating`, `ratingRow`) with a star for the avatar, the device's
+title in bold, its details and the time; a tap (`handleTap` -> `DeepLink.collection(id:)`, MainView) lists
+the collections and opens `Notification.group_id` in Images (`openGroup(id:)`, the grid, not the map), or
+says in Alerts `app.social.alerts.rating_gone` (deleted since) or `rating_open_failed` (no list), Android's.
 **On this day on iOS** (2026-10-30, `Memories.swift`, `MemoriesTests.swift`; Android's rules above,
 case for case): `MemoriesModel` (one for the session) knows the switch from `GetSettings`'
 `memories_enabled` (PlacesSupport's connection answer and Settings' load; absent = a device before

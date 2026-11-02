@@ -28,6 +28,9 @@ final class NotificationsModel: ObservableObject {
         case friendRequests
         /// Issue #183: an update alert - Settings, at its update section.
         case updates
+        /// Rating: a collection rated through its shared link
+        /// (Notification.group_id) - Images, with that collection open.
+        case collection(id: String)
     }
 
     /// The count's wait between asks while the app is in front: a push or
@@ -219,7 +222,7 @@ final class NotificationsModel: ObservableObject {
 
     /// Shows `n` at the top of Alerts for a few seconds, longer for a long
     /// sentence (the device's words), and says it to VoiceOver.
-    private func say(_ n: AlertsNotice) {
+    func say(_ n: AlertsNotice) {
         notices += 1
         let mine = notices
         notice = n
@@ -238,6 +241,10 @@ final class NotificationsModel: ObservableObject {
             pendingDeepLink = .friendRequests
         case .notificationUpdate:
             pendingDeepLink = .updates
+        case .notificationRating:
+            // The collection it names; nothing to open without one.
+            guard !n.groupID.isEmpty else { return }
+            pendingDeepLink = .collection(id: n.groupID)
         default:
             guard !n.pubUuid.isEmpty else { return }
             pendingDeepLink = .post(pubUuid: n.pubUuid, commentUuid: n.commentUuid.isEmpty ? nil : n.commentUuid)
@@ -265,11 +272,18 @@ enum AlertsNotice: Equatable {
     case acceptFailed
     /// The device's own words, already in the app's language.
     case device(String)
+    /// A Rating alert's collection was deleted since.
+    case ratingGone
+    /// A Rating alert's collection couldn't be opened: the collections
+    /// didn't come.
+    case ratingOpenFailed
 
     var text: String {
         switch self {
         case .acceptFailed: return S.appSocialAlertsAcceptFailed
         case .device(let words): return words
+        case .ratingGone: return S.appSocialAlertsRatingGone
+        case .ratingOpenFailed: return S.appSocialAlertsRatingOpenFailed
         }
     }
 }

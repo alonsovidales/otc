@@ -105,6 +105,8 @@ struct NotificationsListView: View {
                             errorRow(n)
                         } else if n.type == .notificationUpdate {
                             updateRow(n)
+                        } else if n.type == .notificationRating {
+                            ratingRow(n)
                         } else {
                         HStack(spacing: 8) {
                         Button {
@@ -222,6 +224,50 @@ struct NotificationsListView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
+    }
+
+    /// Rating: someone rated or commented on a collection's photos through
+    /// its shared link - the device's title and details (already in the
+    /// app's language), a star for the avatar. A tap opens the collection
+    /// in Images (NotificationsModel.DeepLink.collection).
+    @ViewBuilder
+    private func ratingRow(_ n: Msg_Notification) -> some View {
+        Button {
+            model.handleTap(n)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "star.fill")
+                    .foregroundStyle(RatingStyle.starOnPage)
+                    .font(.title3)
+                    .frame(width: 40, height: 40)
+                    .background(RatingStyle.starOnPage.opacity(0.15), in: Circle())
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    // actor_name holds the title too (for the apps from
+                    // before the type).
+                    Text(n.title.isEmpty ? n.actorName : n.title).bold()
+                        .foregroundStyle(.primary)
+                        .font(.subheadline)
+                    if !n.details.isEmpty {
+                        Text(n.details)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if n.hasDt {
+                        timeText(n.dt.date)
+                    }
+                }
+                Spacer()
+                if !n.groupID.isEmpty {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))

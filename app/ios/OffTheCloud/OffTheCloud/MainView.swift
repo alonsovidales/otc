@@ -614,6 +614,18 @@ struct MainView: View {
             // Issue #183: an update alert or the critical banner -
             // Settings scrolls itself to its update section.
             show(.settings)
+        case .collection(let id):
+            // A Rating alert: Images, with the collection it names open -
+            // or, still in Alerts, a note that it is gone or couldn't be
+            // listed (Android's the same).
+            notifications.pendingDeepLink = nil
+            Task {
+                switch await gallery.openGroup(id: id) {
+                case .opened: show(.images)
+                case .gone: notifications.say(.ratingGone)
+                case .failed: notifications.say(.ratingOpenFailed)
+                }
+            }
         case nil:
             break
         }

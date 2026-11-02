@@ -968,8 +968,9 @@ struct SocialFeedView: View {
                 guard !wide else { break }
                 showingFriendships = true
                 notifications.pendingDeepLink = nil
-            case .updates, nil:
-                // Issue #183: SettingsView's to handle.
+            case .updates, .collection, nil:
+                // Issue #183: SettingsView's to handle; a collection,
+                // MainView's (Images).
                 break
             }
         }
