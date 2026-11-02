@@ -52,6 +52,10 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.SetFavourite
 import cloud.offthe.otc.proto.SetPersonCover
+import cloud.offthe.otc.proto.PhotoRating
+import cloud.offthe.otc.proto.SetImageGroupRating
+import cloud.offthe.otc.i18n.appPhotosRatingNeedsUpdate
+import cloud.offthe.otc.i18n.appPhotosRatingTurnedOn
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
@@ -233,6 +237,8 @@ class PhotoGalleryViewModel(
     private val smartSearchable: kotlinx.coroutines.flow.Flow<Boolean> = SmartSearchSupport.searchableFlow,
     private val smartOff: () -> Unit = { SmartSearchSupport.set(false) },
     private val smartDownloading: suspend () -> Unit = { SmartSearchSupport.modelRequested(); SmartSearchSupport.refresh() },
+    // Rating: true the first time it is turned on from this phone (its note says what it does then).
+    private val ratingHintFirst: () -> Boolean = { RatingHint.firstTime() },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -373,9 +379,34 @@ class PhotoGalleryViewModel(
         // The viewer's short note when a heart's change didn't go through:
         // the device's words, else favourite_failed.
         val favouriteNote: UiText? = null,
+        // Rating (release 163, Rating.kt): the open collection's Sort by and
+        // Show - only while its Rating is on -, and each photo's stars and
+        // comment there by path (File.rating as its page brought it, and what
+        // was given since): apart from items, so a rating that changes
+        // doesn't lay the months out again. ratingBusy: its Rating is being
+        // turned on or off.
+        val ratingSort: RatingSort = RatingSort.DATE,
+        val ratingShow: RatingShow = RatingShow.ALL,
+        val ratings: Map<String, PhotoRating> = emptyMap(),
+        val ratingBusy: Boolean = false,
+        // A note over the grid for a few seconds (Rating turned on).
+        val gridNote: UiText? = null,
+        // The viewer's comment being written (null: none), and its note when
+        // the stars or the comment didn't go through.
+        val ratingDraft: RatingDraft? = null,
+        val ratingNote: UiText? = null,
+        // A viewer over a fixed list (Files, the map, a memory's photos): no
+        // collection's rating there.
+        val fixed: Boolean = false,
     ) {
-        /** A tag search, and a Smart search's text, are sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
-        val dateOrdered get() = chips.isEmpty() && smartText == null
+        /** The open collection has Rating on: its tiles show their stars, its viewer rates. */
+        val rates: Boolean get() = RatingRules.rates(activeGroup)
+        /** Rating: sorted or filtered by the stars - ranked, as a tag search. */
+        val ratingRanked: Boolean get() = RatingRules.ranked(activeGroup, ratingSort, ratingShow)
+        /** The viewer shows the stars and the comment box: inside a collection with Rating on, never a fixed list's. */
+        val viewerRates: Boolean get() = rates && !fixed
+        /** A tag search, a Smart search's text, and a rated collection sorted or filtered by the stars are ranked: no month titles, no scrubber (the web's isDateOrdered). */
+        val dateOrdered get() = chips.isEmpty() && smartText == null && !ratingRanked
         /**
          * The one person whose photos Images shows - a face opened from
          * People, or one person in the search, tags or a collection with
@@ -508,7 +539,7 @@ class PhotoGalleryViewModel(
         token = null
         _state.update {
             it.copy(items = items, thumbKeys = emptyMap(), endReached = true, loading = false, selected = emptySet(), pageProblem = null, slowFirstPage = false,
-                upOn = false, upLoading = false, upProblem = null)
+                upOn = false, upLoading = false, upProblem = null, fixed = true)
         }
         open(startAt)
     }
@@ -953,14 +984,40 @@ class PhotoGalleryViewModel(
         return false
     }
 
+    // Rating: the lists of collections asked for, and the last of them asked
+    // before a collection's Rating was turned on or off here - a list asked
+    // before that keeps the switch as it is now.
+    private var groupsAsked = 0
+    private var ratingSetAt = 0
+
     private suspend fun loadGroupsOnce(): Boolean {
         try {
+            val asked = ++groupsAsked
             // Each collection comes with its cover.
             // Their covers as the small thumbnails a grid shows (release 111).
             val resp = ask("groups", OTCConnection.PAGE_TIMEOUT_MS) { it.setReqListImageGroups(ListImageGroups.newBuilder().setSmallThumbnails(true)) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_IMAGE_GROUPS) {
-                val gs = resp.respImageGroups.groupsList
-                _state.update { st -> st.copy(groups = gs, groupsLoaded = true, activeGroup = st.activeGroup?.let { open -> gs.firstOrNull { it.id == open.id } ?: open }) }
+                var gs = resp.respImageGroups.groupsList
+                var turned: Boolean? = null
+                var wasRanked = false
+                _state.update { st ->
+                    val was = st.activeGroup
+                    // Turned on or off here since this list was asked for: as it is now.
+                    if (was != null && asked <= ratingSetAt) gs = gs.map { if (it.id == was.id && it.rating != was.rating) it.toBuilder().setRating(was.rating).build() else it }
+                    val open = was?.let { o -> gs.firstOrNull { it.id == o.id } ?: o }
+                    turned = if (was != null && open != null && was.rating != open.rating) open.rating else null
+                    wasRanked = st.ratingRanked
+                    val off = open?.rating != true
+                    st.copy(
+                        groups = gs, groupsLoaded = true, activeGroup = open,
+                        // Rating turned off (on another app, or its link's last gallery deleted): its order and filter go.
+                        ratingSort = if (off) RatingSort.DATE else st.ratingSort, ratingShow = if (off) RatingShow.ALL else st.ratingShow,
+                    )
+                }
+                // The open collection's Rating turned on elsewhere (a gallery
+                // shared with rating), or off: its photos again, with their
+                // ratings - or without the order and filter that went.
+                if (turned == true || (turned == false && wasRanked)) restartSearch()
                 // The collection shown as wallpaper: renamed or deleted elsewhere, it follows.
                 Wallpaper.collectionsListed(gs)
                 return true
@@ -971,9 +1028,237 @@ class PhotoGalleryViewModel(
         return false
     }
 
-    /** A collection's photos: a new search, the tags and people gone (the web's openGroup). */
-    fun openGroup(g: ImageGroup) { _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = g, activeArea = null) }; restartSearch() }
+    /** A collection's photos: a new search, the tags and people gone (the web's openGroup); by date, every photo (Rating's Sort by and Show). */
+    fun openGroup(g: ImageGroup) {
+        // Another collection's ratings aren't this one's.
+        if (_state.value.activeGroup?.id != g.id) ratingSaid.clear()
+        _state.update { it.copy(chips = emptyList(), selectedPeople = emptyList(), activeGroup = g, activeArea = null, ratingSort = RatingSort.DATE, ratingShow = RatingShow.ALL) }
+        restartSearch()
+    }
     fun leaveGroup() { _state.update { it.copy(activeGroup = null) }; restartSearch() }
+
+    // ---- Rating (release 163, Rating.kt) ----
+
+    /**
+     * The collection header's star: the open collection's Rating on or off
+     * (SetImageGroupRating). On, its photos are asked for again with their
+     * ratings, and the first time from this phone a note says what it does;
+     * off, its order and filter go (the ratings are kept by the device, and
+     * come back with it). A device from before Rating needs an update; a
+     * refusal (the demo) says the device's words, else toggle_failed.
+     */
+    fun toggleRating() = scope.launch {
+        val st = _state.value
+        val g = st.activeGroup ?: return@launch
+        if (st.ratingBusy) return@launch
+        val on = !g.rating
+        _state.update { it.copy(ratingBusy = true) }
+        try {
+            val r = try {
+                call { it.setReqSetImageGroupRating(SetImageGroupRating.newBuilder().setId(g.id).setOn(on)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            when (val a = ratingAnswer(r, photo = false)) {
+                is RatingAnswer.Kept -> ratingTurned(g.id, on)
+                RatingAnswer.NeedsUpdate -> {
+                    val ask = deviceNeedsUpdate(S.appPhotosRatingNeedsUpdate()) { build -> call(build) }
+                    _state.update { it.copy(needsUpdate = ask) }
+                }
+                is RatingAnswer.Off -> alert(a.words)
+                is RatingAnswer.Refused -> alert(a.words)
+            }
+        } finally { _state.update { it.copy(ratingBusy = false) } }
+    }
+
+    // The device turned collection [id]'s Rating [on] (toggleRating).
+    private fun ratingTurned(id: String, on: Boolean) {
+        ratingSetAt = groupsAsked
+        val wasRanked = _state.value.ratingRanked
+        _state.update { st ->
+            val turn = { g: ImageGroup -> if (g.id == id) g.toBuilder().setRating(on).build() else g }
+            st.copy(
+                groups = st.groups.map(turn), activeGroup = st.activeGroup?.let(turn),
+                ratingSort = if (on) st.ratingSort else RatingSort.DATE, ratingShow = if (on) st.ratingShow else RatingShow.ALL,
+            )
+        }
+        if (_state.value.activeGroup?.id != id) return
+        if (on && ratingHintFirst()) _state.update { it.copy(gridNote = S.appPhotosRatingTurnedOn()) }
+        if (on || wasRanked) restartSearch()
+    }
+
+    /** Sort by in a collection with Rating on: by date or by the stars - the photos asked for again in that order. */
+    fun setRatingSort(sort: RatingSort) {
+        val st = _state.value
+        if (!st.rates || st.ratingSort == sort) return
+        _state.update { it.copy(ratingSort = sort) }
+        restartSearch()
+    }
+
+    /** Show in a collection with Rating on: which photos, by their stars - asked for again. */
+    fun setRatingShow(show: RatingShow) {
+        val st = _state.value
+        if (!st.rates || st.ratingShow == show) return
+        _state.update { it.copy(ratingShow = show) }
+        restartSearch()
+    }
+
+    /** The grid's note was shown long enough. */
+    fun gridNoteShown() = _state.update { it.copy(gridNote = null) }
+
+    /** The viewer's rating note was shown long enough. */
+    fun ratingNoteShown() = _state.update { it.copy(ratingNote = null) }
+
+    // The device's ratings by path (File.rating, SetPhotoRating's answers):
+    // what a change that didn't go through goes back to. What a photo's
+    // stars and comment were last set to while their change is on its way,
+    // one SetPhotoRating per photo and collection at a time (the device
+    // ends with the last; ratingKey).
+    private val ratingSaid = HashMap<String, PhotoRating?>()
+    private val ratingWanted = HashMap<String, Pair<Int, String>>()
+    private val ratingSends = HashMap<String, Job>()
+    private fun ratingKey(groupId: String, path: String) = "$groupId\n$path"
+    // A rating given while the viewer was open: a ranked grid is asked for
+    // again as it closes (its order or filter may have changed).
+    private var ratingsGiven = false
+
+    // A page's ratings, as the device keeps them: shown, and remembered.
+    private fun ratingsLanded(files: List<PbFile>) {
+        if (files.isEmpty()) return
+        val paths = files.mapTo(HashSet()) { it.path }
+        val rated = files.filter { it.hasRating() && RatingRules.shows(it.rating) }.associate { it.path to it.rating }
+        val group = _state.value.activeGroup?.id ?: ""
+        val busy = paths.filterTo(HashSet()) { ratingKey(group, it) in ratingWanted }
+        for (p in paths) if (p !in busy) ratingSaid[p] = rated[p]
+        _state.update { st ->
+            // A change on its way keeps what it shows.
+            val keep = st.ratings.filterKeys { it in busy }
+            st.copy(ratings = st.ratings - paths + rated + keep)
+        }
+    }
+
+    /** The open photo's stars, after a tap on the [tapped]th: that many, or none for its own number - with the comment in the box. */
+    fun rateOpen(tapped: Int) {
+        val st = _state.value
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        if (!st.viewerRates) return
+        val now = st.ratings[item.path]
+        val draft = st.ratingDraft?.takeIf { it.path == item.path }?.text
+        giveRating(item, RatingRules.stars(now?.stars ?: 0, tapped), draft ?: now?.comment ?: "")
+    }
+
+    /** The comment box's text for the photo open (kept as typed until it is saved or the viewer moves on). */
+    fun editRatingComment(text: String) {
+        val path = openPath() ?: return
+        _state.update { it.copy(ratingDraft = RatingDraft(path, RatingRules.fit(text))) }
+    }
+
+    /** Save: the comment in the box, with the photo's stars. */
+    fun saveRatingComment() {
+        val st = _state.value
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        val draft = st.ratingDraft?.takeIf { it.path == item.path } ?: return
+        if (!st.viewerRates) return
+        val now = st.ratings[item.path]
+        if (!RatingRules.changed(now?.comment ?: "", draft.text)) return
+        giveRating(item, now?.stars ?: 0, draft.text)
+    }
+
+    /**
+     * The viewer moves on from [path], closes, or its comment box closes:
+     * a comment written there and not saved is saved now, and the box
+     * forgets it.
+     */
+    private fun leaveRatingDraft(path: String?) {
+        val st = _state.value
+        val draft = st.ratingDraft ?: return
+        if (path != null && draft.path != path) return
+        _state.update { it.copy(ratingDraft = null) }
+        if (!st.viewerRates) return
+        val item = st.items.firstOrNull { it.path == draft.path } ?: return
+        val now = st.ratings[item.path]
+        if (RatingRules.changed(now?.comment ?: "", draft.text)) giveRating(item, now?.stars ?: 0, draft.text)
+    }
+
+    /** The comment box was closed: what was written in it is saved. */
+    fun ratingBoxClosed() = leaveRatingDraft(openPath())
+
+    /**
+     * [item]'s stars and comment in the open collection: shown at once, on
+     * every tile of the photo, then SetPhotoRating (sendRating).
+     */
+    private fun giveRating(item: Item, stars: Int, comment: String) {
+        val st = _state.value
+        val g = st.activeGroup?.takeIf { it.rating } ?: return
+        val text = RatingRules.comment(comment)
+        val paths = samePhoto(st.items, item)
+        for (p in paths) if (p !in ratingSaid) ratingSaid[p] = st.ratings[p]
+        val key = ratingKey(g.id, item.path)
+        ratingWanted[key] = stars to text
+        ratingsGiven = true
+        val shown = RatingRules.local(stars, text)
+        _state.update { s ->
+            s.copy(ratings = if (RatingRules.shows(shown)) s.ratings + paths.associateWith { shown } else s.ratings - paths.toSet(), ratingNote = null)
+        }
+        if (ratingSends[key]?.isActive != true) ratingSends[key] = scope.launch { sendRating(g.id, item.path, paths) }
+    }
+
+    /**
+     * [path]'s rating to the device, a request at a time, until it holds
+     * what was last given ([paths]: every tile of the photo). Kept, the
+     * tiles show it as stored (from_link off: the owner's). Refused or
+     * unanswered, they go back to what the device last said and the
+     * viewer's note says why: "rating_off" (turned off elsewhere: the
+     * collections are listed again), "not_in_collection" or the demo's
+     * refusal in the device's words, else save_failed; a device from before
+     * Rating needs an update.
+     */
+    private suspend fun sendRating(groupId: String, path: String, paths: List<String>) {
+        val key = ratingKey(groupId, path)
+        while (true) {
+            val (stars, comment) = ratingWanted[key] ?: return
+            if (path in ratingSaid && RatingRules.holds(ratingSaid[path], stars, comment)) {
+                ratingWanted.remove(key)
+                return
+            }
+            val resp = try {
+                call { it.setReqSetPhotoRating(RatingRules.request(groupId, path, stars, comment)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            val answer = ratingAnswer(resp, photo = true)
+            // Another collection opened meanwhile: its tiles aren't these.
+            val here = { _state.value.activeGroup?.id == groupId }
+            if (answer is RatingAnswer.Kept) {
+                val kept = answer.rating?.takeIf { RatingRules.shows(it) }
+                if (here()) for (p in paths) ratingSaid[p] = kept
+                if (ratingWanted[key] == stars to comment) {
+                    ratingWanted.remove(key)
+                    if (here()) _state.update { s -> s.copy(ratings = if (kept != null) s.ratings + paths.associateWith { kept } else s.ratings - paths.toSet()) }
+                    return
+                }
+                continue
+            }
+            ratingWanted.remove(key)
+            if (here()) _state.update { s ->
+                val back = ratingSaid[path]
+                s.copy(ratings = if (back != null) s.ratings + paths.associateWith { back } else s.ratings - paths.toSet())
+            }
+            when (answer) {
+                RatingAnswer.NeedsUpdate -> {
+                    val ask = deviceNeedsUpdate(S.appPhotosRatingNeedsUpdate()) { build -> call(build) }
+                    _state.update { it.copy(needsUpdate = ask) }
+                }
+                is RatingAnswer.Off -> {
+                    _state.update { it.copy(ratingNote = answer.words) }
+                    scope.launch { loadGroups() }
+                }
+                is RatingAnswer.Refused -> _state.update { it.copy(ratingNote = answer.words) }
+                is RatingAnswer.Kept -> {}
+            }
+            return
+        }
+    }
 
     suspend fun renameActiveGroup(newName: String) {
         val g = _state.value.activeGroup ?: return
@@ -1446,6 +1731,7 @@ class PhotoGalleryViewModel(
         if (mine != searchGeneration) return
         val zone = ZoneId.systemDefault()
         val newer = lof.filesList.asReversed().map { itemOf(it, landed.keys[it.path], zone, up = true) }
+        ratingsLanded(lof.filesList)
         upHave += lof.filesCount
         upToken = lof.token
         upEnd = lof.token.isEmpty() || lof.filesCount == 0
@@ -1612,6 +1898,10 @@ class PhotoGalleryViewModel(
             // Never to a device that doesn't have it on: one before it would
             // answer the whole library.
             val text = st0.smartText?.takeIf { smartOn() }
+            // Rating: the open collection's Sort by and Show (only with its Rating on).
+            val ratingGroup = st0.activeGroup
+            val ratingSort = st0.ratingSort
+            val ratingShow = st0.ratingShow
             val requestToken = overrideToken ?: token ?: ""
             // What this search brought, not what the grid holds: photos
             // above a jump came from another one (issue #194).
@@ -1641,6 +1931,7 @@ class PhotoGalleryViewModel(
                         if (area != null) sp.area = area
                         // Smart search: the description, the chips as filters.
                         if (text != null) sp.text = text
+                        RatingRules.ask(sp, ratingGroup, ratingSort, ratingShow)
                         // A search starting here (opening, a filter, the
                         // scrubber's jump) gets a first page of its own size;
                         // scrolling on, a bigger one.
@@ -1702,6 +1993,8 @@ class PhotoGalleryViewModel(
             // from these (PhotoMonths.kt) without looking at a date again.
             val zone = ZoneId.systemDefault()
             val newItems = lof.filesList.map { f -> itemOf(f, landed.keys[f.path], zone) }
+            // Rating: each photo's stars and comment in the open collection.
+            ratingsLanded(lof.filesList)
             token = lof.token.ifEmpty { null }
             // The device counts every photo of the page as delivered, one
             // already shown above a jump too (its `after`).
@@ -1761,8 +2054,10 @@ class PhotoGalleryViewModel(
         if (index !in _state.value.items.indices) return
         // Another item: the last one's big thumbnail is no longer asked for.
         if (bigThumbFor != _state.value.items[index].path) stopBigThumb()
+        // Rating: a comment written for another photo and not saved is saved now.
+        _state.value.ratingDraft?.path?.let { d -> if (d != _state.value.items[index].path) leaveRatingDraft(d) }
         photoFacesAsk++
-        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null) }
+        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null, ratingNote = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
         askFavourites(index)
@@ -1794,6 +2089,8 @@ class PhotoGalleryViewModel(
     }
 
     fun closeModal() {
+        // Rating: a comment written and not saved is saved now.
+        leaveRatingDraft(null)
         // Before the hearts are forgotten: inside Favourites, the photos
         // taken out leave its grid now.
         val dropped = dropUnfavourited()
@@ -1806,9 +2103,19 @@ class PhotoGalleryViewModel(
         favouriteTaps.keys.retainAll(favouriteWanted.keys)
         favouriteSends.values.removeAll { !it.isActive }
         _state.update {
-            it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null)
+            it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null, ratingNote = null)
         }
         if (heartsChanged) heartsLanded(listAgain = !dropped)
+        // Rating: sorted or filtered by the stars, the grid is asked for
+        // again once the ratings given have reached the device - their order
+        // or the filter may have moved them.
+        if (ratingsGiven) {
+            ratingsGiven = false
+            if (!fixedList && _state.value.ratingRanked) {
+                val sends = ratingSends.values.filter { it.isActive }
+                scope.launch { sends.forEach { it.join() }; restartSearch() }
+            }
+        }
         // The Files viewer's list only lives while it is open.
         if (fixedList) _state.update { it.copy(items = emptyList()) }
     }
@@ -2937,11 +3244,12 @@ fun personTakenOffNote(count: Int, from: Person?, to: Person?): UiText {
     return if (name.isEmpty()) S.appPhotosPersonRemovedUnnamed(count) else S.appPhotosPersonRemoved(count, name)
 }
 
-/** Why there is nothing to show (the web's three empty states). */
-enum class EmptyKind { COLLECTION, NO_MATCH, NO_PHOTOS }
+/** Why there is nothing to show (the web's empty states; RATING: a rated collection's Show leaves none). */
+enum class EmptyKind { COLLECTION, NO_MATCH, RATING, NO_PHOTOS }
 
 fun emptyKind(st: PhotoGalleryViewModel.State): EmptyKind = when {
     st.chips.isNotEmpty() || st.selectedPeople.isNotEmpty() || st.activeArea != null || st.smartText != null -> EmptyKind.NO_MATCH
+    st.rates && st.ratingShow != RatingShow.ALL -> EmptyKind.RATING
     st.activeGroup != null -> EmptyKind.COLLECTION
     else -> EmptyKind.NO_PHOTOS
 }

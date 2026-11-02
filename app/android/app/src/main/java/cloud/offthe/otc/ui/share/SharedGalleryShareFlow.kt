@@ -69,6 +69,8 @@ import cloud.offthe.otc.i18n.appFilesGalleryLowResNoteVideos
 import cloud.offthe.otc.i18n.appFilesGalleryNoLink
 import cloud.offthe.otc.i18n.appFilesGalleryPrepareFailed
 import cloud.offthe.otc.i18n.appFilesGalleryPrivacy
+import cloud.offthe.otc.i18n.appFilesGalleryRating
+import cloud.offthe.otc.i18n.appFilesGalleryRatingNote
 import cloud.offthe.otc.i18n.appFilesGalleryShareLink
 import cloud.offthe.otc.i18n.appFilesGalleryTitle
 import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
@@ -130,8 +132,14 @@ class SharedGalleryShareViewModel : ViewModel() {
         val ttlHours: Int = 168,
         // Only small copies of the photos (their thumbnails), no videos.
         val lowRes: Boolean = false,
+        // Rating (release 163): anyone with the link can rate the photos -
+        // only a collection's (CreateSharedGallery.rating), off by default.
+        val rating: Boolean = false,
         val copied: Boolean = false,
-    )
+    ) {
+        /** A collection is being shared: Let people rate the photos is offered. */
+        val ratable: Boolean get() = source?.groupId?.isNotEmpty() == true
+    }
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state
@@ -169,6 +177,7 @@ class SharedGalleryShareViewModel : ViewModel() {
     fun setDescription(v: String) = _state.update { it.copy(description = v) }
     fun setTtlHours(v: Int) = _state.update { it.copy(ttlHours = v) }
     fun setLowRes(v: Boolean) = _state.update { it.copy(lowRes = v) }
+    fun setRating(v: Boolean) = _state.update { it.copy(rating = v) }
 
     fun share() {
         val st = _state.value
@@ -182,7 +191,9 @@ class SharedGalleryShareViewModel : ViewModel() {
             try {
                 val resp = OTCConnection.request {
                     it.setReqCreateSharedGallery(
-                        CreateSharedGallery.newBuilder().setSource(source).setDescription(st.description.trim()).setTtlHours(st.ttlHours).setLowRes(st.lowRes),
+                        CreateSharedGallery.newBuilder().setSource(source).setDescription(st.description.trim()).setTtlHours(st.ttlHours).setLowRes(st.lowRes)
+                            // Only for a collection: it turns that collection's Rating on.
+                            .setRating(st.rating && st.ratable),
                     )
                 }
                 var job = when {
@@ -366,6 +377,18 @@ private fun ConfirmContent(preview: SharedGalleryPreview, st: SharedGalleryShare
         }.resolve(),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    // Rating: a collection's link can take the visitors' stars and comments (never a selection's or a folder's).
+    if (st.ratable) {
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth().clickable { vm.setRating(!st.rating) }, verticalAlignment = Alignment.CenterVertically) {
+            Text(S.appFilesGalleryRating().resolve(), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked = st.rating, onCheckedChange = vm::setRating)
+        }
+        Text(
+            S.appFilesGalleryRatingNote().resolve(),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     Spacer(Modifier.height(12.dp))
     Text(S.androidFilesGalleryExpires().resolve(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(bottom = 4.dp))

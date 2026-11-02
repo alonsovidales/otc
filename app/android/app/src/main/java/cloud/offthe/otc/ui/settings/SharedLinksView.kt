@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -65,6 +66,7 @@ import cloud.offthe.otc.i18n.appSettingsLinksLoadFailed
 import cloud.offthe.otc.i18n.appSettingsLinksNeverOpened
 import cloud.offthe.otc.i18n.appSettingsLinksOpened
 import cloud.offthe.otc.i18n.appSettingsLinksOpenedLast
+import cloud.offthe.otc.i18n.appSettingsLinksRating
 import cloud.offthe.otc.i18n.appSettingsLinksSizeFiles
 import cloud.offthe.otc.i18n.appSettingsLinksTitle
 import cloud.offthe.otc.i18n.appSettingsLinksUntitledGallery
@@ -203,6 +205,11 @@ private fun SharedLinkRow(l: SharedLinkInfo, deleting: Boolean, onDelete: () -> 
                 style = caption, color = muted,
             )
             Text(S.appSettingsLinksSizeFiles(formatBytes(l.bytes), l.files).resolve(), style = caption, color = muted)
+            // Rating (release 163): anyone with the link can rate its photos.
+            if (l.rating) Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Star, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(S.appSettingsLinksRating().resolve(), style = caption, color = muted, modifier = Modifier.padding(start = 4.dp))
+            }
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (deleting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)

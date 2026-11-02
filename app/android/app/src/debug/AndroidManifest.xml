@@ -50,5 +50,14 @@
             android:name=".PhotoFacesPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTheCloud" />
+        <!-- A collection's Rating: the header's star, Sort by and Show, the
+             tiles' marks and the viewer's stars and comment box on sample
+             data (adb shell am start -n cloud.offthe.otc/.RatingPreviewActivity
+             [- -ez off true] [- -es device demo|old]). -->
+        <activity
+            android:name=".RatingPreviewActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.OffTheCloud" />
     </application>
 </manifest>

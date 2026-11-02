@@ -3553,6 +3553,34 @@ leaves the grid and the viewer moves on, as after the viewer's Not this person (
 otherwise Info drops their faces at once and asks the device again. The map's and a memory's viewers show
 their notes (`ViewerAlert`). Debug-only `PhotoFacesPreviewActivity` (`--es device demo|old|off`). Tests:
 `PhotoGalleryFacesTest.kt`.
+**A collection's Rating on Android** (release 163; owner, 2026-11-02; the contract is `proto/messages.proto`'s
+"Rating (release 163)"; `ui/gallery/Rating.kt` (rules) + `RatingViews.kt`; texts `app.photos.rating.*`,
+`app.files.gallery_rating*`, `app.settings.links.rating` - the iOS app's keys; iOS must match). The open collection's header has a
+star (`RatingToggle`: outlined off, ember filled on, tooltip `title`, read out `on`/`off`; labelled on a wide
+window) sending `SetImageGroupRating` (`toggleRating`, busy `ratingBusy`): on, the photos are asked again with
+their `File.rating` and the first time from this phone (`RatingHint`, `otc_settings` `rating_hint_seen`) a note
+says `turned_on`; off, Sort by and Show go back to Date / All photos; `unknown_payload` -> DeviceNeedsUpdate
+(`needs_update`), a refusal the device's words or `toggle_failed`. A listing whose `rating` differs from the open
+collection's (another app, a gallery shared with rating) does the same, unless the switch was turned here after
+that list was asked (`ratingSetAt`). With it on the header has `RatingControls`: Sort by (`RatingSort` Date /
+Rating -> `by_rating`) and Show (`RatingShow`: All photos, 5 stars, 4/3/2 or more, Rated, Not rated, With a
+comment -> `RatingFilter`; filled while not All photos); either one makes the grid ranked (`State.dateOrdered`
+false: no months, buckets or scrubber); a Show that leaves nothing is `EmptyKind.RATING` (`no_match`, Show all
+photos, `show_everything`). Both reset when a collection is opened. Ratings live in `State.ratings` by path
+(pages, kept answers), apart from `items`; tiles show `RatingBadge` ("★ 4", a bubble for a comment; read out
+after the date, `comment`). The viewer (`viewerRates`: a rated collection, never a fixed list's - Files, the
+map, a memory) has, in portrait, five stars (`RatingStars`, radio buttons) and a bubble opening `RatingSheet`
+(`comment_placeholder` / `comment`), with `from_link` on the line under them (always kept, so the photo doesn't move); in landscape a star with the number in
+the side column opening the sheet (stars, the note, the comment box up to 2000 characters, Save while changed). A
+tap gives that many stars, the photo's own number clears them (`RatingRules.stars`), sent at once with the box's
+comment; `SetPhotoRating` one at a time per photo and collection (`ratingKey`), shown at once and put back on a
+refusal (`ratingNote`: the device's words - `rating_off` also lists the collections again, `not_in_collection` -
+else `save_failed`). A comment not saved is saved as the sheet closes, the viewer moves on or closes
+(`leaveRatingDraft`); a ranked grid is asked again as the viewer closes once the sends are done. Share as gallery
+from a collection has the switch `gallery_rating` (`CreateSharedGallery.rating`, off by default; the collections
+are listed again after the flow), and Settings › Shared links shows `links.rating`. Debug-only
+`RatingPreviewActivity` (`--ez off true`, `--es device demo|old`). Tests: `RatingTest.kt`,
+`PhotoGalleryRatingTest.kt`.
 **A photo's faces on iOS** (2026-11-01, Android's rules above; `PhotoFaces.swift`, tests
 `PhotoFacesTests.swift`): `FileInfoView` shows People after the details and the map, once they have
 loaded (`loadInfoFaces` when Info opens; not for a video or a photo only on the phone; any error,

@@ -188,6 +188,10 @@ import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.Memory
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.PhotoFace
+import cloud.offthe.otc.proto.PhotoRating
+import androidx.compose.material.icons.outlined.StarOutline
+import cloud.offthe.otc.i18n.appPhotosRatingNoMatch
+import cloud.offthe.otc.i18n.appPhotosRatingShowEverything
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.outlined.CloudOff
@@ -751,6 +755,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         wallpaperOn = wallpaper?.groupId == group.id,
                         onWallpaper = { wallpaperFor = group },
                         wallpaperProgress = wallpaperProgress?.takeIf { it.groupId == group.id && wallpaper?.groupId == group.id },
+                        // Rating (release 163): its switch, and with it on, Sort by and Show.
+                        ratingOn = group.rating, ratingBusy = st.ratingBusy, onRating = { vm.toggleRating() },
+                        ratingSort = st.ratingSort, ratingShow = st.ratingShow, onRatingSort = vm::setRatingSort, onRatingShow = vm::setRatingShow,
                     )
                 }
                 if (personHeader) item(key = "head:people", contentType = "head") {
@@ -807,6 +814,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                             val item = st.items[k]
                             PhotoTile(
                                 item, st.thumbKeyOf(item), vm, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
+                                // Rating: its stars and comment, in a collection with Rating on.
+                                rating = if (st.rates) st.ratings[item.path] else null,
                                 onTap = { vm.open(k) }, onToggle = { vm.toggleSelect(item.path) },
                                 // The tour's steps about selecting and opening a photo.
                                 modifier = cell.tourTarget(if (k == 0) TourTarget.FIRST_PHOTO else null),
@@ -818,7 +827,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 // asked for again), or there is nothing (the web's states).
                 if (body == GalleryBody.PROBLEM || body == GalleryBody.EMPTY) item(key = "state:$body", contentType = "state") {
                     if (body == GalleryBody.PROBLEM) PhotosProblem(st.pageProblem ?: LoadProblem.FAILED, st.retrying) { vm.retryPage() }
-                    else PhotosEmpty(emptyKind(st), st.activeGroup?.name, onLeaveGroup = { vm.leaveGroup() }, onClearSearch = { vm.clearSearch() })
+                    else PhotosEmpty(
+                        emptyKind(st), st.activeGroup?.name, onLeaveGroup = { vm.leaveGroup() }, onClearSearch = { vm.clearSearch() },
+                        onShowAllRated = { vm.setRatingShow(RatingShow.ALL) },
+                    )
                 }
                 // The end of the grid: where the next page shows it is coming,
                 // or that it failed, with its Try again (it is asked again
@@ -838,6 +850,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             if (openMemory == null) memories.notice?.let {
                 MemoriesNoticeBar(vm.memories, it, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
             }
+            // Rating turned on: what it does, for a few seconds.
+            Toast(st.gridNote?.resolve(), Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
+            st.gridNote?.let { n -> LaunchedEffect(n) { delay(GRID_NOTE_MS); vm.gridNoteShown() } }
             // The first page is slow to come (a slow link, a busy device):
             // over the grey tiles, that it is still on its way.
             if (st.slowFirstPage && (body == GalleryBody.SKELETON || (body == GalleryBody.GREY && st.scrubFrac == null))) {
@@ -973,7 +988,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             onChange = { renameGroupName = it }, onConfirm = { renameGroupName = null; scope.launch { vm.renameActiveGroup(name) } }, onDismiss = { renameGroupName = null },
         )
     }
-    gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
+    // A collection shared with rating has its Rating on now: listed again, the open one shows it.
+    gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null; if (src.groupId.isNotEmpty()) scope.launch { vm.loadGroups() } }) }
     wallpaperFor?.let { g -> WallpaperBox(g, onDismiss = { wallpaperFor = null }) }
     // What the wallpaper says once it started, stopped or failed - only
     // while fresh (it may have happened in the background meanwhile).
@@ -1125,7 +1141,7 @@ private fun CopiesDialog(title: String, text: String, onlyLabel: String, allLabe
 @Composable
 private fun PhotoTile(
     item: PhotoGalleryViewModel.Item, thumbKey: String?, vm: PhotoGalleryViewModel, sidePx: Int, isSelected: Boolean, hasSelection: Boolean,
-    onTap: () -> Unit, onToggle: () -> Unit, modifier: Modifier = Modifier,
+    onTap: () -> Unit, onToggle: () -> Unit, modifier: Modifier = Modifier, rating: PhotoRating? = null,
 ) {
     // On screen: a tile without its thumbnail has it fetched first; one
     // whose thumbnail is no longer kept (Settings cleared the cache) has it
@@ -1150,13 +1166,15 @@ private fun PhotoTile(
             // and while photos are being picked whether it is one of them
             // (the web's aria-pressed). Worked out only when asked for.
             .semantics {
-                contentDescription = tileLabel(video, item.created, ZoneId.systemDefault()).resolve(resources)
+                // Rating: its stars and comment after the date ("Photo, 5 October 2026, 4 stars, Comment").
+                contentDescription = (listOf(tileLabel(video, item.created, ZoneId.systemDefault())) + ratingLabels(rating)).joinToString(", ") { it.resolve(resources) }
                 if (hasSelection) selected = isSelected
                 onLongClick(label = pick) { onToggle(); true }
             },
     ) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (video) Icon(Icons.Default.PlayCircle, null, Modifier.align(Alignment.BottomStart).padding(4.dp).size(18.dp), tint = Color.White)
+        if (rating != null) RatingBadge(rating, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         if (isSelected) {
             Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, TILE_SHAPE))
             Icon(Icons.Default.CheckCircle, null, Modifier.align(Alignment.TopStart).padding(6.dp), tint = MaterialTheme.colorScheme.primary)
@@ -1189,8 +1207,12 @@ private fun PhotosProblem(problem: LoadProblem, retrying: Boolean, onRetry: () -
 
 /** Nothing to show (the web's empty states): an empty collection, a search with no match, or no photos at all. */
 @Composable
-private fun PhotosEmpty(kind: EmptyKind, groupName: String?, onLeaveGroup: () -> Unit, onClearSearch: () -> Unit) {
+private fun PhotosEmpty(kind: EmptyKind, groupName: String?, onLeaveGroup: () -> Unit, onClearSearch: () -> Unit, onShowAllRated: () -> Unit) {
     when (kind) {
+        // Rating: the Show menu's choice leaves none - and the way back to all of them.
+        EmptyKind.RATING -> GridMessage(Icons.Outlined.StarOutline, S.appPhotosRatingNoMatch().resolve(), "") {
+            OutlinedButton(onClick = onShowAllRated) { Text(S.appPhotosRatingShowEverything().resolve()) }
+        }
         EmptyKind.COLLECTION -> GridMessage(NavIcons.Collections, S.appPhotosGridEmptyCollectionTitle().resolve(), S.appPhotosGridEmptyCollectionText().resolve()) {
             OutlinedButton(onClick = onLeaveGroup) { Text(S.appShellCollectionsGoToImages().resolve()) }
         }
@@ -1215,12 +1237,15 @@ private fun GridMessage(icon: ImageVector, title: String, text: String, announce
         Icon(icon, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
         Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = 420.dp).then(if (announce) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
-        )
+        // [text] "": the title says it all.
+        if (text.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 420.dp).then(if (announce) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
+            )
+        }
         if (action != null) {
             Spacer(Modifier.height(20.dp))
             action()
@@ -1512,6 +1537,11 @@ private fun CollectionHeader(
     // ([wallpaperOn]: "Wallpaper settings…", else "Use as wallpaper…"), and
     // how far its copies are while they are stored.
     wallpaperOn: Boolean = false, onWallpaper: () -> Unit = {}, wallpaperProgress: Wallpaper.Progress? = null,
+    // Rating (release 163): the collection's switch ([ratingOn], [onRating]
+    // null: none), and with it on, Sort by and Show under the name.
+    ratingOn: Boolean = false, ratingBusy: Boolean = false, onRating: (() -> Unit)? = null,
+    ratingSort: RatingSort = RatingSort.DATE, ratingShow: RatingShow = RatingShow.ALL,
+    onRatingSort: (RatingSort) -> Unit = {}, onRatingShow: (RatingShow) -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     val danger = Color(0xFFE53935)
@@ -1552,6 +1582,7 @@ private fun CollectionHeader(
             if (compact) Row {
                 IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
                 IconButton(onClick = onWallpaper) { Icon(Icons.Outlined.Wallpaper, wallpaper, tint = if (wallpaperOn) colors.primary else colors.onSurfaceVariant) }
+                if (onRating != null) RatingToggle(ratingOn, ratingBusy, labelled = false, onClick = onRating)
                 if (onDelete != null) IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
@@ -1564,6 +1595,7 @@ private fun CollectionHeader(
                     Spacer(Modifier.width(8.dp))
                     Text(wallpaper)
                 }
+                if (onRating != null) RatingToggle(ratingOn, ratingBusy, labelled = true, onClick = onRating)
                 if (onDelete != null) OutlinedButton(
                     onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
@@ -1574,6 +1606,8 @@ private fun CollectionHeader(
                 }
             }
         }
+        // Rating on: the photos by date or by stars, and which of them.
+        if (ratingOn && onRating != null) RatingControls(ratingSort, ratingShow, onRatingSort, onRatingShow, Modifier.offset(x = (-12).dp).padding(top = 4.dp))
         // Its copies being stored for the wallpaper, or why they weren't.
         wallpaperProgress?.let { CopiesProgress(it, Modifier.widthIn(max = 480.dp)) }
     }
@@ -1988,6 +2022,14 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // before Favourites, its room kept until the device has said.
     val hearts = !st.favouritesOff
     val heart = st.items.getOrNull(idx)?.let { st.favourites[it.path] }
+    // Rating: inside a collection with Rating on (never Files', the map's or
+    // a memory's viewer), the open photo's stars and comment - the stars
+    // under the photo in portrait, a star in the side column in landscape;
+    // the comment box in a sheet over the viewer.
+    val rates = st.viewerRates
+    val openRating = st.items.getOrNull(idx)?.let { st.ratings[it.path] }
+    var ratingSheet by remember { mutableStateOf(false) }
+    LaunchedEffect(rates) { if (!rates) ratingSheet = false }
     val pagerState = rememberPagerState(initialPage = idx) { st.items.size }
     // By the photo, not its place: newer ones landing above it (issue #194) leave it open.
     val pageKey: (Int) -> Any = { st.items.getOrNull(it)?.id ?: it }
@@ -2010,7 +2052,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                 // button). Portrait is unchanged. The pager stays at the same
                 // place in the composition either way, so a rotation re-lays
                 // it out without disposing it (or restarting the video in it).
-                val landscape = controlsBeside(maxWidth, maxHeight)
+                val landscape = controlsBeside(maxWidth, maxHeight, rates)
                 val width = maxWidth
                 Column(Modifier.fillMaxSize()) {
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(8.dp)) {
@@ -2024,6 +2066,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         if (landscape) Column(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             ViewerInfoButton(vm)
                             personMenu?.invoke()
+                            if (rates) ViewerRatingButton(openRating) { ratingSheet = true }
                         }
                         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxHeight(), beyondViewportPageCount = 1, key = pageKey) { page ->
                             ViewerPage(vm, st, page, isCurrent = page == idx)
@@ -2040,6 +2083,10 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                             }
                         }
                     }
+                    // Rating: the five stars and the comment's bubble, over the actions.
+                    if (!landscape && rates) Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+                        ViewerRatingBar(openRating, onStar = vm::rateOpen, onComment = { ratingSheet = true })
+                    }
                     if (!landscape) Row(
                         Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         // 48 dp apart, closer where the heart's fourth button wouldn't fit so.
@@ -2051,8 +2098,8 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         )
                     }
                 }
-                // A heart's change the device didn't take: why, for a few seconds.
-                Toast(st.favouriteNote?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = 56.dp, start = 16.dp, end = 16.dp))
+                // A heart's or a rating's change the device didn't take: why, for a few seconds.
+                Toast((st.favouriteNote ?: st.ratingNote)?.resolve(), Modifier.align(Alignment.TopCenter).padding(top = 56.dp, start = 16.dp, end = 16.dp))
             }
         }
     }
@@ -2075,6 +2122,13 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         )
     }
     st.favouriteNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.favouriteNoteShown() } }
+    st.ratingNote?.let { note -> LaunchedEffect(note) { delay(FAVOURITE_NOTE_MS); vm.ratingNoteShown() } }
+    // The stars and the comment box: what was written is saved as it closes.
+    if (ratingSheet && rates) RatingSheet(
+        openRating, st.ratingDraft?.takeIf { d -> d.path == st.items.getOrNull(idx)?.path }?.text,
+        onStar = vm::rateOpen, onEdit = vm::editRatingComment, onSave = vm::saveRatingComment,
+        onClose = { ratingSheet = false; vm.ratingBoxClosed() },
+    )
     LaunchedEffect(personShown) { if (personShown == null) { confirmNotPerson = false; pickPerson = false } }
     if (confirmNotPerson && personShown != null) {
         ConfirmDialog(
@@ -2141,19 +2195,27 @@ private val VIEWER_SIDE_COLUMN = 56.dp
 /** What the top bar (64 dp) and the bottom one (72 dp) take from the photo's height in portrait. */
 private val VIEWER_BARS_HEIGHT = 136.dp
 
+/** What the rating's stars (44 dp, a gap and the from-the-link line) add to the bottom bar in portrait. */
+private val VIEWER_RATING_HEIGHT = 64.dp
+
+/** How long the grid's note stays (Rating turned on). */
+private const val GRID_NOTE_MS = 4_000L
+
 /**
  * Whether the viewer's controls go in columns beside the photo rather than
  * in bars above and below it: only in landscape, and only when that leaves
  * a typical (4:3) landscape photo more room - always on a phone, not on a
  * nearly square screen like an unfolded Fold's (iOS ImageModal.controlsBeside).
  */
-private fun controlsBeside(width: Dp, height: Dp): Boolean {
+private fun controlsBeside(width: Dp, height: Dp, rates: Boolean = false): Boolean {
     if (width <= height) return false
     fun area(w: Float, h: Float): Float {
         val unit = minOf(w / 4f, h / 3f).coerceAtLeast(0f)
         return unit * unit * 12f
     }
-    return area((width - VIEWER_SIDE_COLUMN * 2).value, height.value) > area(width.value, (height - VIEWER_BARS_HEIGHT).value)
+    // The rating's stars, in portrait, under the photo too.
+    val bars = VIEWER_BARS_HEIGHT + if (rates) VIEWER_RATING_HEIGHT else 0.dp
+    return area((width - VIEWER_SIDE_COLUMN * 2).value, height.value) > area(width.value, (height - bars).value)
 }
 
 @Composable
