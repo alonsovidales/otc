@@ -189,6 +189,7 @@ import cloud.offthe.otc.proto.Memory
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.PhotoFace
 import cloud.offthe.otc.proto.PhotoRating
+import cloud.offthe.otc.data.NotificationsModel
 import androidx.compose.material.icons.outlined.StarOutline
 import cloud.offthe.otc.i18n.appPhotosRatingNoMatch
 import cloud.offthe.otc.i18n.appPhotosRatingShowEverything
@@ -441,6 +442,19 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         openMemory = null
         seeAllMemory = null
         vm.showPerson(id)
+        onPage(GalleryPage.PHOTOS)
+        listState.scrollToItem(0)
+    }
+
+    // A tapped Rating alert (Alerts; MainView has shown Images): its
+    // collection, as one opened from Collections - a memory open goes.
+    val collectionAsked by NotificationsModel.collectionRequested.collectAsState()
+    LaunchedEffect(collectionAsked) {
+        val g = collectionAsked ?: return@LaunchedEffect
+        NotificationsModel.consumeCollectionRequest(g)
+        openMemory = null
+        seeAllMemory = null
+        vm.openGroup(g)
         onPage(GalleryPage.PHOTOS)
         listState.scrollToItem(0)
     }

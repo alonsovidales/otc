@@ -3578,9 +3578,13 @@ refusal (`ratingNote`: the device's words - `rating_off` also lists the collecti
 else `save_failed`). A comment not saved is saved as the sheet closes, the viewer moves on or closes
 (`leaveRatingDraft`); a ranked grid is asked again as the viewer closes once the sends are done. Share as gallery
 from a collection has the switch `gallery_rating` (`CreateSharedGallery.rating`, off by default; the collections
-are listed again after the flow), and Settings › Shared links shows `links.rating`. Debug-only
-`RatingPreviewActivity` (`--ez off true`, `--es device demo|old`). Tests: `RatingTest.kt`,
-`PhotoGalleryRatingTest.kt`.
+are listed again after the flow), and Settings › Shared links shows `links.rating`. Alerts lists a
+`NotificationRating` (`RatingRow`: a star in the avatar's place, the device's title in bold, its details, the
+time, as `UpdateRow`); a tap (`NotificationsModel.handleTap` -> `ratingCollection`: `ListImageGroups`, the
+alert's `group_id`) sets `collectionRequested`, MainView shows Images and its gallery opens the collection
+(`openGroup`); deleted since, Alerts' notice says `app.social.alerts.rating_gone`, no list `rating_open_failed`
+(or the device's words). Debug-only `RatingPreviewActivity` (`--ez off true`, `--es device demo|old`). Tests: `RatingTest.kt`,
+`PhotoGalleryRatingTest.kt`, `AlertsTest.kt`.
 **A photo's faces on iOS** (2026-11-01, Android's rules above; `PhotoFaces.swift`, tests
 `PhotoFacesTests.swift`): `FileInfoView` shows People after the details and the map, once they have
 loaded (`loadInfoFaces` when Info opens; not for a video or a photo only on the phone; any error,

@@ -264,6 +264,9 @@ fun MainView(secrets: SecretsStore) {
     // Images shows and takes it.
     val personAsked by PersonNav.pending.collectAsState()
     LaunchedEffect(personAsked) { if (personAsked != null) go(Section.Images) }
+    // Rating: a tapped Rating alert's collection - Images shows and opens it.
+    val collectionAsked by NotificationsModel.collectionRequested.collectAsState()
+    LaunchedEffect(collectionAsked) { if (collectionAsked != null) go(Section.Images) }
 
     // Issue #183: the device's status, at launch and every 5 minutes while
     // in the foreground, for its update alert. A failed fetch keeps the

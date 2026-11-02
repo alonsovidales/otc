@@ -8,6 +8,8 @@ import cloud.offthe.otc.i18n.appSocialAlertsLoadFailed
 import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.FriendShipStatus
+import cloud.offthe.otc.proto.ImageGroup
+import cloud.offthe.otc.proto.ImageGroups
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.common.LoadProblem
@@ -113,5 +115,32 @@ class AlertsTest {
 
     @Test fun theWaitIsBetweenHalfAMinuteAndAMinute() {
         assertTrue(NotificationsModel.POLL_MS in 30_000L..60_000L)
+    }
+
+    // Rating (release 163): a Rating alert's tap opens its collection as the
+    // device lists it now; one deleted since, or a list that didn't come,
+    // says so at the top of Alerts. As AlertsTests.swift.
+    @Test fun aRatingAlertOpensItsCollectionWhenTheDeviceListsIt() = runBlocking {
+        val wedding = ImageGroup.newBuilder().setId("g1").setName("Wedding").setRating(true).build()
+        val listed = RespEnvelope.newBuilder().setRespImageGroups(
+            ImageGroups.newBuilder().addGroups(ImageGroup.newBuilder().setId("favourites").setFavourites(true)).addGroups(wedding),
+        ).build()
+        val sent = mutableListOf<ReqEnvelope>()
+        val send: suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelope = { build -> ReqEnvelope.newBuilder().also(build).build().also { sent += it }; listed }
+        assertEquals(RatingCollection.Found(wedding), ratingCollection(send, "g1"))
+        assertTrue(sent.single().reqListImageGroups.smallThumbnails)
+        // Deleted since: gone.
+        assertEquals("This collection no longer exists.", (ratingCollection(send, "g2") as RatingCollection.Missing).why.english())
+        // An alert without a collection asks nothing.
+        sent.clear()
+        assertEquals("This collection no longer exists.", (ratingCollection(send, "") as RatingCollection.Missing).why.english())
+        assertTrue(sent.isEmpty())
+        // No list: the device's words, else ours.
+        val refused: suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelope = {
+            RespEnvelope.newBuilder().setError(true).setErrorCode("device_unreachable").setErrorMessage("Your device is offline.").build()
+        }
+        assertEquals("Your device is offline.", (ratingCollection(refused, "g1") as RatingCollection.Missing).why.english())
+        val silent: suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelope = { throw IOException("no answer") }
+        assertEquals("Couldn't open the collection. Try again.", (ratingCollection(silent, "g1") as RatingCollection.Missing).why.english())
     }
 }

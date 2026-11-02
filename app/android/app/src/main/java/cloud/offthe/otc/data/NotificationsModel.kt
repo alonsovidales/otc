@@ -4,6 +4,10 @@ package cloud.offthe.otc.data
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appSocialAlertsAcceptFailed
+import cloud.offthe.otc.i18n.appSocialAlertsRatingGone
+import cloud.offthe.otc.i18n.appSocialAlertsRatingOpenFailed
+import cloud.offthe.otc.proto.ImageGroup
+import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.retryWaitMs
@@ -56,6 +60,7 @@ object NotificationsModel {
     private val _pendingDeepLink = MutableStateFlow<DeepLink?>(null)
     private val _alertsRequested = MutableStateFlow(false)
     private val _settingsRequested = MutableStateFlow(false)
+    private val _collectionRequested = MutableStateFlow<ImageGroup?>(null)
     private val _awaitingAnswer = MutableStateFlow<Set<String>>(emptySet())
     private val _acceptedHere = MutableStateFlow<Set<String>>(emptySet())
     /** Domains whose friend request is still waiting: their alert gets an Accept button. */
@@ -74,6 +79,8 @@ object NotificationsModel {
     val alertsRequested: StateFlow<Boolean> = _alertsRequested
     /** Issue #183: a tapped update alert asks MainView to show Settings. */
     val settingsRequested: StateFlow<Boolean> = _settingsRequested
+    /** Rating (release 163): a tapped Rating alert's collection, for Images to open (MainView shows it). */
+    val collectionRequested: StateFlow<ImageGroup?> = _collectionRequested
 
     /** Sends Alerts' requests. */
     private val send: suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelope = { build -> OTCConnection.request(build = build) }
@@ -94,6 +101,8 @@ object NotificationsModel {
     }
     fun consumeAlertsRequest() { _alertsRequested.value = false }
     fun consumeSettingsRequest() { _settingsRequested.value = false }
+    /** Images has opened [g]: it isn't opened again the next time Images shows. */
+    fun consumeCollectionRequest(g: ImageGroup) { _collectionRequested.compareAndSet(g, null) }
 
     private val poll = CountPoll(scope, POLL_MS) { fetchCount() }
 
@@ -125,6 +134,9 @@ object NotificationsModel {
         _loadProblem.value = null
         _notice.value = null
         _pendingDeepLink.value = null
+        _collectionRequested.value = null
+        collectionAsk?.cancel()
+        collectionAsk = null
     }
 
     private suspend fun fetchCount() {
@@ -234,6 +246,7 @@ object NotificationsModel {
 
     fun handleTap(n: Notification) {
         if (n.type == NotificationType.NotificationUpdate) { _settingsRequested.value = true; return }
+        if (n.type == NotificationType.NotificationRating) { openCollection(n.groupId); return }
         _pendingDeepLink.value = when (n.type) {
             NotificationType.NotificationFriendRequest, NotificationType.NotificationFriendAccepted -> DeepLink.FriendRequests
             else -> if (n.pubUuid.isEmpty()) return else DeepLink.Post(n.pubUuid, n.commentUuid.ifEmpty { null })
@@ -241,6 +254,51 @@ object NotificationsModel {
     }
 
     fun consumeDeepLink() { _pendingDeepLink.value = null }
+
+    // A Rating alert's tap on its way (one at a time).
+    private var collectionAsk: Job? = null
+
+    /**
+     * Rating (release 163): a Rating alert's collection [id], opened in
+     * Images - once the device lists it (ratingCollection): MainView shows
+     * Images, whose gallery opens it, as Update's tap shows Settings.
+     * Deleted since, or not listed, Alerts says so at its top.
+     */
+    private fun openCollection(id: String) {
+        if (collectionAsk?.isActive == true) return
+        collectionAsk = scope.launch {
+            when (val found = ratingCollection(send, id)) {
+                is RatingCollection.Found -> _collectionRequested.value = found.group
+                is RatingCollection.Missing -> say(found.why)
+            }
+        }
+    }
+}
+
+/** Where a Rating alert's tap goes: its collection, or why not (the note at the top of Alerts). */
+sealed interface RatingCollection {
+    data class Found(val group: ImageGroup) : RatingCollection
+    data class Missing(val why: UiText) : RatingCollection
+}
+
+/**
+ * A Rating alert's collection [id] as the device lists it now
+ * (ListImageGroups, small covers as the grids ask): Found, else Missing -
+ * rating_gone when the list has it no longer (or the alert names none),
+ * the device's words or rating_open_failed when no list came.
+ */
+internal suspend fun ratingCollection(send: suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelope, id: String): RatingCollection {
+    if (id.isEmpty()) return RatingCollection.Missing(S.appSocialAlertsRatingGone())
+    val resp = try {
+        send { it.setReqListImageGroups(ListImageGroups.newBuilder().setSmallThumbnails(true)) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) { null }
+    if (resp?.payloadCase == RespEnvelope.PayloadCase.RESP_IMAGE_GROUPS) {
+        val group = resp.respImageGroups.groupsList.firstOrNull { it.id == id }
+        return if (group != null) RatingCollection.Found(group) else RatingCollection.Missing(S.appSocialAlertsRatingGone())
+    }
+    return RatingCollection.Missing(resp?.let { refusal(it) } ?: S.appSocialAlertsRatingOpenFailed())
 }
 
 /** What the device said to an Accept from Alerts: null once it took it, else why not - its words, or ours. */

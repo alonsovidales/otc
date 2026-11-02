@@ -86,6 +86,7 @@ import cloud.offthe.otc.ui.common.relativeTime
 import cloud.offthe.otc.ui.common.rememberMinuteClock
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -143,6 +144,7 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
                     items(list, key = { it.uuid }) { n ->
                         if (n.type == NotificationType.NotificationError) ErrorRow(n, now)
                         else if (n.type == NotificationType.NotificationUpdate) UpdateRow(n, now) { model.handleTap(n) }
+                        else if (n.type == NotificationType.NotificationRating) RatingRow(n, now) { model.handleTap(n) }
                         else NotificationRow(n, model, now) { model.handleTap(n) }
                     }
                 }
@@ -245,14 +247,26 @@ private fun ErrorRow(n: Notification, now: Long) {
  *  its details what it changes; a tap opens Settings, where it installs. */
 @Composable
 private fun UpdateRow(n: Notification, now: Long, onTap: () -> Unit) {
+    TitledRow(n, now, onTap) { Icon(Icons.Default.SystemUpdate, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+}
+
+/** Rating (release 163): photos of a collection rated or commented on
+ *  through its shared link - the device's title and details, a star in the
+ *  avatar's place; a tap opens that collection in Images (handleTap). */
+@Composable
+private fun RatingRow(n: Notification, now: Long, onTap: () -> Unit) {
+    TitledRow(n, now, onTap) { Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+}
+
+/** An alert of the device's own words: [icon] in the avatar's place, its title in bold, its details under it, the time. */
+@Composable
+private fun TitledRow(n: Notification, now: Long, onTap: () -> Unit, icon: @Composable () -> Unit) {
     val bg = if (n.acknowledged) Color.Transparent else Color(0x14FFEB3B)
     Row(
         Modifier.fillMaxWidth().background(bg).clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.SystemUpdate, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-        }
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { icon() }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
