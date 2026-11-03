@@ -11,6 +11,14 @@ Features
   * Rebuild/resync:
       - Source (up-to-date) member -> blink green.
       - Target (rebuilding) member -> blink red.
+  * Storage missing (issue #207: /mnt/storage not mounted for a minute -
+    the disks unplugged, the mirror not assembled, a mount that failed) ->
+    the two LEDs red in turn, a second each, whatever the disks say.
+- The storage back (StorageGuard): fstab's storage line not mounted while
+  its device is there (disks plugged in late, a mirror assembled by hand)
+  is mounted; after a minute without it otc-degraded.service tells the
+  apps why (`otc <env> degraded`); once it is mounted again MariaDB and
+  otc.service are started, which stops otc-degraded.service.
 - Auto-repair (optional):
   * When degraded and a disk appears that is blank (no partition table, no
     filesystem or other signature, first and last MiB empty) or was a member
@@ -1614,6 +1622,244 @@ def kernel_disk_lines(cursor, output=None):
     return lines, new
 
 # ----------------------------
+# The storage missing (issue #207)
+# ----------------------------
+# otc.service and MariaDB need the storage mounted (RequiresMountsFor, the
+# otc-storage.conf drop-ins), and its fstab line has nofail: with the disks
+# missing at boot the device comes up without them, and nothing ever
+# tried again - systemd doesn't mount a nofail line whose device shows up
+# after its timeout, and a service that didn't start for want of a mount
+# stays down. This does both: it mounts the storage once its device is
+# there, and starts MariaDB and the service once it is mounted; and after
+# STORAGE_GRACE_S without it, starts otc-degraded.service (the same binary
+# without a database), which answers the apps storage_unavailable and
+# which starting otc.service stops (Conflicts=).
+STORAGE_GRACE_S = 60
+STORAGE_LOOK_S = 2            # how often the guard looks
+STORAGE_DEGRADED_S = 10       # how often it checks the degraded unit runs
+STORAGE_STATE = "/run/otc-raid-watch/storage.json"
+DEGRADED_UNIT = "otc-degraded.service"
+FULL_UNITS = ("mariadb.service", "otc.service")
+
+def _fstab_unescape(s):
+    return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), s)
+
+def storage_entry(fstab_text, mount_point):
+    """fstab's line for mount_point as (source, fstype, options), or None:
+    a commented line, swap and a noauto line don't count."""
+    want = os.path.normpath(mount_point)
+    found = None
+    for line in fstab_text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        f = line.split()
+        if len(f) < 3 or f[2] == "swap":
+            continue
+        opts = f[3] if len(f) > 3 else "defaults"
+        if "noauto" in opts.split(","):
+            continue
+        if os.path.normpath(_fstab_unescape(f[1])) == want:
+            found = (_fstab_unescape(f[0]), f[2], opts)
+    return found
+
+def whole_fs_mounted(mount_point, mountinfo_text):
+    """A whole filesystem (its root, not a directory bound there) is on top
+    at mount_point, as the Go side's check (nostorage.mounted)."""
+    want = os.path.normpath(mount_point)
+    found = False
+    for line in mountinfo_text.splitlines():
+        f = line.split()
+        if len(f) < 6 or os.path.normpath(_fstab_unescape(f[4])) != want:
+            continue
+        found = _fstab_unescape(f[3]) == "/"
+    return found
+
+_SOURCE_LINKS = {"UUID": "by-uuid", "LABEL": "by-label", "PARTUUID": "by-partuuid", "PARTLABEL": "by-partlabel"}
+
+def source_present(source, mdstat_text, dev_root="/dev", is_block=None):
+    """Whether the storage's device is there to mount: an md array only
+    once active in /proc/mdstat (an inactive one, half assembled, has its
+    node too), anything else as a block device under its name."""
+    kind, eq, value = source.partition("=")
+    if eq and kind in _SOURCE_LINKS:
+        path = os.path.join(dev_root, "disk", _SOURCE_LINKS[kind], value)
+    elif source.startswith("/dev/"):
+        path = os.path.join(dev_root, source[len("/dev/"):])
+    else:
+        return False
+    real = os.path.realpath(path)
+    if not (is_block or is_block_device)(real):
+        return False
+    name = os.path.basename(real)
+    if re.fullmatch(r"md\d+", name):
+        return re.search(rf"^{name}\s*:\s*active\b", mdstat_text, re.M) is not None
+    return True
+
+def mount_unit_name(mount_point):
+    """systemd's unit for the mount point: /mnt/storage -> mnt-storage.mount."""
+    r = run(["systemd-escape", "--path", "--suffix=mount", mount_point])
+    name = (r.stdout or "").strip() if r.returncode == 0 else ""
+    if name.endswith(".mount"):
+        return name
+    return os.path.normpath(mount_point).strip("/").replace("-", "\\x2d").replace("/", "-") + ".mount"
+
+def unit_active(unit):
+    return run(["systemctl", "is-active", "--quiet", unit]).returncode == 0
+
+def write_storage_state(since, path=None):
+    """What the device's degraded mode reads for when the outage began
+    (nostorage.MissingSince); None removes it."""
+    path = path or STORAGE_STATE
+    if since is None:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            print(f"[raid-watch] could not remove {path}: {e}")
+        return
+    try:
+        os.makedirs(os.path.dirname(path), mode=0o755, exist_ok=True)
+        tmp = f"{path}.tmp.{os.getpid()}"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+        try:
+            os.write(fd, json.dumps({"v": 1, "missing_since": int(since)}).encode())
+        finally:
+            os.close(fd)
+        os.replace(tmp, path)
+    except OSError as e:
+        print(f"[raid-watch] could not write {path}: {e}")
+
+def system_uptime():
+    try:
+        return float(Path("/proc/uptime").read_text().split()[0])
+    except (OSError, ValueError, IndexError):
+        return 1e9
+
+class StorageGuard:
+    """See "The storage missing" above. step() is called every poll and
+    looks every STORAGE_LOOK_S; state is "none" (no storage line in fstab:
+    a plain directory, nothing to watch), "ok", "waiting" (missing, for
+    less than STORAGE_GRACE_S) or "missing" (the LEDs say so)."""
+
+    def __init__(self, mount_point, fstab="/etc/fstab", mountinfo="/proc/self/mountinfo",
+                 dev_root="/dev", state_path=None, systemctl=None, active=None,
+                 mono=time.monotonic, wall=time.time, uptime=system_uptime, is_block=None):
+        self.mount_point = mount_point
+        self.fstab, self.mountinfo, self.dev_root = fstab, mountinfo, dev_root
+        self.state_path = state_path or STORAGE_STATE
+        self.systemctl = systemctl or (lambda *args: run(["systemctl", *args]))
+        self.active = active or unit_active
+        self.mono, self.wall, self.uptime = mono, wall, uptime
+        self.is_block = is_block
+        self.state = "none"
+        self.unit = None
+        self.seen_mounted = False  # once this boot, as far as this process knows
+        self._reset()
+        self.next_look = 0.0
+
+    def _reset(self):
+        self.since = None          # wall time the storage went missing
+        self.since_mono = None
+        self.present = False
+        self.mount_at, self.mount_delay = 0.0, 0
+        self.degraded_at, self.degraded_delay = 0.0, 0
+        self.told = False
+
+    def _read(self, path):
+        try:
+            return Path(path).read_text()
+        except OSError:
+            return ""
+
+    def step(self, mdstat_text):
+        mono = self.mono()
+        if mono < self.next_look:
+            return self.state
+        self.next_look = mono + STORAGE_LOOK_S
+        entry = storage_entry(self._read(self.fstab), self.mount_point)
+        if entry is None:
+            if self.since is not None:
+                write_storage_state(None, self.state_path)
+            self._reset()
+            self.state = "none"
+            return self.state
+        if whole_fs_mounted(self.mount_point, self._read(self.mountinfo)):
+            # Back (or mounted for the first time this boot): MariaDB and
+            # the service are started - their start at boot may have been
+            # given up, or cancelled by the companion's. A start of what
+            # is already starting or running changes nothing. And the
+            # companion never runs over a mounted storage, whoever
+            # mounted it (this script restarted meanwhile, a hand).
+            start = False
+            if self.since is not None:
+                print(f"[raid-watch] {self.mount_point} is mounted, after {int(mono - self.since_mono)} s without it: starting MariaDB and the service")
+                write_storage_state(None, self.state_path)
+                start = True
+            elif mono >= self.degraded_at:
+                self.degraded_at = mono + STORAGE_DEGRADED_S
+                if self.active(DEGRADED_UNIT):
+                    print(f"[raid-watch] {self.mount_point} is mounted and {DEGRADED_UNIT} runs: starting MariaDB and the service")
+                    start = True
+            if start:
+                r = self.systemctl("start", "--no-block", *FULL_UNITS)
+                if r.returncode != 0:
+                    print(f"[raid-watch] could not start {' and '.join(FULL_UNITS)}: {(r.stderr or '').strip()}")
+            degraded_at = self.degraded_at
+            self.seen_mounted = True
+            self._reset()
+            self.degraded_at = degraded_at if not start else mono + STORAGE_DEGRADED_S
+            self.state = "ok"
+            return self.state
+
+        source = entry[0]
+        if self.since is None:
+            # Missing since the boot when the device has only just started
+            # and it hasn't been seen mounted since.
+            up = self.uptime()
+            if up < 5 * STORAGE_GRACE_S and not self.seen_mounted:
+                self.since, self.since_mono = self.wall() - up, mono - up
+            else:
+                self.since, self.since_mono = self.wall(), mono
+            print(f"[raid-watch] {self.mount_point} is not mounted (from {source})")
+        present = source_present(source, mdstat_text, self.dev_root, self.is_block)
+        if present and not self.present:
+            self.mount_at, self.mount_delay = 0.0, 0   # just plugged in: at once
+        self.present = present
+        if present and mono >= self.mount_at:
+            if self.unit is None:
+                self.unit = mount_unit_name(self.mount_point)
+            print(f"[raid-watch] {source} is there: mounting {self.mount_point} ({self.unit})")
+            r = self.systemctl("start", "--no-block", self.unit)
+            self.mount_delay = min(max(30, 2 * self.mount_delay), 600)
+            self.mount_at = mono + self.mount_delay
+            if r.returncode != 0:
+                print(f"[raid-watch] could not mount it: {(r.stderr or '').strip()} (again in {self.mount_delay} s)")
+
+        if mono - self.since_mono < STORAGE_GRACE_S:
+            self.state = "waiting"
+            return self.state
+        self.state = "missing"
+        if not self.told:
+            self.told = True
+            print(f"[raid-watch] no storage for {int(mono - self.since_mono)} s: the device tells the apps ({DEGRADED_UNIT})")
+            write_storage_state(self.since, self.state_path)
+        if mono >= self.degraded_at:
+            self.degraded_at = mono + STORAGE_DEGRADED_S
+            # Never over a service that runs: with its storage gone systemd
+            # stops it, and one still running is answering by itself.
+            if not self.active("otc.service") and not self.active(DEGRADED_UNIT):
+                r = self.systemctl("start", "--no-block", DEGRADED_UNIT)
+                if r.returncode == 0:
+                    self.degraded_delay = 0
+                else:
+                    self.degraded_delay = min(max(STORAGE_DEGRADED_S, 2 * self.degraded_delay), 600)
+                    self.degraded_at = mono + self.degraded_delay
+                    print(f"[raid-watch] could not start {DEGRADED_UNIT}: {(r.stderr or '').strip()} (again in {self.degraded_delay} s)")
+        return self.state
+
+# ----------------------------
 # LED state machine
 # ----------------------------
 class BlinkState:
@@ -1634,7 +1880,11 @@ class LedController:
     def __init__(self, blink_period):
         self.blink_period = blink_period
         self.blinkers = {0: BlinkState(blink_period), 1: BlinkState(blink_period)}
-        # Current desired modes: "solid_green", "solid_red", "blink_green", "blink_red", "off"
+        # The storage missing: both red in turn, a second each - slower than
+        # a rebuild's blink, and never both lit as with two failed disks.
+        self.turns = BlinkState(2.0)
+        # Current desired modes: "solid_green", "solid_red", "blink_green",
+        # "blink_red", "turns_red" (the storage missing), "off"
         self.modes = {0: "off", 1: "off"}
 
     def set_mode(self, slot, mode):
@@ -1652,6 +1902,9 @@ class LedController:
             elif mode == "blink_red":
                 on = self.blinkers[slot].step()
                 led_set(slot, red_on=on, green_on=False)
+            elif mode == "turns_red":
+                first = self.turns.step() if slot == 0 else self.turns.on
+                led_set(slot, red_on=first if slot == 0 else not first, green_on=False)
             else:
                 led_set(slot, red_on=False, green_on=False)
 
@@ -1669,6 +1922,9 @@ def main():
     gpio_setup()
 
     led = LedController(CONFIG["blink_period_s"])
+    # Issue #207: the storage not mounted - mounted once its device is
+    # there, the apps told after a minute, the service started once back.
+    guard = StorageGuard(CONFIG["mount_point"])
 
     def handle_sigterm(sig, frame):
         if _TERM["busy"]:
@@ -1745,6 +2001,7 @@ def main():
             # after the setup above, so an array it just created counts.
             mdst = mdstat()
             array_present = array_in_mdstat(mdst, raid_name)
+            storage_state = guard.step(mdst)
             # Settings: a disk left alone, to be erased and added at the
             # owner's word - everything checked again first (use_disk).
             if os.path.lexists(USE_REQUEST):
@@ -1853,6 +2110,12 @@ def main():
                     # mdadm reports "clean", "active", etc. Without rebuild markers.
                     led.set_mode(0, "solid_green")
                     led.set_mode(1, "solid_green")
+
+            # The storage missing says so whatever the disks say: the mirror
+            # may be whole and still not mounted.
+            if storage_state == "missing":
+                led.set_mode(0, "turns_red")
+                led.set_mode(1, "turns_red")
 
             # Apply LED states (updates blinkers)
             led.apply()
@@ -2104,6 +2367,7 @@ def selftest():
     assert why == {"/dev/sdb": "no card in it",
                    "/dev/sdc": "too small: 128.0 GB, and the working disk is 512.0 GB"}, why
     selftest_disks()
+    selftest_storage()
     print("selftest ok")
 
 def selftest_disks():
@@ -2257,6 +2521,198 @@ def selftest_disks():
         write_not_added([], na)
         assert json.loads(Path(na).read_text()) == {"disks": []}
     selftest_use()
+
+def selftest_storage():
+    """Issue #207: the storage missing - fstab's line, what counts as
+    mounted and as its device being there, StorageGuard's steps on a fake
+    clock and systemctl, and the LEDs' pattern for it."""
+    import tempfile
+    import io
+    import contextlib
+    fstab = ("# a comment\nPARTUUID=1-02 / ext4 defaults 0 1\n"
+             "/dev/md0   /mnt/storage   ext4   defaults,nofail,x-systemd.device-timeout=3min   0   0\n"
+             "/dev/sdz1 /mnt/backup ext4 noauto 0 0\n/swapfile none swap sw 0 0\n")
+    assert storage_entry(fstab, "/mnt/storage") == ("/dev/md0", "ext4", "defaults,nofail,x-systemd.device-timeout=3min")
+    assert storage_entry(fstab, "/mnt/storage/") is not None
+    assert storage_entry(fstab, "/mnt/backup") is None          # noauto
+    assert storage_entry("# /dev/md0 /mnt/storage ext4 defaults 0 0\n", "/mnt/storage") is None
+    assert storage_entry("UUID=ab-cd /mnt/my\\040disk ext4 nofail 0 2\n", "/mnt/my disk") == ("UUID=ab-cd", "ext4", "nofail")
+
+    root = "22 1 179:2 / / rw,relatime shared:1 - ext4 /dev/mmcblk0p2 rw\n"
+    md = "31 22 9:0 / /mnt/storage rw,relatime shared:12 - ext4 /dev/md0 rw\n"
+    bound = "40 22 179:2 /mnt/storage /mnt/storage ro,relatime - ext4 /dev/mmcblk0p2 rw\n"
+    assert not whole_fs_mounted("/mnt/storage", root)
+    assert whole_fs_mounted("/mnt/storage", root + md)
+    assert not whole_fs_mounted("/mnt/storage", root + bound)   # otc-degraded's read-only bind
+    assert whole_fs_mounted("/mnt/storage", root + bound + md.replace("31 22", "41 40"))
+
+    active = "Personalities : [raid1]\nmd0 : active raid1 sdb[1] sda[0]\n      976630464 blocks [2/2] [UU]\n"
+    inactive = "Personalities : [raid1]\nmd0 : inactive sda[0](S)\n      976630464 blocks\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        dev = os.path.join(tmp, "dev")
+        os.makedirs(os.path.join(dev, "disk", "by-uuid"))
+        for name in ("md0", "sdb1"):
+            Path(dev, name).write_text("")
+        os.symlink("../../sdb1", os.path.join(dev, "disk", "by-uuid", "ab-cd"))
+        blocks = {os.path.realpath(os.path.join(dev, "md0")), os.path.realpath(os.path.join(dev, "sdb1"))}
+        is_block = lambda path: path in blocks
+        assert source_present("/dev/md0", active, dev, is_block)
+        assert not source_present("/dev/md0", inactive, dev, is_block)       # half assembled
+        assert not source_present("/dev/md0", "Personalities : [raid1]\n", dev, is_block)
+        assert source_present("UUID=ab-cd", "", dev, is_block)
+        assert not source_present("UUID=ef-01", "", dev, is_block)
+        assert not source_present("/dev/sdc1", "", dev, is_block)
+        assert not source_present("server:/export", "", dev, is_block)
+
+        fstab_path = os.path.join(tmp, "fstab")
+        info_path = os.path.join(tmp, "mountinfo")
+        state = os.path.join(tmp, "run", "storage.json")
+        Path(fstab_path).write_text(fstab)
+        Path(info_path).write_text(root)
+        clock = {"mono": 1000.0, "wall": 1_800_000_000.0}
+        calls = []
+        units = {"otc.service": False, DEGRADED_UNIT: False}
+
+        class R:
+            def __init__(self, rc=0, err=""):
+                self.returncode, self.stdout, self.stderr = rc, "", err
+
+        def systemctl(*args):
+            calls.append(args)
+            return R()
+
+        def guard_with(uptime):
+            g = StorageGuard("/mnt/storage", fstab=fstab_path, mountinfo=info_path, dev_root=dev,
+                             state_path=state, systemctl=systemctl, active=lambda u: units[u],
+                             mono=lambda: clock["mono"], wall=lambda: clock["wall"], uptime=lambda: uptime,
+                             is_block=is_block)
+            g.unit = "mnt-storage.mount"
+            return g
+
+        def step(g, mdstat, seconds=0):
+            clock["mono"] += seconds
+            clock["wall"] += seconds
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                st = g.step(mdstat)
+            return st, out.getvalue()
+
+        # Missing from boot (up 10 s): not before a minute since the boot,
+        # nothing to mount while md0 isn't there.
+        g = guard_with(uptime=10)
+        st, said = step(g, inactive)
+        assert st == "waiting" and "/mnt/storage is not mounted" in said and calls == [], (st, said, calls)
+        assert step(g, inactive, 1)[0] == "waiting"       # looked at most every STORAGE_LOOK_S
+        st, said = step(g, inactive, 49)                   # 10 + 50 = 60 s since the boot
+        assert st == "missing" and calls == [("start", "--no-block", DEGRADED_UNIT)], (st, calls)
+        assert json.loads(Path(state).read_text()) == {"v": 1, "missing_since": int(1_800_000_000 - 10)}
+        # Running: not started again; never over a service that runs.
+        units[DEGRADED_UNIT] = True
+        del calls[:]
+        step(g, inactive, STORAGE_DEGRADED_S)
+        units[DEGRADED_UNIT], units["otc.service"] = False, True
+        step(g, inactive, STORAGE_DEGRADED_S)
+        assert calls == [], calls
+        units["otc.service"] = False
+        # The mirror assembled: mounted at once, and again only after 30 s.
+        st, said = step(g, active, STORAGE_DEGRADED_S)
+        assert ("start", "--no-block", "mnt-storage.mount") in calls and "is there: mounting" in said, (calls, said)
+        n = len([c for c in calls if c[-1] == "mnt-storage.mount"])
+        step(g, active, 10)
+        assert len([c for c in calls if c[-1] == "mnt-storage.mount"]) == n
+        step(g, active, 25)
+        assert len([c for c in calls if c[-1] == "mnt-storage.mount"]) == n + 1
+        # Mounted: MariaDB and the service started, the state removed.
+        Path(info_path).write_text(root + md)
+        del calls[:]
+        st, said = step(g, active, STORAGE_LOOK_S)
+        assert st == "ok" and calls == [("start", "--no-block") + FULL_UNITS], (st, calls)
+        assert "is mounted, after" in said and not os.path.exists(state), said
+        step(g, active, STORAGE_LOOK_S)
+        assert len(calls) == 1
+        # The companion still running over the mounted storage (this
+        # script restarted meanwhile): the service is started, which stops it.
+        units[DEGRADED_UNIT] = True
+        g = guard_with(uptime=86400)
+        del calls[:]
+        st, said = step(g, active, 1)
+        assert st == "ok" and calls == [("start", "--no-block") + FULL_UNITS], calls
+        step(g, active, STORAGE_LOOK_S)
+        assert len(calls) == 1                              # again only every STORAGE_DEGRADED_S
+        units[DEGRADED_UNIT] = False
+        step(g, active, STORAGE_DEGRADED_S)
+        assert len(calls) == 1
+
+        # A slow mount at boot (20 s): the units the boot is starting are
+        # asked for again, which changes nothing.
+        Path(info_path).write_text(root)
+        g = guard_with(uptime=5)
+        del calls[:]
+        step(g, inactive)
+        Path(info_path).write_text(root + md)
+        st, said = step(g, active, 20)
+        assert st == "ok" and calls == [("start", "--no-block") + FULL_UNITS], calls
+        # Unmounted later in that boot: a minute from then, not from the boot.
+        Path(info_path).write_text(root)
+        assert step(g, active, 30)[0] == "waiting"
+        assert step(g, active, 58)[0] == "waiting"
+        assert step(g, active, 2)[0] == "missing"
+        Path(info_path).write_text(root + md)
+
+        # Missing long after the boot (unmounted by hand): a minute from
+        # then; the device there all along is mounted again.
+        Path(info_path).write_text(root)
+        g = guard_with(uptime=86400)
+        del calls[:]
+        st, _ = step(g, active, 1)
+        assert st == "waiting" and calls == [("start", "--no-block", "mnt-storage.mount")], calls
+        st, _ = step(g, active, 60)
+        assert st == "missing" and calls[-1] == ("start", "--no-block", DEGRADED_UNIT), calls
+        assert json.loads(Path(state).read_text())["missing_since"] == int(clock["wall"] - 60)
+
+        # A companion that can't start (no unit yet): backoff, said once a try.
+        def failing(*args):
+            calls.append(args)
+            return R(5, "Unit otc-degraded.service not found.")
+        g = guard_with(uptime=86400)
+        g.systemctl = failing
+        del calls[:]
+        step(g, inactive, 1)
+        st, said = step(g, inactive, 60)
+        assert st == "missing" and "could not start" in said and "again in 10 s" in said, said
+        step(g, inactive, 9)
+        assert len([c for c in calls if c[-1] == DEGRADED_UNIT]) == 1
+        step(g, inactive, 2)
+        assert len([c for c in calls if c[-1] == DEGRADED_UNIT]) == 2
+
+        # No storage line (OTC_SKIP_RAID): nothing to watch.
+        Path(fstab_path).write_text("PARTUUID=1-02 / ext4 defaults 0 1\n")
+        g = guard_with(uptime=10)
+        del calls[:]
+        assert step(g, inactive, 100)[0] == "none" and calls == []
+
+    # The LEDs: red in turn, never both at once, never green.
+    seen = []
+    real = (led_set, globals()["now"])
+    t = [0.0]
+    globals()["led_set"] = lambda slot, red_on, green_on: seen.append((slot, red_on, green_on))
+    globals()["now"] = lambda: t[0]
+    try:
+        led = LedController(0.1)
+        led.set_mode(0, "turns_red")
+        led.set_mode(1, "turns_red")
+        frames = []
+        for i in range(8):
+            del seen[:]
+            led.apply()
+            frames.append(tuple(seen))
+            t[0] += 0.5
+        for f in frames:
+            (s0, r0, g0), (s1, r1, g1) = f
+            assert (s0, s1) == (0, 1) and r0 != r1 and not g0 and not g1, f
+        lit = [f[0][1] for f in frames]
+        assert lit == [True, True, False, False, True, True, False, False], lit   # a second each
+    finally:
+        globals()["led_set"], globals()["now"] = real
 
 def selftest_use():
     """Settings' request to erase a disk left alone and add it: the
