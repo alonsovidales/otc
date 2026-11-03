@@ -24,7 +24,7 @@ const send = (payload: ReqEnvelope["payload"]): Promise<RespEnvelope> =>
 export async function uploadFile(path: string, file: File, forceOverride = false, onProgress?: (sent: number) => void): Promise<RespEnvelope> {
   const begin = await send({
     $case: "reqBeginUpload",
-    reqBeginUpload: { path, size: BigInt(file.size), forceOverride, cloudId: "" },
+    reqBeginUpload: { path, size: BigInt(file.size), forceOverride, cloudId: "", sha256: "" },
   });
   if (begin.error || begin.payload?.$case !== "respUploadStarted") return begin;
   const uploadId = begin.payload.respUploadStarted.uploadId;
