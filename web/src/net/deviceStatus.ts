@@ -11,8 +11,14 @@
 // ws.ts's socket callbacks, which sit outside the component tree
 // entirely, and every component that cares subscribes rather than having
 // this threaded down through props from an owner none of them share.
+//
+// Issue #207: the device itself can say it is in no state to answer - it
+// can't reach its storage disks - with the error_code storage_unavailable,
+// on every request, GetPubKey first. That is the same kind of verdict (no
+// answer about anything asked, a password included), shown on the same
+// screen in words of its own, and held here too.
 
-export type DeviceStatusCode = "device_unreachable" | "account_disabled";
+export type DeviceStatusCode = "device_unreachable" | "account_disabled" | "storage_unavailable";
 
 export interface DeviceStatus {
   code: DeviceStatusCode;
@@ -22,7 +28,10 @@ export interface DeviceStatus {
 
 // Matches the bridge's cCodeDeviceUnreachable/cCodeAccountDisabled. These
 // are the stable tags; the text alongside them is free to change.
-const cKnownCodes: DeviceStatusCode[] = ["device_unreachable", "account_disabled"];
+const cBridgeCodes: DeviceStatusCode[] = ["device_unreachable", "account_disabled"];
+
+/** The device's own error_code while it can't reach its storage (#207). */
+export const cStorageUnavailable = "storage_unavailable";
 
 /**
  * Whether an Ack code is the bridge answering for the device (it could not
@@ -30,7 +39,24 @@ const cKnownCodes: DeviceStatusCode[] = ["device_unreachable", "account_disabled
  * answer.
  */
 export function isDeviceStatusCode(code: string | undefined): code is DeviceStatusCode {
-  return !!code && (cKnownCodes as string[]).includes(code);
+  return !!code && (cBridgeCodes as string[]).includes(code);
+}
+
+/** Whether an answer's code (the envelope's error_code, or an Ack's) is
+ *  the device saying it can't reach its storage (#207). */
+export function isStorageUnavailable(code: string | undefined): boolean {
+  return code === cStorageUnavailable;
+}
+
+/** How often the screen over the app asks whether the device answers
+ *  again: every 5 s while the bridge can't reach it, every 30 s while it
+ *  can't reach its storage (it starts again by itself once its disks are
+ *  back), never for a switched-off account. A wake asks at once besides. */
+export const cUnreachableRetryMs = 5_000;
+export const cStorageRetryMs = 30_000;
+export function recheckMs(code: DeviceStatusCode): number | null {
+  if (code === "account_disabled") return null;
+  return code === cStorageUnavailable ? cStorageRetryMs : cUnreachableRetryMs;
 }
 
 let current: DeviceStatus | null = null;
@@ -59,14 +85,17 @@ function publish(next: DeviceStatus | null) {
  * carrying one of the known codes puts the app into that state; any reply
  * that isn't an error clears it, which is what makes the app recover on
  * its own the moment the device answers again - no reload, no retry
- * button needed.
+ * button needed. The device's storage_unavailable goes with any answer
+ * that isn't it, an error included: a device that says so answers
+ * nothing else, so any other answer is the device back (a "not
+ * authenticated" is then the sign-in's to deal with).
  */
 export function noteResponse(code: string | undefined, message: string | undefined, isError: boolean) {
-  if (isDeviceStatusCode(code)) {
-    publish({ code, message: message || "" });
+  if (isDeviceStatusCode(code) || isStorageUnavailable(code)) {
+    publish({ code: code as DeviceStatusCode, message: message || "" });
     return;
   }
-  if (!isError) publish(null);
+  if (!isError || current?.code === cStorageUnavailable) publish(null);
 }
 
 /** Clears the state - used when a reconnect succeeds. */

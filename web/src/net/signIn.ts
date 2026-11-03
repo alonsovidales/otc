@@ -13,7 +13,7 @@
 // not kept to be sent again later (they press Enter again), and only setup
 // may send one to a new device, which takes it as its own (issue #39).
 
-import { NewDevice, useWS } from "./useWS";
+import { NewDevice, StorageUnavailable, useWS } from "./useWS";
 import { getDeviceStatus } from "./deviceStatus";
 import { NoAnswer } from "./ws";
 import { asIs, type UiText } from "../components/uiText";
@@ -22,7 +22,8 @@ export type SignInResult =
   | { ok: true }
   // "wrong": the device refused the password. "unreachable": nothing
   // answered (offline, the socket failed or closed, the bridge couldn't
-  // reach the device). "other": the device's or the bridge's own words - a
+  // reach the device, the device can't reach its storage - #207, with its
+  // words). "other": the device's or the bridge's own words - a
   // lockout with its time (issue #117), a switched-off account (issue #93).
   | { ok: false; reason: "wrong" | "unreachable" | "other"; message: UiText }
   // The device has no password yet, so nothing was sent: its setup is
@@ -42,6 +43,11 @@ export async function signInWithPassword(password: string, { setUp = false } = {
       return { ok: false, reason: "unreachable", message: (t) => t("web.shell.signin.offline") };
     }
     const message = err instanceof Error ? err.message : "";
+    // The device can't reach its storage (#207): it checked nothing, and
+    // its screen (deviceStatus) is about to take the page.
+    if (err instanceof StorageUnavailable) {
+      return { ok: false, reason: "unreachable", message: asIs(message) };
+    }
     // ws.ts's own errors (the socket could not open, or closed before the
     // answer) answer nothing about the password. Nor does the bridge
     // answering for a device it couldn't reach, which says so before the

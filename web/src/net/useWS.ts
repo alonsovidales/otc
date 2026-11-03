@@ -3,7 +3,7 @@
 import { NoAnswer, wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
-import { isDeviceStatusCode } from "./deviceStatus";
+import { isDeviceStatusCode, isStorageUnavailable } from "./deviceStatus";
 import { shutDownHeld } from "./shutDownHold";
 import { t } from "../i18n/runtime";
 import { noteLanguageSignedOut, noteLanguageSignIn } from "../i18n/choice";
@@ -50,14 +50,24 @@ export interface SendAuthOptions {
   setUp?: boolean;
 }
 
+/** What a sign-in throws when the device answered that it can't reach its
+ *  storage (#207): no verdict on the password or token, which are kept. */
+export class StorageUnavailable extends Error {}
+
 // The bridge's own reply when it could not hand a request to the device
 // (no live connection to it, or the account is switched off - see
 // deviceStatus.ts), as the error a sign-in throws for it. The device never
 // saw the password or token, so this is no verdict on it: the credential
-// is kept for another try, as when the socket drops.
+// is kept for another try, as when the socket drops. Issue #207: nor is
+// the device's own storage_unavailable (it can't reach its disks, so it
+// checks nothing): StorageUnavailable, with the device's words.
 function bridgeAnswer(resp: RespEnvelope): Error | null {
-  if (resp.payload?.$case !== "respAck" || !isDeviceStatusCode(resp.payload.respAck.code)) return null;
-  return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || t("web.shell.connection.no_answer"));
+  const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : undefined;
+  if (isStorageUnavailable(resp.errorCode) || isStorageUnavailable(ack?.code)) {
+    return new StorageUnavailable(ack?.errorMsg || resp.errorMessage || t("web.shell.unreachable.storage_text"));
+  }
+  if (!ack || !isDeviceStatusCode(ack.code)) return null;
+  return new Error(ack.errorMsg || resp.errorMessage || t("web.shell.connection.no_answer"));
 }
 
 // How often the stored session token is replaced while signed in (it
@@ -289,6 +299,10 @@ export function UseWS() {
         const keyResp: RespEnvelope = await rawRequest(e => {
           e.payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
         });
+        // The bridge answering for the device, or the device saying it
+        // can't reach its storage (#207): no key, and nothing sent.
+        const noKey = bridgeAnswer(keyResp);
+        if (noKey) throw noKey;
         // The same answer the password is encrypted with, so nothing can
         // come between this check and the password going out.
         if (opts.refuseNewDevice && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice) {
@@ -356,8 +370,9 @@ export function UseWS() {
       } catch (e) {
         // A new device answered; nothing was sent.
         if (e instanceof NewDevice) throw e;
-        // No answer about the password (the socket dropped, or the bridge
-        // answered for the device): it is tried again on the next
+        // No answer about the password (the socket dropped, the bridge
+        // answered for the device, or the device can't reach its storage,
+        // #207): it is tried again on the next
         // reconnect, or the next request if the socket is still open, as
         // it always was - the mobile container signs in only once, at
         // launch. If the device then refuses it, it is forgotten (see
@@ -421,8 +436,9 @@ export function UseWS() {
           }
 
           // The bridge answered for a device it could not reach (a node
-          // restarting, the device not yet re-dialed): the token was never
-          // looked at and still works, so it stays for another try.
+          // restarting, the device not yet re-dialed), or the device can't
+          // reach its storage (#207): the token was never looked at and
+          // still works, so it stays for another try.
           const unanswered = bridgeAnswer(resp);
           if (unanswered) throw unanswered;
 

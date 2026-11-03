@@ -191,10 +191,12 @@ export class WSClient {
           // this the one place that sees the bridge's "I couldn't reach
           // the device" verdict no matter which part of the app asked -
           // and equally, sees the first successful reply that means it's
-          // back.
+          // back. Issue #207: the device's own storage_unavailable comes as
+          // the envelope's error_code, with no payload.
+          const ack = env.payload?.$case === "respAck" ? env.payload.respAck : undefined;
           noteResponse(
-            env.payload?.$case === "respAck" ? env.payload.respAck.code : undefined,
-            env.payload?.$case === "respAck" ? env.payload.respAck.errorMsg : env.errorMessage,
+            ack?.code || env.errorCode || undefined,
+            ack ? ack.errorMsg || env.errorMessage : env.errorMessage,
             env.error,
           );
           // The user's language as the device has it (Status, Settings):

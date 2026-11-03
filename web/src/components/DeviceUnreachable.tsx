@@ -8,22 +8,29 @@
 // bridge's own unavailable.html uses (issue #97) so the two halves of the
 // same situation - device down before the app loads, device down while
 // it's open - look like the same thing rather than two unrelated errors.
+//
+// Issue #207: the same screen, in its own words and with a disk for its
+// icon, while the device answers that it can't reach its storage disks
+// (storage_unavailable): not "unreachable" - it answered - and not a wrong
+// password - it checked nothing.
 import { useEffect } from "react";
 import { useWS } from "../net/useWS";
-import type { DeviceStatus } from "../net/deviceStatus";
+import { cStorageUnavailable, recheckMs, type DeviceStatus } from "../net/deviceStatus";
 import { useT } from "../i18n";
 import LanguagePicker from "./LanguagePicker";
 import "./DeviceUnreachable.css";
 
-// How often to check whether the device is answering again. Cheap enough
-// to be frequent (one GetPubKey, no auth, no device work beyond generating
-// a keypair) and slow enough not to hammer the bridge with one client's
-// reconnect attempts.
-const cRetryMs = 5000;
+// How often to check whether the device is answering again (recheckMs):
+// cheap enough to be frequent (one GetPubKey, no auth, no device work
+// beyond generating a keypair) and slow enough not to hammer the bridge
+// with one client's reconnect attempts - every 30 s for a device that
+// can't reach its storage, which starts again by itself once it can.
 
 export default function DeviceUnreachable({ status }: { status: DeviceStatus }) {
   const t = useT();
   const disabled = status.code === "account_disabled";
+  const noStorage = status.code === cStorageUnavailable;
+  const every = recheckMs(status.code);
 
   // This screen replaces the whole app (see App.tsx), which means every
   // component that would normally be polling is unmounted behind it - so
@@ -36,20 +43,36 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
   // deviceStatus.noteResponse), so this only has to make a request, not
   // interpret one. Not polled for a disabled account: that state lasts
   // until the owner does something about it, and retrying every few
-  // seconds would be asking a question already answered.
+  // seconds would be asking a question already answered. Back online, or
+  // the tab shown again, it asks at once.
   useEffect(() => {
-    if (disabled) return;
-    const id = setInterval(() => {
+    if (every == null) return;
+    const ask = () => {
       useWS.request((e) => {
-        (e as any).payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
+        e.payload = { $case: "reqGetPubKey", reqGetPubKey: {} };
       }).catch(() => {
         // Still down - the socket may not even be connectable yet. The
         // next tick tries again; there is nothing useful to report here
         // that this screen isn't already saying.
       });
-    }, cRetryMs);
-    return () => clearInterval(id);
-  }, [disabled]);
+    };
+    const id = setInterval(ask, every);
+    const onShown = () => { if (document.visibilityState === "visible") ask(); };
+    window.addEventListener("online", ask);
+    document.addEventListener("visibilitychange", onShown);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("online", ask);
+      document.removeEventListener("visibilitychange", onShown);
+    };
+  }, [every]);
+
+  const title = disabled
+    ? t("web.shell.unreachable.disabled")
+    : noStorage ? t("web.shell.unreachable.storage_title") : t("web.shell.unreachable.title");
+  // The device's or the bridge's own wording, shown as-is; ours only when
+  // a device that can't reach its storage sent none.
+  const message = status.message || (noStorage ? t("web.shell.unreachable.storage_text") : "");
   return (
     <div className="du-root">
       {/* The language, where the top bar has it: this screen covers the
@@ -60,6 +83,18 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
           <svg className="du-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
             <path d="M5.6 5.6l12.8 12.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        ) : noStorage ? (
+          <svg className="du-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="13" width="18" height="7" rx="2" stroke="currentColor" strokeWidth="1.5" />
+            <path
+              d="M4.5 13.5 7.1 6a2 2 0 0 1 1.9-1.4h6a2 2 0 0 1 1.9 1.4l2.6 7.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <circle cx="17" cy="16.5" r="1" fill="currentColor" />
+            <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         ) : (
           <svg className="du-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -72,19 +107,19 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
             <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         )}
-        <h2>{disabled ? t("web.shell.unreachable.disabled") : t("web.shell.unreachable.title")}</h2>
+        <h2>{title}</h2>
         {/* The device/bridge's own wording, shown as-is - it's the half of
             this that can actually say something specific. */}
-        <p>{status.message}</p>
+        <p>{message}</p>
         {/* For an owner whose router's name or password changed: the
             device can't join it any more, and this is all they see. Right
             after the bridge's words, before "keeps checking", as on the
-            phones. */}
-        {!disabled && (
+            phones. Not when the device answered: its network is fine. */}
+        {!disabled && !noStorage && (
           <p className="du-hint">{t("web.shell.unreachable.wifi_hint")}</p>
         )}
         {!disabled && (
-          <p className="du-note">{t("web.shell.unreachable.note")}</p>
+          <p className="du-note">{noStorage ? t("web.shell.unreachable.storage_note") : t("web.shell.unreachable.note")}</p>
         )}
       </div>
     </div>

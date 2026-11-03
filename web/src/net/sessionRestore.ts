@@ -10,6 +10,9 @@
 // time up to 30 s, and at once when the browser is back online or the
 // device answers again. Each try reads the token again: another tab may
 // have replaced it (its redemption stores the next one) or signed out.
+// Issue #207: an answer that asks for a wait of its own (the device can't
+// reach its storage: every 30 s) is tried again after that wait instead
+// (`waitAfter`), wakes still cutting it short.
 // Tested by node web/scripts/session-restore-test.mjs.
 
 /** How a restore ended: signed in, refused by the device, nothing stored,
@@ -26,6 +29,9 @@ export interface RestoreDeps {
   wake: (now: () => void) => () => void;
   /** Told of each try that got no answer. */
   onNoAnswer?: (attempt: number, err: unknown) => void;
+  /** The wait a try's failure asks for in place of the doubling one (the
+   *  device can't reach its storage, #207), or null. */
+  waitAfter?: (err: unknown) => number | null;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (timer: unknown) => void;
 }
@@ -56,16 +62,19 @@ export function restoreSession(deps: RestoreDeps): { done: Promise<RestoreOutcom
         if (stopped) return "stopped";
         const token = deps.token();
         if (!token) return "no_token";
+        let held: number | null = null;
         try {
           return (await deps.redeem(token)) ? "signed_in" : "refused";
         } catch (err) {
           if (stopped) return "stopped";
           deps.onNoAnswer?.(attempt, err);
+          held = deps.waitAfter?.(err) ?? null;
         }
+        const wait = held ?? delay;
         await new Promise<void>((resolve) => {
-          waiting = { timer: setTimer(() => { waiting = null; resolve(); }, delay), resolve };
+          waiting = { timer: setTimer(() => { waiting = null; resolve(); }, wait), resolve };
         });
-        delay = Math.min(delay * 2, cRestoreMaxMs);
+        if (held == null) delay = Math.min(delay * 2, cRestoreMaxMs);
       }
     } finally {
       unwake();

@@ -139,9 +139,11 @@ export default function TopSignIn({
         onNewDevice(result.isPrimary, result.container);
         return;
       }
-      // The bridge answered for the device: its unreachable screen is about
-      // to take the page, this field with it, so App keeps the password.
-      if (result.reason === "unreachable" && getDeviceStatus()?.code === "device_unreachable") {
+      // The bridge answered for the device, or the device can't reach its
+      // storage (#207): their screen is about to take the page, this field
+      // with it, so App keeps the password.
+      const away = getDeviceStatus()?.code;
+      if (result.reason === "unreachable" && (away === "device_unreachable" || away === "storage_unavailable")) {
         onInterrupted({ password });
       }
       setRefusal(result);

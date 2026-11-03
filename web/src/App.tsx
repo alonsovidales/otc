@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import logo from './assets/off_the_cloud.png'
 import './App.css'
-import { useWS } from "./net/useWS";
+import { StorageUnavailable, useWS } from "./net/useWS";
 import SignIn from "./views/SignIn";
 import Social from "./components/Social";
 import PhotoGallery from "./components/PhotoGallery";
@@ -27,7 +27,7 @@ import { reregisterPush } from "./net/webPush";
 import { useLanguage, useT } from "./i18n";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
-import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
+import { cStorageRetryMs, getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
 import { DemoBanner, DemoRefusedNotice, DemoWelcome } from "./components/DemoBanner";
 import { useDemo } from "./components/useDemo";
@@ -454,8 +454,10 @@ function App() {
     // rotates a fresh token into storage (see useWS.authWithToken). A
     // restore that got no answer (a blip, the bridge saying the device
     // can't be reached) keeps "Signing in…" and tries again
-    // (net/sessionRestore.ts): at once when the browser is back online or
-    // the device answers again (the unreachable screen clearing).
+    // (net/sessionRestore.ts): at once when the browser is back online, the
+    // tab is shown again or the device answers again (the unreachable
+    // screen clearing). A device that can't reach its storage (#207) is
+    // asked every 30 s, not on the doubling clock.
     useEffect(() => {
       if (!loadPersistedToken()) {
         // Nothing to restore: whatever tab was last open, if it needs a
@@ -468,14 +470,21 @@ function App() {
         redeem: (token) => useWS.authWithToken(token),
         wake: (now) => {
           const onOnline = () => now();
+          const onShown = () => { if (document.visibilityState === "visible") now(); };
           window.addEventListener("online", onOnline);
+          document.addEventListener("visibilitychange", onShown);
           let was = getDeviceStatus();
           const off = subscribeDeviceStatus((status) => {
             if (was && !status) now();
             was = status;
           });
-          return () => { window.removeEventListener("online", onOnline); off(); };
+          return () => {
+            window.removeEventListener("online", onOnline);
+            document.removeEventListener("visibilitychange", onShown);
+            off();
+          };
         },
+        waitAfter: (e) => (e instanceof StorageUnavailable ? cStorageRetryMs : null),
         onNoAnswer: (attempt, e) => console.error(`Restoring the session got no answer (try ${attempt}):`, e),
       });
       void restore.done.then((outcome) => {
@@ -540,7 +549,8 @@ function App() {
   );
 
   // Issue #56: nothing behind this is usable while the device is
-  // unreachable - every view's data comes from it - so this stands in
+  // unreachable (or, #207, can't reach its storage) - every view's data
+  // comes from it - so this stands in
   // front of the whole app rather than alongside it, and clears itself
   // the moment a request succeeds again (see deviceStatus.noteResponse).
   if (deviceStatus) {
