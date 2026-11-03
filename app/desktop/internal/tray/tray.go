@@ -431,8 +431,9 @@ func (u *ui) build(folders []config.FolderStatus) {
 			case <-stop:
 				return
 			case <-status.ClickedCh:
-				// Enabled only while it says Wrong password.
-				go u.changePassword()
+				// Enabled only while it says Wrong password, or that the
+				// device can't reach its storage.
+				go u.statusClicked()
 			case <-changePw.ClickedCh:
 				go u.changePassword()
 			case <-showLog.ClickedCh:
@@ -518,12 +519,18 @@ func (u *ui) apply() {
 	// bridge - in the line that says it is.
 	line := engine.StatusText(l, st, cfg.Domain)
 	u.setTitle(u.status, statusDot(st.Status)+" "+line)
-	// "Wrong password" is a way to enter it again.
+	// "Wrong password" is a way to enter it again; the device's storage
+	// out of its reach (issue #207) says why in the device's words.
 	wrong := st.Status == engine.StatusWrongPassword
-	u.setEnabled(u.status, wrong)
-	if wrong {
+	u.setEnabled(u.status, wrong || st.Status == engine.StatusNoStorage)
+	switch {
+	case wrong:
 		u.setTip(u.status, i18n.DeskMainWrongPasswordTip().Render(l))
-	} else {
+	case st.Status == engine.StatusNoStorage:
+		// Issue #207: the device's own words on why (its disks), where
+		// the short status line has no room for them.
+		u.setTip(u.status, engine.StatusWords(l, st))
+	default:
 		u.setTip(u.status, "")
 	}
 	configured := cfg.Domain != "" && u.c.Password() != ""
@@ -920,7 +927,8 @@ const connectWait = 30 * time.Second
 
 // waitForConnection says how the new settings went once the sync knows
 //: connected, the password turned down (Try Again asks for it),
-// the device unreachable - or still trying after connectWait. A tray next
+// the device unreachable, its disks out of its reach (the device's words)
+// - or still trying after connectWait. A tray next
 // to the service reads the service's state, as its menu does.
 func (u *ui) waitForConnection(domain string) {
 	label := deviceLabel(domain)
@@ -952,6 +960,11 @@ func (u *ui) waitForConnection(domain string) {
 			_ = dlgWarning(i18n.DeskMainConnectUnreachable(label).Render(l), dlgTitle("Off The Cloud"))
 
 			return
+		case st.Status == engine.StatusNoStorage:
+			// Issue #207: the device answered, but can't reach its disks.
+			_ = dlgWarning(engine.StatusWords(l, st), dlgTitle("Off The Cloud"))
+
+			return
 		case lockedOut:
 			_ = dlgWarning(engine.StatusText(l, st, domain), dlgTitle("Off The Cloud"))
 
@@ -959,6 +972,19 @@ func (u *ui) waitForConnection(domain string) {
 		}
 	}
 	_ = dlgInfo(i18n.DeskMainConnectStillTrying(label).Render(lang()), dlgTitle("Off The Cloud"))
+}
+
+// statusClicked: the status line pressed - the password again after
+// Wrong password, or the device's words on its storage (issue #207), which
+// the line has no room for (Windows shows no tooltip on a menu item).
+func (u *ui) statusClicked() {
+	st := u.c.Snapshot()
+	if words := engine.StatusWords(lang(), st); words != "" {
+		_ = dlgWarning(words, dlgTitle("Off The Cloud"))
+
+		return
+	}
+	u.changePassword()
 }
 
 // changePassword asks for the device's password again - after it was

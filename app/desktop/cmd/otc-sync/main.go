@@ -832,6 +832,10 @@ func cmdStatus() error {
 		return nil
 	}
 	fmt.Printf("sync:      %s (pid %d)\n", engine.StatusLine(*st, cfg.Domain), st.PID)
+	// Issue #207: why, in the device's words, while it can't reach its disks.
+	if words := engine.StatusWords("", *st); words != "" {
+		fmt.Printf("           %s\n", words)
+	}
 	fmt.Printf("storage:   %s\n", st.RaidSummary)
 	printFolders(st)
 

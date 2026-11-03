@@ -131,6 +131,10 @@ const (
 	// StatusSyncNotRunning is what cmd/otc-sync writes for a viewer with no
 	// engine to ask.
 	StatusSyncNotRunning = "Sync not running" // i18n-ignore: a status code
+	// StatusNoStorage: the device answered that it can't reach its storage
+	// disks (issue #207); config.State.StatusMessage has its words. Asked
+	// again every 30 s, and at once on a network change or a wake.
+	StatusNoStorage = "Device storage unavailable" // i18n-ignore: a status code in state.json
 	// statusTooManyAttempts takes the seconds until the next try
 	// (TooManyAttempts reads them back).
 	statusTooManyAttempts = "Too many attempts - retrying in %ds" // i18n-ignore: a status code in state.json
@@ -221,6 +225,9 @@ type Engine struct {
 	watchers     map[string]*Watcher
 	remoteWatch  map[string]*Watcher
 	debounce     map[string]*time.Timer // per changed path (upload folders)
+	// statusMessage: the device's words with StatusNoStorage ("" when it
+	// gave none, and with any other status).
+	statusMessage string
 	// Debounced changes of a backup folder wait here for its one worker
 	// (drainChanges), in order and each path once.
 	changeQueue  map[string][]string
@@ -360,15 +367,20 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	}
 	e.ws.OnDisconnect = func(err error) {
 		if errors.Is(err, wsclient.ErrReconnecting) {
-			// A network change (networkChanged): on its way back.
-			e.setStatus(StatusConnecting)
+			// A network change (networkChanged): on its way back. A device
+			// waiting for its disks is asked again; it says so until it
+			// answers otherwise.
+			if !e.waitingForStorage() {
+				e.setStatus(StatusConnecting)
+			}
 			e.stopRaidPolling()
 
 			return
 		}
 		e.mu.Lock()
 		_, lockedOut := TooManyAttempts(e.status)
-		wrongPassword := e.status == StatusWrongPassword || lockedOut || e.status == StatusOffline
+		wrongPassword := e.status == StatusWrongPassword || lockedOut || e.status == StatusOffline ||
+			e.status == StatusNoStorage
 		e.mu.Unlock()
 		if !wrongPassword {
 			e.setStatus(StatusDisconnected)
@@ -379,6 +391,17 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	e.ws.OnUnreachable = func(msg string) {
 		log.Printf("device unreachable: %s", msg)
 		e.setStatus(StatusOffline)
+	}
+	e.ws.OnStorageUnavailable = func(msg string) {
+		// Issue #207: nothing about the password, the folders or what was
+		// synced changes; the folders wait as for an offline device.
+		log.Printf("the device can't reach its storage disks - asking again in a while")
+		e.mu.Lock()
+		e.status = StatusNoStorage
+		e.statusMessage = msg
+		e.mu.Unlock()
+		e.stopRaidPolling()
+		e.notify()
 	}
 	e.ws.OnAuthFailed = func(msg string, retryAfter int) {
 		log.Printf("authentication failed: %s", msg)
@@ -632,8 +655,18 @@ func (e *Engine) SetWaitingForPassword(waiting bool) {
 func (e *Engine) setStatus(s string) {
 	e.mu.Lock()
 	e.status = s
+	e.statusMessage = ""
 	e.mu.Unlock()
 	e.notify()
+}
+
+// waitingForStorage: the device last answered that it can't reach its
+// disks (StatusNoStorage).
+func (e *Engine) waitingForStorage() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.status == StatusNoStorage
 }
 
 func (e *Engine) notify() {
@@ -650,6 +683,9 @@ func (e *Engine) Snapshot() config.State {
 	st := config.State{Status: e.status, Raid: string(e.raid), RaidSummary: e.raid.Summary()}
 	if st.Status == StatusConnected {
 		st.Route = string(route)
+	}
+	if st.Status == StatusNoStorage {
+		st.StatusMessage = e.statusMessage
 	}
 	if d := e.devStatus; d != nil {
 		// The storage path's disk; the OS disk only on a device without one.
@@ -813,7 +849,6 @@ func (e *Engine) Raid() RaidHealth {
 
 	return e.raid
 }
-
 
 // ---- remote browsing (the picker) ---------------------------------------
 
@@ -2775,7 +2810,6 @@ func removeEmptiedDirs(dirs map[string]bool, root string) int {
 
 	return removed
 }
-
 
 // enumerateFiles walks a tree for regular files, leaving out what is never
 // synced (skip.go: hidden entries, like the macOS enumerator's

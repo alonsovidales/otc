@@ -109,6 +109,21 @@ func StatusText(lang string, st config.State, domain string) string {
 	return st.Status
 }
 
+// StatusWords is what goes with the status line, in lang: while the device
+// can't reach its storage (issue #207), its own words - already in the
+// language the requests asked for - else otc-sync's; "" for any other
+// status.
+func StatusWords(lang string, st config.State) string {
+	if st.Status != StatusNoStorage {
+		return ""
+	}
+	if st.StatusMessage != "" {
+		return st.StatusMessage
+	}
+
+	return i18n.DeskMainNoStorage().Render(lang)
+}
+
 // statusMsg is a status code's words.
 func statusMsg(status string) (i18n.Msg, bool) {
 	switch status {
@@ -124,6 +139,8 @@ func statusMsg(status string) (i18n.Msg, bool) {
 		return i18n.DeskMainStatusOffline(), true
 	case StatusWrongPassword:
 		return i18n.DeskMainStatusWrongPassword(), true
+	case StatusNoStorage:
+		return i18n.DeskMainStatusNoStorage(), true
 	case StatusMissingSettings:
 		return i18n.DeskMainStatusMissingSettings(), true
 	case StatusWaitingPassword:
@@ -303,7 +320,18 @@ func (e *Engine) networkChanged() {
 	e.mu.Lock()
 	ready := !e.stopped && config.Ready(e.cfg, e.password)
 	busy := len(e.folderBusy) > 0 || len(e.draining) > 0
+	noStorage := e.status == StatusNoStorage
 	e.mu.Unlock()
+	// Issue #207: a device waiting for its disks is asked again at once on
+	// a network change or a wake, not at the end of its 30 s (nothing is
+	// being transferred: there is no connection).
+	if ready && noStorage {
+		if e.ws.Reconnect() {
+			log.Printf("the network changed: asking the device again whether it reaches its storage")
+		}
+
+		return
+	}
 	if !ready || !e.ws.HasLocalEndpoint() {
 		return
 	}

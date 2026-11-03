@@ -673,6 +673,10 @@ type State struct {
 	Route       string `json:"route,omitempty"`
 	Raid        string `json:"raid"` // ok | degraded | failed | unknown
 	RaidSummary string `json:"raid_summary"`
+	// StatusMessage is the device's own words with the status "Device
+	// storage unavailable" (issue #207), in the language the requests
+	// asked for; empty with any other status, or when it gave none.
+	StatusMessage string `json:"status_message,omitempty"`
 	// The device's load, as its status reports it (units of 1.024 MB):
 	// the storage bar and the CPU/memory pop-up next to RaidSummary.
 	StorageUsed int64   `json:"storage_used,omitempty"`

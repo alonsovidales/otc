@@ -34,6 +34,39 @@ const (
 // handshakeTO is how long a dial may take (a var for the tests).
 var handshakeTO = 20 * time.Second
 
+// Issue #207: a device that can't reach its storage disks answers every
+// request, GetPubKey first, with this error code and its own words. It
+// is asked again every storageRetry (Client.storageRetry: a test makes it
+// short), not on the growing delay: the disks come back when someone plugs
+// them in, and the device starts again by itself then. A network change or
+// a wake asks at once (Reconnect).
+const (
+	codeStorageUnavailable = "storage_unavailable"
+	storageRetry           = 30 * time.Second
+)
+
+// storageAnswer reports whether resp is the device saying it can't reach
+// its storage, with its words: the envelope's error_code, or an Ack's
+// code.
+func storageAnswer(resp *pb.RespEnvelope) (string, bool) {
+	if resp.GetErrorCode() == codeStorageUnavailable {
+		if msg := resp.GetErrorMessage(); msg != "" {
+			return msg, true
+		}
+
+		return resp.GetRespAck().GetErrorMsg(), true
+	}
+	if ack := resp.GetRespAck(); ack != nil && ack.GetCode() == codeStorageUnavailable {
+		if msg := ack.GetErrorMsg(); msg != "" {
+			return msg, true
+		}
+
+		return resp.GetErrorMessage(), true
+	}
+
+	return "", false
+}
+
 // The client's own keep-alive: a ping every pingEvery, and a
 // connection that has received nothing - no answer, no pong - for
 // deadAfter while nothing is being sent is taken for dead and dialled
@@ -85,6 +118,12 @@ type Client struct {
 	// (switched off, offline): not a wrong password - the client keeps
 	// retrying with backoff and signs in once the device is back.
 	OnUnreachable func(msg string)
+	// OnStorageUnavailable reports that the device answered it can't reach
+	// its storage disks (issue #207), with its words ("" when it gave
+	// none): not a wrong password and not unreachable - the client asks
+	// again every storageRetry and signs in once the device answers
+	// otherwise. Nothing about the credentials changes.
+	OnStorageUnavailable func(msg string)
 	// OnLocalEndpoint reports a change in what the device at domain (as
 	// given to Configure) says about its home-network endpoint (issue
 	// #190): one to keep, or nil to forget the one kept. Not called when
@@ -122,6 +161,8 @@ type Client struct {
 	writing  atomic.Int32
 	// pingEvery and deadAfter, per client (a test makes them short).
 	pingEvery, deadAfter time.Duration
+	// storageRetry, per client likewise.
+	storageRetry time.Duration
 	// lang is ReqEnvelope.lang, the language otc-sync shows (SetLang).
 	lang string
 }
@@ -130,7 +171,7 @@ type Client struct {
 // until SetLang says otherwise.
 func New() *Client {
 	return &Client{waiters: map[int32]chan *pb.RespEnvelope{}, backoff: initialBackoff, lang: oslang.System(),
-		pingEvery: pingEvery, deadAfter: deadAfter}
+		pingEvery: pingEvery, deadAfter: deadAfter, storageRetry: storageRetry}
 }
 
 // SetLang sets the language every request carries as ReqEnvelope.lang:
@@ -311,6 +352,24 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 
 		return
 	}
+	var se *StorageError
+	if errors.As(err, &se) {
+		// The device is there but can't reach its disks: say so, close,
+		// and ask again in storageRetry - the read loop's reconnect takes
+		// the delay set here (a sign-in puts it back to the first one).
+		c.mu.Lock()
+		current := c.currentLocked(gen, nil)
+		if current {
+			c.backoff = c.storageRetry
+		}
+		c.mu.Unlock()
+		if current && c.OnStorageUnavailable != nil {
+			c.OnStorageUnavailable(se.Message)
+		}
+		_ = conn.Close()
+
+		return
+	}
 	var ae *AuthError
 	if err != nil && !errors.As(err, &ae) {
 		// Not an answer about the password - a timeout, or the socket
@@ -420,6 +479,11 @@ func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) erro
 	if err != nil {
 		return err
 	}
+	// Issue #207: the device's own answer that it can't reach its disks,
+	// before any sign-in - not a refusal of the password.
+	if msg, ok := storageAnswer(pk); ok {
+		return &StorageError{Message: msg}
+	}
 	pub, ok := pk.Payload.(*pb.RespEnvelope_RespPubKey)
 	if !ok {
 		if ack := pk.GetRespAck(); ack != nil && (ack.Code == "device_unreachable" || ack.Code == "device_disabled") {
@@ -446,6 +510,11 @@ func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) erro
 	if err != nil {
 		return err
 	}
+	// The disks went between the key and the password: the password was
+	// never looked at.
+	if msg, ok := storageAnswer(resp); ok {
+		return &StorageError{Message: msg}
+	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 	if !ok || !ack.RespAck.Ok {
 		ae := &AuthError{Message: "authentication rejected"} // i18n-ignore: the tray shows Wrong password; the command line prints it
@@ -468,6 +537,18 @@ func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) erro
 type UnreachableError struct{ Message string }
 
 func (e *UnreachableError) Error() string { return e.Message }
+
+// StorageError is the device answering that it can't reach its storage
+// disks (issue #207): Message is its words, "" when it gave none.
+type StorageError struct{ Message string }
+
+func (e *StorageError) Error() string {
+	if e.Message == "" {
+		return codeStorageUnavailable
+	}
+
+	return e.Message
+}
 
 // AuthError is the device's answer to a password it did not accept.
 type AuthError struct {
@@ -554,6 +635,16 @@ func (c *Client) readLoop(conn *websocket.Conn, gen int64) {
 		c.mu.Unlock()
 		if ack := resp.GetRespAck(); ack != nil && ack.Code == "not_authenticated" && signedIn {
 			log.Printf("the device no longer knows this session - reconnecting to sign in again")
+			_ = conn.Close()
+		}
+		// Issue #207: the device lost its disks under a session: say so
+		// and sign in again, which lands in the storageRetry cycle until
+		// they are back.
+		if msg, ok := storageAnswer(resp); ok && signedIn && c.current(gen, conn) {
+			log.Printf("the device can't reach its storage - signing in again")
+			if c.OnStorageUnavailable != nil {
+				c.OnStorageUnavailable(msg)
+			}
 			_ = conn.Close()
 		}
 	}
