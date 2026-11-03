@@ -2493,8 +2493,15 @@ of their own, behind a spinner, and a chunk that didn't come is "This part of th
 load" with Reload (a layer's with Close too): a first load of the app is 777 KB of script (193 KB
 gzipped) instead of 979 KB (249 KB). A restore that got no answer keeps "Signing in…" and tries
 again (`net/sessionRestore.ts`, `node web/scripts/session-restore-test.mjs`: 1 s doubling to 30 s,
-at once on `online` or the unreachable screen clearing); only the device's refusal lands signed
-out. While the socket is down (`wsClient.isDown`) a "Reconnecting…" pill shows under the top bar
+at once on `online`, the tab shown or the unreachable screen clearing); only the device's refusal
+lands signed out. A device that can't reach its storage (issue #207: error_code
+`storage_unavailable` on every answer, GetPubKey first) is a `deviceStatus` of its own (ws.ts passes
+the envelope's `error_code`): the unreachable screen with a disk, `web.shell.unreachable.storage_*`
+and the device's words, no Wi-Fi hint, GetPubKey every 30 s (`recheckMs`) and at once on `online`
+or the tab shown; any answer that isn't the code ends it. It is no verdict on a credential: useWS
+throws `StorageUnavailable` and keeps the password and the stored token, and a restore waits 30 s
+between tries (`waitAfter`) - `node web/scripts/storage-unavailable-test.mjs`. While the socket is
+down (`wsClient.isDown`) a "Reconnecting…" pill shows under the top bar
 after 1.5 s (`ReconnectingBanner`), not over the unreachable screen. Notifications are asked for
 only from a click: the feed's `PushCard` ("Get notified when family posts", Not now remembered in
 `otc_push_card_dismissed`) while `pushUndecided()`, and Settings' switch. Above 500 MB
@@ -2970,7 +2977,17 @@ disconnect`. A respelling of the same address is no change (`engine.SameDevice` 
 `SyncPaths.sameDevice`). "Change Password…" (the tray, Mac Settings' ⋯ menu, `otc-sync settings
 --password-prompt`) keeps every folder; "Wrong password" in the tray's status line and the popover
 leads to it. The tray's Connect and Change Password wait up to 30 s and say Connected, turned down
-(Try Again) or unreachable (`waitForConnection`). A ws:// address for a device not on the home
+(Try Again) or unreachable (`waitForConnection`). **A device without its storage** (issue #207):
+`storage_unavailable` on GetPubKey, Auth or a signed-in answer is a `StorageError` /
+`OnStorageUnavailable` (`onStorageUnavailable` on the Mac), never a wrong password or unreachable:
+the socket closes and the device is asked again after exactly 30 s (`storageRetry`), at once on a
+network change or a wake; the password, config, folders and records stay, and the folders wait as
+for an offline device. otc-sync's status code is `StatusNoStorage` ("Device storage unavailable",
+worded `desk.main.status_no_storage`) with the device's words in state.json's `status_message`
+(the tray's tooltip and a click on the status line, the Connect dialog, `otc-sync status`; else
+`desk.main.no_storage`); the Mac's `ConnectionStatus.noStorage(message:)`, an orange dot, the
+words as a footnote under the status row. Tests: `wsclient`/`engine` `storage_test.go`,
+`WSClientStorageTests` (a scratch SwiftPM package, as `WSClientLangTests`). A ws:// address for a device not on the home
 network (`config.Unencrypted` / `SyncPaths.isUnencryptedRemote`: not loopback, private,
 link-local, `.local`/`.lan`/`.home.arpa`/`.internal` or single-label) asks before it is used; the
 CLI wants `--allow-unencrypted`. Removing a folder asks first ("its files stay"). A folder is
@@ -3380,7 +3397,19 @@ Connect; the network-name field has no capitalisation, correction or smart punct
 view model while the Settings tab lives; Android stops looking in the background or when Settings
 is left and picks the wait up again on return, reopening the picker on the network tried after a
 wrong password. `DeviceUnreachableView` shows the cable hint (`app.shell.unreachable_wifi_hint`)
-under the device's words and before "still trying", except for a disabled account.
+under the device's words and before "still trying", except for a disabled account and a device
+that can't reach its storage.
+**A device without its storage** (issue #207; iOS `StorageWait` in `OTCConnection.swift` <-> Android
+`net/StorageWait.kt`; `ErrorCodes.storageUnavailable` / `STORAGE_UNAVAILABLE`): `storage_unavailable`
+on GetPubKey, Auth or any signed-in answer (the envelope's `error_code`, or an Ack's code) sets
+`statusCode` to it and the card shows a disk, `app.shell.no_storage_title`, the device's words (else
+`app.shell.no_storage`), no cable hint, and "Still trying…". It is no verdict on the password:
+nothing is cleared and the auth-rejection gate isn't touched. For 30 s after each such answer a
+connect fails at once with the device's words without dialling (`held`; error code 7 on iOS); the
+device is asked again every 30 s, or at once at a wake (foreground, a network up); `invalidate()`
+lifts the hold, Log Out ends the state, and any other answer (its key, the bridge's verdict) ends it.
+Tests: `StorageUnavailableTests` (RetryTests.swift, a `DeviceStandIn` with a `reply`) <->
+`StorageWaitTest.kt`.
 **The first-run tour** (tour 2, 2026-10-28: iOS `Tour.swift` + `TourArt.swift` <-> Android `ui/Tour.kt` +
 `ui/TourArt.kt`: `TourStep`, `TourTarget`, `TourRules`, `TourModel`, `TourTargets`, `TourView`/`TourLayer`;
 tests `TourTests.swift` <-> `TourTest.kt`, cases T1-T19; the web's is under Frontend): a card RootView lays
