@@ -3,6 +3,7 @@ package cloud.offthe.otc.sync
 
 import android.util.AtomicFile
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.ui.gallery.DeletePhoneCopy
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -33,6 +34,14 @@ object AssetSyncCache {
     @Synchronized fun epoch(): Int = epoch
 
     @Synchronized fun hash(id: String): String? = cache[id]
+
+    /**
+     * The assets recorded under any of [hashes], hash by MediaStore id: the
+     * other way round from [hash]. A delete on the device looks here for its
+     * photos in this phone's library (DeletePhoneCopy.kt).
+     */
+    @Synchronized fun idsWithHashes(hashes: Set<String>): Map<Long, String> =
+        if (hashes.isEmpty()) emptyMap() else DeletePhoneCopy.recordedUnder(cache, hashes)
 
     /** Nothing synced from this phone yet (a first sync, or after Log Out): the sync lists the device's folder first then (PhotoSync.needsListing). */
     @Synchronized fun isEmpty(): Boolean = cache.isEmpty()

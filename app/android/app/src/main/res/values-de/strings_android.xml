@@ -68,6 +68,7 @@
     <string name="android_notification_channel">Freunde und Beiträge</string>
     <string name="android_notification_channel_description">Freundschaftsanfragen, neue Beiträge, Likes und Kommentare</string>
     <string name="android_open_settings">Einstellungen öffnen</string>
+    <string name="android_photos_delete_phone_text">%1$s Android bittet dich um Bestätigung, und der Papierkorb des Handys behält Gelöschtes 30 Tage.</string>
     <string name="android_photos_open_in_maps">In Maps öffnen (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Zurück zu den Fotos</string>
     <string name="android_photos_people_deleting">%1$s von %2$s</string>

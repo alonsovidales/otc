@@ -67,6 +67,7 @@
     <string name="android_notification_channel">Friends and posts</string>
     <string name="android_notification_channel_description">Friend requests, new posts, likes and comments</string>
     <string name="android_open_settings">Open Settings</string>
+    <string name="android_photos_delete_phone_text">%1$s Android asks you to confirm, and the phone\'s trash keeps what you delete for 30 days.</string>
     <string name="android_photos_open_in_maps">Open in Maps (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Back to photos</string>
     <string name="android_photos_people_deleting">%1$s of %2$s</string>

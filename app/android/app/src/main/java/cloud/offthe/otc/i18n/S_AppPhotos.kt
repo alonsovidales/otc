@@ -86,6 +86,38 @@ fun S.appPhotosCopiesSeveralText(count: Int): UiText =
 fun S.appPhotosCopiesSingleText(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_copies_single_text, count, listOf(count))
 
+/** "Delete from Phone": Button of the question app.photos.delete_phone.title that deletes the photos and videos from this phone's library too. The phone's own system asks to confirm next and keeps them for 30 days (iOS's Recently Deleted, Android's trash). Title Case in English buttons. */
+fun S.appPhotosDeletePhoneDelete(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_delete)
+
+/** "Couldn't delete from this phone.": Alert after Delete from Phone (app.photos.delete_phone.delete) when the phone's system couldn't delete the photos and videos from its library (not when the person cancelled the system's own confirmation). They stay on the phone; the device had already deleted its copies. */
+fun S.appPhotosDeletePhoneFailed(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_failed)
+
+/** "Keep on Phone": Button of the question app.photos.delete_phone.title that leaves the photos and videos in this phone's library: the cancel button. Only the device's copies were deleted. Title Case in English buttons. */
+fun S.appPhotosDeletePhoneKeep(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_keep)
+
+/** "This photo is also on this phone.": First sentence of the text of the question app.photos.delete_phone.title, when the one item just deleted from the device was a photo that is also in this phone's photo library. It is the {also} of ios.photos.delete_phone_text and android.photos.delete_phone_text. */
+fun S.appPhotosDeletePhonePhoto(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_photo)
+
+/** "{count} of these photos and videos are also on this phone." (one: "{count} of these photos and videos is also on this phone."): First sentence of the text of the question app.photos.delete_phone.title (or title_several), when several photos and videos were just deleted from the device together. {count} is how many of them are also in this phone's photo library: 1 or more, up to all of them. It is the {also} of ios.photos.delete_phone_text and android.photos.delete_phone_text. */
+fun S.appPhotosDeletePhoneSome(count: Int): UiText =
+    UiText.Plural(R.plurals.app_photos_delete_phone_some, count, listOf(count))
+
+/** "Also delete from this phone?": Title of the question asked right after the device deleted photos or videos (the selection bar's Delete in Images, the photo viewer's Delete, or Files' Delete) that are also in this phone's own photo library: the phone's photo sync sent them from here, or Free Up Space found them here. Asked only once the device holds no copy of them any more, and only when the app may change the phone's photos. This title is for one photo or video on the phone; for two or more it is app.photos.delete_phone.title_several. Under it: app.photos.delete_phone.photo, .video or .some, inside what the phone does with what it deletes (ios.photos.delete_phone_text, android.photos.delete_phone_text). Buttons: app.photos.delete_phone.keep and app.photos.delete_phone.delete. */
+fun S.appPhotosDeletePhoneTitle(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_title)
+
+/** "Also delete them from this phone?": Title of the question asked right after the device deleted photos or videos (the selection bar's Delete in Images, the photo viewer's Delete, or Files' Delete) that are also in this phone's own photo library: the phone's photo sync sent them from here, or Free Up Space found them here. Asked only once the device holds no copy of them any more, and only when the app may change the phone's photos. This title is for two or more photos and videos on the phone; for one it is app.photos.delete_phone.title. "Them": the deleted photos and videos that are on the phone. */
+fun S.appPhotosDeletePhoneTitleSeveral(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_title_several)
+
+/** "This video is also on this phone.": The video form of app.photos.delete_phone.photo: the one item just deleted from the device was a video that is also in this phone's photo library. */
+fun S.appPhotosDeletePhoneVideo(): UiText =
+    UiText.Res(R.string.app_photos_delete_phone_video)
+
 /** "{count} items · {span}" (one: "{count} item · {span}"): Under an open collection's name, over its photos in Images: how many photos and videos it holds, then the months they span (app.photos.months.short_title, range_in_year or range). Without the months it is app.shell.collection_items. */
 fun S.appPhotosGridCollectionItemsSpan(count: Int, span: String): UiText =
     UiText.Plural(R.plurals.app_photos_grid_collection_items_span, count, listOf(count, span))

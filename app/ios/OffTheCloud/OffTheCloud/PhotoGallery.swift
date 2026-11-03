@@ -902,6 +902,11 @@ final class PhotoGalleryVM: ObservableObject {
     /// answer them in the device's place.
     var libraryRequest: Request = PhotoGalleryVM.deviceRequest
 
+    /// The photos and videos the device accepted to delete, as they were
+    /// shown: whether to delete them from this phone too is asked
+    /// (DeletePhoneCopy.swift). Tests listen in its place.
+    var deletedOnDevice: @MainActor ([DeletedOnDevice]) -> Void = { DeletePhoneCopyModel.shared.deleted($0) }
+
     /// What Images asks for, by how long its answer may take: a page of
     /// photos and the lists that come with covers (people, collections)
     /// OTCConnection.pageTimeout, the small lists (tags, month counts) and
@@ -3100,6 +3105,9 @@ final class PhotoGalleryVM: ObservableObject {
                 return
             }
 
+            // Also on this phone? Asked once the device has deleted it.
+            deletedOnDevice([DeletedOnDevice(hash: item.hash, copies: item.copies, everyCopy: everyCopy)])
+
             // Found again by its id: photos put above the grid meanwhile
             // (issue #194) moved it.
             guard let at = items.firstIndex(where: { $0.id == item.id }) else { return }
@@ -3500,6 +3508,11 @@ final class PhotoGalleryVM: ObservableObject {
                 }
                 deletedPaths.insert(path)
             }
+            // Also on this phone? Asked about what the device deleted.
+            let deleted = paths.filter { deletedPaths.contains($0) }.map {
+                DeletedOnDevice(hash: picked[$0]?.hash ?? "", copies: picked[$0]?.copies, everyCopy: everyCopy)
+            }
+            if !deleted.isEmpty { deletedOnDevice(deleted) }
             if !deletedPaths.isEmpty {
                 // Nothing of them stays on the phone either.
                 forgetThumbnails(of: items.filter { deletedPaths.contains($0.path) }

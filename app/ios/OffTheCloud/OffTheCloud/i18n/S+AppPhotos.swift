@@ -126,6 +126,49 @@ extension S {
         L("app.photos.copies.single_text", table: "AppPhotos", count)
     }
 
+    /// Delete from Phone
+    ///
+    /// Button of the question app.photos.delete_phone.title that deletes the photos and videos from this phone's library too. The phone's own system asks to confirm next and keeps them for 30 days (iOS's Recently Deleted, Android's trash). Title Case in English buttons.
+    static var appPhotosDeletePhoneDelete: String { L("app.photos.delete_phone.delete", table: "AppPhotos") }
+
+    /// Couldn't delete from this phone.
+    ///
+    /// Alert after Delete from Phone (app.photos.delete_phone.delete) when the phone's system couldn't delete the photos and videos from its library (not when the person cancelled the system's own confirmation). They stay on the phone; the device had already deleted its copies.
+    static var appPhotosDeletePhoneFailed: String { L("app.photos.delete_phone.failed", table: "AppPhotos") }
+
+    /// Keep on Phone
+    ///
+    /// Button of the question app.photos.delete_phone.title that leaves the photos and videos in this phone's library: the cancel button. Only the device's copies were deleted. Title Case in English buttons.
+    static var appPhotosDeletePhoneKeep: String { L("app.photos.delete_phone.keep", table: "AppPhotos") }
+
+    /// This photo is also on this phone.
+    ///
+    /// First sentence of the text of the question app.photos.delete_phone.title, when the one item just deleted from the device was a photo that is also in this phone's photo library. It is the {also} of ios.photos.delete_phone_text and android.photos.delete_phone_text.
+    static var appPhotosDeletePhonePhoto: String { L("app.photos.delete_phone.photo", table: "AppPhotos") }
+
+    /// one: {count} of these photos and videos is also on this phone.
+    /// other: {count} of these photos and videos are also on this phone.
+    ///
+    /// First sentence of the text of the question app.photos.delete_phone.title (or title_several), when several photos and videos were just deleted from the device together. {count} is how many of them are also in this phone's photo library: 1 or more, up to all of them. It is the {also} of ios.photos.delete_phone_text and android.photos.delete_phone_text.
+    static func appPhotosDeletePhoneSome(count: Int) -> String {
+        L("app.photos.delete_phone.some", table: "AppPhotos", count)
+    }
+
+    /// Also delete from this phone?
+    ///
+    /// Title of the question asked right after the device deleted photos or videos (the selection bar's Delete in Images, the photo viewer's Delete, or Files' Delete) that are also in this phone's own photo library: the phone's photo sync sent them from here, or Free Up Space found them here. Asked only once the device holds no copy of them any more, and only when the app may change the phone's photos. This title is for one photo or video on the phone; for two or more it is app.photos.delete_phone.title_several. Under it: app.photos.delete_phone.photo, .video or .some, inside what the phone does with what it deletes (ios.photos.delete_phone_text, android.photos.delete_phone_text). Buttons: app.photos.delete_phone.keep and app.photos.delete_phone.delete.
+    static var appPhotosDeletePhoneTitle: String { L("app.photos.delete_phone.title", table: "AppPhotos") }
+
+    /// Also delete them from this phone?
+    ///
+    /// Title of the question asked right after the device deleted photos or videos (the selection bar's Delete in Images, the photo viewer's Delete, or Files' Delete) that are also in this phone's own photo library: the phone's photo sync sent them from here, or Free Up Space found them here. Asked only once the device holds no copy of them any more, and only when the app may change the phone's photos. This title is for two or more photos and videos on the phone; for one it is app.photos.delete_phone.title. "Them": the deleted photos and videos that are on the phone.
+    static var appPhotosDeletePhoneTitleSeveral: String { L("app.photos.delete_phone.title_several", table: "AppPhotos") }
+
+    /// This video is also on this phone.
+    ///
+    /// The video form of app.photos.delete_phone.photo: the one item just deleted from the device was a video that is also in this phone's photo library.
+    static var appPhotosDeletePhoneVideo: String { L("app.photos.delete_phone.video", table: "AppPhotos") }
+
     /// one: {count} item · {span}
     /// other: {count} items · {span}
     ///

@@ -71,6 +71,7 @@
     <string name="android_notification_channel">Amigos y publicaciones</string>
     <string name="android_notification_channel_description">Solicitudes de amistad, publicaciones nuevas, Me gusta y comentarios</string>
     <string name="android_open_settings">Abrir Ajustes</string>
+    <string name="android_photos_delete_phone_text">%1$s Android te pide que lo confirmes, y la papelera del teléfono guarda lo que eliminas durante 30 días.</string>
     <string name="android_photos_open_in_maps">Abrir en el mapa (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Volver a las fotos</string>
     <string name="android_photos_people_deleting">%1$s de %2$s</string>

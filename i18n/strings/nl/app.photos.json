@@ -124,6 +124,50 @@
     },
     "reviewed": "claude-backtranslation 2026-10-14 #c33828a9"
   },
+  "app.photos.delete_phone.delete": {
+    "text": "Van de telefoon verwijderen",
+    "en": "Delete from Phone",
+    "reviewed": "claude-backtranslation 2026-11-03 #084c96e0"
+  },
+  "app.photos.delete_phone.failed": {
+    "text": "Verwijderen van deze telefoon is mislukt.",
+    "en": "Couldn't delete from this phone."
+  },
+  "app.photos.delete_phone.keep": {
+    "text": "Op de telefoon houden",
+    "en": "Keep on Phone"
+  },
+  "app.photos.delete_phone.photo": {
+    "text": "Deze foto staat ook op deze telefoon.",
+    "en": "This photo is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #d172f309"
+  },
+  "app.photos.delete_phone.some": {
+    "text": {
+      "one": "{count} van deze foto’s en video’s staat ook op deze telefoon.",
+      "other": "{count} van deze foto’s en video’s staan ook op deze telefoon."
+    },
+    "en": {
+      "one": "{count} of these photos and videos is also on this phone.",
+      "other": "{count} of these photos and videos are also on this phone."
+    },
+    "reviewed": "claude-backtranslation 2026-11-03 #867130b0"
+  },
+  "app.photos.delete_phone.title": {
+    "text": "Ook van deze telefoon verwijderen?",
+    "en": "Also delete from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #062bba1b"
+  },
+  "app.photos.delete_phone.title_several": {
+    "text": "Ze ook van deze telefoon verwijderen?",
+    "en": "Also delete them from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #8dd9e457"
+  },
+  "app.photos.delete_phone.video": {
+    "text": "Deze video staat ook op deze telefoon.",
+    "en": "This video is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #747a1530"
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} item · {span}",

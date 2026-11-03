@@ -40,6 +40,17 @@
         <item quantity="one">Je apparaat bevat %1$s kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt.</item>
         <item quantity="other">Je apparaat bevat %1$s kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt.</item>
     </plurals>
+    <string name="app_photos_delete_phone_delete">Van de telefoon verwijderen</string>
+    <string name="app_photos_delete_phone_failed">Verwijderen van deze telefoon is mislukt.</string>
+    <string name="app_photos_delete_phone_keep">Op de telefoon houden</string>
+    <string name="app_photos_delete_phone_photo">Deze foto staat ook op deze telefoon.</string>
+    <plurals name="app_photos_delete_phone_some">
+        <item quantity="one">%1$s van deze foto’s en video’s staat ook op deze telefoon.</item>
+        <item quantity="other">%1$s van deze foto’s en video’s staan ook op deze telefoon.</item>
+    </plurals>
+    <string name="app_photos_delete_phone_title">Ook van deze telefoon verwijderen?</string>
+    <string name="app_photos_delete_phone_title_several">Ze ook van deze telefoon verwijderen?</string>
+    <string name="app_photos_delete_phone_video">Deze video staat ook op deze telefoon.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

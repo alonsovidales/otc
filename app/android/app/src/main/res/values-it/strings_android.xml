@@ -71,6 +71,7 @@
     <string name="android_notification_channel">Amici e post</string>
     <string name="android_notification_channel_description">Richieste di amicizia, nuovi post, Mi piace e commenti</string>
     <string name="android_open_settings">Apri Impostazioni</string>
+    <string name="android_photos_delete_phone_text">%1$s Android ti chiede di confermare, e il cestino del telefono tiene ciò che elimini per 30 giorni.</string>
     <string name="android_photos_open_in_maps">Apri in Maps (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Torna alle foto</string>
     <string name="android_photos_people_deleting">%1$s di %2$s</string>

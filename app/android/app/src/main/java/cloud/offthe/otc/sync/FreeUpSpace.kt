@@ -19,6 +19,7 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.HasHashes
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.gallery.DeletePhoneCopy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -257,8 +258,9 @@ object FreeUpSpace {
     /**
      * The device's say, by hash: those it holds whole, asked on its disk
      * now. An older device, without HasHashes, answers HasFile for each.
+     * Also asked after a delete on the device (DeletePhoneCopy.kt).
      */
-    private suspend fun held(hashes: Set<String>): Set<String> {
+    internal suspend fun held(hashes: Set<String>): Set<String> {
         val all = hashes.toList()
         val out = HashSet<String>()
         var start = 0
@@ -295,6 +297,17 @@ object FreeUpSpace {
         if (loaded) return
         loaded = true
         try { val o = JSONObject(file.readFully().decodeToString()); for (k in o.keys()) hashes[k] = o.getString(k) } catch (_: Exception) {}
+    }
+
+    /**
+     * The files hashed here under any of [wanted], hash by MediaStore id,
+     * whichever version each was read from: a delete on the device looks
+     * here for its photos in this phone's library too (DeletePhoneCopy.kt).
+     */
+    @Synchronized fun idsWithHashes(wanted: Set<String>): Map<Long, String> {
+        if (wanted.isEmpty()) return emptyMap()
+        load()
+        return DeletePhoneCopy.recordedUnder(hashes.mapValues { it.value.substringBefore(' ') }, wanted)
     }
 
     /** The hash read from this very version of the file, if there is one. */

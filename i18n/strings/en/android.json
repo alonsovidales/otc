@@ -283,6 +283,13 @@
     "text": "Open Settings",
     "note": "Button in Set up a new device (over Bluetooth): opens the phone's Settings - at this app's page when it isn't allowed to use Bluetooth (android.bluetooth_needed_hint), at Location when that is off (android.location_off_hint). Settings is Android's own app: use its name in this language."
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "args": [["also", "text"]],
+    "note": "Text of the question app.photos.delete_phone.title on Android, after a delete on the device of photos or videos that are also in this phone's photo library. {also} is a whole sentence: app.photos.delete_phone.photo, .video or .some. Then what Delete from Phone does: Android shows its own confirmation and moves them to the phone's trash (the system's), which keeps them for 30 days, as in android.settings.free_up_footer. iPhone has ios.photos.delete_phone_text.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-03 #9b515b9f"
+  },
   "android.photos_open_in_maps": {
     "text": "Open in Maps ({latitude}, {longitude})",
     "args": [["latitude", "text"], ["longitude", "text"]],

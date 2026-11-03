@@ -256,6 +256,11 @@
     "text": "Ouvrir les Paramètres",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android vous demande de confirmer, et la corbeille du téléphone garde ce que vous supprimez 30 jours.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #d06dd805"
+  },
   "android.photos_open_in_maps": {
     "text": "Ouvrir dans Maps ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

@@ -46,6 +46,18 @@
         <item quantity="many">Votre appareil en contient %1$s copies. Supprimer uniquement cette copie ou toutes ? Cette action est irréversible.</item>
         <item quantity="other">Votre appareil en contient %1$s copies. Supprimer uniquement cette copie ou toutes ? Cette action est irréversible.</item>
     </plurals>
+    <string name="app_photos_delete_phone_delete">Supprimer du téléphone</string>
+    <string name="app_photos_delete_phone_failed">Impossible de supprimer de ce téléphone.</string>
+    <string name="app_photos_delete_phone_keep">Garder sur le téléphone</string>
+    <string name="app_photos_delete_phone_photo">Cette photo est aussi sur ce téléphone.</string>
+    <plurals name="app_photos_delete_phone_some">
+        <item quantity="one">%1$s de ces photos et vidéos est aussi sur ce téléphone.</item>
+        <item quantity="many">%1$s de ces photos et vidéos sont aussi sur ce téléphone.</item>
+        <item quantity="other">%1$s de ces photos et vidéos sont aussi sur ce téléphone.</item>
+    </plurals>
+    <string name="app_photos_delete_phone_title">Supprimer aussi de ce téléphone ?</string>
+    <string name="app_photos_delete_phone_title_several">Les supprimer aussi de ce téléphone ?</string>
+    <string name="app_photos_delete_phone_video">Cette vidéo est aussi sur ce téléphone.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s élément · %2$s</item>
         <item quantity="many">%1$s éléments · %2$s</item>

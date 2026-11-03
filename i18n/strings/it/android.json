@@ -256,6 +256,11 @@
     "text": "Apri Impostazioni",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android ti chiede di confermare, e il cestino del telefono tiene ciò che elimini per 30 giorni.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #8f1421a7"
+  },
   "android.photos_open_in_maps": {
     "text": "Apri in Maps ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

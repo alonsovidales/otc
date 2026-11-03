@@ -240,6 +240,9 @@ import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.takeAnswer
 import cloud.offthe.otc.ui.common.thumbTileKey
 import androidx.compose.ui.graphics.asAndroidBitmap
+import cloud.offthe.otc.ui.gallery.DeletePhoneCopy
+import cloud.offthe.otc.ui.gallery.DeletePhoneCopyModel
+import cloud.offthe.otc.ui.gallery.DeletedOnDevice
 import cloud.offthe.otc.ui.gallery.ImageModal
 import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
 import java.util.Date
@@ -1129,6 +1132,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val selected = _state.value.selected.toList()
         val folder = path
         viewModelScope.launch {
+            // The photos and videos among the files the device deleted, as
+            // their rows showed them (no copies counted in Files).
+            val gone = mutableListOf<DeletedOnDevice>()
             for (p in selected) {
                 try {
                     val full = if (p.contains("/")) p else joinPath(folder, p)
@@ -1146,11 +1152,15 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                     }
                     // A file gone from the device: its thumbnail goes from the
                     // phone's cache too (a folder's contents aren't followed).
-                    if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.hash?.takeIf { it.isNotEmpty() }?.let { ThumbStore.discard(it) }
+                    if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.let { f ->
+                        if (f.hash.isNotEmpty()) ThumbStore.discard(f.hash)
+                        if (DeletePhoneCopy.isMedia(f.mime)) gone += DeletedOnDevice(f.hash, null, false)
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {}
             }
+            if (gone.isNotEmpty()) DeletePhoneCopyModel.deleted(gone)
             load()
         }
     }

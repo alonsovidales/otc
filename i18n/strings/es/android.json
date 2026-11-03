@@ -256,6 +256,11 @@
     "text": "Abrir Ajustes",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android te pide que lo confirmes, y la papelera del teléfono guarda lo que eliminas durante 30 días.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #6b43b5bb"
+  },
   "android.photos_open_in_maps": {
     "text": "Abrir en el mapa ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

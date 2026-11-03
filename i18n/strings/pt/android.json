@@ -256,6 +256,11 @@
     "text": "Abrir Definições",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} O Android pede-te para confirmar, e o lixo do telemóvel guarda o que eliminas durante 30 dias.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #ca463891"
+  },
   "android.photos_open_in_maps": {
     "text": "Abrir numa app de mapas ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

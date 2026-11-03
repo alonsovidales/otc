@@ -250,6 +250,13 @@ extension S {
     /// Button in Set up a new device (over Bluetooth) under ios.bluetooth_needed_hint: opens the iPhone's Settings at this app's page, where Bluetooth can be allowed. Settings is the iPhone's own app: use its name in this language.
     static var iosOpenSettings: String { L("ios.open_settings", table: "Ios") }
 
+    /// {also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.
+    ///
+    /// Text of the question app.photos.delete_phone.title on iPhone and iPad, after a delete on the device of photos or videos that are also in this phone's photo library. {also} is a whole sentence: app.photos.delete_phone.photo, .video or .some. Then what Delete from Phone does: iOS shows its own confirmation, and the Photos app keeps what it deletes in its Recently Deleted album for 30 days. Recently Deleted, Photos and iCloud Photos are Apple's names: use the ones iOS shows in your language (as in ios.settings.free_up_footer). Android has android.photos.delete_phone_text.
+    static func iosPhotosDeletePhoneText(also: String) -> String {
+        L("ios.photos.delete_phone_text", table: "Ios", also)
+    }
+
     /// Photos access denied
     ///
     /// Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library.

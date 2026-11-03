@@ -196,6 +196,11 @@
     "text": "Instellingen openen",
     "en": "Open Settings"
   },
+  "ios.photos.delete_phone_text": {
+    "text": "{also} iOS vraagt je om te bevestigen, en Foto’s bewaart wat je verwijdert 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan geldt het verwijderen ook voor iCloud en je andere apparaten.",
+    "en": "{also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.",
+    "reviewed": "claude-backtranslation 2026-11-03 #0ef4e58f"
+  },
   "ios.photos_access_denied": {
     "text": "Geen toegang tot Foto’s",
     "en": "Photos access denied"

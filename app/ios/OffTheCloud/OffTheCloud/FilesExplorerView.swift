@@ -290,6 +290,11 @@ final class FilesExplorerViewModel: ObservableObject {
         return try await OTCConnection.shared.request { $0.payload = payload }
     }
 
+    /// The photos and videos the device accepted to delete: whether to
+    /// delete them from this phone too is asked (DeletePhoneCopy.swift).
+    /// Tests listen in its place.
+    var deletedOnDevice: @MainActor ([DeletedOnDevice]) -> Void = { DeletePhoneCopyModel.shared.deleted($0) }
+
     /// What Files says while the folder `p` is listed (Android's
     /// listingErrorWhileAsking): for the folder whose listing failed
     /// (`failedPath`, `problem`), why - it stays up while it is asked
@@ -994,6 +999,9 @@ final class FilesExplorerViewModel: ObservableObject {
     }
 
     func deleteSelected() async {
+        // The photos and videos among the files the device deleted, as
+        // their rows showed them (no copies counted in Files).
+        var deleted: [DeletedOnDevice] = []
         for p in selected {
             // Issue #201: with the content the row was listed with, so the
             // device deletes nothing that changed since ("changed").
@@ -1017,8 +1025,12 @@ final class FilesExplorerViewModel: ObservableObject {
             // A deleted photo's thumbnail doesn't stay on the phone either.
             if !resp.error, let row = rows.first(where: { $0.path == p }), !row.isDir {
                 thumbDisk.discard(row.raw.hash)
+                if DeletePhoneCopy.isMedia(mime: row.raw.mime) {
+                    deleted.append(DeletedOnDevice(hash: row.raw.hash, copies: nil, everyCopy: false))
+                }
             }
         }
+        if !deleted.isEmpty { deletedOnDevice(deleted) }
         await load()
     }
 

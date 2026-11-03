@@ -39,6 +39,17 @@
         <item quantity="one">There are %1$s copies of it on your device. Delete only this copy, or all of them? This can\'t be undone.</item>
         <item quantity="other">There are %1$s copies of it on your device. Delete only this copy, or all of them? This can\'t be undone.</item>
     </plurals>
+    <string name="app_photos_delete_phone_delete">Delete from Phone</string>
+    <string name="app_photos_delete_phone_failed">Couldn\'t delete from this phone.</string>
+    <string name="app_photos_delete_phone_keep">Keep on Phone</string>
+    <string name="app_photos_delete_phone_photo">This photo is also on this phone.</string>
+    <plurals name="app_photos_delete_phone_some">
+        <item quantity="one">%1$s of these photos and videos is also on this phone.</item>
+        <item quantity="other">%1$s of these photos and videos are also on this phone.</item>
+    </plurals>
+    <string name="app_photos_delete_phone_title">Also delete from this phone?</string>
+    <string name="app_photos_delete_phone_title_several">Also delete them from this phone?</string>
+    <string name="app_photos_delete_phone_video">This video is also on this phone.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>

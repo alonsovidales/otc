@@ -234,6 +234,10 @@ fun S.androidNotificationChannelDescription(): UiText =
 fun S.androidOpenSettings(): UiText =
     UiText.Res(R.string.android_open_settings)
 
+/** "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.": Text of the question app.photos.delete_phone.title on Android, after a delete on the device of photos or videos that are also in this phone's photo library. {also} is a whole sentence: app.photos.delete_phone.photo, .video or .some. Then what Delete from Phone does: Android shows its own confirmation and moves them to the phone's trash (the system's), which keeps them for 30 days, as in android.settings.free_up_footer. iPhone has ios.photos.delete_phone_text. */
+fun S.androidPhotosDeletePhoneText(also: String): UiText =
+    UiText.Res(R.string.android_photos_delete_phone_text, listOf(also))
+
 /** "Open in Maps ({latitude}, {longitude})": Button under the map in the panel with a photo's camera details: opens the place in the phone's maps app. {latitude} and {longitude} are the place's coordinates (40.41678, -3.70379). */
 fun S.androidPhotosOpenInMaps(latitude: String, longitude: String): UiText =
     UiText.Res(R.string.android_photos_open_in_maps, listOf(latitude, longitude))

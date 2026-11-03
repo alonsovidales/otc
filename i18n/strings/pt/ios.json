@@ -196,6 +196,11 @@
     "text": "Abrir Definições",
     "en": "Open Settings"
   },
+  "ios.photos.delete_phone_text": {
+    "text": "{also} O iOS pede-te para confirmar, e a app Fotografias guarda o que eliminas em «Apagados recentemente» durante 30 dias. Com Fotografias em iCloud ativado, a eliminação chega também ao iCloud e aos teus outros dispositivos.",
+    "en": "{also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.",
+    "reviewed": "claude-backtranslation 2026-11-03 #cc46f807"
+  },
   "ios.photos_access_denied": {
     "text": "Acesso a Fotografias recusado",
     "en": "Photos access denied"

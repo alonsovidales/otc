@@ -3262,6 +3262,53 @@
         }
       }
     },
+    "ios.photos.delete_phone_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS bittet dich um Bestätigung, und Fotos behält Gelöschtes 30 Tage in „Zuletzt gelöscht“. Ist iCloud-Fotos aktiviert, gilt das Löschen auch für iCloud und deine anderen Geräte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS te pide que lo confirmes, y Fotos guarda lo que eliminas en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también se elimina de iCloud y de tus otros dispositivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS vous demande de confirmer, et Photos garde ce que vous supprimez 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, la suppression s’applique aussi à iCloud et à vos autres appareils."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS ti chiede di confermare, e Foto tiene ciò che elimini in “Eliminati di recente” per 30 giorni. Con Foto di iCloud attivo, l’eliminazione vale anche per iCloud e gli altri tuoi dispositivi."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ iOS vraagt je om te bevestigen, en Foto’s bewaart wat je verwijdert 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan geldt het verwijderen ook voor iCloud en je andere apparaten."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ O iOS pede-te para confirmar, e a app Fotografias guarda o que eliminas em «Apagados recentemente» durante 30 dias. Com Fotografias em iCloud ativado, a eliminação chega também ao iCloud e aos teus outros dispositivos."
+          }
+        }
+      }
+    },
     "ios.settings.albums" : {
       "extractionState" : "manual",
       "localizations" : {

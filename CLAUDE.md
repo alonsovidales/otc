@@ -4214,6 +4214,33 @@ the `have` of the search that brought the photo. The viewer's Save downloads the
 `Movies/Off The Cloud`), in the view model's scope; Save spins meanwhile (`State.saving`); only a
 type the library refuses is saved as the shown picture in JPEG, as before.
 
+**Also delete from this phone on Android** (owner's request 2026-11-03; `ui/gallery/DeletePhoneCopy.kt`:
+the rules `DeletePhoneCopy`, `DeletePhoneCopyModel`, `DeletePhoneCopyDialog` in RootView; tests
+`DeletePhoneCopyTest.kt`, cases D1-D9 as iOS's, and `DeletePhoneCopyGalleryTest`; texts
+`app.photos.delete_phone.*` and `android.photos.delete_phone_text`; iOS must match): once the device has
+accepted a delete - the viewer's (`deleteCurrentPhoto`: Images, People, a collection, Places, a memory's
+See all, Files' viewer), the selection bar's (`deleteSelected`) and Files' own (its photos and videos by
+MIME, `isMedia`) - the view model hands what went to `deletedOnDevice` (a `DeletedOnDevice` each: the
+hash shown, `File.copies`, every_copy; tests listen there), and the model asks, one delete at a time,
+whether to move the same photos to the phone's trash. Only content the device no longer holds counts
+(`gone`: every_copy, or copies unset or at most 1 - never "Delete only this copy"), matched by hash
+with what this phone recorded for its own files - AssetSyncCache (what the sync sent) and Free Up
+Space's `free_up_hashes.json` (whichever version; both `idsWithHashes`, `recordedUnder`) - for rows
+still in MediaStore (not in its trash) and never in `PhotoFolders.savedFolders`; then
+`FreeUpSpace.held` (HasHashes, HasFile on an older device) and what the device still holds is left
+out (Files' rows count no copies); no answer, no question. Only on Android 11+ with full media access
+(`asks`: not Android 14's picked photos, as iOS's limited access), with the app in front and the
+endpoint the delete went to. The dialog lies over whatever is on screen and outlives the viewer:
+`title` (one of the deleted on the phone) or `title_several`, then `android.photos.delete_phone_text`
+around `photo`/`video` (a single delete) or `some` (how many of several); Keep on Phone is the dismiss
+button, Delete from Phone red. Delete from Phone reads the rows again and has RootView launch
+`MediaStore.createTrashRequest` (500 a request, as Free Up Space; Android confirms, the trash keeps them
+30 days); moved, their ids leave the sync's retry list (`AssetSyncCache.pending.resolve`, as for a file
+the sync no longer finds), and nothing is sent back - they are no longer in the library; declined,
+nothing more; a request that can't be made or launched says `app.photos.delete_phone.failed`. Kept on
+the phone, a photo goes back to the device only with Sync All or a one-off pass, as any photo it no
+longer holds. Free Up Space itself is unchanged (`held` is `internal` now).
+
 **Newer photos above a jump on Android** (issue #194): a jump sets `State.upOn` and a second
 cursor (`upToken`, `upHave`, `upEnd`; `askUp`/`fetchUpPage`, `upFailed`'s backoff, `retryUp`, a
 Wake); the downward `have` is `downHave`, never `items.size`. The room above (`roomAbove`,
@@ -4255,6 +4282,22 @@ where it began (`reloadSearch`: a jump at its month), the Files viewer lists its
 even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` resource,
 `creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
 `app.photos.viewer.saving`); only a photo Photos refuses is saved as the picture shown.
+
+**Also delete from this phone on iOS** (owner's request 2026-11-03; `DeletePhoneCopy.swift`: the rules
+`DeletePhoneCopy` and `DeletePhoneCopyModel`; tests `DeletePhoneCopyTests.swift`, cases D1-D9 as
+Android's, and `DeletePhoneCopyGalleryTests`; texts `app.photos.delete_phone.*` and
+`ios.photos.delete_phone_text`): Android's rules above, case for case. `PhotoGalleryVM.deleteCurrentPhoto`
+/ `deleteSelected` and `FilesExplorerViewModel.deleteSelected` hand what the device accepted to
+`deletedOnDevice`; the phone's assets come from `AssetSyncCache.identifiers(withHashes:)` (the sync's
+hashes and Free Up Space's, which it records there too), those `PHAsset.fetchAssets` still finds, never
+`SavedToPhone`'s, then `FreeUpSpace.held`. Only with full Photos access (`.authorized`: limited or none
+never asks, and nothing asks for access) and the app active. The question is a `UIAlertController` in a
+window of its own at `.alert` level (`show`/`close`: the key window's tint, made key again after), not a
+SwiftUI alert: the viewer may close under it (its last photo deleted), and an alert presented from under
+the full-screen viewer takes the viewer away. Delete from Phone fetches the assets again and calls
+`PHAssetChangeRequest.deleteAssets` (iOS asks; Recently Deleted keeps them 30 days; with iCloud Photos the
+deletion reaches iCloud and the other devices, which the text says); done, `AssetSyncCache.resolve`;
+`PHPhotosError.userCancelled` says nothing (`declined`), any other error `app.photos.delete_phone.failed`.
 
 **Newer photos above a jump on iOS** (issue #194, `NewerPhotos.swift`, `NewerPhotosTests.swift`):
 after a jump `PhotoGalleryVM` keeps a second cursor (`upToken`, `upEnd`, `upLoading`,

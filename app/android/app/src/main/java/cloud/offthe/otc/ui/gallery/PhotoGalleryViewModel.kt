@@ -239,6 +239,10 @@ class PhotoGalleryViewModel(
     private val smartDownloading: suspend () -> Unit = { SmartSearchSupport.modelRequested(); SmartSearchSupport.refresh() },
     // Rating: true the first time it is turned on from this phone (its note says what it does then).
     private val ratingHintFirst: () -> Boolean = { RatingHint.firstTime() },
+    // The photos and videos the device accepted to delete, as they were
+    // shown: whether to delete them from this phone too is asked
+    // (DeletePhoneCopy.kt). Tests listen in its place.
+    private val deletedOnDevice: (List<DeletedOnDevice>) -> Unit = { DeletePhoneCopyModel.deleted(it) },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -2753,6 +2757,8 @@ class PhotoGalleryViewModel(
                 return@launch
             }
         } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); return@launch }
+        // Also on this phone? Asked once the device has deleted it.
+        deletedOnDevice(listOf(DeletedOnDevice(item.hash, item.copies, everyCopy)))
         val at = _state.value.items.indexOfFirst { it.id == item.id }
         removeDeleted(setOf(item.path))
         if (_state.value.items.isEmpty()) closeModal() else open(minOf(if (at >= 0) at else idx, _state.value.items.size - 1))
@@ -2911,6 +2917,9 @@ class PhotoGalleryViewModel(
             } catch (e: Exception) { refusals += DeleteRefusal("", "${e.message}"); continue }
             deleted += p
         }
+        // Also on this phone? Asked about what the device deleted.
+        paths.filter { it in deleted }.map { DeletedOnDevice(shown[it]?.hash ?: "", shown[it]?.copies, everyCopy) }
+            .takeIf { it.isNotEmpty() }?.let(deletedOnDevice)
         if (deleted.isNotEmpty()) removeDeleted(deleted)
         val notes = deleteRefusalNotes(refusals)
         if (notes.isNotEmpty()) _state.update { it.copy(alert = notes.first(), alertMore = notes.drop(1)) }

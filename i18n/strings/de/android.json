@@ -256,6 +256,11 @@
     "text": "Einstellungen öffnen",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android bittet dich um Bestätigung, und der Papierkorb des Handys behält Gelöschtes 30 Tage.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #46cb4a2e"
+  },
   "android.photos_open_in_maps": {
     "text": "In Maps öffnen ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

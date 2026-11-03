@@ -46,6 +46,18 @@
         <item quantity="many">Sul tuo dispositivo ce ne sono %1$s copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.</item>
         <item quantity="other">Sul tuo dispositivo ce ne sono %1$s copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.</item>
     </plurals>
+    <string name="app_photos_delete_phone_delete">Elimina dal telefono</string>
+    <string name="app_photos_delete_phone_failed">Impossibile eliminare da questo telefono.</string>
+    <string name="app_photos_delete_phone_keep">Tieni sul telefono</string>
+    <string name="app_photos_delete_phone_photo">Questa foto è anche su questo telefono.</string>
+    <plurals name="app_photos_delete_phone_some">
+        <item quantity="one">%1$s di queste foto e video è anche su questo telefono.</item>
+        <item quantity="many">%1$s di queste foto e video sono anche su questo telefono.</item>
+        <item quantity="other">%1$s di queste foto e video sono anche su questo telefono.</item>
+    </plurals>
+    <string name="app_photos_delete_phone_title">Eliminare anche da questo telefono?</string>
+    <string name="app_photos_delete_phone_title_several">Eliminarli anche da questo telefono?</string>
+    <string name="app_photos_delete_phone_video">Questo video è anche su questo telefono.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s elemento · %2$s</item>
         <item quantity="many">%1$s elementi · %2$s</item>

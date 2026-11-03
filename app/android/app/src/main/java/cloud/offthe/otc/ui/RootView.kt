@@ -30,6 +30,7 @@ import cloud.offthe.otc.sync.FreeUpSpace
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.compose.mediaPermissions
+import cloud.offthe.otc.ui.gallery.DeletePhoneCopyDialog
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 
 // Port of RootView.swift: onboarding until the connection is configured,
@@ -138,6 +139,9 @@ fun RootView() {
         // Notifications, asked once after the first sign-in
         // (NotificationsAsk.kt), never at launch.
         NotificationsAskDialog(signedIn, choicePending, tourShown, mainVisible)
+        // After a delete on the device: also delete it from this phone?
+        // (DeletePhoneCopy.kt), over whatever is on screen.
+        DeletePhoneCopyDialog()
         // The first sync then starts from the effects above, now that the
         // choice is no longer pending. Its dialog, as every dialog, opens
         // above the tour.

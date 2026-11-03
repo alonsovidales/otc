@@ -124,6 +124,50 @@
     },
     "reviewed": "claude-backtranslation 2026-10-14 #a37e6d7a"
   },
+  "app.photos.delete_phone.delete": {
+    "text": "Supprimer du téléphone",
+    "en": "Delete from Phone",
+    "reviewed": "claude-backtranslation 2026-11-03 #866a45c5"
+  },
+  "app.photos.delete_phone.failed": {
+    "text": "Impossible de supprimer de ce téléphone.",
+    "en": "Couldn't delete from this phone."
+  },
+  "app.photos.delete_phone.keep": {
+    "text": "Garder sur le téléphone",
+    "en": "Keep on Phone"
+  },
+  "app.photos.delete_phone.photo": {
+    "text": "Cette photo est aussi sur ce téléphone.",
+    "en": "This photo is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #a174c744"
+  },
+  "app.photos.delete_phone.some": {
+    "text": {
+      "one": "{count} de ces photos et vidéos est aussi sur ce téléphone.",
+      "other": "{count} de ces photos et vidéos sont aussi sur ce téléphone."
+    },
+    "en": {
+      "one": "{count} of these photos and videos is also on this phone.",
+      "other": "{count} of these photos and videos are also on this phone."
+    },
+    "reviewed": "claude-backtranslation 2026-11-03 #a9be8e8f"
+  },
+  "app.photos.delete_phone.title": {
+    "text": "Supprimer aussi de ce téléphone ?",
+    "en": "Also delete from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #28ed0ecf"
+  },
+  "app.photos.delete_phone.title_several": {
+    "text": "Les supprimer aussi de ce téléphone ?",
+    "en": "Also delete them from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #f1d80d81"
+  },
+  "app.photos.delete_phone.video": {
+    "text": "Cette vidéo est aussi sur ce téléphone.",
+    "en": "This video is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #83427a42"
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} élément · {span}",

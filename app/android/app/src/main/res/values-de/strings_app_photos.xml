@@ -40,6 +40,17 @@
         <item quantity="one">Auf deinem Gerät gibt es %1$s Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.</item>
         <item quantity="other">Auf deinem Gerät gibt es %1$s Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.</item>
     </plurals>
+    <string name="app_photos_delete_phone_delete">Vom Handy löschen</string>
+    <string name="app_photos_delete_phone_failed">Löschen von diesem Handy fehlgeschlagen.</string>
+    <string name="app_photos_delete_phone_keep">Auf dem Handy behalten</string>
+    <string name="app_photos_delete_phone_photo">Dieses Foto ist auch auf diesem Handy.</string>
+    <plurals name="app_photos_delete_phone_some">
+        <item quantity="one">%1$s dieser Fotos und Videos ist auch auf diesem Handy.</item>
+        <item quantity="other">%1$s dieser Fotos und Videos sind auch auf diesem Handy.</item>
+    </plurals>
+    <string name="app_photos_delete_phone_title">Auch von diesem Handy löschen?</string>
+    <string name="app_photos_delete_phone_title_several">Diese auch von diesem Handy löschen?</string>
+    <string name="app_photos_delete_phone_video">Dieses Video ist auch auf diesem Handy.</string>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s Element · %2$s</item>
         <item quantity="other">%1$s Elemente · %2$s</item>

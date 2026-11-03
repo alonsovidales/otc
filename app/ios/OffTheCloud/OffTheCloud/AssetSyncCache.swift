@@ -74,6 +74,15 @@ final class AssetSyncCache {
         queue.sync { cache[localIdentifier] }
     }
 
+    /// The assets recorded under any of these hashes, hash by local
+    /// identifier: the other way round from hash(for:). A delete on the
+    /// device looks here for its photos in this phone's library
+    /// (DeletePhoneCopy.swift).
+    func identifiers(withHashes hashes: Set<String>) -> [String: String] {
+        guard !hashes.isEmpty else { return [:] }
+        return queue.sync { cache.filter { hashes.contains($0.value) } }
+    }
+
     /// Nothing synced from this phone yet (a first sync, or after Log
     /// Out): the photo sync lists the device's folder first then
     /// (PhotoSync.needsListing).

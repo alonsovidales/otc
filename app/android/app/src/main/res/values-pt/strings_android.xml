@@ -71,6 +71,7 @@
     <string name="android_notification_channel">Amigos e publicações</string>
     <string name="android_notification_channel_description">Pedidos de amizade, novas publicações, gostos e comentários</string>
     <string name="android_open_settings">Abrir Definições</string>
+    <string name="android_photos_delete_phone_text">%1$s O Android pede-te para confirmar, e o lixo do telemóvel guarda o que eliminas durante 30 dias.</string>
     <string name="android_photos_open_in_maps">Abrir numa app de mapas (%1$s, %2$s)</string>
     <string name="android_photos_people_back">Voltar às fotos</string>
     <string name="android_photos_people_deleting">%1$s de %2$s</string>

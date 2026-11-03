@@ -256,6 +256,11 @@
     "text": "Instellingen openen",
     "en": "Open Settings"
   },
+  "android.photos.delete_phone_text": {
+    "text": "{also} Android vraagt je om te bevestigen, en de prullenmand van de telefoon bewaart wat je verwijdert 30 dagen.",
+    "en": "{also} Android asks you to confirm, and the phone's trash keeps what you delete for 30 days.",
+    "reviewed": "claude-backtranslation 2026-11-03 #d7840468"
+  },
   "android.photos_open_in_maps": {
     "text": "Openen in Maps ({latitude}, {longitude})",
     "en": "Open in Maps ({latitude}, {longitude})"

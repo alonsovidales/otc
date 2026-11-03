@@ -196,6 +196,11 @@
     "text": "Einstellungen öffnen",
     "en": "Open Settings"
   },
+  "ios.photos.delete_phone_text": {
+    "text": "{also} iOS bittet dich um Bestätigung, und Fotos behält Gelöschtes 30 Tage in „Zuletzt gelöscht“. Ist iCloud-Fotos aktiviert, gilt das Löschen auch für iCloud und deine anderen Geräte.",
+    "en": "{also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.",
+    "reviewed": "claude-backtranslation 2026-11-03 #866667a6"
+  },
   "ios.photos_access_denied": {
     "text": "Zugriff auf Fotos verweigert",
     "en": "Photos access denied"

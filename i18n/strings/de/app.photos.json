@@ -124,6 +124,50 @@
     },
     "reviewed": "claude-backtranslation 2026-10-14 #8137ae9a"
   },
+  "app.photos.delete_phone.delete": {
+    "text": "Vom Handy löschen",
+    "en": "Delete from Phone",
+    "reviewed": "claude-backtranslation 2026-11-03 #afe181b9"
+  },
+  "app.photos.delete_phone.failed": {
+    "text": "Löschen von diesem Handy fehlgeschlagen.",
+    "en": "Couldn't delete from this phone."
+  },
+  "app.photos.delete_phone.keep": {
+    "text": "Auf dem Handy behalten",
+    "en": "Keep on Phone"
+  },
+  "app.photos.delete_phone.photo": {
+    "text": "Dieses Foto ist auch auf diesem Handy.",
+    "en": "This photo is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #eb54f7d2"
+  },
+  "app.photos.delete_phone.some": {
+    "text": {
+      "one": "{count} dieser Fotos und Videos ist auch auf diesem Handy.",
+      "other": "{count} dieser Fotos und Videos sind auch auf diesem Handy."
+    },
+    "en": {
+      "one": "{count} of these photos and videos is also on this phone.",
+      "other": "{count} of these photos and videos are also on this phone."
+    },
+    "reviewed": "claude-backtranslation 2026-11-03 #eea0f985"
+  },
+  "app.photos.delete_phone.title": {
+    "text": "Auch von diesem Handy löschen?",
+    "en": "Also delete from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #02565b5d"
+  },
+  "app.photos.delete_phone.title_several": {
+    "text": "Diese auch von diesem Handy löschen?",
+    "en": "Also delete them from this phone?",
+    "reviewed": "claude-backtranslation 2026-11-03 #5b7883c9"
+  },
+  "app.photos.delete_phone.video": {
+    "text": "Dieses Video ist auch auf diesem Handy.",
+    "en": "This video is also on this phone.",
+    "reviewed": "claude-backtranslation 2026-11-03 #774d1af2"
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} Element · {span}",

@@ -196,6 +196,11 @@
     "text": "Abrir Ajustes",
     "en": "Open Settings"
   },
+  "ios.photos.delete_phone_text": {
+    "text": "{also} iOS te pide que lo confirmes, y Fotos guarda lo que eliminas en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también se elimina de iCloud y de tus otros dispositivos.",
+    "en": "{also} iOS asks you to confirm, and Photos keeps what you delete in Recently Deleted for 30 days. With iCloud Photos on, the deletion reaches iCloud and your other devices too.",
+    "reviewed": "claude-backtranslation 2026-11-03 #8941101e"
+  },
   "ios.photos_access_denied": {
     "text": "Acceso a Fotos denegado",
     "en": "Photos access denied"
