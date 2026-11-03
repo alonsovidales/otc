@@ -360,8 +360,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (`delFile` counts every delete, `noteDelete`: a client lowers `have` by what it deletes, so one
   that deleted as many photos as the page brought asks with `before` too); `have == 0` (clients
   that don't send it, older apps) and any other count go on, as before. The rows from `prev` on
-  stay in the token (`pageCursor` compacts only what came before), and `keepOut` (#192) filters
-  them too. Each search takes a sequence number as it starts (`begin`), and `store` refuses a
+  stay in the token (`pageCursor` compacts only what came before; a plain browse's token holds
+  only what it has fetched, below), and `keepOut` (#192) filters them too. Each search takes a sequence number as it starts (`begin`), and `store` refuses a
   cursor behind the stored one by (`pages`, `seq`): a request finishing late can't move a token
   back, and of two requests for the same page (the first still being served when the client's
   retry came) the token keeps the one started later - the retry, whose answer the client keeps.
@@ -377,9 +377,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   path with its own. `dao.SearchMedia` reads every such row newest
   first and, at one instant, by path backwards (a tag search by score first: tags and people are
   settled per hash in derived tables, so a tag's score is no longer multiplied by the copies and
-  nothing relies on lax GROUP BY) and keeps each hash's last row (`oldestCopies`). `before` stays a
-  per-row SQL filter, which is equivalent; #194's `newer_than` must filter after `oldestCopies`,
-  never per row. The date buckets count each photo once, in its oldest copy's month (`min(created)`
+  nothing relies on lax GROUP BY) and keeps each hash's last row (`oldestCopies`); the plain
+  browse (below) picks the same row in SQL, the one with no older visible copy of its hash. `before`
+  stays a per-row SQL filter, which is equivalent; #194's `newer_than` must filter after
+  `oldestCopies` (or compare the oldest copy's date), never per row. The date buckets count each photo once, in its oldest copy's month (`min(created)`
   per hash), and collections count and draw their cover per member (EXISTS), whatever the copies.
   Every SearchPhotos entry carries `File.copies` (14, `optional`): the `files` rows holding its
   hash, kept-out ones included, versions not, counted per page as served (`setCopies` ->
@@ -446,14 +447,56 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (only what the upward search brought), served again, keepOut, #147, limit, small/omit. A token
   remembers its instant (`searchCursor.newerThan`, `sameDirection`): one of the other direction
   or of another instant counts as unknown (searched again past `have`). It wins over `before`.
-  An upward search costs one plain browse query when it starts (280-365 ms of SQL on the 112k-row
-  library above; the filter 1 ms), and its token holds only the photos above the jump. Every
+  Over the plain browse an upward search is served by keyset (below): ~1 ms for its first page
+  on 200k photos, where it used to cost one whole plain browse query (280-365 ms of SQL on the
+  112k-row library above); with filters it still does, and its token holds only the photos above
+  the jump. Every
   `newSearchTest` case also runs going up (`everySearchKind`: the upward mock is dated so its
   pages are the case's paths in order, with rows at the cutoff's second and a photo synced back
   above it that must never show); `TestImageSearchNewerAndJumpSplitTheLibrary` (and its `MySQL`
   twin, end to end) and dao's `TestSearchMediaNewerThanSplitsWithBeforeMySQL` check that the two
   halves are the plain search, each photo once at the same copy; websocket's
   `TestSearchPhotosNewerThanAnswersOldestFirst` (a child process) checks the handler.
+- The plain browse by keyset (issue #206; `dao/browse.go`, `files_manager/browse.go`): Images with
+  no tag, person, collection, map area, text or rating (opening Images, a jump, scrolling up after
+  one, the pickers) no longer reads the whole library at every new search - 200k photos were 143 MB
+  allocated, 82 MB kept by the token and seconds on a Pi before the first tiles. `dao.BrowseMedia`
+  reads it a chunk at a time by (`created`, `path`) with no schema change: `files`' `created`
+  index (since the start) and DATETIME's whole seconds. A chunk is two statements: the dates of
+  its photos and the one after them, in index order (`order by created ... limit want+1`, no
+  filesort; the rows passed over - copies whose photo is older, documents - are read once, there),
+  then every photo of those whole seconds sorted in SQL by (`created`, `path`). A photo is the row
+  with no older visible copy of its hash (`not exists` on `g`: outside `excluded`, media; older =
+  earlier `created`, or the same second and a smaller path) - `oldestCopies`' choice; `before` is
+  per row, going up `created > cutoff` is the oldest copy's. A second with very many rows makes its
+  chunk as large (at worst the library, as before). The token (`searchCursor.more`, a
+  `browseState`: the query, where the next chunk starts, done, and `dropped`) holds what it fetched:
+  a new search fetches only what its page shows (past `have` for an unknown token), a page that
+  runs out fetches what it still needs and a chunk ahead (`browseChunk`, 240), and a page that
+  served all it held looks past itself so its last page ends the token as before (a look that fails
+  leaves the page a token; a fetch a page needs fails the request, asked again as a lost one).
+  Arrays a stored cursor holds are never written (`fetchMore` appends to a clipped slice: #171).
+  `keepOut` adds its folders to `dropped`, which later chunks leave out; the query keeps the
+  folders kept out when the search began, so each photo stays at the copy it began with, as for a
+  whole search. What differs is only when rows are read: a whole search was a snapshot, while a
+  chunk is read when needed, so a photo added below where a scroll has got to comes in that scroll
+  and one deleted meanwhile doesn't. Every other search (and a folder's gallery) still reads its
+  rows whole when it starts, and so does a `Manager` without `browse` (Init sets it to the dao's
+  `BrowseMedia`): every sqlmock search test pins that one-query plan and runs unchanged. Tests:
+  dao's `TestBrowseMediaIsSearchMediaMySQL` (a library built to trip it - crowds at one second,
+  copies at the same second, kept out, of another type - checked row for row against
+  `SearchMedia`/`SearchMediaNewerThan`, down, from jumps and up, 0, 1, 5 and 1000 at a time) and
+  `TestBrowseMediaLargeMySQL`, files_manager's `keysetScenarios` (every `newSearchTest` case in
+  every kind served by keyset over `fakeBrowse` - `TestSearchScenariosKeyset` - and over MariaDB -
+  `...KeysetMySQL` -, with `browseChunk` 1 and 240; not the compaction case, which checks a whole
+  search's token: `TestKeysetTokenHoldsLittle` does), `TestKeysetFetchThatFails`,
+  `TestImageSearchNewerAndJumpSplitTheLibraryKeyset(MySQL)` and `TestImageSearchKeysetLargeMySQL`.
+  The large ones (`OTC_TEST_BROWSE_LARGE=1`, run with `-p 1`: two at once filled the VM's /tmp)
+  have 200k photos over fifteen years, 20k synced back at the top and 30k documents: Lima VM,
+  MariaDB 11.8, Images' first page 49 ms, 0.10 MB allocated and 10 KB kept (was 570-715 ms, 142 MB
+  and 82 MB); BrowseMedia's first chunk 48 ms (the 20k copies at the top read on the way; ~1 ms
+  after a jump or going up from one), the whole walk 2.8 s in chunks of 120, identical to
+  `SearchMedia`.
 - Places, the map in Images (2026-10-29, device side; release 148's `updates/148.sh`):
   - The switch (owner, 2026-10-29: "Since we are extracting the coordinates from the Metadata and
     leaving them unencrypted, this feature should be behind a feature flag in the settings").
@@ -868,7 +911,9 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
   Release 143 dropped `files`' indexes on `modified` and `size` (no query filters or sorts by
   either); no `(created, path)` index can exist - `path` alone is InnoDB's 3072-byte key limit
-  (ERROR 1071 on 11.8), and so the `created` index isn't extended by it either. MariaDB's buffer
+  (ERROR 1071 on 11.8), and so the `created` index isn't extended by it either (with no PRIMARY
+  KEY, MariaDB never extends a key by the unique one): Images' plain browse goes by `created` and
+  whole seconds instead (issue #206). MariaDB's buffer
   pool goes by the memory: 256 MB with 4 GB, 768 MB with 8 GB, 1 GB from 12 GB, the default under 3
   GB - `/etc/mysql/mariadb.conf.d/70-otc-memory.cnf` from install.sh and 143.sh (from MariaDB's
   next start: update.sh keeps otc and its users' instances running through the migrations, so it
@@ -944,7 +989,7 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   hash in `skipped_analysis`. Flagging (`SetOutOfImages`, synchronous) deletes the tags and faces of
   what only that folder holds (`DelFacesByHashes`: unnamed people left with no face go, named ones
   stay) and takes its rows out of every search token (`keepOut`; a page in flight is filtered when
-  it stores); showing it again moves the skipped content to `pending_analysis` in one transaction
+  it stores; a plain browse's token leaves them out of the chunks it fetches later too); showing it again moves the skipped content to `pending_analysis` in one transaction
   (`TakeSkippedAnalysis`), then queues it (faces only if face recognition is on now - an explicit owner
   action, not #178's retroactive sweep), and is refused under a flagged folder
   (`OutOfImagesByParentError`, error code `out_of_images_by_parent`). `reconcileAnalysis` applies
@@ -1100,7 +1145,9 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   backfill and Reprocess, and clears the pending row). The queue itself is memory, but
   `pending_analysis` holds only hashes, so after a restart - when nothing can be decrypted
   until the owner's key is back - `ResumePendingAnalysis` refills the lanes at the first
-  sign-in (`startBackfillOnce`, before `BackfillMissingThumbnails`, which skips those hashes).
+  sign-in (`startBackfillOnce`, before `BackfillMissingThumbnails`, which skips those hashes),
+  reading their files 500 to a query (`dao.FilesOfHashes`, the smallest path of each; a chunk that
+  can't be read stays pending for the next start). The lanes still hold every queued job's row.
   `UploadFile`/`FinishUpload` don't queue content the device already knows and has a thumbnail for,
   and `processFaces` skips content that already has faces.
   Issue #180 (release 69): **shared galleries** - an image group (`group_id`), a folder
