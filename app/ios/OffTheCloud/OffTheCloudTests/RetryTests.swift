@@ -340,15 +340,19 @@ struct SocketLivenessTests {
 private final class DeviceStandIn: @unchecked Sendable {
     /// What to do with a request: answer after `delay` seconds, or never (nil).
     typealias Plan = @Sendable (Msg_ReqEnvelope) -> TimeInterval?
+    /// The answer to a request, its id set by the stand-in; nil for the
+    /// default one (its id again as a tag).
+    typealias Reply = @Sendable (Msg_ReqEnvelope) -> Msg_RespEnvelope?
 
     private let listener: NWListener
     private let queue = DispatchQueue(label: "test-ws-server")
     private let plan: Plan
+    private let reply: Reply?
     private let lock = NSLock()
     private var _received: [Int32] = []
     var received: [Int32] { lock.withLock { _received } }
 
-    init(answersPings: Bool, plan: @escaping Plan) throws {
+    init(answersPings: Bool, reply: Reply? = nil, plan: @escaping Plan) throws {
         let ws = NWProtocolWebSocket.Options()
         ws.autoReplyPing = answersPings
         let params = NWParameters.tcp
@@ -356,6 +360,7 @@ private final class DeviceStandIn: @unchecked Sendable {
         params.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: .any)
         listener = try NWListener(using: params)
         self.plan = plan
+        self.reply = reply
         listener.newConnectionHandler = { [weak self] conn in
             guard let self else { return }
             conn.start(queue: self.queue)
@@ -398,13 +403,18 @@ private final class DeviceStandIn: @unchecked Sendable {
     }
 
     /// Answers with the request's own id, and the id again as a tag, so a
-    /// test can tell which request an answer was for.
+    /// test can tell which request an answer was for - or with what
+    /// `reply` makes of it.
     private func answer(_ req: Msg_ReqEnvelope, on conn: NWConnection) {
         var resp = Msg_RespEnvelope()
+        if let made = reply?(req) {
+            resp = made
+        } else {
+            var tags = Msg_TagsList()
+            tags.tags = ["\(req.id)"]
+            resp.payload = .respTagsList(tags)
+        }
         resp.id = req.id
-        var tags = Msg_TagsList()
-        tags.tags = ["\(req.id)"]
-        resp.payload = .respTagsList(tags)
         guard let data = try? resp.serializedData() else { return }
         let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
         let ctx = NWConnection.ContentContext(identifier: "answer", metadata: [meta])
@@ -2030,6 +2040,188 @@ struct StalledSignInTests {
         #expect(c.lastError == "The device didn't answer in time.")
         #expect(!device.received.isEmpty)
         #expect(Date().timeIntervalSince(started) < 4)
+    }
+}
+}
+
+// MARK: - Issue #207: a device that can't reach its storage
+
+/// The stand-in device's disks: gone (every request answered
+/// storage_unavailable) or back (it signs in), and the Auths it was sent
+/// while they were gone.
+private final class StandInDisks: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _back = false
+    private var _authsWhileGone = 0
+    var back: Bool {
+        get { lock.withLock { _back } }
+        set { lock.withLock { _back = newValue } }
+    }
+    var authsWhileGone: Int { lock.withLock { _authsWhileGone } }
+
+    static let words = "Your device can't reach its disks (test)."
+
+    /// What the device answers `req` with: nil for the stand-in's default.
+    func reply(_ req: Msg_ReqEnvelope, key: Data) -> Msg_RespEnvelope? {
+        var r = Msg_RespEnvelope()
+        guard back else {
+            if case .reqAuth = req.payload { lock.withLock { _authsWhileGone += 1 } }
+            r.error = true
+            r.errorCode = "storage_unavailable"
+            r.errorMessage = Self.words
+            return r
+        }
+        switch req.payload {
+        case .reqGetPubKey:
+            var pk = Msg_PubKey()
+            pk.publicKey = key
+            r.payload = .respPubKey(pk)
+        case .reqAuth:
+            var a = Msg_Ack()
+            a.ok = true
+            r.payload = .respAck(a)
+        default:
+            return nil
+        }
+        return r
+    }
+
+    /// A fresh RSA-2048 public key as the device sends it: X.509
+    /// SubjectPublicKeyInfo DER around the PKCS#1 key.
+    static func publicKeyDER() throws -> Data {
+        let attrs: [CFString: Any] = [kSecAttrKeyType: kSecAttrKeyTypeRSA, kSecAttrKeySizeInBits: 2048]
+        var error: Unmanaged<CFError>?
+        guard let priv = SecKeyCreateRandomKey(attrs as CFDictionary, &error),
+              let pub = SecKeyCopyPublicKey(priv),
+              let pkcs1 = SecKeyCopyExternalRepresentation(pub, &error) as Data? else {
+            throw URLError(.cannotParseResponse)
+        }
+        func length(_ n: Int) -> [UInt8] {
+            n < 0x80 ? [UInt8(n)] : n < 0x100 ? [0x81, UInt8(n)] : [0x82, UInt8(n >> 8), UInt8(n & 0xff)]
+        }
+        let algorithm: [UInt8] = [0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00]
+        let bits: [UInt8] = [0x03] + length(pkcs1.count + 1) + [0x00] + Array(pkcs1)
+        return Data([0x30] + length(algorithm.count + bits.count) + algorithm + bits)
+    }
+}
+
+extension ImagesNotificationTests {
+@MainActor
+@Suite(.serialized)
+struct StorageUnavailableTests {
+    @Test func theDevicesWordsTheHoldAndBackToSigningIn() async throws {
+        // Never on a simulator signed in to a device: this test configures
+        // the app's own connection (a fresh test simulator has none), and
+        // leaves it as it found it.
+        guard SecretsStore.loadOrCreate().endpoint.isEmpty else { return }
+        let disks = StandInDisks()
+        let key = try StandInDisks.publicKeyDER()
+        let device = try DeviceStandIn(answersPings: true, reply: { disks.reply($0, key: key) }) { _ in 0 }
+        let url = try await device.start()
+        defer { device.stop() }
+        let c = OTCConnection.shared
+        let s = SecretsStore.loadOrCreate()
+        s.saveCredentials(endpoint: url.absoluteString, password: "test-dummy")
+        c.reset()
+        c.signInTimeout = 5
+        c.storageHold = 1.5
+        defer {
+            let s = SecretsStore.loadOrCreate()
+            s.saveCredentials(endpoint: "", password: "")
+            c.signInTimeout = 120
+            c.storageHold = StorageWait.hold
+            c.reset()
+        }
+
+        // GetPubKey answered storage_unavailable: the request fails, the
+        // card has the device's words, and nothing the phone holds changes.
+        await #expect(throws: (any Error).self) {
+            _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
+        }
+        #expect(c.statusCode == "storage_unavailable")
+        #expect(c.lastError == StandInDisks.words)
+        #expect(!c.authenticated)
+        let kept = SecretsStore.loadOrCreate()
+        #expect(kept.endpoint == url.absoluteString)
+        #expect(kept.password == "test-dummy")
+        #expect(disks.authsWhileGone == 0, "no password went to a device that checks nothing")
+        let asked = device.received.count
+        #expect(asked >= 1)
+
+        // Within the hold nothing is dialled: what the screens ask fails at
+        // once, with the device's words.
+        do {
+            _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
+            Issue.record("a request went through a device without its storage")
+        } catch {
+            #expect(error.localizedDescription == StandInDisks.words)
+        }
+        #expect(device.received.count == asked)
+
+        // Once the hold is over the device is asked again by itself, and
+        // the state stays while the answer is the same.
+        await until(5) { device.received.count > asked }
+        #expect(device.received.count > asked)
+        #expect(c.statusCode == "storage_unavailable")
+        #expect(disks.authsWhileGone == 0)
+
+        // The disks are back: a wake asks at once, signing in goes on, and
+        // the card goes.
+        disks.back = true
+        c.wake()
+        await until(5) { c.authenticated }
+        #expect(c.authenticated)
+        #expect(c.statusCode == nil)
+        #expect(c.lastError == nil)
+    }
+
+    @Test func anotherAnswerEndsTheState() {
+        // The device's words, else ours.
+        var r = Msg_RespEnvelope()
+        r.error = true
+        r.errorCode = "storage_unavailable"
+        #expect(ErrorCodes.isStorageUnavailable(r))
+        #expect(StorageWait.problem(r).text == S.appShellNoStorage)
+        r.errorMessage = "Disks gone"
+        #expect(StorageWait.problem(r).text == "Disks gone")
+        // An Ack carrying the code counts too; the bridge's codes don't.
+        var ack = Msg_Ack()
+        ack.code = "storage_unavailable"
+        ack.errorMsg = "Ack words"
+        var a = Msg_RespEnvelope()
+        a.payload = .respAck(ack)
+        #expect(ErrorCodes.isStorageUnavailable(a))
+        #expect(StorageWait.problem(a).text == "Ack words")
+        ack.code = "device_unreachable"
+        a.payload = .respAck(ack)
+        #expect(!ErrorCodes.isStorageUnavailable(a))
+    }
+
+    @Test func theHoldLiftsAndLeaves() async {
+        var clock = Date(timeIntervalSince1970: 1_000)
+        // A pause that never ends by itself: only the hold's rules are
+        // looked at here (the re-asks are the test above's).
+        let wait = StorageWait(holdFor: 30, now: { clock }, pause: { _ in
+            while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)) }
+        })
+        #expect(wait.held() == nil)
+        wait.enter(.noStorage("Disks gone")) {}
+        #expect(wait.active)
+        #expect(wait.held()?.text == "Disks gone")
+        clock += 29
+        #expect(wait.held() != nil, "held for the whole 30 s")
+        clock += 2
+        #expect(wait.held() == nil, "dialled again once they are over")
+        // New credentials lift the hold at once; the state stays.
+        clock += 1
+        wait.enter(.noStorage("Disks gone")) {}
+        wait.lift()
+        #expect(wait.held() == nil)
+        #expect(wait.active)
+        // Another answer (or Log Out) ends it.
+        wait.leave()
+        #expect(!wait.active)
+        #expect(wait.held() == nil)
     }
 }
 }

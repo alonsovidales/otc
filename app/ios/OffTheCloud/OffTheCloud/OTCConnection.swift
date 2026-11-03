@@ -39,7 +39,10 @@ final class OTCConnection: ObservableObject {
     /// "account_disabled" (issue #93). Matches Ack.code; see the field's
     /// own comment in proto/messages.proto. nil whenever the device is
     /// answering normally, which is what lets the UI built on it clear
-    /// itself the moment things recover.
+    /// itself the moment things recover. Issue #207: also
+    /// "storage_unavailable", the device's own answer while it can't reach
+    /// its storage disks (`storage`); the card shows the device's words
+    /// (lastError).
     @Published private(set) var statusCode: String?
     /// Set whenever connecting or signing in fails for any reason - a bad
     /// address, an unreachable host, a refused handshake, a wrong password
@@ -131,6 +134,24 @@ final class OTCConnection: ObservableObject {
     /// device's 5-per-minute lockout.
     private var authBackoff: TimeInterval = 5
     private let maxAuthBackoff: TimeInterval = 300
+
+    /// Issue #207: the device said it can't reach its storage disks. For
+    /// 30 s after each such answer a connect fails at once with its words
+    /// instead of dialling (every screen's retries, the card's, MainView's),
+    /// and the device is asked again every 30 s, or at once at a wake (the
+    /// app back in front, a network up). Credentials and everything kept
+    /// stay as they are. Android's StorageWait in OTCConnection.kt is the
+    /// same.
+    private lazy var storage = StorageWait(pause: { [weak self] seconds in
+        await self?.sleepOrWake(seconds)
+    })
+
+    /// How long a storage_unavailable answer holds (StorageWait.hold).
+    /// Tests shorten it.
+    var storageHold: TimeInterval {
+        get { storage.holdFor }
+        set { storage.holdFor = newValue }
+    }
 
     private init() {
         let ws = ws
@@ -240,7 +261,9 @@ final class OTCConnection: ObservableObject {
         do {
             try await connectWithin(timeout)
             epoch = connectionEpoch
-            return try await ws.exchange(timeout: timeout, build: build)
+            let answer = try await ws.exchange(timeout: timeout, build: build)
+            noteAnswer(answer.resp, epoch: epoch)
+            return answer
         } catch let sent as WSClient.SentNoAnswer {
             // It left, and the connection went before its answer: not sent
             // again (see request). The next request connects again.
@@ -268,8 +291,23 @@ final class OTCConnection: ObservableObject {
                 authenticated = false
             }
             try await connectWithin(timeout)
-            return try await ws.exchange(timeout: timeout, build: build)
+            let again = connectionEpoch
+            let answer = try await ws.exchange(timeout: timeout, build: build)
+            noteAnswer(answer.resp, epoch: again)
+            return answer
         }
+    }
+
+    /// Issue #207: a signed-in request answered storage_unavailable - the
+    /// device lost its disks under a session. The same state as at sign-in,
+    /// and the next request signs in again (once the hold lets it), so the
+    /// session is made afresh when they are back.
+    private func noteAnswer(_ resp: Msg_RespEnvelope, epoch: Int?) {
+        guard ErrorCodes.isStorageUnavailable(resp) else { return }
+        if epoch == nil || epoch == connectionEpoch {
+            authenticated = false
+        }
+        enterStorage(StorageWait.problem(resp))
     }
 
     /// ensureConnected() within a request's own time (Android's
@@ -344,6 +382,7 @@ final class OTCConnection: ObservableObject {
         // An explicit retry or new credentials: try at once.
         authRejection = nil
         authBackoff = 5
+        storage.lift()
         // Media URLs are resolved against the endpoint; it may just have
         // changed.
         MediaStream.reset()
@@ -359,6 +398,7 @@ final class OTCConnection: ObservableObject {
     /// last one, so the next sign-in starts without a stale error over it.
     func reset() {
         invalidate()
+        storage.leave()
         lastProblem = nil
         statusCode = nil
         connectionFailed = false
@@ -408,6 +448,13 @@ final class OTCConnection: ObservableObject {
             lastProblem = .cleartext
             connectionFailed = true
             throw ConnectionError(errorCode: 6, problem: .cleartext)
+        }
+        // Issue #207: the device said a moment ago that it can't reach its
+        // storage: its words again, nothing dialled, until the hold ends
+        // (StorageWait asks again then, or at a wake).
+        if let problem = storage.held() {
+            raced?.task.cancel()
+            throw ConnectionError(errorCode: 7, problem: problem)
         }
         let credKey = Self.credentialsKey(secrets)
         if let r = authRejection, r.credKey == credKey, Date() < r.notBefore {
@@ -477,7 +524,9 @@ final class OTCConnection: ObservableObject {
                 guard gen == generation else { throw Self.superseded }
                 // The device's own verdict on the password: the bridge
                 // would only hear the same one and count another failure.
-                if Self.isPasswordVerdict(error) {
+                // Nor does it help when the device itself can't reach its
+                // storage (#207): the bridge would only say the same.
+                if Self.isPasswordVerdict(error) || Self.isStorageAnswer(error) {
                     connectionFailed = true
                     throw error
                 }
@@ -563,6 +612,13 @@ final class OTCConnection: ObservableObject {
         let pubKeyResp = try await ws.request(timeout: signInTimeout) { req in
             req.payload = .reqGetPubKey(Msg_GetPubKey())
         }
+        // Issue #207: the device itself can't reach its storage disks.
+        // No key, and no verdict on the password.
+        if ErrorCodes.isStorageUnavailable(pubKeyResp) {
+            let problem = StorageWait.problem(pubKeyResp)
+            enterStorage(problem)
+            throw ConnectionError(errorCode: 7, problem: problem)
+        }
         guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
             // Issue #56: this is where the bridge's "I can't reach that
             // device" answer actually lands - it can't return a public
@@ -572,14 +628,21 @@ final class OTCConnection: ObservableObject {
             // the connection's public key" here (as this used to) threw
             // that explanation away and made an offline device look
             // identical to a genuinely broken one.
+            // Any answer but storage_unavailable: out of issue #207's state.
+            storage.leave()
             var problem = ConnectionProblem.noPublicKey
             if case .respAck(let ack) = pubKeyResp.payload {
                 if !ack.errorMsg.isEmpty { problem = .said(ack.errorMsg) }
                 statusCode = ack.code.isEmpty ? nil : ack.code
+            } else if statusCode == ErrorCodes.storageUnavailable {
+                statusCode = nil
             }
             lastProblem = problem
             throw ConnectionError(errorCode: 2, problem: problem)
         }
+        // The device answered with its key: whatever it says next, its
+        // storage is there again (issue #207).
+        leaveStorage()
         let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
 
         var auth = Msg_Auth()
@@ -589,6 +652,13 @@ final class OTCConnection: ObservableObject {
 
         let resp = try await ws.request(timeout: signInTimeout) { req in
             req.payload = .reqAuth(auth)
+        }
+        // The disks went between the key and the password (#207): the
+        // device checked nothing, and nothing is held against the password.
+        if ErrorCodes.isStorageUnavailable(resp) {
+            let problem = StorageWait.problem(resp)
+            enterStorage(problem)
+            throw ConnectionError(errorCode: 7, problem: problem)
         }
         guard case .respAck(let ack) = resp.payload, ack.ok else {
             let problem: ConnectionProblem
@@ -629,7 +699,37 @@ final class OTCConnection: ObservableObject {
         (error as? ConnectionError)?.errorCode == 3
     }
 
+    /// The device answered storage_unavailable (issue #207).
+    private static func isStorageAnswer(_ error: Error) -> Bool {
+        (error as? ConnectionError)?.errorCode == 7
+    }
+
+    /// Issue #207: the device answered storage_unavailable with `problem`:
+    /// its words where the "isn't available" card goes, the hold and the
+    /// 30 s re-asks (StorageWait). No verdict on the password: nothing is
+    /// cleared, and the auth-rejection gate isn't touched.
+    private func enterStorage(_ problem: ConnectionProblem) {
+        statusCode = ErrorCodes.storageUnavailable
+        lastProblem = problem
+        connectionFailed = true
+        storage.enter(problem) { [weak self] in
+            _ = try? await self?.ensureConnected()
+        }
+    }
+
+    /// The device answered otherwise (its key): out of issue #207's state,
+    /// and its words go from the card.
+    private func leaveStorage() {
+        guard storage.active else { return }
+        storage.leave()
+        if statusCode == ErrorCodes.storageUnavailable {
+            statusCode = nil
+            lastProblem = nil
+        }
+    }
+
     private func connected(home: HomeLink?, endpoint: String) {
+        storage.leave()
         lastProblem = nil
         statusCode = nil
         connectionFailed = false
@@ -958,6 +1058,105 @@ private final class ConnectRace: @unchecked Sendable {
     }
 }
 
+/// Issue #207: while the device can't reach its storage disks it answers
+/// every request, GetPubKey first, with `storage_unavailable`
+/// (ErrorCodes.storageUnavailable) and its own words. That is neither a
+/// wrong password nor a device that is away: OTCConnection shows the words
+/// where the "isn't available" card goes (`statusCode`), keeps the
+/// credentials and everything else as they are, and asks again every
+/// `hold` - at once when the app comes back to the front or a network comes
+/// up (a wake) - instead of at the pace of every screen's retries. As soon
+/// as an answer is anything else, `leave` ends it and signing in goes on as
+/// always. Android's net/StorageWait.kt is the same.
+///
+/// `enter` starts the hold: for `holdFor` a connect fails at once with the
+/// device's words (`held`) instead of dialling. The re-ask loop (one at a
+/// time) lifts it and runs `reask` after the hold, or sooner at a wake, for
+/// as long as the state lasts. `holdFor`, `now` and `pause` are the tests'.
+@MainActor
+final class StorageWait {
+    /// How long a storage_unavailable answer holds: the device is asked
+    /// again after it.
+    nonisolated static let hold: TimeInterval = 30
+
+    var holdFor: TimeInterval
+    private let now: () -> Date
+    private let pause: (TimeInterval) async -> Void
+    /// When the hold began; nil once it was lifted (or there is none).
+    private var since: Date?
+    /// The device's words while in the state; nil outside it.
+    private var words: ConnectionProblem?
+    private var loop: Task<Void, Never>?
+
+    init(holdFor: TimeInterval = StorageWait.hold, now: @escaping () -> Date = { Date() },
+         pause: @escaping (TimeInterval) async -> Void) {
+        self.holdFor = holdFor
+        self.now = now
+        self.pause = pause
+    }
+
+    /// What `resp` says: the device's own words, else ours
+    /// (ConnectionProblem.noStorage words app.shell.no_storage).
+    nonisolated static func problem(_ resp: Msg_RespEnvelope) -> ConnectionProblem {
+        var words = resp.errorMessage
+        if words.isEmpty, case .respAck(let ack) = resp.payload { words = ack.errorMsg }
+        return .noStorage(words)
+    }
+
+    /// In the state: the device last said it can't reach its storage.
+    var active: Bool { words != nil }
+
+    /// The device said so, with `problem`: the hold starts again, and
+    /// `reask` runs after each hold (or at a wake) while it lasts.
+    func enter(_ problem: ConnectionProblem, reask: @escaping @MainActor () async -> Void) {
+        since = now()
+        words = problem
+        if loop != nil { return }
+        loop = Task { [weak self] in
+            await self?.run(reask)
+        }
+    }
+
+    /// A connect asked for now: the device's words to fail with instead of
+    /// dialling, nil to dial.
+    func held() -> ConnectionProblem? {
+        guard let since, let words, now().timeIntervalSince(since) < holdFor else { return nil }
+        return words
+    }
+
+    /// New credentials or an explicit retry: the next connect dials; the
+    /// state and its re-asks stay until an answer.
+    func lift() {
+        since = nil
+    }
+
+    /// An answer that isn't storage_unavailable, or Log Out: out of the
+    /// state.
+    func leave() {
+        since = nil
+        words = nil
+        loop?.cancel()
+        loop = nil
+    }
+
+    private func run(_ reask: @MainActor () async -> Void) async {
+        while !Task.isCancelled, words != nil {
+            // Until the hold's end after the last answer; a whole hold after
+            // a try nothing answered (no network: a wake brings it at once
+            // when one comes).
+            let wait = since.map { min(holdFor, max(0, holdFor - now().timeIntervalSince($0))) } ?? holdFor
+            await pause(wait)
+            guard !Task.isCancelled, words != nil else { break }
+            since = nil
+            // Answered again (enter starts the next hold), signed in (leave
+            // ends this), or nothing answered: asked again on the next turn.
+            await reask()
+        }
+        if Task.isCancelled { return }
+        loop = nil
+    }
+}
+
 /// Why connecting or signing in failed (OTCConnection.lastProblem), kept as
 /// what happened and worded only when shown (docs/i18n.md, "Each
 /// platform": models keep state, views word it).
@@ -985,11 +1184,15 @@ enum ConnectionProblem {
     case cleartext
     /// New connection settings (or a Log Out) overtook the attempt.
     case superseded
+    /// Issue #207: the device can't reach its storage disks - its own
+    /// words, or ours (app.shell.no_storage) when it sent none.
+    case noStorage(String)
     /// Anything else: its own description, read when shown.
     case failure(Error)
 
     var text: String {
         switch self {
+        case .noStorage(let words): return words.isEmpty ? S.appShellNoStorage : words
         case .offline: return S.appShellOffline
         case .invalidAddress(let address): return S.appShellAddressInvalid(address: address)
         case .noPublicKey: return S.appShellNoPublicKey
@@ -1010,7 +1213,8 @@ enum ConnectionProblem {
 /// What a failed connect throws: domain "OTCConnection" as before, with
 /// code 1 a bad address, 2 no public key, 3 the device's verdict on the
 /// password, 4 superseded, 5 a sign-in nobody answered, 6 a ws:// address
-/// off the home network. Its description is worded when read.
+/// off the home network, 7 a device that can't reach its storage (issue
+/// #207). Its description is worded when read.
 struct ConnectionError: LocalizedError, CustomNSError {
     static var errorDomain: String { "OTCConnection" }
     let errorCode: Int

@@ -12,6 +12,12 @@
 //  deliberately sharing their wording and their unplugged-cloud icon so the
 //  same situation looks the same wherever someone meets it.
 //
+//  Issue #207: the same card, with a disk and a heading of its own, while
+//  the device answers that it can't reach its storage disks
+//  (storage_unavailable): its words (or ours, app.shell.no_storage), no
+//  Wi-Fi hint - it answered, so its network is fine - and "Still trying…"
+//  (OTCConnection asks again every 30 s). Android's card is the same.
+//
 
 import SwiftUI
 
@@ -20,6 +26,7 @@ struct DeviceUnreachableView: View {
     let message: String
     /// Ack.code - "account_disabled" gets its own icon and title, since
     /// that one is permanent until the owner acts, not a "try again later".
+    /// "storage_unavailable" is the device's own answer (issue #207).
     let code: String
 
     /// Leave this device for the connection screen - how a phone moves on
@@ -28,6 +35,12 @@ struct DeviceUnreachableView: View {
     @State private var confirmClose = false
 
     private var disabled: Bool { code == "account_disabled" }
+    private var noStorage: Bool { code == ErrorCodes.storageUnavailable }
+
+    private var title: String {
+        if disabled { return S.appShellAccountDisabled }
+        return noStorage ? S.appShellNoStorageTitle : S.appShellDeviceUnavailable
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -35,7 +48,7 @@ struct DeviceUnreachableView: View {
                 .frame(width: 56, height: 56)
                 .foregroundStyle(Color.orange)
 
-            Text(disabled ? S.appShellAccountDisabled : S.appShellDeviceUnavailable)
+            Text(title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
 
@@ -46,7 +59,7 @@ struct DeviceUnreachableView: View {
                     .multilineTextAlignment(.center)
             }
 
-            if !disabled {
+            if !disabled && !noStorage {
                 // A device that lost its Wi-Fi (its name or password
                 // changed) is the usual reason it stays away: the cable
                 // brings it back, and Settings › Wi-Fi fixes it.
@@ -107,6 +120,11 @@ struct DeviceUnreachableView: View {
     private var icon: some View {
         if disabled {
             Image(systemName: "nosign")
+                .resizable()
+                .scaledToFit()
+        } else if noStorage {
+            // A disk with a warning: the device is there, its disks aren't.
+            Image(systemName: "externaldrive.badge.exclamationmark")
                 .resizable()
                 .scaledToFit()
         } else {

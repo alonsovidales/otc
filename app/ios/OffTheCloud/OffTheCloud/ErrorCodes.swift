@@ -45,6 +45,21 @@ enum ErrorCodes {
         resp.error && isDuplicatedFile(code: resp.errorCode, message: resp.errorMessage)
     }
 
+    /// Issue #207: the device can't reach its storage disks (missing, not
+    /// mounted, the mirror not assembled, its database unable to start on
+    /// them) and answers every request with this, GetPubKey first, until
+    /// they are back. Not a verdict on the password: nothing the phone holds
+    /// is touched for it (StorageWait). Devices before #207 never send it.
+    static let storageUnavailable = "storage_unavailable"
+
+    /// Whether `resp` is that answer: the envelope's error_code, or an Ack
+    /// carrying it.
+    static func isStorageUnavailable(_ resp: Msg_RespEnvelope) -> Bool {
+        if resp.errorCode == storageUnavailable { return true }
+        if case .respAck(let ack) = resp.payload { return ack.code == storageUnavailable }
+        return false
+    }
+
     static func isDuplicatedFile(_ error: Error) -> Bool {
         isDuplicatedFile(code: code(of: error), message: error.localizedDescription)
     }
