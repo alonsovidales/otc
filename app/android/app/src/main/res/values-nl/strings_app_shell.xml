@@ -66,6 +66,8 @@
     <string name="app_shell_new_post">Nieuw bericht</string>
     <string name="app_shell_no_answer_address">Het apparaat reageert niet. Misschien staat het uit, of is het adres onjuist.</string>
     <string name="app_shell_no_public_key">Kan de openbare sleutel van de verbinding niet ophalen</string>
+    <string name="app_shell_no_storage">Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn.</string>
+    <string name="app_shell_no_storage_title">De opslag van je apparaat is niet beschikbaar</string>
     <string name="app_shell_not_connected">Niet verbonden</string>
     <string name="app_shell_not_otc">Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.</string>
     <string name="app_shell_not_this_person">Niet deze persoon</string>

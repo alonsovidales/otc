@@ -238,6 +238,14 @@ fun S.appShellNoAnswerAddress(): UiText =
 fun S.appShellNoPublicKey(): UiText =
     UiText.Res(R.string.app_shell_no_public_key)
 
+/** "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.": On the card shown over the whole app while the device can't reach its storage disks (app.shell.no_storage_title), when the device sent no explanation of its own (it normally does, with the same meaning). */
+fun S.appShellNoStorage(): UiText =
+    UiText.Res(R.string.app_shell_no_storage)
+
+/** "Your device's storage isn't available": Heading of the card shown over the whole app when the device answers that it can't reach its storage disks (unplugged, switched off, or not ready). The device's own explanation is shown under it. */
+fun S.appShellNoStorageTitle(): UiText =
+    UiText.Res(R.string.app_shell_no_storage_title)
+
 /** "Not connected": Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start). */
 fun S.appShellNotConnected(): UiText =
     UiText.Res(R.string.app_shell_not_connected)

@@ -68,6 +68,8 @@
     <string name="app_shell_new_post">Nuovo post</string>
     <string name="app_shell_no_answer_address">Il dispositivo non risponde. Potrebbe essere spento, o l’indirizzo potrebbe essere sbagliato.</string>
     <string name="app_shell_no_public_key">Impossibile ottenere la chiave pubblica della connessione</string>
+    <string name="app_shell_no_storage">Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili.</string>
+    <string name="app_shell_no_storage_title">L’archiviazione del tuo dispositivo non è disponibile</string>
     <string name="app_shell_not_connected">Non connesso</string>
     <string name="app_shell_not_otc">L’indirizzo ha risposto, ma non come un dispositivo Off The Cloud. Controlla che termini con /ws e che punti al tuo dispositivo o al suo nome sul bridge.</string>
     <string name="app_shell_not_this_person">Non è questa persona</string>

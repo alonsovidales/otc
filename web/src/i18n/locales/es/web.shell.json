@@ -162,6 +162,9 @@
   "web.shell.top.show_menu": "Mostrar menú",
   "web.shell.unreachable.disabled": "Esta cuenta se ha desactivado",
   "web.shell.unreachable.note": "No se ha perdido nada: todo sigue en el propio dispositivo. Esta página sigue comprobándolo y se reanudará sola en cuanto vuelva.",
+  "web.shell.unreachable.storage_note": "Esta página lo vuelve a comprobar cada 30 segundos y se reanudará sola en cuanto tu dispositivo vuelva.",
+  "web.shell.unreachable.storage_text": "Tu dispositivo no puede acceder a sus discos de almacenamiento. Comprueba que estén conectados y encendidos; volverá a ponerse en marcha solo en cuanto estén de vuelta.",
+  "web.shell.unreachable.storage_title": "El almacenamiento de tu dispositivo no está disponible",
   "web.shell.unreachable.title": "Este dispositivo no está disponible ahora mismo",
   "web.shell.unreachable.wifi_hint": "¿Has cambiado el nombre o la contraseña de tu Wi-Fi? Conecta el dispositivo al router con un cable Ethernet y abre Ajustes › Wi-Fi.",
   "web.shell.update.critical": "\u003cb\u003eActualización crítica {version} disponible.\u003c/b\u003e {summary} Instálala lo antes posible."

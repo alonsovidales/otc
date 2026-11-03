@@ -629,6 +629,18 @@
     "text": "Nada se perdeu: tudo continua guardado no próprio dispositivo. Esta página continua a verificar e retoma sozinha assim que ele voltar.",
     "en": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back."
   },
+  "web.shell.unreachable.storage_note": {
+    "text": "Esta página volta a verificar a cada 30 segundos e retoma sozinha assim que o teu dispositivo voltar.",
+    "en": "This page checks again every 30 seconds and picks up on its own once your device is back."
+  },
+  "web.shell.unreachable.storage_text": {
+    "text": "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
+  "web.shell.unreachable.storage_title": {
+    "text": "O armazenamento do teu dispositivo não está disponível",
+    "en": "Your device's storage isn't available"
+  },
   "web.shell.unreachable.title": {
     "text": "Este dispositivo não está disponível de momento",
     "en": "This device isn't available right now"

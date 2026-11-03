@@ -65,6 +65,8 @@
     <string name="app_shell_new_post">New post</string>
     <string name="app_shell_no_answer_address">The device isn\'t answering. It may be off, or the address may be wrong.</string>
     <string name="app_shell_no_public_key">Unable to fetch the connection\'s public key</string>
+    <string name="app_shell_no_storage">Your device can\'t reach its storage disks. Check they\'re plugged in and switched on; it starts again by itself once they\'re back.</string>
+    <string name="app_shell_no_storage_title">Your device\'s storage isn\'t available</string>
     <string name="app_shell_not_connected">Not connected</string>
     <string name="app_shell_not_otc">The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.</string>
     <string name="app_shell_not_this_person">Not this person</string>

@@ -68,6 +68,8 @@
     <string name="app_shell_new_post">Publier</string>
     <string name="app_shell_no_answer_address">L’appareil ne répond pas. Il est peut-être éteint, ou l’adresse est peut-être incorrecte.</string>
     <string name="app_shell_no_public_key">Impossible d’obtenir la clé publique de la connexion</string>
+    <string name="app_shell_no_storage">Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.</string>
+    <string name="app_shell_no_storage_title">Le stockage de votre appareil n’est pas disponible</string>
     <string name="app_shell_not_connected">Non connecté</string>
     <string name="app_shell_not_otc">L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.</string>
     <string name="app_shell_not_this_person">Pas cette personne</string>

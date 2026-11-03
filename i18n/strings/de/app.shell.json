@@ -254,6 +254,14 @@
     "en": "Unable to fetch the connection's public key",
     "reviewed": "claude-backtranslation 2026-10-11 #e31d2519"
   },
+  "app.shell.no_storage": {
+    "text": "Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
+  "app.shell.no_storage_title": {
+    "text": "Der Speicher deines Geräts ist nicht verfügbar",
+    "en": "Your device's storage isn't available"
+  },
   "app.shell.not_connected": {
     "text": "Nicht verbunden",
     "en": "Not connected"

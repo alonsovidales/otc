@@ -282,6 +282,10 @@
     "text": "Noch keine Ordner – füge unten einen hinzu.",
     "en": "No folders yet — add one below."
   },
+  "desk.main.no_storage": {
+    "text": "Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
   "desk.main.not_connected_error": {
     "text": "nicht verbunden",
     "en": "not connected"
@@ -395,6 +399,10 @@
   "desk.main.status_missing_settings": {
     "text": "Domain oder Passwort fehlt",
     "en": "Missing domain/password"
+  },
+  "desk.main.status_no_storage": {
+    "text": "Gerätespeicher nicht verfügbar",
+    "en": "Device storage unavailable"
   },
   "desk.main.status_not_connected": {
     "text": "Nicht verbunden",

@@ -312,6 +312,16 @@ extension S {
     /// Why the app can't connect, on the card shown over the app: the device did not hand out the key the password is encrypted with before it is sent, and gave no reason.
     static var appShellNoPublicKey: String { L("app.shell.no_public_key", table: "AppShell") }
 
+    /// Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.
+    ///
+    /// On the card shown over the whole app while the device can't reach its storage disks (app.shell.no_storage_title), when the device sent no explanation of its own (it normally does, with the same meaning).
+    static var appShellNoStorage: String { L("app.shell.no_storage", table: "AppShell") }
+
+    /// Your device's storage isn't available
+    ///
+    /// Heading of the card shown over the whole app when the device answers that it can't reach its storage disks (unplugged, switched off, or not ready). The device's own explanation is shown under it.
+    static var appShellNoStorageTitle: String { L("app.shell.no_storage_title", table: "AppShell") }
+
     /// Not connected
     ///
     /// Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start).

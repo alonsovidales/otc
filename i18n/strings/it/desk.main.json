@@ -282,6 +282,10 @@
     "text": "Non ci sono ancora cartelle: aggiungine una qui sotto.",
     "en": "No folders yet — add one below."
   },
+  "desk.main.no_storage": {
+    "text": "Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
   "desk.main.not_connected_error": {
     "text": "non connesso",
     "en": "not connected"
@@ -395,6 +399,10 @@
   "desk.main.status_missing_settings": {
     "text": "Manca il dominio o la password",
     "en": "Missing domain/password"
+  },
+  "desk.main.status_no_storage": {
+    "text": "Dispositivo senza accesso ai dischi",
+    "en": "Device storage unavailable"
   },
   "desk.main.status_not_connected": {
     "text": "Non connesso",

@@ -254,6 +254,14 @@
     "en": "Unable to fetch the connection's public key",
     "reviewed": "claude-backtranslation 2026-10-11 #bd7df214"
   },
+  "app.shell.no_storage": {
+    "text": "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
+  "app.shell.no_storage_title": {
+    "text": "De opslag van je apparaat is niet beschikbaar",
+    "en": "Your device's storage isn't available"
+  },
   "app.shell.not_connected": {
     "text": "Niet verbonden",
     "en": "Not connected"

@@ -344,6 +344,11 @@ func DeskMainNoFolders() Msg {
 	return Msg{Key: "desk.main.no_folders"}
 }
 
+// DeskMainNoStorage is desk.main.no_storage: "Your device can't reach its storage disks. Check they're plugged in and switched…".
+func DeskMainNoStorage() Msg {
+	return Msg{Key: "desk.main.no_storage"}
+}
+
 // DeskMainNotConnectedError is desk.main.not_connected_error: "not connected".
 func DeskMainNotConnectedError() Msg {
 	return Msg{Key: "desk.main.not_connected_error"}
@@ -477,6 +482,11 @@ func DeskMainStatusDisconnected() Msg {
 // DeskMainStatusMissingSettings is desk.main.status_missing_settings: "Missing domain/password".
 func DeskMainStatusMissingSettings() Msg {
 	return Msg{Key: "desk.main.status_missing_settings"}
+}
+
+// DeskMainStatusNoStorage is desk.main.status_no_storage: "Device storage unavailable".
+func DeskMainStatusNoStorage() Msg {
+	return Msg{Key: "desk.main.status_no_storage"}
 }
 
 // DeskMainStatusNotConnected is desk.main.status_not_connected: "Not connected".

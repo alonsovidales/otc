@@ -282,6 +282,10 @@
     "text": "Ainda não há pastas: adiciona uma abaixo.",
     "en": "No folders yet — add one below."
   },
+  "desk.main.no_storage": {
+    "text": "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
   "desk.main.not_connected_error": {
     "text": "sem ligação",
     "en": "not connected"
@@ -395,6 +399,10 @@
   "desk.main.status_missing_settings": {
     "text": "Falta o domínio ou a palavra-passe",
     "en": "Missing domain/password"
+  },
+  "desk.main.status_no_storage": {
+    "text": "Dispositivo sem acesso aos discos",
+    "en": "Device storage unavailable"
   },
   "desk.main.status_not_connected": {
     "text": "Não ligado",

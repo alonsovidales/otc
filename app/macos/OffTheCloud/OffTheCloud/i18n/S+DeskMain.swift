@@ -409,6 +409,11 @@ extension S {
     /// Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.
     static var deskMainNoFolders: String { L("desk.main.no_folders", table: "DeskMain") }
 
+    /// Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.
+    ///
+    /// Both apps: the explanation shown with the status desk.main.status_no_storage (macOS under the status line; otc-sync as its tooltip and in the Connect dialog), when the device sent no explanation of its own (it normally does, with the same meaning).
+    static var deskMainNoStorage: String { L("desk.main.no_storage", table: "DeskMain") }
+
     /// not connected
     ///
     /// otc-sync: reason shown on a folder's line of the tray menu when a request couldn't be sent because the connection to the device was down. Lowercase, as it follows the folder's name and a warning sign.
@@ -577,6 +582,11 @@ extension S {
     ///
     /// Both apps: connection status while the device's address or its password isn't set.
     static var deskMainStatusMissingSettings: String { L("desk.main.status_missing_settings", table: "DeskMain") }
+
+    /// Device storage unavailable
+    ///
+    /// Both apps: connection status when the device answers that it can't reach its storage disks (unplugged, switched off, or not ready); the app asks again every 30 seconds.
+    static var deskMainStatusNoStorage: String { L("desk.main.status_no_storage", table: "DeskMain") }
 
     /// Not connected
     ///

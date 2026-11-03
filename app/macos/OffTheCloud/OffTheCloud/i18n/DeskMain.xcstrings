@@ -3197,6 +3197,53 @@
         }
       }
     },
+    "desk.main.no_storage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo no puede acceder a sus discos de almacenamiento. Comprueba que estén conectados y encendidos; volverá a ponerse en marcha solo en cuanto estén de vuelta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta."
+          }
+        }
+      }
+    },
     "desk.main.not_connected_error" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4462,6 +4509,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falta o domínio ou a palavra-passe"
+          }
+        }
+      }
+    },
+    "desk.main.status_no_storage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerätespeicher nicht verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device storage unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo sin acceso a sus discos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stockage de l’appareil indisponible"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo senza accesso ai dischi"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparaatopslag niet beschikbaar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo sem acesso aos discos"
           }
         }
       }

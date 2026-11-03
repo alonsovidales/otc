@@ -162,6 +162,9 @@
   "web.shell.top.show_menu": "Menü einblenden",
   "web.shell.unreachable.disabled": "Dieses Konto wurde deaktiviert",
   "web.shell.unreachable.note": "Es ist nichts verloren – alles bleibt auf dem Gerät selbst. Diese Seite prüft laufend und macht von selbst weiter, sobald das Gerät wieder da ist.",
+  "web.shell.unreachable.storage_note": "Diese Seite prüft alle 30 Sekunden erneut und macht von selbst weiter, sobald dein Gerät wieder da ist.",
+  "web.shell.unreachable.storage_text": "Dein Gerät kann seine Speicherlaufwerke nicht erreichen. Prüfe, ob sie angeschlossen und eingeschaltet sind; es startet von selbst neu, sobald sie wieder da sind.",
+  "web.shell.unreachable.storage_title": "Der Speicher deines Geräts ist nicht verfügbar",
   "web.shell.unreachable.title": "Dieses Gerät ist gerade nicht verfügbar",
   "web.shell.unreachable.wifi_hint": "Du hast den Namen oder das Passwort deines WLANs geändert? Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und öffne dann Einstellungen › WLAN.",
   "web.shell.update.critical": "\u003cb\u003eKritisches Update {version} verfügbar.\u003c/b\u003e {summary} Installiere es so bald wie möglich."
