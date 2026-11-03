@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DiscFull
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,6 +36,9 @@ import cloud.offthe.otc.i18n.appShellLeaveButton
 import cloud.offthe.otc.i18n.appShellLeaveMessageConnection
 import cloud.offthe.otc.i18n.appShellLeaveMessageStart
 import cloud.offthe.otc.i18n.appShellLeaveTitle
+import cloud.offthe.otc.i18n.appShellNoStorage
+import cloud.offthe.otc.i18n.appShellNoStorageTitle
+import cloud.offthe.otc.net.ErrorCodes
 import cloud.offthe.otc.i18n.appShellSaveRetry
 import cloud.offthe.otc.i18n.appShellStillTrying
 import cloud.offthe.otc.i18n.appShellUnreachableWifiHint
@@ -156,10 +160,15 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
 }
 
 // Port of DeviceUnreachableView.swift (issue #56): the bridge's verdict
-// that the device is registered but not connected, or disabled.
+// that the device is registered but not connected, or disabled - and
+// (issue #207) the device's own word that it can't reach its storage
+// disks: a disk with a warning, its own heading and the device's words (our
+// copy when it sent none), no Wi-Fi hint, and still trying - every 30 s
+// (OTCConnection's StorageWait).
 @Composable
 fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? = null) {
     val disabled = code == "account_disabled"
+    val noStorage = code == ErrorCodes.STORAGE_UNAVAILABLE
     // The close button: leave this device for the connection screen - how
     // a phone moves on from a device that died (as DeviceUnreachableView.swift).
     var confirmClose by remember { mutableStateOf(false) }
@@ -181,20 +190,33 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                 }
             }
             Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(if (disabled) Icons.Default.Block else Icons.Default.CloudOff, null, tint = Color(0xFFFF9500), modifier = Modifier.size(56.dp))
+                val icon = when {
+                    disabled -> Icons.Default.Block
+                    noStorage -> Icons.Default.DiscFull
+                    else -> Icons.Default.CloudOff
+                }
+                Icon(icon, null, tint = Color(0xFFFF9500), modifier = Modifier.size(56.dp))
                 Spacer(Modifier.height(16.dp))
-                Text((if (disabled) S.appShellAccountDisabled() else S.appShellDeviceUnavailable()).resolve(),
-                    style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                if (message.isNotEmpty()) {
+                val heading = when {
+                    disabled -> S.appShellAccountDisabled()
+                    noStorage -> S.appShellNoStorageTitle()
+                    else -> S.appShellDeviceUnavailable()
+                }
+                Text(heading.resolve(), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                val words = if (noStorage) message.ifEmpty { S.appShellNoStorage().resolve() } else message
+                if (words.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Text(words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
                 if (!disabled) {
                     // A device that lost the home Wi-Fi (its name or password
                     // changed) comes back over a cable, then Settings › Wi-Fi.
-                    // Before "still trying", as on iOS.
-                    Spacer(Modifier.height(10.dp))
-                    Text(S.appShellUnreachableWifiHint().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    // Before "still trying", as on iOS. Not when the device
+                    // answered: its disks are what is missing.
+                    if (!noStorage) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(S.appShellUnreachableWifiHint().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)

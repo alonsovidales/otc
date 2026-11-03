@@ -201,9 +201,9 @@ class WSClientTest {
     /**
      * A stand-in device: plain ws://, a bare WebSocket upgrade, then every
      * binary message read as a ReqEnvelope and handed to [answer] with a way
-     * to reply.
+     * to reply. StorageWaitTest uses it too.
      */
-    private class Device(
+    internal class Device(
         // false: the connection is taken, the upgrade never answered.
         private val answerUpgrade: Boolean = true,
         // After the upgrade, nothing is read for this long (a busy link).

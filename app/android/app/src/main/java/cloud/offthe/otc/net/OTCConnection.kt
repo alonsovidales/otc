@@ -72,7 +72,12 @@ object OTCConnection {
     private val _connectionFailed = MutableStateFlow(false)
     val authenticated: StateFlow<Boolean> = _authenticated
     val lastError: StateFlow<UiText?> = _lastError
-    /** Issue #56: "device_unreachable" / "account_disabled" (Ack.code), null when the device answers. */
+    /**
+     * Issue #56: "device_unreachable" / "account_disabled" (Ack.code), null
+     * when the device answers. Issue #207: also "storage_unavailable", the
+     * device's own answer while it can't reach its storage disks
+     * ([storage]); the card shows the device's words ([lastError]).
+     */
     val statusCode: StateFlow<String?> = _statusCode
     /** Set whenever connecting or signing in fails; MainView shows the connection form while set. */
     val connectionFailed: StateFlow<Boolean> = _connectionFailed
@@ -139,6 +144,14 @@ object OTCConnection {
     // 5 s doubling: at most 4 failures in the first minute, under the lockout.
     @Volatile private var authBackoffMs = 5_000L
     private const val maxAuthBackoffMs = 300_000L
+
+    // Issue #207: the device said it can't reach its storage disks. For 30 s
+    // after each such answer a connect fails at once with its words instead
+    // of dialling (every screen's retries, the card's, a drop's backoff),
+    // and the device is asked again every 30 s, or at once at a wake (the
+    // app back in front, a network up). Credentials and everything kept
+    // stay as they are.
+    private val storage = StorageWait(scope)
 
     /** [code]: the device's error_code when it refused with one ("" otherwise), checked before the message (ErrorCodes). */
     class RequestError(message: String, val code: String = "") : IOException(message) {
@@ -214,7 +227,7 @@ object OTCConnection {
         var used: WSClient? = null
         try {
             connectWithin(timeoutMs)
-            ws.also { used = it }.exchange(timeoutMs, build)
+            ws.also { used = it }.exchange(timeoutMs, build).also { noteAnswer(it.resp, used) }
         } catch (e: CancellationException) {
             // The caller went away (a closed screen, a cancelled search): the
             // connection is fine, and signing in again would cost the device
@@ -239,8 +252,21 @@ object OTCConnection {
             // it: the one in use is fine, and the retry goes there.
             if (used == null || used === ws) _authenticated.value = false
             connectWithin(timeoutMs)
-            ws.exchange(timeoutMs, build)
+            val again = ws
+            again.exchange(timeoutMs, build).also { noteAnswer(it.resp, again) }
         }
+    }
+
+    /**
+     * Issue #207: a signed-in request answered storage_unavailable - the
+     * device lost its disks under a session. The same state as at sign-in,
+     * and the next request signs in again (once the hold lets it), so the
+     * session is made afresh when they are back.
+     */
+    private fun noteAnswer(r: RespEnvelope, on: WSClient?) {
+        if (!ErrorCodes.isStorageUnavailable(r)) return
+        if (on == null || on === ws) _authenticated.value = false
+        enterStorage(StorageWait.text(r))
     }
 
     /**
@@ -355,6 +381,7 @@ object OTCConnection {
         // An explicit retry or new credentials: try at once.
         authRejection = null
         authBackoffMs = 5_000L
+        storage.lift()
         MediaStream.reset()
         // The session is over: a language picked before the next sign-in
         // isn't compared with what this one saw (LanguageSettings).
@@ -367,6 +394,7 @@ object OTCConnection {
     /** Log Out: drop the connection and forget what went wrong with the last one. */
     fun reset() {
         invalidate()
+        storage.leave()
         _lastError.value = null
         _statusCode.value = null
         _connectionFailed.value = false
@@ -395,6 +423,10 @@ object OTCConnection {
             _connectionFailed.value = true
             throw TextIOException(text)
         }
+        // Issue #207: the device said a moment ago that it can't reach its
+        // storage: its words again, nothing dialled, until the hold ends
+        // (StorageWait asks again then, or at a wake).
+        storage.held()?.let { throw RequestError(it.now(), ErrorCodes.STORAGE_UNAVAILABLE) }
         val credKey = credentialsKey(url, deviceId, password)
         authRejection?.let { r ->
             if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.text.now())
@@ -502,6 +534,14 @@ object OTCConnection {
                 return false
             }
             if (refusal != null) {
+                // Issue #207: the device itself can't reach its storage; the
+                // bridge would only say the same.
+                if (refusal.storage) {
+                    currentCoroutineContext().ensureActive()
+                    record(refusal, credKey)
+                    _connectionFailed.value = true
+                    throw RequestError(refusal.text.now(), ErrorCodes.STORAGE_UNAVAILABLE)
+                }
                 if (!refusal.auth || refusal.ack == null) return false
                 currentCoroutineContext().ensureActive()
                 record(refusal, credKey)
@@ -523,15 +563,21 @@ object OTCConnection {
 
     // What answered instead of signing us in: GetPubKey's or Auth's reply -
     // the device's (or the bridge's) own words when it gave some.
-    private class Refusal(val text: UiText, val ack: Ack?, val auth: Boolean)
+    // [storage]: the device can't reach its storage disks (issue #207) - no
+    // verdict on the password, whichever of the two said it.
+    private class Refusal(val text: UiText, val ack: Ack?, val auth: Boolean, val storage: Boolean = false)
 
     /** GetPubKey, then Auth with the password sealed to that key. null once signed in; throws when the socket fails. */
     private suspend fun signIn(c: WSClient, password: String, deviceId: String): Refusal? {
         val pubKeyResp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+        if (ErrorCodes.isStorageUnavailable(pubKeyResp)) return Refusal(StorageWait.text(pubKeyResp), null, auth = false, storage = true)
         if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
             val ack = if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) pubKeyResp.respAck else null
             return Refusal(ack?.errorMsg?.ifEmpty { null }?.let { UiText.Raw(it) } ?: S.appShellNoPublicKey(), ack, auth = false)
         }
+        // The device answered with its key: whatever it says next, its
+        // storage is there again (issue #207).
+        leaveStorage()
         val encrypted = PwCrypto.encryptPassword(password, pubKeyResp.respPubKey.publicKey.toByteArray())
         val auth = Auth.newBuilder()
             .setUuid(deviceId)
@@ -540,6 +586,7 @@ object OTCConnection {
             .build()
         val resp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqAuth(auth) }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) return null
+        if (ErrorCodes.isStorageUnavailable(resp)) return Refusal(StorageWait.text(resp), null, auth = false, storage = true)
         val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
         return Refusal(if (ack != null) UiText.Raw(ack.errorMsg) else S.appShellAuthFailed(), ack, auth = true)
     }
@@ -562,19 +609,29 @@ object OTCConnection {
             c.close()
             record(refusal, credKey)
             _connectionFailed.value = true
-            throw RequestError(refusal.text.now())
+            throw RequestError(refusal.text.now(), if (refusal.storage) ErrorCodes.STORAGE_UNAVAILABLE else "")
         }
     }
 
     private fun record(r: Refusal, credKey: String) {
+        if (r.storage) {
+            enterStorage(r.text)
+            return
+        }
+        // Any other answer: out of issue #207's state.
+        storage.leave()
         // too_many_attempts is the device's own verdict on the password, as
         // an empty code is: the connection card shows its words with the
         // fields to fix it, never "isn't available" with the cable hint
         // (statusCode is the bridge's device_unreachable and account_disabled).
-        r.ack?.let { _statusCode.value = it.code.takeUnless { c -> c.isEmpty() || c == "too_many_attempts" } }
+        val ack = r.ack
+        if (ack != null) {
+            _statusCode.value = ack.code.takeUnless { c -> c.isEmpty() || c == "too_many_attempts" }
+        } else if (_statusCode.value == ErrorCodes.STORAGE_UNAVAILABLE) {
+            _statusCode.value = null
+        }
         _lastError.value = r.text
-        val ack = r.ack ?: return
-        if (!r.auth) return
+        if (ack == null || !r.auth) return
         // The device's own verdict on the password; the bridge's
         // (device_unreachable, account_disabled) keeps today's retries.
         val rejectedForMs = when (ack.code) {
@@ -590,8 +647,32 @@ object OTCConnection {
         cloud.offthe.otc.i18n.LanguageSettings.sessionEnded()
     }
 
+    /**
+     * Issue #207: the device answered storage_unavailable with [text]: its
+     * words where the "isn't available" card goes, the hold and the 30 s
+     * re-asks (StorageWait). No verdict on the password: nothing is cleared,
+     * and the auth-rejection gate isn't touched.
+     */
+    private fun enterStorage(text: UiText) {
+        _statusCode.value = ErrorCodes.STORAGE_UNAVAILABLE
+        _lastError.value = text
+        _connectionFailed.value = true
+        storage.enter(text) { ensureConnected() }
+    }
+
+    /** The device answered otherwise (its key): out of issue #207's state, and its words go from the card. */
+    private fun leaveStorage() {
+        if (!storage.active) return
+        storage.leave()
+        if (_statusCode.value == ErrorCodes.STORAGE_UNAVAILABLE) {
+            _statusCode.value = null
+            _lastError.value = null
+        }
+    }
+
     /** Signed in through the configured endpoint [url] (or at home for it). */
     private fun signedIn(url: String) {
+        storage.leave()
         _lastError.value = null
         _statusCode.value = null
         _connectionFailed.value = false

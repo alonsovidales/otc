@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import cloud.offthe.otc.proto.RespEnvelope
+
 // Codes before prose (docs/i18n.md): the app acts on a reply's error_code
 // and reads its message only when it has no code. A device from before the
 // code existed says it in English alone; a localized device writes the
@@ -27,4 +29,18 @@ object ErrorCodes {
     /** The device is older than the request. Builds before v9 send only the message, "unknown payload". */
     fun isUnknownPayload(code: String?, message: String?): Boolean =
         code == "unknown_payload" || (code.isNullOrEmpty() && message.orEmpty().contains("unknown payload"))
+
+    /**
+     * Issue #207: the device can't reach its storage disks (missing, not
+     * mounted, the mirror not assembled, its database unable to start on
+     * them) and answers every request with this, GetPubKey first, until
+     * they are back. Not a verdict on the password: nothing the phone holds
+     * is touched for it (StorageWait). Devices before #207 never send it.
+     */
+    const val STORAGE_UNAVAILABLE = "storage_unavailable"
+
+    /** Whether [r] is that answer: the envelope's error_code, or an Ack carrying it. */
+    fun isStorageUnavailable(r: RespEnvelope): Boolean =
+        r.errorCode == STORAGE_UNAVAILABLE ||
+            (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.code == STORAGE_UNAVAILABLE)
 }
