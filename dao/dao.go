@@ -435,6 +435,42 @@ func (dao *Dao) GetFileByHash(hash string) (file *pb.File, err error) {
 	return
 }
 
+// FilesOfHashes is GetFileByHash for many hashes, cHashChunk to a query
+// (issue #206: ResumePendingAnalysis asked one at a time): each hash's row
+// with the smallest path. A hash no row holds is left out.
+func (dao *Dao) FilesOfHashes(hashes []string) (map[string]*pb.File, error) {
+	files := make(map[string]*pb.File, len(hashes))
+	for _, chunk := range hashChunks(hashes) {
+		ph, args := inPlaceholders(chunk)
+		rows, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` in ("+ph+") order by `hash`, `path`", args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			file := new(pb.File)
+			var created, modified time.Time
+			var size int64
+			if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if files[file.Hash] != nil {
+				continue
+			}
+			file.Created = timestamppb.New(created)
+			file.Modified = timestamppb.New(modified)
+			SetFileSize(file, size)
+			files[file.Hash] = file
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return files, nil
+}
+
 func (dao *Dao) GetTags() (tags []string, err error) {
 	rowsTags, err := dao.db.Query("select distinct(`tag`) as `tag_name` from `file_tags` order by `tag_name`")
 	if err != nil {

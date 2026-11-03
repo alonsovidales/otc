@@ -322,11 +322,17 @@ func (mg *Manager) donePendingAnalysis(hash string) {
 	}
 }
 
+// cResumeChunk is how many pending hashes ResumePendingAnalysis reads the
+// files of at once (dao.FilesOfHashes).
+const cResumeChunk = 500
+
 // ResumePendingAnalysis puts back in the lanes what a restart interrupted:
 // a file that still has no thumbnail goes through both lanes, one that has
 // one only through the analysis. Called once per process at the first
 // sign-in, before BackfillMissingThumbnails, which leaves these files to
-// the lanes.
+// the lanes. The files are read cResumeChunk hashes to a query (issue
+// #206: one query a hash was minutes of a Pi's work after a big sync); a
+// chunk that can't be read stays pending, for the next start.
 func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 	if mg == nil || mg.dao == nil {
 		return
@@ -340,9 +346,19 @@ func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 		return
 	}
 	resumed := 0
-	for _, hash := range hashes {
-		file, err := mg.dao.GetFileByHash(hash)
-		if err != nil {
+	var files map[string]*pb.File
+	for i, hash := range hashes {
+		if i%cResumeChunk == 0 {
+			if files, err = mg.dao.FilesOfHashes(hashes[i:min(i+cResumeChunk, len(hashes))]); err != nil {
+				log.Error("could not read the files of the pending analyses, left for the next start:", err)
+				files = nil
+			}
+		}
+		if files == nil {
+			continue
+		}
+		file := files[hash]
+		if file == nil {
 			// Its file is gone.
 			mg.donePendingAnalysis(hash)
 			continue

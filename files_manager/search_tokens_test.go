@@ -279,8 +279,13 @@ func expectCopies(mock sqlmock.Sqlmock, n int) {
 	}
 }
 
-// expectPage is expectCopies for the next page served.
-func (st *searchTest) expectPage() { expectCopies(st.mock, 1) }
+// expectPage is expectCopies for the next page served (nothing to expect
+// against a real database: keysetScenarios' MySQL run).
+func (st *searchTest) expectPage() {
+	if st.mock != nil {
+		expectCopies(st.mock, 1)
+	}
+}
 
 // bothPageKinds runs test as a grid asking for its thumbnails and as one
 // omitting them: the same rows, order, token and pages served again.
@@ -342,6 +347,8 @@ func newKindSearchTest(t *testing.T, k searchKind, base, size int, paths []strin
 	if k.up {
 		base += cUpBase
 	}
+	// Served by keyset (browse_test.go): hashes of its own.
+	base += cKeysetBase * scenarioKeyset
 	st := &searchTest{t: t, ses: ses, paths: paths, base: base, omit: k.omit}
 	skip := map[int]bool{}
 	for _, i := range missing {
@@ -361,6 +368,11 @@ func newKindSearchTest(t *testing.T, k searchKind, base, size int, paths []strin
 		if !skip[i] {
 			st.thumb(i)
 		}
+	}
+	if scenarioKeyset != keysetOff {
+		// Issue #206: the same case served by keyset (browse_test.go).
+		st.keysetLibrary(k, db, mock)
+		return st
 	}
 	rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
 	if k.up {

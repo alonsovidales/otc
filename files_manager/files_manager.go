@@ -97,8 +97,13 @@ type Manager struct {
 	// startTagger starts loading the primary's RAM++ the first time
 	// something asks for it (waitForTagger), outside low-memory mode; nil
 	// elsewhere. A device none of whose users tag never loads it.
-	startTagger   func()
-	searchTokens  *searchTokenCache
+	startTagger  func()
+	searchTokens *searchTokenCache
+	// browse reads Images' plain browse a chunk at a time (issue #206,
+	// browse.go): the dao's BrowseMedia, set by Init. Without it (a
+	// Manager a test builds over a mocked database) every search reads its
+	// rows whole when it starts, as before.
+	browse        browseFunc
 	sharedLinkTTL time.Duration
 	// galleryCache holds shared galleries' decrypted manifests (see
 	// openGallery), made on first use under galleryMu.
@@ -247,6 +252,7 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 		searchTokens:  newSearchTokenCache(cSearchTokensMaxRows),
 		baseUrl:       baseUrl,
 		dao:           dao,
+		browse:        dao.BrowseMedia,
 		contentBudget: newMemBudget(budget),
 		sharedLinkTTL: sharedLinkTTLFromCfg(),
 		started:       time.Now(),
@@ -1211,6 +1217,10 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	// again (searchCursor.resume).
 	var last *searchCursor
 	again := false
+	// A plain browse's place in the library (issue #206, browse.go): all
+	// is what it has fetched, and more the rest. nil for every other
+	// search, whose all is every row.
+	var more *browseState
 	if oldToken != "" && before == nil {
 		// Both halves of this have to be checked before the value is
 		// used. A token the device no longer holds - expired after
@@ -1229,7 +1239,7 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 		// rows aren't this search's.
 		if cur, ok := mg.searchTokens.load(oldToken); ok && cur.sameDirection(newerThan) {
 			last = cur
-			all = cur.all
+			all, more = cur.all, cur.more
 			off, again = cur.resume(have, deletes)
 			files = all[off:]
 			token = oldToken
@@ -1239,6 +1249,8 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 			}
 		}
 	}
+	// How many photos this page holds - asked once the token is loaded.
+	toReturn := pageSize(limit, omit)
 	if !tokenFound {
 		// Issue #192: never what the owner keeps out of Images - and a
 		// search fails rather than show it when that can't be read.
@@ -1253,13 +1265,25 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 		// blob and showed up twice. Files still lists every path. Issue
 		// #201: SearchMedia gives each photo at its oldest copy, so a copy
 		// synced back today no longer takes it to the top of Images.
-		if newerThan != nil {
+		// The client was resuming a search this device no longer holds a
+		// token for (below).
+		skip := 0
+		if oldToken != "" && have > 0 {
+			skip = int(have)
+		}
+		switch {
+		case mg.plainBrowse(path, tags, personIDs, groupID, area, text, rating):
+			// Issue #206: only what this page shows (past skip), and the
+			// rest when a page needs it.
+			more = &browseState{query: dao.MediaBrowse{ImagesOnly: !includeVideos, Before: before, NewerThan: newerThan, Excluded: excluded}}
+			files, more, err = mg.fetchMore(nil, more, skip+toReturn)
+		case newerThan != nil:
 			files, err = mg.dao.SearchMediaNewerThanWithin(area, path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
-		} else {
+		default:
 			files, err = mg.dao.SearchMediaRated(area, path, tags, personIDs, groupID, !includeVideos, before, excluded, rating)
 		}
 		if err != nil {
-			return
+			return nil, "", err
 		}
 		// Smart search: the same photos, ranked by the text.
 		if text != "" {
@@ -1274,11 +1298,14 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 		// token did - so skip forward to where it actually got to. Only
 		// ever applied when resuming: a search starting from scratch
 		// sends no token and must never skip anything.
-		if oldToken != "" && have > 0 {
-			if int(have) >= len(files) {
+		if skip > 0 {
+			if skip >= len(files) {
 				files = nil
+			} else if more != nil {
+				// Not kept: the rows skipped are the client's already.
+				files = append([]*pb.File(nil), files[skip:]...)
 			} else {
-				files = files[have:]
+				files = files[skip:]
 			}
 			log.Debug("Resumed a search with an unknown token, skipped:", have)
 		}
@@ -1295,11 +1322,23 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	// refresh) picks the file up once it's ready. A missing thumbnail is
 	// a plain failed read here (a stat when the page omits thumbnails),
 	// not a scan of the whole result set.
-	toReturn := pageSize(limit, omit)
 	page := make([]*pb.File, 0, toReturn)
 	next := 0
-	for ; next < len(files) && len(page) < toReturn; next++ {
+	for len(page) < toReturn {
+		if next == len(files) {
+			// A plain browse fetches more when what it holds runs out:
+			// what the page still needs, and a chunk ahead.
+			if !more.more() {
+				break
+			}
+			if all, more, err = mg.fetchMore(all, more, max(toReturn-len(page), browseChunk)); err != nil {
+				return nil, "", err
+			}
+			files = all[off:]
+			continue
+		}
 		file := files[next]
+		next++
 		var content []byte
 		var isSmall bool
 		if omit {
@@ -1345,7 +1384,20 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 			log.Error("error reading the ratings of a search page, served without them:", ratingErr)
 		}
 	}
-	if next < len(files) {
+	// A plain browse that served all it held: whether the library goes on
+	// decides whether this is its last page. Should that look fail, the
+	// page is served with a token all the same, and the next page looks
+	// again.
+	for next == len(files) && more.more() {
+		grown, after, fetchErr := mg.fetchMore(all, more, browseChunk)
+		if fetchErr != nil {
+			log.Error("error looking past a search page, served with a token:", fetchErr)
+			break
+		}
+		all, more = grown, after
+		files = all[off:]
+	}
+	if next < len(files) || more.more() {
 		// The rows already served stay in the token only until they
 		// outnumber those from this page on (pageCursor), which stay so
 		// the page can be served again if its answer is lost. Issue #173
@@ -1354,7 +1406,7 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 		// the page's clones, never on these rows, so keeping them costs
 		// only the rows.
 		cur := pageCursor(last, all, off, next, have, len(page), again)
-		cur.seq, cur.deletes, cur.newerThan = seq, deletes, newerThan
+		cur.seq, cur.deletes, cur.newerThan, cur.more = seq, deletes, newerThan, more
 		mg.searchTokens.store(token, cur, time.Now(), gen)
 	} else {
 		// Nothing stored: a last page whose answer is lost is asked

@@ -55,6 +55,11 @@ type searchCursor struct {
 	// first (issue #194, SearchPhotos.newer_than), nil for every other
 	// search: it only goes on for requests of its kind (sameDirection).
 	newerThan *time.Time
+	// more is a plain browse's place in the library (issue #206,
+	// browse.go): all holds only what it has fetched, and a page that runs
+	// past it fetches more. nil for every other search, whose all is every
+	// row it found.
+	more *browseState
 }
 
 // sameDirection says whether a request with newerThan may go on with cur:
@@ -277,12 +282,19 @@ func (c *searchTokenCache) clear() {
 }
 
 // withoutFolders is cur without the rows under folders from its last page
-// on: neither served again nor served next. cur itself when there are
-// none, so nothing is copied for a token they don't touch.
+// on: neither served again nor served next - nor, for a plain browse,
+// fetched later (browseState.dropped). cur itself when there are none, so
+// nothing is copied for a token they don't touch.
 func withoutFolders(cur *searchCursor, folders []string) *searchCursor {
 	rest := cur.all[cur.prev:]
+	more := cur.more.dropping(folders)
 	if !slices.ContainsFunc(rest, func(f *pb.File) bool { return underFolders(f.Path, false, folders) }) {
-		return cur
+		if more == cur.more {
+			return cur
+		}
+		out := *cur
+		out.more = more
+		return &out
 	}
 	kept := make([]*pb.File, 0, len(rest))
 	off := 0
@@ -296,7 +308,7 @@ func withoutFolders(cur *searchCursor, folders []string) *searchCursor {
 		kept = append(kept, f)
 	}
 	out := *cur
-	out.all, out.prev, out.off = kept, 0, off
+	out.all, out.prev, out.off, out.more = kept, 0, off, more
 	return &out
 }
 
