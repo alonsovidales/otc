@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -38,7 +39,19 @@ func NewWithDB(db *sql.DB) *Dao {
 	return &Dao{db: db}
 }
 
+// Init opens the database and waits, for as long as it takes, until it
+// answers (see the loop's comment). The service itself starts with Open
+// and its own wait instead (issue #207: nostorage.Wait), which serves the
+// apps while the database doesn't answer.
 func Init() (dao *Dao) {
+	dao = Open()
+	dao.WaitReady()
+	return
+}
+
+// Open is the database handle, not yet asked anything: sql.Open only
+// checks the DSN.
+func Open() (dao *Dao) {
 	dao = new(Dao)
 
 	dsn := fmt.Sprintf(
@@ -68,6 +81,18 @@ func Init() (dao *Dao) {
 	dao.db.SetMaxIdleConns(10)
 	dao.db.SetConnMaxLifetime(30 * time.Minute)
 
+	return
+}
+
+// Ping is whether the database answers now, within 5 s.
+func (dao *Dao) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return dao.db.PingContext(ctx)
+}
+
+// WaitReady waits until the database answers.
+func (dao *Dao) WaitReady() {
 	// A freshly-imaged device (issue #38) boots MariaDB and otc around the
 	// same time — systemd's `After=mariadb.service` orders the units, but
 	// "started" doesn't mean "accepting connections yet", and on a slow
@@ -78,14 +103,13 @@ func Init() (dao *Dao) {
 	// request, so waiting here is strictly better than dying and letting
 	// systemd's RestartSec churn through the same crash repeatedly.
 	for {
-		if err = dao.db.Ping(); err == nil {
-			break
+		err := dao.Ping()
+		if err == nil {
+			return
 		}
 		log.Error("cannot reach the DB yet, retrying in 5s:", err)
 		time.Sleep(5 * time.Second)
 	}
-
-	return
 }
 
 func (dao *Dao) Stop() {

@@ -334,6 +334,40 @@
     "text": "Votre appareil n’a presque plus d’espace (plein à {pct} %)",
     "en": "Your device is almost out of space ({pct}% full)"
   },
+  "dev.alert.storage.missing_days": {
+    "text": {
+      "one": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} jour",
+      "other": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} jours"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} day",
+      "other": "Your device couldn't reach its storage disks for {count} days"
+    }
+  },
+  "dev.alert.storage.missing_detail": {
+    "text": "Pendant ce temps, rien n’a pu être enregistré ni ouvert, et les apps en ont indiqué la raison. Les disques sont de retour et l’appareil fonctionne de nouveau normalement. Si cela se reproduit, vérifiez que les disques sont bien branchés et allumés.",
+    "en": "Meanwhile nothing could be saved or opened, and the apps said why. The disks are back and the device works normally again. If this happens again, check that the disks are plugged in firmly and switched on."
+  },
+  "dev.alert.storage.missing_hours": {
+    "text": {
+      "one": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} heure",
+      "other": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} heures"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} hour",
+      "other": "Your device couldn't reach its storage disks for {count} hours"
+    }
+  },
+  "dev.alert.storage.missing_minutes": {
+    "text": {
+      "one": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} minute",
+      "other": "Votre appareil n’a pas pu accéder à ses disques de stockage pendant {count} minutes"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} minute",
+      "other": "Your device couldn't reach its storage disks for {count} minutes"
+    }
+  },
   "dev.alert.tagger.not_loaded": {
     "text": "Le modèle d’étiquetage des images n’a pas pu être chargé",
     "en": "The image tagging model could not be loaded"

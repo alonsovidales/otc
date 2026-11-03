@@ -364,6 +364,26 @@ func DevAlertStorageFull(pct int) Msg {
 	return Msg{Key: "dev.alert.storage.full", Args: map[string]any{"pct": int64(pct)}}
 }
 
+// DevAlertStorageMissingDays is dev.alert.storage.missing_days: "Your device couldn't reach its storage disks for {count} days".
+func DevAlertStorageMissingDays(count int) Msg {
+	return Msg{Key: "dev.alert.storage.missing_days", Args: map[string]any{"count": int64(count)}}
+}
+
+// DevAlertStorageMissingDetail is dev.alert.storage.missing_detail: "Meanwhile nothing could be saved or opened, and the apps said why. The disks are…".
+func DevAlertStorageMissingDetail() Msg {
+	return Msg{Key: "dev.alert.storage.missing_detail"}
+}
+
+// DevAlertStorageMissingHours is dev.alert.storage.missing_hours: "Your device couldn't reach its storage disks for {count} hours".
+func DevAlertStorageMissingHours(count int) Msg {
+	return Msg{Key: "dev.alert.storage.missing_hours", Args: map[string]any{"count": int64(count)}}
+}
+
+// DevAlertStorageMissingMinutes is dev.alert.storage.missing_minutes: "Your device couldn't reach its storage disks for {count} minutes".
+func DevAlertStorageMissingMinutes(count int) Msg {
+	return Msg{Key: "dev.alert.storage.missing_minutes", Args: map[string]any{"count": int64(count)}}
+}
+
 // DevAlertTaggerNotLoaded is dev.alert.tagger.not_loaded: "The image tagging model could not be loaded".
 func DevAlertTaggerNotLoaded() Msg {
 	return Msg{Key: "dev.alert.tagger.not_loaded"}

@@ -31,6 +31,10 @@
     "text": "not available on this instance",
     "note": "Error reply to a request only the device's main user can make (managing users, updates, restart, storage, Wi-Fi, the bridge, logs), sent by an additional user's account on the same device. An instance is one user's own copy of the device's software."
   },
+  "dev.err.storage_unavailable": {
+    "text": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.",
+    "note": "Error reply to every request while the device runs without its storage: its disks are unplugged, switched off or not ready, or the database on them can't start. The apps show it where they would say the device can't be reached, instead of signing in, and ask again every 30 seconds. Once the disks are back, the device starts normally again by itself."
+  },
   "dev.err.unknown_request": {
     "text": "This device does not understand that request: its software is older than the app. Check for updates in Settings.",
     "note": "Error reply to a request the device's software doesn't know: the app is newer than the device. Settings is the app's Settings screen, where the device's Update button is."

@@ -48,6 +48,8 @@ var headEnglish = []struct {
 	// (container mode): their English as first written.
 	{"dev.err.not_in_container", i18n.DevErrNotInContainer(), "Not available in Docker: the server the device runs on looks after its disks and network."},
 	{"dev.err.not_on_this_instance", i18n.DevErrNotOnThisInstance(), "not available on this instance"},
+	// Issue #207 (new): the apps keep this English as their fallback.
+	{"dev.err.storage_unavailable", i18n.DevErrStorageUnavailable(), "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."},
 	{"dev.err.unknown_request", i18n.DevErrUnknownRequest(), "This device does not understand that request: its software is older than the app. Check for updates in Settings."},
 
 	{"dev.auth.decrypt_failed", i18n.DevAuthDecryptFailed(), "unable to decrypt key material"},

@@ -15,6 +15,7 @@ import (
 	"github.com/alonsovidales/otc/hardening"
 	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/nostorage"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/websocket"
@@ -26,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // initOwnerPassword sets the device's owner password from stdin, once:
@@ -171,20 +173,50 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	dao := dao.Init()
+	// `otc <env> degraded` (issue #207): otc-degraded.service, which the
+	// root raid_watch.py starts when otc.service can't start for want of
+	// its storage (RequiresMountsFor) - no database, nothing under the
+	// storage path, until systemd stops it to start otc again.
+	if len(os.Args) > 2 && os.Args[2] == "degraded" {
+		os.Exit(runWithoutStorage())
+	}
+
+	dao := dao.Open()
 
 	// `otc <env> init-owner-password` (the password on stdin): the setup
 	// wizard's password, set before the service first starts - the same as
 	// the first sign-in would, with nothing else loaded. A password that is
 	// already set (a recovered device) is left alone.
 	if len(os.Args) > 2 && os.Args[2] == "init-owner-password" {
+		dao.WaitReady()
 		os.Exit(initOwnerPassword(dao))
 	}
 	// `otc <env> init-profile` (JSON on stdin): the wizard's profile and
 	// face-recognition choice, set before the service first starts.
 	if len(os.Args) > 2 && os.Args[2] == "init-profile" {
+		dao.WaitReady()
 		os.Exit(initProfile(dao))
 	}
+
+	// Issue #207: nothing touches the storage before it is there - mounted
+	// when fstab says it is a mount, writable, its database answering.
+	// After a minute without it the apps are told why (storage_unavailable,
+	// on this port and through the bridge) until it is back.
+	child := os.Getenv(supervisor.ChildEnvVar) != ""
+	outageDir := ""
+	if !child {
+		outageDir, _ = os.Getwd()
+	}
+	storagePath := ""
+	if cfg.HasSection("otc") {
+		storagePath = cfg.GetStr("otc", "storage-path")
+	}
+	nostorage.Wait(nostorage.Options{
+		StoragePath: storagePath,
+		Ping:        dao.Ping,
+		Dir:         outageDir,
+		Serve:       func() func() { return serveWithoutStorage(!child) },
+	})
 	if line := memProfile.Describe(); line != "" {
 		log.Info(line)
 	}
@@ -255,6 +287,50 @@ func main() {
 
 	log.Info("Stopping all the services")
 	stopServices(filesManager, sup, dao)
+}
+
+// serveWithoutStorage starts the device without its storage (issue #207)
+// on this instance's port and the bridge, and returns what stops it. In
+// this file for the same reason as initOwnerPassword.
+func serveWithoutStorage(primary bool) (stop func()) {
+	static := cfg.GetStr("otc-api", "static")
+	u := websocket.NewUnavailable(static, primary)
+	stopHTTP := api.ServeUnavailable(int(cfg.GetInt("otc-api", "port")), static, u.Listen)
+	return func() {
+		stopHTTP()
+		u.Stop()
+	}
+}
+
+// runWithoutStorage is `otc <env> degraded`: the device without its
+// storage until systemd stops it (otc.service conflicts with it). The
+// outage is recorded from when raid_watch.py first saw the storage
+// missing, and noted once a minute, in the working directory.
+func runWithoutStorage() int {
+	log.Info("running without the storage: every request is answered storage_unavailable")
+	wd, err := os.Getwd()
+	if err == nil {
+		if err := nostorage.Begin(wd, nostorage.MissingSince(time.Now())); err != nil {
+			log.Error("could not record the outage:", err)
+		}
+	}
+	stop := serveWithoutStorage(true)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
+	for {
+		select {
+		case <-c:
+			stop()
+			log.Info("stopped running without the storage")
+			return 0
+		case <-tick.C:
+			if wd != "" {
+				nostorage.Touch(wd)
+			}
+		}
+	}
 }
 
 // stopServices is the clean stop, in order. The run marker goes first: a

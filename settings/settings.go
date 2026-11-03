@@ -84,6 +84,13 @@ func Init(dao *dao.Dao) (*Settings, error) {
 	}, nil
 }
 
+// Offline is the bridge identity alone, for the device without its
+// storage (issue #207: websocket.Unavailable): nothing is read from or
+// written to a database, and only Identity and Domain mean anything.
+func Offline(deviceUuid, domain, bridgeSecret string) *Settings {
+	return &Settings{deviceUuid: deviceUuid, domain: domain, bridgeSecret: bridgeSecret}
+}
+
 // daoSchemaBehind is dao.ErrSchemaBehind, reachable where a parameter
 // named dao hides the package.
 var daoSchemaBehind = dao.ErrSchemaBehind

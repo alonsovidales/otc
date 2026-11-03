@@ -4,6 +4,7 @@ package websocket
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
@@ -12,6 +13,7 @@ import (
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/network"
+	"github.com/alonsovidales/otc/nostorage"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/raidwatch"
@@ -71,6 +73,14 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 			},
 			PushText: func(t push.Text) { ps.NotifyText(t, push.Target{}) },
 		})
+	}
+
+	// Issue #207: the storage back after the device ran without it - an
+	// Alert saying for how long (nostorage, recorded on the boot disk).
+	if sup != nil {
+		if wd, err := os.Getwd(); err == nil {
+			go nostorage.Report(wd, dao.AddStorageNotification)
+		}
 	}
 
 	// A Wi-Fi that stopped sending properly (Pit, brcmfmac over SDIO) is

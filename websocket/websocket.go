@@ -235,6 +235,22 @@ type Manager struct {
 	// also orders a sign-in against a change (signIn).
 	liveMu sync.Mutex
 	live   map[*connHandler]func()
+	// Issue #207 (unavailable.go): unavailable is the device without its
+	// storage, answering every request storage_unavailable; bridgeHost
+	// and poolTarget are its relay and pool size ("" and 0: [otc]'s); and
+	// closed, once it stops, keeps its pool from dialling again.
+	unavailable bool
+	bridgeHost  string
+	poolTarget  int
+	closed      atomic.Bool
+	// identity is the copy of this instance's bridge identity kept on the
+	// boot disk for that mode (unavailable.go): its file, and what it last
+	// wrote.
+	identity struct {
+		mu    sync.Mutex
+		file  string
+		saved bridgeIdentity
+	}
 }
 
 // startBackfillOnce kicks off the missing-thumbnail repair the first
@@ -359,12 +375,18 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// means no relay - the instance still serves normally on its own port.
 	if !bridgeConfigured() {
 		log.Info("no bridge-addr configured - this instance stays local-only")
+		// Issue #207: no copy of an identity it no longer registers with.
+		if wd, err := os.Getwd(); err == nil {
+			forgetIdentity(wd)
+		}
 	} else {
 		// The bridge's addresses, kept beside the run marker: a resolver
 		// that stops answering (a home link saturated by an update's
-		// downloads) no longer keeps the device off the bridge.
+		// downloads) no longer keeps the device off the bridge. The
+		// identity's copy for the device without its storage beside them.
 		if wd, err := os.Getwd(); err == nil {
 			wsframe.KeepAddressesIn(filepath.Join(wd, ".bridge-addresses.json"))
+			mg.identity.file = filepath.Join(wd, cIdentityFile)
 		}
 		mg.ensureBridgePool()
 		// A cable plugged in or out, another Wi-Fi network: the pool's
@@ -494,8 +516,12 @@ func bridgePoolLowWater() int {
 // attempt, which schedules its own jittered retry instead (see
 // failedBridgeDial) rather than competing with this for the same refill.
 func (mg *Manager) ensureBridgePool() {
-	target := bridgePoolTarget()
-	lowWater := bridgePoolLowWater()
+	if mg.closed.Load() {
+		return
+	}
+	target := mg.bridgePoolTarget()
+	// A pool smaller than a batch refills once it is empty.
+	lowWater := max(target-cBridgePoolRefillBatch, 0)
 
 	mg.bridgePool.mu.Lock()
 	total := mg.bridgePool.available + mg.bridgePool.pending
@@ -555,11 +581,17 @@ func (mg *Manager) bridgeAccess(withProviders bool, lang string) *pb.RespBridgeA
 }
 
 func (mg *Manager) openBridgeConn() {
-	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
-	log.Debug("Connecting to bridge:", cfg.GetStr("otc", "bridge-addr"), u)
+	if mg.closed.Load() {
+		mg.bridgePool.mu.Lock()
+		mg.bridgePool.pending--
+		mg.bridgePool.mu.Unlock()
+		return
+	}
+	u := url.URL{Scheme: "wss", Host: mg.bridgeAddr(), Path: "/ws"}
+	log.Debug("Connecting to bridge:", u)
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, err := wsframe.Dial(u.String(), h)
+	c, err := dialBridge(u.String(), h)
 	if err != nil {
 		log.Error("dialing websocket:", err)
 		mg.failedBridgeDial()
@@ -629,10 +661,19 @@ func (mg *Manager) openBridgeConn() {
 		mg.failedBridgeDial()
 		return
 	}
+	// Issue #207: the identity the bridge took, kept on the boot disk for
+	// the device without its storage.
+	mg.keepIdentity(ownerUuid, domain, secret)
 
 	log.Debug("Authenticated in the bridge, waiting for messages...")
 	mg.bridgePool.mu.Lock()
 	mg.bridgePool.pending--
+	if mg.closed.Load() {
+		// Stopped while this one registered (unavailable.go's Stop closes
+		// the idle ones under this lock): closed by the defer.
+		mg.bridgePool.mu.Unlock()
+		return
+	}
 	mg.bridgePool.available++
 	if mg.bridgePool.idle == nil {
 		mg.bridgePool.idle = map[io.Closer]struct{}{}
@@ -723,11 +764,30 @@ func (mg *Manager) failedBridgeDial() {
 func (mg *Manager) dropSurplusBridgeRetry() bool {
 	mg.bridgePool.mu.Lock()
 	defer mg.bridgePool.mu.Unlock()
-	if mg.bridgePool.available+mg.bridgePool.pending > bridgePoolTarget() {
+	if mg.closed.Load() || mg.bridgePool.available+mg.bridgePool.pending > mg.bridgePoolTarget() {
 		mg.bridgePool.pending--
 		return true
 	}
 	return false
+}
+
+// bridgePoolTarget is this manager's pool size: [otc]'s, or the smaller
+// one the device without its storage keeps (unavailable.go).
+func (mg *Manager) bridgePoolTarget() int {
+	if mg.poolTarget > 0 {
+		return mg.poolTarget
+	}
+	return bridgePoolTarget()
+}
+
+// bridgeAddr is the relay this manager registers with: [otc]
+// bridge-addr, or the one an identity kept for the device without its
+// storage names.
+func (mg *Manager) bridgeAddr() string {
+	if mg.bridgeHost != "" {
+		return mg.bridgeHost
+	}
+	return cfg.GetStr("otc", "bridge-addr")
 }
 
 // regenerateBridgeSecret backs the Settings page's self-service
@@ -1742,29 +1802,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		}
 
 	case *pb.ReqEnvelope_ReqGetStaticAsset:
-		path, rErr := staticassets.Resolve(ch.mg.staticPath, p.ReqGetStaticAsset.Path)
-		if rErr != nil {
-			resp.Error = true
-			resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
-			break
-		}
-		content, rErr := os.ReadFile(path)
-		if rErr != nil {
-			log.Error("error reading resolved static asset:", rErr)
-			resp.Error = true
-			resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
-			break
-		}
-		contentType := mime.TypeByExtension(filepath.Ext(path))
-		if contentType == "" {
-			contentType = http.DetectContentType(content)
-		}
-		resp.Payload = &pb.RespEnvelope_RespStaticAsset{
-			RespStaticAsset: &pb.RespStaticAsset{
-				Content:     content,
-				ContentType: contentType,
-			},
-		}
+		staticAssetReply(ch.mg.staticPath, p.ReqGetStaticAsset.Path, lang, resp)
 
 	case *pb.ReqEnvelope_ReqGetPubKey:
 		privKey, err := ch.getOrCreatePrivKey()
@@ -4736,6 +4774,11 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 		}
 	}()
 
+	// Issue #207: the device without its storage answers everything
+	// storage_unavailable, before anything that would ask the database.
+	if ch.mg.unavailable {
+		return ch.mg.unavailableReply(env, lang), ch.mg.closed.Load()
+	}
 	if demoMode {
 		if r, handled := ch.demoGate(env, lang); handled {
 			return r, false
@@ -4984,6 +5027,35 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 				closeConn()
 			}
 		}(&env)
+	}
+}
+
+// staticAssetReply answers ReqGetStaticAsset into resp: the file of the
+// web app at path under staticPath (staticassets.Resolve), typed by its
+// extension, or "asset not found".
+func staticAssetReply(staticPath, path, lang string, resp *pb.RespEnvelope) {
+	file, err := staticassets.Resolve(staticPath, path)
+	if err != nil {
+		resp.Error = true
+		resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
+		return
+	}
+	content, err := os.ReadFile(file)
+	if err != nil {
+		log.Error("error reading resolved static asset:", err)
+		resp.Error = true
+		resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
+		return
+	}
+	contentType := mime.TypeByExtension(filepath.Ext(file))
+	if contentType == "" {
+		contentType = http.DetectContentType(content)
+	}
+	resp.Payload = &pb.RespEnvelope_RespStaticAsset{
+		RespStaticAsset: &pb.RespStaticAsset{
+			Content:     content,
+			ContentType: contentType,
+		},
 	}
 }
 

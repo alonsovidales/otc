@@ -116,9 +116,15 @@ func everyAlertKey() map[string]struct {
 		// New with release 143 (no older English): the storage filling up,
 		// the tagging model not loading, an additional user's instance
 		// that keeps stopping.
-		"dev.alert.storage.almost_full":        {i18n.DevAlertStorageAlmostFull(91), "Your device's storage is 91% full"},
-		"dev.alert.storage.full":               {i18n.DevAlertStorageFull(98), "Your device is almost out of space (98% full)"},
-		"dev.alert.storage.detail":             {i18n.DevAlertStorageDetail(76_500_000_000, 3_800_000_000_000), "76.5 GB of 3.8 TB is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."},
+		"dev.alert.storage.almost_full": {i18n.DevAlertStorageAlmostFull(91), "Your device's storage is 91% full"},
+		"dev.alert.storage.full":        {i18n.DevAlertStorageFull(98), "Your device is almost out of space (98% full)"},
+		"dev.alert.storage.detail":      {i18n.DevAlertStorageDetail(76_500_000_000, 3_800_000_000_000), "76.5 GB of 3.8 TB is left. Delete files you no longer need, or move the device to larger disks: once it is full, new photos and files can't be saved."},
+		// New with issue #207 (no older English): the storage back after
+		// the device ran without it.
+		"dev.alert.storage.missing_minutes":    {i18n.DevAlertStorageMissingMinutes(1), "Your device couldn't reach its storage disks for 1 minute"},
+		"dev.alert.storage.missing_hours":      {i18n.DevAlertStorageMissingHours(5), "Your device couldn't reach its storage disks for 5 hours"},
+		"dev.alert.storage.missing_days":       {i18n.DevAlertStorageMissingDays(3), "Your device couldn't reach its storage disks for 3 days"},
+		"dev.alert.storage.missing_detail":     {i18n.DevAlertStorageMissingDetail(), "Meanwhile nothing could be saved or opened, and the apps said why. The disks are back and the device works normally again. If this happens again, check that the disks are plugged in firmly and switched on."},
 		"dev.alert.tagger.not_loaded":          {i18n.DevAlertTaggerNotLoaded(), "The image tagging model could not be loaded"},
 		"dev.alert.tagger.not_loaded_detail":   {i18n.DevAlertTaggerNotLoadedDetail("no such file"), "Photos and videos are saved and shown as usual, but get no tags to search by until it loads; the device keeps trying by itself (no such file). Once it has loaded, Reprocess Media in Settings adds the missing tags."},
 		"dev.alert.user.keeps_stopping":        {i18n.DevAlertUserKeepsStopping("kim", 5), "The user kim stopped 5 times in a row"},

@@ -457,6 +457,38 @@
     "note": "Title of an alert in Alerts: the device's storage disks are nearly full - soon nothing more can be saved. {pct} is how full they are, in percent, such as 98. Its detail is dev.alert.storage.detail.",
     "stored": true
   },
+  "dev.alert.storage.missing_days": {
+    "text": {
+      "one": "Your device couldn't reach its storage disks for {count} day",
+      "other": "Your device couldn't reach its storage disks for {count} days"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert in Alerts, added once the device can reach its storage disks again: for that long it ran without them (they were unplugged, switched off or not ready, or the database on them couldn't start), and the apps showed dev.err.storage_unavailable meanwhile. {count} is how long, in days (2 or more); dev.alert.storage.missing_minutes and missing_hours say shorter times.",
+    "stored": true
+  },
+  "dev.alert.storage.missing_detail": {
+    "text": "Meanwhile nothing could be saved or opened, and the apps said why. The disks are back and the device works normally again. If this happens again, check that the disks are plugged in firmly and switched on.",
+    "note": "Detail of the alerts dev.alert.storage.missing_minutes, missing_hours and missing_days: while the device couldn't reach its storage disks nothing could be saved to it or opened from it, and the apps showed why (dev.err.storage_unavailable). Now they are back. Plugged in firmly: the disks' USB plugs pushed fully in.",
+    "stored": true
+  },
+  "dev.alert.storage.missing_hours": {
+    "text": {
+      "one": "Your device couldn't reach its storage disks for {count} hour",
+      "other": "Your device couldn't reach its storage disks for {count} hours"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert in Alerts, added once the device can reach its storage disks again: for that long it ran without them (they were unplugged, switched off or not ready, or the database on them couldn't start), and the apps showed dev.err.storage_unavailable meanwhile. {count} is how long, in hours (2 to 47); dev.alert.storage.missing_minutes and missing_days say shorter and longer times.",
+    "stored": true
+  },
+  "dev.alert.storage.missing_minutes": {
+    "text": {
+      "one": "Your device couldn't reach its storage disks for {count} minute",
+      "other": "Your device couldn't reach its storage disks for {count} minutes"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert in Alerts, added once the device can reach its storage disks again: for that long it ran without them (they were unplugged, switched off or not ready, or the database on them couldn't start), and the apps showed dev.err.storage_unavailable meanwhile. {count} is how long, in minutes (1 to 119); dev.alert.storage.missing_hours and missing_days say longer times.",
+    "stored": true
+  },
   "dev.alert.tagger.not_loaded": {
     "text": "The image tagging model could not be loaded",
     "note": "Title of an alert in Alerts: the model the device uses to tag photos (words describing what is in a picture, to search by them) could not be loaded. Its detail is dev.alert.tagger.not_loaded_detail.",

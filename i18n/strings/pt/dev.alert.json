@@ -334,6 +334,40 @@
     "text": "O teu dispositivo está quase sem espaço ({pct}% ocupado)",
     "en": "Your device is almost out of space ({pct}% full)"
   },
+  "dev.alert.storage.missing_days": {
+    "text": {
+      "one": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} dia",
+      "other": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} dias"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} day",
+      "other": "Your device couldn't reach its storage disks for {count} days"
+    }
+  },
+  "dev.alert.storage.missing_detail": {
+    "text": "Entretanto, não foi possível guardar nem abrir nada, e as apps indicaram o motivo. Os discos estão de volta e o dispositivo funciona normalmente outra vez. Se voltar a acontecer, verifica se os discos estão bem ligados e com energia.",
+    "en": "Meanwhile nothing could be saved or opened, and the apps said why. The disks are back and the device works normally again. If this happens again, check that the disks are plugged in firmly and switched on."
+  },
+  "dev.alert.storage.missing_hours": {
+    "text": {
+      "one": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} hora",
+      "other": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} horas"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} hour",
+      "other": "Your device couldn't reach its storage disks for {count} hours"
+    }
+  },
+  "dev.alert.storage.missing_minutes": {
+    "text": {
+      "one": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} minuto",
+      "other": "O teu dispositivo não conseguiu aceder aos seus discos de armazenamento durante {count} minutos"
+    },
+    "en": {
+      "one": "Your device couldn't reach its storage disks for {count} minute",
+      "other": "Your device couldn't reach its storage disks for {count} minutes"
+    }
+  },
   "dev.alert.tagger.not_loaded": {
     "text": "Não foi possível carregar o modelo de etiquetagem de imagens",
     "en": "The image tagging model could not be loaded"

@@ -6,5 +6,6 @@
   "dev.err.not_authenticated": {"text": "no autenticado"},
   "dev.err.not_in_container": {"text": "No disponible en Docker: el servidor en el que funciona el dispositivo se encarga de sus discos y de su red."},
   "dev.err.not_on_this_instance": {"text": "no disponible en esta instancia"},
+  "dev.err.storage_unavailable": {"text": "Tu dispositivo no puede acceder a sus discos de almacenamiento. Comprueba que estén conectados y encendidos; volverá a ponerse en marcha por sí solo en cuanto vuelvan."},
   "dev.err.unknown_request": {"text": "Este dispositivo no entiende esa solicitud: su software es más antiguo que la app. Busca actualizaciones en Ajustes."}
 }

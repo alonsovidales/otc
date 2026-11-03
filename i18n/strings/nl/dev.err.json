@@ -28,6 +28,10 @@
     "text": "niet beschikbaar op deze instantie",
     "en": "not available on this instance"
   },
+  "dev.err.storage_unavailable": {
+    "text": "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze aangesloten en ingeschakeld zijn; het start vanzelf weer op zodra ze terug zijn.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
   "dev.err.unknown_request": {
     "text": "Dit apparaat begrijpt dat verzoek niet: de software is ouder dan de app. Zoek naar updates in Instellingen.",
     "en": "This device does not understand that request: its software is older than the app. Check for updates in Settings."

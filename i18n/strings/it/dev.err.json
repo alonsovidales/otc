@@ -28,6 +28,10 @@
     "text": "non disponibile su questa istanza",
     "en": "not available on this instance"
   },
+  "dev.err.storage_unavailable": {
+    "text": "Il tuo dispositivo non riesce a raggiungere i suoi dischi di archiviazione. Controlla che siano collegati e accesi; ripartirà da solo appena saranno di nuovo disponibili.",
+    "en": "Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back."
+  },
   "dev.err.unknown_request": {
     "text": "Questo dispositivo non capisce questa richiesta: il suo software è più vecchio dell’app. Controlla gli aggiornamenti in Impostazioni.",
     "en": "This device does not understand that request: its software is older than the app. Check for updates in Settings."

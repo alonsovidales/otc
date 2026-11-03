@@ -39,6 +39,11 @@ func DevErrNotOnThisInstance() Msg {
 	return Msg{Key: "dev.err.not_on_this_instance"}
 }
 
+// DevErrStorageUnavailable is dev.err.storage_unavailable: "Your device can't reach its storage disks. Check they're plugged in and switched…".
+func DevErrStorageUnavailable() Msg {
+	return Msg{Key: "dev.err.storage_unavailable"}
+}
+
 // DevErrUnknownRequest is dev.err.unknown_request: "This device does not understand that request: its software is older than the app…".
 func DevErrUnknownRequest() Msg {
 	return Msg{Key: "dev.err.unknown_request"}

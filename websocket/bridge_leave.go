@@ -112,6 +112,8 @@ func (mg *Manager) switchToLocal(reason string) error {
 		return fmt.Errorf("storing the local identity: %w", err) // i18n-ignore: an internal step's name before a database error: the whole is a reply's raw detail
 	}
 	mg.settings.SetIdentity(owner, cLocalDomain, secret)
+	// Issue #207: the device without its storage registers with no bridge.
+	mg.dropIdentity()
 	return bridgeaccess.RequestSwitchOff(reason)
 }
 
