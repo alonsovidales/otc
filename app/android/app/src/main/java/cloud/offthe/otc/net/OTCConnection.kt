@@ -288,9 +288,10 @@ object OTCConnection {
 
     /**
      * Issue #190: an upload, a download in pieces or a photo sync. A
-     * chunked upload belongs to the socket it began on (the device drops it
-     * with that connection), so the route isn't switched while one runs:
-     * the next reconnect picks it instead.
+     * chunked upload belongs to the socket it began on (a device before
+     * release 166 drops it with that connection; a later one keeps it to be
+     * resumed, #205, at the cost of a new BeginUpload), so the route isn't
+     * switched while one runs: the next reconnect picks it instead.
      */
     inline fun <T> transfer(block: () -> T): T {
         transferStarted()

@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.push.FCMPush
+import cloud.offthe.otc.sync.LongSync
 
 // Process-wide context for the singletons that need one (SecretsStore's
 // encrypted preferences, WorkManager). The counterpart of what the iOS
@@ -19,6 +20,8 @@ class OTCApp : Application() {
         LanguageSettings.start(this)
         // Issue #125: before any push can arrive.
         FCMPush.createChannel(this)
+        // Issue #205: a big photo sync's ongoing notification.
+        LongSync.createChannel(this)
         // Issue #190: a network change may change the way to the device.
         NetworkWatch.start(this)
     }
@@ -29,6 +32,7 @@ class OTCApp : Application() {
         super.onConfigurationChanged(newConfig)
         LanguageSettings.configurationChanged(this)
         FCMPush.createChannel(this)
+        LongSync.createChannel(this)
     }
 
     companion object {

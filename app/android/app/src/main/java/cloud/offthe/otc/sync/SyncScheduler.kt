@@ -2,6 +2,7 @@
 package cloud.offthe.otc.sync
 
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.provider.MediaStore
 import android.util.Log
 import androidx.work.BackoffPolicy
@@ -9,6 +10,7 @@ import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -21,6 +23,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -47,6 +51,7 @@ object SyncScheduler {
     private const val oldName = "otc-photo-sync" // the one-time chain, before
     private const val watchName = "otc-photo-sync-media"
     private const val soonName = "otc-photo-sync-soon"
+    private const val longName = "otc-photo-sync-long"
     private const val tag = "OTC/SyncScheduler"
     // WorkManager's lookups block: off the main thread, where the switch is.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -95,7 +100,21 @@ object SyncScheduler {
     /** Log Out: nothing to sync until someone signs in again. */
     fun cancel(context: Context = OTCApp.instance) {
         val wm = WorkManager.getInstance(context)
-        for (n in listOf(name, oldName, watchName, soonName)) wm.cancelUniqueWork(n)
+        for (n in listOf(name, oldName, watchName, soonName, longName)) wm.cancelUniqueWork(n)
+    }
+
+    /**
+     * Issue #205: the run in flight has more than LongSync's threshold to
+     * send and the app is on screen: LongSyncWorker holds it in the
+     * foreground. KEEP: one already going covers it.
+     */
+    fun runLong(context: Context = OTCApp.instance) {
+        WorkManager.getInstance(context).enqueueUniqueWork(longName, ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<LongSyncWorker>().build())
+    }
+
+    /** The notification's Cancel (LongSyncCancel). */
+    fun stopLong(context: Context = OTCApp.instance) {
+        WorkManager.getInstance(context).cancelUniqueWork(longName)
     }
 
     /**
@@ -138,6 +157,64 @@ object SyncScheduler {
             try { PhotoSync.runForeground(); Result.success() }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { Log.w(tag, "background sync failed: $e"); Result.retry() }
+    }
+
+    /**
+     * Issue #205: a big sync in the foreground (LongSync). It goes into the
+     * foreground at once - a data-sync service with the ongoing
+     * notification, which WorkManager doesn't stop after 10 minutes and which
+     * keeps the process alive once the app is left - while the run in flight
+     * goes on where it is (the app's own, or a worker WorkManager may still
+     * stop); once that run is over, one more here, which nothing stops, picks
+     * up what it left (its uploads resumed where the device has them). Android
+     * refusing the foreground (the app left the screen meanwhile) leaves
+     * everything as before.
+     */
+    class LongSyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+        private fun info(s: BackupProgress.Snapshot = LongSync.progress.snapshot()) =
+            ForegroundInfo(LongSync.NOTIFICATION_ID, LongSync.notification(applicationContext, s), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+
+        override suspend fun getForegroundInfo(): ForegroundInfo = info()
+
+        override suspend fun doWork(): Result {
+            try {
+                setForeground(info())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(tag, "the backup couldn't go in the foreground: ${e.javaClass.simpleName}")
+                return Result.success()
+            }
+            Log.i(tag, "a big backup goes on in the foreground")
+            return coroutineScope {
+                // The notification follows the run, once a second at most.
+                val shown = launch {
+                    var last: BackupProgress.Snapshot? = null
+                    while (true) {
+                        val s = LongSync.progress.snapshot()
+                        if (s != last) {
+                            try { setForeground(info(s)) } catch (e: CancellationException) { throw e } catch (e: Exception) { Log.w(tag, "backup notification not updated: ${e.javaClass.simpleName}") }
+                            last = s
+                        }
+                        delay(1000)
+                    }
+                }
+                try {
+                    do {
+                        while (PhotoSync.isSyncing) delay(1000)
+                        PhotoSync.runForeground()
+                    } while (PhotoSync.isSyncing)
+                    Result.success()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(tag, "the big backup stopped: ${e.javaClass.simpleName}")
+                    Result.success()
+                } finally {
+                    shown.cancel()
+                }
+            }
+        }
     }
 
     /** MediaStore changed: the next watch armed, the upload handed on. */

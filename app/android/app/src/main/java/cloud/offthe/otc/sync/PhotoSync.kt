@@ -132,8 +132,16 @@ object PhotoSync {
     @Volatile private var fullWords = ""
     const val FULL_PAUSE_MS = 30 * 60_000L
 
-    /** RootView: the activity is in front (between ON_RESUME and ON_STOP). */
+    /**
+     * RootView: the activity is in front (between ON_RESUME and ON_STOP).
+     * Coming to the front again offers the big sync's foreground job again
+     * after its Cancel (LongSync.declined).
+     */
     @Volatile var inFront = false
+        set(value) {
+            if (value && !field) LongSync.declined = false
+            field = value
+        }
 
     init {
         // A1: back on an unmetered network, a run that waited for it goes.
@@ -294,6 +302,16 @@ object PhotoSync {
         }
     }
 
+    /**
+     * Issue #205, the foreground job's Cancel: the run stops at its next
+     * step - uploads in flight at their next chunk, kept by the device for
+     * the next run to resume - with the watermark before what it didn't
+     * finish. Log Out's cancel() without the generation: nothing is wiped.
+     */
+    fun stopRun() {
+        currentSync?.cancel()
+    }
+
     /** Log Out: stop the sync in progress. */
     // Under the watermark lock: once it returns, no run is between its
     // generation check and its watermark write.
@@ -409,10 +427,14 @@ object PhotoSync {
     /**
      * Uploads (or links) one asset; returns the server path. Shared with the
      * composer, which has no listing ([known] empty). [known]: the target
-     * folder's files by path.
+     * folder's files by path. [onSent]: the bytes of it the device holds, of
+     * its size, as an upload goes (from where a resumed one starts, #205);
+     * [mayResume]: whether an upload cut off goes on (ChunkedUpload).
      */
     suspend fun uploadIfNeeded(
         asset: Asset, targetDir: String, known: Map<String, PbFile> = emptyMap(), cacheEpoch: Int = AssetSyncCache.epoch(),
+        onSent: ((sent: Long, size: Long) -> Unit)? = null,
+        mayResume: (() -> Boolean)? = null,
     ): String {
         val cleanName = asset.name.replace("/", "_")
         val path = "$targetDir$cleanName"
@@ -455,7 +477,11 @@ object PhotoSync {
         suspend fun send(to: String): RespEnvelope = if (already) {
             OTCConnection.request { it.setReqLinkFile(LinkFile.newBuilder().setHash(hash).setPath(to).setForceOverride(false).setCreated(created)) }
         } else {
-            ChunkedUpload.upload(to, digest!!.size, { openData(asset.uri) }, forceOverride = false, created = created, sha256 = hash)
+            val size = digest!!.size
+            ChunkedUpload.upload(
+                to, size, { openData(asset.uri) }, forceOverride = false, created = created, sha256 = hash,
+                onSent = onSent?.let { report -> { sent: Long -> report(sent, size) } }, mayResume = mayResume,
+            )
         }
 
         // null: another file took the plain name since the listing (two
@@ -606,6 +632,10 @@ object PhotoSync {
                 Log.i(tag, "sync once more: asked for while it ran")
             }
         } finally {
+            // Stopped (the foreground job's Cancel, WorkManager): Settings'
+            // Uploads no longer says it is uploading. Not after Log Out,
+            // which wiped it.
+            if (job?.isCancelled == true && gen == generation) UploadModel.complete()
             // Before releasing the flag, so the next run's handle isn't wiped.
             if (currentSync === job) currentSync = null
             OTCConnection.transferEnded()
@@ -693,6 +723,14 @@ object PhotoSync {
         Log.i(tag, "sync start: ${assets.size} new asset(s) since $lastSyncMs, ${retried.size} to retry, ${oneOff.size} from a one-off pass")
         val total = assets.size + retried.size + oneOff.size
         UploadModel.begin(total)
+        // Issue #205: a big run on screen goes on as a foreground job, which
+        // nothing stops after 10 minutes (LongSync, SyncScheduler.LongSyncWorker).
+        LongSync.progress.begin(total)
+        val queued = sequenceOf(assets, retried, oneOff).flatten().sumOf { it.size.coerceAtLeast(0) }
+        if (LongSync.wanted(inFront, LongSync.declined, queued)) {
+            Log.i(tag, "a big backup: ${queued shr 20} MB to send")
+            SyncScheduler.runLong()
+        }
         val targetDir = "/android/${secrets.deviceId.value}/"
         // A9: only for a big run, or a phone that has synced nothing yet
         // (needsListing) - every resume and new photo starts a run, almost
@@ -719,7 +757,13 @@ object PhotoSync {
                         val bucket = asset.bucketId?.toString()
                         if (bucket != null && bucket in secrets.skippedFolders.value) { cutShort += bucket; return@async Sent.Done }
                         UploadModel.step(asset.name, position - 1, total)
-                        uploadIfNeeded(asset, targetDir, known, cacheEpoch)
+                        uploadIfNeeded(
+                            asset, targetDir, known, cacheEpoch,
+                            onSent = { sent, size -> LongSync.progress.sending(asset.id, sent, size) },
+                            // A1: an upload cut off as the phone left its Wi-Fi
+                            // doesn't go on over mobile data with "Wi-Fi only" on.
+                            mayResume = { !waitsForWifi(secrets.wifiOnly.value, NetworkWatch.syncMetered()) },
+                        )
                         Sent.Done
                     } catch (e: CancellationException) {
                         throw e // Log Out: no watermark past what was cut short
@@ -738,7 +782,7 @@ object PhotoSync {
                         Sent.Retry
                     }
                 }
-            }.awaitAll()
+            }.awaitAll().also { chunk.forEach { LongSync.progress.done(it.id) } }
         }
 
         // Between two chunks (IOS-10): the route check put off while the run

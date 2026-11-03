@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Issue #205: a big photo sync started while the app is on screen goes on
+         as a data-sync foreground job with an ongoing notification
+         (sync/LongSync.kt, SyncScheduler.LongSyncWorker), which WorkManager
+         doesn't stop after 10 minutes. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Issue #127: without this the MediaStore hands the sync a copy of every
          photo with its GPS tags blanked, so nothing synced from Android could
@@ -73,6 +79,16 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <!-- Issue #205: WorkManager's own foreground service runs LongSyncWorker;
+             since Android 14 a foreground service declares what it does. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+        <!-- The big sync notification's Cancel (LongSyncCancel). -->
+        <receiver
+            android:name=".sync.LongSyncCancel"
+            android:exported="false" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="social" />
