@@ -106,6 +106,10 @@ final class PhotoSync: NSObject {
     /// The device's words then, for Settings' line while the runs wait.
     private var fullWords = ""
     static let fullPause: TimeInterval = 30 * 60
+    /// Issue #205: Sync All (the sync question's "all" too) was pressed: the
+    /// next pass, if it is big and the app in front, asks iOS 26 to let it go
+    /// on in the background (LongSync). Taken by that pass.
+    private var ownerAsked = false
 
     /// What one pass of the sync came to, besides throwing when it was
     /// cancelled.
@@ -157,6 +161,14 @@ final class PhotoSync: NSObject {
         defer { syncLock.unlock() }
         defer { rerunWanted = false }
         return rerunWanted
+    }
+
+    /// Whether the owner asked for this pass (Sync All); asking takes it.
+    private func takeOwnerAsked() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        defer { ownerAsked = false }
+        return ownerAsked
     }
 
     private func takeWaitingForWifi() -> Bool {
@@ -269,6 +281,7 @@ final class PhotoSync: NSObject {
         watermarkEpoch &+= 1
         if isSyncing { rerunWanted = true }
         fullSince = nil
+        ownerAsked = true
         UserDefaults.standard.removeObject(forKey: "lastSyncDate")
         state.floor = .distantPast
     }
@@ -683,6 +696,7 @@ final class PhotoSync: NSObject {
         running?.cancel()
         waitingForWifi = false
         fullSince = nil
+        ownerAsked = false
     }
 
     /// A sync run, from in front: it starts here unless one is going - that
@@ -692,7 +706,11 @@ final class PhotoSync: NSObject {
     /// Task's value doesn't pass the caller's cancellation on, so the
     /// handler in syncUnlessRunning does.
     func runForeground() async throws {
-        let time = await BackgroundTime.begin { [weak self] in self?.stopRun() }
+        // Issue #205: not while iOS 26's continued task holds the run - it
+        // goes on until the run is over, or the owner stops it.
+        let time = await BackgroundTime.begin { [weak self] in
+            if !LongSync.holdsRun { self?.stopRun() }
+        }
         defer { time.end() }
         // Free up space, once this run has synced what it could - after the
         // sync's own flag is down, so photos taken while iOS asks about the
@@ -735,8 +753,13 @@ final class PhotoSync: NSObject {
     /// sync idle.
     private func runPasses(gen: Int) async throws -> PassEnd {
         defer { endSync() }
+        // Issue #205: a continued task asked for by one of its passes is
+        // over with the run.
+        var last: PassEnd?
+        defer { LongSync.runEnded(success: last == .done) }
         while true {
             let end = try await onePass(gen: gen)
+            last = end
             guard end == .done, !Task.isCancelled, takeRerun() else { return end }
             print("Sync once more: asked for while it ran")
         }
@@ -981,6 +1004,17 @@ final class PhotoSync: NSObject {
         let retriedIDs = list.exempt
         if !skipped.isEmpty { print("Leaving out \(byID.count - assets.count) assets in albums turned off or saved from the device") }
         ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
+        // Issue #205: Sync All or the first sync, big, with the app in
+        // front: iOS 26 lets it go on in the background with the system's
+        // progress for it (LongSync). Below iOS 26, as before.
+        LongSync.progress.begin(total: assets.count)
+        if takeOwnerAsked(), #available(iOS 26.0, *) {
+            let inFront = await MainActor.run { UIApplication.shared.applicationState == .active }
+            let queued = inFront ? LongSync.queuedBytes(assets) : nil
+            if LongSync.continued(available: true, asked: true, inFront: inFront, assets: assets.count, queuedBytes: queued) {
+                await LongSyncTask.shared.begin(total: assets.count)
+            }
+        }
 
         let targetPath = "/ios/\(secrets.deviceId)/"
         // Get a list of all the files for the target path - only for a big
@@ -1248,10 +1282,17 @@ final class PhotoSync: NSObject {
                                 }
                                 // Issue #165: chunked, never the whole
                                 // file in one message; reuses the hash
-                                // already computed for HasFile.
+                                // already computed for HasFile - also the
+                                // resume key (#205).
+                                let size = Int64(data.count)
                                 return try await ws.uploadChunked(path: target, source: .data(data),
                                                                   forceOverride: false, created: created,
-                                                                  cloudID: cloudID, sha256: hash)
+                                                                  cloudID: cloudID, sha256: hash,
+                                                                  progress: { LongSync.progress.sending(id, sent: $0, size: size) },
+                                                                  // IOS-01: one cut off as the phone left its
+                                                                  // Wi-Fi doesn't go on over mobile data with
+                                                                  // "Wi-Fi only" on.
+                                                                  mayResume: { !Self.waitsForWifi(wifiOnly: SecretsStore.wifiOnlyNow, expensive: NetworkWatch.shared.isExpensive) })
                             }
 
                             let sendStart = Date()
@@ -1331,6 +1372,7 @@ final class PhotoSync: NSObject {
                 return out
             }
 
+            for asset in chunk { LongSync.progress.done(asset.localIdentifier) }
             var finished: [String] = [], failed: [String] = [], failedICloud: [String] = []
             var fullWords: String?
             for outcome in outcomes {

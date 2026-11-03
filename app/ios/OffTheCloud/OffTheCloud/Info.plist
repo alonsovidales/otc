@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>cloud.off-the.OffTheCloud.sync</string>
+		<string>cloud.off-the.OffTheCloud.backup.*</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

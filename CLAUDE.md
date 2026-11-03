@@ -3391,7 +3391,8 @@ periodic run, a MediaStore content trigger (images and videos, 5 s update delay,
 `MediaWorker`, which arms the next trigger (APPEND_OR_REPLACE behind itself, never REPLACE: that
 cancels the running worker) and queues a one-time `SoonWorker` sync (network required; it retries
 while another sync runs in the process). Armed by `scheduleNext()` on every backgrounding,
-re-armed by WorkManager after a reboot, cancelled at Log Out.
+re-armed by WorkManager after a reboot, cancelled at Log Out. A big run with the app on screen
+goes on as `LongSyncWorker`, a foreground job WorkManager doesn't stop (issue #205, below).
 `make pb` writes its protobuf bindings (`--java_out=lite` + `--kotlin_out=lite`, package
 `cloud.offthe.otc.proto`, one file per type) to `app/android/app/src/main/proto-gen/`, which is
 gitignored like `proto/generated`. The root `.gitignore` ignores the device binary as `/otc` - anchored, because the
@@ -4028,6 +4029,48 @@ drops the note once the device answers again after it. Image Tagging (`MemoryTie
 switch available puts `app.settings.tagging.heavy` under the switch ("On this device Image Tagging
 uses about 1–2 GB more memory, and new photos take longer to process."), whether on or off; the
 footer now ends "It needs a device with at least 4 GB of memory."
+
+**Resumable uploads and big syncs** (issue #205, device release 166; iOS `ChunkedUpload.swift` +
+`LongSync.swift` <-> Android `net/ChunkedUpload.kt` + `sync/LongSync.kt`; tests
+`ChunkedUploadTests.swift` + `LongSyncTests.swift` <-> `ChunkedUploadTest.kt` + `LongSyncTest.kt`,
+the same cases against a stand-in device). Every `BeginUpload` carries `sha256` (the hash the
+hash-first step made; required by `uploadChunked` / `ChunkedUpload.upload`), and the chunks start at
+`UploadStarted.received`: the part before it is skipped (a seek, a `Data` slice, `InputStream.skip` -
+`skipFully` reads a byte at a time only from a stream that skips nothing), never read out to be sent.
+An `UploadChunk` that fails on the way (the connection gone, `SentNoAnswer`, the device answering an
+error other than `storage_full`, or a `received` it didn't expect) is begun again with the same key
+after 2, 4, 8, 16 s (`resumePause`) and goes on from what the device holds; a `BeginUpload` that
+doesn't get through then is another try. The photo sync's uploads don't go on over mobile data with
+"Wi-Fi only" on (`mayResume`, asked after each pause: the phone may have just left its Wi-Fi). At most `maxResumes` / `MAX_RESUMES` (4) in a row without
+the device getting further than it ever had (`furthest`: an older device, which answers 0, has to
+pass that point again before a cut counts as new); then the error is the caller's, as before (the
+retry list, whose next run resumes it while the device keeps the upload: 30 idle minutes). The first
+`BeginUpload`'s failures, `storage_full` and `FinishUpload` (the device may have made it the file;
+its hash check stays) are never resumed. `progress` / `onSent` reports the bytes the device holds.
+Big syncs share `BackupProgress` (by asset, plus the share of those on their way from the uploads'
+bytes, 100 units an asset), the 300 MiB threshold and the texts (`app.shell.backup_title` "Backing up
+N photos and videos", `app.shell.backup_progress` "N of M"). Android: a run whose list (new, retried,
+one-off; MediaStore `SIZE`) holds more than `LongSync.THRESHOLD_BYTES` with the app in front
+(`PhotoSync.inFront`: Android 14 starts a data-sync job only then) enqueues
+`SyncScheduler.LongSyncWorker` (unique, KEEP). It goes into the foreground at once (`setForeground`,
+`FOREGROUND_SERVICE_TYPE_DATA_SYNC`; WorkManager's `SystemForegroundService` is declared `dataSync`
+in the manifest, with `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_DATA_SYNC`) with an ongoing
+notification (channel `backup`, `android.backup_channel`, quiet: the title, "N of M", a bar, Cancel),
+waits for the run in flight (the app's own, or a worker WorkManager may stop after 10 minutes), then
+runs once more itself, which nothing stops (WorkManager ignores the scheduler's stop for a foreground
+worker), picking up what was left. Android refusing the foreground (the app left meanwhile) leaves
+everything as before. Cancel (`LongSyncCancel`) stops the run (`PhotoSync.stopRun()`: Log Out's
+cancel without the generation) and the job, which isn't offered again until the app comes to the
+front again (`LongSync.declined`). iOS 26: Sync All (also the sync question's "all": `syncAll()` sets
+`ownerAsked`, taken by the next pass), with the app active, something to send and more than 300 MiB
+of it (sizes from `PHAssetResource.dataSize`, iOS 27; before that any), asks for a
+`BGContinuedProcessingTask` (`LongSyncTask`: identifier `cloud.off-the.OffTheCloud.backup.sync`
+under Info.plist's `cloud.off-the.OffTheCloud.backup.*`, registered when first asked for, strategy
+`.fail`). The system shows its progress (the title and "N of M" as assets are done, `progress` set
+every second); the run's end completes it (`LongSync.runEnded`, from `runPasses`), and its
+expiration (the owner stopping it, or the system) stops the run (`stopRun`). While it holds the run
+the app's own background time running out doesn't stop it. Below iOS 26, and for any other run, as
+before.
 
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
