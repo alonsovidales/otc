@@ -22,6 +22,14 @@ fun S.appShellAddressInvalid(address: String): UiText =
 fun S.appShellAuthFailed(): UiText =
     UiText.Res(R.string.app_shell_auth_failed)
 
+/** "{done} of {total}": Under app.shell.backup_title, next to its progress bar (Android's ongoing notification; on an iPhone the system's progress for the app): {done} photos and videos dealt with of the {total} this backup sends. */
+fun S.appShellBackupProgress(done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_shell_backup_progress, listOf(done, total))
+
+/** "Backing up {count} photos and videos" (one: "Backing up {count} photo or video"): Title of what shows outside the app while this phone copies a large number of its photos and videos to the device - Android's ongoing notification (with a progress bar and Cancel), an iPhone's system progress (iOS 26) - which goes on after the app is closed. {count} is how many this backup sends. */
+fun S.appShellBackupTitle(count: Int): UiText =
+    UiText.Plural(R.plurals.app_shell_backup_title, count, listOf(count))
+
 /** "The device sent an answer this app could not read": Set up a new device (over Bluetooth): error given to the setup page when the device's answer over Bluetooth couldn't be read. The page shows it. */
 fun S.appShellBleBadAnswer(): UiText =
     UiText.Res(R.string.app_shell_ble_bad_answer)

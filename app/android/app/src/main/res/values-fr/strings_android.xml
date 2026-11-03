@@ -5,6 +5,8 @@
     <string name="android_alerts_collapse">Réduire</string>
     <string name="android_alerts_expand">Développer</string>
     <string name="android_alerts_friends">Amis ✓</string>
+    <string name="android_backup_channel">Sauvegarde des photos</string>
+    <string name="android_backup_channel_description">La progression d’une grande sauvegarde de vos photos et vidéos, qui continue une fois l’app quittée</string>
     <string name="android_ble_lost">Connexion à l’appareil perdue : reconnexion en cours</string>
     <string name="android_ble_send_failed">Impossible d’envoyer la demande à l’appareil</string>
     <string name="android_bluetooth_needed_hint">Autorisez « Appareils à proximité » pour Off The Cloud dans les Paramètres pour configurer un appareil de cette façon.</string>

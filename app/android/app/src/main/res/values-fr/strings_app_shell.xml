@@ -6,6 +6,12 @@
     <string name="app_shell_add_to_collection">Ajouter à une collection</string>
     <string name="app_shell_address_invalid">L’adresse « %1$s » n’est pas valide.</string>
     <string name="app_shell_auth_failed">Échec de l’authentification</string>
+    <string name="app_shell_backup_progress">%1$s sur %2$s</string>
+    <plurals name="app_shell_backup_title">
+        <item quantity="one">Sauvegarde de %1$s photo ou vidéo</item>
+        <item quantity="many">Sauvegarde de %1$s photos et vidéos</item>
+        <item quantity="other">Sauvegarde de %1$s photos et vidéos</item>
+    </plurals>
     <string name="app_shell_ble_bad_answer">L’appareil a envoyé une réponse que cette app n’a pas pu lire</string>
     <string name="app_shell_ble_closed">La configuration a été fermée</string>
     <string name="app_shell_ble_link_lost">Connexion à l’appareil perdue : reconnexion en cours. Gardez le téléphone près de lui.</string>

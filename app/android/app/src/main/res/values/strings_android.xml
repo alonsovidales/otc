@@ -4,6 +4,8 @@
     <string name="android_alerts_collapse">Collapse</string>
     <string name="android_alerts_expand">Expand</string>
     <string name="android_alerts_friends">Friends ✓</string>
+    <string name="android_backup_channel">Photo backup</string>
+    <string name="android_backup_channel_description">The progress of a large backup of your photos and videos, which goes on after you leave the app</string>
     <string name="android_ble_lost">Lost the device - reconnecting</string>
     <string name="android_ble_send_failed">Could not send to the device</string>
     <string name="android_bluetooth_needed_hint">Allow nearby devices for Off The Cloud in Settings to set a device up this way.</string>

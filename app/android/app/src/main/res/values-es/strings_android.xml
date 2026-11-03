@@ -5,6 +5,8 @@
     <string name="android_alerts_collapse">Contraer</string>
     <string name="android_alerts_expand">Expandir</string>
     <string name="android_alerts_friends">Amigos ✓</string>
+    <string name="android_backup_channel">Copia de seguridad de fotos</string>
+    <string name="android_backup_channel_description">El progreso de una copia de seguridad grande de tus fotos y vídeos, que sigue aunque salgas de la app</string>
     <string name="android_ble_lost">Se ha perdido la conexión con el dispositivo: reconectando</string>
     <string name="android_ble_send_failed">No se ha podido enviar al dispositivo</string>
     <string name="android_bluetooth_needed_hint">En Ajustes, permite que Off The Cloud acceda a “Dispositivos cercanos” para configurar un dispositivo de esta forma.</string>

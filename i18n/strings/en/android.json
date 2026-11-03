@@ -12,6 +12,15 @@
     "note": "At the right of a friend request in the Alerts tab once you accepted it from there: you are friends now. Keep the check mark.",
     "max": 16
   },
+  "android.backup_channel": {
+    "text": "Photo backup",
+    "note": "Name of the notification channel for a large backup of the phone's photos and videos to the device (an ongoing notification with its progress and Cancel), shown in Android's notification settings for the app.",
+    "max": 40
+  },
+  "android.backup_channel_description": {
+    "text": "The progress of a large backup of your photos and videos, which goes on after you leave the app",
+    "note": "Description of that notification channel (android.backup_channel), shown under its name in Android's notification settings."
+  },
   "android.ble_lost": {
     "text": "Lost the device - reconnecting",
     "note": "Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects."

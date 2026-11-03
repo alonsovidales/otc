@@ -28,6 +28,21 @@ extension S {
     /// Why the app can't connect, on the card shown over the app: the device didn't sign the app in and gave no reason.
     static var appShellAuthFailed: String { L("app.shell.auth_failed", table: "AppShell") }
 
+    /// {done} of {total}
+    ///
+    /// Under app.shell.backup_title, next to its progress bar (Android's ongoing notification; on an iPhone the system's progress for the app): {done} photos and videos dealt with of the {total} this backup sends.
+    static func appShellBackupProgress(done: Int, total: Int) -> String {
+        L("app.shell.backup_progress", table: "AppShell", done, total)
+    }
+
+    /// one: Backing up {count} photo or video
+    /// other: Backing up {count} photos and videos
+    ///
+    /// Title of what shows outside the app while this phone copies a large number of its photos and videos to the device - Android's ongoing notification (with a progress bar and Cancel), an iPhone's system progress (iOS 26) - which goes on after the app is closed. {count} is how many this backup sends.
+    static func appShellBackupTitle(count: Int) -> String {
+        L("app.shell.backup_title", table: "AppShell", count)
+    }
+
     /// The device sent an answer this app could not read
     ///
     /// Set up a new device (over Bluetooth): error given to the setup page when the device's answer over Bluetooth couldn't be read. The page shows it.

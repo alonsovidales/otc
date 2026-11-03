@@ -11,6 +11,14 @@
     "text": "Vrienden ✓",
     "en": "Friends ✓"
   },
+  "android.backup_channel": {
+    "text": "Reservekopie van foto’s",
+    "en": "Photo backup"
+  },
+  "android.backup_channel_description": {
+    "text": "De voortgang van een grote reservekopie van je foto’s en video’s, die doorgaat nadat je de app verlaat",
+    "en": "The progress of a large backup of your photos and videos, which goes on after you leave the app"
+  },
   "android.ble_lost": {
     "text": "Verbinding met het apparaat verbroken – opnieuw verbinden",
     "en": "Lost the device - reconnecting"

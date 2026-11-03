@@ -5,6 +5,8 @@
     <string name="android_alerts_collapse">Einklappen</string>
     <string name="android_alerts_expand">Ausklappen</string>
     <string name="android_alerts_friends">Befreundet ✓</string>
+    <string name="android_backup_channel">Foto-Backup</string>
+    <string name="android_backup_channel_description">Der Fortschritt eines großen Backups deiner Fotos und Videos, das weiterläuft, wenn du die App verlässt</string>
     <string name="android_ble_lost">Verbindung zum Gerät verloren – wird wiederhergestellt</string>
     <string name="android_ble_send_failed">Senden an das Gerät fehlgeschlagen</string>
     <string name="android_bluetooth_needed_hint">Erlaube „Geräte in der Nähe“ für Off The Cloud in den Einstellungen, um ein Gerät auf diese Weise einzurichten.</string>

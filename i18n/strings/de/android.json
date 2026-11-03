@@ -11,6 +11,14 @@
     "text": "Befreundet ✓",
     "en": "Friends ✓"
   },
+  "android.backup_channel": {
+    "text": "Foto-Backup",
+    "en": "Photo backup"
+  },
+  "android.backup_channel_description": {
+    "text": "Der Fortschritt eines großen Backups deiner Fotos und Videos, das weiterläuft, wenn du die App verlässt",
+    "en": "The progress of a large backup of your photos and videos, which goes on after you leave the app"
+  },
   "android.ble_lost": {
     "text": "Verbindung zum Gerät verloren – wird wiederhergestellt",
     "en": "Lost the device - reconnecting"

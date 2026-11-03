@@ -6,6 +6,12 @@
     <string name="app_shell_add_to_collection">Adicionar a uma coleção</string>
     <string name="app_shell_address_invalid">O endereço «%1$s» não é válido.</string>
     <string name="app_shell_auth_failed">A autenticação falhou</string>
+    <string name="app_shell_backup_progress">%1$s de %2$s</string>
+    <plurals name="app_shell_backup_title">
+        <item quantity="one">A copiar %1$s foto ou vídeo</item>
+        <item quantity="many">A copiar %1$s fotos e vídeos</item>
+        <item quantity="other">A copiar %1$s fotos e vídeos</item>
+    </plurals>
     <string name="app_shell_ble_bad_answer">O dispositivo enviou uma resposta que esta app não conseguiu ler</string>
     <string name="app_shell_ble_closed">A configuração foi fechada</string>
     <string name="app_shell_ble_link_lost">Ligação ao dispositivo perdida: a restabelecer. Mantém o telemóvel perto dele.</string>

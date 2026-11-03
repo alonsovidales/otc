@@ -5,6 +5,11 @@
     <string name="app_shell_add_to_collection">Add to collection</string>
     <string name="app_shell_address_invalid">The address \"%1$s\" isn\'t valid.</string>
     <string name="app_shell_auth_failed">Authentication failed</string>
+    <string name="app_shell_backup_progress">%1$s of %2$s</string>
+    <plurals name="app_shell_backup_title">
+        <item quantity="one">Backing up %1$s photo or video</item>
+        <item quantity="other">Backing up %1$s photos and videos</item>
+    </plurals>
     <string name="app_shell_ble_bad_answer">The device sent an answer this app could not read</string>
     <string name="app_shell_ble_closed">Setup was closed</string>
     <string name="app_shell_ble_link_lost">Connection to the device lost - reconnecting. Keep the phone next to it.</string>

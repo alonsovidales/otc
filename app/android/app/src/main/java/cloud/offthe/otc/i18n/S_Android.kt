@@ -18,6 +18,14 @@ fun S.androidAlertsExpand(): UiText =
 fun S.androidAlertsFriends(): UiText =
     UiText.Res(R.string.android_alerts_friends)
 
+/** "Photo backup": Name of the notification channel for a large backup of the phone's photos and videos to the device (an ongoing notification with its progress and Cancel), shown in Android's notification settings for the app. */
+fun S.androidBackupChannel(): UiText =
+    UiText.Res(R.string.android_backup_channel)
+
+/** "The progress of a large backup of your photos and videos, which goes on after you leave the app": Description of that notification channel (android.backup_channel), shown under its name in Android's notification settings. */
+fun S.androidBackupChannelDescription(): UiText =
+    UiText.Res(R.string.android_backup_channel_description)
+
 /** "Lost the device - reconnecting": Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects. */
 fun S.androidBleLost(): UiText =
     UiText.Res(R.string.android_ble_lost)

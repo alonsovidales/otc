@@ -5,6 +5,8 @@
     <string name="android_alerts_collapse">Samenvouwen</string>
     <string name="android_alerts_expand">Uitvouwen</string>
     <string name="android_alerts_friends">Vrienden ✓</string>
+    <string name="android_backup_channel">Reservekopie van foto’s</string>
+    <string name="android_backup_channel_description">De voortgang van een grote reservekopie van je foto’s en video’s, die doorgaat nadat je de app verlaat</string>
     <string name="android_ble_lost">Verbinding met het apparaat verbroken – opnieuw verbinden</string>
     <string name="android_ble_send_failed">Kan niet naar het apparaat versturen</string>
     <string name="android_bluetooth_needed_hint">Sta “Apparaten in de buurt” toe voor Off The Cloud in Instellingen om een apparaat op deze manier in te stellen.</string>

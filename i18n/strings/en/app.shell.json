@@ -19,6 +19,21 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e185c0a5"
   },
+  "app.shell.backup_progress": {
+    "text": "{done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Under app.shell.backup_title, next to its progress bar (Android's ongoing notification; on an iPhone the system's progress for the app): {done} photos and videos dealt with of the {total} this backup sends.",
+    "max": 30
+  },
+  "app.shell.backup_title": {
+    "text": {
+      "one": "Backing up {count} photo or video",
+      "other": "Backing up {count} photos and videos"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of what shows outside the app while this phone copies a large number of its photos and videos to the device - Android's ongoing notification (with a progress bar and Cancel), an iPhone's system progress (iOS 26) - which goes on after the app is closed. {count} is how many this backup sends.",
+    "max": 50
+  },
   "app.shell.ble_bad_answer": {
     "text": "The device sent an answer this app could not read",
     "note": "Set up a new device (over Bluetooth): error given to the setup page when the device's answer over Bluetooth couldn't be read. The page shows it."

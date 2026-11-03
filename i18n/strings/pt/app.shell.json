@@ -16,6 +16,20 @@
     "en": "Authentication failed",
     "reviewed": "claude-backtranslation 2026-10-11 #338c179c"
   },
+  "app.shell.backup_progress": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "app.shell.backup_title": {
+    "text": {
+      "one": "A copiar {count} foto ou vídeo",
+      "other": "A copiar {count} fotos e vídeos"
+    },
+    "en": {
+      "one": "Backing up {count} photo or video",
+      "other": "Backing up {count} photos and videos"
+    }
+  },
   "app.shell.ble_bad_answer": {
     "text": "O dispositivo enviou uma resposta que esta app não conseguiu ler",
     "en": "The device sent an answer this app could not read"

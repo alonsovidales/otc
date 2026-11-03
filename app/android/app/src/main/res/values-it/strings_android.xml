@@ -5,6 +5,8 @@
     <string name="android_alerts_collapse">Comprimi</string>
     <string name="android_alerts_expand">Espandi</string>
     <string name="android_alerts_friends">Amici ✓</string>
+    <string name="android_backup_channel">Backup delle foto</string>
+    <string name="android_backup_channel_description">L’avanzamento di un backup grande delle tue foto e dei tuoi video, che continua anche quando esci dall’app</string>
     <string name="android_ble_lost">Connessione al dispositivo persa: riconnessione in corso</string>
     <string name="android_ble_send_failed">Impossibile inviare al dispositivo</string>
     <string name="android_bluetooth_needed_hint">Consenti “Dispositivi nelle vicinanze” a Off The Cloud in Impostazioni per configurare un dispositivo in questo modo.</string>
