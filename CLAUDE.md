@@ -107,7 +107,65 @@ record noted every minute), then attached again with a restart (Alert "for 4 min
 was last seen missing); a hand `systemctl stop mnt-storage.mount` mounted again in 2 s. The empty
 directory under the mount point kept its time throughout, and the companion sees it read-only.
 Release 166's script, run twice on the VM with the unit removed and the old ordering put back,
-wrote both. A fourth: the Pi has no battery-backed clock, so an install that starts
+wrote both. Both disks pulled while the device runs (the rest of #207): md never fails a raid1's
+last disk - it calls the array broken (`/proc/mdstat` and `array_state` say `broken`; every write
+fails) and keeps the gone disk as an in-sync member - so md0 and its mount stayed, MariaDB aborted
+and otc answered every request with an error ("error checking device state") until a restart.
+`StorageGuard` now also judges the storage while it is mounted (`storage_gone`, every 2 s, from
+sysfs and mountinfo alone, nothing read from the disks): its device gone (`/sys/dev/block/<maj:min>`:
+the single disk pulled), an md array `broken` or running with no member in sync, not faulty, whose
+disk is there and not offline (`md_dead`; a mirror down to one working disk runs on, as before),
+its disk offline (`device/state`), or - its device then read once, O_DIRECT in a child given up
+after 10 s (`probe_read`, at most a minute apart), and gone only if that fails - a filesystem
+that turned itself read-only or whose ext4 error count or time moved since the mount was first
+seen (`ext4_errors`: from Linux 6.9 ext4's emergency read-only after an I/O error doesn't show in
+mountinfo). It then takes it down (`_begin_down`/`_down_step`): `systemctl stop --no-block
+mariadb.service otc.service` (SIGKILL after 30 s, the mount goes 10 s after that regardless:
+nothing they write reaches a disk, and InnoDB recovers from its log as after a power cut),
+`umount`, then `umount --lazy` when busy (each through `run_bounded`, which gives up on a command
+stuck on a dead disk so the loop and the LEDs go on), and, once nothing is mounted from it,
+`mdadm --stop`s the dead array (10 s doubling to 5 min while a detached filesystem still holds
+it), so the disks plugged in again are assembled afresh by udev's `mdadm --incremental` from their
+own superblocks: the newer disk wins, one that dropped out first is kicked as non-fresh and re-added
+as a former member, copied from the newer. A dead array is never mounted (`source_present`) nor
+added to (`guard.dead_array` gates the repair), and the companion starts as soon as the storage is
+unmounted (grace 0; the outage, and the Alert's minutes, begin at the detection), as it does when a
+storage seen mounted goes with its device (the single disk, which systemd unmounts itself,
+stopping what needs it). The repair and the grow now wait until md0 has run 10 s
+(`running_settled`, `REPAIR_SETTLE_S`): in the VM a disk plugged back in was judged while udev was
+still gathering md0 (inactive) and the newer one was picked to be added - it failed only because
+md held it. No release script: update.sh reinstalls `raid_watch.py`. Tested on 2026-11-03 in a new
+throwaway Lima VM (`otc-raid207`: Debian 13, kernel 6.12, mdadm 4.4, two 3 GiB virtio disks as md0,
+release 167 installed by `verified-install.sh` local-only, the new script put in place as update.sh
+does, its repair let to take the VM's `vdX` disks for the test - a Pi's are `sdX`), 40 files
+seeded and a test client uploading 6 MiB files in 1 MiB chunks with an upload under way at each
+pull, a disk pulled by hot-removing its virtio PCI device (`echo 1 >
+/sys/bus/pci/devices/<slot>/remove`: the disk deleted, udev's remove events and `mdadm -If`, every
+I/O failing at once, as a USB unplug) and put back with `echo 1 > /sys/bus/pci/rescan`. Release 167
+first: md0 broken and still mounted, ext4's journal aborted, MariaDB aborted, otc answering errors;
+the new script put in place over that took it down in 3 s. Both pulled 60 ms apart: detected
+within the look, otc stopped cleanly, MariaDB aborted on its own I/O errors while stopping,
+unmounted and md0 stopped 2 s on, `storage_unavailable` (GetPubKey and the 503) 3.1 s after the
+pull; back after 100 s: md0 assembled at once, mounted 1 s and MariaDB and otc started 3 s
+later, the device answering at 6 s, Alert "for 2 minutes". Pulled 20 s apart with the uploads going on to the second disk alone: md0 assembled from
+the newer one (events 124 against 27), the older added back 10 s after md0 started and copied from
+the newer; then the other disk pulled with the page cache dropped, every file read back from that
+copy alone. One disk out for 40 s: nothing stopped, the upload under way finished, re-added once
+back. `raid1` blocked at boot: the companion at 61 s of uptime, no disk added to the inactive md0,
+mounted 1 s and MariaDB and otc started 3 s after `mdadm --run`. Disks there but failing every
+I/O (dm-error under a throwaway md207 and under a plain ext4, read through the installed module): md207 `broken`
+taken as gone and one failing member not, the plain ext4's errors (errors_count 3, still `rw` in
+mountinfo) with its device unreadable taken as gone within 5 s, a read-only mount on a disk that
+answers not. A single storage disk (the VM installed again with `OTC_SKIP_RAID`, `vdb` made the
+storage by the first sign-in's own `perform_pending_storage_setup`, its `sdX` check passed over):
+release 167 already came back by itself - systemd unmounts the pulled disk and stops what needs
+it - but told the apps only after 60 s; now `storage_unavailable` 1.2 s after the pull and the
+device answering 4 s after the disk was back; with a process's working directory holding the
+mount, systemd's unmount failed and the guard detached it (`umount --lazy`) in the same second,
+the disk coming back as `vde`, mounted by its UUID. After each, every stored file (432 on the
+mirror, 64 on the single disk) read back with its SHA-256 and `mariadb-check --all-databases` all
+OK, and the empty directory under the mount point never changed. The LEDs (no GPIO in the VM) are
+checked by the selftest only. A fourth: the Pi has no battery-backed clock, so an install that starts
 before NTP syncs sees every Debian repository as "not live until <date>" and apt fails with
 code 100 - `install.sh`'s `ensure_clock` waits for NTP and falls back to a verified HTTPS
 Date header (forward only). Three Pi 5 pitfalls learnt the hard way: the image strips SSH host keys, so enabling ssh on an older card needs `ssh-keygen -A` first (newer images regenerate them from a ssh.service drop-in); NetworkManager's WiFi
@@ -1324,7 +1382,8 @@ start takes its file.
   signature, first and last MiB all 0x00 or 0xFF, read with O_EXCL|O_DIRECT) or a former member of
   md0 whose superblock doesn't show it ran without the disk md0 runs on now (`judge_disk`, the same
   rule as `otc-mirror`; a verdict is kept while the disk stays plugged in, disks are looked at every
-  5 s). Any other disk (a backup drive, a card fresh from the shop, another array's disk, a split
+  5 s, and only once md0 has run for 10 s - `running_settled`: never while udev still gathers disks
+  plugged back in). Any other disk (a backup drive, a card fresh from the shop, another array's disk, a split
   copy) is left alone, logged once, and listed in root's `/run/otc-raid-watch/not-added.json`, from
   which `raidwatch` raises one Alert per plug-in (`dev.alert.raid.not_added_*`,
   `<storage>/.raid-not-added`); the stopped alerts' details say a replacement that isn't blank is
@@ -1355,9 +1414,11 @@ start takes its file.
   (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
   while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
   The storage itself missing (issue #207) is `raid_watch.py`'s `StorageGuard` (the paragraph on
-  nofail at the top): it looks every 2 s, writes what it does to the storage log, and keeps
-  `/run/otc-raid-watch/storage.json` (`{"v":1,"missing_since"}`, root's, 0644) while the storage
-  has been missing for a minute, which the companion reads for when the outage began.
+  nofail at the top): it looks every 2 s, writes what it does to the storage log, takes down a
+  storage gone while mounted (both disks pulled, the single disk pulled or failing: `storage_gone`,
+  same paragraph), and keeps `/run/otc-raid-watch/storage.json` (`{"v":1,"missing_since"}`, root's,
+  0644) while the storage has been missing for a minute (at once when it went while mounted), which
+  the companion reads for when the outage began.
 - `nostorage` — the device without its storage (issue #207). `Ready(storagePath, ping)` is ""
   when the storage can be used: the path is under no mount fstab names (`wantedMount`: the
   deepest, never `/`, no noauto or swap - a container's volume or an `OTC_SKIP_RAID` directory has
@@ -1393,7 +1454,8 @@ start takes its file.
   app's files (`StaticHandler`), `/ws`, 503 for `/check_healty` (so update.sh's start check never
   counts it), `/media/` and the metrics; a port still held is tried every 5 s. Tests: nostorage's,
   websocket's `unavailable_test.go` (a fake bridge in a child process), api's
-  `TestServeUnavailable`, raid_watch's `selftest_storage`, updater's
+  `TestServeUnavailable`, raid_watch's `selftest_storage` and `selftest_storage_gone` (a fake sysfs:
+  members pulled, offline, faulty, a broken array, ext4 errors, the takedown on a fake clock), updater's
   `TestStorageUnitsAreTheSameInInstallAndRelease166`.
 - `wifiwatch` — the Wi-Fi watchdog (release 115). Pit (Pi 5, brcmfmac over SDIO) after ~27 h up
   kept receiving at 6.6 MB/s but sent at 0.15 MB/s, 7.7% of TCP segments retransmitted
