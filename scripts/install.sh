@@ -442,14 +442,16 @@ if ! command -v tailscale >/dev/null 2>&1; then
     fi
 fi
 # The package starts tailscaled at boot; it runs only once the owner turns
-# Funnel on in Settings (otc-tailscale-runner starts it then, and makes
-# otc its operator - otc.service can't, it runs with NoNewPrivileges).
-# A device already serving through Funnel (a re-install) keeps it.
+# Funnel on in Settings (otc-tailscale-runner starts it then - otc.service
+# can't, it runs with NoNewPrivileges). Only root drives it (issue #204):
+# the runner does everything Funnel needs, and a re-install of a device an
+# older release made otc the operator of takes that away first. A device
+# already serving through Funnel (a re-install) keeps it.
 if command -v tailscale >/dev/null 2>&1; then
+    bash "$OTC_VERIFIED_SRC/scripts/tailscale-runner/otc-tailscale-runner.sh" --drop-operator \
+        || log "WARNING: tailscaled's operator could not be taken away from the otc user - the runner tries again when Funnel is turned on"
     if ! tailscale funnel status 2>/dev/null | grep -q ':8080'; then
         systemctl disable --now tailscaled >/dev/null 2>&1 || true
-    else
-        tailscale set --operator=otc 2>/dev/null || true
     fi
 fi
 

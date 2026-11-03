@@ -48,7 +48,6 @@
   "dev.status.tailscale.enable_failed": {"text": "não foi possível ativar o Funnel: {detail}"},
   "dev.status.tailscale.join_failed": {"text": "não foi possível entrar na tailnet: {detail}"},
   "dev.status.tailscale.not_installed": {"text": "O Tailscale não está instalado neste dispositivo"},
-  "dev.status.tailscale.operator_failed": {"text": "o tailscaled foi iniciado, mas não foi possível tornar o dispositivo seu operador"},
   "dev.status.tailscale.request_off_failed": {"text": "não foi possível pedir para desligar o Tailscale: {detail}"},
   "dev.status.tailscale.request_on_failed": {"text": "não foi possível pedir para ligar o Tailscale: {detail}"},
   "dev.status.tailscale.start_failed": {"text": "não foi possível iniciar o tailscaled"},

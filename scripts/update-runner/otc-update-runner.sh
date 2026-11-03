@@ -9,8 +9,9 @@
 # update has to run as root (it installs the binary and restarts the
 # service), so the device doesn't run it: it drops a trigger file, and
 # systemd's otc-update.path starts this script as root in a unit of its
-# own (otc-update.service). Same shape as the Tailscale operator in
-# release 2 - the device never holds a path to root.
+# own (otc-update.service). The device never holds a path to root: the
+# other root runners (the bridge's, Tailscale's, the device's) have the
+# same shape.
 #
 # Trust boundary: the trigger file is only a trigger. Where the update is
 # fetched from comes from the root-owned config the service runs with

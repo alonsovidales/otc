@@ -249,11 +249,6 @@ func DevStatusTailscaleNotInstalled() Msg {
 	return Msg{Key: "dev.status.tailscale.not_installed"}
 }
 
-// DevStatusTailscaleOperatorFailed is dev.status.tailscale.operator_failed: "tailscaled started, but the device could not be made its operator".
-func DevStatusTailscaleOperatorFailed() Msg {
-	return Msg{Key: "dev.status.tailscale.operator_failed"}
-}
-
 // DevStatusTailscaleRequestOffFailed is dev.status.tailscale.request_off_failed: "could not ask for Tailscale to be switched off: {detail}".
 func DevStatusTailscaleRequestOffFailed(detail string) Msg {
 	return Msg{Key: "dev.status.tailscale.request_off_failed", Args: map[string]any{"detail": detail}}

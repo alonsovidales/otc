@@ -48,7 +48,6 @@
   "dev.status.tailscale.enable_failed": {"text": "could not enable Funnel: {detail}", "args": [["detail", "text"]]},
   "dev.status.tailscale.join_failed": {"text": "could not join the tailnet: {detail}", "args": [["detail", "text"]]},
   "dev.status.tailscale.not_installed": {"text": "Tailscale is not installed on this device"},
-  "dev.status.tailscale.operator_failed": {"text": "tailscaled started, but the device could not be made its operator"},
   "dev.status.tailscale.request_off_failed": {"text": "could not ask for Tailscale to be switched off: {detail}", "args": [["detail", "text"]]},
   "dev.status.tailscale.request_on_failed": {"text": "could not ask for Tailscale to be switched on: {detail}", "args": [["detail", "text"]]},
   "dev.status.tailscale.start_failed": {"text": "tailscaled could not be started"},

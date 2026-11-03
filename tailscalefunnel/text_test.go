@@ -10,10 +10,9 @@ import (
 	"github.com/alonsovidales/otc/i18n"
 )
 
-// The errors Enable, Disable and switchDaemon return keep their English
-// (the functions themselves drive the real tailscale CLI, so only their
-// errors are built here), and a runner's failure is its message as
-// written.
+// The errors Enable, Disable and Status return keep their English (built
+// here; runner_test.go has them come back from a stand-in runner), and a
+// runner's failure is its message as written.
 func TestErrorsEnglishUnchanged(t *testing.T) {
 	cause := errors.New("tailscale: exit status 1: boom")
 	cases := []struct {

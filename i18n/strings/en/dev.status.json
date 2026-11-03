@@ -223,10 +223,6 @@
     "text": "Tailscale is not installed on this device",
     "note": "Error shown in Settings > Tailscale Funnel when the device's root helper could not start Tailscale because it isn't installed."
   },
-  "dev.status.tailscale.operator_failed": {
-    "text": "tailscaled started, but the device could not be made its operator",
-    "note": "Error shown in Settings > Tailscale Funnel: the Tailscale service (tailscaled, the program's name) started, but the device's own service was not allowed to control it."
-  },
   "dev.status.tailscale.request_off_failed": {
     "text": "could not ask for Tailscale to be switched off: {detail}",
     "args": [["detail", "text"]],
@@ -239,19 +235,19 @@
   },
   "dev.status.tailscale.start_failed": {
     "text": "tailscaled could not be started",
-    "note": "Error shown in Settings > Tailscale Funnel: the device's root helper could not start the Tailscale service. tailscaled is the program's name."
+    "note": "Error shown in Settings > Tailscale Funnel: the device's root helper could not start the Tailscale service (or could not lock it down once started, and stopped it again). tailscaled is the program's name."
   },
   "dev.status.tailscale.timeout_off": {
     "text": "Tailscale did not switch off in time - try again",
-    "note": "Error shown in Settings > Tailscale Funnel when turning it off: the Tailscale service did not stop within 45 seconds."
+    "note": "Error shown in Settings > Tailscale Funnel when turning it off: the device's root helper did not turn Funnel off and stop the Tailscale service within a minute and a half."
   },
   "dev.status.tailscale.timeout_on": {
     "text": "Tailscale did not switch on in time - try again",
-    "note": "Error shown in Settings > Tailscale Funnel when turning it on: the Tailscale service did not start within 45 seconds."
+    "note": "Error shown in Settings > Tailscale Funnel when turning it on: the device's root helper did not start the Tailscale service, join the tailnet and turn Funnel on within about three minutes."
   },
   "dev.status.tailscale.unknown_request": {
     "text": "unknown request",
-    "note": "Error the device's Tailscale root helper writes when it was asked for something other than switching Tailscale on or off (it should never happen)."
+    "note": "Error the device's Tailscale root helper writes when it was asked for something other than switching Funnel on or off or saying how Tailscale stands (it should never happen)."
   },
   "dev.status.wifi.busy": {
     "text": "the Wi-Fi was being changed from Settings",

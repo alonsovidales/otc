@@ -14,27 +14,39 @@
 // bandwidth limits Tailscale does not publish. What it buys is a device
 // that depends on nothing of ours to be reachable.
 //
-// Everything here shells out to the tailscale CLI rather than embedding
-// tsnet: the daemon is installed and updated by the distribution, the
-// node's identity lives with it, and an owner who later wants to manage
-// the tailnet by hand finds exactly what they would expect.
+// tailscaled is the distribution's, installed and updated by it, and the
+// node's identity lives with it, so an owner who later wants to manage
+// the tailnet by hand finds exactly what they would expect. It runs as
+// root, and this package never talks to it (issue #204): releases before
+// 168 made the otc user its operator so that this package could drive the
+// CLI, which let the service do everything the CLI does - change the
+// account or the tailnet, routes and exit nodes, serve, Tailscale SSH -
+// when the product needs Funnel on its own web port and nothing else.
+// Instead, the root runner (scripts/tailscale-runner) runs the few fixed
+// commands Funnel needs, for one word this package writes to
+// /var/lib/otc/tailscale.request - on, off or status - and answers in
+// /var/lib/otc/tailscale-status.json with the state the setup screen
+// shows. An auth key goes to the runner as a file of its own on the
+// service's RAM filesystem, which the runner takes before anything else
+// and hands to `tailscale up` as a file: never a command line, which every
+// account on the machine can read in /proc.
 //
 // None of it uses sudo, and it must not: otc.service runs with
 // NoNewPrivileges=true, which stops any child of this process gaining
 // privilege at all - sudo there fails with "the no new privileges flag is
-// set" no matter how the sudoers file is written. Tailscale's own answer
-// is an operator: `tailscale set --operator=otc`, run once as root by the
-// installer, after which this user drives the daemon directly. That is
-// also the better outcome - the device never needs a path to root.
+// set" no matter how the sudoers file is written.
 package tailscalefunnel
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
-	"regexp"
+	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alonsovidales/otc/devtext"
@@ -42,34 +54,49 @@ import (
 	"github.com/alonsovidales/otc/log"
 )
 
+// The words the runner takes: an allowlist, the only things this package
+// can ask of tailscaled.
 const (
-	// cLocalPort is what Funnel is pointed at - the device's own plain
-	// HTTP server. Tailscale terminates TLS itself, so the device needs
-	// no certificate of its own on this path.
-	cLocalPort = 8080
+	cOn     = "on"
+	cOff    = "off"
+	cStatus = "status"
+)
 
-	// cPublicPort is Funnel's own listener. It only accepts 443, 8443 or
-	// 10000, and 443 is the one a browser reaches without a port in the
-	// URL.
-	cPublicPort = 443
+const (
+	// cStatusFresh: an answer this recent stands in for a status asked
+	// again - Settings asks whenever it shows, the web app at every
+	// return to its tab - so a burst runs the runner once.
+	cStatusFresh = 2 * time.Second
 
-	// cCommandTimeout bounds every CLI call so a wedged daemon can't hang
-	// the RPC that triggered it.
-	cCommandTimeout = 30 * time.Second
+	// cMaxAnswer bounds what is read of the answer: it is a few hundred
+	// bytes.
+	cMaxAnswer = 64 << 10
+)
 
-	// cLoginTimeout is how long to wait for `tailscale up` to print a
-	// login URL before giving up on it. Short: it prints the URL almost
-	// immediately and then blocks waiting for a human, which is the
-	// opposite of what an RPC wants to do.
-	cLoginTimeout = 10 * time.Second
+// Where the runner is asked and answers, and how long it has (package
+// vars: the tests point them at a temporary directory and shorten them).
+// The request and the answer are in the service's StateDirectory, as the
+// other runners' are; the auth key goes to its RuntimeDirectory, a tmpfs
+// emptied whenever the service stops.
+var (
+	requestPath = "/var/lib/otc/tailscale.request"
+	answerPath  = "/var/lib/otc/tailscale-status.json"
+	authKeyPath = "/run/otc/tailscale-auth.key"
 
-	// tailscaled runs only while Funnel is on. The device can't start or
-	// stop a system service (otc.service has NoNewPrivileges), so it asks
-	// the root runner (scripts/tailscale-runner) through these files, the
-	// same way the bridge switch works.
-	cDaemonRequest = "/var/lib/otc/tailscale.request"
-	cDaemonStatus  = "/var/lib/otc/tailscale-status.json"
-	cDaemonWait    = 45 * time.Second
+	// How long each word may take before the device gives up on its
+	// answer. on starts tailscaled, may join the tailnet and turns Funnel
+	// on (the runner bounds each step, its unit 3 minutes in all); off
+	// resets Funnel and stops the daemon; status only reads.
+	onWait     = 3*time.Minute + 10*time.Second
+	offWait    = 90 * time.Second
+	statusWait = 15 * time.Second
+
+	// pollEvery is how often the answer is looked for.
+	pollEvery = 100 * time.Millisecond
+
+	// lookPath finds the CLI, only to tell an owner whose device lacks
+	// it: nothing here runs it.
+	lookPath = exec.LookPath
 )
 
 // State is what the setup screen needs to know.
@@ -88,58 +115,66 @@ type State struct {
 	LoginURL string
 }
 
-// statusJSON is the subset of `tailscale status --json` this needs.
-type statusJSON struct {
-	BackendState string `json:"BackendState"`
-	AuthURL      string `json:"AuthURL"`
-	Self         struct {
-		DNSName string `json:"DNSName"`
-	} `json:"Self"`
+// answer is the runner's tailscale-status.json.
+type answer struct {
+	State   string          `json:"state"`
+	Message string          `json:"message"`
+	Code    string          `json:"code"`
+	Args    json.RawMessage `json:"args"`
+	// Request is the word answered; a runner from before issue #204
+	// leaves it out.
+	Request   string `json:"request"`
+	LoggedIn  bool   `json:"logged_in"`
+	FunnelOn  bool   `json:"funnel_on"`
+	PublicURL string `json:"public_url"`
+	LoginURL  string `json:"login_url"`
 }
 
-var loginURLPattern = regexp.MustCompile(`https://login\.tailscale\.com/\S+`)
+var (
+	// mu: one request to the runner at a time - there is one request
+	// file, and one answer.
+	mu sync.Mutex
+	// last is the state the runner last reported, and when: a status
+	// asked while an on or off is under way gets it rather than waiting
+	// minutes behind it.
+	last atomic.Pointer[seen]
+)
+
+type seen struct {
+	state State
+	at    time.Time
+}
 
 // Available reports whether the tailscale CLI exists here.
 func Available() bool {
-	_, err := exec.LookPath("tailscale")
+	_, err := lookPath("tailscale")
 
 	return err == nil
 }
 
 // Status reports where this device currently stands.
 func Status() State {
-	state := State{Installed: Available()}
-	if !state.Installed {
-		return state
+	if !Available() {
+		return State{}
 	}
+	if s := last.Load(); s != nil && time.Since(s.at) < cStatusFresh {
+		return s.state
+	}
+	if !mu.TryLock() {
+		// Funnel is being switched: what the runner last said.
+		if s := last.Load(); s != nil {
+			return s.state
+		}
+		return State{Installed: true}
+	}
+	defer mu.Unlock()
 
-	out, err := run("tailscale", "status", "--json")
+	a, err := ask(cStatus, "", statusWait)
 	if err != nil {
-		log.Debug("tailscale status failed:", err)
-		return state
+		log.Debug("tailscale status:", err)
+		return State{Installed: true}
 	}
-
-	var parsed statusJSON
-	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
-		log.Debug("could not parse tailscale status:", err)
-		return state
-	}
-
-	state.LoggedIn = parsed.BackendState == "Running"
-	state.LoginURL = parsed.AuthURL
-	// DNSName comes back fully qualified with a trailing dot.
-	if host := strings.TrimSuffix(parsed.Self.DNSName, "."); host != "" && state.LoggedIn {
-		state.PublicURL = "https://" + host
-	}
-
-	if funnelOut, err := run("tailscale", "funnel", "status"); err == nil {
-		// The exact shape of this output has changed between releases,
-		// so this looks for the port rather than parsing it: all that
-		// matters is whether this device is being served publicly.
-		state.FunnelOn = strings.Contains(funnelOut, fmt.Sprintf("%d", cLocalPort))
-	}
-
-	return state
+	return a.state()
 }
 
 // Enable joins the tailnet if needed and turns Funnel on for the device's
@@ -153,199 +188,149 @@ func Enable(authKey string) (State, error) {
 	if !Available() {
 		return State{}, devtext.New(i18n.DevStatusTailscaleCliMissing())
 	}
+	mu.Lock()
+	defer mu.Unlock()
 
-	if !daemonUp() {
-		if err := switchDaemon("on"); err != nil {
-			return State{Installed: true}, err
-		}
+	a, err := ask(cOn, strings.TrimSpace(authKey), onWait)
+	if err != nil {
+		return a.state(), err
 	}
-
-	state := Status()
-	if !state.LoggedIn {
-		loginURL, err := joinTailnet(authKey)
-		if err != nil {
-			return state, err
-		}
-		if loginURL != "" {
-			// Authorisation is still outstanding: report it and stop.
-			// Turning Funnel on before the node has joined would just
-			// fail.
-			state.LoginURL = loginURL
-			return state, nil
-		}
-		state = Status()
+	st := a.state()
+	switch {
+	case st.FunnelOn:
+		log.Info("tailscale funnel enabled")
+	case st.LoginURL != "":
+		log.Info("tailscale: the node waits to be authorised")
 	}
-
-	// --bg so it survives reboots rather than needing to be re-run; 443
-	// so the public URL carries no port.
-	if _, err := run(
-		"tailscale", "funnel", "--bg", "--yes",
-		fmt.Sprintf("--https=%d", cPublicPort),
-		fmt.Sprintf("localhost:%d", cLocalPort),
-	); err != nil {
-		return state, devtext.Wrap(i18n.DevStatusTailscaleEnableFailed(err.Error()), err)
-	}
-
-	log.Info("tailscale funnel enabled on port", cLocalPort)
-
-	return Status(), nil
+	return st, nil
 }
 
-// Disable stops serving this device publicly. The node stays in the
-// tailnet - leaving that is the owner's business, not something a
-// checkbox here should decide.
-func Disable() error {
+// Disable stops serving this device publicly, and tailscaled with it. The
+// node stays in the tailnet - leaving that is the owner's business, not
+// something a checkbox here should decide.
+func Disable() (State, error) {
 	if !Available() {
-		return devtext.New(i18n.DevStatusTailscaleCliMissing())
+		return State{}, devtext.New(i18n.DevStatusTailscaleCliMissing())
 	}
-	if daemonUp() {
-		if _, err := run("tailscale", "funnel", "reset"); err != nil {
-			return devtext.Wrap(i18n.DevStatusTailscaleDisableFailed(err.Error()), err)
-		}
-	}
-	// Nothing else on the device uses Tailscale: the daemon stops until
-	// Funnel is turned on again (the node keeps its place in the tailnet).
-	return switchDaemon("off")
-}
+	mu.Lock()
+	defer mu.Unlock()
 
-// daemonUp reports whether tailscaled answers.
-func daemonUp() bool {
-	_, err := run("tailscale", "status", "--json")
+	a, err := ask(cOff, "", offWait)
 	if err == nil {
-		return true
+		log.Info("tailscale funnel disabled")
 	}
-	// Logged out, or waiting for a login, still means the daemon is there.
-	return !strings.Contains(err.Error(), "failed to connect") && !strings.Contains(err.Error(), "doesn't appear to be running")
+	return a.state(), err
 }
 
-// switchDaemon asks the root runner to start ("on") or stop ("off")
-// tailscaled, and waits for its answer.
-func switchDaemon(want string) error {
-	_ = os.Remove(cDaemonStatus)
-	if err := os.WriteFile(cDaemonRequest, []byte(want), 0o644); err != nil { // perms: rw-r--r--
-		if want == "on" {
-			return devtext.Wrap(i18n.DevStatusTailscaleRequestOnFailed(err.Error()), err)
+// ask hands the runner word (and, for on, the auth key) and waits up to
+// wait for its answer. Its error is the runner's failure as it worded it,
+// or why there was no answer. Callers hold mu.
+func ask(word, authKey string, wait time.Duration) (answer, error) {
+	// Never an answer left from a request before this one.
+	if err := os.Remove(answerPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Debug("tailscale: could not remove the previous answer:", err)
+	}
+	// No key left from before goes with this request; the one written
+	// here goes once the answer is in, if the runner never took it.
+	os.Remove(authKeyPath)
+	if authKey != "" {
+		if err := writeFile(authKeyPath, authKey); err != nil {
+			return answer{}, requestFailed(word, err)
 		}
+		defer os.Remove(authKeyPath)
+	}
+	if err := writeFile(requestPath, word); err != nil {
+		return answer{}, requestFailed(word, err)
+	}
+
+	deadline := time.Now().Add(wait)
+	for time.Now().Before(deadline) {
+		time.Sleep(pollEvery)
+		a, ok := readAnswer(word)
+		if !ok {
+			continue
+		}
+		last.Store(&seen{state: a.state(), at: time.Now()})
+		if a.State == "failed" {
+			return a, devtext.TailscaleError(a.Code, a.Args, a.Message)
+		}
+		return a, nil
+	}
+	// Not taken in all that time: the runner never started (its path unit
+	// isn't there, or failed). Withdrawn, so it can't act on it later -
+	// at the next boot, say - when nobody asked any more.
+	os.Remove(requestPath)
+	switch word {
+	case cOn:
+		return answer{}, devtext.New(i18n.DevStatusTailscaleTimeoutOn())
+	case cOff:
+		return answer{}, devtext.New(i18n.DevStatusTailscaleTimeoutOff())
+	}
+	return answer{}, errors.New("tailscale: no answer from the runner") // i18n-ignore: Status only logs it
+}
+
+func requestFailed(word string, err error) error {
+	if word == cOff {
 		return devtext.Wrap(i18n.DevStatusTailscaleRequestOffFailed(err.Error()), err)
 	}
-	deadline := time.Now().Add(cDaemonWait)
-	for time.Now().Before(deadline) {
-		time.Sleep(500 * time.Millisecond)
-		raw, err := os.ReadFile(cDaemonStatus)
-		if err != nil {
-			continue
-		}
-		var st struct {
-			State   string          `json:"state"`
-			Message string          `json:"message"`
-			Code    string          `json:"code"`
-			Args    json.RawMessage `json:"args"`
-		}
-		if json.Unmarshal(raw, &st) != nil {
-			continue
-		}
-		switch st.State {
-		case "done":
-			log.Info("tailscaled switched", want)
-			return nil
-		case "failed":
-			return devtext.TailscaleError(st.Code, st.Args, st.Message)
-		}
-	}
-	if want == "on" {
-		return devtext.New(i18n.DevStatusTailscaleTimeoutOn())
-	}
-	return devtext.New(i18n.DevStatusTailscaleTimeoutOff())
+	return devtext.Wrap(i18n.DevStatusTailscaleRequestOnFailed(err.Error()), err)
 }
 
-// joinTailnet runs `tailscale up`, returning a login URL when a human
-// still has to authorise the node.
-//
-// --timeout is load-bearing, not tidiness: without an auth key
-// `tailscale up` blocks until somebody visits the login page, which for
-// an RPC means never returning at all. Bounding it makes the call come
-// back, and the pending authorisation is left with the daemon - where
-// Status finds it as AuthURL, which is how the URL still reaches the
-// screen even though the command that triggered it has already exited.
-func joinTailnet(authKey string) (string, error) {
-	args := []string{"up", "--timeout=" + cLoginTimeout.String()}
-	if authKey != "" {
-		arg, done, err := authKeyArg(authKey, ramDir())
-		if err != nil {
-			return "", devtext.Wrap(i18n.DevStatusTailscaleJoinFailed(err.Error()), err)
-		}
-		defer done()
-		args = append(args, arg)
-	}
-
-	out, err := run("tailscale", args...)
-
-	// A URL means the node is waiting to be authorised, which is a
-	// perfectly good outcome - and the command exiting non-zero because
-	// it timed out waiting is expected in exactly that case, so the URL
-	// is looked for before the error is believed.
-	if url := loginURLPattern.FindString(out); url != "" {
-		return url, nil
-	}
-	if state := Status(); state.LoginURL != "" {
-		return state.LoginURL, nil
-	} else if state.LoggedIn {
-		return "", nil
-	}
-
+// writeFile puts content at path whole: written to a temporary file of
+// this account's beside it (0600) and renamed, so the runner, started as
+// soon as the name appears, never reads half of it.
+func writeFile(path, content string) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
 	if err != nil {
-		return "", devtext.Wrap(i18n.DevStatusTailscaleJoinFailed(err.Error()), err)
+		return err
 	}
-
-	return "", nil
-}
-
-// authKeyArg is how `tailscale up` is given authKey: as a file it reads
-// itself (--auth-key=file:<path>, which every tailscale that knows
-// --auth-key reads), written 0600 to dir, a RAM filesystem, and removed by
-// done once the command is over - never in its argv, which every account
-// on the machine can read in /proc. With no such dir ("": not Linux, no
-// tmpfs), in argv as before.
-func authKeyArg(authKey, dir string) (arg string, done func(), err error) {
-	if dir == "" {
-		return "--auth-key=" + authKey, func() {}, nil
-	}
-	f, err := os.CreateTemp(dir, ".tailscale-auth-*")
-	if err != nil {
-		return "", nil, err
-	}
-	done = func() { os.Remove(f.Name()) }
-	_, err = f.WriteString(authKey)
+	tmp := f.Name()
+	_, err = f.WriteString(content)
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
-	if err != nil {
-		done()
-		return "", nil, err
+	if err == nil {
+		err = os.Rename(tmp, path)
 	}
-	return "--auth-key=file:" + f.Name(), done, nil
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }
 
-func run(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	done := make(chan struct{})
-	var out []byte
-	var err error
-	go func() {
-		out, err = cmd.CombinedOutput()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		if err != nil {
-			return string(out), fmt.Errorf("%s: %w: %s", name, err, strings.TrimSpace(string(out)))
-		}
-		return string(out), nil
-	case <-time.After(cCommandTimeout):
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		return "", fmt.Errorf("%s timed out", name) // i18n-ignore: a command's failure, the detail after a translated sentence
+// readAnswer is the runner's answer to word, once it is there.
+func readAnswer(word string) (answer, bool) {
+	f, err := os.Open(answerPath)
+	if err != nil {
+		return answer{}, false
 	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, cMaxAnswer))
+	if err != nil {
+		return answer{}, false
+	}
+	var a answer
+	if json.Unmarshal(raw, &a) != nil || (a.State != "done" && a.State != "failed") {
+		return answer{}, false
+	}
+	// An answer to another word is a late one to a request before this
+	// one. A runner from before issue #204 names none.
+	if a.Request != word && a.Request != "" {
+		return answer{}, false
+	}
+	return a, true
+}
+
+// state is the answer as the setup screen sees it. The addresses are
+// links an app opens: only web ones.
+func (a answer) state() State {
+	st := State{Installed: true, LoggedIn: a.LoggedIn, FunnelOn: a.FunnelOn}
+	if strings.HasPrefix(a.PublicURL, "https://") && !strings.ContainsAny(a.PublicURL, " \t\r\n") {
+		st.PublicURL = a.PublicURL
+	}
+	if (strings.HasPrefix(a.LoginURL, "https://") || strings.HasPrefix(a.LoginURL, "http://")) &&
+		!strings.ContainsAny(a.LoginURL, " \t\r\n") {
+		st.LoginURL = a.LoginURL
+	}
+	return st
 }

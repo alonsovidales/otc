@@ -42,8 +42,12 @@ var (
 	bridgeCodes = codes("dev.status.bridge.",
 		"already_on", "config_missing", "config_update_failed", "no_name", "not_host_name",
 		"on_bridge", "switching_off", "switching_on")
+	// Since issue #204 the runner joins the tailnet and switches Funnel
+	// itself, so Funnel's failures are its codes too (each with the
+	// tailscale program's own words as detail).
 	tailscaleCodes = codes("dev.status.tailscale.",
-		"not_installed", "operator_failed", "start_failed", "unknown_request")
+		"disable_failed", "enable_failed", "join_failed", "not_installed", "start_failed",
+		"unknown_request")
 	wifiRestartCodes = codes("dev.status.wifi.",
 		"busy", "no_connection", "not_wifi", "rebooted", "restarted", "restarting", "too_soon")
 

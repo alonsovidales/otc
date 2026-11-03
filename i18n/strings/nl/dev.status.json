@@ -196,10 +196,6 @@
     "text": "Tailscale is niet geïnstalleerd op dit apparaat",
     "en": "Tailscale is not installed on this device"
   },
-  "dev.status.tailscale.operator_failed": {
-    "text": "tailscaled is gestart, maar het apparaat kon niet als operator worden ingesteld",
-    "en": "tailscaled started, but the device could not be made its operator"
-  },
   "dev.status.tailscale.request_off_failed": {
     "text": "kan niet vragen om Tailscale uit te schakelen: {detail}",
     "en": "could not ask for Tailscale to be switched off: {detail}"

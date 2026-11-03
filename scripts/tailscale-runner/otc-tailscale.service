@@ -1,15 +1,27 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Starts or stops tailscaled as root. Started by otc-tailscale.path when
-# the device (running unprivileged, see otc.service's NoNewPrivileges)
-# drops /var/lib/otc/tailscale.request - see otc-tailscale-runner.sh.
+# Does what Tailscale Funnel needs as root: starts or stops tailscaled,
+# joins the tailnet, turns Funnel on or off, and says how it stands.
+# Started by otc-tailscale.path when the device (running unprivileged, see
+# otc.service's NoNewPrivileges) drops /var/lib/otc/tailscale.request -
+# see otc-tailscale-runner.sh.
 [Unit]
 Description=Off The Cloud Tailscale switch
+# No start limit: Settings asks how Tailscale stands each time it shows
+# (the web app at every return to its tab), and a burst must never leave
+# the path unit failed - and Funnel's switch dead - until the next boot.
+# Each run does one fixed thing and ends.
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
 User=root
 # A oneshot has no start timeout by default: a hung tailscaled or
 # tailscale call kept the unit "activating" for good. Far beyond a run:
-# the daemon's start and at most 20 s waiting for it to answer.
-TimeoutStartSec=2min
+# the runner bounds every step (the daemon's start, at most 20 s waiting
+# for it to answer, the sign-in, Funnel).
+TimeoutStartSec=3min
+# Root's own directory for the run (0700, gone when it ends): the auth key
+# the device hands over waits there for `tailscale up`.
+RuntimeDirectory=otc-tailscale
+RuntimeDirectoryMode=0700
 ExecStart=/usr/local/bin/otc-tailscale-runner

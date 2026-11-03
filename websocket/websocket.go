@@ -3928,8 +3928,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			}
 			state, err = tailscalefunnel.Enable(authKey)
 		} else {
-			err = tailscalefunnel.Disable()
-			state = tailscalefunnel.Status()
+			state, err = tailscalefunnel.Disable()
 		}
 		errMessage := ""
 		if err != nil {
