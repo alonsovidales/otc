@@ -85,6 +85,7 @@
   "dev.files.upload_receive_failed": {"text": "errore durante la ricezione del caricamento: {detail}"},
   "dev.files.upload_removed": {"text": "il contenuto caricato è stato rimosso prima di essere registrato: invialo di nuovo"},
   "dev.files.upload_start_failed": {"text": "errore durante l’avvio del caricamento: {detail}"},
+  "dev.files.upload_too_many": {"text": "troppi caricamenti in corso contemporaneamente"},
   "dev.files.upload_too_much": {"text": "più dati della dimensione del caricamento"},
   "dev.files.upload_unknown": {"text": "caricamento sconosciuto o scaduto"},
   "dev.files.versions_failed": {"text": "errore durante l’elenco delle versioni: {detail}"},

@@ -85,6 +85,7 @@
   "dev.files.upload_receive_failed": {"text": "fout bij het ontvangen van de upload: {detail}"},
   "dev.files.upload_removed": {"text": "de inhoud van de upload is verwijderd voordat die werd vastgelegd: verstuur het bestand opnieuw"},
   "dev.files.upload_start_failed": {"text": "fout bij het starten van de upload: {detail}"},
+  "dev.files.upload_too_many": {"text": "te veel uploads tegelijk bezig"},
   "dev.files.upload_too_much": {"text": "meer gegevens dan de grootte van de upload"},
   "dev.files.upload_unknown": {"text": "onbekende of verlopen upload"},
   "dev.files.versions_failed": {"text": "fout bij het ophalen van de versies: {detail}"},

@@ -85,6 +85,7 @@
   "dev.files.upload_receive_failed": {"text": "Fehler beim Empfangen des Uploads: {detail}"},
   "dev.files.upload_removed": {"text": "der Inhalt des Uploads wurde entfernt, bevor er erfasst wurde – sende ihn erneut"},
   "dev.files.upload_start_failed": {"text": "Fehler beim Starten des Uploads: {detail}"},
+  "dev.files.upload_too_many": {"text": "zu viele Uploads gleichzeitig"},
   "dev.files.upload_too_much": {"text": "mehr Daten als die angekündigte Größe des Uploads"},
   "dev.files.upload_unknown": {"text": "unbekannter oder abgelaufener Upload"},
   "dev.files.versions_failed": {"text": "Fehler beim Auflisten der Versionen: {detail}"},

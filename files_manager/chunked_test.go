@@ -17,51 +17,72 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+// noUploads starts the test with no unfinished upload in this process
+// (they are the process's: one instance's), and drops what it leaves.
+func noUploads(t *testing.T) {
+	t.Helper()
+	all := func(*chunkedUpload) bool { return true }
+	pendingUploads.drop(all)
+	t.Cleanup(func() { pendingUploads.drop(all) })
+}
+
+// tempBlobs counts the temp files in storage: an upload's, until it is
+// finished or dropped.
+func tempBlobs(storage string) int {
+	n := 0
+	entries, _ := os.ReadDir(storage)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".blob-") {
+			n++
+		}
+	}
+	return n
+}
+
 // A connection's unfinished uploads go when it closes - their temp files
-// too - and nobody else's do.
-func TestAbortUploadsOfDropsOnlyThatConnectionsUploads(t *testing.T) {
+// too - and nobody else's do; one it began with a resume key is kept for
+// another connection to go on with, its temp file too (issue #205).
+func TestReleaseUploadsOfDropsOnlyThatConnectionsKeylessUploads(t *testing.T) {
 	storage, ses := galleryTestEnv(t)
+	noUploads(t)
 	mg := &Manager{}
 	connA, connB := new(int), new(int)
-	temps := func() int {
-		n := 0
-		entries, _ := os.ReadDir(storage)
-		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), ".blob-") {
-				n++
-			}
-		}
-		return n
-	}
-	before := temps()
-	idA, err := mg.BeginUpload(ses, "/a.mov", 10, false, nil, nil, "", connA)
+	before := tempBlobs(storage)
+	idA, _, err := mg.BeginUpload(ses, "/a.mov", 10, false, nil, nil, "", "", connA)
 	if err != nil {
 		t.Fatal(err)
 	}
-	idB, err := mg.BeginUpload(ses, "/b.mov", 10, false, nil, nil, "", connB)
+	idB, _, err := mg.BeginUpload(ses, "/b.mov", 10, false, nil, nil, "", "", connB)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mg.UploadChunk(ses, idA, 0, []byte("12345")); err != nil {
+	idK, _, err := mg.BeginUpload(ses, "/k.mov", 10, false, nil, nil, "", strings.Repeat("ab", 32), connA)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := temps(); got != before+2 {
-		t.Fatalf("%d temp files, want %d", got, before+2)
+	if _, err := mg.UploadChunk(ses, idA, 0, []byte("12345"), connA); err != nil {
+		t.Fatal(err)
+	}
+	if got := tempBlobs(storage); got != before+3 {
+		t.Fatalf("%d temp files, want %d", got, before+3)
 	}
 
-	mg.AbortUploadsOf(connA)
-	if _, err := mg.UploadChunk(ses, idA, 5, []byte("67890")); err != ErrUnknownUpload {
+	mg.ReleaseUploadsOf(connA)
+	if _, err := mg.UploadChunk(ses, idA, 5, []byte("67890"), connA); err != ErrUnknownUpload {
 		t.Errorf("the closed connection's upload is still there: %v", err)
 	}
-	if _, err := mg.UploadChunk(ses, idB, 0, []byte("12345")); err != nil {
+	if _, err := mg.UploadChunk(ses, idK, 0, []byte("12345"), connA); err != ErrUnknownUpload {
+		t.Errorf("a kept upload took a chunk with nobody driving it: %v", err)
+	}
+	if _, err := mg.UploadChunk(ses, idB, 0, []byte("12345"), connB); err != nil {
 		t.Errorf("another connection's upload was dropped: %v", err)
 	}
-	if got := temps(); got != before+1 {
-		t.Errorf("%d temp files after the abort, want %d", got, before+1)
+	if got := tempBlobs(storage); got != before+2 {
+		t.Errorf("%d temp files after the release, want %d (the other connection's, the kept one)", got, before+2)
 	}
-	mg.AbortUploadsOf(connB)
-	if got := temps(); got != before {
-		t.Errorf("%d temp files left, want %d", got, before)
+	mg.ReleaseUploadsOf(connB)
+	if got := tempBlobs(storage); got != before+1 {
+		t.Errorf("%d temp files left, want %d (the kept one)", got, before+1)
 	}
 }
 

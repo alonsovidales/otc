@@ -346,6 +346,10 @@
     "text": "erreur lors du démarrage de l’envoi : {detail}",
     "en": "error starting the upload: {detail}"
   },
+  "dev.files.upload_too_many": {
+    "text": "trop d’envois en cours en même temps",
+    "en": "too many uploads under way at once"
+  },
   "dev.files.upload_too_much": {
     "text": "plus de données que la taille annoncée pour l’envoi",
     "en": "more data than the upload's size"

@@ -346,6 +346,10 @@
     "text": "error al iniciar la subida: {detail}",
     "en": "error starting the upload: {detail}"
   },
+  "dev.files.upload_too_many": {
+    "text": "demasiadas subidas en curso a la vez",
+    "en": "too many uploads under way at once"
+  },
   "dev.files.upload_too_much": {
     "text": "más datos que el tamaño de la subida",
     "en": "more data than the upload's size"

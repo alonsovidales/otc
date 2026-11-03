@@ -78,11 +78,11 @@ func TestTakenPathIsErrDuplicatedFile(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
-		id, err := mg.BeginUpload(ses, "/docs/b.txt", int64(len(content)), false, nil, nil, "", nil)
+		id, _, err := mg.BeginUpload(ses, "/docs/b.txt", int64(len(content)), false, nil, nil, "", "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := mg.UploadChunk(ses, id, 0, content); err != nil {
+		if _, err := mg.UploadChunk(ses, id, 0, content, nil); err != nil {
 			t.Fatal(err)
 		}
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
@@ -92,7 +92,7 @@ func TestTakenPathIsErrDuplicatedFile(t *testing.T) {
 		mock.ExpectQuery("select \\(select count.* from `files` where `hash` = .* from `file_versions` where `hash`").
 			WithArgs(hash, hash).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
-		f, err := mg.FinishUpload(ses, id, hash)
+		f, err := mg.FinishUpload(ses, id, hash, nil)
 		if f != nil {
 			t.Errorf("a refused upload answered a file: %+v", f)
 		}

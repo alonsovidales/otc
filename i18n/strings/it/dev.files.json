@@ -346,6 +346,10 @@
     "text": "errore durante l’avvio del caricamento: {detail}",
     "en": "error starting the upload: {detail}"
   },
+  "dev.files.upload_too_many": {
+    "text": "troppi caricamenti in corso contemporaneamente",
+    "en": "too many uploads under way at once"
+  },
   "dev.files.upload_too_much": {
     "text": "più dati della dimensione del caricamento",
     "en": "more data than the upload's size"

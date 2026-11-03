@@ -346,6 +346,10 @@
     "text": "Fehler beim Starten des Uploads: {detail}",
     "en": "error starting the upload: {detail}"
   },
+  "dev.files.upload_too_many": {
+    "text": "zu viele Uploads gleichzeitig",
+    "en": "too many uploads under way at once"
+  },
   "dev.files.upload_too_much": {
     "text": "mehr Daten als die angekündigte Größe des Uploads",
     "en": "more data than the upload's size"

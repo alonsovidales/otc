@@ -14,10 +14,10 @@ import (
 // a request without a language or in English.
 func TestReplyErrorsKeepTheirEnglish(t *testing.T) {
 	mg := &Manager{}
-	_, chunkErr := mg.UploadChunk(nil, "", 0, make([]byte, MaxChunk+1))
-	_, badSize := mg.BeginUpload(nil, "/a", -1, false, nil, nil, "", nil)
-	_, noPath := mg.BeginUpload(nil, "", 1, false, nil, nil, "", nil)
-	_, unknown := mg.FinishUpload(nil, "nope", "")
+	_, chunkErr := mg.UploadChunk(nil, "", 0, make([]byte, MaxChunk+1), nil)
+	_, _, badSize := mg.BeginUpload(nil, "/a", -1, false, nil, nil, "", "", nil)
+	_, _, noPath := mg.BeginUpload(nil, "", 1, false, nil, nil, "", "", nil)
+	_, unknown := mg.FinishUpload(nil, "nope", "", nil)
 	cases := []struct {
 		err  error
 		want string

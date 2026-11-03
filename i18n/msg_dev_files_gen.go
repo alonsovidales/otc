@@ -434,6 +434,11 @@ func DevFilesUploadStartFailed(detail string) Msg {
 	return Msg{Key: "dev.files.upload_start_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevFilesUploadTooMany is dev.files.upload_too_many: "too many uploads under way at once".
+func DevFilesUploadTooMany() Msg {
+	return Msg{Key: "dev.files.upload_too_many"}
+}
+
 // DevFilesUploadTooMuch is dev.files.upload_too_much: "more data than the upload's size".
 func DevFilesUploadTooMuch() Msg {
 	return Msg{Key: "dev.files.upload_too_much"}

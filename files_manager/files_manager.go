@@ -1881,7 +1881,8 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	wrote := false
 	if !mg.hasBlob(hash) {
 		// Refused, not half written, when the disk can't take it (freespace.go).
-		if err := checkFreeSpace(filepath.Dir(targetPath), sealedSize(int64(len(content)))+pendingUploads.remaining()); err != nil {
+		// Kept uploads (issue #205) give way if it needs their room.
+		if err := pendingUploads.roomFor(filepath.Dir(targetPath), sealedSize(int64(len(content)))); err != nil {
 			return nil, err
 		}
 		unlock := lockBlob(hash)

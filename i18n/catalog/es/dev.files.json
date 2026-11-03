@@ -85,6 +85,7 @@
   "dev.files.upload_receive_failed": {"text": "error al recibir la subida: {detail}"},
   "dev.files.upload_removed": {"text": "el contenido subido se ha eliminado antes de registrarse: vuelve a enviarlo"},
   "dev.files.upload_start_failed": {"text": "error al iniciar la subida: {detail}"},
+  "dev.files.upload_too_many": {"text": "demasiadas subidas en curso a la vez"},
   "dev.files.upload_too_much": {"text": "más datos que el tamaño de la subida"},
   "dev.files.upload_unknown": {"text": "subida desconocida o caducada"},
   "dev.files.versions_failed": {"text": "error al listar las versiones: {detail}"},

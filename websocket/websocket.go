@@ -2655,21 +2655,25 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			Created: file.Created, Modified: file.Modified,
 		}}
 
+	// Issue #205: an upload begun with its sha256 outlives this
+	// connection, and a BeginUpload of the same path, size and sha256 from
+	// any connection goes on from UploadStarted.received; the connection
+	// that began it last is the one that drives it (ch, the owner).
 	case *pb.ReqEnvelope_ReqBeginUpload:
 		r := p.ReqBeginUpload
-		log.Debug("Chunked upload of", r.Path, "-", r.Size, "bytes")
-		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId, ch)
+		id, received, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId, r.Sha256, ch)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesUploadStartFailed(devtext.Text(lang, err)).Render(lang)
 			contentCode(resp, err)
 			break
 		}
-		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
+		log.Debug("Chunked upload of", r.Path, "-", r.Size, "bytes, from", received)
+		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id, Received: received}}
 
 	case *pb.ReqEnvelope_ReqUploadChunk:
 		r := p.ReqUploadChunk
-		received, err := ch.mg.filesManager.UploadChunk(ses, r.UploadId, r.Offset, r.Data)
+		received, err := ch.mg.filesManager.UploadChunk(ses, r.UploadId, r.Offset, r.Data, ch)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesUploadReceiveFailed(devtext.Text(lang, err)).Render(lang)
@@ -2681,7 +2685,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		resp.Payload = &pb.RespEnvelope_RespUploadProgress{RespUploadProgress: &pb.UploadProgress{Received: received}}
 
 	case *pb.ReqEnvelope_ReqFinishUpload:
-		file, err := ch.mg.filesManager.FinishUpload(ses, p.ReqFinishUpload.UploadId, p.ReqFinishUpload.Sha256)
+		file, err := ch.mg.filesManager.FinishUpload(ses, p.ReqFinishUpload.UploadId, p.ReqFinishUpload.Sha256, ch)
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = i18n.DevFilesUploadFinishFailed(devtext.Text(lang, err)).Render(lang)
@@ -4893,10 +4897,12 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	mg.track(ch, closeConn)
 	defer mg.untrack(ch)
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
-	// this connection left unfinished are dropped once none of its
-	// requests is still running (a FinishUpload in flight still commits).
+	// this connection left unfinished are let go once none of its requests
+	// is still running (a FinishUpload in flight still commits) - kept for
+	// a resume from another connection when they have a key (issue #205),
+	// dropped when they don't.
 	if mg.filesManager != nil {
-		defer mg.filesManager.AbortUploadsOf(ch)
+		defer mg.filesManager.ReleaseUploadsOf(ch)
 	}
 	// However this loop exits, wait for every goroutine it started before
 	// returning - handleConnection returning is what lets a caller's own

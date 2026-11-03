@@ -118,16 +118,16 @@ func TestENOSPCIsStorageFull(t *testing.T) {
 func TestBeginUploadCountsTheUploadsUnderWay(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	owner := new(int)
-	t.Cleanup(func() { (&Manager{}).AbortUploadsOf(owner) })
+	t.Cleanup(func() { (&Manager{}).ReleaseUploadsOf(owner) })
 	withDisk(t, 4_000_000_000_000, 1<<30+10<<20) // 10 MiB over the reserve
 	mg := &Manager{}
-	if _, err := mg.BeginUpload(ses, "/a.mov", 6<<20, false, nil, nil, "", owner); err != nil {
+	if _, _, err := mg.BeginUpload(ses, "/a.mov", 6<<20, false, nil, nil, "", "", owner); err != nil {
 		t.Fatalf("the first upload was refused: %v", err)
 	}
-	if _, err := mg.BeginUpload(ses, "/b.mov", 6<<20, false, nil, nil, "", owner); !IsStorageFull(err) {
+	if _, _, err := mg.BeginUpload(ses, "/b.mov", 6<<20, false, nil, nil, "", "", owner); !IsStorageFull(err) {
 		t.Fatalf("two uploads that don't fit together: got %v", err)
 	}
-	if _, err := mg.BeginUpload(ses, "/c.mov", 1<<20, false, nil, nil, "", owner); err != nil {
+	if _, _, err := mg.BeginUpload(ses, "/c.mov", 1<<20, false, nil, nil, "", "", owner); err != nil {
 		t.Fatalf("a small one that fits with the first was refused: %v", err)
 	}
 }

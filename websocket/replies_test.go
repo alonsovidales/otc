@@ -183,6 +183,7 @@ var headEnglish = []struct {
 	{"dev.files.upload_receive_failed", i18n.DevFilesUploadReceiveFailed("boom"), fmt.Sprintf("error receiving the upload: %s", "boom")},
 	{"dev.files.upload_removed", i18n.DevFilesUploadRemoved(), "the upload's content was removed before it was recorded - send it again"},
 	{"dev.files.upload_start_failed", i18n.DevFilesUploadStartFailed("boom"), fmt.Sprintf("error starting the upload: %s", "boom")},
+	{"dev.files.upload_too_many", i18n.DevFilesUploadTooMany(), "too many uploads under way at once"},
 	{"dev.files.upload_too_much", i18n.DevFilesUploadTooMuch(), "more data than the upload's size"},
 	{"dev.files.upload_unknown", i18n.DevFilesUploadUnknown(), "unknown or expired upload"},
 	{"dev.files.versions_failed", i18n.DevFilesVersionsFailed("boom"), fmt.Sprintf("error listing the versions: %s", "boom")},

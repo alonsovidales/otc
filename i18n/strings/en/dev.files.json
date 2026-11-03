@@ -392,13 +392,17 @@
     "args": [["detail", "text"]],
     "note": "Error reply when an upload sent in pieces could not be started. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
   },
+  "dev.files.upload_too_many": {
+    "text": "too many uploads under way at once",
+    "note": "Error shown after \"error starting the upload: \" when an app has begun more uploads than the device keeps unfinished at once (32, across all of the user's apps); the app tries the file again later."
+  },
   "dev.files.upload_too_much": {
     "text": "more data than the upload's size",
     "note": "Error shown after \"error receiving the upload: \" when an app sends more bytes than the size it announced (an app fault)."
   },
   "dev.files.upload_unknown": {
     "text": "unknown or expired upload",
-    "note": "Error reply when an app goes on with an upload the device no longer knows (it was idle for 30 minutes, or the device restarted); the app starts it again."
+    "note": "Error reply when an app goes on with an upload the device no longer knows (it was idle for 30 minutes, the device restarted, or the app went on with it over another connection); the app starts it again."
   },
   "dev.files.versions_failed": {
     "text": "error listing the versions: {detail}",

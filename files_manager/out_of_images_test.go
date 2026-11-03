@@ -679,14 +679,14 @@ func TestKnownContentUploadedToShownPathIsAnalysed(t *testing.T) {
 	keptOut(mg, "/Private/")
 	lanes = idleLanes(mg)
 	expect(mock)
-	id, err := mg.BeginUpload(ses, "/Photos/k2.jpg", int64(len(content)), false, nil, nil, "", t)
+	id, _, err := mg.BeginUpload(ses, "/Photos/k2.jpg", int64(len(content)), false, nil, nil, "", "", t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mg.UploadChunk(ses, id, 0, content); err != nil {
+	if _, err := mg.UploadChunk(ses, id, 0, content, t); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mg.FinishUpload(ses, id, h); err != nil {
+	if _, err := mg.FinishUpload(ses, id, h, t); err != nil {
 		t.Fatal(err)
 	}
 	metUpToSentinel(t, mock)
