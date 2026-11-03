@@ -308,8 +308,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   are `ReqBridgeSignIn.password_sealed` and `ReqSetupTailscale.auth_key_sealed` (2026-10 review,
   `sealedOr`): the device still reads the plain `password`/`auth_key` when no sealed one comes (older
   pages; the phones' Tailscale sections still send `auth_key` plain), the web sends only the sealed
-  one (the device serving the page is the one it talks to), and `tailscale up` reads the key from a
-  0600 file on the TMPDIR tmpfs (`--auth-key=file:`, `authKeyArg`), never its argv. That
+  one (the device serving the page is the one it talks to), and the key reaches `tailscale up` only
+  as a file (`--auth-key=file:`): the device hands it to the root Tailscale runner as a 0600 file
+  on its RuntimeDirectory tmpfs (`/run/otc/tailscale-auth.key`, issue #204 under "Cutting a
+  release"), never on a command line. That
   key is not authenticated: the bridge terminates TLS, so a compromised bridge node could hand out
   its own key and read the password at sign-in. The owner reviewed this on 2026-10-05 and accepts
   it - the bridge nodes are the owner's own and `servercheck.sh` watches them; pinning a device
@@ -4409,7 +4411,7 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 stalled transfer (no `--max-time`).
 More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
 every update (one that reads its request's words does so with `dd iflag=nofollow,nonblock`; each
-oneshot has a `TimeoutStartSec`, 2min for the bridge and Tailscale ones): `scripts/bridge-runner/`
+oneshot has a `TimeoutStartSec`, 2min for the bridge's, 3min for Tailscale's): `scripts/bridge-runner/`
 (switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for
 Settings > Restart device and `otc-wifi-restart` for `wifiwatch`; release 115's script installs them
@@ -4431,12 +4433,47 @@ the same `otc_storage_units` function (`updater/storage_units_test.go`), which a
 `raid-watch.service`'s `After=multi-user.target` - and started only by `raid_watch.py`, which
 update.sh reinstalls; a device rolled back to an older binary runs that one as a plain otc there
 (waiting for its database), never touching the storage.
-tailscaled runs only while Tailscale Funnel is on:
-install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
-`tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't
-answering, and the runner starts it and sets `--operator=otc` (which needs the daemon up);
-`Disable` resets Funnel and writes `off`. The answer comes back in
-`/var/lib/otc/tailscale-status.json`.
+tailscaled runs only while Tailscale Funnel is on, and only root drives it (issue #204, release
+168): install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`.
+Before 168 the otc user was its operator (release 2, install.sh, the runner), so the service could
+do everything the CLI does - the account and tailnet, routes, exit nodes, serve, Tailscale SSH.
+Now `tailscalefunnel` never runs the CLI: it writes one word of an allowlist to
+`/var/lib/otc/tailscale.request` (temp file + rename, one request at a time) and
+`otc-tailscale-runner` (root; the word read with `dd iflag=nofollow,nonblock`) runs the fixed
+commands - `on`: `systemctl enable --now tailscaled`, the otc user's operator taken away (`tailscale
+set --operator=`; when it can't be, the daemon is stopped again, `start_failed`), `tailscale up
+--timeout=10s` for a node not in the tailnet once the daemon has settled (`Starting` is no answer),
+then `tailscale funnel --bg --yes --https=443 localhost:8080`; `off`: `tailscale funnel reset` and
+`systemctl disable --now tailscaled`; `status`: reads only (nothing at all while tailscaled is
+stopped). The answer, `/var/lib/otc/tailscale-status.json`, names the word (`request`; a runner
+from before names none) and carries what Settings shows - `logged_in`, `funnel_on`, `public_url`,
+`login_url`, from `tailscale status --json --peers=false` (read with `python3 -I`) and `funnel
+status`'s `:8080` - and Funnel's failures are runner codes (`join_failed`, `enable_failed`,
+`disable_failed`, the CLI's words as `detail`, the key scrubbed). An auth key goes first, as
+`/run/otc/tailscale-auth.key` (0600, the service's tmpfs): the runner takes it whatever the word,
+renaming it into its unit's RuntimeDirectory (`/run/otc-tailscale`, 0700, gone after the run), uses
+only a regular file of otc's with one link and at most 512 printable ASCII characters, and writes
+its own copy for `--auth-key=file:` with bash's printf builtin - never a command line or a log.
+`Status` keeps an answer 2 s (`cStatusFresh`) and, during an on or off, answers the last one
+(`TryLock`); a word not taken within its wait (on 3 min 10 s, off 90 s, status 15 s) is withdrawn.
+otc-tailscale.service has `StartLimitIntervalSec=0` (Settings runs it each time it shows) and
+`TimeoutStartSec=3min`. `--drop-operator` takes away an operator that is the otc user (or can't be
+read; one an owner chose for an account of theirs stays), starting a stopped daemon whose saved
+state (`/var/lib/tailscale/tailscaled.state`) names otc just for that: install.sh runs it from the
+verified source, and release 168's script installs the new runner first (the old one would set the
+operator again during the update), then runs it, only warning. The otc user keeps what every local
+account has on Linux, read-only `tailscale status`; `set`, `up`, `login`, `logout`, `cert` and the
+serve config answer "Access denied". Tested on 2026-11-03 in a throwaway Lima VM (Debian 13,
+tailscale 1.104.5) against a headscale 0.29.7 in the VM answering as `controlplane.tailscale.com`
+(an `/etc/hosts` line and a test CA), so the product's own `tailscale up` signed in to it: release
+167 installed by verified-install.sh signed in through Settings' request with a pre-auth key and made
+otc the operator (otc changed the hostname); updating it through update.sh to this branch (168.sh in
+the migrations loop) started the stopped daemon, cleared the operator and stopped it; then on/off,
+status, a key sealed and plain, a key headscale refused, no key (the login page, approved in
+headscale), Funnel's real error from headscale ("HTTPS must be enabled", in the request's language)
+and its success through a stand-in for the three funnel commands, the key never in any process's
+command line (sampled every 5 ms), the journal, the logs or `/run`; a symlink as the key, a FIFO as
+the request, a word off the list and 15 requests in a row; install.sh re-run from the branch.
 
 **Follow this whenever a change is worth shipping.** A change that is only on `main` has
 not reached anybody: the version number in the manifest is the only signal a device has
