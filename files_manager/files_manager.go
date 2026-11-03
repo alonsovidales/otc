@@ -270,6 +270,10 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	// Content set aside under another binary, or long ago, is tried again
 	// (setaside.go).
 	mg.retrySetAside()
+	// Images' month counts are kept by this process (issue #206,
+	// dao/months.go) - before anything is written - and what changed is
+	// counted every minute.
+	mg.keepMonths()
 	// Image Tagging follows the memory until its user chooses
 	// (tagging_default.go) - before Settings reads it (websocket.Init).
 	mg.applyTaggingDefault(memProfile)
@@ -1431,13 +1435,44 @@ func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, groupID s
 }
 
 // PhotoDateBucketsWithin is PhotoDateBuckets of the photos taken inside
-// area (ReqPhotoDateBuckets.area, Places; nil: everywhere).
+// area (ReqPhotoDateBuckets.area, Places; nil: everywhere). Issue #206: on
+// the device (readsAsItScrolls) with no filter from the counts it keeps,
+// with filters from the filter's own photos (dao.PhotoMonths).
 func (mg *Manager) PhotoDateBucketsWithin(area *dao.MediaArea, tags []string, personIDs []string, groupID string, includeVideos bool) ([]dao.DateBucket, error) {
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
 		return nil, err
 	}
+	if mg.readsAsItScrolls() {
+		return mg.dao.PhotoMonths(&dao.MediaBrowse{
+			MediaFilters: dao.MediaFilters{Tags: tags, PersonIDs: personIDs, GroupID: groupID, Area: area},
+			ImagesOnly:   !includeVideos, Excluded: excluded,
+		})
+	}
 	return mg.dao.SearchMediaDateBucketsWithin(area, tags, personIDs, groupID, !includeVideos, excluded)
+}
+
+// cMonthsEvery is how often what changed in the library is counted into
+// the month counts (dao.ReconcileMonths) when nothing reads them sooner.
+const cMonthsEvery = time.Minute
+
+// keepMonths takes the month counts' lease (dao.LeaseMonths) and counts
+// what changed every cMonthsEvery. Without the lease (a database before
+// release 168's script) the counts are never kept, and read the old way.
+func (mg *Manager) keepMonths() {
+	if err := mg.dao.LeaseMonths(); err != nil {
+		if !errors.Is(err, dao.ErrSchemaBehind) {
+			log.Error("month counts: not kept by this process, counted from the library instead:", err)
+		}
+		return
+	}
+	go func() {
+		for range time.Tick(cMonthsEvery) {
+			if err := mg.dao.ReconcileMonths(); err != nil {
+				log.Error("month counts: changes couldn't be counted, tried again in a minute:", err)
+			}
+		}
+	}()
 }
 
 // ListImageGroups (issue #115) lists the albums with a cover picture each:

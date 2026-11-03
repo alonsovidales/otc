@@ -1407,6 +1407,15 @@ SQL
     ALTER TABLE vault ADD COLUMN IF NOT EXISTS rating_private BLOB NULL;
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS group_id VARCHAR(36) NULL;
 SQL
+    # Release 168 (updates/168.sh, issue #206): Images' month counts, kept
+    # as the library changes (see db.sql and dao/months.go). Built by the
+    # device itself at its first Images opening.
+    mysql "$db" <<'SQL'
+    CREATE TABLE IF NOT EXISTS photo_months (`month` INT NOT NULL, `images` INT NOT NULL DEFAULT 0, `media` INT NOT NULL DEFAULT 0, PRIMARY KEY (`month`)) ENGINE=InnoDB;
+    CREATE TABLE IF NOT EXISTS photo_month_hashes (`hash` VARCHAR(64) NOT NULL, `images` INT NULL, `media` INT NULL, PRIMARY KEY (`hash`)) ENGINE=InnoDB;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS photo_months_for MEDIUMTEXT NULL;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS photo_months_run VARCHAR(32) NULL;
+SQL
 }
 
 apply_schema_migrations otc

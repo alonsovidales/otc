@@ -134,6 +134,8 @@ func TestFileWritersStoreTheInt64Size(t *testing.T) {
 	}
 
 	mock.ExpectBegin()
+	mock.ExpectQuery("select `hash` from `files` where `path` = \\? for update").WithArgs(f.Path).
+		WillReturnRows(sqlmock.NewRows([]string{"hash"}).AddRow("old"))
 	mock.ExpectExec("insert into `file_versions`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("update `files` set `hash` = \\?, `mime` = \\?, `size` = \\?").
 		WithArgs(f.Hash, f.Mime, threeGiB, sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullString{}, f.Path).

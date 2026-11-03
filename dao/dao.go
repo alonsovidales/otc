@@ -28,6 +28,8 @@ type Dao struct {
 	db *sql.DB
 	// errNotifMu serialises AddErrorNotification (see there).
 	errNotifMu sync.Mutex
+	// months is the month counts' work (months.go).
+	months monthsState
 }
 
 // NewWithDB builds a Dao around an already-open *sql.DB, bypassing Init's
@@ -113,6 +115,8 @@ func (dao *Dao) WaitReady() {
 }
 
 func (dao *Dao) Stop() {
+	// The month counts' last changes, and their lease (months.go).
+	dao.releaseMonths()
 	dao.db.Close()
 }
 
@@ -368,7 +372,9 @@ func (dao *Dao) StoreNewFile(file *pb.File, cloudID string) (duplicated bool, er
 		if me, ok := err.(*mysql.MySQLError); ok && me.Number == 1062 {
 			return true, nil
 		}
+		return
 	}
+	dao.markMonths(file.Hash)
 
 	return
 }
@@ -604,6 +610,7 @@ func (dao *Dao) DelFileByPathHash(path string) (hash string, err error) {
 	if err = tx.Commit(); err != nil {
 		return "", err
 	}
+	dao.markMonths(hash)
 	return hash, nil
 }
 
@@ -646,6 +653,11 @@ func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
 		return err
 	}
 	defer tx.Rollback()
+	// The content the path held, for the month counts (months.go).
+	var oldHash string
+	if err = tx.QueryRow("select `hash` from `files` where `path` = ? for update", file.Path).Scan(&oldHash); err != nil && err != sql.ErrNoRows {
+		return err
+	}
 	if _, err = tx.Exec("insert into `file_versions` (`path`, `hash`, `mime`, `size`, `created`, `modified`, `replaced`) "+
 		"select `path`, `hash`, `mime`, `size`, `created`, `modified`, ? from `files` where `path` = ?", time.Now(), file.Path); err != nil {
 		return err
@@ -656,7 +668,11 @@ func (dao *Dao) ReplaceFileKeepingVersion(file *pb.File, cloudID string) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	dao.markMonths(oldHash, file.Hash)
+	return nil
 }
 
 // GetFileVersions lists a path's older versions, newest first; Modified

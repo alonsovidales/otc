@@ -25,7 +25,10 @@ func (dao *Dao) MoveToDateTaken(hash string, taken, after time.Time) (moved int6
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	if moved, err = res.RowsAffected(); err == nil && moved > 0 {
+		dao.markMonths(hash)
+	}
+	return moved, err
 }
 
 // DatesTakenBackfill is where the one-off pass over what the device held

@@ -37,7 +37,11 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 			file.Hash, file.Mime, file.Created.AsTime(), file.Modified.AsTime(), file.Path, FileSize(file), cloud); err != nil {
 			return "", err
 		}
-		return "", tx.Commit()
+		if err = tx.Commit(); err != nil {
+			return "", err
+		}
+		dao.markMonths(file.Hash)
+		return "", nil
 	}
 	if err != nil {
 		return "", err
@@ -62,5 +66,9 @@ func (dao *Dao) OverrideFile(file *pb.File, cloudID string) (oldHash string, err
 		return "", err
 	}
 
-	return oldHash, tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	dao.markMonths(oldHash, file.Hash)
+	return oldHash, nil
 }

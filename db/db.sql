@@ -416,7 +416,41 @@ create table settings
   -- Release 157: the faces stored before it have their looks measured
   -- (faces.quality) and every person's face is chosen again from them,
   -- once, in the background after a sign-in (files_manager/face_covers.go).
-  `face_quality_done` tinyint(1) not null default 0
+  `face_quality_done` tinyint(1) not null default 0,
+  -- Release 168 (issue #206): Images' month counts (photo_months, below).
+  -- photo_months_for is the folders kept out of Images they leave out
+  -- (outermost, sorted, a JSON array); NULL: not built, so counted from the
+  -- library and built again. photo_months_run is the process keeping them
+  -- (dao/months.go): one that finds another's there - a run that died with
+  -- changes not yet counted - builds them again. A script that changes
+  -- `files` rows must set photo_months_for to NULL.
+  `photo_months_for` mediumtext null,
+  `photo_months_run` varchar(32) null
+) engine=InnoDB;
+
+-- Release 168 (issue #206): Images' month counts (the date scrubber), kept
+-- as the library changes instead of a pass over it at every Images opening
+-- (dao/months.go). Per month (year * 12 + month - 1), how many photos have
+-- their oldest copy outside the folders kept out of Images in it: `images`
+-- among their image rows, `media` among their image and video rows.
+create table photo_months
+(
+  `month` int not null,
+  `images` int not null default 0,
+  `media` int not null default 0,
+
+  primary key (`month`)
+) engine=InnoDB;
+
+-- Each content's two months in photo_months (NULL: none), what a change to
+-- its rows takes away there.
+create table photo_month_hashes
+(
+  `hash` varchar(64) not null,
+  `images` int null,
+  `media` int null,
+
+  primary key (`hash`)
 ) engine=InnoDB;
 
 create table profile
