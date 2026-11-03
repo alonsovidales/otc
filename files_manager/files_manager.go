@@ -1973,7 +1973,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 	// (issue #165): the thumbnail in the fast lane, tags and faces in the
 	// slow one (lanes.go). The upload's memory is free as soon as this
 	// returns; a video is streamed to ffmpeg rather than read whole.
-	mg.enqueueMedia(session, file, targetPath)
+	mg.enqueueMedia(session, file)
 
 	return
 }

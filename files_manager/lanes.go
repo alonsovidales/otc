@@ -12,6 +12,7 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/container"
+	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -29,11 +30,15 @@ import (
 // secret, nothing that could be decrypted without the owner), so a restart
 // doesn't lose it: ResumePendingAnalysis puts it back at the first sign-in
 // after one, the first moment the owner's key is in memory again.
+//
+// Issue #206: a job is its content's hash, the row it processes read when
+// it runs (jobFile) - not a file row held from the upload until then: a
+// big sync queues tens of thousands, ~90 bytes each now. And a file
+// deleted while its job waited is passed over, never read.
 
 type mediaJob struct {
-	ses    *session.Session
-	file   *pb.File
-	target string
+	ses  *session.Session
+	hash string
 }
 
 // lane is a queue served by a fixed number of workers. gate, when set, is
@@ -219,14 +224,33 @@ func isMedia(file *pb.File) bool {
 // enqueueMedia queues a just-stored upload: thumbnail first, analysis
 // later. The analysis is recorded before anything runs, so a restart at
 // any point leaves it to ResumePendingAnalysis.
-func (mg *Manager) enqueueMedia(ses *session.Session, file *pb.File, target string) {
+func (mg *Manager) enqueueMedia(ses *session.Session, file *pb.File) {
 	if !isMedia(file) {
 		return
 	}
 	if err := mg.dao.AddPendingAnalysis(file.Hash); err != nil {
 		log.Error("could not record the analysis to do for", file.Hash, ":", err)
 	}
-	mg.queueThumbnail(mediaJob{ses: ses, file: file, target: target})
+	mg.queueThumbnail(mediaJob{ses: ses, hash: file.Hash})
+}
+
+// jobFile is the row a job of hash processes: its smallest path that is
+// media (isMedia), as ResumePendingAnalysis picks them. None - every row
+// gone, or none media - is nothing to do: its analysis isn't pending any
+// more. A row that can't be read leaves it pending, for the next start.
+func (mg *Manager) jobFile(hash string) (*pb.File, bool) {
+	files, err := mg.dao.FileRowsOfHash(hash)
+	if err != nil {
+		log.Error("could not read the file of", hash, "to process it, left for the next start:", err)
+		return nil, false
+	}
+	for _, f := range files {
+		if isMedia(f) {
+			return f, true
+		}
+	}
+	mg.donePendingAnalysis(hash)
+	return nil, false
 }
 
 // processStoredStages runs stages of processing on a file already on
@@ -251,35 +275,49 @@ func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, targ
 func (mg *Manager) thumbnailJob(j mediaJob) bool {
 	// One job at a time on a low-memory device and after a death
 	// (lowmem.go); never paused.
-	defer mg.beginProcessing(j.file.Hash, jobThumbnail)()
+	defer mg.beginProcessing(j.hash, jobThumbnail)()
+	file, ok := mg.jobFile(j.hash)
+	if !ok {
+		return false
+	}
+	return mg.thumbnailOf(j.ses, file)
+}
+
+// thumbnailOf is a thumbnail job's work on file: whether it goes on to the
+// analysis.
+func (mg *Manager) thumbnailOf(ses *session.Session, file *pb.File) bool {
 	ok := false
-	mg.safelyOn("processing", j.file, func() {
-		ok = mg.processStoredStages(j.ses, j.file, j.target, stageThumbnail)
+	mg.safelyOn("processing", file, func() {
+		ok = mg.processStoredStages(ses, file, blobPath(file.Hash), stageThumbnail)
 	})
 	if !ok {
 		// Undecodable: the analysis would fail the same way.
-		mg.donePendingAnalysis(j.file.Hash)
+		mg.donePendingAnalysis(file.Hash)
 	}
 	return ok
 }
 
 func (mg *Manager) analysisJob(j mediaJob) {
-	defer mg.beginProcessing(j.file.Hash, jobAnalysis)()
+	defer mg.beginProcessing(j.hash, jobAnalysis)()
 	// Done meanwhile by a reprocess or the backfill.
-	if pending, err := mg.dao.IsPendingAnalysis(j.file.Hash); err == nil && !pending {
+	if pending, err := mg.dao.IsPendingAnalysis(j.hash); err == nil && !pending {
 		return
 	}
 	// Deleted while it waited: nothing to analyse.
-	if referenced, err := mg.dao.HashReferenced(j.file.Hash); err == nil && !referenced {
-		mg.donePendingAnalysis(j.file.Hash)
+	if referenced, err := mg.dao.HashReferenced(j.hash); err == nil && !referenced {
+		mg.donePendingAnalysis(j.hash)
 		return
 	}
-	mg.safelyOn("analysing", j.file, func() {
-		mg.processStoredStages(j.ses, j.file, j.target, stageAnalysis)
+	file, ok := mg.jobFile(j.hash)
+	if !ok {
+		return
+	}
+	mg.safelyOn("analysing", file, func() {
+		mg.processStoredStages(j.ses, file, blobPath(file.Hash), stageAnalysis)
 	})
 	// Done even when it failed: a file that crashes the analysis must not
 	// be retried at every start.
-	mg.donePendingAnalysis(j.file.Hash)
+	mg.donePendingAnalysis(file.Hash)
 }
 
 // enqueueAnalysis queues the analysis of content that was kept out of
@@ -308,7 +346,7 @@ func (mg *Manager) enqueueAnalysis(ses *session.Session, hash string) {
 		mg.donePendingAnalysis(hash)
 		return
 	}
-	j := mediaJob{ses: ses, file: file, target: blobPath(hash)}
+	j := mediaJob{ses: ses, hash: hash}
 	if mg.hasThumbnail(hash) {
 		mg.queueAnalysis(j)
 	} else {
@@ -322,64 +360,70 @@ func (mg *Manager) donePendingAnalysis(hash string) {
 	}
 }
 
-// cResumeChunk is how many pending hashes ResumePendingAnalysis reads the
-// files of at once (dao.FilesOfHashes).
+// cResumeChunk is how many pending hashes ResumePendingAnalysis reads at
+// once, and the files of (dao.FilesOfHashes).
 const cResumeChunk = 500
 
 // ResumePendingAnalysis puts back in the lanes what a restart interrupted:
 // a file that still has no thumbnail goes through both lanes, one that has
 // one only through the analysis. Called once per process at the first
 // sign-in, before BackfillMissingThumbnails, which leaves these files to
-// the lanes. The files are read cResumeChunk hashes to a query (issue
-// #206: one query a hash was minutes of a Pi's work after a big sync); a
-// chunk that can't be read stays pending, for the next start.
+// the lanes. pending_analysis is read cResumeChunk hashes at a time in the
+// order they were queued (dao.PendingPage), and their files in one query a
+// page (issue #206: one query a hash was minutes of a Pi's work after a big
+// sync, and every pending row and file was held at once); only the hashes
+// go into the lanes. A page whose files can't be read stays pending, for
+// the next start.
 func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 	if mg == nil || mg.dao == nil {
 		return
 	}
-	hashes, err := mg.dao.PendingAnalysis()
-	if err != nil {
-		log.Error("could not list the pending analyses:", err)
-		return
-	}
-	if len(hashes) == 0 {
-		return
-	}
 	resumed := 0
-	var files map[string]*pb.File
-	for i, hash := range hashes {
-		if i%cResumeChunk == 0 {
-			if files, err = mg.dao.FilesOfHashes(hashes[i:min(i+cResumeChunk, len(hashes))]); err != nil {
-				log.Error("could not read the files of the pending analyses, left for the next start:", err)
-				files = nil
+	var after *dao.PendingMark
+	for {
+		hashes, next, err := mg.dao.PendingPage(after, cResumeChunk)
+		if err != nil {
+			log.Error("could not list the pending analyses:", err)
+			break
+		}
+		files, err := mg.dao.FilesOfHashes(hashes)
+		if err != nil {
+			log.Error("could not read the files of the pending analyses, left for the next start:", err)
+			files = nil
+		}
+		for _, hash := range hashes {
+			if files == nil {
+				break
 			}
+			file := files[hash]
+			if file == nil {
+				// Its file is gone.
+				mg.donePendingAnalysis(hash)
+				continue
+			}
+			if !isMedia(file) {
+				// Nothing decodes it (a DjVu scan: neverPreviewedMimes) - a
+				// row an older build queued, or skipped content shown again
+				// (cMediaRows has no such exclusion): not read.
+				mg.donePendingAnalysis(hash)
+				continue
+			}
+			j := mediaJob{ses: ses, hash: hash}
+			if _, statErr := os.Stat(blobPath(hash) + "_thumbnail"); statErr == nil {
+				mg.queueAnalysis(j)
+			} else {
+				mg.queueThumbnail(j)
+			}
+			resumed++
 		}
-		if files == nil {
-			continue
+		if next == nil {
+			break
 		}
-		file := files[hash]
-		if file == nil {
-			// Its file is gone.
-			mg.donePendingAnalysis(hash)
-			continue
-		}
-		if !isMedia(file) {
-			// Nothing decodes it (a DjVu scan: neverPreviewedMimes) - a
-			// row an older build queued, or skipped content shown again
-			// (cMediaRows has no such exclusion): not read.
-			mg.donePendingAnalysis(hash)
-			continue
-		}
-		target := blobPath(hash)
-		j := mediaJob{ses: ses, file: file, target: target}
-		if _, statErr := os.Stat(target + "_thumbnail"); statErr == nil {
-			mg.queueAnalysis(j)
-		} else {
-			mg.queueThumbnail(j)
-		}
-		resumed++
+		after = next
 	}
-	log.Info(fmt.Sprintf("resumed the processing of %d upload(s) a restart interrupted", resumed))
+	if resumed > 0 {
+		log.Info(fmt.Sprintf("resumed the processing of %d upload(s) a restart interrupted", resumed))
+	}
 }
 
 // pendingAnalysisSet is the hashes the lanes own, for the backfill to skip.

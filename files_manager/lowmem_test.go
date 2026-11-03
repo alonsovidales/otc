@@ -16,7 +16,6 @@ import (
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	imagestagger "github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/modelserver"
-	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 const (
@@ -173,7 +172,7 @@ func TestLowMemoryProcessesOneJobAtATime(t *testing.T) {
 	job := func(kind jobKind) func(j mediaJob) {
 		return func(j mediaJob) {
 			defer wg.Done()
-			defer mg.beginProcessing(j.file.Hash, kind)()
+			defer mg.beginProcessing(j.hash, kind)()
 			c.enter()
 			time.Sleep(5 * time.Millisecond)
 			c.leave()
@@ -184,12 +183,12 @@ func TestLowMemoryProcessesOneJobAtATime(t *testing.T) {
 	ls := newMediaLanes(fast, analysis, func(j mediaJob) bool { thumb(j); return true }, analyse)
 	for _, h := range []string{"a", "b", "c", "d"} {
 		wg.Add(2) // its thumbnail and its analysis
-		ls.fast.push(mediaJob{file: &pb.File{Hash: h}})
+		ls.fast.push(mediaJob{hash: h})
 	}
 	// A backfill alongside.
 	for _, h := range []string{"x", "y"} {
 		wg.Add(1)
-		go job(jobBackfill)(mediaJob{file: &pb.File{Hash: h}})
+		go job(jobBackfill)(mediaJob{hash: h})
 	}
 	wg.Wait()
 	if p := c.peak.Load(); p != 1 {

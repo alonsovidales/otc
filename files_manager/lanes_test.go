@@ -22,18 +22,18 @@ func TestLanesAnalysisWaitsForThumbnails(t *testing.T) {
 	ls := newMediaLanes(2, 2, func(j mediaJob) bool {
 		<-release
 		mu.Lock()
-		order = append(order, "thumb:"+j.file.Hash)
+		order = append(order, "thumb:"+j.hash)
 		mu.Unlock()
-		return j.file.Hash != "bad"
+		return j.hash != "bad"
 	}, func(j mediaJob) {
 		mu.Lock()
-		order = append(order, "analysis:"+j.file.Hash)
+		order = append(order, "analysis:"+j.hash)
 		mu.Unlock()
 		analysed <- struct{}{}
 	})
 
 	for _, h := range []string{"a", "b", "bad", "c"} {
-		ls.fast.push(mediaJob{file: &pb.File{Hash: h}})
+		ls.fast.push(mediaJob{hash: h})
 	}
 	// Thumbnails one at a time: no analysis may start before the last.
 	for i := 0; i < 4; i++ {

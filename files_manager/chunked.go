@@ -555,7 +555,7 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string, owner any)
 		return file, nil
 	}
 
-	mg.enqueueMedia(ses, file, target)
+	mg.enqueueMedia(ses, file)
 	return file, nil
 }
 

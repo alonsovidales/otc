@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/alonsovidales/otc/i18n"
-	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 func workString(w []BackgroundTask) string {
@@ -93,7 +92,7 @@ func TestTheLanesBusySpellIsListed(t *testing.T) {
 	analysed := 0
 	mg.lanes = newMediaLanes(1, 1, func(j mediaJob) bool {
 		<-release
-		return j.file.Hash != "bad"
+		return j.hash != "bad"
 	}, func(mediaJob) {
 		mu.Lock()
 		analysed++
@@ -102,7 +101,7 @@ func TestTheLanesBusySpellIsListed(t *testing.T) {
 	mg.lanes.finished = mg.analysisFinished
 	mg.lanesOnce.Do(func() {})
 	for _, h := range []string{"a", "bad", "c"} {
-		mg.queueThumbnail(mediaJob{file: &pb.File{Hash: h}})
+		mg.queueThumbnail(mediaJob{hash: h})
 	}
 	if got := workString(mg.BackgroundWork()); got != "analysis 0/3;" {
 		t.Fatalf("queued: %s", got)
@@ -111,7 +110,7 @@ func TestTheLanesBusySpellIsListed(t *testing.T) {
 	release <- struct{}{} // bad: done, nothing to analyse
 	waitFor(t, "the failed thumbnail", func() bool { return workString(mg.BackgroundWork()) == "analysis 1/3;" })
 	// More while busy: the same spell.
-	mg.queueAnalysis(mediaJob{file: &pb.File{Hash: "d"}})
+	mg.queueAnalysis(mediaJob{hash: "d"})
 	if got := workString(mg.BackgroundWork()); got != "analysis 1/4;" {
 		t.Errorf("one more: %s", got)
 	}
@@ -123,7 +122,7 @@ func TestTheLanesBusySpellIsListed(t *testing.T) {
 	}
 	mu.Unlock()
 	// A new spell starts from nothing.
-	mg.queueAnalysis(mediaJob{file: &pb.File{Hash: "e"}})
+	mg.queueAnalysis(mediaJob{hash: "e"})
 	waitFor(t, "the second spell", func() bool { return len(mg.BackgroundWork()) == 0 })
 	mg.spell.mu.Lock()
 	if mg.spell.pass != nil || mg.spell.open != 0 {

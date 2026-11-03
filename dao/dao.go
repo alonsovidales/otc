@@ -3670,6 +3670,65 @@ func (dao *Dao) PendingAnalysis() (hashes []string, err error) {
 	return hashes, rows.Err()
 }
 
+// PendingPage is PendingAnalysis a page at a time (issue #206): at most
+// limit hashes in the order they were queued, after the one at (queued,
+// hash) - nil for the first page - and where the next page starts.
+func (dao *Dao) PendingPage(after *PendingMark, limit int) (hashes []string, next *PendingMark, err error) {
+	query, args := "select `hash`, `queued` from `pending_analysis`", []any(nil)
+	if after != nil {
+		query += " where `queued` > ? or (`queued` = ? and `hash` > ?)"
+		args = []any{after.Queued, after.Queued, after.Hash}
+	}
+	rows, err := dao.db.Query(query+fmt.Sprintf(" order by `queued`, `hash` limit %d", limit), args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var last PendingMark
+	for rows.Next() {
+		if err := rows.Scan(&last.Hash, &last.Queued); err != nil {
+			return nil, nil, err
+		}
+		hashes = append(hashes, last.Hash)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	if len(hashes) == limit {
+		next = &last
+	}
+	return hashes, next, nil
+}
+
+// PendingMark is a place in pending_analysis's order (PendingPage).
+type PendingMark struct {
+	Queued time.Time
+	Hash   string
+}
+
+// FileRowsOfHash is every files row holding hash, by path.
+func (dao *Dao) FileRowsOfHash(hash string) ([]*pb.File, error) {
+	rows, err := dao.db.Query("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = ? order by `path`", hash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var files []*pb.File
+	for rows.Next() {
+		file := new(pb.File)
+		var created, modified time.Time
+		var size int64
+		if err := rows.Scan(&file.Hash, &file.Mime, &created, &modified, &file.Path, &size); err != nil {
+			return nil, err
+		}
+		file.Created = timestamppb.New(created)
+		file.Modified = timestamppb.New(modified)
+		SetFileSize(file, size)
+		files = append(files, file)
+	}
+	return files, rows.Err()
+}
+
 // IsPendingAnalysis is whether hash's analysis is still to be done.
 func (dao *Dao) IsPendingAnalysis(hash string) (bool, error) {
 	var n int

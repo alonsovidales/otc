@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"os"
@@ -214,7 +215,7 @@ func TestUnpreviewableFormatIsSkippedQuietly(t *testing.T) {
 	pendingCleared(mock, h)
 	expectNoAlert(mock)
 
-	if mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+	if mg.thumbnailOf(ses, file) {
 		t.Error("an undecodable file went on to the analysis")
 	}
 	if mg.hasThumbnail(h) {
@@ -237,7 +238,7 @@ func TestFormatFFmpegReadsKeepsItsThumbnail(t *testing.T) {
 	referenced(mock, h)
 	expectNoAlert(mock)
 
-	if !mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+	if !mg.thumbnailOf(ses, file) {
 		t.Error("a decoded icon reported a failure")
 	}
 	if !mg.hasThumbnail(h) {
@@ -268,7 +269,7 @@ func TestCorruptJPEGInANormalFolderStillAlerts(t *testing.T) {
 		referenced(mock, h)
 		pendingCleared(mock, h)
 
-		if mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+		if mg.thumbnailOf(ses, file) {
 			t.Error("a corrupt JPEG went on to the analysis")
 		}
 		allMet(t, mock)
@@ -290,7 +291,7 @@ func TestCorruptJPEGKeptOutIsNotAlerted(t *testing.T) {
 	pendingCleared(mock, h)
 	expectNoAlert(mock)
 
-	if mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+	if mg.thumbnailOf(ses, file) {
 		t.Error("a corrupt JPEG went on to the analysis")
 	}
 	noAlert(t, mock)
@@ -484,7 +485,7 @@ func TestResumePendingAnalysisDropsWhatIsNotMedia(t *testing.T) {
 	djvu, photo := testHash("d"), testHash("e")
 	now := time.Now()
 
-	mock.ExpectQuery("select `hash` from `pending_analysis`").WillReturnRows(hashRows(djvu, photo))
+	mock.ExpectQuery(rePendingPage).WillReturnRows(pendingRows(djvu, photo))
 	// Their files in one query (issue #206), not one a hash.
 	mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` in \\(\\?,\\?\\) order by `hash`, `path`").
 		WithArgs(djvu, photo).
@@ -495,8 +496,88 @@ func TestResumePendingAnalysisDropsWhatIsNotMedia(t *testing.T) {
 
 	mg.ResumePendingAnalysis(nil)
 	allMet(t, mock)
-	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].file.Hash != photo || len(lanes.analysis.jobs) != 0 {
+	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].hash != photo || len(lanes.analysis.jobs) != 0 {
 		t.Errorf("queued: fast %d, analysis %d - want only the photo", len(lanes.fast.jobs), len(lanes.analysis.jobs))
+	}
+}
+
+// A job is only its content (issue #206): the row it processes is read
+// when it runs - the smallest path that is media - and content whose rows
+// went meanwhile, or none of them media, is passed over, its analysis no
+// longer pending; a row that can't be read is left pending.
+func TestJobReadsItsFileWhenItRuns(t *testing.T) {
+	galleryTestEnv(t)
+	mg, mock, seen := recordingMock(t)
+	h := testHash("9")
+	now := time.Now()
+	reRows := "select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `hash` = \\? order by `path`"
+	mock.ExpectQuery(reRows).WithArgs(h).WillReturnRows(sqlmock.NewRows(fileCols).
+		AddRow(h, "application/octet-stream", now, now, "/a/copy.bin", 7).
+		AddRow(h, "image/jpeg", now, now, "/b/photo.jpg", 7))
+	if f, ok := mg.jobFile(h); !ok || f.Path != "/b/photo.jpg" {
+		t.Fatalf("the job's file: %v %v", f, ok)
+	}
+	mock.ExpectQuery(reRows).WithArgs(h).WillReturnRows(sqlmock.NewRows(fileCols))
+	pendingCleared(mock, h)
+	if mg.thumbnailJob(mediaJob{hash: h}) {
+		t.Error("a job of content deleted meanwhile went on to the analysis")
+	}
+	mock.ExpectQuery(reRows).WithArgs(h).WillReturnError(errors.New("connection lost"))
+	expectSentinel(mock)
+	if _, ok := mg.jobFile(h); ok {
+		t.Error("a row that couldn't be read was processed")
+	}
+	metUpToSentinel(t, mock)
+	if strings.Count(strings.Join(seen.all, "\n"), "delete from `pending_analysis`") != 1 {
+		t.Error("a row that couldn't be read cleared its analysis")
+	}
+}
+
+// rePendingPage is ResumePendingAnalysis' first page of pending_analysis.
+const rePendingPage = "select `hash`, `queued` from `pending_analysis` order by `queued`, `hash` limit 500"
+
+// pendingRows is pending_analysis' rows for hashes, queued in that order.
+func pendingRows(hashes ...string) *sqlmock.Rows {
+	rows := sqlmock.NewRows([]string{"hash", "queued"})
+	at := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	for i, h := range hashes {
+		rows.AddRow(h, at.Add(time.Duration(i)*time.Second))
+	}
+	return rows
+}
+
+// pending_analysis is read a page at a time (issue #206), in the order it
+// was queued, each page's files in one query, and only hashes go into the
+// lanes: 501 pending photos are two pages, the second after the first's
+// last row.
+func TestResumePendingAnalysisPagesThroughItsRows(t *testing.T) {
+	galleryTestEnv(t)
+	mg, mock, _ := recordingMock(t)
+	lanes := idleLanes(mg)
+	var hashes []string
+	for i := 0; i < cResumeChunk+1; i++ {
+		hashes = append(hashes, fmt.Sprintf("%064x", 0x5060+i))
+	}
+	now := time.Now()
+	files := func(hs []string) *sqlmock.Rows {
+		rows := sqlmock.NewRows(fileCols)
+		for i, h := range hs {
+			rows.AddRow(h, "image/jpeg", now, now, fmt.Sprintf("/Phone/%d.jpg", i), 7)
+		}
+		return rows
+	}
+	first := pendingRows(hashes[:cResumeChunk]...)
+	mock.ExpectQuery(rePendingPage).WillReturnRows(first)
+	mock.ExpectQuery("from `files` where `hash` in").WillReturnRows(files(hashes[:cResumeChunk]))
+	last := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC).Add(time.Duration(cResumeChunk-1) * time.Second)
+	mock.ExpectQuery("select `hash`, `queued` from `pending_analysis` where `queued` > \\? or \\(`queued` = \\? and `hash` > \\?\\) order by `queued`, `hash` limit 500").
+		WithArgs(last, last, hashes[cResumeChunk-1]).
+		WillReturnRows(pendingRows(hashes[cResumeChunk]))
+	mock.ExpectQuery("from `files` where `hash` in").WithArgs(hashes[cResumeChunk]).WillReturnRows(files(hashes[cResumeChunk:]))
+	mg.ResumePendingAnalysis(nil)
+	allMet(t, mock)
+	if len(lanes.fast.jobs) != len(hashes) || lanes.fast.jobs[cResumeChunk].hash != hashes[cResumeChunk] {
+		t.Fatalf("queued %d of %d", len(lanes.fast.jobs), len(hashes))
 	}
 }
 
@@ -509,7 +590,7 @@ func TestResumePendingAnalysisKeepsWhatItCannotRead(t *testing.T) {
 	lanes := idleLanes(mg)
 	a, b := testHash("a"), testHash("b")
 
-	mock.ExpectQuery("select `hash` from `pending_analysis`").WillReturnRows(hashRows(a, b))
+	mock.ExpectQuery(rePendingPage).WillReturnRows(pendingRows(a, b))
 	mock.ExpectQuery("from `files` where `hash` in").WithArgs(a, b).WillReturnError(errors.New("connection lost"))
 	expectSentinel(mock)
 	mg.ResumePendingAnalysis(nil)
@@ -520,12 +601,12 @@ func TestResumePendingAnalysisKeepsWhatItCannotRead(t *testing.T) {
 
 	mg, mock, _ = recordingMock(t)
 	lanes = idleLanes(mg)
-	mock.ExpectQuery("select `hash` from `pending_analysis`").WillReturnRows(hashRows(a, b))
+	mock.ExpectQuery(rePendingPage).WillReturnRows(pendingRows(a, b))
 	mock.ExpectQuery("from `files` where `hash` in").WithArgs(a, b).WillReturnRows(fileRow(b, "/Phone/b.jpg"))
 	pendingCleared(mock, a)
 	mg.ResumePendingAnalysis(nil)
 	allMet(t, mock)
-	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].file.Hash != b {
+	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].hash != b {
 		t.Errorf("queued: fast %d, analysis %d - want only b", len(lanes.fast.jobs), len(lanes.analysis.jobs))
 	}
 }

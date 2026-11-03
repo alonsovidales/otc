@@ -498,10 +498,10 @@ func TestShowingInImagesQueuesSkippedContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	metUpToSentinel(t, mock)
-	if len(lanes.analysis.jobs) != 1 || lanes.analysis.jobs[0].file.Hash != thumbed {
+	if len(lanes.analysis.jobs) != 1 || lanes.analysis.jobs[0].hash != thumbed {
 		t.Errorf("analysis lane: %+v", lanes.analysis.jobs)
 	}
-	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].file.Hash != bare {
+	if len(lanes.fast.jobs) != 1 || lanes.fast.jobs[0].hash != bare {
 		t.Errorf("fast lane: %+v", lanes.fast.jobs)
 	}
 }

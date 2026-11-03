@@ -133,7 +133,7 @@ func TestProcessingWritesBothThumbnailsRotated(t *testing.T) {
 	referenced(mock, h) // dropIfOrphaned
 	expectNoAlert(mock)
 
-	if !mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+	if !mg.thumbnailOf(ses, file) {
 		t.Fatal("processing failed")
 	}
 	noAlert(t, mock)
@@ -154,7 +154,7 @@ func TestProcessingNeverScalesUp(t *testing.T) {
 	file := storedFile(t, ses, h, "/Phone/small.jpg", "image/jpeg", testJPEG(t, 300, 200, 0))
 	referenced(mock, h)
 	expectNoAlert(mock)
-	if !mg.thumbnailJob(mediaJob{ses: ses, file: file, target: blobPath(h)}) {
+	if !mg.thumbnailOf(ses, file) {
 		t.Fatal("processing failed")
 	}
 	noAlert(t, mock)
