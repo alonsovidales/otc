@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"google.golang.org/protobuf/proto"
@@ -98,8 +100,147 @@ func (st *searchTest) keysetLibrary(k searchKind, db *sql.DB, mock sqlmock.Sqlmo
 		d := dao.NewWithDB(mdb)
 		mg.dao, mg.browse = d, d.BrowseMedia
 		st.mock = nil // the copies are counted there
+		st.filterLibrary(mg, mdb, rows)
 	}
 	st.mg = keptOut(mg)
+}
+
+// scenarioFilter is the filter keysetScenarios asks the newSearchTest
+// cases with over MySQL/MariaDB (issue #206: every search read as it
+// scrolls): none (the plain browse), or one every photo of the case has -
+// the dates, a score, the stars and the cosines set so that its pages are
+// the case's paths in order - and the document and video don't.
+var scenarioFilter = filterNone
+
+const (
+	filterNone = iota
+	filterTag
+	filterPerson
+	filterCollection
+	filterArea
+	filterByStars
+	filterText
+	filterCount
+)
+
+var filterNames = []string{"plain", "tag", "person", "collection", "area", "by stars", "text"}
+
+// filterRanked says whether scenarioFilter's search is ranked, which
+// never goes up (ImageSearchRated drops newer_than for it).
+func filterRanked() bool { return scenarioFilter == filterByStars || scenarioFilter == filterText }
+
+// filterLibrary gives the case's photos (every image row: the synced and
+// month-end photos going up too) scenarioFilter's filter, and st the
+// search for it. Photo i's tag score and stars go down in steps every few
+// photos (ties a chunk keeps whole) and its cosine down with i, so a
+// ranked search's order is the case's.
+func (st *searchTest) filterLibrary(mg *Manager, db *sql.DB, rows []*pb.File) {
+	t := st.t
+	t.Helper()
+	if scenarioFilter == filterNone {
+		return
+	}
+	for _, q := range []string{
+		"create temporary table `file_tags` (`hash` varchar(64) not null, `tag` varchar(150) not null, `score` float not null, key (`hash`), key (`tag`), unique key (`hash`, `tag`)) engine=InnoDB",
+		"create temporary table `faces` (`id` varchar(36) not null, `hash` varchar(64) not null, `person_id` varchar(36) not null, `bbox_x` int not null, `bbox_y` int not null, `bbox_w` int not null, `bbox_h` int not null, `embedding` blob not null, `thumbnail` mediumblob not null, `created` datetime not null, primary key (`id`), key (`hash`), key (`person_id`)) engine=InnoDB",
+		"create temporary table `image_groups` (`id` varchar(36) not null, `name` varchar(150) not null, `created` datetime not null, `rating` tinyint(1) not null default 0, primary key (`id`)) engine=InnoDB",
+		"create temporary table `image_group_files` (`group_id` varchar(36) not null, `hash` varchar(64) not null, `added` datetime not null, primary key (`group_id`, `hash`), key (`hash`)) engine=InnoDB",
+		"create temporary table `photo_locations` (`hash` varchar(64) not null, `lat` double null, `lon` double null, primary key (`hash`)) engine=InnoDB",
+		"create temporary table `photo_ratings` (`group_id` varchar(36) not null, `hash` varchar(64) not null, `stars` tinyint not null default 0, `comment` blob null, `shared_comment` blob null, `link` varchar(64) null, `updated` datetime not null, primary key (`group_id`, `hash`), key (`hash`)) engine=InnoDB",
+		"insert into `image_groups` values ('g', 'Trip', now(), 0), ('gr', 'Shoot', now(), 1)",
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	index := map[string]int{}
+	for i := range st.paths {
+		index[st.hash(i)] = i
+	}
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A photo without the filter, with its thumbnail, between the case's
+	// first two: any page that shows it didn't filter.
+	if len(st.paths) > 1 {
+		at := rows[0].Created.AsTime().Add(-30 * time.Second)
+		if len(rows) > 2 && st.newerThan != nil {
+			at = rows[1].Created.AsTime().Add(30 * time.Minute)
+		}
+		hash := fmt.Sprintf("%064x", 0xbf00+st.base)
+		exec("insert into `files` (`hash`, `mime`, `created`, `modified`, `path`, `size`) values (?, 'image/jpeg', ?, ?, '/p/unfiltered.jpg', 1)", hash, at, at)
+		if err := blobstore.WriteBytes(thumbnailPath(hash), st.ses, []byte("unfiltered")); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { removeThumbnails(blobPath(hash)) })
+	}
+	vectors := map[string][]float32{}
+	seen := map[string]bool{}
+	for _, f := range rows {
+		if f.Mime != "image/jpeg" || seen[f.Hash] {
+			continue
+		}
+		seen[f.Hash] = true
+		i, ok := index[f.Hash]
+		if !ok {
+			i = len(st.paths) // the up kind's photos no page shows
+		}
+		switch scenarioFilter {
+		case filterTag:
+			exec("insert into `file_tags` values (?, 't', ?)", f.Hash, 1-float64(i/3)/16)
+			exec("insert into `file_tags` values (?, 'other', 0.5)", f.Hash)
+		case filterPerson:
+			exec("insert into `faces` values (?, ?, 'p', 0, 0, 1, 1, '', '', now())", "a"+f.Hash[34:], f.Hash)
+			if i%2 == 0 {
+				exec("insert into `faces` values (?, ?, 'p', 0, 0, 1, 1, '', '', now())", "b"+f.Hash[34:], f.Hash) // twice in it
+			}
+		case filterCollection:
+			exec("insert into `image_group_files` values ('g', ?, now())", f.Hash)
+		case filterArea:
+			exec("insert into `photo_locations` values (?, ?, ?)", f.Hash, 40.4+float64(i)/1000, -3.7)
+		case filterByStars:
+			exec("insert into `image_group_files` values ('gr', ?, now())", f.Hash)
+			if stars := 5 - i/8; stars > 0 {
+				exec("insert into `photo_ratings` (`group_id`, `hash`, `stars`, `updated`) values ('gr', ?, ?, now())", f.Hash, stars)
+			}
+		case filterText:
+			// A cosine of 1 - i/250 to the query [1, 0, 0]: all over the cut.
+			a := 1 - float64(i)/250
+			vectors[f.Hash] = []float32{float32(a), float32(math.Sqrt(1 - a*a)), 0}
+		}
+	}
+	switch scenarioFilter {
+	case filterTag:
+		st.tags = []string{"t"}
+	case filterPerson:
+		st.people = []string{"p"}
+	case filterCollection:
+		st.group = "g"
+	case filterArea:
+		st.area = &dao.MediaArea{South: 40, West: -4, North: 41, East: -3}
+	case filterByStars:
+		st.group, st.rating = "gr", &dao.RatingQuery{ByRating: true}
+	case filterText:
+		st.text = "a photo"
+		mg.smart.loaded.Store(true)
+		mg.smart.on.Store(true)
+		mg.setEmbedder(&fakeEmbedder{text: []float32{1, 0, 0}})
+		x := &mg.smart.index
+		x.mu.Lock()
+		x.loaded, x.pos = true, map[string]int{}
+		for h, v := range vectors {
+			scale, q, err := unpackVec(packVec(v))
+			if err != nil {
+				t.Fatal(err)
+			}
+			x.addLocked(h, scale, q)
+		}
+		x.mu.Unlock()
+		t.Cleanup(x.drop)
+	}
 }
 
 // fakeBrowse is dao.BrowseMedia over rows, in memory, for the tests that
@@ -190,20 +331,43 @@ var keysetCases = []struct {
 
 // keysetScenarios runs keysetCases served as mode says, fetching what each
 // page needs and no more (browseChunk 1: a chunk ends inside nearly every
-// page) and a chunk ahead of the largest page.
+// page) and a chunk ahead of the largest page; over MySQL, for the plain
+// browse and every filter of scenarioFilter, and the date-ordered ones both
+// by keyset and through their list (cListMax 0 and past the case).
 func keysetScenarios(t *testing.T, mode int) {
-	for _, chunk := range []int{1, browseChunk} {
-		t.Run(fmt.Sprint("chunk ", chunk), func(t *testing.T) {
-			origMode, origChunk := scenarioKeyset, browseChunk
-			scenarioKeyset, browseChunk = mode, chunk
-			t.Cleanup(func() { scenarioKeyset, browseChunk = origMode, origChunk })
-			for _, c := range keysetCases {
-				if c.mock && mode == keysetMySQL {
-					continue
+	filters := []int{filterNone}
+	if mode == keysetMySQL {
+		filters = nil
+		for f := filterNone; f < filterCount; f++ {
+			filters = append(filters, f)
+		}
+	}
+	for _, filter := range filters {
+		listMaxes := []int{cListMax}
+		if mode == keysetMySQL && filter != filterNone && filter != filterTag && filter != filterByStars && filter != filterText {
+			listMaxes = []int{0, 1 << 20}
+		}
+		for _, listMax := range listMaxes {
+			for _, chunk := range []int{1, browseChunk} {
+				name := fmt.Sprintf("%s, chunk %d", filterNames[filter], chunk)
+				if len(listMaxes) > 1 {
+					name += fmt.Sprintf(", list max %d", listMax)
 				}
-				t.Run(c.name, c.run)
+				t.Run(name, func(t *testing.T) {
+					origMode, origChunk, origFilter, origMax := scenarioKeyset, browseChunk, scenarioFilter, cListMax
+					scenarioKeyset, browseChunk, scenarioFilter, cListMax = mode, chunk, filter, listMax
+					t.Cleanup(func() {
+						scenarioKeyset, browseChunk, scenarioFilter, cListMax = origMode, origChunk, origFilter, origMax
+					})
+					for _, c := range keysetCases {
+						if c.mock && mode == keysetMySQL {
+							continue
+						}
+						t.Run(c.name, c.run)
+					}
+				})
 			}
-		})
+		}
 	}
 }
 
@@ -305,42 +469,18 @@ func TestKeysetFetchThatFails(t *testing.T) {
 	st.last(tok, 3, 3, 4, 5)
 }
 
-// Only the plain browse is served by keyset: a tag, a person, a
-// collection, a map area, a text or a folder's gallery reads its rows
-// whole when it starts, as before.
-func TestKeysetOnlyForThePlainBrowse(t *testing.T) {
+// Every search of a Manager with browse (the device's own, Init) is read
+// as it scrolls; one without (the mocked databases) reads it whole, as
+// before. Which way each search is read is in searchFor (search_lists_test.go).
+func TestSearchesReadAsTheyScrollOnlyWithBrowse(t *testing.T) {
 	mg := &Manager{browse: func(*dao.MediaBrowse, *time.Time, int) ([]*pb.File, *time.Time, bool, error) {
 		return nil, nil, true, nil
 	}}
-	area := &dao.MediaArea{}
-	byRating := &dao.RatingQuery{ByRating: true}
-	for _, c := range []struct {
-		what    string
-		path    string
-		tags    []string
-		people  []string
-		group   string
-		area    *dao.MediaArea
-		text    string
-		rating  *dao.RatingQuery
-		keyset  bool
-		noFetch bool
-	}{
-		{what: "the plain browse", keyset: true},
-		{what: "a folder", path: "/Phone/"},
-		{what: "a tag", tags: []string{"beach"}},
-		{what: "a person", people: []string{"p1"}},
-		{what: "a collection", group: "g1"},
-		{what: "a map area", area: area},
-		{what: "a text", text: "dogs"},
-		{what: "a rating", group: "g1", rating: byRating},
-	} {
-		if got := mg.plainBrowse(c.path, c.tags, c.people, c.group, c.area, c.text, c.rating); got != c.keyset {
-			t.Errorf("%s: keyset %v, want %v", c.what, got, c.keyset)
-		}
+	if !mg.readsAsItScrolls() {
+		t.Error("a Manager with browse reads its searches whole")
 	}
-	if (&Manager{}).plainBrowse("", nil, nil, "", nil, "", nil) {
-		t.Error("a Manager without browse served by keyset")
+	if (&Manager{}).readsAsItScrolls() {
+		t.Error("a Manager without browse read as it scrolls")
 	}
 }
 

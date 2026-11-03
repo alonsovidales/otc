@@ -265,6 +265,11 @@ type searchTest struct {
 	omit  bool
 	// newerThan is set when the pages are asked going up (issue #194).
 	newerThan *time.Time
+	// The search's filters (keysetScenarios over MySQL, scenarioFilter).
+	tags, people []string
+	group, text  string
+	area         *dao.MediaArea
+	rating       *dao.RatingQuery
 }
 
 // expectCopies expects the count of copies (File.copies, issue #201) that
@@ -370,6 +375,9 @@ func newKindSearchTest(t *testing.T, k searchKind, base, size int, paths []strin
 		}
 	}
 	if scenarioKeyset != keysetOff {
+		if k.up && filterRanked() {
+			t.Skip("a ranked search never goes up")
+		}
 		// Issue #206: the same case served by keyset (browse_test.go).
 		st.keysetLibrary(k, db, mock)
 		return st
@@ -432,7 +440,7 @@ func (st *searchTest) page(token string, have int32) (string, string) {
 // search is ImageSearch for the page at token and have, in st's kind -
 // going up with the same instant on every page, as a grid sends it.
 func (st *searchTest) search(token string, have int32) ([]*pb.File, string, error) {
-	return st.mg.ImageSearch(st.ses, "", nil, token, false, nil, "", nil, st.newerThan, have, 0, false, st.omit)
+	return st.mg.ImageSearchRated(st.rating, st.text, st.area, st.ses, "", st.tags, token, false, st.people, st.group, nil, st.newerThan, have, 0, false, st.omit)
 }
 
 // pagePaths is the page's photos, each with its thumbnail's content - or,

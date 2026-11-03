@@ -2804,7 +2804,22 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 // checks). Its conditions are numbers written into the text, so the
 // placeholders' order stays the other filters'.
 func searchMediaRatedClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, area *MediaArea, rating *RatingQuery) (from, where, orderBy, selectExtra string, args []any) {
+	return searchMediaOnlyClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded, area, rating, nil)
+}
+
+// searchMediaOnlyClauses is searchMediaRatedClauses of the rows holding
+// one of the hashes in only (issue #206: a search read a chunk at a time
+// through a list of its photos, SearchMediaOf; nil: every row). The tags'
+// and people's derived tables are cut to them too, so a chunk costs its
+// own photos: each hash's sum of scores and set of people are its own, so
+// the rows are the same as the whole search's for those hashes.
+func searchMediaOnlyClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string, area *MediaArea, rating *RatingQuery, only []string) (from, where, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
+	var onlyPh string
+	var onlyArgs []any
+	if only != nil {
+		onlyPh, onlyArgs = inPlaceholders(only)
+	}
 	orderBy = " order by `f`.`created` desc, `f`.`path` desc"
 	if groupID == "" || !rating.Active() {
 		rating = nil
@@ -2813,9 +2828,16 @@ func searchMediaRatedClauses(path string, tags []string, personIDs []string, gro
 	if len(tags) > 0 {
 		ph := strings.Repeat("?,", len(tags))
 		ph = ph[:len(ph)-1]
-		from += " join (select `hash`, sum(`score`) as `score` from `file_tags` where `tag` in (" + ph + ") group by `hash`) as `tg` on `tg`.`hash` = `f`.`hash`"
+		cut := ""
+		if only != nil {
+			cut = " and `hash` in (" + onlyPh + ")"
+		}
+		from += " join (select `hash`, sum(`score`) as `score` from `file_tags` where `tag` in (" + ph + ")" + cut + " group by `hash`) as `tg` on `tg`.`hash` = `f`.`hash`"
 		for _, t := range tags {
 			args = append(args, t)
+		}
+		if only != nil {
+			args = append(args, onlyArgs...)
 		}
 		selectExtra = ", `tg`.`score`"
 		orderBy = " order by `tg`.`score` desc, `f`.`created` desc, `f`.`path` desc"
@@ -2826,10 +2848,17 @@ func searchMediaRatedClauses(path string, tags []string, personIDs []string, gro
 		ph = ph[:len(ph)-1]
 		// A face taken off its person ("Not this person", person_id '')
 		// is no one's: an empty id finds no photo.
-		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") and `person_id` <> '' group by `hash`" +
+		cut := ""
+		if only != nil {
+			cut = " and `hash` in (" + onlyPh + ")"
+		}
+		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") and `person_id` <> ''" + cut + " group by `hash`" +
 			fmt.Sprintf(" having count(distinct `person_id`) = %d) as `fc` on `fc`.`hash` = `f`.`hash`", len(personIDs))
 		for _, p := range personIDs {
 			args = append(args, p)
+		}
+		if only != nil {
+			args = append(args, onlyArgs...)
 		}
 	}
 
@@ -2863,6 +2892,11 @@ func searchMediaRatedClauses(path string, tags []string, personIDs []string, gro
 	}
 
 	var whereParts []string
+	if only != nil {
+		// The first WHERE part, so its args come first among theirs.
+		whereParts = append(whereParts, "`f`.`hash` in ("+onlyPh+")")
+		args = append(args, onlyArgs...)
+	}
 	if path != "" {
 		// Issue #173: the index range, not a regexp (see pathprefix.go).
 		cond, condArgs := underPrefix("`f`.`path`", path, true)

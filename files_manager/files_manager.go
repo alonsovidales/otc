@@ -99,10 +99,11 @@ type Manager struct {
 	// elsewhere. A device none of whose users tag never loads it.
 	startTagger  func()
 	searchTokens *searchTokenCache
-	// browse reads Images' plain browse a chunk at a time (issue #206,
-	// browse.go): the dao's BrowseMedia, set by Init. Without it (a
-	// Manager a test builds over a mocked database) every search reads its
-	// rows whole when it starts, as before.
+	// browse reads Images' searches in date order a chunk at a time by
+	// keyset (issue #206, browse.go): the dao's BrowseMedia, set by Init.
+	// With it every search is read as it scrolls (by keyset or through a
+	// list); without it (a Manager a test builds over a mocked database)
+	// every search reads its rows whole when it starts, as before.
 	browse        browseFunc
 	sharedLinkTTL time.Duration
 	// galleryCache holds shared galleries' decrypted manifests (see
@@ -1113,8 +1114,8 @@ func pageSize(limit int32, omit bool) int {
 // before (issue #77, the date scrubber's "jump to date"): when non-nil,
 // always starts a fresh search filtered to created <= *before, exactly as
 // if oldToken had never been passed: a jump is a brand new search of a
-// narrower result set, held by a token of its own like any other (the
-// plain browse's read by keyset from the jump's instant, issue #206).
+// narrower result set, held by a token of its own like any other (read
+// as it scrolls from the jump's instant, issue #206).
 // limit (SearchPhotos.limit) makes this page smaller than the device's
 // default, never larger (but see omit); 0 is the default. A grid's first
 // page asks for a few photos so it paints quickly over a slow upload, and
@@ -1215,9 +1216,9 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	// again (searchCursor.resume).
 	var last *searchCursor
 	again := false
-	// A plain browse's place in the library (issue #206, browse.go): all
-	// is what it has fetched, and more the rest. nil for every other
-	// search, whose all is every row.
+	// The search's place in its photos (issue #206, browse.go): all is
+	// what it has fetched, and more the rest. nil for a search read whole
+	// (a Manager without browse), whose all is every row.
 	var more *browseState
 	if oldToken != "" && before == nil {
 		// Both halves of this have to be checked before the value is
@@ -1270,11 +1271,16 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 			skip = int(have)
 		}
 		switch {
-		case mg.plainBrowse(path, tags, personIDs, groupID, area, text, rating):
+		case mg.readsAsItScrolls():
 			// Issue #206: only what this page shows (past skip), and the
-			// rest when a page needs it.
-			more = &browseState{query: dao.MediaBrowse{ImagesOnly: !includeVideos, Before: before, NewerThan: newerThan, Excluded: excluded}}
-			files, more, err = mg.fetchMore(nil, more, skip+toReturn)
+			// rest when a page needs it (browse.go).
+			b := &dao.MediaBrowse{
+				MediaFilters: dao.MediaFilters{Path: path, Tags: tags, PersonIDs: personIDs, GroupID: groupID, Area: area, Rating: rating},
+				ImagesOnly:   !includeVideos, Before: before, NewerThan: newerThan, Excluded: excluded,
+			}
+			if more, err = mg.searchFor(session, b, text); err == nil {
+				files, more, err = mg.fetchMore(nil, more, skip+toReturn)
+			}
 		case newerThan != nil:
 			files, err = mg.dao.SearchMediaNewerThanWithin(area, path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
 		default:
@@ -1283,8 +1289,9 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 		if err != nil {
 			return nil, "", err
 		}
-		// Smart search: the same photos, ranked by the text.
-		if text != "" {
+		// Smart search: the same photos, ranked by the text (a search read
+		// as it scrolls is ranked as it is read: textList).
+		if text != "" && more == nil {
 			if files, err = mg.rankByText(session, text, files); err != nil {
 				return nil, "", err
 			}
@@ -1324,8 +1331,8 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 	next := 0
 	for len(page) < toReturn {
 		if next == len(files) {
-			// A plain browse fetches more when what it holds runs out:
-			// what the page still needs, and a chunk ahead.
+			// A search read as it scrolls fetches more when what it holds
+			// runs out: what the page still needs, and a chunk ahead.
 			if !more.more() {
 				break
 			}
@@ -1382,10 +1389,9 @@ func (mg *Manager) ImageSearchRated(rating *dao.RatingQuery, text string, area *
 			log.Error("error reading the ratings of a search page, served without them:", ratingErr)
 		}
 	}
-	// A plain browse that served all it held: whether the library goes on
-	// decides whether this is its last page. Should that look fail, the
-	// page is served with a token all the same, and the next page looks
-	// again.
+	// A search that served all it held: whether it goes on decides
+	// whether this is its last page. Should that look fail, the page is
+	// served with a token all the same, and the next page looks again.
 	for next == len(files) && more.more() {
 		grown, after, fetchErr := mg.fetchMore(all, more, browseChunk)
 		if fetchErr != nil {

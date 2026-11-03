@@ -765,18 +765,7 @@ func rankScores(scored []scoredPhoto) []scoredPhoto {
 // ranked by how well they match text, best first, cut at rankScores'
 // cutoff; a photo without a vector isn't among them.
 func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.File) ([]*pb.File, error) {
-	if !mg.SmartSearchEnabled() {
-		return nil, ErrSmartSearchOff
-	}
-	if err := mg.smartSearchUsable(); err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), cEmbedTimeout)
-	q, err := mg.smartEmbedder().EmbedText(ctx, text)
-	cancel()
-	if errors.Is(err, modelserver.ErrNoEmbedder) {
-		return nil, ErrSmartSearchUnavailable
-	}
+	q, err := mg.textVector(text)
 	if err != nil {
 		return nil, err
 	}
@@ -801,6 +790,88 @@ func (mg *Manager) rankByText(ses *session.Session, text string, files []*pb.Fil
 	}
 	log.Debug("smart search: kept", len(out), "of", len(files), "photo(s)")
 	return out, nil
+}
+
+// textVector is text through the text tower, once Smart search may run.
+func (mg *Manager) textVector(text string) ([]float32, error) {
+	if !mg.SmartSearchEnabled() {
+		return nil, ErrSmartSearchOff
+	}
+	if err := mg.smartSearchUsable(); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cEmbedTimeout)
+	q, err := mg.smartEmbedder().EmbedText(ctx, text)
+	cancel()
+	if errors.Is(err, modelserver.ErrNoEmbedder) {
+		return nil, ErrSmartSearchUnavailable
+	}
+	return q, err
+}
+
+// textList is a text search of b's photos as a list (issue #206,
+// browse.go): its candidates by hash with their cosine to text (as
+// rankByText scores them), best first, only those over rankScores' floor -
+// none under it is ever kept; where the cut falls is known once the best
+// photo among them that b shows is found (browseState.cutAt), and a
+// candidate b doesn't show is passed over by its chunk, as rankByText only
+// scored the photos b found. The candidates are every photo described, or,
+// with filters that keep few photos (b's own list: RankMedia, DatedMedia
+// under cListMax), only those.
+func (mg *Manager) textList(ses *session.Session, text string, b *dao.MediaBrowse) ([]dao.ListedHash, error) {
+	q, err := mg.textVector(text)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []dao.ListedHash
+	every := true
+	if b.Filtered() {
+		if r := b.Rating; len(b.Tags) > 0 || (b.GroupID != "" && r.Active() && r.ByRating) {
+			candidates, err = mg.dao.RankMedia(&b.MediaFilters)
+			every = false
+		} else {
+			var ok bool
+			candidates, ok, err = mg.dao.DatedMedia(b, cListMax)
+			every = !ok
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	floor := float32(cSmartFloor)
+	var list []dao.ListedHash
+	err = mg.withIndex(ses, func(x *smartIndex) {
+		if x.dim != 0 && len(q) != x.dim {
+			return
+		}
+		add := func(hash string, p int) {
+			if s := x.cosineLocked(p, q); s >= floor {
+				list = append(list, dao.ListedHash{Hash: hash, Rank: [2]float64{float64(s)}})
+			}
+		}
+		if every {
+			for hash, p := range x.pos {
+				add(hash, p)
+			}
+			return
+		}
+		for _, c := range candidates {
+			if p, ok := x.pos[c.Hash]; ok {
+				add(c.Hash, p)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Rank[0] != list[j].Rank[0] {
+			return list[i].Rank[0] > list[j].Rank[0]
+		}
+		return list[i].Hash < list[j].Hash
+	})
+	log.Debug("smart search: listed", len(list), "photo(s) over the floor")
+	return list, nil
 }
 
 // smartSimilarity is how alike two photos are by their vectors, for

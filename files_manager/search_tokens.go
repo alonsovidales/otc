@@ -55,12 +55,16 @@ type searchCursor struct {
 	// first (issue #194, SearchPhotos.newer_than), nil for every other
 	// search: it only goes on for requests of its kind (sameDirection).
 	newerThan *time.Time
-	// more is a plain browse's place in the library (issue #206,
-	// browse.go): all holds only what it has fetched, and a page that runs
-	// past it fetches more. nil for every other search, whose all is every
-	// row it found.
+	// more is the search's place in its photos (issue #206, browse.go):
+	// all holds only what it has fetched, and a page that runs past it
+	// fetches more. nil for a search read whole (a Manager without
+	// browse), whose all is every row it found.
 	more *browseState
 }
+
+// weight is what cur keeps, in rows, for the cache's cap: its rows and
+// its search's list.
+func (cur *searchCursor) weight() int { return len(cur.all) + cur.more.rows() }
 
 // sameDirection says whether a request with newerThan may go on with cur:
 // a search going down (no newerThan) with one going down, and one going
@@ -114,7 +118,7 @@ type searchTokenEntry struct {
 type searchTokenCache struct {
 	mu   sync.Mutex
 	by   map[string]*searchTokenEntry
-	rows int // len(cur.all) over every entry: what they keep in memory
+	rows int // cur.weight() over every entry: what they keep in memory
 	max  int
 	// Issue #192: gen counts keepOut and clear calls, excluded is the
 	// folders the last one left out (nil after a clear: unknown). A search
@@ -209,10 +213,10 @@ func (c *searchTokenCache) store(token string, cur *searchCursor, now time.Time,
 			// (issue #147).
 			return
 		}
-		c.rows -= len(old.cur.all)
+		c.rows -= old.cur.weight()
 	}
 	c.by[token] = &searchTokenEntry{cur: cur, used: now}
-	c.rows += len(cur.all)
+	c.rows += cur.weight()
 	for c.rows > c.max {
 		oldest := ""
 		for t, e := range c.by {
@@ -261,7 +265,7 @@ func (c *searchTokenCache) keepOut(folders []string) {
 	c.excluded = append([]string{}, folders...)
 	for _, e := range c.by {
 		cur := withoutFolders(e.cur, c.excluded)
-		c.rows += len(cur.all) - len(e.cur.all)
+		c.rows += cur.weight() - e.cur.weight()
 		e.cur = cur
 	}
 }
@@ -282,9 +286,9 @@ func (c *searchTokenCache) clear() {
 }
 
 // withoutFolders is cur without the rows under folders from its last page
-// on: neither served again nor served next - nor, for a plain browse,
-// fetched later (browseState.dropped). cur itself when there are none, so
-// nothing is copied for a token they don't touch.
+// on: neither served again nor served next - nor, for a search read as it
+// scrolls, fetched later (browseState.dropped). cur itself when there are
+// none, so nothing is copied for a token they don't touch.
 func withoutFolders(cur *searchCursor, folders []string) *searchCursor {
 	rest := cur.all[cur.prev:]
 	more := cur.more.dropping(folders)
@@ -314,7 +318,7 @@ func withoutFolders(cur *searchCursor, folders []string) *searchCursor {
 
 func (c *searchTokenCache) drop(token string) {
 	if e, ok := c.by[token]; ok {
-		c.rows -= len(e.cur.all)
+		c.rows -= e.cur.weight()
 		delete(c.by, token)
 	}
 }
