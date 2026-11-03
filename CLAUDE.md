@@ -968,7 +968,8 @@ folder is synced after each rename too (`blobstore.SyncDir`: `Commit`, `writeBlo
 **Disk space** (`freespace.go`): a write that would leave less than a reserve free - 1 GiB, or 2%
 of a disk under 50 GB, at least 64 MiB: room for MariaDB on the same disk, the thumbnails and the
 alert itself - is refused before it starts: `BeginUpload` (its size plus what the uploads under way
-still have to write), `UploadFile`, `GetSharedLink`'s archive, `StartSharedGallery` and a post's
+still have to write, those kept for a resume too - which give way, least recently sent to first,
+when it doesn't fit with them: `uploads.roomFor`), `UploadFile` (the same), `GetSharedLink`'s archive, `StartSharedGallery` and a post's
 video copy, with `RespEnvelope.error_code` "storage_full" (also for a write that hit ENOSPC) and
 `dev.files.storage_full`'s "this needs …, and only … is left". The sync clients don't yet pause on
 it. What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
@@ -983,7 +984,9 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
 `shared_links` row - none if that query fails): in the background once the listeners are up
 (`AfterListening`, from bin/otc.go), reading the flat folder 4096 entries at a time (unsorted),
 and only what was last modified a minute or more before this process started (`Manager.started`),
-so nothing this run writes - a paused chunked upload, an archive being built - is ever taken.
+so nothing this run writes - a paused chunked upload, one kept for a resume however long it waited
+(#205), an archive being built - is ever taken; a restart forgets a kept upload, and the next
+start takes its file.
 `integrity.go` checks once a day (a minute after start, then daily) for rows whose content is
   missing - the distinct hashes a page of 5000 at a time from `files` and from `file_versions`
   (`dao.HashesPage`), a `hasBlob` stat each, and the paths of the missing ones only
@@ -1062,7 +1065,28 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   chunks of at most 4 MiB: `ReadFile` (original bytes by range - `GetFile` remains only to show
   a photo, converting HEIC), `BeginUpload`/`UploadChunk`/`FinishUpload` (encrypted as it arrives,
   SHA-256 checked at the end, then `registerUpload` - the same bookkeeping as `UploadFile`),
-  `DownloadSharedLink` with offset/length. Stored videos reach ffmpeg/ffprobe over the device's
+  `DownloadSharedLink` with offset/length. **Resumable uploads** (issue #205, release 166;
+  `files_manager/chunked.go`, the proto's BeginUpload comment): `BeginUpload.sha256` with the path
+  and size is the resume key (`uploadKey`; lowercase hex of 64, anything else is no key). An upload
+  with a key outlives its connection: `ReleaseUploadsOf` (deferred in `serveConnection`, after its
+  requests returned) keeps it (`kept`, its temp file, open segment, hash and head all in memory),
+  and a BeginUpload of the same key on any connection of the instance (each user's is its own
+  process, one data key) goes on with the same Writer and upload id from `UploadStarted.received`,
+  the latest BeginUpload's dates, override and cloud id winning; one without a key is dropped when
+  its connection closes, as before. Ownership is the connection (`owner`, checked with the session
+  by UploadChunk and FinishUpload): the latest BeginUpload of a key takes it over even from a
+  connection still open (a phone's half-open socket - there is no read deadline on direct
+  connections - looks alive for minutes), whose further requests for it get "unknown or expired
+  upload". FinishUpload checks the hash against what it is sent and against the key. A write that
+  failed drops the upload (sealed file and hash out of step). BeginUploads are serialised
+  (`uploads.begin`); lock order `uploads.mu` then an upload's `mu`. Limits per instance:
+  `cMaxUploads` 32 unfinished in all (~34 MiB of segment buffers and heads; past it the least
+  recently sent-to kept one goes, else `ErrTooManyUploads`, `dev.files.upload_too_many`),
+  `cMaxKeptUploads` 16 waiting (the oldest go as connections close), kept ones give way for disk
+  room (above), and `cUploadIdle` (30 min since the last chunk) drops any. Nothing survives a
+  restart (out of scope: the hash state and the open segment are memory). Tests: `resume_test.go`,
+  `chunked_test.go`, websocket's `TestUploadResumesOnAnotherConnection` (real sockets, a child
+  process). Stored videos reach ffmpeg/ffprobe over the device's
   own loopback stream (`SetVideoSource`: a short-lived media token), so processing, reprocess
   and the info panel never load a video whole nor write it out in plaintext; share-link zips
   are streamed into a segmented file under the link's key. Every zip entry is Deflate; types that

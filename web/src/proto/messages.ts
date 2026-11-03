@@ -2201,14 +2201,25 @@ export interface FileChunk {
  * content's SHA-256, checked - makes it the file (answers with File, like
  * UploadFile). An upload untouched for 30 minutes is dropped.
  *
- * Resuming (issue #205, release 166): an upload is no longer dropped when
- * its connection closes, only after those 30 idle minutes. A BeginUpload
- * with sha256 set names its content: when this instance holds an
- * unfinished upload of the same path, size and sha256, it answers with that
- * upload's id and UploadStarted.received, the bytes it already has, and the
- * client goes on from there with UploadChunk (FinishUpload still checks the
- * whole content). Devices before it ignore sha256 and answer received 0: a
- * fresh upload, as always.
+ * Resuming (issue #205, release 166): an upload begun with sha256 is no
+ * longer dropped when its connection closes, only after those 30 idle
+ * minutes (one begun without it still goes with its connection). A
+ * BeginUpload with sha256 set names its content: when this instance holds
+ * an unfinished upload of the same path, size and sha256, it answers with
+ * that upload's id and UploadStarted.received, the bytes it already has,
+ * and the client goes on from there with UploadChunk (FinishUpload still
+ * checks the whole content, and that it is what sha256 named). Devices
+ * before it ignore sha256 and answer received 0: a fresh upload, as always.
+ * One connection drives an upload at a time: the one whose BeginUpload
+ * began or resumed it last. A BeginUpload of the key from another
+ * connection takes it over even while the first is still open (a phone's
+ * dropped socket can look open to the device for minutes), and the first
+ * connection's UploadChunk and FinishUpload for it are then refused as an
+ * unknown upload. The device keeps at most 16 such uploads waiting for a
+ * resume and 32 unfinished in all (a BeginUpload past that, with every one
+ * being sent to, is refused), and drops waiting ones, oldest first, when a
+ * new upload needs their room on the disk: received 0 then, and the client
+ * sends it all.
  */
 export interface BeginUpload {
   path: string;
