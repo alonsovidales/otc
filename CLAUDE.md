@@ -77,9 +77,37 @@ inactive). The storage's fstab line has `nofail,x-systemd.device-timeout=3min` (
 143 for older devices: only the md0 line's options change) and `otc.service`/`mariadb.service` get
 `RequiresMountsFor=/mnt/storage` drop-ins (`otc-storage.conf`): a disk missing or slow at boot no
 longer stops the boot in emergency mode with no network or SSH. The device comes up without its
-storage; the service and MariaDB don't start (never on the empty directory under the mount point),
-with the disks missing raid_watch shows both LEDs red, and the apps see the device offline until the
-disks are back and it is restarted. A fourth: the Pi has no battery-backed clock, so an install that starts
+storage; the service and MariaDB don't start (never on the empty directory under the mount point).
+Issue #207 (release 166): a minute after the storage went missing the device tells the apps why -
+`storage_unavailable` (the `nostorage` package below) - and starts again by itself once it is
+back, with no restart. Without the mount, `raid_watch.py`'s `StorageGuard` starts
+`otc-degraded.service` (`otc <env> degraded`: no database, the mount point read-only in its
+namespace, `Conflicts=otc.service`, no [Install]) 60 s after it first saw it missing - since boot
+when the boot is recent; `raid-watch.service` is no longer `After=multi-user.target`, which waits
+for otc.service's start job, three minutes (the device timeout) when the disks are missing. Once the
+storage's device is there (fstab's source: an md array only when active in `/proc/mdstat`, else a
+block device), it runs `systemctl start --no-block mnt-storage.mount` (30 s doubling to 10 min while
+it fails; at once when the device reappears): systemd never mounts a nofail line whose device came
+after its timeout (seen in the Lima VM: `dev-md0.device`'s job times out, the mount, MariaDB and
+otc are never started again). Mounted after the companion ran (or after 60 s), it starts
+`mariadb.service otc.service`, which stops the companion. With the storage mounted but MariaDB not
+answering (InnoDB failing, a read-only datadir), otc.service runs and its own wait does the same
+in the process (`nostorage.Wait`). The LEDs show the storage missing as both red in turn, a second
+each (`turns_red`). Tested on 2026-11-03 in a throwaway Lima VM (Debian 13, two 3 GiB virtual
+disks as md0, installed by install.sh, `bridge-addr` pointed at a fake bridge in the VM with its
+certificate trusted), each answer checked locally and through that bridge (GetPubKey in the
+request's language, the page served, `/check_healty` 503): MariaDB's datadir made unreadable
+(otc.service up, its own degraded mode at 61 s, the full start in the same process within 5 s of
+MariaDB starting again, Alert "for 1 minute"); `raid1` blocked at boot (`install raid1 /bin/false`
+in the initramfs, md0 inactive: the companion at 60 s of uptime, otc.service's waiting start job
+cancelled, the mount job timing out at 181 s; the mirror then assembled by hand - systemd left it
+unmounted with `dev-md0.device` active - was mounted and otc started within 4 s of raid-watch
+looking, Alert "for 5 minutes" from the boot); both disks detached (the companion at 61 s, the
+record noted every minute), then attached again with a restart (Alert "for 4 minutes": until it
+was last seen missing); a hand `systemctl stop mnt-storage.mount` mounted again in 2 s. The empty
+directory under the mount point kept its time throughout, and the companion sees it read-only.
+Release 166's script, run twice on the VM with the unit removed and the old ordering put back,
+wrote both. A fourth: the Pi has no battery-backed clock, so an install that starts
 before NTP syncs sees every Debian repository as "not live until <date>" and apt fails with
 code 100 - `install.sh`'s `ensure_clock` waits for NTP and falls back to a verified HTTPS
 Date header (forward only). Three Pi 5 pitfalls learnt the hard way: the image strips SSH host keys, so enabling ssh on an older card needs `ssh-keygen -A` first (newer images regenerate them from a ssh.service drop-in); NetworkManager's WiFi
@@ -1300,6 +1328,47 @@ so nothing this run writes - a paused chunked upload, an archive being built - i
   rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
   (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
   while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
+  The storage itself missing (issue #207) is `raid_watch.py`'s `StorageGuard` (the paragraph on
+  nofail at the top): it looks every 2 s, writes what it does to the storage log, and keeps
+  `/run/otc-raid-watch/storage.json` (`{"v":1,"missing_since"}`, root's, 0644) while the storage
+  has been missing for a minute, which the companion reads for when the outage began.
+- `nostorage` — the device without its storage (issue #207). `Ready(storagePath, ping)` is ""
+  when the storage can be used: the path is under no mount fstab names (`wantedMount`: the
+  deepest, never `/`, no noauto or swap - a container's volume or an `OTC_SKIP_RAID` directory has
+  none) or that mount is a whole filesystem on top in `/proc/self/mountinfo` (its root `/`, not
+  ro: the companion's read-only bind of the empty directory is not the storage), the path passes
+  `access(W_OK|X_OK)` (EROFS once ext4 remounted it read-only) and the database answers
+  (`dao.Ping`, 5 s). `bin/otc.go` opens the database without waiting (`dao.Open`; `dao.Init` =
+  Open + `WaitReady`, still used by `init-owner-password`/`init-profile`) and calls `Wait` before
+  anything touches the storage: it looks every 5 s, and after `Grace` (60 s) serves the apps
+  (`serveWithoutStorage`: `websocket.NewUnavailable` + `api.ServeUnavailable`) until ready, then
+  stops that and the start goes on in the same process. The outage is recorded on the boot disk,
+  `<working dir>/.storage-missing.json` (0600, `{"v":1,"since","last","boot"}`; never on the
+  storage): `Begin` keeps an earlier start (a restarted companion, a reboot with the disks still
+  out), `Touch` notes it once a minute; the main instance's next full start (`machine_alerts.go`)
+  `Report`s it as an Alert (`dev.alert.storage.missing_minutes`/`_hours`/`_days` - minutes up to
+  119, hours up to 47, then days - with `missing_detail`; an Error row through
+  `AddStorageNotification`, never pushed) ending now in the same boot, else when last seen
+  missing, and removes it once stored. A user's instance waits the same, with no record and its
+  own identity only. The answer is `websocket.CodeStorageUnavailable` with
+  `dev.err.storage_unavailable` in the request's language, the contract with the apps (they show it
+  where "device unreachable" goes, ask again every 30 s, never clear anything for it); the
+  bridge's GetStaticAsset is the one request served (the web app is on the boot disk).
+  `websocket.Unavailable` is one `Manager` per identity with `unavailable` set (processMessage
+  answers before anything else), its own pool (`cUnavailablePool`, 8; `bridgeHost`, `poolTarget`)
+  and `Stop` (closed: no more dials; idle and taken connections closed). Its identity is the copy
+  the full instance keeps beside `.bridge-addresses.json`: `.bridge-identity.json` (0600, `{"v",
+  "bridge", "owner_uuid", "domain", "secret"}`), written after a registration the bridge took when
+  it differs (`keepIdentity`: a rotated secret, a new name, the bridge switched on), removed when
+  the instance runs without a bridge or leaves it (`dropIdentity` in `switchToLocal`; a deleted
+  user's home goes whole), and used only for the relay `[otc] bridge-addr` names now; the main
+  instance also registers its users' copies (`/var/lib/otc/users/*/`). Without a copy (a device
+  never started on this release) it answers on its port only. `api.ServeUnavailable`: the web
+  app's files (`StaticHandler`), `/ws`, 503 for `/check_healty` (so update.sh's start check never
+  counts it), `/media/` and the metrics; a port still held is tried every 5 s. Tests: nostorage's,
+  websocket's `unavailable_test.go` (a fake bridge in a child process), api's
+  `TestServeUnavailable`, raid_watch's `selftest_storage`, updater's
+  `TestStorageUnitsAreTheSameInInstallAndRelease166`.
 - `wifiwatch` — the Wi-Fi watchdog (release 115). Pit (Pi 5, brcmfmac over SDIO) after ~27 h up
   kept receiving at 6.6 MB/s but sent at 0.15 MB/s, 7.7% of TCP segments retransmitted
   (`CMD53 sg block write failed -84`); a reboot fixed it. Main instance only, only while the IPv4
@@ -4217,7 +4286,12 @@ deletes the plaintext `/var/lib/otc/wifi_join_request.json` the retired SetWifi 
 Settings › Storage's `/run/otc/mirror-disk.request` (a disk that isn't blank, erased and added to
 the mirror) has no unit of its own: `raid_watch.py`'s loop, which update.sh reinstalls, takes it the
 same way and answers in root's `/run/otc-raid-watch/mirror-disk.json` (raidwatch above), deferring
-a SIGTERM until it has answered.
+a SIGTERM until it has answered. `otc-degraded.service` (issue #207, the device without its
+storage) is written by install.sh and, on the devices installed before, by release 166's script -
+the same `otc_storage_units` function (`updater/storage_units_test.go`), which also drops
+`raid-watch.service`'s `After=multi-user.target` - and started only by `raid_watch.py`, which
+update.sh reinstalls; a device rolled back to an older binary runs that one as a plain otc there
+(waiting for its database), never touching the storage.
 tailscaled runs only while Tailscale Funnel is on:
 install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
 `tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't

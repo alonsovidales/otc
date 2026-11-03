@@ -292,6 +292,18 @@ and the few things listed here:
   SSH only ever accepts keys (`/etc/ssh/sshd_config.d/01-otc-keys-only.conf`): the password
   above is public, so it works at the console only, never over the network.
   (Cards flashed from a newer image generate the keys on their own the first time sshd starts.)
+- **"Your device can't reach its storage disks"**: the apps say this (instead of "device
+  unreachable") when the device is running but its disks aren't there - unplugged, switched off
+  or slow to start, the mirror not assembled, or the database on them unable to start. A minute
+  after the device notices, it answers every app with that message, on the home network and
+  through off-the.cloud, while it writes nothing at all to the disks; the web app's page still
+  loads. Plug the disks back in (or reassemble the mirror from the console): the device mounts
+  them and starts normally by itself, with no restart, and Alerts then says how long they were
+  missing. The two status LEDs show it too: red in turn, a second each.
+- **The status LEDs**: both green - the mirror is healthy; one red - that disk stopped working
+  (plug in a replacement at least as large); one blinking green and the other blinking red - a disk is
+  being copied onto the other; both red in turn, a second each - the device can't reach its
+  storage at all (above).
 - **Restart the device**: Settings > Device version > **Restart Device** (web, iPhone and
   Android; the device's owner only) restarts it cleanly; it is back in about a minute. Settings
   shows when it is. From the console, `sudo reboot` does the same.
@@ -412,7 +424,7 @@ Create `/etc/systemd/system/raid-watch.service` with:
 ```
 [Unit]
 Description=RAID1 watcher + LED driver
-After=multi-user.target mdadm.service
+After=mdadm.service
 
 [Service]
 Type=simple
