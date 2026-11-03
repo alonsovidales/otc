@@ -1602,10 +1602,12 @@ if [ "$DEMO" = "1" ]; then
 elif [ -f "$SRC_DIR/scripts/raid_watch.py" ]; then
     install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
 
+    # Not after multi-user.target: it tells the apps when the storage is
+    # missing a minute after boot (otc_storage_units below).
     cat > /etc/systemd/system/raid-watch.service <<'EOF'
 [Unit]
 Description=RAID1 watcher + LED driver
-After=multi-user.target mdadm.service
+After=mdadm.service
 
 [Service]
 Type=simple
@@ -1627,6 +1629,62 @@ EOF
 else
     log "  WARNING: $SRC_DIR/scripts/raid_watch.py missing - skipping the status LEDs"
 fi
+
+# Issue #207: the device without its storage. otc.service and MariaDB need
+# the storage mounted (the otc-storage.conf drop-ins); with the disks
+# missing, or the mirror not assembled, neither starts and every app used
+# to say "device unreachable". otc-degraded.service runs the same binary
+# without a database (`otc <env> degraded`): on its HTTP port and through
+# the bridge, with the identity's copy the service keeps on the boot disk,
+# it answers every request storage_unavailable, so the apps say why. The
+# root raid_watch.py starts it a minute after the storage went missing,
+# mounts the storage once its device is there and then starts MariaDB and
+# otc.service, which stops it (Conflicts=). It has no [Install]: nothing
+# starts it at boot. It may never write the storage: the mount point is
+# read-only in its namespace. raid-watch.service is no longer ordered after
+# multi-user.target, which waits for otc.service's start - three minutes
+# when the disks are missing (the fstab line's device timeout). The same as
+# updates/166.sh, for the devices installed before.
+otc_storage_units() {
+    local env="$1" mount_point="$2" unit=/etc/systemd/system/otc-degraded.service
+    cat > "$unit.tmp" <<UNITEOF
+# Off The Cloud without its storage (issue #207): started by raid_watch.py
+# while $mount_point is missing, stopped by otc.service's start.
+[Unit]
+Description=Off The Cloud without its storage (tells the apps why)
+Wants=network-online.target
+After=network-online.target
+Conflicts=otc.service
+Before=otc.service
+
+[Service]
+Type=simple
+User=otc
+Group=otc
+WorkingDirectory=/var/lib/otc
+ExecStart=/usr/bin/otc $env degraded
+Restart=on-failure
+RestartSec=5
+StateDirectory=otc
+LogsDirectory=otc
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadOnlyPaths=-$mount_point
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UNITEOF
+    chmod 0644 "$unit.tmp"
+    mv -f "$unit.tmp" "$unit"
+    if [ -f /etc/systemd/system/raid-watch.service ]; then
+        sed -i 's/^After=multi-user.target mdadm.service$/After=mdadm.service/' /etc/systemd/system/raid-watch.service
+    fi
+    systemctl daemon-reload
+}
 
 cat > /etc/systemd/system/otc.service <<EOF
 [Unit]
@@ -1664,6 +1722,7 @@ SystemCallArchitectures=native
 [Install]
 WantedBy=multi-user.target
 EOF
+otc_storage_units "$ENVIRONMENT" "$MOUNT_POINT"
 
 # Issue #94: the Update button. otc.service above runs with
 # NoNewPrivileges=true, so the device can't sudo its way to root for an

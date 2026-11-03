@@ -258,7 +258,7 @@ raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_wa
 	$(SSH) 'sudo tee /etc/systemd/system/raid-watch.service >/dev/null' <<-'EOF'
 	[Unit]
 	Description=RAID1 watcher + LED driver
-	After=multi-user.target mdadm.service
+	After=mdadm.service
 	
 	[Service]
 	Type=simple
