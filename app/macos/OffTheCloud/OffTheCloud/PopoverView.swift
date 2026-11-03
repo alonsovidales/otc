@@ -110,6 +110,16 @@ struct PopoverView: View {
                 }
             }
 
+            // Issue #207: why, in the device's words, while it can't reach
+            // its storage disks - the status line above is short.
+            if let words = sync.overallStatus.words {
+                Text(words)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             // Issue #183: a major or critical device update waiting.
             if let alert = sync.updateAlert {
                 UpdateAlertView(alert: alert)
@@ -288,6 +298,9 @@ struct PopoverView: View {
         case .disconnected, .connecting: return .yellow
         case .missingSettings, .wrongPassword, .tooManyAttempts: return .red
         case .notConnected, .offline: return .gray
+        // The device is there, its disks aren't: a calm orange, not the
+        // red of something to fix here.
+        case .noStorage: return .orange
         }
     }
 }

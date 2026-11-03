@@ -717,8 +717,11 @@ final class SyncModel: ObservableObject {
         ws.onDisconnect = { [weak self] _ in
             Task { @MainActor in
                 // A rejected password is its own state; a plain drop
-                // must not overwrite it with "Disconnected".
-                if self?.overallStatus != .wrongPassword, self?.overallStatus != .offline {
+                // must not overwrite it with "Disconnected" - nor the
+                // device's word that it can't reach its disks (issue
+                // #207), whose socket closes right after it.
+                if self?.overallStatus != .wrongPassword, self?.overallStatus != .offline,
+                   self?.overallStatus.waitingForStorage != true {
                     self?.overallStatus = .disconnected
                 }
                 self?.route = nil
@@ -728,6 +731,18 @@ final class SyncModel: ObservableObject {
         ws.onUnreachable = { [weak self] _ in
             Task { @MainActor in
                 self?.overallStatus = .offline
+                self?.route = nil
+                self?.stopRaidPolling()
+            }
+        }
+        // Issue #207: the device can't reach its storage disks. Nothing
+        // about the password, the device or the folders changes; the
+        // folders wait as for an offline device, and the client asks again
+        // every 30 s (at once on a network change or a wake).
+        ws.onStorageUnavailable = { [weak self] message in
+            Task { @MainActor in
+                syncLog.info("the device can't reach its storage disks - asking again in a while")
+                self?.overallStatus = .noStorage(message: message)
                 self?.route = nil
                 self?.stopRaidPolling()
             }
@@ -816,6 +831,16 @@ final class SyncModel: ObservableObject {
             try? await Task.sleep(for: Self.routeCheckDelay)
             guard !Task.isCancelled, let self else { return }
             self.pathCheckPending = false
+            // Issue #207: a device waiting for its disks is asked again at
+            // once, not at the end of its 30 s; the status stays until it
+            // answers otherwise. Nothing is in flight: there is no
+            // connection.
+            if self.overallStatus.waitingForStorage {
+                guard self.settings?.ready == true else { return }
+                syncLog.info("asking the device again whether it reaches its storage")
+                self.ws.connect()
+                return
+            }
             if wake, self.route == .home { return }
             self.switchRouteIfIdle()
         }
@@ -3474,6 +3499,25 @@ enum ConnectionStatus: Equatable {
     case tooManyAttempts(retryAfter: Int)
     /// No address or no password yet.
     case missingSettings
+    /// Issue #207: the device answered that it can't reach its storage
+    /// disks, with its words ("" when it gave none): asked again every
+    /// 30 s, at once on a network change or a wake.
+    case noStorage(message: String)
+
+    /// The device can't reach its storage (noStorage).
+    var waitingForStorage: Bool {
+        if case .noStorage = self { return true }
+        return false
+    }
+
+    /// What goes with the status line: while the device can't reach its
+    /// storage, its own words (already in the language the requests asked
+    /// for), else the app's; nil for any other status. As otc-sync's
+    /// StatusWords.
+    var words: String? {
+        guard case .noStorage(let message) = self else { return nil }
+        return message.isEmpty ? S.deskMainNoStorage : message
+    }
 
     var text: String {
         switch self {
@@ -3485,6 +3529,7 @@ enum ConnectionStatus: Equatable {
         case .wrongPassword: return S.deskMainStatusWrongPassword
         case .tooManyAttempts(let seconds): return S.deskMainStatusTooManyAttempts(seconds: seconds)
         case .missingSettings: return S.deskMainStatusMissingSettings
+        case .noStorage: return S.deskMainStatusNoStorage
         }
     }
 }

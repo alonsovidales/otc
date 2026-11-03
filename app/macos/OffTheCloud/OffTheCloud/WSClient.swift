@@ -46,6 +46,13 @@ final class WSClient {
     /// a wrong password: the client keeps retrying with backoff and signs
     /// in once the device is back. Same as otc-sync's OnUnreachable.
     var onUnreachable: ((String) -> Void)?
+    /// Issue #207: the device answered that it can't reach its storage
+    /// disks, with its words ("" when it gave none) - not a wrong password
+    /// and not unreachable: the credentials and the reconnecting stay, it
+    /// is asked again every storageRetry (connect() asks at once), and the
+    /// app signs in as soon as it answers otherwise. Same as otc-sync's
+    /// OnStorageUnavailable.
+    var onStorageUnavailable: ((String) -> Void)?
     /// A home endpoint just learnt didn't answer, and this connection went
     /// through the bridge instead (issue #190). Once per endpoint learnt:
     /// macOS's Local Network prompt, still unanswered, refuses that first
@@ -106,6 +113,10 @@ final class WSClient {
     private var autoReconnect = true
     private var backoffSeconds: TimeInterval = 1
     private let maxBackoff: TimeInterval = 30
+    /// Issue #207: how long a device that can't reach its disks waits for
+    /// the next ask - not the growing delay of the other failures. As
+    /// otc-sync's storageRetry.
+    static let storageRetry: TimeInterval = 30
     /// Bumped by every connect(): a reconnect scheduled for an earlier
     /// socket doesn't fire. As otc-sync's wsclient gen.
     private var connGen: UInt64 = 0
@@ -530,6 +541,9 @@ final class WSClient {
         let pubKeyResp = try await request(on: conn, timeout: timeout) { req in
             req.payload = .reqGetPubKey(Msg_GetPubKey())
         }
+        // Issue #207: the device's own answer that it can't reach its
+        // disks, before any sign-in - not a refusal of the password.
+        if let message = Self.storageAnswer(pubKeyResp) { throw StorageError(message: message) }
         guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
             if case .respAck(let ack) = pubKeyResp.payload, ack.code == "device_unreachable" || ack.code == "device_disabled" {
                 throw UnreachableError(message: ack.errorMsg)
@@ -544,6 +558,9 @@ final class WSClient {
             a.create = false
             req.payload = .reqAuth(a)
         }
+        // The disks went between the key and the password: the password
+        // was never looked at.
+        if let message = Self.storageAnswer(resp) { throw StorageError(message: message) }
         if case .respAck(let ack) = resp.payload {
             if ack.ok { return true }
             throw AuthError(message: ack.errorMsg.isEmpty ? nil : ack.errorMsg,
@@ -554,6 +571,28 @@ final class WSClient {
 
     struct UnreachableError: Error {
         let message: String
+    }
+
+    /// The device answered that it can't reach its storage disks (issue
+    /// #207): its words, "" when it gave none.
+    struct StorageError: Error {
+        let message: String
+    }
+
+    /// The device's words when `resp` says it can't reach its storage
+    /// (the envelope's error_code, or an Ack's code), nil otherwise. As
+    /// otc-sync's storageAnswer.
+    static func storageAnswer(_ resp: Resp) -> String? {
+        let code = "storage_unavailable"
+        if resp.errorCode == code {
+            if !resp.errorMessage.isEmpty { return resp.errorMessage }
+            if case .respAck(let ack) = resp.payload { return ack.errorMsg }
+            return ""
+        }
+        if case .respAck(let ack) = resp.payload, ack.code == code {
+            return ack.errorMsg.isEmpty ? resp.errorMessage : ack.errorMsg
+        }
+        return nil
     }
 
     struct AuthError: Error {
@@ -605,6 +644,16 @@ final class WSClient {
                     // otc-sync's wsclient.
                     if case .respAck(let ack) = resp.payload, ack.code == "not_authenticated", self.isOpen, self.signedIn {
                         print("WSClient: the device no longer knows this session - reconnecting to sign in again")
+                        self.isOpen = false; self.signedIn = false
+                        self.conn?.cancel()
+                        return
+                    }
+                    // Issue #207: the device lost its disks under this
+                    // session: say so and sign in again, which lands in
+                    // the storageRetry cycle until they are back.
+                    if let message = Self.storageAnswer(resp), self.isOpen, self.signedIn {
+                        print("WSClient: the device can't reach its storage - signing in again")
+                        self.onStorageUnavailable?(message)
                         self.isOpen = false; self.signedIn = false
                         self.conn?.cancel()
                         return
@@ -665,6 +714,17 @@ final class WSClient {
                     }
                 } else {
                     self.failAuth(nil, retryAfter: nil, on: conn)
+                }
+            } catch let err as StorageError {
+                // The device is there but can't reach its disks: say so,
+                // close, and let the .cancelled handler ask again in
+                // storageRetry (a sign-in puts the delay back to 1 s).
+                self.queue.async {
+                    guard self.conn === conn else { return }
+                    self.onStorageUnavailable?(err.message)
+                    self.backoffSeconds = Self.storageRetry
+                    self.isOpen = false; self.signedIn = false
+                    conn.cancel()
                 }
             } catch let err as UnreachableError {
                 // Close and let the .cancelled handler reconnect with a
