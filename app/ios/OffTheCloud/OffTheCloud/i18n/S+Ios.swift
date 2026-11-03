@@ -524,6 +524,18 @@ extension S {
     /// Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0).
     static var iosTrimStartHandle: String { L("ios.trim_start_handle", table: "Ios") }
 
+    /// Not enough space on this phone
+    ///
+    /// Line in Settings > Uploads (iPhone app) when the photo sync couldn't copy a photo or video out of Photos for want of free space on the phone: the app copies each one to a temporary file before sending it. It stays queued and a later sync sends it once there is room. Not the user's Off The Cloud device, which has its own line, 'Your device is full'.
+    static var iosUploadsPhoneFull: String { L("ios.uploads_phone_full", table: "Ios") }
+
+    /// Backing up {name} needs at least {needed} free on this phone. It will be sent once there is room.
+    ///
+    /// Under 'Not enough space on this phone' in Settings > Uploads (iPhone app). {name} is the file name of the photo or video waiting, e.g. IMG_1234.MOV; {needed} is a size such as 4.2 GB: the free space its temporary copy needs, plus a margin the app always leaves free.
+    static func iosUploadsPhoneFullDetail(name: String, needed: String) -> String {
+        L("ios.uploads_phone_full_detail", table: "Ios", name, needed)
+    }
+
     /// Off The Cloud · {name}
     ///
     /// Name of the album the app makes in the iPhone's Photos app for a collection used on the lock screen. {name} is the collection's name. Keep Off The Cloud as it is.

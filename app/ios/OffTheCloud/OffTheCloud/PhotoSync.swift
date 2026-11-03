@@ -47,9 +47,9 @@ final class PhotoSync: NSObject {
     // wouldn't corrupt anything, but it would double up network/disk work
     // and stomp on UploadModel's shared progress state from two directions
     // at once. NSLock rather than an actor: PhotoSync's other methods
-    // (resourceFilename, readData, exportAssetToTempFile) are called
-    // synchronously from NewPostPicker and have no need to become
-    // actor-isolated just for this one flag. The lock/unlock calls
+    // (resourceFilename, exportAsset) are called from NewPostPicker and
+    // Free Up Space and have no need to become actor-isolated just for
+    // this one flag. The lock/unlock calls
     // themselves stay inside the two plain (non-async) helpers below,
     // never directly in runForeground's own async body - calling
     // NSLock.lock()/.unlock() straight from an async function is flagged
@@ -110,6 +110,9 @@ final class PhotoSync: NSObject {
     /// next pass, if it is big and the app in front, asks iOS 26 to let it go
     /// on in the background (LongSync). Taken by that pass.
     private var ownerAsked = false
+    /// Issue #210: the biggest asset the last pass kept for want of room on
+    /// the phone; taken by that pass's finish for Settings' Uploads.
+    private var roomShort: ExportNoRoom?
 
     /// What one pass of the sync came to, besides throwing when it was
     /// cancelled.
@@ -198,6 +201,14 @@ final class PhotoSync: NSObject {
         defer { syncLock.unlock() }
         fullSince = since
         fullWords = words
+    }
+
+    /// The last pass's `roomShort`, once.
+    private func takeRoomShort() -> ExportNoRoom? {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        defer { roomShort = nil }
+        return roomShort
     }
 
     /// Pure: whether an automatic run still waits after the device said it
@@ -372,15 +383,13 @@ final class PhotoSync: NSObject {
     }
 
     /// Just the filename PHAssetResource already has in its local metadata
-    /// - no network access, no download, unlike exportAssetToTempFile
-    /// below (which picks the same resource for the same reason, but
-    /// actually fetches its bytes). Used to compute an asset's remote path
+    /// - no network access, no download, unlike exportAsset below (which
+    /// picks the same resource, `sentResource`, but actually fetches its
+    /// bytes). Used to compute an asset's remote path
     /// cheaply, e.g. to check AssetSyncCache/knownPaths before deciding
     /// whether the expensive iCloud fetch is even needed.
     func resourceFilename(for asset: PHAsset) -> String? {
-        let resources = PHAssetResource.assetResources(for: asset)
-        let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
-        return res?.originalFilename
+        Self.sentResource(of: asset)?.originalFilename
     }
 
     /// The name an asset is stored under on the device. Camera names
@@ -395,75 +404,6 @@ final class PhotoSync: NSObject {
         let ext = (cleanName as NSString).pathExtension
         guard !ext.isEmpty else { return "\(cleanName)_\(suffix)" }
         return "\((cleanName as NSString).deletingPathExtension)_\(suffix).\(ext)"
-    }
-
-    func exportAssetToTempFile(_ asset: PHAsset,
-                               allowNetwork: Bool) throws -> (url: URL, filename: String, mime: String) {
-        // Pick a sensible resource (photo/video full size if available)
-        let resources = PHAssetResource.assetResources(for: asset)
-        guard let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
-        else {
-            throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-        }
-
-        // Temp file to stream into
-        let tmpDir = FileManager.default.temporaryDirectory
-        let ext = (res.originalFilename as NSString).pathExtension
-        let tmpURL = tmpDir.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
-        try? FileManager.default.removeItem(at: tmpURL)
-
-        // Open an output stream (constant memory usage)
-        guard let out = OutputStream(url: tmpURL, append: false) else {
-            throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-        }
-        out.open()
-        defer { out.close() }
-
-        var streamError: Error?
-        let opts = PHAssetResourceRequestOptions()
-        opts.isNetworkAccessAllowed = allowNetwork
-
-        let sema = DispatchSemaphore(value: 0)
-
-        // Stream chunks to file
-        PHAssetResourceManager.default().requestData(
-            for: res,
-            options: opts,
-            dataReceivedHandler: { chunk in
-                // Write the chunk fully (handle partial writes)
-                chunk.withUnsafeBytes { rawPtr in
-                    guard let base = rawPtr.bindMemory(to: UInt8.self).baseAddress else { return }
-                    var bytesLeft = chunk.count
-                    var offset = 0
-                    while bytesLeft > 0 {
-                        let w = out.write(base.advanced(by: offset), maxLength: bytesLeft)
-                        if w <= 0 {
-                            streamError = out.streamError ?? NSError(
-                                domain: "PhotoExport",
-                                code: -12,
-                                userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"] // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-                            )
-                            return
-                        }
-                        bytesLeft -= w
-                        offset += w
-                    }
-                }
-            },
-            completionHandler: { err in
-                streamError = streamError ?? err
-                sema.signal()
-            }
-        )
-
-        sema.wait()
-
-        if let err = streamError {
-            try? FileManager.default.removeItem(at: tmpURL)
-            throw err
-        }
-
-        return (tmpURL, res.originalFilename, Self.mime(of: res.originalFilename))
     }
 
     /// The MIME type a resource's file name says.
@@ -487,18 +427,39 @@ final class PhotoSync: NSObject {
         return "application/octet-stream"
     }
 
-    /// exportAssetToTempFile for the sync (IOS-04): waits without holding a
-    /// thread while PhotoKit reads - an iCloud download can take minutes,
-    /// and three of those blocked three of the pool's few threads - and a
-    /// run that is stopped (a BG task's end, the app's background time,
-    /// Log Out) cancels the request at once instead of after the download.
-    func exportAssetToTempFileCancellable(_ asset: PHAsset, allowNetwork: Bool) async throws -> (url: URL, filename: String, mime: String) {
+    /// The resource the sync sends of an asset: its full-size photo or
+    /// video, else whatever it has.
+    nonisolated static func sentResource(of asset: PHAsset) -> PHAssetResource? {
         let resources = PHAssetResource.assetResources(for: asset)
-        guard let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
-        else {
+        return resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
+    }
+
+    /// The size PhotoKit says the resource has, without reading it; nil
+    /// before iOS 27 (PHAssetResource.dataSize) or when it doesn't know.
+    nonisolated static func knownSize(of res: PHAssetResource) -> Int64? {
+        guard #available(iOS 27, *), let size = res.dataSize, size > 0 else { return nil }
+        return Int64(size)
+    }
+
+    /// Copies an asset's original out of Photos into a temporary file, which
+    /// the caller removes (issue #210: the sync, the post composer and Free
+    /// Up Space read that file a chunk at a time, never all of it into
+    /// memory). Waits without holding a thread while PhotoKit reads - an
+    /// iCloud download can take minutes (IOS-04) - and a task cancelled (a
+    /// BG task's end, the app's background time, Log Out) cancels the read
+    /// at once. Room on the phone (ExportRoom): a copy that wouldn't fit
+    /// isn't started, and one that leaves too little free is stopped - both
+    /// throw ExportNoRoom.
+    func exportAsset(_ asset: PHAsset, allowNetwork: Bool, room: ExportRoom = .shared) async throws -> ExportedAsset {
+        guard let res = Self.sentResource(of: asset) else {
             throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
-        let ext = (res.originalFilename as NSString).pathExtension
+        let id = asset.localIdentifier
+        let filename = res.originalFilename
+        let taken = try await room.take(room.size(of: id, given: Self.knownSize(of: res)), filename: filename)
+        defer { room.release(taken) }
+
+        let ext = (filename as NSString).pathExtension
         let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
         guard let out = OutputStream(url: tmpURL, append: false) else {
             throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
@@ -508,43 +469,31 @@ final class PhotoSync: NSObject {
         // The stream is the request's: PhotoKit may still hand over a piece
         // after a cancelled export returned, and it is written, or dropped
         // once closed, under the request's lock.
-        let request = ExportRequest(out)
+        let request = ExportRequest(out, filename: filename, room: room)
         defer { request.close() }
         do {
             try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
                     request.start(cont)
-                    let id = PHAssetResourceManager.default().requestData(
+                    let reqID = PHAssetResourceManager.default().requestData(
                         for: res,
                         options: opts,
                         dataReceivedHandler: { chunk in request.write(chunk) },
                         completionHandler: { err in request.finish(err) }
                     )
-                    request.started(id)
+                    request.started(reqID)
                 }
             } onCancel: {
                 request.cancel()
             }
         } catch {
             try? FileManager.default.removeItem(at: tmpURL)
+            if let noRoom = error as? ExportNoRoom { room.learn(id, written: noRoom.size) }
             throw error
         }
-        return (tmpURL, res.originalFilename, Self.mime(of: res.originalFilename))
+        return ExportedAsset(url: tmpURL, filename: filename, mime: Self.mime(of: filename), size: request.written)
     }
 
-    /// readData for the sync: the export above, cancellable.
-    func readDataCancellable(for asset: PHAsset, allowNetwork: Bool,
-                             maxBytes: Int64 = 1024 * 1024 * 1024) async throws -> (data: Data, filename: String, mime: String) {
-        let (url, filename, mime) = try await exportAssetToTempFileCancellable(asset, allowNetwork: allowNetwork)
-        defer { try? FileManager.default.removeItem(at: url) }
-        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-        guard size <= maxBytes else {
-            throw NSError(domain: "PhotoExport", code: -20, userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-        }
-        return (try Data(contentsOf: url, options: .mappedIfSafe), filename, mime)
-    }
-    
     private func fetchNewAssets(includeVideos: Bool, since: Date?) -> [PHAsset] {
         print("Fetch new assets")
 
@@ -577,6 +526,21 @@ final class PhotoSync: NSObject {
         switch pass {
         case .since(let date):
             return fetchNewAssets(includeVideos: includeVideos, since: date)
+        case .large(let date):
+            guard includeVideos else { return [] }
+            let opts = PHFetchOptions()
+            var preds = [NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)]
+            if let date { preds.append(NSPredicate(format: "creationDate > %@", date as NSDate)) }
+            opts.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: preds)
+            opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+            var out: [PHAsset] = []
+            PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, _ in
+                let size = Self.sentResource(of: a).flatMap { Self.knownSize(of: $0) }
+                if PhotoSources.mayHaveBeenTooLarge(hashRecorded: AssetSyncCache.shared.hash(for: a.localIdentifier) != nil, knownSize: size) {
+                    out.append(a)
+                }
+            }
+            return out
         case .album(let id):
             // Gone since it was turned on: nothing to send.
             guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject else { return [] }
@@ -610,9 +574,12 @@ final class PhotoSync: NSObject {
         /// Couldn't be read with "Sync from iCloud" off: tried again once
         /// it is on.
         case retryWhenICloud(String)
-        /// Can never work (no resource, over the 1 GB ceiling): given up
-        /// on, as before. Retrying would export the whole file each run.
+        /// Can never work (no resource to read): given up on. Until issue
+        /// #210 anything over 1 GB was too, and never reached the device.
         case skip(String)
+        /// No room on the phone for its copy (ExportNoRoom): on the retry
+        /// list, and Settings' Uploads says how much room it needs.
+        case noRoom(String, ExportNoRoom)
         /// The device has no room (storage_full), with its words: on the
         /// retry list, and the run stops.
         case full(String, String)
@@ -653,40 +620,6 @@ final class PhotoSync: NSObject {
         return abs(listed.timeIntervalSince(asset)) <= 1
     }
 
-    // 25MB was never revisited after this only had to handle photos - any
-    // video (this app syncs videos too, per the "Include videos" setting)
-    // over that size always threw AssetTooLargeForMemory, including from
-    // plain background sync, not just issue #49's new picker where this
-    // got noticed. Data(contentsOf:options:.mappedIfSafe) below is a
-    // memory-mapped read, not a full eager load, so 1GB here is a safety
-    // ceiling against a truly pathological file, not a real memory budget.
-    func readData(for asset: PHAsset,
-                  allowNetwork: Bool = true,
-                  maxBytes: Int64 = 1024 * 1024 * 1024) throws -> (data: Data, filename: String, mime: String) {
-
-        let (url, filename, mime) = try exportAssetToTempFile(asset, allowNetwork: allowNetwork)
-        // On every exit, the too-large throw included: a rejected 1 GB+
-        // video used to leave its whole copy behind in tmp. The mapping
-        // below stays valid after the unlink.
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        // Check size before loading
-        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-
-        guard size <= maxBytes else {
-            // You can also return the URL instead of throwing if you refactor callers.
-            throw NSError(domain: "PhotoExport",
-                          code: -20,
-                          userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
-        }
-
-        // Map into memory (still allocates a buffer ~size)
-        let data = try Data(contentsOf: url, options: .mappedIfSafe)
-
-        return (data, filename, mime)
-    }
-    
     /// Log Out: stop the sync in progress, and make sure nothing it still
     /// does afterwards writes anything (see `generation`).
     func cancel() {
@@ -811,6 +744,7 @@ final class PhotoSync: NSObject {
     /// What a pass that ended leaves: the line in Settings' Uploads, and
     /// what starts or holds the next run.
     private func finish(_ end: PassEnd, gen: Int) {
+        let short = takeRoomShort()
         switch end {
         case .waitingForWifi:
             setWaitingForWifi(true)
@@ -820,7 +754,8 @@ final class PhotoSync: NSObject {
             ifLive(gen) { UploadModel.shared.halted(.deviceFull(words)) }
         case .done:
             setFull(nil, words: "")
-            ifLive(gen) { UploadModel.shared.halted(nil) }
+            // Issue #210: through, but something waits for room here.
+            ifLive(gen) { UploadModel.shared.halted(short.map { .phoneFull($0) }) }
         case .cutShort:
             ifLive(gen) { UploadModel.shared.halted(nil) }
         case .skipped:
@@ -982,10 +917,23 @@ final class PhotoSync: NSObject {
         // One-off passes: albums turned back on, and the catch-up. No date
         // limit; what the device already has is found below and not sent
         // again.
+        // Issue #210: queued once, the videos earlier versions gave up on
+        // for their size.
+        ifLive(gen, epoch: epoch) {
+            if !state.largeQueued {
+                state.queueBackfill(PhotoSources.large)
+                state.largeQueued = true
+            }
+        }
         let taken = state.backfill
         var oneOff: [PHAsset] = []
+        // The large pass's videos are found on the device by the folder's
+        // listing (synced earlier, with no hash recorded), never read.
+        var listForLarge = false
         for pass in PhotoSources.oneOffs(taken, floor: floor) {
-            oneOff += fetchOneOff(pass, includeVideos: secrets.includeVideos).filter { !saved.contains($0.localIdentifier) }
+            let found = fetchOneOff(pass, includeVideos: secrets.includeVideos).filter { !saved.contains($0.localIdentifier) }
+            if case .large = pass, !found.isEmpty { listForLarge = true }
+            oneOff += found
         }
         if !taken.isEmpty { print("One-off passes over \(taken.count) sources: \(oneOff.count) assets") }
 
@@ -1027,7 +975,7 @@ final class PhotoSync: NSObject {
         // With each file's hash and creation time: a path alone can't tell
         // this asset from another one that had the same name.
         var knownFiles: [String: (hash: String, created: Date?)] = [:]
-        if Self.needsListing(assets: assets.count, cacheEmpty: AssetSyncCache.shared.isEmpty) {
+        if listForLarge || Self.needsListing(assets: assets.count, cacheEmpty: AssetSyncCache.shared.isEmpty) {
             let resp = try await ws.request { env in
                 var list = Msg_ListFiles()
                 list.path = targetPath
@@ -1074,6 +1022,9 @@ final class PhotoSync: NSObject {
         var cutShort = false
         // Stopped for Wi-Fi only on mobile data, or the device full.
         var halt: PassEnd?
+        // Issue #210: the biggest asset this run kept for want of room on
+        // the phone, for Settings' Uploads.
+        var roomShort: ExportNoRoom?
         let chunks = assets.chunked(into: Self.cMaxConcurrentUploads)
         for (ci, chunk) in chunks.enumerated() {
             // Issue #70: a BGProcessingTask's expiration and Log Out cancel
@@ -1116,11 +1067,28 @@ final class PhotoSync: NSObject {
                     let position = idx
                     group.addTask {
                         let id = asset.localIdentifier
-                        // Reads the asset's bytes, failures marked as such;
-                        // a run that is stopped stops the read too.
-                        func read() async throws -> Data {
-                            do { return try await self.readDataCancellable(for: asset, allowNetwork: allowICloudDownloads).data }
+                        // Issue #210: the asset's copy, a temporary file the
+                        // upload reads a chunk at a time - never all of it
+                        // in memory, so no size is too big - removed once
+                        // this asset is done, whatever came of it.
+                        var copy: ExportedAsset?
+                        defer { if let copy { try? FileManager.default.removeItem(at: copy.url) } }
+                        // Copies the asset out of Photos, failures marked as
+                        // such; a run that is stopped stops the copy too.
+                        func read() async throws -> ExportedAsset {
+                            do { return try await self.exportAsset(asset, allowNetwork: allowICloudDownloads) }
                             catch { throw ReadFailure(underlying: error) }
+                        }
+                        // The copy's hash, read a chunk at a time.
+                        func readAndHash() async throws -> String {
+                            let readStart = Date()
+                            let file = try await read()
+                            copy = file
+                            print("[dedup] \(file.filename): copied \(file.size) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
+                            let hashStart = Date()
+                            let hash = try OTCConnection.sha256Hex(of: file.url)
+                            print("[dedup] \(file.filename): hashed \(file.size) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                            return hash
                         }
                         do {
                             // Cheap: local Photos metadata only, no
@@ -1157,7 +1125,6 @@ final class PhotoSync: NSObject {
                             // is fresh then, so the knownFiles check above
                             // can never match even though the content is
                             // identical to what synced before.
-                            var data: Data? = nil
                             var hash: String
                             let cloudID = cloudIDs[asset.localIdentifier] ?? ""
                             let cloudHash = cloudID.isEmpty ? nil : knownCloud[cloudID]
@@ -1181,14 +1148,7 @@ final class PhotoSync: NSObject {
                                 // so it's obvious whether a slow gap
                                 // between [dedup] lines is this or
                                 // something else.
-                                let readStart = Date()
-                                let readBytes = try await read()
-                                print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
-                                data = readBytes
-
-                                let hashStart = Date()
-                                hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
-                                print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                                hash = try await readAndHash()
                             }
 
                             // The name is taken by a file created at another
@@ -1249,16 +1209,9 @@ final class PhotoSync: NSObject {
                             // device after all (e.g. storage was reset) -
                             // fall back to actually downloading and
                             // hashing it fresh rather than failing outright.
-                            if !alreadyOnDevice && data == nil {
+                            if !alreadyOnDevice && copy == nil {
                                 print("[dedup] \(cleanName): cached hash not confirmed on device, downloading now")
-                                let readStart = Date()
-                                let readBytes = try await read()
-                                print("[dedup] \(cleanName): read \(readBytes.count) bytes from Photos in \(String(format: "%.3f", Date().timeIntervalSince(readStart)))s")
-                                data = readBytes
-
-                                let hashStart = Date()
-                                hash = SHA256.hash(data: readBytes).map { String(format: "%02x", $0) }.joined()
-                                print("[dedup] \(cleanName): hashed \(readBytes.count) bytes in \(String(format: "%.3f", Date().timeIntervalSince(hashStart)))s -> \(hash)")
+                                hash = try await readAndHash()
                                 guard self.ifLive(gen) else { return .retry(id) }
                                 alreadyOnDevice = try await checkHasFile()
                             }
@@ -1277,15 +1230,16 @@ final class PhotoSync: NSObject {
                                         env.payload = .reqLinkFile(lf)
                                     }
                                 }
-                                guard let data else {
+                                guard let copy else {
                                     throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
                                 }
                                 // Issue #165: chunked, never the whole
                                 // file in one message; reuses the hash
                                 // already computed for HasFile - also the
-                                // resume key (#205).
-                                let size = Int64(data.count)
-                                return try await ws.uploadChunked(path: target, source: .data(data),
+                                // resume key (#205). Read from the copy a
+                                // chunk at a time (#210).
+                                let size = copy.size
+                                return try await ws.uploadChunked(path: target, source: .file(copy.url),
                                                                   forceOverride: false, created: created,
                                                                   cloudID: cloudID, sha256: hash,
                                                                   progress: { LongSync.progress.sending(id, sent: $0, size: size) },
@@ -1338,8 +1292,14 @@ final class PhotoSync: NSObject {
                             return .retry(id)
                         } catch {
                             let cause = (error as? ReadFailure)?.underlying ?? error
+                            // Issue #210: no room on the phone for its copy -
+                            // kept for a later run, never given up on.
+                            if let noRoom = cause as? ExportNoRoom {
+                                print("No room on this phone for \(noRoom.filename): needs \(noRoom.needed) bytes free")
+                                return .noRoom(id, noRoom)
+                            }
                             let ns = cause as NSError
-                            if ns.domain == "PhotoExport" && (ns.code == -10 || ns.code == -20) {
+                            if ns.domain == "PhotoExport" && ns.code == -10 {
                                 print("Skipping:", cause)
                                 return .skip(id)
                             }
@@ -1374,11 +1334,16 @@ final class PhotoSync: NSObject {
 
             for asset in chunk { LongSync.progress.done(asset.localIdentifier) }
             var finished: [String] = [], failed: [String] = [], failedICloud: [String] = []
+            var keptForRoom: [String] = []
             var fullWords: String?
             for outcome in outcomes {
                 switch outcome {
                 case .done(let id), .skip(let id): finished.append(id)
                 case .retry(let id): failed.append(id)
+                case .noRoom(let id, let short):
+                    // Kept for later; not a sign the device is gone.
+                    keptForRoom.append(id)
+                    if roomShort.map({ short.needed > $0.needed }) ?? true { roomShort = short }
                 case .retryWhenICloud(let id): failedICloud.append(id)
                 case .full(let id, let words):
                     failed.append(id)
@@ -1390,7 +1355,7 @@ final class PhotoSync: NSObject {
             // Failures used to be logged and then skipped for good.
             ifLive(gen, epoch: epoch) {
                 AssetSyncCache.shared.resolve(finished)
-                AssetSyncCache.shared.markPending(failed, iCloud: false)
+                AssetSyncCache.shared.markPending(failed + keptForRoom, iCloud: false)
                 AssetSyncCache.shared.markPending(failedICloud, iCloud: true)
             }
 
@@ -1473,6 +1438,7 @@ final class PhotoSync: NSObject {
         // No final "lastSyncDate = now" any more: the per-chunk watermark
         // already stands at the newest asset handled, and now would skip
         // whatever arrived during the run with an older date.
+        ifLive(gen) { self.roomShort = roomShort }
         if cutShort { return .cutShort }
         return halt ?? .done
     }
@@ -1496,6 +1462,7 @@ extension PhotoSync {
         static let floorKey = "syncFloorDate"
         static let changeTokenKey = "photoChangeToken"
         static let wasLimitedKey = "accessWasLimited"
+        static let largeQueuedKey = "largeAssetsQueued"
 
         /// One-off passes still to make: the ids of albums turned back on,
         /// and PhotoSources.catchUp.
@@ -1525,6 +1492,12 @@ extension PhotoSync {
         var changeToken: Data? {
             get { defaults.data(forKey: Self.changeTokenKey) }
             nonmutating set { defaults.set(newValue, forKey: Self.changeTokenKey) }
+        }
+
+        /// Issue #210: the `large` one-off pass has been queued.
+        var largeQueued: Bool {
+            get { defaults.bool(forKey: Self.largeQueuedKey) }
+            nonmutating set { defaults.set(newValue, forKey: Self.largeQueuedKey) }
         }
 
         /// The last run saw limited access.
@@ -1582,29 +1555,41 @@ extension PhotoSync: PHPhotoLibraryChangeObserver {
     }
 }
 
-/// One PhotoKit read of the sync's export (exportAssetToTempFileCancellable):
-/// resumes its caller exactly once - with PhotoKit's completion, or at once
-/// when cancelled, whether that comes before or after PhotoKit gave the
-/// request its id.
+/// One PhotoKit read of an asset's copy (exportAsset): resumes its caller
+/// exactly once - with PhotoKit's completion, or at once when cancelled or
+/// stopped for room, whether that comes before or after PhotoKit gave the
+/// request its id. Issue #210: it counts what it writes and, every
+/// ExportRoom.checkEvery bytes, stops the copy (ExportNoRoom) once the phone
+/// is down to ExportRoom.floorBytes free; a write the disk refuses for room
+/// is the same.
 private final class ExportRequest: @unchecked Sendable {
     private let lock = NSLock()
     private let out: OutputStream
+    private let filename: String
+    private let room: ExportRoom
     private var closed = false
     private var cont: CheckedContinuation<Void, Error>?
     private var id: PHAssetResourceDataRequestID?
     private var cancelled = false
     private var writeError: Error?
+    private var count: Int64 = 0
+    private var nextCheck = ExportRoom.checkEvery
 
-    init(_ out: OutputStream) {
+    init(_ out: OutputStream, filename: String, room: ExportRoom) {
         self.out = out
+        self.filename = filename
+        self.room = room
         out.open()
     }
+
+    /// The bytes written so far.
+    var written: Int64 { lock.withLock { count } }
 
     /// A piece PhotoKit read, written whole; after a failure, or once the
     /// export is over, dropped.
     func write(_ chunk: Data) {
-        lock.withLock {
-            guard !closed, writeError == nil else { return }
+        let stop: Bool = lock.withLock {
+            guard !closed, writeError == nil else { return false }
             chunk.withUnsafeBytes { rawPtr in
                 guard let base = rawPtr.bindMemory(to: UInt8.self).baseAddress else { return }
                 var left = chunk.count
@@ -1612,14 +1597,39 @@ private final class ExportRequest: @unchecked Sendable {
                 while left > 0 {
                     let w = out.write(base.advanced(by: offset), maxLength: left)
                     if w <= 0 {
-                        writeError = out.streamError ?? NSError(domain: "PhotoExport", code: -12, userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+                        if Self.isOutOfSpace(out.streamError) {
+                            writeError = noRoom()
+                        } else {
+                            writeError = out.streamError ?? NSError(domain: "PhotoExport", code: -12, userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
+                        }
                         return
                     }
                     left -= w
                     offset += w
+                    count += Int64(w)
                 }
             }
+            if writeError == nil, count >= nextCheck {
+                nextCheck = count + ExportRoom.checkEvery
+                if room.copyMustStop() { writeError = noRoom() }
+            }
+            return writeError != nil
         }
+        // A copy that can't go on stops reading too: no point downloading the
+        // rest of a video from iCloud into nothing.
+        if stop { abort() }
+    }
+
+    /// Under the lock: the error that says the phone is out of room.
+    private func noRoom() -> ExportNoRoom {
+        ExportNoRoom(filename: filename, size: count, needed: count + ExportRoom.floorBytes)
+    }
+
+    /// A stream error that is the disk being full.
+    private static func isOutOfSpace(_ error: Error?) -> Bool {
+        guard let ns = error as NSError? else { return false }
+        return (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOSPC))
+            || (ns.domain == NSCocoaErrorDomain && ns.code == NSFileWriteOutOfSpaceError)
     }
 
     func close() {
@@ -1635,13 +1645,15 @@ private final class ExportRequest: @unchecked Sendable {
     }
 
     func started(_ requestID: PHAssetResourceDataRequestID) {
-        let cancelNow = lock.withLock { () -> Bool in
+        let (cancelNow, stopNow) = lock.withLock { () -> (Bool, Bool) in
             id = requestID
-            return cancelled
+            return (cancelled, writeError != nil)
         }
         if cancelNow {
             PHAssetResourceManager.default().cancelDataRequest(requestID)
             finish(CancellationError())
+        } else if stopNow {
+            abort()
         }
     }
 
@@ -1652,6 +1664,15 @@ private final class ExportRequest: @unchecked Sendable {
         }
         if let requestID { PHAssetResourceManager.default().cancelDataRequest(requestID) }
         finish(CancellationError())
+    }
+
+    /// The copy stopped on a write (writeError): PhotoKit's read is
+    /// cancelled and the caller gets that error. Before PhotoKit gave the
+    /// request its id, `started` does it.
+    private func abort() {
+        guard let requestID = lock.withLock({ id }) else { return }
+        PHAssetResourceManager.default().cancelDataRequest(requestID)
+        finish(nil)
     }
 
     func finish(_ error: Error?) {

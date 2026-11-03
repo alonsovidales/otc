@@ -204,7 +204,10 @@ extension OTCConnection {
                     let start = d.startIndex + Int(offset)
                     chunk = Data(d[start ..< start + want])
                 case .file:
-                    chunk = try fileHandle?.read(upToCount: want) ?? Data()
+                    // The pool frees each chunk's buffer as it goes: without
+                    // it a multi-GB file's chunks all stayed in memory until
+                    // the upload ended (issue #210, measured on a 2 GB video).
+                    chunk = try autoreleasepool { try fileHandle?.read(upToCount: want) ?? Data() }
                 }
                 if chunk.count < want { throw fail("File ended early at \(offset + Int64(chunk.count)) of \(size) bytes") } // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
 
@@ -257,12 +260,14 @@ extension OTCConnection {
     }
 
     /// Hex SHA-256 of a file, read in uploadChunkSize pieces rather than
-    /// loaded whole (issue #165).
+    /// loaded whole (issue #165). A task cancelled meanwhile stops it
+    /// (issue #210: a phone video of several GB takes seconds).
     nonisolated static func sha256Hex(of url: URL) throws -> String {
         let fh = try FileHandle(forReadingFrom: url)
         defer { try? fh.close() }
         var hasher = SHA256()
-        while let chunk = try fh.read(upToCount: uploadChunkSize), !chunk.isEmpty {
+        while let chunk = try autoreleasepool(invoking: { try fh.read(upToCount: uploadChunkSize) }), !chunk.isEmpty {
+            try Task.checkCancellation()
             hasher.update(data: chunk)
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()

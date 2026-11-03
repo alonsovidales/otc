@@ -443,6 +443,14 @@
     "text": "Begin van het fragment",
     "en": "Start of the cut"
   },
+  "ios.uploads_phone_full": {
+    "text": "Niet genoeg ruimte op deze telefoon",
+    "en": "Not enough space on this phone"
+  },
+  "ios.uploads_phone_full_detail": {
+    "text": "Voor een reservekopie van {name} is minstens {needed} vrije ruimte op deze telefoon nodig. Het bestand wordt verstuurd zodra er ruimte is.",
+    "en": "Backing up {name} needs at least {needed} free on this phone. It will be sent once there is room."
+  },
   "ios.wallpaper_album_name": {
     "text": "Off The Cloud · {name}",
     "en": "Off The Cloud · {name}"

@@ -46,6 +46,15 @@ enum PhotoSources {
     /// beside album ids.
     static let catchUp = "*"
 
+    /// Issue #210: the one-off pass, queued once (PhotoSync.State.largeQueued),
+    /// over the videos earlier versions gave up on - anything over 1 GB was
+    /// never sent, and was taken for done - since the point the owner chose
+    /// to sync from. Photos never came near that size.
+    static let large = "large"
+
+    /// The size over which earlier versions gave an asset up.
+    static let oldCeiling: Int64 = 1 << 30
+
     /// Every album offered, with what it holds (build). Reads PhotoKit:
     /// call it off the main thread.
     static func albums(includeVideos: Bool) -> [AlbumInfo] {
@@ -160,6 +169,9 @@ enum PhotoSources {
         case album(String)
         /// Everything added after the date; nil: the whole library.
         case since(Date?)
+        /// The videos added after the date (nil: the whole library) that
+        /// may have been given up on for their size (`large`).
+        case large(Date?)
     }
 
     /// The passes to make of those queued. The catch-up needs the floor:
@@ -167,10 +179,22 @@ enum PhotoSources {
     /// Date.distantPast, "everything", is the whole library.
     static func oneOffs(_ taken: [String], floor: Date?) -> [OneOff] {
         taken.compactMap { entry in
-            guard entry == catchUp else { return .album(entry) }
+            guard entry == catchUp || entry == large else { return .album(entry) }
             guard let floor else { return nil }
-            return .since(floor == .distantPast ? nil : floor)
+            let since = floor == .distantPast ? nil : floor
+            return entry == large ? .large(since) : .since(since)
         }
+    }
+
+    /// Pure, issue #210: whether a video of the `large` pass may be one an
+    /// earlier version gave up on. One with a hash recorded reached the
+    /// device; one whose size PhotoKit gives (iOS 27) only if over the old
+    /// ceiling; one of unknown size may be - the run finds those already on
+    /// the device by the listing or their cloud id, without reading them.
+    static func mayHaveBeenTooLarge(hashRecorded: Bool, knownSize: Int64?) -> Bool {
+        guard !hashRecorded else { return false }
+        guard let knownSize else { return true }
+        return knownSize > oldCeiling
     }
 
     /// A run's list of local identifiers, in the order it goes: the date

@@ -443,6 +443,14 @@
     "text": "Inicio del recorte",
     "en": "Start of the cut"
   },
+  "ios.uploads_phone_full": {
+    "text": "No hay espacio suficiente en este teléfono",
+    "en": "Not enough space on this phone"
+  },
+  "ios.uploads_phone_full_detail": {
+    "text": "Para copiar {name} hacen falta al menos {needed} libres en este teléfono. Se enviará cuando haya espacio.",
+    "en": "Backing up {name} needs at least {needed} free on this phone. It will be sent once there is room."
+  },
   "ios.wallpaper_album_name": {
     "text": "Off The Cloud · {name}",
     "en": "Off The Cloud · {name}"

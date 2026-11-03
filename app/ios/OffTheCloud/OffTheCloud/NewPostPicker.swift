@@ -715,15 +715,21 @@ final class NewPostPickerVM: ObservableObject {
         // This is the user explicitly waiting on posting *this* photo
         // right now, not a background bulk sync - always allow the iCloud
         // fetch if needed, regardless of the "Sync from iCloud" setting
-        // PhotoSync itself respects. Off the main actor: readData blocks
-        // its thread until the whole original is downloaded, then the
-        // hash reads every byte - the UI froze for all of it, the
-        // "Uploading 1 of n…" status included.
-        let (data, hash) = try await Task.detached(priority: .userInitiated) { () throws -> (Data, String) in
-            let (data, _, _) = try PhotoSync.shared.readData(for: asset, allowNetwork: true)
-            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            return (data, hash)
+        // PhotoSync itself respects. Off the main actor: the hash reads
+        // every byte - the UI froze for all of it, the "Uploading 1 of n…"
+        // status included. Issue #210: a copy in a temporary file, hashed
+        // and sent a chunk at a time - a video over 1 GB couldn't be
+        // posted - and removed once sent.
+        let (copy, hash) = try await Task.detached(priority: .userInitiated) { () throws -> (ExportedAsset, String) in
+            let copy = try await PhotoSync.shared.exportAsset(asset, allowNetwork: true)
+            do {
+                return (copy, try OTCConnection.sha256Hex(of: copy.url))
+            } catch {
+                try? FileManager.default.removeItem(at: copy.url)
+                throw error
+            }
         }.value
+        defer { try? FileManager.default.removeItem(at: copy.url) }
 
         func hasFile() async throws -> Bool {
             let hasResp = try await ws.request { e in
@@ -739,7 +745,7 @@ final class NewPostPickerVM: ObservableObject {
         func send(to target: String) async throws -> Msg_RespEnvelope {
             if alreadyOnDevice { return try await link(hash, at: target) }
             // Issue #165: chunked, never the whole file in one message.
-            return try await ws.uploadChunked(path: target, source: .data(data),
+            return try await ws.uploadChunked(path: target, source: .file(copy.url),
                                               forceOverride: false, created: created,
                                               sha256: hash)
         }

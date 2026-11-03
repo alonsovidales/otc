@@ -5249,6 +5249,100 @@
         }
       }
     },
+    "ios.uploads_phone_full" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht genug Speicherplatz auf diesem Handy"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough space on this phone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay espacio suficiente en este teléfono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace insuffisant sur ce téléphone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio insufficiente su questo telefono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet genoeg ruimte op deze telefoon"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não há espaço suficiente neste telemóvel"
+          }
+        }
+      }
+    },
+    "ios.uploads_phone_full_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Sichern von %1$@ braucht dieses Handy mindestens %2$@ freien Speicher. Die Datei wird gesendet, sobald Platz ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backing up %1$@ needs at least %2$@ free on this phone. It will be sent once there is room."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para copiar %1$@ hacen falta al menos %2$@ libres en este teléfono. Se enviará cuando haya espacio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sauvegarde de %1$@ nécessite au moins %2$@ d’espace libre sur ce téléphone. Le fichier sera envoyé dès qu’il y aura de la place."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per il backup di %1$@ servono almeno %2$@ liberi su questo telefono. Il file verrà inviato appena ci sarà spazio."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor een reservekopie van %1$@ is minstens %2$@ vrije ruimte op deze telefoon nodig. Het bestand wordt verstuurd zodra er ruimte is."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para copiar %1$@ são precisos pelo menos %2$@ livres neste telemóvel. Será enviado assim que houver espaço."
+          }
+        }
+      }
+    },
     "ios.wallpaper_album_name" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -257,8 +257,11 @@ final class FreeUpSpace: @unchecked Sendable {
             // Recorded and not on the device: nothing to read for.
             if let r = recorded[id], !heldRecorded.contains(r) { continue }
             try Task.checkCancellation()
-            guard let data = try? PhotoSync.shared.readData(for: asset, allowNetwork: false).data else { continue }
-            let h = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            // Its copy, read a chunk at a time (issue #210: a video over
+            // 1 GB was never read, so never freed); none without room for it.
+            guard let copy = try? await PhotoSync.shared.exportAsset(asset, allowNetwork: false) else { continue }
+            defer { try? FileManager.default.removeItem(at: copy.url) }
+            guard let h = try? OTCConnection.sha256Hex(of: copy.url) else { continue }
             if recorded[id] != h {
                 if let r = recorded[id] { print("[free-up] \(id): recorded \(r), read \(h)") }
                 AssetSyncCache.shared.record(localIdentifier: id, hash: h)

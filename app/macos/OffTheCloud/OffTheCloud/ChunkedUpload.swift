@@ -162,8 +162,10 @@ enum ChunkedUpload {
         let from = UInt64(offset)
         try await Task.detached(priority: .utility) { try fh.seek(toOffset: from) }.value
         while offset < size {
+            // The pool frees each chunk's buffer as it goes (a detached task
+            // has no run loop to drain it), as sha256Hex does.
             let data = try await Task.detached(priority: .utility) {
-                try fh.read(upToCount: chunkSize) ?? Data()
+                try autoreleasepool { try fh.read(upToCount: chunkSize) ?? Data() }
             }.value
             // The file shrank since it was measured: what the device
             // would get no longer matches the hash - a busy file.

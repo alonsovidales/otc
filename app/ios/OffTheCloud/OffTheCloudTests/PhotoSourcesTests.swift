@@ -156,6 +156,29 @@ struct PhotoSourcesTests {
         #expect(PhotoSources.oneOffs(["a", "*"], floor: nil) == [.album("a")])
     }
 
+    // Issue #210: the videos earlier versions gave up on for their size,
+    // since the point the owner chose to sync from - never before it (Sync
+    // From Now), and not without one, as the catch-up.
+    @Test func theLargePassFollowsTheFloor() {
+        let floor = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(PhotoSources.oneOffs(["large"], floor: floor) == [.large(floor)])
+        #expect(PhotoSources.oneOffs(["*", "large"], floor: .distantPast) == [.since(nil), .large(nil)])
+        #expect(PhotoSources.oneOffs(["a", "large"], floor: nil) == [.album("a")])
+    }
+
+    @Test func theLargePassTakesOnlyWhatMayHaveBeenGivenUp() {
+        let gib: Int64 = 1 << 30
+        // Sent before: its hash is recorded.
+        #expect(!PhotoSources.mayHaveBeenTooLarge(hashRecorded: true, knownSize: 3 * gib))
+        #expect(!PhotoSources.mayHaveBeenTooLarge(hashRecorded: true, knownSize: nil))
+        // iOS 27 says its size: only what the old ceiling refused.
+        #expect(PhotoSources.mayHaveBeenTooLarge(hashRecorded: false, knownSize: gib + 1))
+        #expect(!PhotoSources.mayHaveBeenTooLarge(hashRecorded: false, knownSize: gib))
+        #expect(!PhotoSources.mayHaveBeenTooLarge(hashRecorded: false, knownSize: 200 << 20))
+        // Size unknown (before iOS 27): may be.
+        #expect(PhotoSources.mayHaveBeenTooLarge(hashRecorded: false, knownSize: nil))
+    }
+
     @Test func aPassIsDoneOnlyWhenTheRunFinished() {
         // Queued while the run went on: stays.
         #expect(PhotoSources.afterPass(stored: ["a", "*", "c"], taken: ["a", "*"], skippedInRun: [], finished: true) == ["c"])

@@ -184,10 +184,17 @@ final class SetupImageModel: ObservableObject {
             var sha = SHA256()
             var read: Int64 = 0
             var lastReport = 0.0
-            while let chunk = try h.read(upToCount: 8 << 20), !chunk.isEmpty {
+            while true {
                 try Task.checkCancellation()
-                sha.update(data: chunk)
-                read += Int64(chunk.count)
+                // The pool frees each chunk's buffer as it goes (a detached
+                // task has no run loop to drain it), as SyncModel.sha256Hex.
+                let n: Int = try autoreleasepool {
+                    guard let chunk = try h.read(upToCount: 8 << 20), !chunk.isEmpty else { return 0 }
+                    sha.update(data: chunk)
+                    return chunk.count
+                }
+                if n == 0 { break }
+                read += Int64(n)
                 let p = size > 0 ? Double(read) / Double(size) : 0
                 if p - lastReport > 0.01 {
                     lastReport = p

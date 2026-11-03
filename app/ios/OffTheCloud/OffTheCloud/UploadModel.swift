@@ -13,22 +13,31 @@ import SwiftUI
 
 /// Why the photo sync isn't sending now, for Settings' Uploads (as
 /// Android's SyncHalt): "Wi-Fi only" on mobile data, or the device full
-/// (storage_full, with its words).
+/// (storage_full, with its words). iOS only, issue #210: a photo or video
+/// waits for room on this phone for its copy (ExportRoom) - Android sends
+/// from MediaStore with no copy.
 enum SyncHalt: Equatable {
     case waitingForWifi
     case deviceFull(String)
+    case phoneFull(ExportNoRoom)
 
     var title: String {
         switch self {
         case .waitingForWifi: return S.appSettingsUploadsWaitingWifi
         case .deviceFull: return S.appSettingsUploadsDeviceFull
+        case .phoneFull: return S.iosUploadsPhoneFull
         }
     }
 
-    /// The device's own words under the line, when it gave some.
+    /// The device's own words under the line, when it gave some; for this
+    /// phone, which file waits and the room it needs.
     var detail: String? {
-        if case .deviceFull(let words) = self, !words.isEmpty { return words }
-        return nil
+        switch self {
+        case .deviceFull(let words): return words.isEmpty ? nil : words
+        case .phoneFull(let short):
+            return S.iosUploadsPhoneFullDetail(name: short.filename, needed: formatByteCount(short.needed))
+        case .waitingForWifi: return nil
+        }
     }
 }
 

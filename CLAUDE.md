@@ -4072,6 +4072,35 @@ expiration (the owner stopping it, or the system) stops the run (`stopRun`). Whi
 the app's own background time running out doesn't stop it. Below iOS 26, and for any other run, as
 before.
 
+**Copies of what the iPhone sends** (issue #210; `ExportRoom.swift`, `PhotoSync.exportAsset`; tests
+`ExportRoomTests.swift`, `PhotoSourcesTests.swift`, and `PhotoKitLargeTests.swift` against the
+simulator's own Photos). Until then the sync copied each asset out of Photos into a temporary file,
+mapped it into one `Data` to hash and send it, and gave up for good on anything over 1 GB
+(`AssetTooLargeForMemory`, recorded as done): a few minutes of 4K or ProRes video never reached the
+device, and nothing said so; the post composer and Free Up Space had the same ceiling. Now the sync,
+the composer and Free Up Space all take `exportAsset` - PhotoKit's stream into a temporary file,
+cancellable, the copy removed when its asset is done - hash it with `OTCConnection.sha256Hex(of:)` (a
+chunk at a time, cancellable) and upload `.file(url)`: no size is too big, and memory stays flat (a
+2 GB 4K HEVC video copied, hashed and sent with a cut mid-way: 5 MB more at the peak). The chunked
+upload's file reads are drained one chunk at a time (`autoreleasepool`): until then every chunk read
+stayed in memory until the upload ended - 2 GB for that video - and the Mac app's upload and its setup
+image check read the same way (fixed with it). What bounds a copy is room on
+the phone (`ExportRoom`): it always leaves `floorBytes` (256 MiB) free
+(`volumeAvailableCapacityForImportantUsage`). A copy whose size is known - `PHAssetResource.dataSize`,
+iOS 27, or a lower bound learnt from a copy that stopped for room (`learn`, until the app quits) - holds
+that much while it runs, waits while the run's other copies hold room it needs, and fails only when it
+doesn't fit alone. A copy under way looks every 64 MiB (`checkEvery`) and stops below the floor, as
+does a write the disk refuses (ENOSPC), cancelling PhotoKit's read; both are `ExportNoRoom`. The
+asset then goes on the retry list (`Outcome.noRoom`, never `skip`, which is now only an asset with no
+resource), and a pass that went through with one says so in Settings › Uploads: `SyncHalt.phoneFull`,
+`ios.uploads_phone_full` and `ios.uploads_phone_full_detail` (the file's name and the room it needs;
+the composer shows the title). Android sends from MediaStore's stream with no copy, so it has no
+counterpart. The assets earlier versions gave up on are found by the one-off pass `large`
+(`PhotoSources.large`, queued once: `State.largeQueued`), which follows the floor like the catch-up
+(none before a Sync From Now, none with no floor known) and takes only videos with no hash recorded
+whose size is unknown or over the old 1 GiB ceiling (`mayHaveBeenTooLarge`); its run always lists the
+device folder (`listForLarge`), so videos synced before are matched by path or cloud id, never read.
+
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
