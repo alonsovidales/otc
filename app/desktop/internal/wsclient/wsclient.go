@@ -148,7 +148,9 @@ type Client struct {
 	// so a folder's first ListFiles raced the Auth and got "not
 	// authenticated", which readLoop takes for a lost session and closes
 	// the socket on, cutting its own sign-in short (as WSClient.swift).
-	signedIn  bool
+	signedIn bool
+	// signIns counts the sign-ins (SignIns).
+	signIns   int64
 	waiters   map[int32]chan *pb.RespEnvelope
 	nextID    int32
 	autoRecon bool
@@ -244,6 +246,17 @@ func (c *Client) IsConnected() bool {
 	defer c.mu.Unlock()
 
 	return c.open && c.signedIn
+}
+
+// SignIns is how many times this client has signed in. Read before a
+// request, a different value afterwards means the connection it went out
+// on has been replaced by a new one (issue #205: an upload cut by a drop
+// goes on once there is one). As WSClient.signInCount.
+func (c *Client) SignIns() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.signIns
 }
 
 // current: the attempt gen is still this client's own (and, with conn,
@@ -440,6 +453,7 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 	}
 	c.backoff = initialBackoff
 	c.signedIn = true
+	c.signIns++
 	c.route = route
 	c.mu.Unlock()
 	if c.OnConnect != nil {
@@ -714,7 +728,7 @@ func (c *Client) Request(ctx context.Context, build func(*pb.ReqEnvelope)) (*pb.
 	if err != nil {
 		c.dropWaiter(id)
 
-		return nil, err
+		return nil, &sendError{err: err}
 	}
 
 	select {
@@ -729,6 +743,23 @@ func (c *Client) Request(ctx context.Context, build func(*pb.ReqEnvelope)) (*pb.
 
 		return nil, ctx.Err()
 	}
+}
+
+// sendError is a request that could not be written: its connection is
+// gone (Dropped), even while the socket doesn't say so yet - a failed
+// write breaks it for good, and the keep-alive closes it.
+type sendError struct{ err error }
+
+func (e *sendError) Error() string { return e.err.Error() }
+func (e *sendError) Unwrap() error { return e.err }
+
+// Dropped: err is a request's connection going away under it, or not
+// there to begin with - neither the device's answer nor an answer that
+// took too long (the request's own deadline). As WSClient.isDropped.
+func Dropped(err error) bool {
+	var se *sendError
+
+	return errors.Is(err, ErrNotConnected) || errors.As(err, &se)
 }
 
 func (c *Client) dropWaiter(id int32) {

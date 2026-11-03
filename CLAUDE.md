@@ -3156,7 +3156,8 @@ VM (`run.sh -drive file=card.raw,if=none,id=card,format=raw -device
 usb-storage,drive=card,removable=on`). Its packages are one-to-one with the Swift files: `wsclient` =
 WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with a watcher and a
 10-minute reconcile, two-way remote folders with the three-way merge and a 1-minute poll,
-hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
+hash-first uploads, RAID polling), `engine/chunked.go` = ChunkedUpload.swift (the chunked upload
+and its resume, issue #205), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
 per directory, added as directories appear; 4 KiB buffers on Windows, an overflow checks the
 whole folder; a watch limit reached leaves the rest watched), `tray` = PopoverView.swift (fyne.io/systray menu,
 the OS's own dialogs through ncruces/zenity - no GUI toolkit, no CGO), `config` = SettingsStore
@@ -3241,7 +3242,23 @@ content the device lists at a new path (a move there). A folder whose own folder
 listed); it is never removed. Downloads go to a temp name of their own (`name.<random>.otc-part`),
 synced before the rename. Two folders' passes run at a time (`passSlot`; the loops start at once),
 the others say "Waiting for <folder>". A file that changes while it is sent is a busy file, left
-for 2 minutes, doubling up to an hour. The hash cache also checks the change time (not on
+for 2 minutes, doubling up to an hour. Uploads resume (issue #205; `engine/chunked.go` /
+`ChunkedUpload.swift`): every BeginUpload carries the content's `sha256` (the hash it was hashed
+with; with path and size the device's resume key) and the upload goes on from
+`UploadStarted.received`, the file read from that offset on, never the part the device holds
+(nothing is hashed again for it). A connection that drops once the device has begun the upload
+(`wsclient.Dropped` / `WSClient.isDropped`: no connection, a write that failed, the socket
+replaced - not a request's timeout, nor the Mac closing it itself) waits, 2 minutes at most
+(`resumeWait`), for the client's next sign-in (`SignIns` / `signInCount` moved on, the same device
+still set, the engine not stopped), then sends the same BeginUpload again; after 3 drops in a row
+that left the device holding no more of it (`uploadResume` / `UploadResume`, `maxStalledResumes` /
+`maxStalled`) it gives up, so a big file on a link that keeps dropping finishes as long as each
+connection gets some of it through. A file whose size or mtime changed meanwhile is a busy file -
+its new hash is another key and starts fresh -, a drop during FinishUpload isn't resumed (the next
+pass's HasFile or BeginUpload finds out), a device before release 166 answers received 0 (the file
+starts again), and FinishUpload's hash check is unchanged. Tests: engine `resume_test.go` (the
+fake device keeps uploads by key and drops connections), wsclient `resume_test.go`,
+`ChunkedUploadTests` (below). The hash cache also checks the change time (not on
 Windows, which has none without a handle per file) and is saved every 5 minutes during a pass and
 at Stop / quit. Both WSClients ping every 20 s and drop a connection silent for 45 s (a send under
 way has its own deadline); small requests wait 2 minutes, listings and transfers 10; otc-sync
@@ -3260,8 +3277,11 @@ rejected password is reported before the socket closes. `otc-sync flash-device` 
 whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app (`TEST_HOST`), so
 `xcodebuild test` launches it with the saved settings and may reach the live device;
 `SyncPathsTests` can run in a scratch SwiftPM package holding only `SyncPaths.swift` (module
-`OffTheCloud`), and `LoginItemTests` likewise with only `LoginItem.swift` (a fake login item and a
-throwaway defaults suite).
+`OffTheCloud`), `LoginItemTests` likewise with only `LoginItem.swift` (a fake login item and a
+throwaway defaults suite), and `ChunkedUploadTests` with `WSClient.swift`, `ChunkedUpload.swift`,
+`LocalRoute.swift`, `PwCrypto.swift`, `messages.pb.swift`, `i18n/*.swift` and an in-memory
+`Keychain` stand-in (SwiftProtobuf from the Xcode build's checkout, Swift 5 mode with the target's
+approachable-concurrency features) against a loopback stand-in device.
 
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 

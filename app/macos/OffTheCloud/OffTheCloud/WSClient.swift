@@ -108,6 +108,8 @@ final class WSClient {
     /// and drops the socket, cutting its own sign-in short - and the
     /// folder sat in that error, doing nothing.
     private var signedIn = false
+    /// How many times this client has signed in (signInCount).
+    private var signIns: UInt64 = 0
 
     // Reconnect control
     private var autoReconnect = true
@@ -448,6 +450,23 @@ final class WSClient {
 
     func isConnected() -> Bool { queue.sync { isOpen && signedIn } }
 
+    /// How many times this client has signed in. Read before a request, a
+    /// different count afterwards means the connection it went out on has
+    /// been replaced by a new one (issue #205: an upload cut by a drop goes
+    /// on once there is one). As otc-sync's SignIns.
+    func signInCount() -> UInt64 { queue.sync { signIns } }
+
+    /// Issue #205: `error` is a request's connection going away under it,
+    /// or not there to begin with - neither the device's answer, nor one
+    /// that took too long (timedOut), nor the app closing it (closed). As
+    /// otc-sync's wsclient.Dropped.
+    static func isDropped(_ error: Error) -> Bool {
+        if let failure = error as? RequestFailure {
+            return failure == .notConnected || failure == .cancelled
+        }
+        return error is NWError
+    }
+
     // MARK: Request/response
     /// Send a request built by `build` and await response (matched by `id`).
     func request(_ build: @escaping (inout Req) -> Void) async throws -> Resp {
@@ -677,7 +696,7 @@ final class WSClient {
     private func authenticateThenAnnounce() {
         guard let conn = self.conn else { return }
         let route = self.route
-        guard let key = self.key else { self.signedIn = true; self.onConnect?(route); return }
+        guard let key = self.key else { self.signedIn = true; self.signIns &+= 1; self.onConnect?(route); return }
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -703,7 +722,7 @@ final class WSClient {
                         // Open still: a socket that dropped while the
                         // device was asked is already reconnecting.
                         guard self.conn === conn, self.isOpen else { return (false, false) }
-                        self.backoffSeconds = 1; self.signedIn = true
+                        self.backoffSeconds = 1; self.signedIn = true; self.signIns &+= 1
                         let missed = route == .bridge && self.triedNewHome
                         self.triedNewHome = false
                         return (true, missed)

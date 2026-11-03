@@ -73,11 +73,49 @@ type fakeDevice struct {
 	keptOut      []string
 	onSetImages  func()
 	events       []string
+	// Issue #205: unfinished uploads by their resume key (path, size and
+	// sha256), as release 166 keeps them across connections; forgetful
+	// answers received 0 to every BeginUpload, as a device before it. The
+	// BeginUploads in order with what each was answered, and every
+	// UploadChunk's offset.
+	resumable    map[uploadKey]string
+	forgetful    bool
+	begins       []*pb.BeginUpload
+	beginAnswers []int64
+	chunkOffsets []int64
+	// dropOn, when it says so, closes the connection on that request
+	// without handling it; dropAfter once it is handled (its answer lost).
+	// down refuses every new connection.
+	dropOn    func(*pb.ReqEnvelope) bool
+	dropAfter func(*pb.ReqEnvelope) bool
+	down      bool
+	conns     int
 }
 
+// uploadKey is BeginUpload's resume key (issue #205).
+type uploadKey struct {
+	path string
+	size int64
+	sha  string
+}
+
+// handle answers req; nil closes the connection instead (dropOn,
+// dropAfter).
 func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.dropOn != nil && d.dropOn(req) {
+		return nil
+	}
+	resp := d.answer(req, pubDER)
+	if d.dropAfter != nil && d.dropAfter(req) {
+		return nil
+	}
+
+	return resp
+}
+
+func (d *fakeDevice) answer(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope {
 	resp := &pb.RespEnvelope{Id: req.Id}
 	switch p := req.Payload.(type) {
 	case *pb.ReqEnvelope_ReqGetPubKey:
@@ -91,14 +129,34 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		}
 		resp.Payload = &pb.RespEnvelope_RespFileExists{RespFileExists: &pb.FileExists{Exists: false}}
 	case *pb.ReqEnvelope_ReqBeginUpload:
+		bu := p.ReqBeginUpload
+		d.begins = append(d.begins, bu)
+		key := uploadKey{bu.Path, bu.Size, bu.Sha256}
+		if id, ok := d.resumable[key]; ok && bu.Sha256 != "" && !d.forgetful {
+			received := int64(d.pending[id].Len())
+			d.beginAnswers = append(d.beginAnswers, received)
+			resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id, Received: received}}
+
+			break
+		}
 		id := fmt.Sprintf("u%d", len(d.pending)+1)
 		d.open++
 		d.maxOpen = max(d.maxOpen, d.open)
 		d.pending[id] = &bytes.Buffer{}
-		d.paths[id] = p.ReqBeginUpload.Path
+		d.paths[id] = bu.Path
+		if d.resumable == nil {
+			d.resumable = map[uploadKey]string{}
+		}
+		d.resumable[key] = id
+		d.beginAnswers = append(d.beginAnswers, 0)
 		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
 	case *pb.ReqEnvelope_ReqUploadChunk:
+		d.chunkOffsets = append(d.chunkOffsets, p.ReqUploadChunk.Offset)
 		b := d.pending[p.ReqUploadChunk.UploadId]
+		if b == nil {
+			resp.Error, resp.ErrorMessage = true, "no such upload"
+			break
+		}
 		if int64(b.Len()) != p.ReqUploadChunk.Offset {
 			resp.Error, resp.ErrorMessage = true, "out of order"
 			break
@@ -113,6 +171,11 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		if hex.EncodeToString(sum[:]) != p.ReqFinishUpload.Sha256 {
 			resp.Error, resp.ErrorMessage = true, "hash mismatch"
 			break
+		}
+		for k, v := range d.resumable {
+			if v == id {
+				delete(d.resumable, k)
+			}
 		}
 		d.files[d.paths[id]] = d.pending[id].Bytes()
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
@@ -233,6 +296,15 @@ func connectedEngine(t *testing.T, d *fakeDevice) *Engine {
 	pubDER, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	up := websocket.Upgrader{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d.mu.Lock()
+		down := d.down
+		d.conns++
+		d.mu.Unlock()
+		if down {
+			http.Error(w, "down", http.StatusServiceUnavailable)
+
+			return
+		}
 		c, err := up.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -248,7 +320,11 @@ func connectedEngine(t *testing.T, d *fakeDevice) *Engine {
 			if proto.Unmarshal(data, req) != nil {
 				return
 			}
-			b, _ := proto.Marshal(d.handle(req, pubDER))
+			resp := d.handle(req, pubDER)
+			if resp == nil {
+				return // dropped (dropOn, dropAfter)
+			}
+			b, _ := proto.Marshal(resp)
 			if c.WriteMessage(websocket.BinaryMessage, b) != nil {
 				return
 			}
@@ -258,7 +334,12 @@ func connectedEngine(t *testing.T, d *fakeDevice) *Engine {
 
 	e := &Engine{ws: wsclient.New()}
 	connected := make(chan struct{}, 1)
-	e.ws.OnConnect = func() { connected <- struct{}{} }
+	e.ws.OnConnect = func() {
+		select {
+		case connected <- struct{}{}:
+		default: // signed in again after a drop
+		}
+	}
 	e.ws.Configure("ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", "test", "secret")
 	e.ws.Connect()
 	t.Cleanup(e.ws.Disconnect)

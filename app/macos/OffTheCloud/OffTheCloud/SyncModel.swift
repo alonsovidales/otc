@@ -2736,12 +2736,10 @@ final class SyncModel: ObservableObject {
             return hash
         }
 
-        // Issue #168: the bytes go in 4 MiB chunks (BeginUpload,
-        // UploadChunk..., FinishUpload) rather than one whole-file
-        // UploadFile, so neither the Mac nor the device holds the whole
-        // file in memory, and no single websocket message carries it.
-        // Reading happens off the main actor, one chunk at a time - the
-        // same UI-freezing concern as the hashing in reconcile().
+        // Issue #168: the bytes go in 4 MiB chunks (ChunkedUpload:
+        // BeginUpload, UploadChunk..., FinishUpload) rather than one
+        // whole-file UploadFile; issue #205: one cut by a dropped
+        // connection goes on from what the device holds.
         // The file as it is now, which must still be the one hashed (when
         // the cache knows how it looked then) and must not change while it
         // is read: the device would only refuse bytes that don't match.
@@ -2755,71 +2753,19 @@ final class SyncModel: ObservableObject {
             noteBusy(url.path)
             throw BusyFile()
         }
-        let begin = try await ws.request(timeout: Self.smallRequest) { req in
-            var bu = Msg_BeginUpload()
-            bu.path = remotePath
-            bu.size = size
-            bu.created = created
-            bu.modified = modified
-            bu.forceOverride = true
-            bu.cloudID = ""
-            req.payload = .reqBeginUpload(bu)
-        }
-        // A server-side rejection (auth failure, disk full, etc.) still
-        // comes back as a normal response, not a thrown error from
-        // `request` — checking resp.error is the only way to actually
-        // notice the file wasn't saved, instead of silently caching it as
-        // synced and never trying again.
-        try Self.throwIfRejected(begin)
-        guard case .respUploadStarted(let started) = begin.payload else {
-            throw NSError(domain: "sync.upload", code: 2, userInfo: [NSLocalizedDescriptionKey: "unexpected response"])
-        }
-        let uploadID = started.uploadID
-
-        let fh = try FileHandle(forReadingFrom: url)
-        defer { try? fh.close() }
-        var offset: Int64 = 0
-        while offset < size {
-            let data = try await Task.detached(priority: .utility) {
-                try fh.read(upToCount: Int(Self.chunkSize)) ?? Data()
-            }.value
-            // The file shrank since it was measured: what the device
-            // would get no longer matches the hash - a busy file.
-            if data.isEmpty {
-                noteBusy(url.path)
-                throw BusyFile()
-            }
-            let chunkOffset = offset
-            let resp = try await ws.request(timeout: Self.transferRequest) { req in
-                var uc = Msg_UploadChunk()
-                uc.uploadID = uploadID
-                uc.offset = chunkOffset
-                uc.data = data
-                req.payload = .reqUploadChunk(uc)
-            }
-            // The device takes chunks strictly in order; an "out_of_order"
-            // answer (or any other rejection) ends this attempt and the
-            // next pass starts the upload again from the beginning.
-            try Self.throwIfRejected(resp)
-            offset += Int64(data.count)
-            if case .respUploadProgress(let p) = resp.payload, p.received != offset {
-                throw NSError(domain: "sync.upload", code: 4, userInfo: [NSLocalizedDescriptionKey: "the device received \(p.received) bytes, expected \(offset)"]) // i18n-ignore: a file's error, only logged
-            }
-        }
-
-        let after = try? FileManager.default.attributesOfItem(atPath: url.path)
-        if (after?[.size] as? NSNumber)?.int64Value != size || (after?[.modificationDate] as? Date) != before.modified {
+        // A drop waits for the connection only while the app still syncs
+        // with this device (Disconnect, another device set up: no).
+        let domain = settings?.domain
+        do {
+            try await ChunkedUpload.send(ws: ws, file: url, to: remotePath, hash: hash, size: size, modified: before.modified,
+                                         createdStamp: created, modifiedStamp: modified, chunkSize: Int(Self.chunkSize),
+                                         smallRequest: Self.smallRequest, transferRequest: Self.transferRequest,
+                                         stillWanted: { [weak self] in self != nil && self?.settings?.domain == domain },
+                                         beforeFinish: { try await check?() })
+        } catch is ChunkedUpload.FileChanged {
             noteBusy(url.path)
             throw BusyFile()
         }
-        try await check?()
-        let resp = try await ws.request(timeout: Self.transferRequest) { req in
-            var fu = Msg_FinishUpload()
-            fu.uploadID = uploadID
-            fu.sha256 = hash
-            req.payload = .reqFinishUpload(fu)
-        }
-        try Self.throwIfRejected(resp)
         busyFiles.removeValue(forKey: url.path)
         return hash
     }
@@ -2842,12 +2788,6 @@ final class SyncModel: ObservableObject {
         let delay = min(max((busyFiles[path]?.delay ?? 0) * 2, 120), 3600)
         busyFiles[path] = (Date().addingTimeInterval(delay), delay)
         syncLog.notice("\(path, privacy: .public) changed while it was being sent - not sent again for \(Int(delay))s") // i18n-ignore: a log line
-    }
-
-    private static func throwIfRejected(_ resp: Resp) throws {
-        if resp.error {
-            throw NSError(domain: "sync.upload", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "upload rejected" : resp.errorMessage])
-        }
     }
 
     /// Makes a backup's folder on the device upload only (issue #132): the
