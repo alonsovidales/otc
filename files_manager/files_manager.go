@@ -1112,11 +1112,9 @@ func pageSize(limit int32, omit bool) int {
 // OR semantics of combining them.
 // before (issue #77, the date scrubber's "jump to date"): when non-nil,
 // always starts a fresh search filtered to created <= *before, exactly as
-// if oldToken had never been passed - there's no seekable SQL cursor to
-// jump within, but since a token's whole result set is already computed
-// once and cached (see the tokenFound branch below), treating a jump as a
-// brand new search targeting a narrower result set reuses that same
-// mechanism instead of needing one of its own.
+// if oldToken had never been passed: a jump is a brand new search of a
+// narrower result set, held by a token of its own like any other (the
+// plain browse's read by keyset from the jump's instant, issue #206).
 // limit (SearchPhotos.limit) makes this page smaller than the device's
 // default, never larger (but see omit); 0 is the default. A grid's first
 // page asks for a few photos so it paints quickly over a slow upload, and
