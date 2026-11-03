@@ -3854,6 +3854,15 @@ public nonisolated struct Msg_FileChunk: Sendable {
 /// (each answered with UploadProgress), and FinishUpload - with the
 /// content's SHA-256, checked - makes it the file (answers with File, like
 /// UploadFile). An upload untouched for 30 minutes is dropped.
+///
+/// Resuming (issue #205, release 166): an upload is no longer dropped when
+/// its connection closes, only after those 30 idle minutes. A BeginUpload
+/// with sha256 set names its content: when this instance holds an
+/// unfinished upload of the same path, size and sha256, it answers with that
+/// upload's id and UploadStarted.received, the bytes it already has, and the
+/// client goes on from there with UploadChunk (FinishUpload still checks the
+/// whole content). Devices before it ignore sha256 and answer received 0: a
+/// fresh upload, as always.
 public nonisolated struct Msg_BeginUpload: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -3885,6 +3894,10 @@ public nonisolated struct Msg_BeginUpload: Sendable {
 
   public var cloudID: String = String()
 
+  /// The content's SHA-256 (hex), the same FinishUpload sends: the resume
+  /// key with path and size. "" never resumes.
+  public var sha256: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3899,6 +3912,10 @@ public nonisolated struct Msg_UploadStarted: Sendable {
   // methods supported on all messages.
 
   public var uploadID: String = String()
+
+  /// Resuming: the bytes of this upload the device already holds - the
+  /// offset of the next UploadChunk. 0 for a new upload.
+  public var received: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -13914,7 +13931,7 @@ nonisolated extension Msg_FileChunk: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BeginUpload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}size\0\u{1}created\0\u{1}modified\0\u{3}force_override\0\u{3}cloud_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}size\0\u{1}created\0\u{1}modified\0\u{3}force_override\0\u{3}cloud_id\0\u{1}sha256\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -13928,6 +13945,7 @@ nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 4: try { try decoder.decodeSingularMessageField(value: &self._modified) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.forceOverride) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.cloudID) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.sha256) }()
       default: break
       }
     }
@@ -13956,6 +13974,9 @@ nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if !self.cloudID.isEmpty {
       try visitor.visitSingularStringField(value: self.cloudID, fieldNumber: 6)
     }
+    if !self.sha256.isEmpty {
+      try visitor.visitSingularStringField(value: self.sha256, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -13966,6 +13987,7 @@ nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs._modified != rhs._modified {return false}
     if lhs.forceOverride != rhs.forceOverride {return false}
     if lhs.cloudID != rhs.cloudID {return false}
+    if lhs.sha256 != rhs.sha256 {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -13973,7 +13995,7 @@ nonisolated extension Msg_BeginUpload: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_UploadStarted: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UploadStarted"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upload_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upload_id\0\u{1}received\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -13982,6 +14004,7 @@ nonisolated extension Msg_UploadStarted: SwiftProtobuf.Message, SwiftProtobuf._M
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.uploadID) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.received) }()
       default: break
       }
     }
@@ -13991,11 +14014,15 @@ nonisolated extension Msg_UploadStarted: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.uploadID.isEmpty {
       try visitor.visitSingularStringField(value: self.uploadID, fieldNumber: 1)
     }
+    if self.received != 0 {
+      try visitor.visitSingularInt64Field(value: self.received, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_UploadStarted, rhs: Msg_UploadStarted) -> Bool {
     if lhs.uploadID != rhs.uploadID {return false}
+    if lhs.received != rhs.received {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

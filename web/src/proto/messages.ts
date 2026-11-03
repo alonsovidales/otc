@@ -2200,6 +2200,15 @@ export interface FileChunk {
  * (each answered with UploadProgress), and FinishUpload - with the
  * content's SHA-256, checked - makes it the file (answers with File, like
  * UploadFile). An upload untouched for 30 minutes is dropped.
+ *
+ * Resuming (issue #205, release 166): an upload is no longer dropped when
+ * its connection closes, only after those 30 idle minutes. A BeginUpload
+ * with sha256 set names its content: when this instance holds an
+ * unfinished upload of the same path, size and sha256, it answers with that
+ * upload's id and UploadStarted.received, the bytes it already has, and the
+ * client goes on from there with UploadChunk (FinishUpload still checks the
+ * whole content). Devices before it ignore sha256 and answer received 0: a
+ * fresh upload, as always.
  */
 export interface BeginUpload {
   path: string;
@@ -2208,10 +2217,20 @@ export interface BeginUpload {
   modified?: Date | undefined;
   forceOverride: boolean;
   cloudId: string;
+  /**
+   * The content's SHA-256 (hex), the same FinishUpload sends: the resume
+   * key with path and size. "" never resumes.
+   */
+  sha256: string;
 }
 
 export interface UploadStarted {
   uploadId: string;
+  /**
+   * Resuming: the bytes of this upload the device already holds - the
+   * offset of the next UploadChunk. 0 for a new upload.
+   */
+  received: bigint;
 }
 
 export interface UploadChunk {
@@ -13301,7 +13320,7 @@ export const FileChunk: MessageFns<FileChunk> = {
 };
 
 function createBaseBeginUpload(): BeginUpload {
-  return { path: "", size: 0n, created: undefined, modified: undefined, forceOverride: false, cloudId: "" };
+  return { path: "", size: 0n, created: undefined, modified: undefined, forceOverride: false, cloudId: "", sha256: "" };
 }
 
 export const BeginUpload: MessageFns<BeginUpload> = {
@@ -13326,6 +13345,9 @@ export const BeginUpload: MessageFns<BeginUpload> = {
     }
     if (message.cloudId !== "") {
       writer.uint32(50).string(message.cloudId);
+    }
+    if (message.sha256 !== "") {
+      writer.uint32(58).string(message.sha256);
     }
     return writer;
   },
@@ -13385,6 +13407,14 @@ export const BeginUpload: MessageFns<BeginUpload> = {
           message.cloudId = reader.string();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.sha256 = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13405,18 +13435,25 @@ export const BeginUpload: MessageFns<BeginUpload> = {
     message.modified = object.modified ?? undefined;
     message.forceOverride = object.forceOverride ?? false;
     message.cloudId = object.cloudId ?? "";
+    message.sha256 = object.sha256 ?? "";
     return message;
   },
 };
 
 function createBaseUploadStarted(): UploadStarted {
-  return { uploadId: "" };
+  return { uploadId: "", received: 0n };
 }
 
 export const UploadStarted: MessageFns<UploadStarted> = {
   encode(message: UploadStarted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.uploadId !== "") {
       writer.uint32(10).string(message.uploadId);
+    }
+    if (message.received !== 0n) {
+      if (BigInt.asIntN(64, message.received) !== message.received) {
+        throw new globalThis.Error("value provided for field message.received of type int64 too large");
+      }
+      writer.uint32(16).int64(message.received);
     }
     return writer;
   },
@@ -13436,6 +13473,14 @@ export const UploadStarted: MessageFns<UploadStarted> = {
           message.uploadId = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.received = reader.int64() as bigint;
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13451,6 +13496,7 @@ export const UploadStarted: MessageFns<UploadStarted> = {
   fromPartial<I extends Exact<DeepPartial<UploadStarted>, I>>(object: I): UploadStarted {
     const message = createBaseUploadStarted();
     message.uploadId = object.uploadId ?? "";
+    message.received = object.received ?? 0n;
     return message;
   },
 };

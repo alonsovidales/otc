@@ -1662,6 +1662,15 @@ message FileChunk {
 // (each answered with UploadProgress), and FinishUpload - with the
 // content's SHA-256, checked - makes it the file (answers with File, like
 // UploadFile). An upload untouched for 30 minutes is dropped.
+//
+// Resuming (issue #205, release 166): an upload is no longer dropped when
+// its connection closes, only after those 30 idle minutes. A BeginUpload
+// with sha256 set names its content: when this instance holds an
+// unfinished upload of the same path, size and sha256, it answers with that
+// upload's id and UploadStarted.received, the bytes it already has, and the
+// client goes on from there with UploadChunk (FinishUpload still checks the
+// whole content). Devices before it ignore sha256 and answer received 0: a
+// fresh upload, as always.
 message BeginUpload {
   string path = 1;
   int64 size = 2;
@@ -1669,10 +1678,16 @@ message BeginUpload {
   google.protobuf.Timestamp modified = 4;
   bool force_override = 5;
   string cloud_id = 6;
+  // The content's SHA-256 (hex), the same FinishUpload sends: the resume
+  // key with path and size. "" never resumes.
+  string sha256 = 7;
 }
 
 message UploadStarted {
   string upload_id = 1;
+  // Resuming: the bytes of this upload the device already holds - the
+  // offset of the next UploadChunk. 0 for a new upload.
+  int64 received = 2;
 }
 
 message UploadChunk {
