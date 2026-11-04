@@ -1596,7 +1596,14 @@ start takes its file.
   wireless), driver module from sysfs (holders first, e.g. brcmfmac_wcc), the SDIO controller
   (`.../mmc_host/...`'s platform device) unbound and bound again only when no block device sits
   under it, the module back, power save off, NetworkManager reconnect; not connected within 150 s
-  -> it reboots (`rebooted`, mentioned in the Alert). At most one restart per 30 min
+  -> it reboots (`rebooted`, mentioned in the Alert). The whole restart reaches that fallback within
+  `RUN_BUDGET` (7 min) of its start, inside the unit's `TimeoutStartSec=8min`: every step goes
+  through the runner's own `bounded` (given up, killed and left behind when stuck in the kernel - a
+  wedged SDIO bus holding modprobe or the unbind -, never waited for), and none starts past what
+  the last wait for the connection needs (`FINAL_WAIT`, 90 s); the bare `timeout`s it had waited
+  for good on such a command, and its waits added up to more than the unit allows, so systemd could
+  kill it before the reboot (`TestWifiRestartRunnerEndsInsideItsUnit`; `bash
+  otc-wifi-restart-runner.sh --selftest` on Linux tests `bounded`). At most one restart per 30 min
   (`/run/otc-wifi-restart.last`). Tested with fake readings (`wifiwatch_test.go`) and
   `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi. A Settings › Wi-Fi change
   (release 140) never builds a streak: while `network.Joining()` is true - a change in flight and

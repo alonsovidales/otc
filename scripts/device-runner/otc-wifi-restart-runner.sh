@@ -23,6 +23,15 @@
 # restarts instead: a device left off the network by its own watchdog
 # could otherwise only be fixed by pulling the plug.
 #
+# All of it, the reboot included, ends within RUN_BUDGET of the start,
+# well inside the unit's TimeoutStartSec: every step is bounded (bounded:
+# a command stuck in the kernel - a wedged SDIO bus holding modprobe or
+# the unbind - is left behind, never waited for), and none starts past
+# what the last wait for the connection needs. The waits used to add up
+# to more than the unit allows, and systemd killed the runner before its
+# reboot fallback, leaving the device off its network with the Wi-Fi
+# driver out.
+#
 # The answer goes to /var/lib/otc/wifi-restart-status.json: state running,
 # done, failed or rebooted, which the watchdog reads back.
 #
@@ -39,13 +48,90 @@ STATUS_FILE=/var/lib/otc/wifi-restart-status.json
 LAST=/run/otc-wifi-restart.last
 MIN_INTERVAL=1800
 CONNECT_WAIT=150
+# From the start of the restart to the reboot fallback at the latest, in
+# seconds: otc-wifi-restart.service gives the whole run 8 minutes
+# (wifiwatch's TestWifiRestartRunnerEndsInsideItsUnit), and the steps leave
+# FINAL_WAIT of it for the last wait for the connection.
+RUN_BUDGET=420
+FINAL_WAIT=90
+# Unset until the restart starts: no step is cut short before.
+DEADLINE=
+
+log() { echo "[otc-wifi-restart] $*"; }
+
+uptime_s() { cut -d. -f1 /proc/uptime; }
+
+# left <seconds>: <seconds>, or less when the restart's steps must end
+# sooner to leave the last wait its FINAL_WAIT; 0 when none is left.
+left() {
+    local n="$1" room
+    if [ -n "$DEADLINE" ]; then
+        room=$(( DEADLINE - FINAL_WAIT - $(uptime_s) ))
+        [ "$room" -lt "$n" ] && n="$room"
+    fi
+    [ "$n" -gt 0 ] && echo "$n" || echo 0
+}
+
+alive() {
+    local s
+    s="$(cat "/proc/$1/stat" 2>/dev/null)" || return 1
+    s="${s##*) }"
+    [ "${s%% *}" != Z ]
+}
+
+# bounded <seconds> <command...>: the command, given up after at most
+# <seconds> (left()): stopped, killed a second later, and left behind if it
+# doesn't end - stuck in the kernel - while this script goes on. Its exit
+# status, or 124 when given up or not started for want of time (said on
+# stderr: its stdout may be read).
+bounded() {
+    local secs pid end
+    secs="$(left "$1")"
+    shift
+    [ "$secs" -gt 0 ] || { log "no time left for: $*" >&2; return 124; }
+    "$@" &
+    pid=$!
+    end=$(( $(uptime_s) + secs ))
+    while alive "$pid"; do
+        if [ "$(uptime_s)" -ge "$end" ]; then
+            kill -TERM "$pid" 2>/dev/null
+            sleep 1
+            kill -KILL "$pid" 2>/dev/null
+            log "gave up after $secs s: $*" >&2
+            return 124
+        fi
+        sleep 1
+    done
+    wait "$pid"
+}
+
+# --selftest, by hand on Linux as any user: bounded and left, with real
+# commands and the real clock. Touches nothing.
+if [ "${1:-}" = --selftest ]; then
+    broken() { echo "FAIL: $*" >&2; exit 1; }
+    start=$(uptime_s)
+    bounded 5 true || broken "true"
+    bounded 5 sh -c 'exit 7'; [ $? = 7 ] || broken "an exit status"
+    bounded 2 sleep 30; [ $? = 124 ] || broken "a command past its time"
+    bounded 2 sh -c 'trap "" TERM; exec sleep 30'; [ $? = 124 ] || broken "a command ignoring TERM"
+    [ $(( $(uptime_s) - start )) -le 12 ] || broken "bounded waited $(( $(uptime_s) - start )) s"
+    DEADLINE=$(( $(uptime_s) + FINAL_WAIT + 3 ))
+    n="$(left 30)"; [ "$n" -ge 2 ] && [ "$n" -le 3 ] || broken "left 30 with 3 s to go: $n"
+    t=$(uptime_s)
+    bounded 30 sleep 30; [ $? = 124 ] && [ $(( $(uptime_s) - t )) -le 6 ] || broken "a step past the deadline"
+    DEADLINE=$(( $(uptime_s) + FINAL_WAIT - 1 ))
+    [ "$(left 30)" = 0 ] || broken "left with no time"
+    ran="$(mktemp)"
+    rm -f "$ran"
+    bounded 30 touch "$ran"; [ $? = 124 ] && [ ! -e "$ran" ] || broken "a step started with no time left"
+    echo "selftest ok"
+    exit 0
+fi
 
 # Whatever is there goes: a directory, which -f alone can't remove, had the
 # path unit start this again and again; a symlink is removed, never
 # followed.
 rm -rf -- "$REQUEST"
-
-log() { echo "[otc-wifi-restart] $*"; }
 
 # Temp file moved into place: the directory is the otc user's, and a plain
 # "> $STATUS_FILE" as root would follow a symlink put there. dd's
@@ -65,8 +151,6 @@ status() {
     mv -Tf "$tmp" "$STATUS_FILE"
 }
 
-uptime_s() { cut -d. -f1 /proc/uptime; }
-
 # The interface of the IPv4 default route with the lowest metric.
 default_iface() {
     awk 'NR > 1 && $2 == "00000000" && $8 == "00000000" { print $7, $1 }' /proc/net/route \
@@ -83,19 +167,29 @@ connected() {
     via="$(default_iface)"
     [ -n "$via" ] && return 0
     if [ "$nm" = 1 ]; then
-        nmcli -t -g GENERAL.STATE device show "$iface" 2>/dev/null | grep -q '^100'
+        bounded 10 nmcli -t -g GENERAL.STATE device show "$iface" 2>/dev/null | grep -q '^100'
         return
     fi
     return 1
 }
 
+# wait_connected <seconds> [final]: connected again within <seconds> - for
+# a step, never past what the last wait needs (left()); for the last wait
+# ("final"), never past the deadline.
 wait_connected() {
-    local deadline=$(( $(uptime_s) + $1 ))
-    while [ "$(uptime_s)" -lt "$deadline" ]; do
+    local until=$(( $(uptime_s) + $1 ))
+    if [ -n "$DEADLINE" ]; then
+        if [ "${2:-}" = final ]; then
+            [ "$until" -gt "$DEADLINE" ] && until="$DEADLINE"
+        else
+            until=$(( $(uptime_s) + $(left "$1") ))
+        fi
+    fi
+    while [ "$(uptime_s)" -lt "$until" ]; do
         connected && return 0
         sleep 3
     done
-    return 1
+    connected
 }
 
 # Settings > Wi-Fi changes the network as root too (otc-wifi-join-runner),
@@ -135,7 +229,7 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
     nm=1
     # By UUID: two profiles may share a name ("OTC-WiFi" after a Wi-Fi
     # change cut short), and the other one may hold an old password.
-    conn="$(nmcli -g GENERAL.CON-UUID device show "$iface" 2>/dev/null | head -n 1)"
+    conn="$(bounded 20 nmcli -g GENERAL.CON-UUID device show "$iface" 2>/dev/null | head -n 1)"
     [[ "$conn" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || conn=""
 fi
 
@@ -172,15 +266,16 @@ hostname="${host##*/}"
 
 status running "Restarting the Wi-Fi" restarting
 log "restarting $iface (driver ${mod:-built in}, controller ${hostname:-not reset}, connection ${conn:-unknown})"
+DEADLINE=$(( $(uptime_s) + RUN_BUDGET ))
 
 # 1. The driver out, the modules that use it first.
 unloaded=0
 if [ -n "$mod" ] && [ -d "/sys/module/$mod" ]; then
     for h in /sys/module/"$mod"/holders/*; do
         [ -e "$h" ] || continue
-        timeout 30 modprobe -r "${h##*/}" || log "could not unload ${h##*/}"
+        bounded 30 modprobe -r "${h##*/}" || log "could not unload ${h##*/}"
     done
-    if timeout 30 modprobe -r "$mod"; then
+    if bounded 30 modprobe -r "$mod"; then
         unloaded=1
     else
         log "could not unload $mod"
@@ -189,9 +284,11 @@ fi
 
 # 2. The chip's bus, powered down and up again.
 if [ -n "$host" ]; then
-    if timeout 30 sh -c 'printf %s "$1" > "$2/unbind"' _ "$hostname" "$hostdrv"; then
+    # shellcheck disable=SC2016 # sh expands them
+    if bounded 30 sh -c 'printf %s "$1" > "$2/unbind"' _ "$hostname" "$hostdrv"; then
         sleep 2
-        timeout 30 sh -c 'printf %s "$1" > "$2/bind"' _ "$hostname" "$hostdrv" \
+        # shellcheck disable=SC2016 # sh expands them
+        bounded 30 sh -c 'printf %s "$1" > "$2/bind"' _ "$hostname" "$hostdrv" \
             || log "could not bind $hostname to ${hostdrv##*/} again"
     else
         log "could not unbind $hostname from ${hostdrv##*/}"
@@ -200,38 +297,39 @@ fi
 
 # 3. The driver back (udev may have loaded it already), power saving off.
 if [ "$unloaded" = 1 ]; then
-    timeout 60 modprobe "$mod" || log "could not load $mod"
+    bounded 60 modprobe "$mod" || log "could not load $mod"
 fi
 if [ "$unloaded" = 0 ] && [ -z "$host" ]; then
     # Nothing could be reset: at least take the link down and up.
-    ip link set "$iface" down 2>/dev/null
+    bounded 10 ip link set "$iface" down 2>/dev/null
     sleep 2
-    ip link set "$iface" up 2>/dev/null
+    bounded 10 ip link set "$iface" up 2>/dev/null
 fi
 for _ in $(seq 1 30); do
     [ -e "/sys/class/net/$iface" ] && break
+    [ "$(left 2)" -gt 0 ] || break
     sleep 2
 done
-command -v iw >/dev/null 2>&1 && iw dev "$iface" set power_save off 2>/dev/null
+command -v iw >/dev/null 2>&1 && bounded 10 iw dev "$iface" set power_save off 2>/dev/null
 
 # 4. The connection back.
 if [ "$nm" = 1 ]; then
-    nmcli radio wifi on >/dev/null 2>&1
+    bounded 20 nmcli radio wifi on >/dev/null 2>&1
     if ! wait_connected 45; then
         if [ -n "$conn" ]; then
-            timeout 60 nmcli connection up uuid "$conn" ifname "$iface" >/dev/null 2>&1 || log "could not bring the connection up"
+            bounded 60 nmcli connection up uuid "$conn" ifname "$iface" >/dev/null 2>&1 || log "could not bring the connection up"
         else
-            timeout 60 nmcli device connect "$iface" >/dev/null 2>&1 || log "could not connect $iface"
+            bounded 60 nmcli device connect "$iface" >/dev/null 2>&1 || log "could not connect $iface"
         fi
     fi
 else
     for unit in "wpa_supplicant@$iface.service" wpa_supplicant.service dhcpcd.service systemd-networkd.service; do
-        systemctl try-restart "$unit" >/dev/null 2>&1
+        bounded 30 systemctl try-restart "$unit" >/dev/null 2>&1
     done
 fi
 
-if wait_connected "$CONNECT_WAIT"; then
-    command -v iw >/dev/null 2>&1 && iw dev "$iface" set power_save off 2>/dev/null
+if wait_connected "$CONNECT_WAIT" final; then
+    command -v iw >/dev/null 2>&1 && bounded 10 iw dev "$iface" set power_save off 2>/dev/null
     log "done: connected again"
     status done "The Wi-Fi was restarted" restarted
     exit 0
