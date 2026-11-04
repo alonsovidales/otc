@@ -290,15 +290,39 @@ object Wallpaper {
         cancelWork()
         synchronized(lock) {
             generation++
-            prefs().edit(commit = true) { clear() }
+            // apply(), not commit(): this runs on the main thread from the
+            // box's Stop, and the memory copy changes at once all the same.
+            prefs().edit { clear() }
             if (_active.value?.groupId == s.groupId) _active.value = null
-            dir(s.groupId).deleteRecursively()
-            // Anything left by an earlier collection, too.
-            File(ctx().filesDir, "wallpaper").listFiles()?.forEach { if (_active.value?.groupId != it.name) it.deleteRecursively() }
+            // Moved aside at once (a rename, under the lock no copy is
+            // written without), deleted off the main thread: up to 100
+            // JPEGs. A collection started again right after gets a folder
+            // of its own.
+            val d = dir(s.groupId)
+            if (d.exists()) d.renameTo(File(d.parentFile, TRASH + System.nanoTime()))
         }
         _progress.value = null
+        scope.launch { sweepCopies() }
         Log.i(TAG, "stopped; copies deleted")
     }
+
+    // What stops left aside, and anything left by an earlier collection:
+    // moved aside under the lock (fast), deleted outside it, so neither the
+    // main thread nor a fetch waits for the deletes.
+    private fun sweepCopies() {
+        val doomed = synchronized(lock) {
+            File(ctx().filesDir, "wallpaper").listFiles()?.mapNotNull { f ->
+                when {
+                    f.name.startsWith(TRASH) -> f
+                    _active.value?.groupId != f.name -> File(f.parentFile, TRASH + System.nanoTime()).takeIf { f.renameTo(it) }
+                    else -> null
+                }
+            } ?: emptyList()
+        }
+        doomed.forEach { it.deleteRecursively() }
+    }
+
+    private const val TRASH = ".stopped-"
 
     private fun cancelWork() {
         val wm = WorkManager.getInstance(ctx())
