@@ -361,7 +361,10 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (`writeReply`), and the bridge fragments its writes to clients above 256 KiB: every client must
   keep accepting fragmented messages.
 - Passwords never cross in the clear (issue #2): each connection gets an ephemeral RSA-2048 key
-  (`GetPubKey`, `rsaKeyPool`), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
+  (`GetPubKey`, `rsaKeyPool`: one generator, a few made ahead; taken in turn by address -
+  `keyTurns`, one connection of an address, an IPv6 /64, waiting at once, so connections opened to
+  ask for keys put another address's sign-in behind one of theirs, not all - and never for a
+  connection that went while it waited), and the clients seal `ReqAuth`'s and `ReqChangeKey`'s keys with
   RSA-OAEP-SHA-256 (`pwCrypto.ts`, `PwCrypto.swift`, `PwCrypto.kt`, otc-sync's `pwcrypto.go`). So
   are `ReqBridgeSignIn.password_sealed` and `ReqSetupTailscale.auth_key_sealed` (2026-10 review,
   `sealedOr`): the device still reads the plain `password`/`auth_key` when no sealed one comes (older

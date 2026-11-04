@@ -1387,6 +1387,9 @@ type connHandler struct {
 	// keyMu serialises taking this connection's key (getOrCreatePrivKey),
 	// apart from mu so waiting for one never holds up other requests.
 	keyMu sync.Mutex
+	// gone is closed once no reply can reach the peer (serve): a key
+	// still waited for is no longer taken.
+	gone <-chan struct{}
 	// privKey is an ephemeral RSA keypair generated per WebSocket connection.
 	// Its public half is handed out via GetPubKey/PubKey so the client can
 	// RSA-OAEP encrypt the password before it crosses the bridge, which only
@@ -1518,7 +1521,10 @@ func (ch *connHandler) getOrCreatePrivKey() (*rsa.PrivateKey, error) {
 	if key != nil {
 		return key, nil
 	}
-	key = takeRSAKey()
+	key, err := takeRSAKey(ch.addr(), ch.gone)
+	if err != nil {
+		return nil, err
+	}
 	ch.mu.Lock()
 	ch.privKey = key
 	ch.mu.Unlock()
@@ -1537,7 +1543,17 @@ var (
 
 const cRSAKeyPoolSize = 4
 
-func takeRSAKey() *rsa.PrivateKey {
+// errPeerGone: the connection a key was waited for has gone.
+var errPeerGone = errors.New("the connection has gone") // i18n-ignore: never a reply - no reply reaches a peer that has gone
+
+// takeRSAKey is a connection key for a connection from addr, given back
+// unused (errPeerGone) when gone closes first. Keys come in turn by
+// address (keyTurns): a connection waits behind at most cKeyWaitsPerAddr
+// of each other address's, so anyone opening connections that each ask
+// for a key - and hanging up, which used to leave the wait in line and the
+// key made for nobody - can't put every other address's sign-in behind
+// all of theirs.
+func takeRSAKey(addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
 	rsaKeyPoolOnce.Do(func() {
 		go func() {
 			for {
@@ -1551,7 +1567,70 @@ func takeRSAKey() *rsa.PrivateKey {
 			}
 		}()
 	})
-	return <-rsaKeyPool
+	return takeKey(rsaKeyPool, keyTurns, addr, gone)
+}
+
+// takeKey is takeRSAKey's turn and wait, from pool.
+func takeKey(pool <-chan *rsa.PrivateKey, turns *addrTurns, addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
+	release, ok := turns.wait(anonBucket(addr), gone)
+	if !ok {
+		return nil, errPeerGone
+	}
+	defer release()
+	select {
+	case key := <-pool:
+		return key, nil
+	case <-gone:
+		return nil, errPeerGone
+	}
+}
+
+// cKeyWaitsPerAddr is how many connections of one address wait for a key
+// at once; the rest wait their turn behind them.
+const cKeyWaitsPerAddr = 1
+
+// keyTurns lets each address (anonBucket) have cKeyWaitsPerAddr
+// connections waiting for a key at once.
+var keyTurns = &addrTurns{per: cKeyWaitsPerAddr}
+
+type addrTurns struct {
+	per   int
+	mu    sync.Mutex
+	turns map[string]*addrTurn
+}
+
+type addrTurn struct {
+	slots chan struct{}
+	users int
+}
+
+// wait waits for addr's turn, or for gone (ok false); release ends it.
+func (a *addrTurns) wait(addr string, gone <-chan struct{}) (release func(), ok bool) {
+	a.mu.Lock()
+	if a.turns == nil {
+		a.turns = map[string]*addrTurn{}
+	}
+	t := a.turns[addr]
+	if t == nil {
+		t = &addrTurn{slots: make(chan struct{}, a.per)}
+		a.turns[addr] = t
+	}
+	t.users++
+	a.mu.Unlock()
+	leave := func() {
+		a.mu.Lock()
+		if t.users--; t.users == 0 {
+			delete(a.turns, addr)
+		}
+		a.mu.Unlock()
+	}
+	select {
+	case t.slots <- struct{}{}:
+		return func() { <-t.slots; leave() }, true
+	case <-gone:
+		leave()
+		return nil, false
+	}
 }
 
 // decryptSecret decrypts an RSA-OAEP(SHA-256) ciphertext produced by a
@@ -1825,6 +1904,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 
 	case *pb.ReqEnvelope_ReqGetPubKey:
 		privKey, err := ch.getOrCreatePrivKey()
+		if errors.Is(err, errPeerGone) {
+			// No reply reaches it.
+			log.Debug("a connection went before its key came")
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevAuthKeypairFailed().Render(lang)
+			break
+		}
 		if err != nil {
 			log.Error("error generating connection keypair:", err)
 			resp.Error = true
@@ -4936,6 +5022,7 @@ func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), an
 	// gone is closed once no further reply can reach the peer: it went
 	// away, or the connection was closed here.
 	gone := make(chan struct{})
+	ch.gone = gone
 	var goneOnce sync.Once
 	markGone := func() { goneOnce.Do(func() { close(gone) }) }
 	closeConn := func() {
