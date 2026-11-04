@@ -52,17 +52,54 @@ func (dao *Dao) NameHeld(domain, accountID string) (bool, error) {
 	return n > 0, err
 }
 
-// recordRelease holds domain for accountID (empty: for no one) from now.
-func (dao *Dao) recordRelease(domain, accountID string) error {
-	var acc any
-	if accountID != "" {
-		acc = accountID
+// NameHold is NameHeld for a request that registers the name: forOthers
+// when it can't be taken by accountID yet (NameHeld), and forAccount when
+// accountID itself released it less than cNameHold ago. Such a name comes
+// back to its account only as a move to a new identity would: whoever
+// takes it receives every client and friend that still knows it.
+func (dao *Dao) NameHold(domain, accountID string) (forOthers, forAccount bool, err error) {
+	var holder sql.NullString
+	err = dao.db.QueryRow(
+		"select `account_id` from `released_domains` where `domain` = ? and `released_at` > ?",
+		domain, time.Now().Add(-cNameHold),
+	).Scan(&holder)
+	if err == sql.ErrNoRows {
+		return false, false, nil
 	}
-	_, err := dao.db.Exec(
-		"insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?) "+
-			"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`)",
-		domain, acc, time.Now())
-	return err
+	if err != nil {
+		return false, false, err
+	}
+	if accountID != "" && holder.Valid && holder.String == accountID {
+		return false, true, nil
+	}
+	return true, false, nil
+}
+
+// recordRelease holds domain for accountID (empty: for no one) from now;
+// primary is the device it was a user's address of (empty: none).
+func (dao *Dao) recordRelease(domain, accountID, primary string) error {
+	acc, prim, now := nullIfEmpty(accountID), nullIfEmpty(primary), time.Now()
+	return dao.releasedPrimary.runPart(cReleasedPrimary, func() error {
+		_, err := dao.db.Exec(
+			"insert into `released_domains` (`domain`, `account_id`, `released_at`, `primary_domain`) values (?, ?, ?, ?) "+
+				"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`), `primary_domain` = values(`primary_domain`)",
+			domain, acc, now, prim)
+		return err
+	}, func() error {
+		_, err := dao.db.Exec(
+			"insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?) "+
+				"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`)",
+			domain, acc, now)
+		return err
+	})
+}
+
+// nullIfEmpty is s, or NULL for "".
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 type Dao struct {
@@ -111,6 +148,18 @@ type Dao struct {
 	lastOnlineCol optionalColumn
 	lastOnlineMu  sync.Mutex
 	lastOnline    map[string]time.Time
+
+	// A device's secret and the setup codes, kept hashed from migration
+	// 013 on, their plaintext gone with 014 (secrets.go): devices.secret
+	// (gone after 014), devices.secret_hash (there from 013),
+	// account_setup_codes (from 013) and account_tokens (gone after 014).
+	deviceSecret, deviceSecretHash optionalColumn
+	setupCodes, legacySetupTokens  optionalColumn
+
+	// The primary device a user's address belongs to (user_addresses.go):
+	// devices.primary_domain and released_domains.primary_domain, from
+	// migration 015.
+	devicePrimary, releasedPrimary optionalColumn
 }
 
 // cAuthEventEvery is how often one address may add a row per reason.
@@ -241,12 +290,24 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 // are kept: two years, and a month to spare.
 const cGrowthRetentionMonths = 25
 
+// IsValidDevice reports whether domain is registered here (defined) and
+// owner and secret are its device's. The secret is checked against its
+// plaintext while the schema keeps one - what a node of an older release
+// keeps current during a rolling deploy - and against its hash once
+// migration 014 has dropped it (secrets.go).
 func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecret bool, err error) {
 	log.Debug("Is valid device")
-	var dbSecret, dbOwner string
+	var dbOwner, dbSecret string
+	var dbHash sql.NullString
+	hashed := false
 	ctx, cancel := context.WithTimeout(context.Background(), cRelayDBTimeout)
 	defer cancel()
-	err = dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
+	err = dao.deviceSecret.runPart(cDevicesSecret, func() error {
+		return dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbSecret)
+	}, func() error {
+		hashed = true
+		return dao.db.QueryRowContext(ctx, "select `owner_uuid`, `secret_hash` from `devices` where `domain` = ?", domain).Scan(&dbOwner, &dbHash)
+	})
 	if err != nil {
 		// if we have sql.ErrNoRows that means that the domain is free for grabs
 		return err != sql.ErrNoRows, false, err
@@ -255,16 +316,23 @@ func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecre
 	// Constant-time: this gates onto the bridge relay for a device, worth
 	// the same care as the admin session-token check elsewhere in this
 	// codebase rather than a plain == that leaks timing information about
-	// how many leading bytes of the secret a guess got right.
-	validSecret = subtle.ConstantTimeCompare([]byte(owner), []byte(dbOwner)) == 1 &&
-		subtle.ConstantTimeCompare([]byte(secret), []byte(dbSecret)) == 1
+	// how many leading bytes of the secret a guess got right. An empty
+	// secret is never a device's.
+	secretOK := false
+	if hashed {
+		secretOK = dbHash.Valid && subtle.ConstantTimeCompare([]byte(SecretHash(secret)), []byte(dbHash.String)) == 1
+	} else {
+		secretOK = subtle.ConstantTimeCompare([]byte(secret), []byte(dbSecret)) == 1
+	}
+	validSecret = secret != "" && subtle.ConstantTimeCompare([]byte(owner), []byte(dbOwner)) == 1 && secretOK
 	return true, validSecret, nil
 }
 
+// RegistreDevice registers domain with no account (open registration, the
+// admin panel), its secret kept as withSecret says.
 func (dao *Dao) RegistreDevice(owner, uuid, secret string) (err error) {
 	log.Debug("Register device")
-	_, err = dao.db.Exec("insert into `devices` (`owner_uuid`, `domain`, `secret`) values (?, ?, ?)", owner, uuid, secret)
-	return
+	return dao.insertDevice([]string{"owner_uuid", "domain"}, []any{owner, uuid}, secret)
 }
 
 // IsDomainRegistered reports whether domain is already claimed here
@@ -321,12 +389,22 @@ func (dao *Dao) IsDeviceDisabled(domain string) (disabled bool, err error) {
 // check-then-write, so knowing the current secret is both how this proves
 // it's really that device asking, and the only thing that can trigger a
 // replacement (self-service "Regenerate" in Settings, issue #40 follow-up).
+// The new secret is kept as withSecret says, the old one matched as
+// secretMatches does.
 func (dao *Dao) RotateSecret(owner, domain, oldSecret, newSecret string) (ok bool, err error) {
 	log.Debug("Rotate device secret")
-	res, err := dao.db.Exec(
-		"update `devices` set `secret` = ? where `owner_uuid` = ? and `domain` = ? and `secret` = ?",
-		newSecret, owner, domain, oldSecret,
-	)
+	if oldSecret == "" {
+		return false, nil
+	}
+	var res sql.Result
+	err = dao.secretMatches(oldSecret, func(cond string, condArgs []any) error {
+		return dao.withSecret(newSecret, func(cols []string, vals []any) error {
+			args := append(append(append([]any{}, vals...), owner, domain), condArgs...)
+			var err error
+			res, err = dao.db.Exec("update `devices` set "+setColumns(cols)+" where `owner_uuid` = ? and `domain` = ? and "+cond, args...)
+			return err
+		})
+	})
 	if err != nil {
 		return false, err
 	}
@@ -375,6 +453,7 @@ func (dao *Dao) DeleteDevice(domain string) (err error) {
 	if _, err := dao.db.Exec("delete from `released_domains` where `domain` = ?", domain); err != nil {
 		log.Error("could not lift the hold on", domain, ":", err)
 	}
+	dao.forgetPrimary(domain)
 	dao.forgetDomain(domain)
 	return nil
 }
@@ -984,31 +1063,10 @@ func (dao *Dao) TouchAccount(id string) error {
 	return err
 }
 
-// SaveAccountToken stores a one-time token (see account_tokens in db.sql).
-func (dao *Dao) SaveAccountToken(token, accountID, purpose string, expires time.Time) error {
-	_, err := dao.db.Exec("insert into `account_tokens` (`token`, `account_id`, `purpose`, `expires`) values (?, ?, ?, ?)", token, accountID, purpose, expires)
-
-	return err
-}
-
-// AccountForToken is the account a live token of that purpose belongs to;
-// found is false for an unknown or expired token. Not consumed: a setup
-// token stays usable for its whole life, so a claim that fails on a taken
-// name can be retried with another name.
-func (dao *Dao) AccountForToken(token, purpose string) (accountID string, found bool, err error) {
-	err = dao.db.QueryRow("select `account_id` from `account_tokens` where `token` = ? and `purpose` = ? and `expires` > ?", token, purpose, time.Now()).Scan(&accountID)
-	if err == sql.ErrNoRows {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, err
-	}
-
-	return accountID, true, nil
-}
-
+// PruneAccountTokens drops the expired setup codes, sign-in states and
+// email links.
 func (dao *Dao) PruneAccountTokens() error {
-	if _, err := dao.db.Exec("delete from `account_tokens` where `expires` < ?", time.Now()); err != nil {
+	if err := dao.pruneSetupCodes(time.Now()); err != nil {
 		return err
 	}
 	// ConsumeOAuthState takes a state for 15 minutes; a few more cover the
@@ -1192,17 +1250,30 @@ func (dao *Dao) DomainAccount(domain string) (accountID string, registered bool,
 // RegisterAccountDevice is RegistreDevice for a domain that belongs to an
 // account (issue #124).
 func (dao *Dao) RegisterAccountDevice(accountID, owner, domain, secret string) error {
-	_, err := dao.db.Exec("insert into `devices` (`owner_uuid`, `domain`, `secret`, `account_id`, `created`) values (?, ?, ?, ?, ?)", owner, domain, secret, accountID, time.Now())
-
-	return err
+	return dao.insertDevice([]string{"owner_uuid", "domain", "account_id", "created"}, []any{owner, domain, accountID, time.Now()}, secret)
 }
 
 // ReplaceDeviceIdentity hands a domain to a new device: the owner uuid
 // and secret the old one presented stop working the moment this commits.
-// Only the owning account gets here (a lost device replaced by running
-// setup again, or "new identity" on the account page).
+// Only the owning account gets here, with its owner's confirmation (a lost
+// device replaced by running setup again, or "new identity" on the account
+// page). A user's address moved this way is no longer its primary's to
+// move (ReplaceUserAddressIdentity): the device that has it now does.
 func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (ok bool, err error) {
-	res, err := dao.db.Exec("update `devices` set `owner_uuid` = ?, `secret` = ? where `domain` = ? and `account_id` = ?", owner, secret, domain, accountID)
+	var res sql.Result
+	update := func(clearPrimary string) error {
+		return dao.withSecret(secret, func(cols []string, vals []any) error {
+			args := append(append(append([]any{owner}, vals...), domain), accountID)
+			var err error
+			res, err = dao.db.Exec("update `devices` set `owner_uuid` = ?, "+setColumns(cols)+clearPrimary+" where `domain` = ? and `account_id` = ?", args...)
+			return err
+		})
+	}
+	err = dao.devicePrimary.runPart(cDevicesPrimary, func() error {
+		return update(", `primary_domain` = null")
+	}, func() error {
+		return update("")
+	})
 	if err != nil {
 		return false, err
 	}
@@ -1213,15 +1284,17 @@ func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (
 
 // DeleteAccountDomain releases a domain, but only the owning account's.
 func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err error) {
+	primary := dao.primaryOf(domain)
 	res, err := dao.db.Exec("delete from `devices` where `domain` = ? and `account_id` = ?", domain, accountID)
 	if err != nil {
 		return false, err
 	}
 	n, err := res.RowsAffected()
 	if err == nil && n > 0 {
-		if relErr := dao.recordRelease(domain, accountID); relErr != nil {
+		if relErr := dao.recordRelease(domain, accountID, primary); relErr != nil {
 			log.Error("could not hold released name", domain, ":", relErr)
 		}
+		dao.forgetPrimary(domain)
 		dao.forgetDomain(domain)
 	}
 

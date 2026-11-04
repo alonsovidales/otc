@@ -161,7 +161,7 @@ func goErrors(t *testing.T) map[string][]string {
 		if m := catalogCall.FindStringSubmatch(expr); m != nil {
 			// A key without arguments; one with them is made at run time.
 			if text = english[m[1]]; text == "" {
-				t.Errorf("%s: no api.* key without arguments has this constructor", expr)
+				t.Errorf("%s: no api.* or site.account.* key without arguments has this constructor", expr)
 			}
 		} else if err != nil {
 			text = named[expr] // a constant; "" for anything made at run time
@@ -190,26 +190,51 @@ func goErrors(t *testing.T) map[string][]string {
 var catalogCall = regexp.MustCompile(`^errorText\(i18n\.(\w+)\(\)\)$`)
 
 // catalogEnglish is the English the Go side renders for each api.* key
-// without arguments, by the name of its constructor (ApiErrorNameTaken).
+// without arguments, by the name of its constructor (ApiErrorNameTaken) -
+// and each site.account.* one, the words of the codes added since the
+// api.* keys (SiteAccountErrorMoveNeedsSignin).
 func catalogEnglish(t *testing.T) map[string]string {
 	t.Helper()
-	b, err := os.ReadFile("../../i18n/strings/en/api.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var entries map[string]struct {
-		Args []json.RawMessage `json:"args"`
-	}
-	if err := json.Unmarshal(b, &entries); err != nil {
-		t.Fatal(err)
-	}
 	out := map[string]string{}
-	for key, e := range entries {
-		if len(e.Args) == 0 {
-			out[model.GoName(key)] = i18n.T("en", key, nil)
+	for _, file := range []string{"api.json", "site.account.json"} {
+		b, err := os.ReadFile("../../i18n/strings/en/" + file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var entries map[string]struct {
+			Args []json.RawMessage `json:"args"`
+		}
+		if err := json.Unmarshal(b, &entries); err != nil {
+			t.Fatal(err)
+		}
+		for key, e := range entries {
+			if len(e.Args) == 0 {
+				out[model.GoName(key)] = i18n.T("en", key, nil)
+			}
 		}
 	}
 	return out
+}
+
+// signupRefusal is the English a sign-up with password is refused with,
+// which must carry code.
+func signupRefusal(t *testing.T, password, code string) string {
+	t.Helper()
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	rec := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]string{"email": "a@b.c", "password": password})
+	accounts.Init(dao.NewWithDB(db), []byte("k"), "off-the.cloud").Signup(rec, httptest.NewRequest(http.MethodPost, "/api/account/signup",
+		strings.NewReader(string(body))))
+	var out struct{ Code, Error string }
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	if out.Code != code {
+		t.Fatalf("a sign-up with a %d-byte password: %d %s, want %s", len(password), rec.Code, rec.Body.String(), code)
+	}
+	return out.Error
 }
 
 var cCodePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
@@ -264,27 +289,13 @@ func TestAccountPageErrorTable(t *testing.T) {
 			_, e := (&API{dao: dao.NewWithDB(db)}).domainLimitReached("acc1")
 			return e.msg
 		}(),
-		"password_too_short": func() string {
-			db, _, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer db.Close()
-			rec := httptest.NewRecorder()
-			accounts.Init(dao.NewWithDB(db), []byte("k"), "off-the.cloud").Signup(rec, httptest.NewRequest(http.MethodPost, "/api/account/signup",
-				strings.NewReader(`{"email":"a@b.c","password":"short"}`)))
-			var out struct{ Code, Error string }
-			_ = json.Unmarshal(rec.Body.Bytes(), &out)
-			if out.Code != "password_too_short" {
-				t.Fatalf("a short password: %d %s", rec.Code, rec.Body.String())
-			}
-			return out.Error
-		}(),
+		"password_too_short": signupRefusal(t, "short", "password_too_short"),
+		"password_too_long":  signupRefusal(t, strings.Repeat("x", 73), "password_too_long"),
 	}
 	reworded := map[string]bool{"recent_signin_required": true}
 	// The figures the page's script fills in (fillIn), by the API keys'
 	// placeholder names.
-	fill := strings.NewReplacer("{min_chars}", "8", "{max_domains}", strconv.Itoa(accounts.MaxDomains),
+	fill := strings.NewReplacer("{min_chars}", "8", "{max_chars}", "72", "{max_domains}", strconv.Itoa(accounts.MaxDomains),
 		"{price_eur}", strconv.Itoa(accounts.ExtraDomainEUR), "{contact}", accounts.ContactEmail, "{body}", `{"confirm": "delete"}`)
 	for code, text := range page {
 		texts, ok := codes[code]

@@ -11,7 +11,10 @@ create table devices
 (
   `owner_uuid` varchar(64) not null,
   `domain` varchar(150) not null,
-  `secret` varchar(150) not null,
+  -- SHA-256 (hex) of the device's relay secret: the secret itself is never
+  -- stored (an existing bridge gets here with migrations/013-hashed-secrets.sql
+  -- and 014-drop-plaintext-secrets.sql).
+  `secret_hash` char(64) character set ascii collate ascii_bin default null,
   -- Issue #93: set by the primary instance whenever it disables/re-enables
   -- one of its own additional users (issue #90) - that user's own process
   -- is actually stopped while disabled, so the bridge is the only place
@@ -34,11 +37,17 @@ create table devices
   -- panel's "Last online". migrations/012-last-online.sql adds it to an
   -- existing bridge.
   `last_online_at` datetime default null,
+  -- A user's address (issue #103): the domain of the primary device that
+  -- registered it for one of its users; NULL for every other name. Only
+  -- that primary gives the address a new identity over the websocket
+  -- (migrations/015-user-addresses.sql adds it to an existing bridge).
+  `primary_domain` varchar(150) default null,
 
   key (`owner_uuid`),
   unique (`domain`),
   key (`domain`),
-  key (`account_id`)
+  key (`account_id`),
+  key (`primary_domain`)
 ) engine=InnoDB;
 
 -- Issue #124: user accounts. Every domain registered belongs to one (up to
@@ -110,17 +119,21 @@ create table account_logins
   key (`account_id`)
 ) engine=InnoDB;
 
--- One-time, short-lived tokens: purpose "setup" is what the setup wizard
--- presents with /api/claim to say which account a new domain belongs to
--- (also typed by hand as a setup code).
-create table account_tokens
+-- Setup codes: what the setup wizard presents with /api/claim to say which
+-- account a new domain belongs to (also typed by hand). Short-lived, kept
+-- by an HMAC of the code under a key of the bridge's own (the code itself
+-- is never stored), with whether it may move one of the account's names to
+-- a new device: only a code made right after its owner signed in may.
+create table account_setup_codes
 (
-  `token` varchar(128) not null,
+  `code_hash` char(64) character set ascii collate ascii_bin not null,
   `account_id` varchar(36) not null,
-  `purpose` varchar(16) not null,
+  `owner_confirmed` tinyint(1) not null default 0,
+  `created` datetime not null,
   `expires` datetime not null,
 
-  primary key (`token`),
+  primary key (`code_hash`),
+  key (`account_id`),
   key (`expires`)
 ) engine=InnoDB;
 
@@ -287,12 +300,14 @@ create table auth_events
 ) engine=InnoDB;
 
 -- A released device name is held for its last account for 30 days (see
--- migrations/004-released-domains.sql).
+-- migrations/004-released-domains.sql); primary_domain is the released
+-- user's address's devices.primary_domain (migrations/015-user-addresses.sql).
 create table released_domains
 (
   `domain`      varchar(150) not null,
   `account_id`  varchar(64) default null,
   `released_at` datetime not null,
+  `primary_domain` varchar(150) default null,
 
   primary key (`domain`)
 ) engine=InnoDB;

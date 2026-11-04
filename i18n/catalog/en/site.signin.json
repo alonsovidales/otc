@@ -1,4 +1,6 @@
 {
+  "site.signin.continue.app_heading": {"text": "Continue in the Off The Cloud app?"},
+  "site.signin.continue.app_text": {"text": "Continue hands your sign-in to the Off The Cloud app, to finish setting up a device. Only do this if you started setting it up in the app yourself, just now: for 15 minutes, whoever has the sign-in can add devices to your account, or move one of your device names to a device of theirs."},
   "site.signin.continue.button": {"text": "Continue"},
   "site.signin.continue.cancel": {"text": "Cancel"},
   "site.signin.continue.heading": {"text": "Continue setting up the device at <b>{host}</b>?", "args": [["host", "text"]]},

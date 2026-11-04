@@ -94,10 +94,10 @@ func TestPasswordHashRoundTrip(t *testing.T) {
 		t.Fatalf("hashPassword failed: %v", err)
 	}
 
-	if !checkPassword(hash, "correct horse battery staple") {
+	if ok, _ := checkPassword(hash, "correct horse battery staple"); !ok {
 		t.Error("expected the correct password to check out against its own hash")
 	}
-	if checkPassword(hash, "wrong password") {
+	if ok, _ := checkPassword(hash, "wrong password"); ok {
 		t.Error("expected an incorrect password to fail the check")
 	}
 }
@@ -315,7 +315,7 @@ func TestAddDeviceNeverReturnsTheSecret(t *testing.T) {
 
 	const secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
 	mock.ExpectExec("insert into `devices`").
-		WithArgs("owner-1", "someone.off-the.cloud", secret).
+		WithArgs("owner-1", "someone.off-the.cloud", secret, dao.SecretHash(secret)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	a := Init(dao.NewWithDB(db), []byte("session-secret"))
@@ -389,7 +389,7 @@ func TestAddDeviceGeneratesOwnerUuidWhenOmitted(t *testing.T) {
 
 	const secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
 	mock.ExpectExec("insert into `devices`").
-		WithArgs(sqlmock.AnyArg(), "someone.off-the.cloud", secret).
+		WithArgs(sqlmock.AnyArg(), "someone.off-the.cloud", secret, dao.SecretHash(secret)).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	a := Init(dao.NewWithDB(db), []byte("session-secret"))
@@ -447,7 +447,10 @@ func TestAdminLoginTimingMatchesForUnknownUsers(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("login: %d %s", w.Code, w.Body)
 	}
-	if cost, err := bcrypt.Cost([]byte(rehashed)); err != nil || cost != limits.BcryptCost || !checkPassword(rehashed, "the-real-password") {
+	if ok, _ := checkPassword(rehashed, "the-real-password"); !ok {
+		t.Error("the rehash doesn't take the password")
+	}
+	if cost, err := bcrypt.Cost([]byte(rehashed)); err != nil || cost != limits.BcryptCost {
 		t.Errorf("rehashed to cost %d (%v)", cost, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -543,6 +546,100 @@ func TestChangePasswordRefusesAWrongCurrentOrShortNewOne(t *testing.T) {
 	a.ChangePassword(w, req)
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("no session: status = %d, want 401", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// set-admin-password (bin/otc_bridge.go) goes through SetPassword whether
+// the password was typed at a terminal or piped in: the panel's rules hold
+// either way - at least 12 characters, at most the 72 bytes bcrypt keeps -
+// and nothing is stored for a password that breaks them.
+func TestSetPasswordHoldsThePanelsRules(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	for _, bad := range []string{"admin1", strings.Repeat("x", cMinPasswordLen-1), strings.Repeat("x", 73), strings.Repeat("é", 37)} {
+		// Refused for what it is, before anything is hashed or stored.
+		if err := a.SetPassword("admin", bad); err == nil || !strings.HasPrefix(err.Error(), "use at ") {
+			t.Errorf("a %d-byte password: %v", len(bad), err)
+		}
+	}
+	if err := a.SetPassword("admin", ""); err == nil {
+		t.Error("an empty password was set")
+	}
+	if err := a.SetPassword("", "a-long-enough-password"); err == nil {
+		t.Error("a password was set for no username")
+	}
+	for _, good := range []string{strings.Repeat("x", cMinPasswordLen), strings.Repeat("x", 72)} {
+		var stored string
+		mock.ExpectExec("insert into `admin_users`").WithArgs("admin", hashArg{&stored}).WillReturnResult(sqlmock.NewResult(0, 1))
+		if err := a.SetPassword("admin", good); err != nil {
+			t.Errorf("a %d-byte password: %v", len(good), err)
+		}
+		if ok, _ := checkPassword(stored, good); !ok {
+			t.Errorf("a %d-byte password: what was stored doesn't take it", len(good))
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A guesser rotating through the /64s of one /48 (each with its own five
+// failures) locks the whole network out once it has failed
+// cLoginNetMaxFailures times, and every attempt - a right password too -
+// is bounded per address and per network before any work: past either,
+// a 429 with Retry-After, without the database or a bcrypt.
+func TestLoginIsBoundedPerNetwork(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	login := func(remoteAddr, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/admin/api/login", strings.NewReader(body))
+		req.RemoteAddr = remoteAddr
+		w := httptest.NewRecorder()
+		a.Login(w, req)
+		return w
+	}
+	const guess = `{"username":"operator","password":"wrong-guess"}`
+	now := time.Now()
+	for i := 0; i < cLoginNetMaxFailures; i++ {
+		r := httptest.NewRequest(http.MethodPost, "/admin/api/login", nil)
+		r.RemoteAddr = fmt.Sprintf("[2001:db8:1:%x::1]:1111", i+1)
+		a.failed(r, clientIP(r), now)
+	}
+	if w := login("[2001:db8:1:ffff::1]:1111", guess); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("a fresh /64 of the /48: %d, Retry-After %q, want 429 with one", w.Code, w.Header().Get("Retry-After"))
+	}
+	mock.ExpectQuery("select `password_hash` from `admin_users`").WillReturnRows(sqlmock.NewRows([]string{"password_hash"}))
+	if w := login("[2001:db8:2::1]:1111", guess); w.Code != http.StatusUnauthorized {
+		t.Errorf("another /48: %d, want 401", w.Code)
+	}
+
+	// Attempts, counted before the body is read.
+	a.tries = limits.NewRate(1.0/3600, 2)
+	a.triesPerNet = limits.NewRate(1.0/3600, 3)
+	for i := 0; i < 2; i++ {
+		if w := login("198.51.100.4:1111", "not json"); w.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d: %d", i, w.Code)
+		}
+	}
+	if w := login("198.51.100.4:2222", "not json"); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Errorf("a third attempt from the address: %d", w.Code)
+	}
+	if w := login("198.51.100.5:1111", "not json"); w.Code != http.StatusBadRequest {
+		t.Errorf("another address of the /24: %d", w.Code)
+	}
+	if w := login("198.51.100.6:1111", "not json"); w.Code != http.StatusTooManyRequests {
+		t.Errorf("the /24 past its attempts: %d", w.Code)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

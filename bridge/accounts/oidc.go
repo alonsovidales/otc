@@ -24,6 +24,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/cfg"
@@ -140,12 +141,10 @@ func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 	// Counted only for a start that writes a state: a bad provider or
 	// return address costs nothing.
-	if a.oauthStarts != nil {
-		if ok, wait := a.oauthStarts.Take(clientIP(r)); !ok {
-			limits.RetryAfter(w, wait)
-			a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
-			return
-		}
+	if ok, wait := takeAll(limitKey{a.oauthStarts, clientIP(r)}, limitKey{a.oauthStartsPerNet, clientaddr.NetBucketOf(r)}); !ok {
+		limits.RetryAfter(w, wait)
+		a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
+		return
 	}
 	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {
@@ -281,11 +280,11 @@ func signInError(w http.ResponseWriter, r *http.Request, code string) {
 
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
 // id_token, finds or creates the account, sets the session, and sends the
-// browser on: to /account (or to complete the profile first); to the app
-// with its one-time code when the sign-in started there; and when it
-// started on a device's page on the home network, to the question before
-// that page gets a setup token (askBeforeSetup, setupconfirm.go) - this
-// page itself, or ContinueSetup's after the profile.
+// browser on: to /account (or to complete the profile first); and when it
+// started on a device's page on the home network or in an app, to the
+// question before that page gets a setup token or the app its one-time
+// code (askBeforeSetup, setupconfirm.go) - this page itself, or
+// ContinueSetup's after the profile.
 func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
@@ -313,6 +312,11 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	startedHere := oauthStartedHere(r, state)
 	if !startedHere && !isPreCookieState(state) {
 		signInError(w, r, cSignInExpired)
+		return
+	}
+	// A state of an older node's shape needs no cookie: that one costs a
+	// transaction on the primary for any link anyone sends.
+	if !a.lookupAllowed(w, r, func() { a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests) }) {
 		return
 	}
 	returnURL, found, err := a.dao.ConsumeOAuthState(state)
@@ -364,19 +368,26 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if acc == nil {
 		// The same email signed up with a password (or the other
 		// provider) earlier: same person, link rather than duplicate.
+		created := false
 		acc, err = a.dao.GetAccountByEmail(email)
 		if err != nil {
 			a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 			return
 		}
-		if acc != nil && acc.PasswordHash != "" {
-			// A password account for this email: whoever signed up with
-			// it may not be the person now proving they own the address.
-			// The provider sign-in wins - the password is cleared (a new
-			// one can be set from the account page).
-			// Not linked unless cleared: the old password would go on
-			// working on the linked account. Nothing is changed yet, so
+		if acc != nil && acc.PasswordHash != "" && !acc.EmailVerified {
+			// A password account for this email that never proved it:
+			// whoever signed up with it may not be the person now proving
+			// they own the address (an account made in someone else's
+			// name ahead of them). The provider sign-in wins - the
+			// password is cleared (a new one can be set from the account
+			// page). Not linked unless cleared: the old password would go
+			// on working on the linked account. Nothing is changed yet, so
 			// the user can simply try again.
+			//
+			// An account whose email was proven keeps its password: the
+			// person who confirmed the address is the one signing in with
+			// it now, and clearing it only left them "wrong email or
+			// password" the next time they typed it, with no word why.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
 				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
@@ -389,19 +400,25 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// Google and Apple verify the email themselves.
 			// The browser's language for its emails, as at an email sign-up
 			// (the callback is a top-level navigation, Apple's a form post).
-			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true,
+			newAccount := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true,
 				Lang: requestLanguage("", r)}
-			if err := a.dao.CreateAccount(&created); err != nil {
+			if err := a.dao.CreateAccount(&newAccount); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
 				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
-			acc = &created
-			log.Info("account created with", p.name, ":", created.ID) // not the email (issue #162)
-			a.notifyNewAccount(created.Email)
+			acc = &newAccount
+			created = true
+			log.Info("account created with", p.name, ":", newAccount.ID) // not the email (issue #162)
+			a.notifyNewAccount(newAccount.Email)
 		}
 		if err := a.dao.LinkAccountLogin(p.name, subject, acc.ID); err != nil {
 			log.Error("error linking a", p.name, "login:", err)
+		}
+		// A proven email/password account keeps its password when linked:
+		// its owner is told, since that password may not be theirs.
+		if !created && acc.PasswordHash != "" {
+			a.notifyProviderLinked(acc, p.name)
 		}
 		// The provider proved the address: an email sign-up still waiting
 		// for its link is verified now.
@@ -463,7 +480,13 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
 		return a.appRedirect(accountID, returnURL)
 	}
-	tok, err := a.IssueSetupToken(accountID)
+	// Only ever after a Google or Apple sign-in made in this browser and
+	// its Continue (ConfirmSetup): its owner just proved who they are.
+	tok, err := a.IssueSetupToken(accountID, true)
+	if errors.Is(err, ErrTooManySetupCodes) {
+		log.Info("no setup code after a sign-in:", err)
+		return "/account"
+	}
 	if err != nil {
 		log.Error("error issuing a setup token after sign-in:", err)
 		return "/account"
@@ -478,14 +501,16 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 
 // ContinueSetup is the last step of "complete your profile" after a
 // provider sign-in that started on a device's page or in an app: GET
-// /api/account/continue?return=. The app gets its one-time code; a device's
-// page the question before its setup token (askBeforeSetup), for the grant
-// the provider's callback gave this browser for that address - none, and
-// nothing goes there.
+// /api/account/continue?return=. Either gets the question first
+// (askBeforeSetup) - before the device's page gets its setup token, or the
+// app its one-time code - for the grant the provider's callback gave this
+// browser for that address; none, and nothing goes there.
 //
 // Only the account page itself may send the browser here: the Lax cookie
 // rides on any site's link, and that site would pick where the token goes
-// (an address on the same LAN) or the app flow's PKCE challenge.
+// (an address on the same LAN) or the app flow's PKCE challenge. The page
+// takes ?return= from its own address, which a link can write too: the
+// grant is what ties it to a sign-in this browser made.
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !a.sameOriginNavigation(r) {
 		log.Info("refused a cross-site /api/account/continue")
@@ -493,21 +518,17 @@ func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
-	if !ok || returnURL == "" {
+	if !ok || !needsConfirm(returnURL) {
 		a.pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
-	if needsConfirm(returnURL) {
-		g, ok := a.setupGrantFor(r, accountID, returnURL, time.Now())
-		if !ok {
-			log.Info("refused a setup's continue without this browser's sign-in for it")
-			a.pageError(w, r, i18n.ApiPageSetupExpired(), http.StatusBadRequest)
-			return
-		}
-		a.askBeforeSetup(w, r, g)
+	g, ok := a.setupGrantFor(r, accountID, returnURL, time.Now())
+	if !ok {
+		log.Info("refused a setup's continue without this browser's sign-in for it")
+		a.pageError(w, r, i18n.ApiPageSetupExpired(), http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)
+	a.askBeforeSetup(w, r, g)
 }
 
 // sameOriginNavigation is whether a request was started by one of the

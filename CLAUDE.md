@@ -344,12 +344,19 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 
 **Tests**: most device and bridge packages have `_test.go` files (`face_recognition` needs the
 OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
-`TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestListAdminDevicesMySQL` under
-`ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
+`TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestEmailLinksSpentWithTheirWriteMySQL`,
+`TestListAdminDevicesMySQL` under `ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`,
+`TestNameHoldMySQL`, `TestHashedSecretsMySQL`, `TestUserAddressesMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
 points at the Lima VM's bridge schema (with `&time_zone=%27%2B00%3A00%27`, as the bridge's own
 DSN); the ones about an optional column run against both schemas - the VM's `otc` database has
 migrations 010 and 012, `otc_b1_nolang` neither (neither has 011's tables, so `TestGrowthMySQL`
-fails there). A
+fails there). `TestHashedSecretsMySQL` is meant for each step of the move to hashed secrets: a
+schema from before migration 013 (`devices.secret` and `account_tokens` only), one with 013 run
+(both forms), and one with 014 run or a fresh `db.sql` (the hashes only) - it says which it found,
+and refuses a schema between the steps; `TestUserAddressesMySQL` runs with or without migration
+015's columns, and says which it found. A scratch database of your own (`db.sql` without its first
+lines, which create the `otc` user and database) and a user for it, both dropped afterwards, keep
+the shared VM's alone. A
 package var a test shortens must be restored only after the handlers reading it are done (a plain
 `defer` raced under `-race`): bridge tests use `setVar` with a test bridge that waits for its
 handlers; httptest's `Close` doesn't wait for hijacked websockets. `websocket/write_reply_test.go`'s
@@ -2985,7 +2992,11 @@ Pages and those files are gzipped, and so are the static directory's text files 
 bridge's host are 404 (never the old web app's `index.html` left in `/var/www`); `www.` is a 301
 to the bare domain; every answer for a device's address says `X-Robots-Tag: noindex`
 (`noindexDevices`). Static files: content-named fonts cached for good, a picture asked for with
-its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`. A device's web app
+its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`; the static pages
+(admin, privacy, terms) are never framed and load nothing from elsewhere (`setStaticPagePolicy`:
+`X-Frame-Options: DENY` and a policy with `frame-ancestors 'none'` - a device's page is the same
+site, so the admin panel's Strict cookie would ride along into a frame there; the panel's allows
+its inline script and the bridge's API, the others run nothing). A device's web app
 files, relayed by `proxyStaticAsset`, go out with `X-Content-Type-Options: nosniff` and
 `Content-Security-Policy: frame-ancestors 'none'` only (a fuller policy would have to fit every
 web app build a device may still run; the device types each file by its extension), and text
@@ -3403,12 +3414,21 @@ cookie (403 `cConfirmEmailFirst`, or `cAcceptTermsFirst` without the current ter
 unverified account (a database error loading the account there is a 500, not "confirm your email";
 `LookupSetupToken` is the error-aware form of `AccountForSetupToken`, and `IssueSetupToken` returns
 database errors as they are, so `ErrEmailNotVerified` means just that); Google/Apple
-accounts are verified by the provider, and linking one verifies an email account; accounts from
+accounts are verified by the provider, and linking one verifies an email account - clearing the
+password of one that was never verified (someone may have signed up in the owner's name) and
+ending its sessions, while a verified account keeps its password and its address is told so
+(`notifyProviderLinked`, `mail.provider_link.*`, greeting no one by name: whoever signed up may
+have had their confirmation link clicked, and "Forgot your password?" ends their sessions); accounts from
 before migration 007 were kept verified. `?for=setup` sign-in/sign-up of an unverified account
 answers `verify_email: true` (and resends the link on a sign-in); the setup wizard shows "Confirm
 your email" and signs in again. Password reset: `/api/account/forgot` (same answer for any
 email) mails a one-hour `#reset=` link; `/api/account/reset` sets the password, verifies the
-email and ends every other session. A new link is sent before older ones are dropped
+email and ends every other session. A link is spent only in the transaction that stores what it
+is for (`ResetPasswordWithToken`, which takes the account's other reset links with it, and
+`VerifyEmailWithToken`): a write that fails leaves it working for the retry, and a reset looks
+at its link before the bcrypt. New passwords are 8 to 72 bytes (`cMaxPasswordBytes`, all bcrypt
+keeps - x/crypto refuses to hash more): longer is `password_too_long`, at sign-up, on a change
+and on a reset; a sign-in still takes any length. A new link is sent before older ones are dropped
 (`KeepNewestEmailToken`), and a QUIT error after an accepted DATA counts as sent.
 
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`,
@@ -3447,9 +3467,38 @@ bcrypt; and a sign-in that succeeds clears nothing (failures age out of the wind
 to one's own account between guesses at another's would reset the count (the admin panel's still
 clears: nobody can make an admin). Every per-address throttle (both sign-in limiters, sign-ups,
 emails, sign-in starts, the
-contact and claim cooldowns, one-off GETs, setup beacons, pairing) counts `clientaddr.Bucket`: an
-IPv4 address, or an IPv6 /64, which one host can rotate through; logs, `BridgeClientInfo` and stored
-rows keep the address itself. The account sign-in's, sign-up's and email 429s carry Retry-After,
+contact and claim cooldowns, lookups, one-off GETs, setup beacons, pairing) counts
+`clientaddr.Bucket`: an IPv4 address, or an IPv6 /64, which one host can rotate through; logs,
+`BridgeClientInfo` and stored rows keep the address itself. Since a /48 (free from tunnel brokers)
+is 65,536 such buckets, sign-ups,
+failed passwords, the "send me an email" requests, the contact form, Google/Apple sign-in starts and
+setup beacons (the last two a database write each) are also bounded per network
+(`clientaddr.NetBucket`: an IPv4 /24, an IPv6 /48 - 20 sign-ups an hour, 40 failed passwords in 10
+minutes, 30 emails an hour, 5 messages a minute, 120 sign-in starts a minute, beacons 20/s with a
+burst of 100) and on the whole node (120 sign-ups an hour; 120
+emails an hour that strangers can have sent, `emailBudget` - the new-account note to the project
+goes after the person's confirmation, and only while 10 more stay (`AllowLeaving`, `cNoteReserve`),
+so it is the first to go; 30 contact messages a minute); and at most half the cores hash passwords at once
+(`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
+is a 503 with Retry-After and the handler's own "could not ... right now" code, never a failed
+password. Every request that hashes a password it carries takes a token per address and per network
+before any work, the right passwords too - failures are counted only once their bcrypt is done, so
+many sent at once all got one: an account sign-in, reset, password change or owner confirmation
+(`passwordTryAllowed`: 10 a minute an address, 60 a network; a 429 `too_many_attempts` with
+Retry-After), and the admin login and password change (`attemptAllowed`: 10 and 30 a minute), whose
+failures also count per network (20 in 15 minutes lock the network out, `netLimiter`). The
+unauthenticated requests that ask the database whether what they carry is real are
+bounded per address and per network before they ask: name-available, claims (whose setup code is
+looked up first) and setup-lookup in `bridge/api` (`allowLookup`: 5/s, burst 40 an address, 20/s,
+burst 150 a network - the wizard checks a name as it is typed and polls the hand-off every 2 s), and
+setup-token-info, verify, reset, app-exchange and the sign-in callback in `bridge/accounts`, which
+share one (`lookupAllowed`: 2/s, burst 20 an address, 10/s, burst 100 a network); past either, a 429
+with Retry-After. An account makes at most 10 setup codes in 15 minutes on a node
+(`codesPerAccount`; past it a 429 with Retry-After and the code's own "could not" text). A
+confirmation or reset email greets the account by name only once its address is
+proven (`greetingName`): whoever signs up types the name and picks the address. The contact and
+claim cooldowns, and the admin login's limiter, are swept on a timer (or as the map doubles), not
+at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`
 (deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
@@ -3481,21 +3530,51 @@ while refetches fail the last good keys verify for up to 24 h - the id_token ver
 `golang-jwt/jwt/v5`; Apple's
 client secret is an ES256 JWT signed with the team's .p8), HMAC-signed session cookies like the
 admin panel's (`otc_account`, path `/`, same signing secret), and **setup tokens** - 8-character
-codes from an unambiguous alphabet, 15 minutes, in `account_tokens` - which are the only link
-between a wizard's claim and an account. The domains themselves are handled in `bridge/api`
+codes from an unambiguous alphabet, 15 minutes, kept in `account_setup_codes` by their HMAC
+under a key derived from the session secret (never as they are), with whether the code was made
+right after its owner signed in - which are the only link
+between a wizard's claim and an account. A device's relay secret is kept only as its SHA-256
+(`devices.secret_hash`, `dao/secrets.go`); an existing bridge gets there in two steps around a
+deploy, migrations 013 and 014, with both forms written in between for a node still on an older
+release (`bridge/cluster/README.md`, "Hashed secrets"). The domains themselves are handled in `bridge/api`
 next to the claim (`accountDomains`, `accountAddDomain`, `accountNewIdentity`,
 `accountReleaseDomain`), since they share the name rules: `claimName` takes the token from the
 body or `Authorization: Bearer`, refuses with `401 login_required` when there is none (unless
 `[accounts] open-registration=true`), hands a name the same account already owns to the new
 identity (`dao.ReplaceDeviceIdentity` - how a lost device is replaced), and caps an account at
-`accounts.MaxDomains` (403 `domain_limit`). `websocket.go`'s `ReqBridgeRegister` no longer
+`accounts.MaxDomains` (403 `domain_limit`). Moving a name to a new identity relays every client
+of it there, so a session cookie alone (a borrowed laptop, a stolen cookie) never does it: a claim
+for the account's own name needs a setup code made right after its owner proved who they are
+(a password or a Google/Apple sign-in just made - `?for=setup` sign-ins, the provider flows, the
+app's exchange - or the account page asked within 15 minutes of a sign-in, whose answer then
+says `owner_confirmed`) or a session that is a sign-in that recent (`FreshSignIn`), else 403
+`move_needs_signin`; the account page's New identity (`accountNewIdentity`) needs `ConfirmOwner`
+(the password, asked inline, or a provider sign-in within 15 minutes); and either emails the owner
+(`NotifyNewIdentity`, `mail.identity.*`). A code made for a session alone still registers new
+names. A name the account released less than 30 days ago (`dao.NameHold`: held for it, where
+`NameHeld` is held from everyone else) is still its own here - else a session would release it and
+register it again for a device of its own: a claim takes it back only as it moves one, the account
+page's add (`accountAddDomain`) asks `ConfirmOwner` for it (the page shows the password field after
+the `wrong_password` that no password gets - answered at once, unhashed and uncounted), and both
+email the owner; a hold that can't be read is a 500. Release (`accountReleaseDomain`) needs
+`ConfirmOwner` as account deletion does: it takes the device off the bridge. `websocket.go`'s `ReqBridgeRegister` no longer
 registers an unknown domain on dial-in unless open registration is on. A device's additional
 users with bridge access (issue #103, `pepe.off-the.cloud`) get theirs from the primary:
 `ReqRegisterUserDomain` (141, `bridge/websocket/user_domains.go`), authenticated as the primary
-and carrying the user's own identity, registers the address under the primary's account with
-claimName's rules (the account's own name goes to the new identity, another account's or a held
-name is refused, and it counts toward `accounts.MaxDomains` - the owner's choice, 2026-10-23);
-a primary whose domain predates accounts registers it without one. The device asks in
+and carrying the user's own identity, registers a free name under the primary's account as that
+primary's user's address (`devices.primary_domain`, migration `015-user-addresses.sql`,
+`bridge/dao/user_addresses.go`; it counts toward `accounts.MaxDomains` - the owner's choice,
+2026-10-23) and refuses another account's name or one held from it. It moves no name its owner
+hasn't confirmed: any device of the account can send it, and a session alone puts a device on the
+account. Only the asking primary's own users' addresses go to a new identity (the user added again)
+or come back while held after their release (`released_domains.primary_domain`); any other name of
+the account is `name_taken`, or `name_held` while held, and moves only with claimName's
+`ownerConfirmed` or the account page's `ConfirmOwner`. Asked for with the address's own identity
+(every start of the primary), an address registered before 015 is recorded as that primary's; a
+name moved by `ReplaceDeviceIdentity` (setup, New identity) stops being a user's address, and so do
+a released primary's users'. A move here emails the owner as well (`SetIdentityNotice`, set to
+`NotifyNewIdentity` in main); without 015's columns nothing moves this way. A primary whose domain
+predates accounts registers its users' addresses without one. The device asks in
 `createUser` before provisioning (`websocket/user_domains.go`; a later failure gives it back),
 gives it back in `deleteUser` (`BridgeReleaseDomain` with the user's identity), and at every
 start of the primary asks again for every active user with bridge access
@@ -3524,7 +3603,8 @@ Inside the apps' Bluetooth setup the phone has its own internet, so the
 account step also offers "Continue with Apple/Google" (the wizard's `/api/providers`): the app
 runs `/account/auth/<p>/start?return=otcsetup://done&challenge=…` in the system sign-in sheet
 (`ASWebAuthenticationSession` / a Custom Tab + `SetupSignInCallbackActivity`) and, PKCE-style,
-the redirect carries only a one-time code that `POST /api/account/app-exchange` trades with the
+once the person says Continue on the bridge's question page (below), the redirect carries only a
+one-time code that `POST /api/account/app-exchange` trades with the
 app's verifier for a setup token (`bridge/accounts/appsignin.go`) - kept in the database (`app_signin_codes`, by SHA-256, single use), never one node's memory: the callback and the exchange can reach different bridge nodes (#144) - a custom scheme can be
 claimed by any Android app. "Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
@@ -3556,12 +3636,17 @@ sign-in's state is tied to the browser by `__Host-otc_oauth_<state[:16]>` (SameS
 passes without. `GET /account/auth/{provider}/start` answers 400 unless it is a top-level
 navigation: open it as a page, never fetch or frame it. `GET /api/account/continue` needs
 `Sec-Fetch-Site: same-origin` (or an https Referer on the bridge's host). Audit F4
-(`setupconfirm.go`): a sign-in that comes back to a device's page on the home network (BridgePanel;
-not the apps' `otcsetup://`) never redirects there with the token straight away: the callback answers
-with the question page itself ("Continue setting up the device at <host>?", `site.ContinueSetup`,
-site CSP, `X-Frame-Options: DENY`, `no-store`), or `/api/account/continue` does after the profile,
-and only its Continue (`GET /account/auth/continue?id=`: a same-origin page navigation, not a
-prefetch, signed in to the grant's account) mints the token. The grant is the callback's signed
+(`setupconfirm.go`): a sign-in that comes back to a device's page on the home network (BridgePanel)
+or to an app (`otcsetup://`) never redirects there with the token or the app's code straight away:
+the callback answers with the question page itself ("Continue setting up the device at <host>?", or
+"Continue in the Off The Cloud app?" - `site.Options.SetupApp`; `site.ContinueSetup`, site CSP,
+`X-Frame-Options: DENY`, `no-store`), or `/api/account/continue` does after the profile, and only
+its Continue (`GET /account/auth/continue?id=`: a same-origin page navigation, not a prefetch,
+signed in to the grant's account) mints the token or the app's one-time code. The app's PKCE
+verifier alone doesn't cover it: anyone can start a sign-in in someone else's browser with a
+challenge of their own (a link to the start, or to the account page with that return), and any
+Android app can claim `otcsetup://`; the apps in the stores need no change (their sheet shows the
+question, Continue's redirect reaches them as before). The grant is the callback's signed
 `__Host-otc_setup_<id>` cookie (account, address, 15 min, used once), so a link to
 `/account?complete=1&return=<another address>` leads nowhere; Cancel opens the account page.
 `pageError` answers a browser with the site's `signin.html` in its Accept-Language (the
@@ -4912,7 +4997,7 @@ Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try agai
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
 `ReplaceFileKeepingVersion` (`.`/`..` path components and a trailing `/` are refused since 2026-11); bridge - no `interpolateParams`,
-`admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
+`Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
 Mac, no `usePageRetry` in the web's Social feed or `DevicePhotoPicker`.

@@ -66,6 +66,20 @@
     "note": "First line of every email the bridge sends to an Off The Cloud account holder whose name isn't known (an account made with Apple that shared no name), on its own line above the text. Plain-text email.",
     "max": 30
   },
+  "mail.identity.body": {
+    "text": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, adding a user again with the same name in Settings › Users, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "args": [["domain", "text"], ["link", "text"]],
+    "note": "Text of the email sent when one of the account's device names gets a new identity: a device set up again with that name, a user of a device added again with the same name (its address on the bridge, name.off-the.cloud, is the user's), or New identity (site.account.domains.new_identity) on the account page. Plain text: keep the empty lines. It follows the greeting (mail.greeting.*) and is signed \"- Off The Cloud\" with the website's address below. {domain} is the device's address (name.off-the.cloud), {link} the account page's address. New identity and Sign out everywhere are the account page's buttons (site.account.domains.new_identity, site.account.password.sign_out_all), and Settings › Users the device's section where its owner adds users (web.settings.users.title): use their words.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #5902450a"
+  },
+  "mail.identity.subject": {
+    "text": "New identity for {domain}",
+    "args": [["domain", "text"]],
+    "note": "Subject of the email sent to an Off The Cloud account holder when one of the account's device names gets a new identity (mail.identity.body). {domain} is the device's address (name.off-the.cloud).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #242ee17d"
+  },
   "mail.inactivity.body": {
     "text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
     "args": [["email", "text"], ["date", "text"], ["link", "text"]],
@@ -79,6 +93,20 @@
     "note": "Subject of the email warning that an unused account will be removed in a month (mail.inactivity.body). {date} is the removal date, written by mail.date.long (\"11 November 2026\").",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e09bca76"
+  },
+  "mail.provider_link.body": {
+    "text": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "args": [["email", "text"], ["provider", "text"], ["link", "text"]],
+    "note": "Text of the email sent when someone first signs in with Google or Apple to an Off The Cloud account that was made with an email and a password: the account keeps its password, which may have been set by someone who signed up with this person's address before them. Plain text: keep the empty lines. It follows the greeting (mail.greeting.plain) and is signed \"- Off The Cloud\" with the website's address below. {email} is the account's email address, {provider} Google or Apple (never translated), {link} the account page's address. Forgot your password? is the account page's link (site.account.forgot.open): use its words.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #18486b6f"
+  },
+  "mail.provider_link.subject": {
+    "text": "{provider} sign-in added to your Off The Cloud account",
+    "args": [["provider", "text"]],
+    "note": "Subject of the email sent when someone first signs in with Google or Apple to an Off The Cloud account that also has a password (mail.provider_link.body). {provider} is Google or Apple, never translated.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #4889b369"
   },
   "mail.reset.body": {
     "text": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",

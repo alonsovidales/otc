@@ -75,7 +75,7 @@ func TestAppCodeAcrossNodes(t *testing.T) {
 	mockB.ExpectExec("delete from `app_signin_codes`").WithArgs(stored).WillReturnResult(sqlmock.NewResult(0, 1))
 	mockB.ExpectCommit()
 	verifiedRow(mockB, "acc-1", true)
-	mockB.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+	expectSetupCodeStored(mockB, "acc-1", true, nil)
 	w := httptest.NewRecorder()
 	nodeB.AppExchange(w, httptest.NewRequest("POST", "/api/account/app-exchange",
 		strings.NewReader(`{"code":"`+code+`","verifier":"verifier-verifier-verifier-verifier-verifier"}`)))

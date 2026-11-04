@@ -388,6 +388,9 @@ func TestDeleteDeviceLiftsTheHold(t *testing.T) {
 	defer db.Close()
 	mock.ExpectExec("delete from `devices` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `released_domains` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	// Whoever registers the name next is not the device its users were on.
+	mock.ExpectExec("update `devices` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `released_domains` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))
 	// Issue #174: and nothing of the old holder's stays for the next one.
 	for _, table := range []string{"push_registrations", "push_apns_tokens", "push_fcm_tokens", "push_web_subs", "device_metrics"} {
 		mock.ExpectExec("delete from `" + table + "` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))
@@ -415,5 +418,51 @@ func TestAuthEventDueThrottles(t *testing.T) {
 	}
 	if !d.authEventDue("203.0.113.7:3333", "invalid_secret", now.Add(time.Minute)) {
 		t.Fatal("still throttled after a minute")
+	}
+}
+
+// A name released less than 30 days ago is held for the account that
+// released it: anyone else (or a claim without an account) is refused,
+// and that account learns it is its own, which comes back to it only as a
+// move would.
+func TestNameHold(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	for _, c := range []struct {
+		holder                any // nil: no row; "": a NULL account_id
+		accountID             string
+		forOthers, forAccount bool
+	}{
+		{nil, "acc1", false, false},
+		{"acc1", "acc1", false, true},
+		{"acc2", "acc1", true, false},
+		{"", "acc1", true, false},
+		{"acc1", "", true, false},
+		{"", "", true, false},
+	} {
+		q := mock.ExpectQuery("select `account_id` from `released_domains` where `domain` = \\? and `released_at` > \\?").WithArgs("casa.off-the.cloud", sqlmock.AnyArg())
+		switch c.holder {
+		case nil:
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+		case "":
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(nil))
+		default:
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(c.holder))
+		}
+		forOthers, forAccount, err := d.NameHold("casa.off-the.cloud", c.accountID)
+		if err != nil || forOthers != c.forOthers || forAccount != c.forAccount {
+			t.Errorf("held for %v, asked by %q: others %v, account %v, %v", c.holder, c.accountID, forOthers, forAccount, err)
+		}
+	}
+	mock.ExpectQuery("from `released_domains`").WillReturnError(sql.ErrConnDone)
+	if _, _, err := d.NameHold("casa.off-the.cloud", "acc1"); err == nil {
+		t.Error("a database error read as no hold")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

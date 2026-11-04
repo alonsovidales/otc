@@ -116,6 +116,8 @@ var accountCols = []string{"id", "email", "name", "surname", "country", "passwor
 func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
+	// No password left to tell anyone about.
+	a.send = func(to, subject, body string) error { t.Errorf("an email to %s: %s", to, subject); return nil }
 	state := strings.Repeat("ab", 32)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
@@ -185,7 +187,7 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 	}
 
 	// Allowed: the device's page gets the question, with nothing sent yet;
-	// the app gets a code.
+	// so does the app.
 	for _, h := range []map[string]string{
 		{"Sec-Fetch-Site": "same-origin"},
 		{"Referer": "https://off-the.cloud/account?complete=1"},
@@ -203,14 +205,45 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	appReturn := AppReturn + "?challenge=" + challenge
 	a, mock := testAccounts(t)
 	a.tld = "off-the.cloud"
-	mock.ExpectExec("delete from `app_signin_codes`").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("insert into `app_signin_codes`").WillReturnResult(sqlmock.NewResult(1, 1))
+	_, grant := grantCookie(t, a, "acc1", appReturn, time.Now())
 	w := httptest.NewRecorder()
-	a.ContinueSetup(w, continueReq(AppReturn+"?challenge="+challenge, map[string]string{"Sec-Fetch-Site": "same-origin"}), "acc1")
-	if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.HasPrefix(loc, AppReturn+"?code=") {
-		t.Errorf("app return: %d %q", w.Code, loc)
+	a.ContinueSetup(w, continueReq(appReturn, map[string]string{"Sec-Fetch-Site": "same-origin"}, grant), "acc1")
+	if body := w.Body.String(); w.Code != http.StatusOK || w.Header().Get("Location") != "" ||
+		!strings.Contains(body, "<h1>Continue in the Off The Cloud app?</h1>") || !strings.Contains(body, ContinuePath+"?id=") {
+		t.Errorf("app return: %d %q, want the app's question", w.Code, w.Header().Get("Location"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	// The challenge in a link to the account page ("complete your
+	// profile", then Save and continue) was the attacker's own: without
+	// this browser's sign-in for it, no question and no code - nothing
+	// stored, no database call.
+	for _, g := range []func(a *Accounts) *http.Cookie{
+		func(*Accounts) *http.Cookie { return nil },
+		func(a *Accounts) *http.Cookie {
+			other := sha256.Sum256([]byte("the-attackers-verifier-the-attackers-verifier"))
+			_, c := grantCookie(t, a, "acc1", AppReturn+"?challenge="+base64.RawURLEncoding.EncodeToString(other[:]), time.Now())
+			return c
+		},
+	} {
+		a, mock := testAccounts(t)
+		a.tld = "off-the.cloud"
+		cookies := []*http.Cookie{}
+		if c := g(a); c != nil {
+			cookies = append(cookies, c)
+		}
+		w := httptest.NewRecorder()
+		a.ContinueSetup(w, continueReq(appReturn, map[string]string{"Sec-Fetch-Site": "same-origin"}, cookies...), "acc1")
+		if w.Code != http.StatusBadRequest || w.Header().Get("Location") != "" || strings.Contains(w.Body.String(), ContinuePath) {
+			t.Errorf("an app return without its grant: %d %q", w.Code, w.Header().Get("Location"))
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
 	}
 
 	// No grant for that address and account: nothing asked, nothing sent.
@@ -618,6 +651,98 @@ func TestOAuthStartOnlyAsAPage(t *testing.T) {
 		if w := start(h); w.Code != http.StatusFound || len(w.Header().Values("Set-Cookie")) != 2 {
 			t.Errorf("%v: %d, cookies %q", h, w.Code, w.Header().Values("Set-Cookie"))
 		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// A verified email/password account that signs in with Google (the same
+// email) is linked and keeps its password: the person who proved the
+// address is the one proving it again. Nothing ends its sessions either,
+// but the address is told that the password goes on working - someone may
+// have signed up with it first and had their confirmation link clicked -
+// greeted by no name (whoever signed up typed it).
+func TestProviderLinkKeepsAVerifiedAccountsPassword(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.tld = "off-the.cloud"
+	type email struct{ to, subject, body string }
+	sent := make(chan email, 2)
+	a.send = func(to, subject, body string) error { sent <- email{to, subject, body}; return nil }
+	state := strings.Repeat("ef", 32)
+	expectStateConsumed(mock, state, "")
+	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
+	mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$owners-own", time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	// No password cleared, no email to verify, no sessions ended: the link,
+	// the provider user's cookie, and the account touched.
+	mock.ExpectExec("insert ignore into `account_logins`").WithArgs("google", "google-sub", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	epochRow(mock, 3)
+	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	w := httptest.NewRecorder()
+	a.OAuthCallback(w, withStateCookie(callbackRequest(state, "code"), state, false))
+	if w.Code != http.StatusFound || w.Header().Get("Location") != "/account" {
+		t.Fatalf("callback: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	if c := sessionCookie(w); !strings.HasPrefix(c, "acc1|3|") {
+		t.Errorf("the provider user's cookie: %q", c)
+	}
+	select {
+	case e := <-sent:
+		if e.to != "a@b.c" || e.subject != "Google sign-in added to your Off The Cloud account" ||
+			!strings.HasPrefix(e.body, "Hello,\n\nYou can now sign in to your Off The Cloud account (a@b.c) with Google. The account also has a password") ||
+			!strings.Contains(e.body, "at https://off-the.cloud/account, sign out, choose Forgot your password?") {
+			t.Errorf("the email: %+v", e)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("the owner was not told the password stays")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// Sign-in starts are bounded per network too (an IPv4 /24, an IPv6 /48,
+// whose 65,536 /64s each had an address's bound): past it, a 429 and no
+// row written.
+func TestOAuthStartIsBoundedPerNetwork(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.oauthStarts = limits.NewRate(1.0/3600, 2)
+	a.oauthStartsPerNet = limits.NewRate(1.0/3600, 3)
+	start := func(remote string) int {
+		r := httptest.NewRequest("GET", "/account/auth/google/start", nil)
+		r.RemoteAddr = remote
+		r.SetPathValue("provider", "google")
+		w := httptest.NewRecorder()
+		a.OAuthStart(w, r)
+		return w.Code
+	}
+	allowed := func(what, remote string) {
+		t.Helper()
+		mock.ExpectExec("insert into `oauth_states`").WillReturnResult(sqlmock.NewResult(1, 1))
+		if code := start(remote); code != http.StatusFound {
+			t.Fatalf("%s: %d", what, code)
+		}
+	}
+	refused := func(what, remote string) {
+		t.Helper()
+		if code := start(remote); code != http.StatusTooManyRequests {
+			t.Errorf("%s: %d, want 429", what, code)
+		}
+	}
+	for _, net := range []struct{ a1, a2, a3, other string }{
+		{"203.0.113.7:1", "203.0.113.8:1", "203.0.113.9:1", "198.51.100.4:1"},
+		{"[2001:db8:1:1::1]:1", "[2001:db8:1:2::1]:1", "[2001:db8:1:3::1]:1", "[2001:db8:2::1]:1"},
+	} {
+		allowed("an address's first", net.a1)
+		allowed("an address's second", net.a1)
+		refused("past the address's bound", net.a1)
+		allowed("another address of the network", net.a2)
+		refused("the network, spent", net.a3)
+		allowed("another network", net.other)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

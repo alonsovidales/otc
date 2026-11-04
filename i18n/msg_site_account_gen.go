@@ -129,6 +129,11 @@ func SiteAccountDomainsReleaseFailed() Msg {
 	return Msg{Key: "site.account.domains.release_failed"}
 }
 
+// SiteAccountDomainsReleasePasswordLabel is site.account.domains.release_password_label: "Your password, to release {domain}".
+func SiteAccountDomainsReleasePasswordLabel(domain string) Msg {
+	return Msg{Key: "site.account.domains.release_password_label", Args: map[string]any{"domain": domain}}
+}
+
 // SiteAccountDomainsSince is site.account.domains.since: "since {date}".
 func SiteAccountDomainsSince(date string) Msg {
 	return Msg{Key: "site.account.domains.since", Args: map[string]any{"date": date}}
@@ -142,6 +147,16 @@ func SiteAccountDomainsTitle() Msg {
 // SiteAccountErrorConfirmRequired is site.account.error.confirm_required: "confirm with {body}".
 func SiteAccountErrorConfirmRequired(body string) Msg {
 	return Msg{Key: "site.account.error.confirm_required", Args: map[string]any{"body": body}}
+}
+
+// SiteAccountErrorMoveNeedsSignin is site.account.error.move_needs_signin: "that name is yours and has been in use on another device: to move it to this one…".
+func SiteAccountErrorMoveNeedsSignin() Msg {
+	return Msg{Key: "site.account.error.move_needs_signin"}
+}
+
+// SiteAccountErrorPasswordTooLong is site.account.error.password_too_long: "the password can be at most {max_chars} characters long, fewer with accented let…".
+func SiteAccountErrorPasswordTooLong(maxChars int) Msg {
+	return Msg{Key: "site.account.error.password_too_long", Args: map[string]any{"max_chars": int64(maxChars)}}
 }
 
 // SiteAccountErrorRecentSigninRequired is site.account.error.recent_signin_required: "sign in again (with Google or Apple), then try again within 15 minutes".
@@ -237,6 +252,11 @@ func SiteAccountHomeHello(name string) Msg {
 // SiteAccountHomeSummary is site.account.home.summary: "{registered} of {max} domains registered · free until <b>{date}</b> · <details>y…".
 func SiteAccountHomeSummary(registered int, max int, date string) Rich {
 	return Rich{Key: "site.account.home.summary", Args: map[string]any{"registered": int64(registered), "max": int64(max), "date": date}}
+}
+
+// SiteAccountIdentityPasswordLabel is site.account.identity.password_label: "Your password, to give {domain} a new identity".
+func SiteAccountIdentityPasswordLabel(domain string) Msg {
+	return Msg{Key: "site.account.identity.password_label", Args: map[string]any{"domain": domain}}
 }
 
 // SiteAccountIdentityYours is site.account.identity.yours: "<b>{domain}</b> is yours. Copy this now — it is not shown again:".
@@ -457,6 +477,11 @@ func SiteAccountSetupHint() Rich {
 // SiteAccountSetupLost is site.account.setup.lost: "Lost a device? Set up its replacement the same way and give it the <b>same name<…".
 func SiteAccountSetupLost() Rich {
 	return Rich{Key: "site.account.setup.lost"}
+}
+
+// SiteAccountSetupNewNamesOnly is site.account.setup.new_names_only: "This code sets up new names only. To move one of your names to a new device with…".
+func SiteAccountSetupNewNamesOnly() Msg {
+	return Msg{Key: "site.account.setup.new_names_only"}
 }
 
 // SiteAccountSetupTitle is site.account.setup.title: "Setting up a device?".

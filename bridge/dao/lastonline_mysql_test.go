@@ -26,6 +26,7 @@ func TestLastOnlineMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	secretCol := testSecretColumn(t, db)
 	var cols int
 	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and table_name = 'devices' and column_name = 'last_online_at'").Scan(&cols); err != nil {
 		t.Fatal(err)
@@ -46,7 +47,7 @@ func TestLastOnlineMySQL(t *testing.T) {
 		acc, email, now.AddDate(-1, 0, 0), now.AddDate(0, -8, 0), now, warned); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", domain, acc, now.AddDate(-1, 0, 0)); err != nil {
+	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`, `created`) values (?, 'owner', 'secret', ?, ?)", domain, acc, now.AddDate(-1, 0, 0)); err != nil {
 		t.Fatal(err)
 	}
 	inactive := func() bool {

@@ -1,4 +1,6 @@
 {
+  "site.signin.continue.app_heading": {"text": "In der App von Off The Cloud fortfahren?"},
+  "site.signin.continue.app_text": {"text": "Mit „Weiter“ geht deine Anmeldung an die App von Off The Cloud, um die Einrichtung eines Geräts abzuschließen. Tu das nur, wenn du die Einrichtung gerade eben selbst in der App begonnen hast: 15 Minuten lang kann jeder mit dieser Anmeldung Geräte zu deinem Konto hinzufügen oder einen deiner Gerätenamen auf ein eigenes Gerät übertragen."},
   "site.signin.continue.button": {"text": "Weiter"},
   "site.signin.continue.cancel": {"text": "Abbrechen"},
   "site.signin.continue.heading": {"text": "Einrichtung des Geräts unter <b>{host}</b> fortsetzen?"},

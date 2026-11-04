@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
@@ -21,6 +22,7 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/staticassets"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -67,6 +69,15 @@ const (
 	cSetupTokenMaxLen = 128
 )
 
+// cContactPerNetPerMinute (with room for cContactPerNetBurst at once) and
+// cContactAllPerMinute bound the accepted contact messages per network and
+// on the whole node.
+const (
+	cContactPerNetPerMinute = 5
+	cContactPerNetBurst     = 10
+	cContactAllPerMinute    = 30
+)
+
 // cNamePattern is a valid device name (accounts.NamePattern).
 var cNamePattern = accounts.NamePattern
 
@@ -90,9 +101,25 @@ type API struct {
 
 	contactMu         sync.Mutex
 	lastContactByAddr map[string]time.Time
+	contactSweep      cooldownSweep
+	// contactPerNet and contactAll bound the accepted contact messages per
+	// network (an IPv4 /24, an IPv6 /48) and on the whole node: each is a
+	// row of up to 4 KB in the primary and a line in the admin's Messages
+	// tab, and one /48 holds 65,536 /64s, each a cooldown of its own.
+	contactPerNet, contactAll *limits.Rate
 
 	claimMu         sync.Mutex
 	lastClaimByAddr map[string]time.Time
+	claimSweep      cooldownSweep
+	// lookupPerAddr and lookupPerNet limit the unauthenticated requests
+	// that ask the database something - a name's availability, a claim's
+	// setup code, a setup hand-off - per address and per network (an IPv4
+	// /24, an IPv6 /48), before it is asked: every node's connections to
+	// the one primary are shared with the devices dialling in.
+	lookupPerAddr, lookupPerNet *limits.Rate
+	// beaconPerNet limits the setup-beacon reports per network, as
+	// beaconPerAddr does per address.
+	beaconPerNet *limits.Rate
 	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
 	tld string
 	// cluster is issue #144; nil on a single bridge.
@@ -115,6 +142,18 @@ type API struct {
 	// recordVisit counts a visit to the public site (visits.go):
 	// dao.RecordSiteVisit; nil (most tests) counts nothing.
 	recordVisit func(page, source string)
+	// identityNotice stands in for accounts.NotifyNewIdentity in tests.
+	identityNotice func(accountID, domain string)
+}
+
+// notifyNewIdentity tells the owner of accountID that domain now leads to
+// a device with a new identity (accounts.NotifyNewIdentity).
+func (api *API) notifyNewIdentity(accountID, domain string) {
+	if api.identityNotice != nil {
+		api.identityNotice(accountID, domain)
+		return
+	}
+	api.accounts.NotifyNewIdentity(accountID, domain)
 }
 
 // oneOff sends one request frame to domain's device (ForwardOneOff).
@@ -147,10 +186,15 @@ const (
 )
 
 // cSetupBeaconPerSecond/cSetupBeaconBurst: a device reports every 5 s while
-// it is set up, so several behind one address still fit.
+// it is set up, so several behind one address still fit;
+// cSetupBeaconPerNetPerSecond/cSetupBeaconPerNetBurst a network's (an IPv4
+// /24, an IPv6 /48, whose 65,536 /64s each had the address's own): a
+// hundred devices being set up at once.
 const (
-	cSetupBeaconPerSecond = 1
-	cSetupBeaconBurst     = 10
+	cSetupBeaconPerSecond       = 1
+	cSetupBeaconBurst           = 10
+	cSetupBeaconPerNetPerSecond = 20
+	cSetupBeaconPerNetBurst     = 100
 )
 
 // cOnlinePerSecond/cOnlineBurst: the setup wizard asks every 5 s whether
@@ -201,6 +245,11 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		staticPath:        staticPath,
 		lastContactByAddr: map[string]time.Time{},
 		lastClaimByAddr:   map[string]time.Time{},
+		contactPerNet:     limits.NewRate(cContactPerNetPerMinute/60.0, cContactPerNetBurst),
+		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
+		lookupPerAddr:     limits.NewRate(cLookupPerSecond, cLookupBurst),
+		lookupPerNet:      limits.NewRate(cLookupPerNetPerSecond, cLookupPerNetBurst),
+		beaconPerNet:      limits.NewRate(cSetupBeaconPerNetPerSecond, cSetupBeaconPerNetBurst),
 		tld:               cfg.GetStr("otc-api", "tld"),
 		cluster:           clu,
 		recordVisit:       dao.RecordSiteVisit,
@@ -440,11 +489,42 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
+	setStaticPagePolicy(w.Header(), path)
 	w.Header().Set("Cache-Control", staticCacheControl(r.URL.Path, path, r.URL.Query().Has("v")))
 	if serveStaticGzipped(w, r, path) {
 		return
 	}
 	http.ServeFile(w, r, path)
+}
+
+// The policies of the bridge's own static pages (staticPath): the admin
+// panel, privacy and terms. None is ever shown in a frame. A device's page
+// is a subdomain - the same site - so the admin panel's SameSite=Strict
+// cookie rides along into a frame there, and its buttons could be lined
+// up under a visitor's clicks (the operator opening a link sent through
+// the contact form). And none loads anything from elsewhere: the panel
+// runs its own inline script and talks to the bridge alone, the others
+// run nothing.
+const (
+	cAdminPagePolicy  = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+	cStaticPagePolicy = "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+)
+
+// setStaticPagePolicy gives a page of staticPath (file, as resolved) its
+// Content-Security-Policy, X-Frame-Options for browsers without
+// frame-ancestors, and nosniff. Files that aren't pages are left as they
+// were.
+func setStaticPagePolicy(h http.Header, file string) {
+	if !strings.HasSuffix(file, ".html") {
+		return
+	}
+	policy := cStaticPagePolicy
+	if filepath.Base(file) == "admin.html" {
+		policy = cAdminPagePolicy
+	}
+	h.Set("Content-Security-Policy", policy)
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("X-Content-Type-Options", "nosniff")
 }
 
 // cFontPath is a font named by its content (fonts/fonts.css): its name ends
@@ -630,15 +710,26 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusTooManyRequests, "too_many_messages", errorText(i18n.ApiErrorTooManyMessages()))
 		return
 	}
-	api.lastContactByAddr[remoteAddr] = now
-	// Opportunistic cleanup: entries past the TTL aren't doing anything for
-	// the cooldown check above anymore, so drop them rather than letting
-	// this map grow for as long as the process runs.
-	for addr, t := range api.lastContactByAddr {
-		if now.Sub(t) > cContactMapTTL {
-			delete(api.lastContactByAddr, addr)
+	// Then the network's share, and the node's: past either, every
+	// address waits.
+	for _, k := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.contactPerNet, clientaddr.NetBucketOf(r)}, {api.contactAll, "*"}} {
+		if k.rate == nil {
+			continue
+		}
+		if ok, wait := k.rate.Take(k.key); !ok {
+			api.contactMu.Unlock()
+			limits.RetryAfter(w, wait)
+			writeJSONErr(w, http.StatusTooManyRequests, "too_many_messages", errorText(i18n.ApiErrorTooManyMessages()))
+			return
 		}
 	}
+	api.lastContactByAddr[remoteAddr] = now
+	// Entries past the TTL do nothing for the cooldown any more: dropped,
+	// on a timer rather than a scan of the whole map per message.
+	api.contactSweep.sweep(api.lastContactByAddr, now)
 	api.contactMu.Unlock()
 
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
@@ -651,6 +742,34 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+}
+
+// cooldownSweep drops a cooldown map's entries older than cContactMapTTL
+// (which no longer hold anything back) at most once a cCooldownSweepEvery,
+// or once the map holds cCooldownSweepAt entries and has doubled since its
+// last sweep - never a scan of every address on every request. Its caller
+// holds the map's mutex.
+type cooldownSweep struct {
+	at   time.Time
+	kept int
+}
+
+const (
+	cCooldownSweepEvery = time.Minute
+	cCooldownSweepAt    = 10000
+)
+
+func (c *cooldownSweep) sweep(m map[string]time.Time, now time.Time) {
+	if now.Sub(c.at) < cCooldownSweepEvery && len(m) < max(cCooldownSweepAt, 2*c.kept) {
+		return
+	}
+	c.at = now
+	for addr, t := range m {
+		if now.Sub(t) > cContactMapTTL {
+			delete(m, addr)
+		}
+	}
+	c.kept = len(m)
 }
 
 // releaseCooldown undoes the cooldown stamped at `at` for a request that
@@ -673,10 +792,45 @@ func (api *API) deviceDomain(name string) string {
 	return name + "." + tld
 }
 
+// cLookupPerSecond/cLookupBurst bound an address's unauthenticated
+// lookups, cLookupPerNetPerSecond/cLookupPerNetBurst a network's: the
+// setup wizard asks about a name as the person types (400 ms apart at the
+// most) and its page polls the hand-off every 2 s - well within, for a few
+// devices set up at once behind one address.
+const (
+	cLookupPerSecond       = 5
+	cLookupBurst           = 40
+	cLookupPerNetPerSecond = 20
+	cLookupPerNetBurst     = 150
+)
+
+// allowLookup applies lookupPerAddr and lookupPerNet to r, answering a 429
+// with Retry-After and code and msg when either says no.
+func (api *API) allowLookup(w http.ResponseWriter, r *http.Request, code, msg string) bool {
+	addr := requestAddr(r)
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.lookupPerAddr, clientaddr.Bucket(addr)}, {api.lookupPerNet, clientaddr.NetBucket(addr)}} {
+		if l.rate == nil {
+			continue
+		}
+		if ok, wait := l.rate.Take(l.key); !ok {
+			limits.RetryAfter(w, wait)
+			writeJSONErr(w, http.StatusTooManyRequests, code, msg)
+			return false
+		}
+	}
+	return true
+}
+
 // nameAvailable (issue #38) answers {"available": bool} for ?name=. Public
 // and unauthenticated on purpose - it tells nothing a friend request to
 // that domain wouldn't, and the wizard calls it as the person types.
 func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
+	if !api.allowLookup(w, r, "too_many_claims", errorText(i18n.ApiErrorTooManyClaims())) {
+		return
+	}
 	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
 	if !cNamePattern.MatchString(name) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_name", errorText(i18n.ApiErrorInvalidName()))
@@ -746,6 +900,9 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 // the new identity - that is how a lost device is replaced: run setup
 // again, signed in, pick the same name. Without an account the claim is
 // refused (401 login_required) unless [accounts] open-registration is on.
+// Moving one of the account's names - one it holds, or one it released
+// less than 30 days ago - needs its owner just signed in (claimAccount's
+// ownerConfirmed), else 403 move_needs_signin, and the owner is emailed.
 func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name       string `json:"name"`
@@ -757,7 +914,12 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
-	accountID, refusal, err := api.claimAccount(r, body.SetupToken)
+	// The claim's cooldown comes after its account is looked up, which
+	// asks the database for any setup code sent: this comes before.
+	if !api.allowLookup(w, r, "too_many_claims", errorText(i18n.ApiErrorTooManyClaims())) {
+		return
+	}
+	accountID, ownerConfirmed, refusal, err := api.claimAccount(r, body.SetupToken)
 	if err != nil {
 		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", errorText(i18n.ApiErrorClaimUnavailable()))
 		return
@@ -791,11 +953,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.lastClaimByAddr[remoteAddr] = now
-	for addr, t := range api.lastClaimByAddr {
-		if now.Sub(t) > cContactMapTTL {
-			delete(api.lastClaimByAddr, addr)
-		}
-	}
+	api.claimSweep.sweep(api.lastClaimByAddr, now)
 	api.claimMu.Unlock()
 
 	domain := api.deviceDomain(name)
@@ -809,7 +967,16 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	if registered {
 		if accountID != "" && owner == accountID {
 			// The account's own name on a new device: the old device's
-			// identity stops working, this one takes over.
+			// identity stops working, this one takes over - every client of
+			// the name is relayed to it from then on. So only right after
+			// the owner proved who they are: a setup code made just after a
+			// sign-in, or a session that is one. A session cookie alone (a
+			// borrowed laptop, a stolen cookie), or a code it got, is not.
+			if !ownerConfirmed {
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+				writeJSONErr(w, http.StatusForbidden, "move_needs_signin", errorText(i18n.SiteAccountErrorMoveNeedsSignin()))
+				return
+			}
 			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
 				log.Error("error handing", domain, "to a new device:", err)
 				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
@@ -821,16 +988,31 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			// when they registered: close them, or clients go on reaching
 			// it. Not this device's, which registers as soon as it is told.
 			api.websocket.DropReplacedIdentity(domain, body.OwnerUUID)
+			api.notifyNewIdentity(accountID, domain)
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
 		writeJSONErr(w, http.StatusConflict, "name_taken", errorText(i18n.ApiErrorNameTaken()))
 		return
 	}
-	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
-		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
-	} else if held {
+	// A name this account released a moment ago is still its own: taking
+	// it back with a new identity relays its clients there, as a move does,
+	// so it asks what a move asks. Otherwise a session alone would release
+	// it and claim it again for a device of its own.
+	heldForOthers, heldForAccount, err := api.dao.NameHold(domain, accountID)
+	if err != nil {
+		log.Error("could not check whether", domain, "is held:", err)
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", errorText(i18n.ApiErrorClaimUnavailable()))
+		return
+	}
+	if heldForOthers {
 		writeJSONErr(w, http.StatusConflict, "name_held", errorText(i18n.ApiErrorNameHeld()))
+		return
+	}
+	if heldForAccount && !ownerConfirmed {
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusForbidden, "move_needs_signin", errorText(i18n.SiteAccountErrorMoveNeedsSignin()))
 		return
 	}
 	if accountID != "" {
@@ -860,19 +1042,26 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
+	if heldForAccount {
+		api.notifyNewIdentity(accountID, domain)
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 }
 
 // claimAccount is the account behind a claim: a setup token from the
-// body or the Authorization header, or the account page's own session.
+// body or the Authorization header, or the account page's own session -
+// and whether its owner was confirmed just now (ownerConfirmed), which a
+// claim that moves one of the account's names to a new device needs: a
+// code made right after a sign-in (accounts.LookupSetupCode), or a session
+// that is one (accounts.FreshSignIn).
 // A session is refused (with the reason, a non-empty refusal.code) for an
 // account that hasn't proved its email or accepted the terms in force, as
 // on the account page: a token is only ever issued to one that has. err
 // is the database failing to load the session's account (logged here):
 // not a refusal, the claim can be tried again.
-func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID string, refusal apiError, err error) {
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID string, ownerConfirmed bool, refusal apiError, err error) {
 	if api.accounts == nil {
-		return "", apiError{}, nil
+		return "", false, apiError{}, nil
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -881,32 +1070,32 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID strin
 	if token != "" {
 		// A database error is "try again" (500), not login_required for a
 		// code that may well be good.
-		id, ok, err := api.accounts.LookupSetupToken(token)
+		sc, ok, err := api.accounts.LookupSetupCode(token)
 		if err != nil || !ok {
-			return "", apiError{}, err
+			return "", false, apiError{}, err
 		}
-		return id, apiError{}, nil
+		return sc.AccountID, sc.OwnerConfirmed, apiError{}, nil
 	}
 	id, ok, err := api.accounts.AccountFromRequest(r)
 	if err != nil {
-		return "", apiError{}, err
+		return "", false, apiError{}, err
 	}
 	if ok {
 		acc, err := api.dao.GetAccount(id)
 		if err != nil {
 			log.Error("error loading the account behind a claim:", err)
-			return "", apiError{}, err
+			return "", false, apiError{}, err
 		}
 		if acc == nil || !acc.EmailVerified {
-			return "", cConfirmEmailFirst, nil
+			return "", false, cConfirmEmailFirst, nil
 		}
 		if !accounts.TermsAccepted(acc) {
-			return "", cAcceptTermsFirst, nil
+			return "", false, cAcceptTermsFirst, nil
 		}
-		return id, apiError{}, nil
+		return id, api.accounts.FreshSignIn(r), apiError{}, nil
 	}
 
-	return "", apiError{}, nil
+	return "", false, apiError{}, nil
 }
 
 // Why an account may not register a name yet (accountAddDomain, and a
@@ -970,7 +1159,9 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // accountAddDomain registers a name for a device installed by hand (the
 // install script rather than the wizard): the identity is generated here
 // and shown once, for the installer's environment file. POST
-// /api/account/domains {name}.
+// /api/account/domains {name, password}: the password only for a name the
+// account released less than 30 days ago (dao.NameHold), which needs its
+// owner as a new identity does.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	// One read, as claimAccount's: a database error is "try again", not a
 	// verified account told to confirm its email or accept the terms.
@@ -989,7 +1180,8 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
@@ -1009,10 +1201,21 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		writeJSONErr(w, http.StatusConflict, "name_taken", errorText(i18n.ApiErrorNameTaken()))
 		return
 	}
-	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
-		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
-	} else if held {
+	heldForOthers, heldForAccount, err := api.dao.NameHold(domain, accountID)
+	if err != nil {
+		log.Error("could not check whether", domain, "is held:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "register_unavailable", errorText(i18n.ApiErrorRegisterUnavailable()))
+		return
+	}
+	if heldForOthers {
 		writeJSONErr(w, http.StatusConflict, "name_held", errorText(i18n.ApiErrorNameHeld()))
+		return
+	}
+	// A name this account released a moment ago comes back with a new
+	// identity, which receives every client that still knows it: as for
+	// New identity, the owner confirms (the password, or a Google/Apple
+	// sign-in within 15 minutes) and is told by email.
+	if heldForAccount && !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
 		return
 	}
 	if status, limit := api.domainLimitReached(accountID); status != 0 {
@@ -1030,6 +1233,9 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	log.Info("name registered from the account page:", domain)
+	if heldForAccount {
+		api.notifyNewIdentity(accountID, domain)
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 
@@ -1037,9 +1243,24 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 // uuid and secret, shown once: the old device is locked out the moment
 // this answers. For a device installed by hand; the wizard does the same
 // on its own when setup runs again with the same name. POST
-// /api/account/domains/{domain}/identity.
+// /api/account/domains/{domain}/identity {"password"}.
+//
+// Whoever holds the new identity receives every client of the name, so a
+// session cookie alone (a borrowed laptop, a stolen cookie) is not enough,
+// as for deleting the account: the account's password, or for one that
+// signs in only with Google or Apple a sign-in within the last 15 minutes
+// (accounts.ConfirmOwner). The owner is told by email.
 func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accountID string) {
 	domain := r.PathValue("domain")
+	var body struct{ Password string }
+	// No body is no password (a page from before it was asked for).
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil && !errors.Is(err, io.EOF) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
+		return
+	}
+	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
+		return
+	}
 	owner, secret := uuid.New().String(), newSecret()
 	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
 	if err != nil {
@@ -1054,14 +1275,28 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	log.Info("domain re-issued from the account page:", domain)
 	// Locked out means its open connections too, not just its next dial.
 	api.websocket.DropReplacedIdentity(domain, owner)
+	api.notifyNewIdentity(accountID, domain)
 	writeJSON(w, http.StatusOK, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 
 // accountReleaseDomain deletes one of the account's domains; the device
-// behind it loses the bridge, the name becomes free. DELETE
-// /api/account/domains/{domain}.
+// behind it loses the bridge, and the name is held for the account for 30
+// days. DELETE /api/account/domains/{domain} {"password"}.
+//
+// It takes a device off the bridge as deleting the account does, so it
+// asks for the owner the same way (accounts.ConfirmOwner): a session
+// cookie alone (a borrowed laptop, a stolen cookie) never does it.
 func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	domain := r.PathValue("domain")
+	var body struct{ Password string }
+	// No body is no password (a page from before it was asked for).
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil && !errors.Is(err, io.EOF) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
+		return
+	}
+	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
+		return
+	}
 	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
 	if err != nil {
 		log.Error("error releasing", domain, ":", err)
@@ -1146,10 +1381,16 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // is all this is for, and it keeps the store from being used to point a
 // page at anything else.
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
-	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(clientaddr.Bucket(requestAddr(r))) {
-		w.Header().Set("Retry-After", "5")
-		writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's beacon thread
-		return
+	addr := requestAddr(r)
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.beaconPerAddr, clientaddr.Bucket(addr)}, {api.beaconPerNet, clientaddr.NetBucket(addr)}} {
+		if l.rate != nil && !l.rate.Allow(l.key) {
+			w.Header().Set("Retry-After", "5")
+			writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's beacon thread
+			return
+		}
 	}
 	var body struct {
 		Token string `json:"token"`
@@ -1192,6 +1433,9 @@ func (api *API) setupLookup(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if len(token) < cSetupTokenMinLen || len(token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(token) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_token", "invalid token") // i18n-ignore: machine-read, the wizard's beacon and poll
+		return
+	}
+	if !api.allowLookup(w, r, "too_many_requests", "too many requests") { // i18n-ignore: machine-read, the wizard page's poll
 		return
 	}
 	addr, found, err := api.dao.GetSetupBeacon(token)

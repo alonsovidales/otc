@@ -30,6 +30,7 @@ func TestInactivityPassMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	secretCol := testSecretColumn(t, db)
 	var cols int
 	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and table_name = 'devices' and column_name = 'last_online_at'").Scan(&cols); err != nil {
 		t.Fatal(err)
@@ -56,7 +57,7 @@ func TestInactivityPassMySQL(t *testing.T) {
 	}
 	add("inact-active", now.Add(-time.Hour), nil)
 	add("inact-device", months(8), nil) // its device is used
-	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `last_client_at`) values ('inact-device.bridge.test', 'x', 'y', 'inact-device', ?)", now.Add(-24*time.Hour)); err != nil {
+	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`, `last_client_at`) values ('inact-device.bridge.test', 'x', 'y', 'inact-device', ?)", now.Add(-24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	add("inact-5m", months(5).Add(-24*time.Hour), nil)
@@ -70,9 +71,9 @@ func TestInactivityPassMySQL(t *testing.T) {
 	add("inact-home-warned", months(7), &old)
 	for _, id := range []string{"inact-home", "inact-home-warned"} {
 		if migrated {
-			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`, `last_online_at`) values (?, 'x', 'y', ?, ?)", id+".bridge.test", id, now.Add(-9*time.Minute))
+			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`, `last_online_at`) values (?, 'x', 'y', ?, ?)", id+".bridge.test", id, now.Add(-9*time.Minute))
 		} else {
-			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `account_id`) values (?, 'x', 'y', ?)", id+".bridge.test", id)
+			_, err = db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `account_id`) values (?, 'x', 'y', ?)", id+".bridge.test", id)
 		}
 		if err != nil {
 			t.Fatal(err)
@@ -149,4 +150,19 @@ func TestInactivityPassMySQL(t *testing.T) {
 	if warned.Valid {
 		t.Error("the warning of an account used again was kept")
 	}
+}
+
+// testSecretColumn is the column a test's own device rows keep their secret
+// in: devices.secret until migration 014 drops it, secret_hash after (the
+// tests run against a schema at either step).
+func testSecretColumn(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	var n int
+	if err := db.QueryRow("select count(*) from information_schema.columns where table_schema = database() and table_name = 'devices' and column_name = 'secret'").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n == 1 {
+		return "`secret`"
+	}
+	return "`secret_hash`"
 }

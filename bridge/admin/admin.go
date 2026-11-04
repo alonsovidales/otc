@@ -43,8 +43,11 @@ const (
 type Admin struct {
 	dao           *dao.Dao
 	sessionSecret []byte
-	// Issue #99: per-IP login throttling, see ratelimit.go.
-	loginLimiter *loginLimiter
+	// Issue #99: per-IP login throttling, see ratelimit.go; netLimiter
+	// counts the failures per network, tries and triesPerNet every
+	// attempt.
+	loginLimiter, netLimiter *loginLimiter
+	tries, triesPerNet       *limits.Rate
 	// IsOnline reports whether a device is dialled in right now (the
 	// relay pool, set by main once the websocket manager exists). Nil
 	// means unknown - every device shows offline.
@@ -64,7 +67,10 @@ func Init(d *dao.Dao, sessionSecret []byte) *Admin {
 	// (accounts.Init) are signed from the same secret in the same
 	// "<id>|<expiry>" format, and an account cookie used to pass as an
 	// admin one.
-	return &Admin{dao: d, sessionSecret: DeriveKey(sessionSecret, "admin-session"), loginLimiter: newLoginLimiter()}
+	return &Admin{dao: d, sessionSecret: DeriveKey(sessionSecret, "admin-session"), loginLimiter: newLoginLimiter(),
+		netLimiter:  newLoginLimiterOf(cLoginNetMaxFailures),
+		tries:       limits.NewRate(cLoginTriesPerMinute/60.0, cLoginTriesPerMinute),
+		triesPerNet: limits.NewRate(cLoginNetTriesPerMinute/60.0, cLoginNetTriesPerMinute)}
 }
 
 // DeriveKey gives each use of the configured session secret its own key,
@@ -127,9 +133,11 @@ func verifySessionToken(secret []byte, token string, now time.Time) (username st
 // Password hashing
 // ---------------------------------------------------------------------
 
+// hashPassword and checkPassword go through the node's bound on password
+// hashing (limits.HashPassword, limits.CheckPassword): limits.ErrBusy when
+// it is hashing all it may.
 func hashPassword(plain string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(plain), limits.BcryptCost)
-	return string(hash), err
+	return limits.HashPassword(plain)
 }
 
 // adminDummyHash is compared against when the username is unknown, at the
@@ -142,17 +150,29 @@ var adminDummyHash = func() string {
 	return string(h)
 }()
 
-func checkPassword(hash, plain string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
+func checkPassword(hash, plain string) (bool, error) {
+	return limits.CheckPassword(hash, plain)
+}
+
+// writeBusy answers a request whose password check found the node hashing
+// all it may: try again in a moment.
+func writeBusy(w http.ResponseWriter) {
+	limits.RetryAfter(w, limits.HashRetryAfter)
+	writeError(w, http.StatusServiceUnavailable, "the bridge is busy right now, try again in a moment")
 }
 
 // SetPassword creates or updates an admin account. Exported so it can be
 // driven from a one-off CLI bootstrap command (see bridge/bin/otc_bridge.go)
 // rather than needing its own HTTP endpoint - nothing should be able to
-// create admin accounts over the network.
+// create admin accounts over the network. The panel's own rules hold here
+// too, however the password came: typed at a terminal, piped in, or any
+// caller to come.
 func (a *Admin) SetPassword(username, plain string) error {
 	if username == "" || plain == "" {
 		return errors.New("username and password are required")
+	}
+	if err := passwordRule(plain); err != nil {
+		return err
 	}
 	hash, err := hashPassword(plain)
 	if err != nil {
@@ -187,16 +207,53 @@ func (a *Admin) sessionCookie(token string, now time.Time, secure bool) *http.Co
 	}
 }
 
+// attemptAllowed is whether a login (or a password change, which checks
+// the current one) may run now, and if not how long until it may: the
+// address and its network not locked out by their failures, and within
+// their attempts, which are taken here.
+func (a *Admin) attemptAllowed(r *http.Request, ip string, now time.Time) (bool, time.Duration) {
+	if ok, wait := a.loginLimiter.allow(ip, now); !ok {
+		return false, wait
+	}
+	network := clientaddr.NetBucketOf(r)
+	if a.netLimiter != nil {
+		if ok, wait := a.netLimiter.allow(network, now); !ok {
+			return false, wait
+		}
+	}
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{a.tries, ip}, {a.triesPerNet, network}} {
+		if l.rate == nil {
+			continue
+		}
+		if ok, wait := l.rate.Take(l.key); !ok {
+			return false, wait
+		}
+	}
+	return true, 0
+}
+
+// failed counts a wrong password against the address and its network.
+func (a *Admin) failed(r *http.Request, ip string, now time.Time) {
+	a.loginLimiter.recordFailure(ip, now)
+	if a.netLimiter != nil {
+		a.netLimiter.recordFailure(clientaddr.NetBucketOf(r), now)
+	}
+}
+
 // Login checks username/password and, on success, sets a session cookie.
 // Issue #99: throttled per source IP (see ratelimit.go) - bcrypt alone
-// slows a guesser down but never actually stops one.
+// slows a guesser down but never actually stops one - and per network,
+// failures and attempts both (attemptAllowed).
 func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
 
 	// Checked before the body is even decoded, so a locked-out caller
 	// can't keep the bridge doing bcrypt work on its behalf.
-	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+	if ok, retryAfter := a.attemptAllowed(r, ip, now); !ok {
 		// The address itself, not its bucket (an IPv6 /64).
 		log.Error("admin login attempt from a rate-limited address:", clientaddr.Of(r), "- retry in", retryAfter.Round(time.Second))
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
@@ -224,12 +281,17 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		hash = adminDummyHash
 	}
-	if !checkPassword(hash, body.Password) || !found {
+	match, err := checkPassword(hash, body.Password)
+	if err != nil {
+		writeBusy(w)
+		return
+	}
+	if !match || !found {
 		// Counted against the IP, not the username: a guesser picks the
 		// username, so counting per account would let them sidestep this
 		// by rotating it (and would hand anyone a way to lock the real
 		// operator out of their own panel).
-		a.loginLimiter.recordFailure(ip, now)
+		a.failed(r, ip, now)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -269,9 +331,26 @@ func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
-// cMinPasswordLen is the shortest admin password accepted, here and by the
-// command-line bootstrap (readAdminPassword in bin/otc_bridge.go).
-const cMinPasswordLen = 12
+// cMinPasswordLen is the shortest admin password accepted, by the panel
+// and by the command-line bootstrap (SetPassword, which
+// bin/otc_bridge.go's set-admin-password calls); cMaxPasswordLen the
+// longest, in bytes: bcrypt reads only the first 72, and x/crypto refuses
+// to hash more.
+const (
+	cMinPasswordLen = 12
+	cMaxPasswordLen = 72
+)
+
+// passwordRule is why plain can't be an admin password, nil when it can.
+func passwordRule(plain string) error {
+	if len(plain) < cMinPasswordLen {
+		return fmt.Errorf("use at least %d characters for the new password", cMinPasswordLen)
+	}
+	if len(plain) > cMaxPasswordLen {
+		return fmt.Errorf("use at most %d characters for the new password", cMaxPasswordLen)
+	}
+	return nil
+}
 
 // ChangePassword lets the signed-in admin change their own password, from
 // the panel (POST /admin/api/password, behind RequireAuth). The current
@@ -282,7 +361,7 @@ const cMinPasswordLen = 12
 func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
-	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+	if ok, retryAfter := a.attemptAllowed(r, ip, now); !ok {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 		writeError(w, http.StatusTooManyRequests, "too many failed attempts, try again later")
 		return
@@ -305,14 +384,8 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if len(body.New) < cMinPasswordLen {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("use at least %d characters for the new password", cMinPasswordLen))
-		return
-	}
-	if len(body.New) > 72 {
-		// bcrypt reads only the first 72 bytes; longer would look accepted
-		// and silently not count.
-		writeError(w, http.StatusBadRequest, "use at most 72 characters for the new password")
+	if err := passwordRule(body.New); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	hash, found, err := a.dao.GetAdminPasswordHash(user)
@@ -321,8 +394,18 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if !found || !checkPassword(hash, body.Current) {
-		a.loginLimiter.recordFailure(ip, now)
+	if !found {
+		a.failed(r, ip, now)
+		writeError(w, http.StatusUnauthorized, "the current password is wrong")
+		return
+	}
+	match, err := checkPassword(hash, body.Current)
+	if err != nil {
+		writeBusy(w)
+		return
+	}
+	if !match {
+		a.failed(r, ip, now)
 		writeError(w, http.StatusUnauthorized, "the current password is wrong")
 		return
 	}
@@ -332,6 +415,10 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newHash, err := hashPassword(body.New)
+	if errors.Is(err, limits.ErrBusy) {
+		writeBusy(w)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not change the password right now")
 		return

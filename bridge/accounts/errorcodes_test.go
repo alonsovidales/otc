@@ -16,6 +16,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/bridge/site"
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -285,5 +286,36 @@ func TestAccountPageKnowsEveryFieldAndWaitCode(t *testing.T) {
 	}
 	if len(table.Retry) != 61 || table.Retry[1] != "Try again in 1 minute." || table.Retry[4] != "Try again in 4 minutes." {
 		t.Errorf("retry: %d texts, %q", len(table.Retry), table.Retry)
+	}
+}
+
+// A sign-up the database fails to store is "try again" (500), never "there
+// is already an account with that email": only the email's unique key
+// says that, when another sign-up took it a moment before.
+func TestSignupStoreFailureIsNotEmailTaken(t *testing.T) {
+	for _, c := range []struct {
+		err        error
+		status     int
+		code, text string
+	}{
+		{errDBDown, http.StatusInternalServerError, "signup_unavailable", "could not sign up right now"},
+		{&mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'a@b.c' for key 'email'"}, http.StatusConflict, "email_taken", "there is already an account with that email - sign in instead"},
+	} {
+		a, mock := testAccounts(t)
+		mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols))
+		mock.ExpectExec("insert into `accounts`").WillReturnError(c.err)
+		w := httptest.NewRecorder()
+		a.Signup(w, httptest.NewRequest("POST", "/api/account/signup", strings.NewReader(
+			`{"email":"a@b.c","password":"long-enough","name":"A","surname":"B","country":"ES","accept_terms":true}`)))
+		var out struct{ Code, Error string }
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != c.status || out.Code != c.code || out.Error != c.text || sessionCookie(w) != "" {
+			t.Errorf("%v: %d %s, want %d %s", c.err, w.Code, w.Body.String(), c.status, c.code)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
 	}
 }

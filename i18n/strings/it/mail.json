@@ -65,6 +65,16 @@
     "text": "Ciao,",
     "en": "Hello,"
   },
+  "mail.identity.body": {
+    "text": "Al nome di dispositivo {domain} del tuo account Off The Cloud è stata appena data una nuova identità: il dispositivo che lo usava finora non può più connettersi al bridge, e il nome ora porta al dispositivo che ha quella nuova.\n\nSe l’hai fatto tu (configurando di nuovo un dispositivo con lo stesso nome, aggiungendo di nuovo un utente con lo stesso nome in Impostazioni › Utenti, oppure con Nuova identità nella pagina del tuo account), non devi fare altro.\n\nSe non l’hai fatto tu, qualcun altro sta usando il tuo account: accedi da {link}, scegli Esci ovunque e cambia la password, poi configura di nuovo il tuo dispositivo con lo stesso nome.",
+    "en": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, adding a user again with the same name in Settings › Users, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "reviewed": "claude-backtranslation 2026-11-04 #d743633b"
+  },
+  "mail.identity.subject": {
+    "text": "Nuova identità per {domain}",
+    "en": "New identity for {domain}",
+    "reviewed": "claude-backtranslation 2026-11-04 #cdf57adc"
+  },
   "mail.inactivity.body": {
     "text": "Il tuo account del bridge di Off The Cloud ({email}) non viene usato da cinque mesi: nessuno vi ha effettuato l’accesso, nessuno dei tuoi dispositivi si è collegato al bridge e nessuna app o amico li ha raggiunti tramite il bridge.\n\nCome indicano le nostre condizioni, un account inutilizzato per sei mesi viene rimosso. Se nulla cambia, questo account e i nomi dei suoi dispositivi verranno rimossi in data {date}. I tuoi dispositivi continuano a funzionare a casa.\n\nPer conservarlo, accedi su {link} oppure accendi un tuo dispositivo con accesso a internet prima di quella data.",
     "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
@@ -74,6 +84,16 @@
     "text": "Il tuo account Off The Cloud verrà rimosso in data {date}",
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #9d704aba"
+  },
+  "mail.provider_link.body": {
+    "text": "Ora puoi accedere al tuo account Off The Cloud ({email}) con {provider}. L’account ha anche una password, che continua a funzionare.\n\nSe quella password l’hai scelta tu, non devi fare altro.\n\nAltrimenti, qualcun altro ha creato questo account con il tuo indirizzo email prima di te e può ancora accedervi: da {link}, esci, scegli Hai dimenticato la password? e imposta una nuova password. Così tutti gli altri vengono disconnessi.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #b5f27386"
+  },
+  "mail.provider_link.subject": {
+    "text": "Accesso con {provider} aggiunto al tuo account Off The Cloud",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #f36f0a22"
   },
   "mail.reset.body": {
     "text": "Qualcuno, speriamo tu, ha chiesto di reimpostare la password dell’account Off The Cloud associato a questa email. Per sceglierne una nuova, apri questo link:\n\n{link}\n\nIl link funziona per un’ora, una sola volta. Impostare una nuova password chiude tutte le altre sessioni del tuo account.\n\nSe non l’hai chiesto tu, ignora questa email: la tua password resta invariata.",

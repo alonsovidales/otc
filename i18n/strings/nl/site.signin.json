@@ -1,4 +1,14 @@
 {
+  "site.signin.continue.app_heading": {
+    "text": "Doorgaan in de app van Off The Cloud?",
+    "en": "Continue in the Off The Cloud app?",
+    "reviewed": "claude-backtranslation 2026-11-04 #2574aef0"
+  },
+  "site.signin.continue.app_text": {
+    "text": "Als je doorgaat, krijgt de app van Off The Cloud je aanmelding om het instellen van een apparaat af te ronden. Doe dit alleen als je daar zojuist zelf in de app mee bent begonnen: 15 minuten lang kan iedereen met deze aanmelding apparaten aan je account toevoegen of een van je apparaatnamen naar een eigen apparaat verplaatsen.",
+    "en": "Continue hands your sign-in to the Off The Cloud app, to finish setting up a device. Only do this if you started setting it up in the app yourself, just now: for 15 minutes, whoever has the sign-in can add devices to your account, or move one of your device names to a device of theirs.",
+    "reviewed": "claude-backtranslation 2026-11-04 #fb72ae9f"
+  },
   "site.signin.continue.button": {
     "text": "Doorgaan",
     "en": "Continue"

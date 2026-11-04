@@ -43,6 +43,51 @@ SSH: `ubuntu@<host>` with the bridge key (`~/.ssh/id_rsa`, the same as
 Check replication: `sudo mysql -e 'SHOW REPLICA STATUS\G' | grep -E
 'Running:|Behind|Error:'` on bridge2.
 
+## Hashed secrets (migrations 013 and 014)
+
+The bridge keeps a device's relay secret only as its SHA-256
+(`devices.secret_hash`) and a setup code only as its HMAC under a key derived
+from `[admin] session-secret` (`account_setup_codes`) - one more reason both
+nodes keep the same session secret. An existing bridge gets there in two
+steps around a deploy, so that the node still on an older release keeps
+working while the other restarts:
+
+1. On the primary: `sudo mysql otc < 013-hashed-secrets.sql` (from
+   `bridge/db/migrations/`). It adds and fills `devices.secret_hash` and adds
+   `account_setup_codes`; an older node looks at neither.
+2. `make -C bridge bridge`: one node, then the other. The new release writes
+   both forms while the plaintext is there (an older node reads only that)
+   and checks a device by its plaintext, which is what an older node keeps
+   current. It also runs on a database where step 1 hasn't run yet, as
+   before.
+3. Once both nodes run it, and at least 15 minutes after the second one
+   restarted (a setup code the older release made lives that long, in
+   `account_tokens`): on the primary, `sudo mysql otc <
+   014-drop-plaintext-secrets.sql`. It fills `secret_hash` in once more (what
+   an older node wrote since step 1), then drops `devices.secret` and
+   `account_tokens`. From then on only the hashes are kept.
+
+Going back to an older release is safe until step 3; after it, an older
+release can't check any device (it needs `devices.secret` back from a
+backup). The replica follows each step. Backups and dumps taken before step
+3 still hold the plaintext secrets: treat them as such, and replace them
+with ones taken after it.
+
+## Users' addresses (migration 015)
+
+A primary device registers the addresses of its other users
+(`pepe.off-the.cloud`) over the websocket, and records itself as theirs:
+`devices.primary_domain`, and `released_domains.primary_domain` while a
+released one is held. Any device of an account can send that request, so a
+primary gives a new identity to, or takes back from the hold, only its own
+users' addresses; the account's other names move with their owner's
+confirmation only. On the primary, `sudo mysql otc < 015-user-addresses.sql`
+(from `bridge/db/migrations/`) before deploying the release that reads it, at
+either step of the hashed secrets; an older node ignores the columns. Without
+them the release still registers new users' addresses, but moves none over the
+websocket. The addresses registered before it are recorded as their primary's
+as each primary next starts.
+
 ## Redis (on `redis`)
 
 `/etc/redis/otc-cluster.conf`, included from `redis.conf`: bound to
@@ -332,6 +377,6 @@ Round-robin DNS sends consecutive requests of one flow to either node, so
 anything one request leaves for a later one lives in MySQL (or Redis):
 OAuth states (`oauth_states`), app sign-in codes (`app_signin_codes`, was
 in memory until 2026-10-01 - "that sign-in has expired" on Android),
-setup tokens, setup beacons. Sessions are signed cookies, checked against
+setup tokens (`account_setup_codes`), setup beacons. Sessions are signed cookies, checked against
 the database's epoch. Per-node memory is fine only for limits that may
 count per node (login throttling).

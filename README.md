@@ -822,13 +822,26 @@ unused for six months is removed and its domains released.
 **The account page**, `https://off-the.cloud/account`: sign in (password, Google or Apple where
 the bridge has them configured), see the domains with whether each device is connected, get a
 setup code, **release** a domain, or give one a **new identity** (a fresh owner uuid and bridge
-secret, shown once - the old device is locked out). For a device installed by hand with the
-install script rather than the image, register its name there first and put the identity shown
-into `/etc/otc/otc-install.env` before running the script.
+secret, shown once - the old device is locked out). Releasing a domain and giving it a new
+identity both ask for the account's password again (an account without one, made with Google or
+Apple, needs a sign-in from the last 15 minutes), and a new identity is emailed to the account's
+address: whoever holds it receives everyone who reaches that name. A released name stays reserved
+for its account for 30 days; registering it again within them asks for the password the same way.
+For a device installed by hand with the install script rather than the image, register its name
+there first and put the identity shown into `/etc/otc/otc-install.env` before running the script.
 
 **A lost device** is replaced by setting up the new one signed in to the same account and giving
 it the **same name**: the name moves to the new device (a fresh identity, the old one refused
 from then on), and with the old disks recovered (see "Replacing a dead Pi") nothing else changes.
+Moving a name needs a sign-in just made: signing in from the setup wizard does it, and so does a
+setup code from the account page asked for within 15 minutes of signing in there; a code asked for
+later sets up new names only, and the move is refused until you sign in again. The account's
+address gets an email about the move.
+
+**A device's other users** with bridge access get addresses of their own (`pepe.off-the.cloud`),
+which the device registers on the account as it adds them; they count toward the account's names.
+Only that device gives such an address a new identity, when its user is added again with the same
+name (the account's address gets the same email), and it never moves the account's other names.
 
 **Without an account** the wizard offers "Continue without an account": the device installs
 with no bridge (`OTC_BRIDGE_ADDR=""` for the install script) and lives on the home network only,
@@ -856,7 +869,8 @@ There's no sign-up - bootstrap (or change) an admin account from the bridge's sh
 $ sudo /usr/bin/otc_bridge <env> set-admin-password <username>
 ```
 It asks for the password twice without echoing it (or reads one line from a pipe) - never on the
-command line, where `ps` and the shell history would keep it.
+command line, where `ps` and the shell history would keep it. Either way the password must have at
+least 12 characters and at most 72 bytes, as in the panel.
 `[admin] session-secret` must also be set in the bridge's config file (`/etc/otc_<env>.ini`) - a
 random value that stays stable across restarts, e.g. `openssl rand -hex 32` - otherwise every
 restart logs every admin out.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/site"
 	"github.com/alonsovidales/otc/i18n"
 )
@@ -78,6 +79,36 @@ func resetSubject(lang string) string { return i18n.MailResetSubject().Render(la
 // account page in lang (pageLink).
 func (a *Accounts) resetBody(lang, name, link string) string {
 	return emailGreeting(lang, name) + "\n\n" + i18n.MailResetBody(a.pageLink(lang, link)).Render(lang) + "\n\n" + a.signature()
+}
+
+// greetingName is the name an email to acc greets: the one it signed up
+// with once its email is proven, and none before - whoever signs up can
+// type anything as a name, and an email to an address nobody has proven
+// is the one a stranger can have sent to anyone.
+func (a *Accounts) greetingName(acc *dao.Account) string {
+	if acc == nil || !acc.EmailVerified {
+		return ""
+	}
+	return acc.Name
+}
+
+// identityEmail is the note that the account's domain was given a new
+// identity (NotifyNewIdentity), with the account page in lang to act from.
+func (a *Accounts) identityEmail(lang, name, domain string) (subject, body string) {
+	subject = i18n.MailIdentitySubject(domain).Render(lang)
+	body = emailGreeting(lang, name) + "\n\n" + i18n.MailIdentityBody(domain, a.accountPage(lang)).Render(lang) + "\n\n" + a.signature()
+	return subject, body
+}
+
+// providerLinkEmail tells the owner of an account with a password (email,
+// its address) that it can now be signed in to with provider (Google or
+// Apple) too, and that the password still works - which they may never
+// have set. It greets no one by name: the name was typed by whoever made
+// the account.
+func (a *Accounts) providerLinkEmail(lang, email, provider string) (subject, body string) {
+	subject = i18n.MailProviderLinkSubject(provider).Render(lang)
+	body = emailGreeting(lang, "") + "\n\n" + i18n.MailProviderLinkBody(email, provider, a.accountPage(lang)).Render(lang) + "\n\n" + a.signature()
+	return subject, body
 }
 
 // inactivityEmail is the warning that an account unused for five months

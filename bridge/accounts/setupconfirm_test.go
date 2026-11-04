@@ -3,6 +3,7 @@
 package accounts
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"database/sql/driver"
 	"encoding/base64"
@@ -139,7 +140,7 @@ func (b *signInBed) expectSignIn(complete bool) {
 func (b *signInBed) expectToken(token *string) {
 	epochRow(b.mock, 0)
 	verifiedRow(b.mock, "acc1", true)
-	b.mock.ExpectExec("insert into `account_tokens`").WithArgs(tokenCapture{token}, "acc1", cPurposeSetup, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	expectSetupCodeStored(b.mock, "acc1", true, token)
 }
 
 // tokenCapture records the setup token stored.
@@ -399,7 +400,7 @@ func TestSetupContinueRefusals(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: cSessionCookie, Value: a.sessionToken("acc1", 0, now)})
 	epochRow(mock, 0)
 	verifiedRow(mock, "acc1", true)
-	mock.ExpectExec("insert into `account_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+	expectSetupCodeStored(mock, "acc1", true, nil)
 	w := httptest.NewRecorder()
 	a.ConfirmSetup(w, r)
 	if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.HasPrefix(loc, back+"&setup_token=") {
@@ -417,12 +418,12 @@ func TestSetupContinueRefusals(t *testing.T) {
 	}
 }
 
-// Only a sign-in coming back to a device's page asks; the account page's
-// own and the apps' (whose code needs the app's verifier) go on as before.
+// A sign-in coming back to a device's page or to an app asks first; only
+// the account page's own goes on as before.
 func TestNeedsConfirm(t *testing.T) {
 	for ret, want := range map[string]bool{
 		"": false,
-		AppReturn + "?challenge=" + strings.Repeat("a", 43): false,
+		AppReturn + "?challenge=" + strings.Repeat("a", 43): true,
 		"http://192.168.1.20:8080/?bridge_signin=1":         true,
 		"http://otc.local:8080/":                            true,
 		"https://pit.otc/":                                  true,
@@ -430,5 +431,79 @@ func TestNeedsConfirm(t *testing.T) {
 		if got := needsConfirm(ret); got != want {
 			t.Errorf("needsConfirm(%q) = %v", ret, got)
 		}
+	}
+}
+
+// The apps' sign-in (otcsetup://), end to end: the sign-in an app's sheet
+// starts with its challenge stops on the bridge's question, worded for
+// the app; nothing is made for the app until Continue, which then sends
+// the browser to otcsetup://done with a one-time code for that challenge -
+// once. A link anyone can send starts the same sign-in in someone else's
+// browser, with a challenge of its own: the question is what stands
+// between it and a setup code for an app that claims otcsetup://.
+func TestAppSignInAsksBeforeItsCode(t *testing.T) {
+	b := newSignInBed(t)
+	sum := sha256.Sum256([]byte("verifier-verifier-verifier-verifier-verifier"))
+	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
+	ret := AppReturn + "?challenge=" + challenge
+
+	b.mock.ExpectExec("insert into `oauth_states`").WithArgs(sqlmock.AnyArg(), ret, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	b.mock.ExpectBegin()
+	b.mock.ExpectQuery("select `return_url`, `created` from `oauth_states`").
+		WillReturnRows(sqlmock.NewRows([]string{"return_url", "created"}).AddRow(ret, time.Now()))
+	b.mock.ExpectExec("delete from `oauth_states`").WillReturnResult(sqlmock.NewResult(0, 1))
+	b.mock.ExpectCommit()
+	b.mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
+	epochRow(b.mock, 0)
+	b.mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// The app's sheet: /start?return=otcsetup://done&challenge=..., as the
+	// iPhone, Android and Mac apps in the stores open it.
+	resp, body := b.open(t, b.browser, b.bridge.URL+"/account/auth/google/start?return="+url.QueryEscape(AppReturn)+"&challenge="+challenge, false)
+	if resp.StatusCode != http.StatusOK || resp.Request.URL.Host != b.a.tld {
+		t.Fatalf("the sign-in ended on %d %s, want the question on the bridge", resp.StatusCode, resp.Request.URL)
+	}
+	for _, want := range []string{
+		"<title>Continue the setup — Off The Cloud</title>",
+		"<h1>Continue in the Off The Cloud app?</h1>",
+		"Continue hands your sign-in to the Off The Cloud app, to finish setting up a device.",
+		`<a class="btn ghost" href="/account">Cancel</a>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the question page has no %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "otcsetup") || strings.Contains(body, challenge) {
+		t.Error("the question page carries the app's address or its challenge")
+	}
+	if h := resp.Header; !strings.Contains(h.Get("Content-Security-Policy"), "frame-ancestors 'none'") || h.Get("X-Frame-Options") != "DENY" || h.Get("Cache-Control") != "no-store" {
+		t.Errorf("the question page's headers: %v", h)
+	}
+	m := continueLink.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("the question page has no Continue link:\n%s", body)
+	}
+	if err := b.mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("before Continue (nothing made for the app yet): %v", err)
+	}
+
+	epochRow(b.mock, 0)
+	var stored string
+	b.mock.ExpectExec("delete from `app_signin_codes` where `created` <").WillReturnResult(sqlmock.NewResult(0, 0))
+	b.mock.ExpectExec("insert into `app_signin_codes`").WithArgs(hashCapture{&stored}, "acc1", challenge, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	resp, _ = b.open(t, b.stopAt, b.bridge.URL+m[1], true)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if resp.StatusCode != http.StatusFound || err != nil || !isAppReturn(loc) || loc.Query().Get("code") == "" || stored != codeHash(loc.Query().Get("code")) {
+		t.Fatalf("Continue: %d %q, want otcsetup://done with the stored code", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	if err := b.mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+
+	// Used once.
+	resp, _ = b.open(t, b.stopAt, b.bridge.URL+m[1], true)
+	if resp.StatusCode != http.StatusBadRequest || resp.Header.Get("Location") != "" {
+		t.Errorf("Continue again: %d %q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 }

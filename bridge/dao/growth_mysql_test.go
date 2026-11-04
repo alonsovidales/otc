@@ -25,6 +25,7 @@ func TestGrowthMySQL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	secretCol := testSecretColumn(t, db)
 	db.SetMaxOpenConns(1) // the sql_mode below is the connection's
 	if _, err := db.Exec("set session sql_mode = concat_ws(',', nullif(@@sql_mode, ''), 'ONLY_FULL_GROUP_BY')"); err != nil {
 		t.Fatal(err)
@@ -73,7 +74,7 @@ func TestGrowthMySQL(t *testing.T) {
 	if err := d.SaveDownloadCounts(context.Background(), now, map[string]int64{asset: 15, release: 5}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, `secret`, `created`, `last_client_at`) values (?, 'owner', 'secret', ?, ?)", domain, now, now); err != nil {
+	if _, err := db.Exec("insert into `devices` (`domain`, `owner_uuid`, "+secretCol+", `created`, `last_client_at`) values (?, 'owner', 'secret', ?, ?)", domain, now, now); err != nil {
 		t.Fatal(err)
 	}
 

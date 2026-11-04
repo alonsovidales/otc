@@ -364,7 +364,9 @@ earlier night:
 
 The device comes back with your files, collections, friends and owner password. If `config/` was
 lost, it starts on your home network only: join the bridge again in Settings › Bridge access, with
-the same account and name.
+the same account and name. Moving the name to it needs a sign-in just made: sign in there, or paste
+a setup code asked for within 15 minutes of signing in to the account page - a code asked for later
+sets up new names only.
 
 ## Folders and file owners
 

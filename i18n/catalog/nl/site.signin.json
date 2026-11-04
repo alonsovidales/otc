@@ -1,4 +1,6 @@
 {
+  "site.signin.continue.app_heading": {"text": "Doorgaan in de app van Off The Cloud?"},
+  "site.signin.continue.app_text": {"text": "Als je doorgaat, krijgt de app van Off The Cloud je aanmelding om het instellen van een apparaat af te ronden. Doe dit alleen als je daar zojuist zelf in de app mee bent begonnen: 15 minuten lang kan iedereen met deze aanmelding apparaten aan je account toevoegen of een van je apparaatnamen naar een eigen apparaat verplaatsen."},
   "site.signin.continue.button": {"text": "Doorgaan"},
   "site.signin.continue.cancel": {"text": "Annuleren"},
   "site.signin.continue.heading": {"text": "Doorgaan met het instellen van het apparaat op <b>{host}</b>?"},

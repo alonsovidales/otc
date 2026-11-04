@@ -108,6 +108,10 @@
     "text": "No se ha podido liberar ese dominio",
     "en": "Could not release that domain"
   },
+  "site.account.domains.release_password_label": {
+    "text": "Tu contraseña, para liberar {domain}",
+    "en": "Your password, to release {domain}"
+  },
   "site.account.domains.since": {
     "text": "desde el {date}",
     "en": "since {date}"
@@ -120,6 +124,15 @@
     "text": "confirma con {body}",
     "en": "confirm with {body}",
     "reviewed": "claude-backtranslation 2026-10-11 #cccd223f"
+  },
+  "site.account.error.move_needs_signin": {
+    "text": "ese nombre es tuyo y se ha usado en otro dispositivo: para pasarlo a este, inicia sesión de nuevo o usa un código de configuración obtenido en los 15 minutos siguientes a iniciar sesión en la página de tu cuenta",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #01c54aeb"
+  },
+  "site.account.error.password_too_long": {
+    "text": "la contraseña puede tener como máximo {max_chars} caracteres, menos si lleva letras con acento, de otros alfabetos o emojis",
+    "en": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji"
   },
   "site.account.error.recent_signin_required": {
     "text": "inicia sesión de nuevo (con Google o Apple) y vuelve a intentarlo en los 15 minutos siguientes",
@@ -198,6 +211,10 @@
   "site.account.home.summary": {
     "text": "{registered} de {max} dominios registrados · gratis hasta el <b>{date}</b> · <details>tus datos</details>",
     "en": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>"
+  },
+  "site.account.identity.password_label": {
+    "text": "Tu contraseña, para dar una identidad nueva a {domain}",
+    "en": "Your password, to give {domain} a new identity"
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> es tuyo. Copia esto ahora; no se volverá a mostrar:",
@@ -381,6 +398,11 @@
     "text": "¿Has perdido un dispositivo? Configura el que lo sustituye de la misma forma y ponle el <b>mismo nombre</b>: el nombre pasa al dispositivo nuevo y el antiguo deja de tener acceso.",
     "en": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
     "reviewed": "claude-backtranslation 2026-10-11 #9935e630"
+  },
+  "site.account.setup.new_names_only": {
+    "text": "Este código solo sirve para nombres nuevos. Para pasar uno de tus nombres a un dispositivo nuevo con un código, cierra sesión, vuelve a iniciarla en esta página y obtén otro.",
+    "en": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
+    "reviewed": "claude-backtranslation 2026-11-04 #702838ed"
   },
   "site.account.setup.title": {
     "text": "¿Vas a configurar un dispositivo?",

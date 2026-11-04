@@ -4,12 +4,15 @@ package accounts
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
+	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/i18n"
 )
 
@@ -259,5 +262,66 @@ func TestLongDateFirstOfTheMonth(t *testing.T) {
 	}
 	if got := longDate("fr", time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)); i18n.Normalize("fr") == "fr" && got != "1er mars 2027" {
 		t.Errorf("French, 1 March: %q", got)
+	}
+}
+
+// When one of the account's names gets a new identity its owner is told,
+// at the account's email, in its language, with the account page to act
+// from - the name greeting them only as the account's proven owner.
+func TestNewIdentityEmail(t *testing.T) {
+	type sent struct{ to, subject, body string }
+	for _, c := range []struct {
+		lang, subject, link string
+		start               string
+	}{
+		{"", "New identity for casa.off-the.cloud", "https://off-the.cloud/account", "Hello Ann,\n\nThe device name casa.off-the.cloud of your Off The Cloud account was just given a new identity: "},
+		{"es", "Identidad nueva para casa.off-the.cloud", "https://off-the.cloud/es/account", ""},
+	} {
+		a, mock := testAccounts(t)
+		a.tld = "off-the.cloud"
+		mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
+			AddRow("acc1", "ann@example.com", "Ann", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), c.lang))
+		var got []sent
+		a.notifyNewIdentity("acc1", "casa.off-the.cloud", func(to, subject, body string) error {
+			got = append(got, sent{to, subject, body})
+			return nil
+		})
+		if len(got) != 1 || got[0].to != "ann@example.com" || got[0].subject != c.subject ||
+			!strings.Contains(got[0].body, c.link) || !strings.Contains(got[0].body, "casa.off-the.cloud") || !strings.HasPrefix(got[0].body, c.start) ||
+			!strings.HasSuffix(got[0].body, "- Off The Cloud\nhttps://off-the.cloud\n") {
+			t.Errorf("lang %q: %+v", c.lang, got)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
+	}
+	// Unverified: no name in the greeting (whoever signed up typed it).
+	a := &Accounts{tld: "off-the.cloud"}
+	if name := a.greetingName(&dao.Account{Name: "Buy now at example.com", EmailVerified: false}); name != "" {
+		t.Errorf("an unverified account is greeted as %q", name)
+	}
+}
+
+// The account page's setup code says whether it can move a name to a new
+// device: only when asked for right after signing in there.
+func TestSetupCodeSaysWhetherItMovesNames(t *testing.T) {
+	for _, fresh := range []bool{true, false} {
+		a, mock := testAccounts(t)
+		issued := time.Now()
+		if !fresh {
+			issued = issued.Add(-time.Hour)
+		}
+		epochRow(mock, 0)
+		verifiedRow(mock, "acc1", true)
+		expectSetupCodeStored(mock, "acc1", fresh, nil)
+		r := withCookie(httptest.NewRequest("GET", "/api/account/setup-token", nil), a.sessionToken("acc1", 0, issued))
+		w := httptest.NewRecorder()
+		a.SetupToken(w, r, "acc1")
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), fmt.Sprintf(`"owner_confirmed":%v`, fresh)) {
+			t.Errorf("fresh %v: %d %s", fresh, w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
 	}
 }

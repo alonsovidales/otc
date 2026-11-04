@@ -65,6 +65,16 @@
     "text": "Bonjour,",
     "en": "Hello,"
   },
+  "mail.identity.body": {
+    "text": "Le nom d’appareil {domain} de votre compte Off The Cloud vient de recevoir une nouvelle identité : l’appareil qui l’utilisait jusqu’ici ne peut plus se connecter à la passerelle, et le nom mène désormais à l’appareil qui a la nouvelle.\n\nSi c’est vous (en configurant de nouveau un appareil avec le même nom, en ajoutant de nouveau un utilisateur avec le même nom dans Paramètres › Utilisateurs, ou avec Nouvelle identité sur la page de votre compte), vous n’avez rien d’autre à faire.\n\nSinon, quelqu’un d’autre utilise votre compte : connectez-vous sur {link}, choisissez Se déconnecter partout et changez votre mot de passe, puis configurez de nouveau votre appareil avec le même nom.",
+    "en": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, adding a user again with the same name in Settings › Users, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "reviewed": "claude-backtranslation 2026-11-04 #83132fdb"
+  },
+  "mail.identity.subject": {
+    "text": "Nouvelle identité pour {domain}",
+    "en": "New identity for {domain}",
+    "reviewed": "claude-backtranslation 2026-11-04 #e239e783"
+  },
   "mail.inactivity.body": {
     "text": "Votre compte de passerelle Off The Cloud ({email}) n’a pas été utilisé depuis cinq mois : personne ne s’y est connecté, aucun de vos appareils n’a été relié à la passerelle, et aucune app ni aucun ami ne les a joints par celle-ci.\n\nComme le prévoient nos conditions, un compte inutilisé pendant six mois est supprimé. Si rien ne change, celui-ci et ses noms d’appareils seront supprimés le {date}. Vos appareils continuent de fonctionner à la maison.\n\nPour le conserver, connectez-vous sur {link} ou allumez l’un de vos appareils avec un accès à Internet d’ici là.",
     "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
@@ -74,6 +84,16 @@
     "text": "Votre compte Off The Cloud sera supprimé le {date}",
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #80ee87ff"
+  },
+  "mail.provider_link.body": {
+    "text": "Vous pouvez maintenant vous connecter à votre compte Off The Cloud ({email}) avec {provider}. Le compte a aussi un mot de passe, qui continue de fonctionner.\n\nSi vous avez choisi ce mot de passe vous-même, vous n’avez rien d’autre à faire.\n\nSinon, quelqu’un d’autre a créé ce compte avec votre adresse e-mail avant vous et peut encore s’y connecter : sur {link}, déconnectez-vous, choisissez Mot de passe oublié ? et définissez un nouveau mot de passe. Cela déconnecte tous les autres.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #a23e5d9f"
+  },
+  "mail.provider_link.subject": {
+    "text": "Connexion avec {provider} ajoutée à votre compte Off The Cloud",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #3985b965"
   },
   "mail.reset.body": {
     "text": "Quelqu’un (vous, espérons-le) a demandé à réinitialiser le mot de passe du compte Off The Cloud associé à cette adresse e-mail. Pour en choisir un nouveau, ouvrez ce lien :\n\n{link}\n\nLe lien est valable une heure, une seule fois. Définir un nouveau mot de passe déconnecte votre compte partout ailleurs.\n\nSi vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.",

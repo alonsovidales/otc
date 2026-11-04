@@ -79,6 +79,16 @@ func MailGreetingPlain() Msg {
 	return Msg{Key: "mail.greeting.plain"}
 }
 
+// MailIdentityBody is mail.identity.body: "The device name {domain} of your Off The Cloud account was just given a new iden…".
+func MailIdentityBody(domain string, link string) Msg {
+	return Msg{Key: "mail.identity.body", Args: map[string]any{"domain": domain, "link": link}}
+}
+
+// MailIdentitySubject is mail.identity.subject: "New identity for {domain}".
+func MailIdentitySubject(domain string) Msg {
+	return Msg{Key: "mail.identity.subject", Args: map[string]any{"domain": domain}}
+}
+
 // MailInactivityBody is mail.inactivity.body: "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no…".
 func MailInactivityBody(email string, date string, link string) Msg {
 	return Msg{Key: "mail.inactivity.body", Args: map[string]any{"email": email, "date": date, "link": link}}
@@ -87,6 +97,16 @@ func MailInactivityBody(email string, date string, link string) Msg {
 // MailInactivitySubject is mail.inactivity.subject: "Your Off The Cloud account will be removed on {date}".
 func MailInactivitySubject(date string) Msg {
 	return Msg{Key: "mail.inactivity.subject", Args: map[string]any{"date": date}}
+}
+
+// MailProviderLinkBody is mail.provider_link.body: "You can now sign in to your Off The Cloud account ({email}) with {provider}. The…".
+func MailProviderLinkBody(email string, provider string, link string) Msg {
+	return Msg{Key: "mail.provider_link.body", Args: map[string]any{"email": email, "provider": provider, "link": link}}
+}
+
+// MailProviderLinkSubject is mail.provider_link.subject: "{provider} sign-in added to your Off The Cloud account".
+func MailProviderLinkSubject(provider string) Msg {
+	return Msg{Key: "mail.provider_link.subject", Args: map[string]any{"provider": provider}}
 }
 
 // MailResetBody is mail.reset.body: "Someone - hopefully you - asked to reset the password of the Off The Cloud accou…".

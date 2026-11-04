@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -30,6 +31,13 @@ import (
 // keeps), the redirect carries only a one-time exchange code, and
 // POST /api/account/app-exchange trades code + verifier for the token. An
 // app that intercepts the redirect has the code but not the verifier.
+//
+// The verifier proves only that the code goes to whoever chose the
+// challenge, and a sign-in can be started with any challenge, in anyone's
+// browser - a link to the start, or to the account page with that return
+// address. So the redirect waits for the person's Continue on the bridge's
+// question page, which says the sign-in goes to the app (setupconfirm.go),
+// and is tied to the browser that signed in.
 
 // AppReturn is the apps' sign-in return address.
 const AppReturn = "otcsetup://done"
@@ -104,6 +112,9 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
+	if !a.lookupAllowed(w, r, lookupRefused(w)) {
+		return
+	}
 	// Single use, right or wrong.
 	accountID, challenge, created, ok, err := a.dao.ConsumeAppCode(codeHash(strings.TrimSpace(body.Code)))
 	if err != nil {
@@ -114,7 +125,14 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "signin_expired", errorText(i18n.ApiErrorSigninExpired()))
 		return
 	}
-	tok, err := a.IssueSetupToken(accountID)
+	// The code comes from a Google or Apple sign-in minutes ago, handed to
+	// the app with its owner's Continue: their own proof.
+	tok, err := a.IssueSetupToken(accountID, true)
+	if errors.Is(err, ErrTooManySetupCodes) {
+		limits.RetryAfter(w, cSetupCodesRetry)
+		writeError(w, http.StatusTooManyRequests, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
 		return

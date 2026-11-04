@@ -159,8 +159,11 @@ type Options struct {
 	Problem string
 	// SetupHost and SetupContinue are what ContinueSetup asks about: the
 	// address of the device's page on the home network (host[:port]), and
-	// the link that sends it the setup code.
+	// the link that sends it the setup code. SetupApp asks instead about
+	// handing the sign-in to the Off The Cloud app (otcsetup://), which
+	// has no address to name.
 	SetupHost, SetupContinue string
+	SetupApp                 bool
 }
 
 // Language returns the language of code when this build carries it:
@@ -282,9 +285,10 @@ type data struct {
 	// Switcher links to the page in every carried language, this one
 	// marked as current; empty while English is the only one.
 	Switcher []choice
-	// Problem, SetupHost and SetupContinue are Options' (the sign-in's
-	// own pages).
+	// Problem, SetupHost, SetupContinue and SetupApp are Options' (the
+	// sign-in's own pages).
 	Problem, SetupHost, SetupContinue string
+	SetupApp                          bool
 }
 
 type alternate struct{ Lang, Href string }
@@ -321,6 +325,7 @@ func pageData(page string, l i18n.Language, o Options) data {
 		Problem:       o.Problem,
 		SetupHost:     o.SetupHost,
 		SetupContinue: o.SetupContinue,
+		SetupApp:      o.SetupApp,
 	}
 	if page != Landing {
 		d.Sections = d.Home

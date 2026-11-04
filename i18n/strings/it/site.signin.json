@@ -1,4 +1,14 @@
 {
+  "site.signin.continue.app_heading": {
+    "text": "Continuare nell’app di Off The Cloud?",
+    "en": "Continue in the Off The Cloud app?",
+    "reviewed": "claude-backtranslation 2026-11-04 #6d30b4fe"
+  },
+  "site.signin.continue.app_text": {
+    "text": "Se continui, l’app di Off The Cloud riceve il tuo accesso per finire di configurare un dispositivo. Fallo solo se hai iniziato tu a configurarlo nell’app, proprio adesso: per 15 minuti, chiunque abbia questo accesso può aggiungere dispositivi al tuo account o spostare uno dei nomi dei tuoi dispositivi su un dispositivo suo.",
+    "en": "Continue hands your sign-in to the Off The Cloud app, to finish setting up a device. Only do this if you started setting it up in the app yourself, just now: for 15 minutes, whoever has the sign-in can add devices to your account, or move one of your device names to a device of theirs.",
+    "reviewed": "claude-backtranslation 2026-11-04 #da39f1f7"
+  },
   "site.signin.continue.button": {
     "text": "Continua",
     "en": "Continue"

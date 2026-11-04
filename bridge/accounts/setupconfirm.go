@@ -35,9 +35,19 @@ import (
 // Continue works only in the browser that came back from the provider, for
 // the account it signed in: it names a grant the callback put in a cookie
 // of its own (__Host-otc_setup_<id>), signed, for that account and address,
-// good for cSetupGrantTTL and used once. A setup is one click longer. The
-// apps' sign-in (otcsetup://) asks nothing: its code is worth nothing
-// without the app's verifier (appsignin.go).
+// good for cSetupGrantTTL and used once. A setup is one click longer.
+//
+// The apps' sign-in (otcsetup://, appsignin.go) asks too, with a page of its
+// own (site.Options.SetupApp). Its one-time code is worth nothing without
+// the verifier of the PKCE challenge it was made for - but that proves only
+// that whoever trades the code started a sign-in with that challenge, and
+// anyone can start one, in someone else's browser, with a challenge of
+// their own: a link to the start, or to the account page's "complete your
+// profile" with that return address. Any app on an Android phone can claim
+// otcsetup://, so a sign-in handed back without a question gave such an
+// app a setup code for the person's account. The grant also means a
+// profile completed on the account page goes on only to the address its
+// own sign-in came back with, never one from a link.
 const (
 	cSetupGrantCookie = "__Host-otc_setup_"
 	// cSetupGrantTTL is as long as the sign-in's state was good for: the
@@ -60,14 +70,11 @@ type setupGrant struct {
 func (a *Accounts) grantKey() []byte { return deriveKey(a.secret, "setup-grant") }
 
 // needsConfirm is whether a sign-in coming back to returnURL asks before
-// the setup code goes there: any address but the account page ("") and
-// the apps' (whose code needs their verifier).
+// it goes there: any address but the account page's own (""). A device's
+// page gets a setup code, an app (otcsetup://) a one-time code it trades
+// for one; either way the person says so first, on the bridge's page.
 func needsConfirm(returnURL string) bool {
-	if returnURL == "" {
-		return false
-	}
-	u, err := url.Parse(returnURL)
-	return err != nil || !isAppReturn(u)
+	return returnURL != ""
 }
 
 // grantSetup gives this browser a grant for accountID to send a setup code
@@ -151,14 +158,20 @@ func (a *Accounts) setupGrantFor(r *http.Request, accountID, returnURL string, n
 }
 
 // askBeforeSetup answers with the question page for grant g: Continue
-// setting up the device at its address?
+// setting up the device at its address? - or, for an app's sign-in,
+// Continue in the Off The Cloud app?
 func (a *Accounts) askBeforeSetup(w http.ResponseWriter, r *http.Request, g setupGrant) {
 	u, err := url.Parse(g.returnURL)
-	if err != nil || u.Host == "" {
+	if err != nil || (u.Host == "" && !isAppReturn(u)) {
 		a.pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
-	o := site.Options{SetupHost: u.Host, SetupContinue: ContinuePath + "?id=" + g.id}
+	o := site.Options{SetupContinue: ContinuePath + "?id=" + g.id}
+	if isAppReturn(u) {
+		o.SetupApp = true
+	} else {
+		o.SetupHost = u.Host
+	}
 	if err := a.writePage(w, site.ContinueSetup, pageLanguage(r), http.StatusOK, o); err != nil {
 		log.Error("could not render the setup's question page:", err)
 		a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
@@ -177,7 +190,8 @@ func prefetch(r *http.Request) bool {
 }
 
 // ConfirmSetup is the question page's Continue: the browser goes back to
-// the device's page with a setup token. GET /account/auth/continue?id=.
+// the device's page with a setup token, or to the app with its one-time
+// code. GET /account/auth/continue?id=.
 // Only a link followed on the bridge's own page gets there (never another
 // site's, a frame or a prefetch), in the browser holding the grant, signed
 // in to its account; the grant is used up either way.

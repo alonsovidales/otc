@@ -123,7 +123,7 @@ func TestCooldownsCountAnIPv6SlashSixtyFour(t *testing.T) {
 	}
 	claimed := func() {
 		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 		mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	}
 
@@ -303,10 +303,12 @@ func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
 		WithArgs("newpi.off-the.cloud").
 		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	// Not a recently released name (held for its previous account).
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
-		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("insert into `devices`").
-		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567").
+	mock.ExpectQuery("select `account_id` from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	// The secret and its hash (the plaintext for a node of an older
+	// release, until migration 014 drops it).
+	mock.ExpectExec("insert into `devices` \\(`owner_uuid`, `domain`, `secret`, `secret_hash`\\)").
+		WithArgs("11111111-2222-3333-4444-555555555555", "newpi.off-the.cloud", "0123456789abcdef0123456789abcdef01234567", dao.SecretHash("0123456789abcdef0123456789abcdef01234567")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	// Second claim (another address): already there.
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
@@ -460,8 +462,8 @@ func TestClaimRefusesARecentlyReleasedName(t *testing.T) {
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
 		WithArgs("gone.off-the.cloud").
 		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
-		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery("select `account_id` from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc-before"))
 
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastClaimByAddr: map[string]time.Time{}}
 	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
@@ -579,7 +581,7 @@ func TestClaimWithASessionNeedsAVerifiedAccount(t *testing.T) {
 	epoch()
 	accountRow(mock, true, accounts.TermsVersion)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusCreated {
@@ -602,7 +604,7 @@ func TestRetryAfterAFailedStoreIsNotThrottled(t *testing.T) {
 	mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(errors.New("driver: bad connection"))
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{}, lastClaimByAddr: map[string]time.Time{}}
@@ -662,7 +664,7 @@ func TestClaimInsertFailureIsNotTaken(t *testing.T) {
 		{&mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'newpi.off-the.cloud' for key 'domain'"}, http.StatusConflict},
 	} {
 		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 		mock.ExpectExec("insert into `devices`").WillReturnError(c.err)
 		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
 			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))
@@ -727,7 +729,7 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 	d := dao.NewWithDB(db)
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: d, accounts: accounts.Init(d, []byte("test session secret"), "off-the.cloud"), lastClaimByAddr: map[string]time.Time{}}
 	broken := errors.New("driver: bad connection")
-	tokenQuery := "select `account_id` from `account_tokens`"
+	tokenQuery := "select `account_id`, `owner_confirmed` from `account_setup_codes`"
 
 	mock.ExpectQuery(tokenQuery).WillReturnError(broken)
 	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
@@ -758,7 +760,7 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 	}
 	// The code is good, but whose the name is can't be read.
 	taken()
-	mock.ExpectQuery(tokenQuery).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	mock.ExpectQuery(tokenQuery).WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}).AddRow("acc1", true))
 	accountRow(mock, true, accounts.TermsVersion)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(broken)
 	if rec := ask(); rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "yours") {
@@ -785,5 +787,63 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// The contact form's cooldown is per address (an IPv6 /64), so it is also
+// bounded per network (a /48 is 65,536 of them) and on the whole node:
+// past either, a 429 with Retry-After, nothing stored. The cooldowns are
+// swept on a timer, not at every message.
+func TestContactIsBoundedPerNetworkAndNode(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{},
+		contactPerNet: limits.NewRate(1.0/60, 2), contactAll: limits.NewRate(1.0/60, 3)}
+	contact := func(remote string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/contact", strings.NewReader(`{"name":"a","email":"a@b.c","message":"hi"}`))
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		api.submitContact(rec, req)
+		return rec
+	}
+	stored := func() { mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1)) }
+	stored()
+	stored()
+	for i, remote := range []string{"[2001:db8:1:1::1]:1", "[2001:db8:1:2::1]:1"} {
+		if rec := contact(remote); rec.Code != http.StatusCreated {
+			t.Fatalf("message %d of the /48: %d", i, rec.Code)
+		}
+	}
+	if rec := contact("[2001:db8:1:3::1]:1"); rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("a third /64 of the /48: %d, Retry-After %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	stored()
+	if rec := contact("198.51.100.4:1"); rec.Code != http.StatusCreated {
+		t.Errorf("another network: %d", rec.Code)
+	}
+	if rec := contact("192.0.2.9:1"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("past the node's cap: %d", rec.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+
+	// The sweep: not before cCooldownSweepEvery, then everything past the
+	// map's TTL goes.
+	now := time.Now()
+	m := map[string]time.Time{"old": now.Add(-cContactMapTTL - time.Minute), "new": now}
+	var c cooldownSweep
+	c.sweep(m, now)
+	m["older"] = now.Add(-cContactMapTTL - time.Minute)
+	c.sweep(m, now.Add(time.Second))
+	if _, ok := m["older"]; !ok || len(m) != 2 {
+		t.Errorf("swept again a second later: %v", m)
+	}
+	c.sweep(m, now.Add(cCooldownSweepEvery))
+	if _, ok := m["older"]; ok || len(m) != 1 {
+		t.Errorf("after cCooldownSweepEvery: %v", m)
 	}
 }

@@ -4,6 +4,16 @@
 
 package i18n
 
+// SiteSigninContinueAppHeading is site.signin.continue.app_heading: "Continue in the Off The Cloud app?".
+func SiteSigninContinueAppHeading() Msg {
+	return Msg{Key: "site.signin.continue.app_heading"}
+}
+
+// SiteSigninContinueAppText is site.signin.continue.app_text: "Continue hands your sign-in to the Off The Cloud app, to finish setting up a dev…".
+func SiteSigninContinueAppText() Msg {
+	return Msg{Key: "site.signin.continue.app_text"}
+}
+
 // SiteSigninContinueButton is site.signin.continue.button: "Continue".
 func SiteSigninContinueButton() Msg {
 	return Msg{Key: "site.signin.continue.button"}

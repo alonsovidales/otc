@@ -65,6 +65,16 @@
     "text": "Hallo,",
     "en": "Hello,"
   },
+  "mail.identity.body": {
+    "text": "De apparaatnaam {domain} van je Off The Cloud-account heeft zojuist een nieuwe identiteit gekregen: het apparaat dat de naam tot nu toe gebruikte, kan geen verbinding meer maken met de bridge, en de naam leidt nu naar het apparaat met de nieuwe.\n\nHeb je dit zelf gedaan (een apparaat opnieuw ingesteld met dezelfde naam, in Instellingen › Gebruikers opnieuw een gebruiker met dezelfde naam toegevoegd, of Nieuwe identiteit op je accountpagina), dan hoef je verder niets te doen.\n\nZo niet, dan gebruikt iemand anders je account: log in op {link}, kies Overal uitloggen en wijzig je wachtwoord, en stel daarna je eigen apparaat opnieuw in met dezelfde naam.",
+    "en": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, adding a user again with the same name in Settings › Users, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "reviewed": "claude-backtranslation 2026-11-04 #54e91291"
+  },
+  "mail.identity.subject": {
+    "text": "Nieuwe identiteit voor {domain}",
+    "en": "New identity for {domain}",
+    "reviewed": "claude-backtranslation 2026-11-04 #f399249f"
+  },
   "mail.inactivity.body": {
     "text": "Je account voor de bridge van Off The Cloud ({email}) is al vijf maanden niet gebruikt: niemand heeft erop ingelogd, geen van je apparaten is met de bridge verbonden geweest, en geen enkele app of vriend heeft ze via de bridge bereikt.\n\nVolgens onze voorwaarden wordt een account dat zes maanden niet is gebruikt verwijderd. Als er niets verandert, worden dit account en de bijbehorende apparaatnamen op {date} verwijderd. Je apparaten blijven thuis gewoon werken.\n\nWil je het account houden? Log dan vóór die datum in op {link} of zet een van je apparaten aan met een internetverbinding.",
     "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
@@ -74,6 +84,16 @@
     "text": "Je Off The Cloud-account wordt op {date} verwijderd",
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #f8e79edb"
+  },
+  "mail.provider_link.body": {
+    "text": "Je kunt nu met {provider} inloggen op je Off The Cloud-account ({email}). Het account heeft ook een wachtwoord, dat blijft werken.\n\nAls je dat wachtwoord zelf hebt gekozen, hoef je verder niets te doen.\n\nZo niet, dan heeft iemand anders dit account vóór jou met je e-mailadres aangemaakt en kan die er nog steeds mee inloggen: log uit op {link}, kies Wachtwoord vergeten? en stel een nieuw wachtwoord in. Daarmee wordt iedereen anders uitgelogd.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #0a984249"
+  },
+  "mail.provider_link.subject": {
+    "text": "Inloggen met {provider} toegevoegd aan je Off The Cloud-account",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #aae4ddf7"
   },
   "mail.reset.body": {
     "text": "Iemand – hopelijk jij – heeft gevraagd om het wachtwoord van het Off The Cloud-account voor dit e-mailadres opnieuw in te stellen. Open deze link om een nieuw wachtwoord te kiezen:\n\n{link}\n\nDe link werkt één uur lang, en maar één keer. Als je een nieuw wachtwoord instelt, wordt je account overal elders uitgelogd.\n\nHeb je hier niet om gevraagd? Negeer deze e-mail dan: je wachtwoord blijft zoals het is.",

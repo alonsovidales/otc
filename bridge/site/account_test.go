@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"maps"
 	"regexp"
 	"strings"
 	"testing"
@@ -202,6 +203,16 @@ var accountScriptEnglish = map[string]string{
 	"deletedHome":         "Back to the home page",
 }
 
+// accountScriptAdded is what the account page's script says that the old
+// page didn't: the password asked again before a domain gets a new
+// identity or is released, and the note under a setup code that moves no
+// name.
+var accountScriptAdded = map[string]string{
+	"identityPassword":  "Your password, to give {domain} a new identity",
+	"releasePassword":   "Your password, to release {domain}",
+	"setupNewNamesOnly": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
+}
+
 // The literals the old script held where the new one passes a value.
 var accountLiterals = strings.NewReplacer(
 	"{min_chars}", "8",
@@ -214,7 +225,9 @@ var accountLiterals = strings.NewReplacer(
 // before: TestEnglishUnchanged covers the page around it.
 func TestAccountScriptTextsUnchanged(t *testing.T) {
 	texts := accountScriptText(t, English())
-	for name, want := range accountScriptEnglish {
+	expected := maps.Clone(accountScriptEnglish)
+	maps.Copy(expected, accountScriptAdded)
+	for name, want := range expected {
 		v, ok := texts[name]
 		if !ok {
 			t.Errorf("#account-text has no %s", name)
@@ -225,7 +238,7 @@ func TestAccountScriptTextsUnchanged(t *testing.T) {
 		}
 	}
 	for name := range texts {
-		if _, ok := accountScriptEnglish[name]; !ok {
+		if _, ok := expected[name]; !ok {
 			t.Errorf("#account-text has %s, which the old page didn't say", name)
 		}
 	}
@@ -284,8 +297,12 @@ const headErrorTable = `{
 // The error table reads as before in English: the same text for every
 // code, the placeholders named as the API's keys name them (the script
 // fills them in from the same figures), and the deletion's confirmation
-// body passed in rather than written in the text. invalid_language is new
-// (PUT /api/account/language), with the API's own words.
+// body passed in rather than written in the text. The codes added since
+// have their own words: invalid_language (PUT /api/account/language) the
+// API's, password_too_long (a new password over the 72 bytes bcrypt
+// keeps) the text the bridge answers with, its figure left to the script;
+// move_needs_signin (a name moved to a new device without a sign-in just
+// made) too.
 func TestAccountErrorTableUnchanged(t *testing.T) {
 	out, err := Render(Account, English(), testOptions)
 	if err != nil {
@@ -301,10 +318,16 @@ func TestAccountErrorTableUnchanged(t *testing.T) {
 	if err := json.Unmarshal([]byte(headErrorTable), &want); err != nil {
 		t.Fatal(err)
 	}
-	if got.API["invalid_language"] != i18n.ApiErrorInvalidLanguage().Render("en") {
-		t.Errorf("invalid_language: %q", got.API["invalid_language"])
+	for code, text := range map[string]string{
+		"invalid_language":  i18n.ApiErrorInvalidLanguage().Render("en"),
+		"password_too_long": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji",
+		"move_needs_signin": i18n.SiteAccountErrorMoveNeedsSignin().Render("en"),
+	} {
+		if got.API[code] != text {
+			t.Errorf("%s: %q, want %q", code, got.API[code], text)
+		}
+		delete(got.API, code)
 	}
-	delete(got.API, "invalid_language")
 	old := strings.NewReplacer("{min_chars}", "{min_password}", "{price_eur}", "{extra_domain_eur}", "{body}", `{"confirm": "delete"}`)
 	for code, text := range got.API {
 		if old.Replace(text) != want.API[code] {
