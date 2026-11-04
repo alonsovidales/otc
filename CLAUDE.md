@@ -1232,7 +1232,11 @@ start takes its file.
   are already compressed (`zipLevelFor`: video, most audio, JPEG/HEIC/PNG/WebP..., archives) go in at
   `flate.NoCompression`, never `zip.Store` - Go always writes data descriptors, and streaming
   unzippers (Java's ZipInputStream, funzip) reject stored entries that have one.
-  `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids.
+  `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids;
+  a link that isn't there (an id unknown or swept, deleted, its file gone, a secret cut short) answers
+  a gallery's one sentence, `dev.files.gallery_not_found`, never the raw cause ("sql: no rows in
+  result set"), which goes to the log at Debug (`sharedLinkFailure`; a failing disk is "internal
+  error", at Error).
   **Thumbnails** (release 111, `files_manager/thumbnail_size.go`): every photo and video has two,
   sealed next to its blob and made from the picture as shown (EXIF orientation applied), never
   scaled up. `<hash>_thumbnail`, the big one: its LONGEST side at most `[otc]

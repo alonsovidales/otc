@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"mime"
 	"net"
@@ -2299,7 +2300,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			data, size, err := ch.mg.filesManager.OpenSharedLinkRange(r.Uuid, r.Secret, r.Offset, int(r.Length))
 			if err != nil {
 				resp.Error = true
-				resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+				resp.ErrorMessage = sharedLinkFailure(lang, err)
 				break
 			}
 			// Issue #180: the list in Settings counts downloads - one per
@@ -2316,7 +2317,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+			resp.ErrorMessage = sharedLinkFailure(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSharedFiles{
 				RespSharedFiles: &pb.SharedFiles{
@@ -5192,6 +5193,28 @@ func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), an
 			}
 		}(&env)
 	}
+}
+
+// sharedLinkFailure is what a share link's archive download that failed
+// tells its visitor, in lang: the device's own words when it has them
+// (the link's time is up, a part outside the archive), and for a link that
+// isn't there - an unknown id, one the owner deleted or the sweep removed,
+// its file gone, a secret cut short that doesn't open it - one sentence,
+// as a gallery's link gets. Those used to show the raw cause: "sql: no
+// rows in result set", a cipher's error. The cause is logged at Debug
+// (anyone can try a link), a failing disk's read error at Error.
+func sharedLinkFailure(lang string, err error) string {
+	var words *devtext.Error
+	if errors.As(err, &words) {
+		return i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
+	}
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) && !errors.Is(err, fs.ErrNotExist) {
+		log.Error("reading a share link's archive:", err)
+		return i18n.DevFilesDownloadFailed(i18n.DevErrInternal().Render(lang)).Render(lang)
+	}
+	log.Debug("a share link that isn't there:", err)
+	return devtext.Text(lang, filesmanager.ErrNoSuchGallery)
 }
 
 // staticAssetReply answers ReqGetStaticAsset into resp: the file of the
