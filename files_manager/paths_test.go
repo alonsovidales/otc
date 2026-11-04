@@ -33,18 +33,23 @@ func TestValidNewPath(t *testing.T) {
 		"/a/.hidden":                           true,
 		"/a/..b":                               true,
 		"/windows/PC/C/Users/k/report (1).doc": true,
-		"":                                     false,
-		"a.jpg":                                false,
-		"Photos/a.jpg":                         false,
-		"/":                                    false,
-		"/a/":                                  false,
-		"/a//b.jpg":                            false,
-		"//a":                                  false,
-		"/a/./b":                               false,
-		"/a/../b":                              false,
-		"/..":                                  false,
-		"/a/..":                                false,
-		"/a\x00b":                              false,
+		// otc-sync's folder on a Windows network share (\\NAS\Photos),
+		// and a web folder typed with two "/" in a row.
+		"/windows/PC//nas/share/a.jpg": true,
+		"/a//b.jpg":                    true,
+		"//a":                          true,
+		"":                             false,
+		"a.jpg":                        false,
+		"Photos/a.jpg":                 false,
+		"/":                            false,
+		"//":                           false,
+		"/a/":                          false,
+		"/a//":                         false,
+		"/a/./b":                       false,
+		"/a/../b":                      false,
+		"/..":                          false,
+		"/a/..":                        false,
+		"/a\x00b":                      false,
 	} {
 		if got := validNewPath(p); got != want {
 			t.Errorf("validNewPath(%q) = %v, want %v", p, got, want)
@@ -85,7 +90,7 @@ func TestNewPathsAreChecked(t *testing.T) {
 	var refused *BadPathError
 	if _, err := mg.UploadFile(ses, bad, content, true, nil, nil, ""); !errors.As(err, &refused) {
 		t.Errorf("UploadFile: %v", err)
-	} else if want := "no file can be saved as /a/../../.bashrc: a path starts with / and none of the names in it is empty, . or .."; err.Error() != want || devtext.Text("en", err) != want {
+	} else if want := "no file can be saved as /a/../../.bashrc: a path starts with /, doesn't end in /, and none of the names in it is . or .."; err.Error() != want || devtext.Text("en", err) != want {
 		t.Errorf("its English: %q", err.Error())
 	} else if es := devtext.Text("es", err); es == want || !strings.Contains(es, bad) {
 		t.Errorf("its Spanish: %q", es)
@@ -102,7 +107,7 @@ func TestNewPathsAreChecked(t *testing.T) {
 	}
 
 	// Stored before the check: linked to again as any path is.
-	const old = "/old//report.txt"
+	const old = "/old/./report.txt"
 	linked := strings.Repeat("c", 64)
 	if err := os.WriteFile(blobPath(linked), []byte("content"), 0o600); err != nil {
 		t.Fatal(err)

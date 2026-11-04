@@ -12,8 +12,8 @@
     "en": "asset not found"
   },
   "dev.files.bad_path": {
-    "text": "nenhum ficheiro pode ser guardado como {path}: um caminho começa por / e nenhum dos seus nomes está vazio nem é . ou ..",
-    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+    "text": "nenhum ficheiro pode ser guardado como {path}: um caminho começa por /, não termina em / e nenhum dos seus nomes é . ou ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
   },
   "dev.files.bad_size": {
     "text": "tamanho inválido",

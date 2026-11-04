@@ -19,7 +19,7 @@ func DevFilesAssetNotFound() Msg {
 	return Msg{Key: "dev.files.asset_not_found"}
 }
 
-// DevFilesBadPath is dev.files.bad_path: "no file can be saved as {path}: a path starts with / and none of the names in it…".
+// DevFilesBadPath is dev.files.bad_path: "no file can be saved as {path}: a path starts with /, doesn't end in /, and none…".
 func DevFilesBadPath(path string) Msg {
 	return Msg{Key: "dev.files.bad_path", Args: map[string]any{"path": path}}
 }

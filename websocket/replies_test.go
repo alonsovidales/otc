@@ -106,7 +106,7 @@ var headEnglish = []struct {
 	{"dev.files.asset_not_found", i18n.DevFilesAssetNotFound(), "asset not found"},
 	// Paths checked and exact (2026-11): new, so their English is the
 	// catalog's from the start.
-	{"dev.files.bad_path", i18n.DevFilesBadPath("/a//b.txt"), "no file can be saved as /a//b.txt: a path starts with / and none of the names in it is empty, . or .."},
+	{"dev.files.bad_path", i18n.DevFilesBadPath("/a/../b.txt"), "no file can be saved as /a/../b.txt: a path starts with /, doesn't end in /, and none of the names in it is . or .."},
 	{"dev.files.bad_size", i18n.DevFilesBadSize(), "bad size"},
 	{"dev.files.chunk_too_big", i18n.DevFilesChunkTooBig(400), fmt.Sprintf("chunk over %d bytes", 400)},
 	{"dev.files.cloud_ids_failed", i18n.DevFilesCloudIdsFailed("boom"), fmt.Sprintf("error checking cloud ids: %s", "boom")},

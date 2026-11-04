@@ -2,7 +2,7 @@
   "dev.files.archive_offset": {"text": "Position {offset} außerhalb des Archivs"},
   "dev.files.archive_too_big": {"text": "das Archiv ist {size} Byte groß: Lade es in Teilen herunter"},
   "dev.files.asset_not_found": {"text": "Datei der Web-App nicht gefunden"},
-  "dev.files.bad_path": {"text": "keine Datei kann als {path} gespeichert werden: Ein Pfad beginnt mit / und keiner seiner Namen ist leer, . oder .."},
+  "dev.files.bad_path": {"text": "keine Datei kann als {path} gespeichert werden: Ein Pfad beginnt mit /, endet nicht auf / und keiner seiner Namen ist . oder .."},
   "dev.files.bad_size": {"text": "ungültige Größe"},
   "dev.files.chunk_too_big": {"text": "Teil größer als {limit} Byte"},
   "dev.files.cloud_ids_failed": {"text": "Fehler beim Prüfen der Cloud-IDs: {detail}"},

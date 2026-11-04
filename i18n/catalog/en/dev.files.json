@@ -2,7 +2,7 @@
   "dev.files.archive_offset": {"text": "offset {offset} outside the archive", "args": [["offset", "int"]]},
   "dev.files.archive_too_big": {"text": "the archive is {size} bytes: download it in parts", "args": [["size", "int"]]},
   "dev.files.asset_not_found": {"text": "asset not found"},
-  "dev.files.bad_path": {"text": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or ..", "args": [["path", "user"]]},
+  "dev.files.bad_path": {"text": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or ..", "args": [["path", "user"]]},
   "dev.files.bad_size": {"text": "bad size"},
   "dev.files.chunk_too_big": {"text": "chunk over {limit} bytes", "args": [["limit", "int"]]},
   "dev.files.cloud_ids_failed": {"text": "error checking cloud ids: {detail}", "args": [["detail", "text"]]},

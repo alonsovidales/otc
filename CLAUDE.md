@@ -1149,10 +1149,12 @@ folder is synced after each rename too (`blobstore.SyncDir`: `Commit`, `writeBlo
 FinishUpload) or `LinkFile` - nothing renames, moves or makes folders on the device (a client moves or
 copies with LinkFile and DelFile; a folder is only its files' paths) - and `checkNewPath` is the one
 rule for all of them, BeginUpload asking it before any content comes: a new file's path starts with
-"/" and none of its names is empty, "." or ".." (no "//", no trailing "/"), and it has no NUL
-(`BadPathError`, `dev.files.bad_path`). The apps and the sync clients only build such paths (otc-sync
-and the Mac from a cleaned local path, the phones and the web from a folder and a name; a web folder
-typed with "//" is now refused). A path already in `files`, byte for byte, stays its client's to
+"/", doesn't end in "/", none of its names is "." or "..", and it has no NUL (`BadPathError`,
+`dev.files.bad_path`). No client builds a "." or ".." name (otc-sync and the Mac send a cleaned local
+path, the phones and the web a folder and a name). An empty name inside a path ("//") is taken, as
+before: otc-sync on Windows sends one for a folder on a network share (`\\NAS\Photos` cleaned is
+`//NAS/Photos`, its files `/windows/<host>//NAS/Photos/...`), and a web folder typed with "//" has one;
+it leads nowhere outside a folder. A path already in `files`, byte for byte, stays its client's to
 replace, read and delete whatever it looks like: rows stored before are left as they are, and a share
 archive's entry names drop any empty, "." or ".." name and turn a `\` into `_` (`zipEntryName`), so no
 entry unpacks outside its folder. The path columns are `utf8mb4_bin`, which MariaDB compares PAD
@@ -4594,7 +4596,7 @@ Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try agai
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
-`ReplaceFileKeepingVersion` (`.`/`..`/empty path components are refused since 2026-11); bridge - no `interpolateParams`,
+`ReplaceFileKeepingVersion` (`.`/`..` path components and a trailing `/` are refused since 2026-11); bridge - no `interpolateParams`,
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the

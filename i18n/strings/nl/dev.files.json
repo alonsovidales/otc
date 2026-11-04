@@ -12,8 +12,8 @@
     "en": "asset not found"
   },
   "dev.files.bad_path": {
-    "text": "er kan geen bestand worden opgeslagen als {path}: een pad begint met / en geen van de namen erin is leeg, . of ..",
-    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+    "text": "er kan geen bestand worden opgeslagen als {path}: een pad begint met /, eindigt niet op / en geen van de namen erin is . of ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
   },
   "dev.files.bad_size": {
     "text": "ongeldige grootte",

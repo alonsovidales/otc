@@ -14,9 +14,9 @@
     "note": "Error reply when a file of the web app itself (a script, a picture) asked through the bridge doesn't exist on the device."
   },
   "dev.files.bad_path": {
-    "text": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or ..",
+    "text": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or ..",
     "args": [["path", "user"]],
-    "note": "Error shown after \"error trying to upload file: \" or \"error trying to link file: \" when an app asks to save a file at a path the device refuses: one that doesn't start with /, has an empty folder name (two / in a row), or a folder or file named . or ... An app fault, or a folder path typed with two / in a row. {path} is the path asked for, such as /Photos//2024/a.jpg."
+    "note": "Error shown after \"error trying to upload file: \" or \"error trying to link file: \" when an app asks to save a file at a path the device refuses: one that doesn't start with /, ends with / (no file name), or has a folder or file named . or ... An app fault. {path} is the path asked for, such as /Photos/../a.jpg."
   },
   "dev.files.bad_size": {
     "text": "bad size",

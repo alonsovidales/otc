@@ -12,8 +12,8 @@
     "en": "asset not found"
   },
   "dev.files.bad_path": {
-    "text": "aucun fichier ne peut être enregistré sous {path} : un chemin commence par / et aucun de ses noms n’est vide, . ou ..",
-    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+    "text": "aucun fichier ne peut être enregistré sous {path} : un chemin commence par /, ne se termine pas par / et aucun de ses noms n’est . ou ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
   },
   "dev.files.bad_size": {
     "text": "taille incorrecte",

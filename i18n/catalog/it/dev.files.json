@@ -2,7 +2,7 @@
   "dev.files.archive_offset": {"text": "offset {offset} fuori dall’archivio"},
   "dev.files.archive_too_big": {"text": "l’archivio è di {size} byte: scaricalo in parti"},
   "dev.files.asset_not_found": {"text": "risorsa non trovata"},
-  "dev.files.bad_path": {"text": "nessun file può essere salvato come {path}: un percorso inizia con / e nessuno dei suoi nomi è vuoto, . o .."},
+  "dev.files.bad_path": {"text": "nessun file può essere salvato come {path}: un percorso inizia con /, non finisce con / e nessuno dei suoi nomi è . o .."},
   "dev.files.bad_size": {"text": "dimensione non valida"},
   "dev.files.chunk_too_big": {"text": "blocco oltre {limit} byte"},
   "dev.files.cloud_ids_failed": {"text": "errore durante la verifica degli ID cloud: {detail}"},

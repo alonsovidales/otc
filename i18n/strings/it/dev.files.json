@@ -12,8 +12,8 @@
     "en": "asset not found"
   },
   "dev.files.bad_path": {
-    "text": "nessun file può essere salvato come {path}: un percorso inizia con / e nessuno dei suoi nomi è vuoto, . o ..",
-    "en": "no file can be saved as {path}: a path starts with / and none of the names in it is empty, . or .."
+    "text": "nessun file può essere salvato come {path}: un percorso inizia con /, non finisce con / e nessuno dei suoi nomi è . o ..",
+    "en": "no file can be saved as {path}: a path starts with /, doesn't end in /, and none of the names in it is . or .."
   },
   "dev.files.bad_size": {
     "text": "dimensione non valida",

@@ -23,16 +23,21 @@ import (
 
 // validNewPath reports whether a new file may be stored at p: an absolute
 // path ("/" first) of a file (not ending in "/"), none of whose names is
-// empty, "." or "..", with no NUL. The apps and the sync clients only make
-// such paths (a cleaned local path, a folder and a name); anything else
-// came from a client gone wrong - and a ".." in a path went into a share
-// archive's entry names as it was.
+// "." or "..", with no NUL. A ".." in a path went into a share archive's
+// entry names as it was; no client makes one (otc-sync and the Mac send a
+// cleaned local path, the phones and the web a folder and a name).
+// An empty name inside a path ("//") is taken: otc-sync on Windows makes
+// one for a folder on a network share - "\\NAS\Photos" cleaned is
+// "//NAS/Photos", so its files are "/windows/<host>//NAS/Photos/..." - and
+// a folder typed on the web with two "/" in a row has one. It leads
+// nowhere outside a folder, and share archives leave it out
+// (zipEntryName).
 func validNewPath(p string) bool {
-	if !strings.HasPrefix(p, "/") || strings.ContainsRune(p, 0) {
+	if !strings.HasPrefix(p, "/") || strings.HasSuffix(p, "/") || strings.ContainsRune(p, 0) {
 		return false
 	}
 	for _, name := range strings.Split(p[1:], "/") {
-		if name == "" || name == "." || name == ".." {
+		if name == "." || name == ".." {
 			return false
 		}
 	}

@@ -2,7 +2,7 @@
   "dev.files.archive_offset": {"text": "a posição {offset} está fora do ficheiro comprimido"},
   "dev.files.archive_too_big": {"text": "o ficheiro comprimido tem {size} bytes: transfere-o por partes"},
   "dev.files.asset_not_found": {"text": "recurso não encontrado"},
-  "dev.files.bad_path": {"text": "nenhum ficheiro pode ser guardado como {path}: um caminho começa por / e nenhum dos seus nomes está vazio nem é . ou .."},
+  "dev.files.bad_path": {"text": "nenhum ficheiro pode ser guardado como {path}: um caminho começa por /, não termina em / e nenhum dos seus nomes é . ou .."},
   "dev.files.bad_size": {"text": "tamanho inválido"},
   "dev.files.chunk_too_big": {"text": "bloco com mais de {limit} bytes"},
   "dev.files.cloud_ids_failed": {"text": "erro ao verificar os IDs do iCloud: {detail}"},
