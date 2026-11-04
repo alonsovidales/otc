@@ -511,9 +511,14 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   (it stops for a reprocess), saving its place in `settings.dates_taken_cursor` after each page and
   setting `dates_taken_backfilled` at the end; a database without them is skipped (`ErrSchemaBehind`);
   content not read this time is counted, not retried (Reprocess applies the rule); one Info line at the
-  end. Lima VM: 311 stored photos and videos in 9 s, ~7 ms of work a photo besides the pause. Each
-  application is one `dao.MoveToDateTaken` (`update files set created = T where hash = ? and created >
-  T + 26 h`: every `files` row of the content, rechecked in SQL; `file_versions` keep theirs), then
+  end. Each read is the processing guard's job (`beginProcessing(hash, jobMetadata)`, as Places'
+  reads are): after a death the content being read is recorded in flight, so what takes the process
+  down twice is set aside (runstate.go) instead of stopping the pass at every start, and set-aside
+  content is passed over (the processing that tries it again applies the rule); a parser's panic is
+  content not read (`readMetadataSafely`, for both passes). Lima VM: 311 stored photos and videos in
+  9 s, ~7 ms of work a photo besides the pause. Each application is one `dao.MoveToDateTaken`
+  (`update files set created = T where hash = ? and created > T + 26 h`: every `files` row of the
+  content, rechecked in SQL; `file_versions` keep theirs), then
   `memories.changed()` and `places.changed()` when a row moved. So Images' order, month counts, the
   scrubber, `before`/`newer_than`, the oldest copy (#201), On this day and Places' covers have the date
   taken with no query changed; Files' Created column shows it too, and the sync clients give it to a file
@@ -521,8 +526,31 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   again) keeps its own date; Images still shows the oldest copy. Known limit: a photo with neither an
   offset nor a GPS clock is placed at its clock read as UTC, and the apps show `created` in the viewer's
   zone, so east of UTC its last hours of a day show on the next day (one or two in Spain), west of UTC
-  its first hours on the day before. Tests: `date_taken_test.go`, exifinfo's `taken_test.go`, dao's
-  `TestMoveToDateTakenMySQL` and `TestDatesTakenBackfillMySQL`.
+  its first hours on the day before. Tests: `date_taken_test.go` (`TestMetadataPassesRecordWhatTheyRead`
+  too), exifinfo's `taken_test.go`, dao's `TestMoveToDateTakenMySQL` and `TestDatesTakenBackfillMySQL`.
+- EXIF is never parsed from a file's own bytes (2026-11, `exifinfo/tiff.go`): goexif works out a tag's
+  size in 32 bits and then allocates for its count - a 48-byte JPEG asked for 4 to 16 GiB, an
+  out-of-memory death no `recover()` catches - follows a chain of directories that name each other
+  forever, and decodes every tag of every directory, however many share the same bytes (a 64 KiB
+  segment of them took 812 MiB). `compactTIFF` reads, with 64-bit bounds, only the tags `fromExif`
+  reads (`keptMain`, `keptGPS`, `keptOffsets`: a new field read there goes in them), from where goexif
+  takes them - IFD0 and the Exif sub-IFD into one table, the last tag of an id winning; the GPS
+  sub-IFD; the offset tags of the directory that table names last - at most the last of each id (8
+  of an offset's), each value cut to 4 KiB, and writes them into a small TIFF of its own, which is
+  what goexif decodes: a few hundred KiB whatever the file says. A malformed tag or directory is
+  left out on its own (goexif refused the whole file). Every reader goes through it (`FromJPEG`,
+  `FromJPEGReader`, `FromHEIC`, `FromHEICReader`: uploads, More info, the dates' and Places' passes,
+  On this day's camera check, shared galleries, Reprocess). A JPEG's segment is found by following
+  its markers - past XMP's own APP1, which goexif took for EXIF's - then byte by byte from where they
+  stop making sense, as goexif looked (a camera raw with a JPEG inside); a TIFF (a scan, a camera
+  raw) is read at its directories through the blob's `ReaderAt`, wherever they are, never whole
+  (it was parsed whole, three copies: `exifOfBlob` holds `cExifReadBytes`, 8 MiB, of the content
+  budget instead of three times the file); a goheif panic on a short Exif item is an error. Checked
+  against goexif itself on its own samples, x/image's test images and the fixtures: the same `Info`
+  for every file goexif read, and one more read (a TIFF with a short tag goexif refused whole);
+  `TestCompactReadsWhatGoexifRead` keeps the fixtures' and every field's case, and
+  `TestCraftedEXIFIsCheapToRead` reads the crafted shapes as a JPEG, an Exif item and a TIFF within
+  8 MiB each.
 - Scrolling up after a jump (issue #194): `SearchPhotos.newer_than` (11) asks for the photos dated
   strictly after the instant, served OLDEST first, and every answer to it has
   `ListOfFiles.oldest_first` (6) true - its last page and an empty one too; devices before #194
@@ -700,7 +728,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     `startBackfillOnce`, because it needs the key, and when Places is turned on, and sets
     `settings.locations_backfilled` when done.
     - It reads only content that has a thumbnail and no row (`MediaWithoutLocation`), and only the
-      metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream.
+      metadata: a photo up to its EXIF (`exifOfBlob`), a video by ffprobe on its stream - each read
+      the processing guard's job (`jobMetadata`, as the dates' pass), set-aside content passed over.
     - It pauses 20 ms after each photo and 250 ms after each video.
     - A missing blob is skipped. A read that failed (a blob error, ffprobe not running or not
       answering) leaves the flag unset, so the next start reads it again. A row is never re-read,
@@ -1385,7 +1414,8 @@ start takes its file.
   viewers keep the thumbnail, downloads read in parts, a friend's device keeps the post's thumbnail
   (its sync logs the refusal; fetching it through GetMediaURL is still to do). `GetFileInfo` reads a
   photo's EXIF through the blob's ReaderAt (`exifFrom`, by its first bytes: a JPEG up to its EXIF
-  segment, a HEIC its boxes; a TIFF, which goexif reads whole, up to `shownWholeLimit`), and
+  segment, a HEIC its boxes, a TIFF at its directories wherever they are - exifinfo's `compactTIFF`;
+  the byte-by-byte search for an EXIF segment goes no further than `shownWholeLimit`), and
   `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). A post's video is
   never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a

@@ -56,20 +56,30 @@ type Info struct {
 	Orientation int
 }
 
-// FromJPEG reads standard EXIF (APP1 segment) out of JPEG bytes.
+// FromJPEG reads standard EXIF (APP1 segment) out of JPEG bytes - or out
+// of a TIFF's own directories (a camera raw, a scan).
 func FromJPEG(content []byte) (*Info, error) {
 	return FromJPEGReader(bytes.NewReader(content))
 }
 
-// FromJPEGReader is FromJPEG reading from r: a JPEG is read only up to its
-// EXIF segment, near its start. A TIFF (a camera raw, a scan) is read
-// whole by the EXIF parser, so the caller bounds r (an io.LimitReader).
+// FromJPEGReader is FromJPEG reading r from its start: a JPEG up to its
+// EXIF segment, near its start; a TIFF only where its tags are (tiff.go).
+// What is read never costs more than a few hundred KiB, whatever the file
+// says about itself. An r that can't be read at offsets (an io.ReaderAt
+// with a Size, as io.SectionReader and bytes.Reader are) is read whole,
+// so the caller bounds it.
 func FromJPEGReader(r io.Reader) (*Info, error) {
-	x, err := exif.Decode(r)
+	if ra, ok := r.(interface {
+		io.ReaderAt
+		Size() int64
+	}); ok {
+		return fromExifData(ra, ra.Size())
+	}
+	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return fromExif(x), nil
+	return fromExifData(bytes.NewReader(content), int64(len(content)))
 }
 
 // FromHEIC reads EXIF out of a HEIC file's dedicated Exif item (a different
@@ -82,15 +92,22 @@ func FromHEIC(content []byte) (*Info, error) {
 // FromHEICReader is FromHEIC reading at r: only the container's boxes and
 // its Exif item are read, not the picture.
 func FromHEICReader(r io.ReaderAt) (*Info, error) {
-	raw, err := goheif.ExtractExif(r)
+	raw, err := heicExif(r)
 	if err != nil {
 		return nil, err
 	}
-	x, err := exif.Decode(bytes.NewReader(raw))
-	if err != nil {
-		return nil, err
-	}
-	return fromExif(x), nil
+	return fromExifData(bytes.NewReader(raw), int64(len(raw)))
+}
+
+// heicExif is goheif's Exif item of the HEIF at r - a panic of its parser
+// on a malformed file (an item shorter than its own header) an error.
+func heicExif(r io.ReaderAt) (raw []byte, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			raw, err = nil, fmt.Errorf("heif: malformed Exif item: %v", p)
+		}
+	}()
+	return goheif.ExtractExif(r)
 }
 
 func fromExif(x *exif.Exif) *Info {

@@ -1670,9 +1670,10 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 	} else {
 		// Read where the metadata is, never whole (blobstore decrypts only
 		// what a read covers): a JPEG up to its EXIF segment, a HEIC its
-		// boxes and Exif item. A TIFF (a scan, a camera raw) is parsed whole
-		// by the EXIF reader, three copies of it: at most shownWholeLimit of
-		// it is read, within the budget - a 1.5 GB scan took 4.5 GB.
+		// boxes and Exif item, a TIFF (a scan, a camera raw) its
+		// directories. The EXIF parser parsed a TIFF whole, three copies
+		// of it - a 1.5 GB scan took 4.5 GB - and believed what a file
+		// said about its own tags: exifinfo reads only the tags it shows.
 		ex, err = mg.readExif(session, file, mg.shownWholeLimit())
 	}
 	if err != nil {
@@ -1705,8 +1706,8 @@ func (mg *Manager) GetFileInfo(session *session.Session, path string) (info *pb.
 }
 
 // readExif is a stored photo's metadata, read from its blob where it is
-// (exifFrom), never more than limit bytes of it - holding the content
-// budget for the three copies of what a TIFF's parser takes.
+// (exifFrom): the search for a JPEG's EXIF segment goes no further than
+// limit bytes into it.
 func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*exifinfo.Info, error) {
 	blob, err := blobstore.Open(blobPath(file.Hash), ses)
 	if err != nil {
@@ -1716,29 +1717,39 @@ func (mg *Manager) readExif(ses *session.Session, file *pb.File, limit int64) (*
 	return mg.exifOfBlob(blob, file, limit)
 }
 
+// cExifReadBytes is what reading a stored photo's metadata holds of the
+// content budget: a JPEG's EXIF segment, a HEIC's boxes, a TIFF's
+// directories and the few values read of them (exifinfo), and the 1 MiB
+// segments the blob decrypts for those reads - never the photo.
+const cExifReadBytes = 8 << 20
+
 // exifOfBlob is readExif of file's blob, already open.
 func (mg *Manager) exifOfBlob(blob blobstore.Blob, file *pb.File, limit int64) (*exifinfo.Info, error) {
-	n := min(blob.Size(), limit)
-	defer mg.ReserveBytes(3 * n)()
-	return exifFrom(blob, n, file.Mime, file.Path)
+	defer mg.ReserveBytes(min(blob.Size(), cExifReadBytes))()
+	return exifFrom(blob, blob.Size(), limit, file.Mime, file.Path)
 }
 
-// exifFrom is extractExif for a photo read at r, size bytes of it at most,
-// told apart by its first bytes: a JPEG is read up to its EXIF segment, a
+// exifFrom is extractExif for a photo read at r (size bytes), told apart
+// by its first bytes: a TIFF (a scan, a camera raw) is read where its
+// directories are, however far into it; a JPEG up to its EXIF segment; a
 // HEIC (or HEIF, AVIF) by its boxes - one named .heic or stored as
-// application/octet-stream included - and anything else as extractExif
-// reads it, a TIFF by the EXIF parser, which reads it whole.
-func exifFrom(r io.ReaderAt, size int64, mime, path string) (*exifinfo.Info, error) {
+// application/octet-stream included; any other image as extractExif reads
+// it, its EXIF segment looked for byte by byte. No read but a TIFF's goes
+// further than limit bytes into the file.
+func exifFrom(r io.ReaderAt, size, limit int64, mime, path string) (*exifinfo.Info, error) {
 	head := make([]byte, 12)
 	n, _ := r.ReadAt(head, 0)
 	head = head[:n]
+	near := io.NewSectionReader(r, 0, min(size, limit))
 	switch {
+	case isTIFF(head):
+		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
 	case isJPEGContent(head):
-		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromJPEGReader(near)
 	case isHeif(head), strings.HasSuffix(path, ".HEIC"):
-		return exifinfo.FromHEICReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromHEICReader(near)
 	case strings.HasPrefix(mime, "image/"):
-		return exifinfo.FromJPEGReader(io.NewSectionReader(r, 0, size))
+		return exifinfo.FromJPEGReader(near)
 	default:
 		return nil, devtext.New(i18n.DevFilesExifUnsupported(mime))
 	}

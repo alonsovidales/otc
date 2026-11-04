@@ -237,6 +237,11 @@ const (
 	// jobThumbFix: a small thumbnail made from the big one (the queue and
 	// the pass, which wait for the pause on their own: waitForQuiet).
 	jobThumbFix
+	// jobMetadata: a pass that reads a content's metadata only - the dates
+	// taken, Places' positions - recorded like the rest, so that what
+	// takes the process down while it is read is set aside, not read
+	// again at every start.
+	jobMetadata
 	// jobTranscode: a post's video re-encoded. Not tracked: nothing about
 	// it is retried by itself.
 	jobTranscode
@@ -244,7 +249,7 @@ const (
 
 // paused: the kinds that wait out the pause after a death.
 func (k jobKind) paused() bool {
-	return k == jobAnalysis || k == jobBackfill || k == jobReprocess
+	return k == jobAnalysis || k == jobBackfill || k == jobReprocess || k == jobMetadata
 }
 
 // processingGuard makes media processing gentler: on a low-memory device
