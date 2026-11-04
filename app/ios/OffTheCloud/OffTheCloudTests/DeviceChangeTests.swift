@@ -128,23 +128,25 @@ struct DeviceChangeSignInTests {
             UserDefaults.standard.removeObject(forKey: DeviceChange.pendingKey)
             s.saveCredentials(endpoint: "", password: "")
         }
-        s.saveCredentials(endpoint: "wss://cala.off-the.cloud/ws", password: "test-dummy")
+        // Names that never resolve (.invalid): nothing a request made
+        // meanwhile could reach is ever saved as the app's device.
+        s.saveCredentials(endpoint: "wss://cala.invalid/ws", password: "test-dummy")
         try #require(LocalEndpoint(HomeNetworkTests.answer(["192.168.1.20"]), endpoint: s.endpointURLString)).save()
         let session = s.deviceSession
         // The device itself gave its new address: nothing waits, the screens
         // stay, and its pin goes with it (the first sign-in there is pinned).
-        s.saveCredentials(endpoint: "ws://192.168.1.20:8080/ws", password: "test-dummy", sameDevice: true)
+        s.saveCredentials(endpoint: "ws://otc-home.invalid:8080/ws", password: "test-dummy", sameDevice: true)
         #expect(!DeviceChange.pending)
         #expect(s.deviceSession == session)
         #expect(LocalEndpoint.stored(for: s.endpointURLString)?.pin == HomeNetworkTests.goodPin)
         // Typed in Settings, the same address is a change of device until
         // the device says otherwise, and starts with nothing known.
-        s.saveCredentials(endpoint: "wss://pit.off-the.cloud/ws", password: "test-dummy")
+        s.saveCredentials(endpoint: "wss://pit.invalid/ws", password: "test-dummy")
         #expect(DeviceChange.pending)
         #expect(s.deviceSession == session + 1)
         #expect(LocalEndpoint.stored(for: s.endpointURLString) == nil)
         // A password changed for the same address is none.
-        s.saveCredentials(endpoint: "wss://Pit.off-the.cloud/ws", password: "another")
+        s.saveCredentials(endpoint: "wss://Pit.invalid/ws", password: "another")
         #expect(s.deviceSession == session + 1)
     }
 }
