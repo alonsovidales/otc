@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { File as PbFile, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useWS } from "../net/useWS";
-import { personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
+import { collectionName, personLabel, reloadPeople, reloadTags, usePeople, useTags } from "./libraryStore";
 import { addTag, clearSearch, clearText, leaveArea, leaveGroup, removeTag, searchText, togglePerson, usePhotoFilter } from "./photoFilter";
 import { smartSearchFocused, useSmartSearchOffered } from "./smartSearch";
 import { useFaceRecognition } from "./faceRecognition";
@@ -710,7 +710,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
   const alreadyIn = filter.tags.some((tag) => fold(tag).text === q);
   // The chips, read out with the field.
   const summary = [
-    filter.group && t("web.shell.search.collection", { name: filter.group.name }),
+    filter.group && t("web.shell.search.collection", { name: collectionName(filter.group.name) }),
     filter.area && t("web.shell.search.area"),
     ...filter.personIds.map((pid) => { const p = byId.get(pid); return p ? personLabel(p) : t("web.shell.search.a_person"); }),
     ...filter.tags,
@@ -732,11 +732,11 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           {filter.group && (
             <span className="ts-chip has-icon">
               <span className="ts-chip-icon"><CollectionsIcon size={18} /></span>
-              <span className="ts-chip-label">{filter.group.name}</span>
+              <span className="ts-chip-label">{collectionName(filter.group.name)}</span>
               <button
                 type="button"
                 className="ts-chip-x"
-                aria-label={t("web.shell.search.close_collection", { name: filter.group.name })}
+                aria-label={t("web.shell.search.close_collection", { name: collectionName(filter.group.name) })}
                 onMouseDown={keepFocus}
                 onClick={(e) => { leaveGroup(); refocus(e); }}
               >

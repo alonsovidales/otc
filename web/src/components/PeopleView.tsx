@@ -12,7 +12,7 @@ import { personLabel, reloadPeople, renamePersonLocally, usePeople } from "./lib
 import type { Reload } from "./libraryStore";
 import { forgetPerson, showPerson } from "./photoFilter";
 import Spinner from "./Spinner";
-import { say, type UiText } from "./uiText";
+import { plainNumber, say, type UiText } from "./uiText";
 import { useDragSelect } from "./useDragSelect";
 import { refuseOnDemo } from "../net/demo";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -1345,13 +1345,15 @@ function Avatar({ src, className }: { src: string | undefined; className: string
 // The faces a deletion is about: one large, or a few overlapping with how
 // many more there are.
 function FaceStack({ people, thumbs }: { people: readonly Person[]; thumbs: ReadonlyMap<string, string> }) {
+  const t = useT();
   if (people.length === 1) return <Avatar src={thumbs.get(people[0].id)} className="pv-avatar-lg" />;
   const shown = people.slice(0, people.length > 4 ? 3 : 4);
   const more = people.length - shown.length;
   return (
     <span className="pv-stack" aria-hidden="true">
       {shown.map((p) => <Avatar key={p.id} src={thumbs.get(p.id)} className="pv-avatar-md" />)}
-      {more > 0 && <span className="pv-avatar pv-avatar-md pv-stack-more">+{more.toLocaleString()}</span>}
+      {/* In the app's language, not the browser's ("+1.000" in German). */}
+      {more > 0 && <span className="pv-avatar pv-avatar-md pv-stack-more">+{plainNumber(t, more)}</span>}
     </span>
   );
 }

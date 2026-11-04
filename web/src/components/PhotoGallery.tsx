@@ -57,7 +57,7 @@ import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { nameCollator } from "./filesSort";
 import { sortCollections } from "./librarySort";
-import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
+import { choosePersonCover, collectionName, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
 import { asIs, say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
@@ -1527,7 +1527,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   const onCollected = (g: OpenGroup) => {
     setDialog(null);
     clearSel();
-    showToast({ text: (t) => t("web.images.collect.added", { name: g.name }), action: { label: say("web.images.collect.view"), run: () => openGroup(g) } });
+    showToast({ text: (t) => t("web.images.collect.added", { name: collectionName(g.name) }), action: { label: say("web.images.collect.view"), run: () => openGroup(g) } });
   };
 
   // Escape clears the selection - unless something on top of the grid
@@ -1793,7 +1793,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         <Empty
           icon={<SearchIcon size={32} />}
           title={t("web.images.grid.no_match_title")}
-          text={group ? t("web.images.grid.no_match_in", { name: group.name }) : t("web.images.grid.no_match_text")}
+          text={group ? t("web.images.grid.no_match_in", { name: collectionName(group.name) }) : t("web.images.grid.no_match_text")}
         >
           <button type="button" className="pg-btn outline" onClick={() => { clearSearch(); leaveArea(); }}>{t("web.images.grid.clear_search")}</button>
         </Empty>
@@ -2033,7 +2033,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       {dialog?.kind === "deleteCollection" && group && (
         <ConfirmDialog
           title={t("web.images.collection.delete_title")}
-          text={t("web.images.collection.delete_text", { name: group.name })}
+          text={t("web.images.collection.delete_text", { name: collectionName(group.name) })}
           confirm={t("common.delete")}
           busyText={t("common.deleting")}
           onConfirm={deleteCollection}
@@ -2249,7 +2249,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
     }
   };
 
-  const shown = saving ?? group.name;
+  const shown = collectionName(saving ?? group.name);
   return (
     <header className="pg-head">
       <button type="button" className="pg-back" onClick={onBack}>
@@ -2871,7 +2871,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
         onDone({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
         return;
       }
-      setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: g.name }));
+      setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: collectionName(g.name) }));
     } catch {
       setError(() => say("web.images.error.unreachable"));
     }
@@ -2960,7 +2960,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
                       ? <span className="pg-pick-cover pg-pick-fav"><FavouritesIcon size={22} /></span>
                       : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
                   <span className="pg-pick-text">
-                    <span className="pg-pick-name">{g.name}</span>
+                    <span className="pg-pick-name">{collectionName(g.name)}</span>
                     <span className="pg-pick-count">{itemsLabel(t, g.fileCount)}</span>
                   </span>
                   {busy === g.id && <Spinner />}
