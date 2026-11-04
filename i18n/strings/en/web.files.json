@@ -736,11 +736,11 @@
   "web.files.upload.progress": {
     "text": "Uploading {done}/{total}…",
     "args": [["done", "int"], ["total", "int"]],
-    "note": "Files: title of the upload panel while dropped files are sent. {done} is how many are done, {total} how many were dropped."
+    "note": "Files: title of the upload panel while files dropped on the page or picked with Upload are sent. {done} is how many are done, {total} how many there are."
   },
   "web.files.upload.reading": {
     "text": "Reading…",
-    "note": "Files: status of a dropped file waiting to be read and sent, in the upload panel.",
+    "note": "Files: status of a file in the upload panel while it is read before it is sent (a file of more than 4 MB is read once to work out the fingerprint that lets an interrupted upload go on from where it stopped).",
     "max": 16
   },
   "web.files.upload.uploaded": {
@@ -753,7 +753,12 @@
   },
   "web.files.upload.uploading": {
     "text": "Uploading…",
-    "note": "Files: status shown on each row of the upload panel.",
+    "note": "Files: status of the file being sent, in the upload panel; how much of it the device has taken follows it as a percentage.",
+    "max": 16
+  },
+  "web.files.upload.waiting": {
+    "text": "Waiting",
+    "note": "Files: status of a file in the upload panel that waits its turn (files are sent one at a time, in the order they were dropped or picked).",
     "max": 16
   },
   "web.files.usage.empty": {
@@ -817,6 +822,10 @@
   "web.files.versions.hint": {
     "text": "The file is in an upload-only folder, so each upload to this path kept the one before it.",
     "note": "Files: explanation at the top of a file's versions pop-up."
+  },
+  "web.files.versions.load_failed": {
+    "text": "Couldn't list the older versions of this file.",
+    "note": "Files: in the pop-up of a file's older versions (web.files.versions.title), when the device didn't answer or gave no reason of its own. A Try again button follows."
   },
   "web.files.versions.replaced": {
     "text": "Replaced {date}",

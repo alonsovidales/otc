@@ -32,7 +32,7 @@
   "web.tour.skip": "Skip",
   "web.tour.social.text": "Your posts and your friends' show here, newest first. Click the heart to like one, write under it to comment, and click the number of likes to see who liked it.",
   "web.tour.social.title": "Like and comment",
-  "web.tour.upload.text": "Drag files from your computer onto the page to upload them, then select some to \u003cb\u003e{share}\u003c/b\u003e a link or \u003cb\u003e{zip}\u003c/b\u003e. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept.",
+  "web.tour.upload.text": "Upload files with \u003cb\u003e{upload}\u003c/b\u003e or by dragging them onto the page, then select some to \u003cb\u003e{share}\u003c/b\u003e a link or \u003cb\u003e{zip}\u003c/b\u003e. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept.",
   "web.tour.upload.title": "Upload and share",
   "web.tour.users.bridge": "Keep \u003cb\u003e{bridge}\u003c/b\u003e ticked to give them their own address.",
   "web.tour.users.text": "Give each person their own Off The Cloud on this same device: their own photos, files and private feed, separate from yours. In \u003cb\u003e{settings} › {users}\u003c/b\u003e, type a username, choose \u003cb\u003e{add}\u003c/b\u003e and set their first password.",

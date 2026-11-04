@@ -181,9 +181,9 @@
     "max": 48
   },
   "web.tour.upload.text": {
-    "text": "Drag files from your computer onto the page to upload them, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept.",
-    "args": [["share", "text"], ["zip", "text"]],
-    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Text of the step about uploading and sharing in Files. Files are uploaded by dragging them from the computer onto the page. {share} is the selection's button that copies a link to download them (common.share) and {zip} the one that downloads them as one archive (web.files.selection.download_zip), in bold. The lock beside a folder makes it upload only: nothing in it can be deleted, and a file uploaded again under the same name keeps the one before as an older version.",
+    "text": "Upload files with <b>{upload}</b> or by dragging them onto the page, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept.",
+    "args": [["upload", "text"], ["share", "text"], ["zip", "text"]],
+    "note": "The first-run tour: a card over the dimmed page, one step at a time, each with a small moving drawing of the controls it talks about; shown once by itself after signing in and again from Show the tour. Text of the step about uploading and sharing in Files. Files are uploaded with the Upload button of Files' toolbar ({upload}: common.upload) or by dragging them from the computer onto the page. {share} is the selection's button that copies a link to download them (common.share) and {zip} the one that downloads them as one archive (web.files.selection.download_zip), in bold. The lock beside a folder makes it upload only: nothing in it can be deleted, and a file uploaded again under the same name keeps the one before as an older version.",
     "max": 240,
     "rich": ["b"]
   },

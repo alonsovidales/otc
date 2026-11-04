@@ -674,6 +674,10 @@
     "text": "Uploaden…",
     "en": "Uploading…"
   },
+  "web.files.upload.waiting": {
+    "text": "Wacht",
+    "en": "Waiting"
+  },
   "web.files.usage.empty": {
     "text": "Niets in deze map neemt ruimte in.",
     "en": "Nothing in this folder takes up space."
@@ -733,6 +737,10 @@
   "web.files.versions.hint": {
     "text": "Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.",
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.load_failed": {
+    "text": "Kan de oudere versies van dit bestand niet tonen.",
+    "en": "Couldn't list the older versions of this file."
   },
   "web.files.versions.replaced": {
     "text": "Vervangen: {date}",

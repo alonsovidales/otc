@@ -32,7 +32,7 @@
   "web.tour.skip": "Überspringen",
   "web.tour.social.text": "Hier erscheinen deine Beiträge und die deiner Freunde, die neuesten zuerst. Klicke auf das Herz, um einen zu liken, schreibe darunter, um zu kommentieren, und klicke auf die Zahl der Likes, um zu sehen, wem er gefällt.",
   "web.tour.social.title": "Liken und kommentieren",
-  "web.tour.upload.text": "Ziehe Dateien vom Computer auf die Seite, um sie hochzuladen, und wähle welche aus: \u003cb\u003e{share}\u003c/b\u003e gibt einen Link, oder nimm \u003cb\u003e{zip}\u003c/b\u003e. Das Schloss stellt einen Ordner auf „Nur hochladen“: Darin lässt sich nichts löschen, alte Versionen bleiben.",
+  "web.tour.upload.text": "Lade Dateien über \u003cb\u003e{upload}\u003c/b\u003e hoch oder ziehe sie auf die Seite, und wähle welche aus: \u003cb\u003e{share}\u003c/b\u003e gibt einen Link, oder nimm \u003cb\u003e{zip}\u003c/b\u003e. Das Schloss stellt einen Ordner auf „Nur hochladen“: Darin lässt sich nichts löschen, alte Versionen bleiben.",
   "web.tour.upload.title": "Hochladen und teilen",
   "web.tour.users.bridge": "Lass \u003cb\u003e{bridge}\u003c/b\u003e angehakt, dann bekommt die Person eine eigene Adresse.",
   "web.tour.users.text": "Gib jeder Person ein eigenes Off The Cloud auf demselben Gerät: eigene Fotos, Dateien und einen privaten Feed, getrennt von deinen. Gib unter \u003cb\u003e{settings} › {users}\u003c/b\u003e einen Benutzernamen ein, wähle \u003cb\u003e{add}\u003c/b\u003e und lege ein erstes Passwort fest.",

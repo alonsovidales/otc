@@ -242,6 +242,7 @@ export type MessageKey =
   | "web.files.upload.reading"
   | "web.files.upload.uploaded"
   | "web.files.upload.uploading"
+  | "web.files.upload.waiting"
   | "web.files.usage.empty"
   | "web.files.usage.failed"
   | "web.files.usage.needs_update"
@@ -254,6 +255,7 @@ export type MessageKey =
   | "web.files.versions.current"
   | "web.files.versions.download_failed"
   | "web.files.versions.hint"
+  | "web.files.versions.load_failed"
   | "web.files.versions.replaced"
   | "web.files.versions.tip"
   | "web.files.versions.title"
@@ -1418,6 +1420,7 @@ export interface MessageArgs {
   "web.files.upload.reading": undefined;
   "web.files.upload.uploaded": { count: number };
   "web.files.upload.uploading": undefined;
+  "web.files.upload.waiting": undefined;
   "web.files.usage.empty": undefined;
   "web.files.usage.failed": undefined;
   "web.files.usage.needs_update": undefined;
@@ -1430,6 +1433,7 @@ export interface MessageArgs {
   "web.files.versions.current": undefined;
   "web.files.versions.download_failed": { name: string };
   "web.files.versions.hint": undefined;
+  "web.files.versions.load_failed": undefined;
   "web.files.versions.replaced": { date: string };
   "web.files.versions.tip": undefined;
   "web.files.versions.title": { name: string };
@@ -2387,7 +2391,7 @@ export interface MessageArgs {
   "web.tour.skip": undefined;
   "web.tour.social.text": undefined;
   "web.tour.social.title": undefined;
-  "web.tour.upload.text": { share: string; zip: string };
+  "web.tour.upload.text": { upload: string; share: string; zip: string };
   "web.tour.upload.title": undefined;
   "web.tour.users.bridge": { bridge: string };
   "web.tour.users.text": { settings: string; users: string; add: string };

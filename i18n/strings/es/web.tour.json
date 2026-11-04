@@ -128,8 +128,8 @@
     "en": "Like and comment"
   },
   "web.tour.upload.text": {
-    "text": "Arrastra archivos desde tu ordenador a la página para subirlos y selecciona algunos para <b>{share}</b> un enlace o <b>{zip}</b>. El candado deja una carpeta en solo subida: no se puede eliminar nada y se guardan las versiones anteriores.",
-    "en": "Drag files from your computer onto the page to upload them, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
+    "text": "Sube archivos con <b>{upload}</b> o arrastrándolos a la página, y selecciona algunos para <b>{share}</b> un enlace o <b>{zip}</b>. El candado deja una carpeta en solo subida: no se puede eliminar nada y se guardan las versiones anteriores.",
+    "en": "Upload files with <b>{upload}</b> or by dragging them onto the page, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
   },
   "web.tour.upload.title": {
     "text": "Sube y comparte",

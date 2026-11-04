@@ -32,7 +32,7 @@
   "web.tour.skip": "Overslaan",
   "web.tour.social.text": "Hier staan je berichten en die van je vrienden, de nieuwste eerst. Klik op het hartje om een bericht te liken, schrijf eronder om te reageren en klik op het aantal likes om te zien wie het leuk vindt.",
   "web.tour.social.title": "Liken en reageren",
-  "web.tour.upload.text": "Sleep bestanden van je computer naar de pagina om ze te uploaden, en selecteer er een paar om een link te \u003cb\u003e{share}\u003c/b\u003e of \u003cb\u003e{zip}\u003c/b\u003e. Het slotje maakt een map alleen uploaden: er kan niets uit worden verwijderd en oude versies blijven bewaard.",
+  "web.tour.upload.text": "Upload bestanden met \u003cb\u003e{upload}\u003c/b\u003e of door ze naar de pagina te slepen, en selecteer er een paar om een link te \u003cb\u003e{share}\u003c/b\u003e of \u003cb\u003e{zip}\u003c/b\u003e. Het slotje maakt een map alleen uploaden: er kan niets uit worden verwijderd en oude versies blijven bewaard.",
   "web.tour.upload.title": "Uploaden en delen",
   "web.tour.users.bridge": "Laat \u003cb\u003e{bridge}\u003c/b\u003e aangevinkt om ze een eigen adres te geven.",
   "web.tour.users.text": "Geef iedereen een eigen Off The Cloud op hetzelfde apparaat: eigen foto’s, bestanden en een privéfeed, los van de jouwe. Typ in \u003cb\u003e{settings} › {users}\u003c/b\u003e een gebruikersnaam, kies \u003cb\u003e{add}\u003c/b\u003e en stel een eerste wachtwoord in.",

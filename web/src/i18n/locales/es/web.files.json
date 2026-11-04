@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Subiendo…",
+  "web.files.upload.waiting": "En espera",
   "web.files.usage.empty": "Nada de esta carpeta ocupa espacio.",
   "web.files.usage.failed": "No se ha podido calcular cuánto espacio ocupa esta carpeta.",
   "web.files.usage.needs_update": "Tu dispositivo necesita una actualización para mostrar cuánto espacio ocupan las carpetas.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Actual",
   "web.files.versions.download_failed": "No se ha podido descargar esta versión de \u2068{name}\u2069.",
   "web.files.versions.hint": "El archivo está en una carpeta de solo subida, así que cada subida a esta ruta ha conservado la anterior.",
+  "web.files.versions.load_failed": "No se han podido mostrar las versiones anteriores de este archivo.",
   "web.files.versions.replaced": "Sustituida: {date}",
   "web.files.versions.tip": "Versiones anteriores de este archivo",
   "web.files.versions.title": "Versiones de \u2068{name}\u2069"
