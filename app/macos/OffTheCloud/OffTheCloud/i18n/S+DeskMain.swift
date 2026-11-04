@@ -282,7 +282,7 @@ extension S {
 
     /// {files} file(s) are links or hidden here - left as they are on the device
     ///
-    /// otc-sync: a two-way folder's state when files it synced before are now symbolic links on this computer, inside a linked folder, or hidden (Windows' Hidden attribute). The app doesn't sync those, and leaves the device's copies as they are instead of deleting them. {files} is how many.
+    /// Both apps: a two-way folder's state when files it synced before are now symbolic links on this computer, inside a linked folder, or hidden (Windows' Hidden attribute; hidden in the Finder on a Mac). The app doesn't sync those, and leaves the device's copies as they are instead of deleting them. {files} is how many.
     static func deskMainFilesNotSyncedHere(files: Int) -> String {
         L("desk.main.files_not_synced_here", table: "DeskMain", files)
     }
