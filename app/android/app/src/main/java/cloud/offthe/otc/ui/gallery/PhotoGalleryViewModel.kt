@@ -2063,7 +2063,7 @@ class PhotoGalleryViewModel(
         _state.value.ratingDraft?.path?.let { d -> if (d != _state.value.items[index].path) leaveRatingDraft(d) }
         photoFacesAsk++
         dropVideoCopy()
-        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null, ratingNote = null) }
+        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoLoading = false, infoData = null, infoFaces = null, ratingNote = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
         askFavourites(index)
@@ -2419,22 +2419,32 @@ class PhotoGalleryViewModel(
         val idx = _state.value.openIndex ?: return
         val item = _state.value.items.getOrNull(idx) ?: return
         val path = item.path
+        // Only this opening's answer counts: one for the photo before (Info
+        // opened on A, the viewer moved to B, Info opened again) used to
+        // show A's camera, date and map under B, and its end cleared B's
+        // spinner early.
+        val ask = ++infoAsk
+        fun current() = ask == infoAsk && _state.value.infoOpen && openPath() == path
         _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null, infoFaces = null) }
         scope.launch {
             try {
                 val resp = call { it.setReqGetFileInfo(GetFileInfo.newBuilder().setPath(path)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_INFO) _state.update { it.copy(infoData = resp.respFileInfo) }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_INFO && current()) _state.update { it.copy(infoData = resp.respFileInfo) }
             } catch (_: Exception) {
             } finally {
-                _state.update { it.copy(infoLoading = false) }
+                if (current()) _state.update { it.copy(infoLoading = false) }
             }
         }
         askPhotoFaces(item)
     }
 
+    // Info's details: the latest GetFileInfo (openInfo).
+    private var infoAsk = 0
+
     fun closeInfo() {
         photoFacesAsk++
-        _state.update { it.copy(infoOpen = false, infoData = null, infoFaces = null) }
+        infoAsk++
+        _state.update { it.copy(infoOpen = false, infoLoading = false, infoData = null, infoFaces = null) }
     }
 
     // Info's People: the latest GetPhotoFaces (an answer to an older one,
