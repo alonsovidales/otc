@@ -221,12 +221,15 @@ func TestNewPublicationTakesBackWhatItWrote(t *testing.T) {
 	if err := blobstore.WriteBytes(filepath.Join(storage, hash+"_thumbnail"), ses, []byte("thumb")); err != nil {
 		t.Fatal(err)
 	}
-	row := func(mock sqlmock.Sqlmock) {
+	// The row of the path asked for: GetFileByPath takes only the row of
+	// that exact path.
+	rowAt := func(mock sqlmock.Sqlmock, path string) {
 		now := time.Now()
 		mock.ExpectQuery("select `hash`, `mime`, `created`, `modified`, `path`, `size` from `files` where `path` = ?").
 			WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
-				AddRow(hash, "image/jpeg", now, now, "/photos/a.jpg", len(photo)))
+				AddRow(hash, "image/jpeg", now, now, path, len(photo)))
 	}
+	row := func(mock sqlmock.Sqlmock) { rowAt(mock, "/photos/a.jpg") }
 	for _, made := range []bool{false, true} {
 		db, mock, err := sqlmock.New()
 		if err != nil {
@@ -256,7 +259,7 @@ func TestNewPublicationTakesBackWhatItWrote(t *testing.T) {
 			// also when the photo was uploaded again to another path (the
 			// web app's composer opened anew).
 			for _, path := range []string{"/photos/a.jpg", "/web/1730000300-def456-a.jpg"} {
-				row(mock) // postKey
+				rowAt(mock, path) // postKey
 				if again, err := sc.NewPublication(ses, "a post", []string{path}, nil); err != nil || again != uuid {
 					t.Fatalf("sent again at %s: %q, %v; want %q", path, again, err, uuid)
 				}
