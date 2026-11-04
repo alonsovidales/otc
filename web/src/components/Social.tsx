@@ -1522,7 +1522,11 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   // Issue #114: a video starts when you scroll onto it and stops when
   // you leave, so the feed plays itself. 60% visible means "mostly on
   // screen", which is also what stops two videos playing at once -
-  // only one post can be that visible at a time.
+  // only one post can be that visible at a time. Off the screen
+  // altogether, a clip fetched whole (a short one the device doesn't
+  // stream) lets its memory go, and is fetched again on the way back:
+  // posts stay mounted, so a long scroll through a feed of clips held
+  // every one of them, hundreds of MB.
   useEffect(() => {
     const node = mediaRef.current;
     if (!node || !isVideo) return;
@@ -1536,6 +1540,13 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           else if (current) void playInline(current);
         } else {
           videoElRef.current?.pause();
+          const held = inlineURLRef.current;
+          if (!entries[0]?.isIntersecting && held?.startsWith("blob:")) {
+            URL.revokeObjectURL(held);
+            inlineURLRef.current = null;
+            setInlineVideo(null);
+            setEnded(false);
+          }
         }
       },
       { threshold: [0, 0.6, 1] }

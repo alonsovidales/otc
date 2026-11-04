@@ -7,9 +7,11 @@
 // no Referer: the map service learns which tiles are looked at, never the
 // device's address (a page's own fetch to another site always names its
 // origin). OpenFreeMap answers every origin (Access-Control-Allow-Origin
-// *). A browser that can't start the worker fetches from the page, still
-// without a Referer. Only the map service's host is ever fetched
-// (index.html's connect-src allows only it besides the device).
+// *). A browser that can't start the worker gets no map - Places says the
+// map couldn't load - rather than fetch from the page, whose requests would
+// carry "Origin: https://<device>.off-the.cloud". Only the map service's
+// host is ever fetched (index.html's connect-src allows only it besides the
+// device).
 
 export const cMapHost = "https://tiles.openfreemap.org";
 
@@ -52,15 +54,15 @@ function proxy(): Worker | null {
       else w.reject(new Error(a.error ?? `HTTP ${a.status}`));
     };
     // A worker that can't run (refused by the browser after starting):
-    // what waits fails, and the page fetches from now on.
+    // what waits fails, and so does every fetch from now on.
     worker.onerror = () => {
-      console.warn("The map's fetch worker didn't start: fetching from the page.");
+      console.warn("The map's fetch worker didn't start: no map.");
       worker = null;
       for (const [, w] of waiting) w.reject(new Error("map fetch worker failed")); // i18n-ignore: an error MapLibre logs, never shown
       waiting.clear();
     };
   } catch (err) {
-    console.warn("The map's fetch worker didn't start: fetching from the page.", err);
+    console.warn("The map's fetch worker didn't start: no map.", err);
     worker = null;
   }
   return worker;
@@ -70,12 +72,7 @@ function proxy(): Worker | null {
 export function mapFetch(url: string, signal?: AbortSignal): Promise<Fetched> {
   if (!url.startsWith(cMapHost + "/")) return Promise.reject(new Error("not the map service")); // i18n-ignore: an error MapLibre logs, never shown
   const w = proxy();
-  if (!w) {
-    return fetch(url, { referrerPolicy: "no-referrer", credentials: "omit", signal }).then(async (r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return { data: await r.arrayBuffer(), cacheControl: r.headers.get("cache-control"), expires: r.headers.get("expires") };
-    });
-  }
+  if (!w) return Promise.reject(new Error("map fetch worker unavailable")); // i18n-ignore: an error MapLibre logs, never shown
   const id = nextId++;
   return new Promise<Fetched>((resolve, reject) => {
     waiting.set(id, { resolve, reject });
