@@ -238,6 +238,8 @@ import cloud.offthe.otc.i18n.appSettingsSyncAll
 import cloud.offthe.otc.i18n.appSettingsSyncAuthorize
 import cloud.offthe.otc.i18n.appSettingsSyncFooter
 import cloud.offthe.otc.i18n.appSettingsSyncFromNow
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowTitle
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowText
 import cloud.offthe.otc.i18n.appSettingsSyncTitle
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
@@ -523,6 +525,8 @@ fun SettingsView(secrets: SecretsStore) {
             catch (e: CancellationException) { throw e } catch (e: Exception) { null }
     }
     var confirmLogout by remember { mutableStateOf(false) }
+    // Sync From Now asks first: it gives up on every photo not sent yet.
+    var confirmSyncFromNow by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
     var showSharedLinks by remember { mutableStateOf(false) }
     // Settings > Logs (LogsView.kt), primary instance only like Tailscale and Users.
@@ -690,7 +694,15 @@ fun SettingsView(secrets: SecretsStore) {
                 // A run going goes through once more from the new starting
                 // point (setWatermark), as on iOS.
                 RowButton(S.appSettingsSyncAll().resolve()) { PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
-                RowButton(S.appSettingsSyncFromNow().resolve()) { PhotoSync.setWatermark(System.currentTimeMillis()) }
+                // It gives up on every photo not sent yet: it asks first.
+                RowButton(S.appSettingsSyncFromNow().resolve()) { confirmSyncFromNow = true }
+            }
+            if (confirmSyncFromNow) {
+                cloud.offthe.otc.ui.gallery.ConfirmDialog(
+                    S.appSettingsSyncFromNowTitle().resolve(), S.appSettingsSyncFromNowText().resolve(), S.appSettingsSyncFromNow().resolve(),
+                    onConfirm = { confirmSyncFromNow = false; PhotoSync.setWatermark(System.currentTimeMillis()) },
+                    onDismiss = { confirmSyncFromNow = false },
+                )
             }
 
             // Android 11 and later: MediaStore's trash request.
