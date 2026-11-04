@@ -28,10 +28,10 @@ func TestNameHoldMySQL(t *testing.T) {
 	cleanup := func() { db.Exec("delete from `released_domains` where `domain` in (?, ?, ?)", mine, nobodys, old) }
 	cleanup()
 	defer cleanup()
-	if err := d.recordRelease(mine, "nh-acc1"); err != nil {
+	if err := d.recordRelease(mine, "nh-acc1", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.recordRelease(nobodys, ""); err != nil {
+	if err := d.recordRelease(nobodys, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec("insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?)", old, "nh-acc1", time.Now().Add(-cNameHold-time.Hour)); err != nil {

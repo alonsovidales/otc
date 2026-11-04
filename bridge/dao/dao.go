@@ -75,17 +75,31 @@ func (dao *Dao) NameHold(domain, accountID string) (forOthers, forAccount bool, 
 	return true, false, nil
 }
 
-// recordRelease holds domain for accountID (empty: for no one) from now.
-func (dao *Dao) recordRelease(domain, accountID string) error {
-	var acc any
-	if accountID != "" {
-		acc = accountID
+// recordRelease holds domain for accountID (empty: for no one) from now;
+// primary is the device it was a user's address of (empty: none).
+func (dao *Dao) recordRelease(domain, accountID, primary string) error {
+	acc, prim, now := nullIfEmpty(accountID), nullIfEmpty(primary), time.Now()
+	return dao.releasedPrimary.runPart(cReleasedPrimary, func() error {
+		_, err := dao.db.Exec(
+			"insert into `released_domains` (`domain`, `account_id`, `released_at`, `primary_domain`) values (?, ?, ?, ?) "+
+				"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`), `primary_domain` = values(`primary_domain`)",
+			domain, acc, now, prim)
+		return err
+	}, func() error {
+		_, err := dao.db.Exec(
+			"insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?) "+
+				"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`)",
+			domain, acc, now)
+		return err
+	})
+}
+
+// nullIfEmpty is s, or NULL for "".
+func nullIfEmpty(s string) any {
+	if s == "" {
+		return nil
 	}
-	_, err := dao.db.Exec(
-		"insert into `released_domains` (`domain`, `account_id`, `released_at`) values (?, ?, ?) "+
-			"on duplicate key update `account_id` = values(`account_id`), `released_at` = values(`released_at`)",
-		domain, acc, time.Now())
-	return err
+	return s
 }
 
 type Dao struct {
@@ -141,6 +155,11 @@ type Dao struct {
 	// account_setup_codes (from 013) and account_tokens (gone after 014).
 	deviceSecret, deviceSecretHash optionalColumn
 	setupCodes, legacySetupTokens  optionalColumn
+
+	// The primary device a user's address belongs to (user_addresses.go):
+	// devices.primary_domain and released_domains.primary_domain, from
+	// migration 015.
+	devicePrimary, releasedPrimary optionalColumn
 }
 
 // cAuthEventEvery is how often one address may add a row per reason.
@@ -434,6 +453,7 @@ func (dao *Dao) DeleteDevice(domain string) (err error) {
 	if _, err := dao.db.Exec("delete from `released_domains` where `domain` = ?", domain); err != nil {
 		log.Error("could not lift the hold on", domain, ":", err)
 	}
+	dao.forgetPrimary(domain)
 	dao.forgetDomain(domain)
 	return nil
 }
@@ -1235,15 +1255,24 @@ func (dao *Dao) RegisterAccountDevice(accountID, owner, domain, secret string) e
 
 // ReplaceDeviceIdentity hands a domain to a new device: the owner uuid
 // and secret the old one presented stop working the moment this commits.
-// Only the owning account gets here (a lost device replaced by running
-// setup again, or "new identity" on the account page).
+// Only the owning account gets here, with its owner's confirmation (a lost
+// device replaced by running setup again, or "new identity" on the account
+// page). A user's address moved this way is no longer its primary's to
+// move (ReplaceUserAddressIdentity): the device that has it now does.
 func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (ok bool, err error) {
 	var res sql.Result
-	err = dao.withSecret(secret, func(cols []string, vals []any) error {
-		args := append(append(append([]any{owner}, vals...), domain), accountID)
-		var err error
-		res, err = dao.db.Exec("update `devices` set `owner_uuid` = ?, "+setColumns(cols)+" where `domain` = ? and `account_id` = ?", args...)
-		return err
+	update := func(clearPrimary string) error {
+		return dao.withSecret(secret, func(cols []string, vals []any) error {
+			args := append(append(append([]any{owner}, vals...), domain), accountID)
+			var err error
+			res, err = dao.db.Exec("update `devices` set `owner_uuid` = ?, "+setColumns(cols)+clearPrimary+" where `domain` = ? and `account_id` = ?", args...)
+			return err
+		})
+	}
+	err = dao.devicePrimary.runPart(cDevicesPrimary, func() error {
+		return update(", `primary_domain` = null")
+	}, func() error {
+		return update("")
 	})
 	if err != nil {
 		return false, err
@@ -1255,15 +1284,17 @@ func (dao *Dao) ReplaceDeviceIdentity(accountID, domain, owner, secret string) (
 
 // DeleteAccountDomain releases a domain, but only the owning account's.
 func (dao *Dao) DeleteAccountDomain(accountID, domain string) (ok bool, err error) {
+	primary := dao.primaryOf(domain)
 	res, err := dao.db.Exec("delete from `devices` where `domain` = ? and `account_id` = ?", domain, accountID)
 	if err != nil {
 		return false, err
 	}
 	n, err := res.RowsAffected()
 	if err == nil && n > 0 {
-		if relErr := dao.recordRelease(domain, accountID); relErr != nil {
+		if relErr := dao.recordRelease(domain, accountID, primary); relErr != nil {
 			log.Error("could not hold released name", domain, ":", relErr)
 		}
+		dao.forgetPrimary(domain)
 		dao.forgetDomain(domain)
 	}
 

@@ -279,14 +279,15 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
 `TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestEmailLinksSpentWithTheirWriteMySQL`,
 `TestListAdminDevicesMySQL` under `ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`,
-`TestNameHoldMySQL`, `TestHashedSecretsMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
+`TestNameHoldMySQL`, `TestHashedSecretsMySQL`, `TestUserAddressesMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
 points at the Lima VM's bridge schema (with `&time_zone=%27%2B00%3A00%27`, as the bridge's own
 DSN); the ones about an optional column run against both schemas - the VM's `otc` database has
 migrations 010 and 012, `otc_b1_nolang` neither (neither has 011's tables, so `TestGrowthMySQL`
 fails there). `TestHashedSecretsMySQL` is meant for each step of the move to hashed secrets: a
 schema from before migration 013 (`devices.secret` and `account_tokens` only), one with 013 run
 (both forms), and one with 014 run or a fresh `db.sql` (the hashes only) - it says which it found,
-and refuses a schema between the steps. A scratch database of your own (`db.sql` without its first
+and refuses a schema between the steps; `TestUserAddressesMySQL` runs with or without migration
+015's columns, and says which it found. A scratch database of your own (`db.sql` without its first
 lines, which create the `otc` user and database) and a user for it, both dropped afterwards, keep
 the shared VM's alone. A
 package var a test shortens must be restored only after the handlers reading it are done (a plain
@@ -3166,10 +3167,20 @@ email the owner; a hold that can't be read is a 500. Release (`accountReleaseDom
 registers an unknown domain on dial-in unless open registration is on. A device's additional
 users with bridge access (issue #103, `pepe.off-the.cloud`) get theirs from the primary:
 `ReqRegisterUserDomain` (141, `bridge/websocket/user_domains.go`), authenticated as the primary
-and carrying the user's own identity, registers the address under the primary's account with
-claimName's rules (the account's own name goes to the new identity, another account's or a held
-name is refused, and it counts toward `accounts.MaxDomains` - the owner's choice, 2026-10-23);
-a primary whose domain predates accounts registers it without one. The device asks in
+and carrying the user's own identity, registers a free name under the primary's account as that
+primary's user's address (`devices.primary_domain`, migration `015-user-addresses.sql`,
+`bridge/dao/user_addresses.go`; it counts toward `accounts.MaxDomains` - the owner's choice,
+2026-10-23) and refuses another account's name or one held from it. It moves no name its owner
+hasn't confirmed: any device of the account can send it, and a session alone puts a device on the
+account. Only the asking primary's own users' addresses go to a new identity (the user added again)
+or come back while held after their release (`released_domains.primary_domain`); any other name of
+the account is `name_taken`, or `name_held` while held, and moves only with claimName's
+`ownerConfirmed` or the account page's `ConfirmOwner`. Asked for with the address's own identity
+(every start of the primary), an address registered before 015 is recorded as that primary's; a
+name moved by `ReplaceDeviceIdentity` (setup, New identity) stops being a user's address, and so do
+a released primary's users'. A move here emails the owner as well (`SetIdentityNotice`, set to
+`NotifyNewIdentity` in main); without 015's columns nothing moves this way. A primary whose domain
+predates accounts registers its users' addresses without one. The device asks in
 `createUser` before provisioning (`websocket/user_domains.go`; a later failure gives it back),
 gives it back in `deleteUser` (`BridgeReleaseDomain` with the user's identity), and at every
 start of the primary asks again for every active user with bridge access

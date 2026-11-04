@@ -70,6 +70,8 @@ func TestSecretStepsFoundFromTheSchema(t *testing.T) {
 	if err := d2.RegisterAccountDevice("acc", "owner", "c.test", secret); err != nil {
 		t.Fatal(err)
 	}
+	// (and before 015: nothing to clear of whose user's address it was)
+	mock2.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\?, `primary_domain` = null where").WillReturnError(unknownColumn("primary_domain"))
 	mock2.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\? where `domain` = \\? and `account_id` = \\?").
 		WithArgs("owner-2", secret, "c.test", "acc").WillReturnResult(sqlmock.NewResult(0, 1))
 	if ok, err := d2.ReplaceDeviceIdentity("acc", "c.test", "owner-2", secret); !ok || err != nil {

@@ -832,6 +832,11 @@ setup code from the account page asked for within 15 minutes of signing in there
 later sets up new names only, and the move is refused until you sign in again. The account's
 address gets an email about the move.
 
+**A device's other users** with bridge access get addresses of their own (`pepe.off-the.cloud`),
+which the device registers on the account as it adds them; they count toward the account's names.
+Only that device gives such an address a new identity, when its user is added again with the same
+name (the account's address gets the same email), and it never moves the account's other names.
+
 **Without an account** the wizard offers "Continue without an account": the device installs
 with no bridge (`OTC_BRIDGE_ADDR=""` for the install script) and lives on the home network only,
 as `otc.local`. Everything local works - files, photo backup from the apps and the sync clients

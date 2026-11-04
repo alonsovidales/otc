@@ -678,6 +678,10 @@ type Manager struct {
 	// closes; onlineLoop writes them, never under a pool's lock. Nil
 	// without a database.
 	onlineEvents chan onlineEvent
+
+	// identityNotice tells an account's owner that one of its names now
+	// leads to a new identity (SetIdentityNotice); nil tells no one.
+	identityNotice func(accountID, domain string)
 }
 
 // onlineEvent is a device's first connection to this node (left false),

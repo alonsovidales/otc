@@ -83,7 +83,9 @@ func TestMovingANameNeedsAFreshSignIn(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
 	}
 	replaced := func() {
-		mock.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\?, `secret_hash` = \\? where `domain` = \\? and `account_id` = \\?").
+		// A user's address moved this way is no longer its primary's to
+		// move (primary_domain).
+		mock.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\?, `secret_hash` = \\?, `primary_domain` = null where `domain` = \\? and `account_id` = \\?").
 			WithArgs("11111111-2222-3333-4444-555555555555", "0123456789abcdef0123456789abcdef01234567", dao.SecretHash("0123456789abcdef0123456789abcdef01234567"), "casa.off-the.cloud", "acc1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 	}
@@ -162,7 +164,7 @@ func TestNewIdentityNeedsTheOwner(t *testing.T) {
 		return rec
 	}
 	reissued := func() {
-		mock.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\?, `secret_hash` = \\? where `domain` = \\? and `account_id` = \\?").
+		mock.ExpectExec("update `devices` set `owner_uuid` = \\?, `secret` = \\?, `secret_hash` = \\?, `primary_domain` = null where `domain` = \\? and `account_id` = \\?").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte("the-owners-password"), bcrypt.MinCost)
@@ -271,8 +273,14 @@ func TestReleasingAndTakingBackANameNeedTheOwner(t *testing.T) {
 	}
 	// With the password it goes, and the name is held for the account.
 	accountWithPassword(mock, string(hash))
+	mock.ExpectQuery("select `primary_domain` from `devices` where `domain` = \\?").WithArgs("casa.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"primary_domain"}).AddRow(nil))
 	mock.ExpectExec("delete from `devices` where `domain` = \\? and `account_id` = \\?").WithArgs("casa.off-the.cloud", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec("insert into `released_domains`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `released_domains` \\(`domain`, `account_id`, `released_at`, `primary_domain`\\)").
+		WithArgs("casa.off-the.cloud", "acc1", sqlmock.AnyArg(), nil).WillReturnResult(sqlmock.NewResult(0, 1))
+	// Its users' addresses are no longer any device's to move.
+	mock.ExpectExec("update `devices` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("casa.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("update `released_domains` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("casa.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))
 	for _, table := range []string{"push_registrations", "push_apns_tokens", "push_fcm_tokens", "push_web_subs", "device_metrics"} {
 		mock.ExpectExec("delete from `" + table + "` where `domain` = \\?").WillReturnResult(sqlmock.NewResult(0, 0))
 	}

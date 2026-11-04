@@ -37,11 +37,17 @@ create table devices
   -- panel's "Last online". migrations/012-last-online.sql adds it to an
   -- existing bridge.
   `last_online_at` datetime default null,
+  -- A user's address (issue #103): the domain of the primary device that
+  -- registered it for one of its users; NULL for every other name. Only
+  -- that primary gives the address a new identity over the websocket
+  -- (migrations/015-user-addresses.sql adds it to an existing bridge).
+  `primary_domain` varchar(150) default null,
 
   key (`owner_uuid`),
   unique (`domain`),
   key (`domain`),
-  key (`account_id`)
+  key (`account_id`),
+  key (`primary_domain`)
 ) engine=InnoDB;
 
 -- Issue #124: user accounts. Every domain registered belongs to one (up to
@@ -294,12 +300,14 @@ create table auth_events
 ) engine=InnoDB;
 
 -- A released device name is held for its last account for 30 days (see
--- migrations/004-released-domains.sql).
+-- migrations/004-released-domains.sql); primary_domain is the released
+-- user's address's devices.primary_domain (migrations/015-user-addresses.sql).
 create table released_domains
 (
   `domain`      varchar(150) not null,
   `account_id`  varchar(64) default null,
   `released_at` datetime not null,
+  `primary_domain` varchar(150) default null,
 
   primary key (`domain`)
 ) engine=InnoDB;

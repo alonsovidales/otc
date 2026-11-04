@@ -73,6 +73,21 @@ backup). The replica follows each step. Backups and dumps taken before step
 3 still hold the plaintext secrets: treat them as such, and replace them
 with ones taken after it.
 
+## Users' addresses (migration 015)
+
+A primary device registers the addresses of its other users
+(`pepe.off-the.cloud`) over the websocket, and records itself as theirs:
+`devices.primary_domain`, and `released_domains.primary_domain` while a
+released one is held. Any device of an account can send that request, so a
+primary gives a new identity to, or takes back from the hold, only its own
+users' addresses; the account's other names move with their owner's
+confirmation only. On the primary, `sudo mysql otc < 015-user-addresses.sql`
+(from `bridge/db/migrations/`) before deploying the release that reads it, at
+either step of the hashed secrets; an older node ignores the columns. Without
+them the release still registers new users' addresses, but moves none over the
+websocket. The addresses registered before it are recorded as their primary's
+as each primary next starts.
+
 ## Redis (on `redis`)
 
 `/etc/redis/otc-cluster.conf`, included from `redis.conf`: bound to

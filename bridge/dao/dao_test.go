@@ -388,6 +388,9 @@ func TestDeleteDeviceLiftsTheHold(t *testing.T) {
 	defer db.Close()
 	mock.ExpectExec("delete from `devices` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `released_domains` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	// Whoever registers the name next is not the device its users were on.
+	mock.ExpectExec("update `devices` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `released_domains` set `primary_domain` = null where `primary_domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))
 	// Issue #174: and nothing of the old holder's stays for the next one.
 	for _, table := range []string{"push_registrations", "push_apns_tokens", "push_fcm_tokens", "push_web_subs", "device_metrics"} {
 		mock.ExpectExec("delete from `" + table + "` where `domain` = \\?").WithArgs("pit.off-the.cloud").WillReturnResult(sqlmock.NewResult(0, 0))

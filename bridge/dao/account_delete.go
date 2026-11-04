@@ -65,7 +65,7 @@ func (dao *Dao) DeleteAccount(accountID string) (domains []string, err error) {
 	}
 
 	for _, d := range domains {
-		if err := dao.recordRelease(d, accountID); err != nil {
+		if err := dao.recordRelease(d, accountID, ""); err != nil {
 			log.Error("could not hold released name", d, ":", err)
 		}
 		dao.forgetDomain(d)
@@ -85,8 +85,12 @@ func (dao *Dao) ReleaseDeviceDomain(owner, domain, secret string) (ok bool, err 
 	if err != nil || !valid {
 		return false, err
 	}
-	var accountID sql.NullString
-	if err := dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&accountID); err != nil {
+	var accountID, primary sql.NullString
+	if err := dao.devicePrimary.runPart(cDevicesPrimary, func() error {
+		return dao.db.QueryRow("select `account_id`, `primary_domain` from `devices` where `domain` = ?", domain).Scan(&accountID, &primary)
+	}, func() error {
+		return dao.db.QueryRow("select `account_id` from `devices` where `domain` = ?", domain).Scan(&accountID)
+	}); err != nil {
 		return false, err
 	}
 	var res sql.Result
@@ -100,9 +104,10 @@ func (dao *Dao) ReleaseDeviceDomain(owner, domain, secret string) (ok bool, err 
 	if n, _ := res.RowsAffected(); n == 0 {
 		return false, nil
 	}
-	if err := dao.recordRelease(domain, accountID.String); err != nil {
+	if err := dao.recordRelease(domain, accountID.String, primary.String); err != nil {
 		log.Error("could not hold released name", domain, ":", err)
 	}
+	dao.forgetPrimary(domain)
 	dao.forgetDomain(domain)
 	return true, nil
 }
