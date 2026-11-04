@@ -674,6 +674,10 @@
     "text": "A carregar…",
     "en": "Uploading…"
   },
+  "web.files.upload.waiting": {
+    "text": "Em espera",
+    "en": "Waiting"
+  },
   "web.files.usage.empty": {
     "text": "Nada nesta pasta ocupa espaço.",
     "en": "Nothing in this folder takes up space."
@@ -733,6 +737,10 @@
   "web.files.versions.hint": {
     "text": "O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.",
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.load_failed": {
+    "text": "Não foi possível mostrar as versões anteriores deste ficheiro.",
+    "en": "Couldn't list the older versions of this file."
   },
   "web.files.versions.replaced": {
     "text": "Substituída em {date}",

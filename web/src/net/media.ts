@@ -9,6 +9,7 @@
 // (this call) before any bytes moved. So a null result here is a normal
 // answer meaning "fetch it the old way", not a failure.
 import { useWS } from "./useWS";
+import { isBridgeAnswer } from "./deviceStatus";
 import type { RespEnvelope } from "../proto/messages";
 
 // Where /media/<token> lives. Normally nowhere: the page is served by the
@@ -33,6 +34,30 @@ export type MediaRef =
   | { path: string }
   | { pubUuid: string; hash: string };
 
+/** What the device said about streaming one file: its URL, that it isn't
+ *  worth streaming (a short clip: fetch it the old way), that it can't
+ *  stream at all (a device before issue #110), or that it failed - its
+ *  words, "" when it gave none or nothing answered. */
+export type StreamAnswer = { url: string } | { whole: true } | { old: true } | { failed: string };
+
+export async function askStreamURL(ref: MediaRef): Promise<StreamAnswer> {
+  try {
+    const resp: RespEnvelope = await useWS.request(e => {
+      (e as any).payload = { $case: "reqGetMediaUrl", reqGetMediaUrl: ref };
+    });
+    if (resp.payload?.$case === "respMediaUrl") {
+      const url = resp.payload.respMediaUrl.url;
+      return url ? { url: mediaBase() + url } : { whole: true };
+    }
+    if (resp.errorCode === "unknown_payload") return { old: true };
+    // The bridge's answer for the device has no words of the device's.
+    if (isBridgeAnswer(resp)) return { failed: "" };
+    return { failed: resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "") };
+  } catch {
+    return { failed: "" };
+  }
+}
+
 /**
  * Asks the device for a streamable URL for one file. Returns null when
  * the device says it isn't worth streaming, or when anything at all goes
@@ -40,18 +65,8 @@ export type MediaRef =
  * falling back quietly is better than failing to show a video.
  */
 export async function requestStreamURL(ref: MediaRef): Promise<string | null> {
-  try {
-    const resp: RespEnvelope = await useWS.request(e => {
-      (e as any).payload = { $case: "reqGetMediaUrl", reqGetMediaUrl: ref };
-    });
-    if (resp.payload?.$case !== "respMediaUrl") return null;
-    const url = resp.payload.respMediaUrl.url;
-    if (!url) return null;
-
-    return mediaBase() + url;
-  } catch {
-    return null;
-  }
+  const a = await askStreamURL(ref);
+  return "url" in a ? a.url : null;
 }
 
 // Streaming only ever applies to video. An image has to be complete

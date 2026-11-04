@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { noteResponse } from "./deviceStatus";
+import { noteResponse, withoutBridgeWords } from "./deviceStatus";
 import { demoRequestReply, noteDemoReply } from "./demo";
 import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
 import { t } from "../i18n/runtime";
@@ -10,8 +10,17 @@ type RespListener = (env: RespEnvelope) => void;
 
 /** A request no answer can come to: the socket isn't open, it closed
  *  before the answer, or nothing answered in time. Its message is in the
- *  language on screen. */
-export class NoAnswer extends Error {}
+ *  language on screen. `sent`: whether the request left this browser at
+ *  all - false when there was no socket to send it on, or the sign-in it
+ *  waited for failed (useWS), so the device never had it; true when it went
+ *  and its answer never came, so the device may have done it. */
+export class NoAnswer extends Error {
+  readonly sent: boolean;
+  constructor(message: string, sent = true) {
+    super(message);
+    this.sent = sent;
+  }
+}
 
 // How long a request waits for its answer. A socket whose other end went
 // away without closing it (a laptop that slept, a phone that changed
@@ -186,7 +195,9 @@ export class WSClient {
         this.lastFrameAt = Date.now();
         this.frames++;
         try {
-          const env = RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer));
+          // The bridge's words for the device go before anything reads
+          // them: English only, and no refusal (deviceStatus).
+          const env = withoutBridgeWords(RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer)));
           // Issue #56: every response passes through here, which makes
           // this the one place that sees the bridge's "I couldn't reach
           // the device" verdict no matter which part of the app asked -
@@ -228,7 +239,7 @@ export class WSClient {
       this.ws = undefined;
       this.connected = false;
       this.connecting = undefined;
-      this.failConnect?.(new NoAnswer(text));
+      this.failConnect?.(new NoAnswer(text, false));
       this.failConnect = undefined;
       this.setDown(true);
     }
@@ -244,7 +255,7 @@ export class WSClient {
 
   request(build: (e: Partial<ReqEnvelope>) => void): Promise<RespEnvelope> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new NoAnswer(t("web.shell.connection.not_connected")));
+      return Promise.reject(new NoAnswer(t("web.shell.connection.not_connected"), false));
     }
     const id = this.nextId++;
     const draft: Partial<ReqEnvelope> = { id };

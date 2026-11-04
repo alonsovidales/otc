@@ -54,8 +54,14 @@
 /* The empty list's one line, padded like a row would be. */
 .up-list > li.sf-hint { padding: 10px 12px; margin: 0; }
 
-/* The first-password dialog: its fields one under another, full width. */
-.up-password { display: flex; flex-direction: column; gap: 10px; width: min(360px, calc(100vw - 32px)); box-sizing: border-box; }
-.up-password h4 { margin: 0; color: var(--mist); font-size: 15px; }
-.up-password .sf-input { width: 100%; box-sizing: border-box; }
-.up-password .sf-hint, .up-password .sf-note { margin: 0; }
+/* The first-password and delete dialogs (Modal, .pg-dlg): their fields one
+   under another, full width, closer set than a question's. */
+.pg-dlg.up-dialog { gap: 10px; width: min(380px, 100%); }
+.up-dialog .pg-dlg-title { font-size: 17px; line-height: 24px; }
+.up-dialog .sf-input { width: 100%; box-sizing: border-box; }
+.up-dialog .sf-hint, .up-dialog .sf-note { margin: 0; }
+.up-dialog-text { margin: 0; color: var(--mist); line-height: 1.5; overflow-wrap: anywhere; }
+.up-dialog .pg-dlg-actions { margin-top: 6px; }
+
+/* The list that didn't come, with Try again. */
+.up-load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }

@@ -52,6 +52,10 @@
     "text": "Reactie verwijderen",
     "en": "Delete comment"
   },
+  "web.social.comment.delete_failed": {
+    "text": "Kan de reactie niet verwijderen.",
+    "en": "Couldn't delete the comment."
+  },
   "web.social.comment.failed": {
     "text": "Je reactie is niet geplaatst. Probeer het opnieuw.",
     "en": "Your comment wasn't posted. Try again."
@@ -112,9 +116,17 @@
     "text": "{name} naar achteren verplaatsen",
     "en": "Move {name} later"
   },
+  "web.social.composer.not_sent": {
+    "text": "Je apparaat was niet bereikbaar, dus er is niets gepubliceerd. Probeer het zo opnieuw.",
+    "en": "Your device couldn't be reached, so nothing was posted. Try again in a moment."
+  },
   "web.social.composer.order": {
     "text": "Volgorde in het bericht: sleep, of gebruik ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_again": {
+    "text": "Opnieuw publiceren",
+    "en": "Post again"
   },
   "web.social.composer.post_uploaded": {
     "text": "De geüploade bestanden plaatsen",
@@ -172,6 +184,10 @@
     "text": "Kan die video niet laden om hem in te korten.",
     "en": "Could not load that video to trim it."
   },
+  "web.social.composer.unconfirmed": {
+    "text": "Je apparaat heeft niet op tijd geantwoord en is dit bericht misschien nog aan het voorbereiden (video's kunnen een paar minuten duren). Dit venster sluit vanzelf zodra het bericht in Social staat; publiceer het alleen opnieuw als het niet verschijnt.",
+    "en": "Your device didn't answer in time, so it may still be preparing this post (videos can take a few minutes). This closes by itself once the post is in Social; post it again only if it doesn't appear."
+  },
   "web.social.composer.upload_none": {
     "text": "Kan geen van de geselecteerde bestanden uploaden.",
     "en": "Could not upload any of the selected files."
@@ -221,6 +237,10 @@
   "web.social.feed.no_friends": {
     "text": "Voeg vrienden toe om hier hun berichten te zien en die van jou met hen te delen.",
     "en": "Add friends to see their posts here and share yours with them."
+  },
+  "web.social.feed.open_failed": {
+    "text": "Kan dat bericht niet openen.",
+    "en": "Couldn't open that post."
   },
   "web.social.feed.user": {
     "text": "Gebruiker",
@@ -481,6 +501,10 @@
   "web.social.post.delete": {
     "text": "Bericht verwijderen",
     "en": "Delete post"
+  },
+  "web.social.post.delete_failed": {
+    "text": "Kan het bericht niet verwijderen.",
+    "en": "Couldn't delete the post."
   },
   "web.social.post.download_photo_position": {
     "text": "Deze foto downloaden ({index} van {total})",

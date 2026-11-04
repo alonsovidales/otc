@@ -32,7 +32,7 @@
   "web.tour.skip": "Omitir",
   "web.tour.social.text": "Aquí aparecen tus publicaciones y las de tus amigos, de la más reciente a la más antigua. Haz clic en el corazón para darle Me gusta, escribe debajo para comentar y haz clic en el número de Me gusta para ver quién lo dio.",
   "web.tour.social.title": "Me gusta y comentarios",
-  "web.tour.upload.text": "Arrastra archivos desde tu ordenador a la página para subirlos y selecciona algunos para \u003cb\u003e{share}\u003c/b\u003e un enlace o \u003cb\u003e{zip}\u003c/b\u003e. El candado deja una carpeta en solo subida: no se puede eliminar nada y se guardan las versiones anteriores.",
+  "web.tour.upload.text": "Sube archivos con \u003cb\u003e{upload}\u003c/b\u003e o arrastrándolos a la página, y selecciona algunos para \u003cb\u003e{share}\u003c/b\u003e un enlace o \u003cb\u003e{zip}\u003c/b\u003e. El candado deja una carpeta en solo subida: no se puede eliminar nada y se guardan las versiones anteriores.",
   "web.tour.upload.title": "Sube y comparte",
   "web.tour.users.bridge": "Deja marcado \u003cb\u003e{bridge}\u003c/b\u003e para darle su propia dirección.",
   "web.tour.users.text": "Da a cada persona su propio Off The Cloud en este mismo dispositivo: sus propias fotos, archivos y feed privado, separados de los tuyos. En \u003cb\u003e{settings} › {users}\u003c/b\u003e, escribe un nombre de usuario, elige \u003cb\u003e{add}\u003c/b\u003e y establece su primera contraseña.",

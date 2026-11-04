@@ -30,6 +30,10 @@ import { arrangeItems, cRatingDefault, createRatings, listedRating, type RatingR
 import { ratingDescription, ratingRefusalText } from "./ratingText";
 import { RateButton, RatingBadge, RatingPanel, RatingTools } from "./RatingPanel";
 import { useRatingSheet } from "./useRatingSheet";
+import { safeImage, safeVideo } from "./inlineTypes";
+import { keepTabInside } from "./focusTrap";
+import { NoAnswer } from "../net/ws";
+import { isBridgeAnswer } from "../net/deviceStatus";
 
 // The question before a big download (F11 of the 2026-10 review), loaded
 // only when one is asked: this page loads what it shows.
@@ -37,7 +41,11 @@ const BigFileDialog = lazyPart(() => import("./BigFileDialog"));
 
 const CHUNK = 4 << 20;
 type ItemPart = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
-type FetchPart = (index: number, part: ItemPart, onBytes?: (n: number, total: number) => void, shouldStop?: () => boolean) => Promise<Blob>;
+// tries: how many times a piece with no answer is asked for again (a
+// download's: a blip shouldn't end it).
+type FetchPart = (index: number, part: ItemPart, onBytes?: (n: number, total: number) => void, shouldStop?: () => boolean, tries?: number) => Promise<Blob>;
+// The pauses before a download's piece with no answer is asked again.
+const cPieceRetryPauses = [1_000, 3_000, 6_000];
 // How many steps either side of the open item the viewer keeps already
 // loaded photos and clips for, so stepping back shows them at once.
 const cViewerKeep = 2;
@@ -101,6 +109,10 @@ export default function SharedGalleryView() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dl, setDl] = useState<{ done: number; total: number; bytes: number } | null>(null);
+  // A download that stopped: why, and the items still to save for Try
+  // again - in the progress strip, the grid staying as it is (a failure
+  // used to turn the whole page into an error page).
+  const [dlFailed, setDlFailed] = useState<{ text: UiText; rest: number[] } | null>(null);
   // Originals are put together in this page's memory before each is
   // saved: a big one asks first (bigFile.ts), with the biggest's size.
   const [bigAsk, setBigAsk] = useState<{ bytes: number; several: boolean; indexes: number[] } | null>(null);
@@ -155,22 +167,43 @@ export default function SharedGalleryView() {
   // One part of an item, assembled from 4 MB pieces. shouldStop ends it
   // between pieces: an item the viewer has moved past, or a closed page,
   // no longer has its whole file read and sent (each piece of a public
-  // link holds 8 MB of the device's budget).
-  const fetchPart: FetchPart = useCallback(async (index, part, onBytes, shouldStop) => {
+  // link holds 8 MB of the device's budget). A piece with no answer is
+  // asked for again `tries` times. Its Blob carries its type only when an
+  // <img> or a <video> may show it from a blob: URL (inlineTypes.ts):
+  // anything else - an SVG with no preview, whose original stands in for
+  // it - is application/octet-stream, saved but never rendered, as Files
+  // and Social do (a page of the device's origin opened on it would run
+  // its script next to the session token).
+  const fetchPart: FetchPart = useCallback(async (index, part, onBytes, shouldStop, tries = 0) => {
     if (!link) throw new Error("no link");
     const pieces: Uint8Array[] = [];
     let offset = 0, total = -1, mime = "application/octet-stream";
+    // The bridge answering for the device (it didn't reach it, or gave up
+    // waiting) is as good as no answer.
+    const ask = async (): Promise<RespEnvelope> => {
+      for (let n = 0; ; n++) {
+        try {
+          const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+            (e as any).payload = {
+              $case: "reqGetSharedGalleryItem",
+              reqGetSharedGalleryItem: { uuid: link.uuid, secret: link.secret, index, part, offset: BigInt(offset), length: CHUNK },
+            };
+          });
+          if (!isBridgeAnswer(resp) || n >= tries || shouldStop?.()) return resp;
+        } catch (err) {
+          if (!(err instanceof NoAnswer) || n >= tries || shouldStop?.()) throw err;
+        }
+        await new Promise((r) => setTimeout(r, cPieceRetryPauses[Math.min(n, cPieceRetryPauses.length - 1)]));
+      }
+    };
     while (total < 0 || offset < total) {
       if (shouldStop?.()) throw new Error("cancelled");
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = {
-          $case: "reqGetSharedGalleryItem",
-          reqGetSharedGalleryItem: { uuid: link.uuid, secret: link.secret, index, part, offset: BigInt(offset), length: CHUNK },
-        };
-      });
+      const resp = await ask();
       if (resp.payload?.$case !== "respFileChunk") {
-        const message = resp.errorMessage;
-        throw new GalleryFailure(message ? asIs(message) : say("web.files.gallery.not_found"));
+        // No verdict on the link from the bridge: the device's words, else
+        // that the link is gone.
+        const message = isBridgeAnswer(resp) ? "" : resp.errorMessage;
+        throw new GalleryFailure(message ? asIs(message) : say(isBridgeAnswer(resp) ? "web.files.gallery.download_failed" : "web.files.gallery.not_found"));
       }
       const c = resp.payload.respFileChunk;
       total = Number(c.size);
@@ -180,7 +213,8 @@ export default function SharedGalleryView() {
       offset += c.data.length;
       onBytes?.(c.data.length, total);
     }
-    return new Blob(pieces as BlobPart[], { type: mime });
+    const shown = mime.toLowerCase().startsWith("video/") ? safeVideo(mime) : safeImage(mime);
+    return new Blob(pieces as BlobPart[], { type: shown ? mime : "application/octet-stream" });
   }, [link]);
 
   const objectURL = useCallback((b: Blob) => {
@@ -301,10 +335,13 @@ export default function SharedGalleryView() {
       setBigAsk({ bytes: biggest, several: indexes.length > 1, indexes });
       return;
     }
+    setDlFailed(null);
     setDl({ done: 0, total: indexes.length, bytes: 0 });
+    let k = 0;
     try {
-      for (const [k, i] of indexes.entries()) {
-        const blob = await fetchPart(i, GetSharedGalleryItem_Part.ORIGINAL, n => setDl(d => d && { ...d, bytes: d.bytes + n }));
+      for (; k < indexes.length; k++) {
+        const i = indexes[k];
+        const blob = await fetchPart(i, GetSharedGalleryItem_Part.ORIGINAL, n => setDl(d => d && { ...d, bytes: d.bytes + n }), undefined, cPieceRetryPauses.length);
         const u = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = u;
@@ -316,7 +353,7 @@ export default function SharedGalleryView() {
         setDl(d => d && { ...d, done: k + 1 });
       }
     } catch (err: any) {
-      setError(() => failureText(err, "web.files.gallery.download_failed"));
+      setDlFailed({ text: failureText(err, "web.files.gallery.download_failed"), rest: indexes.slice(k) });
     } finally {
       setDl(null);
     }
@@ -402,6 +439,13 @@ export default function SharedGalleryView() {
           <div className="sg-bar"><div style={{ width: `${(100 * dl.done) / dl.total}%` }} /></div>
         </div>
       )}
+      {!dl && dlFailed && (
+        <div className="sg-progress sg-dl-failed" role="alert">
+          <span>{dlFailed.text(t)}</span>
+          <button type="button" className="btn" onClick={() => void download(dlFailed.rest)}>{t("common.try_again")}</button>
+          <button type="button" className="btn sg-dl-close" onClick={() => setDlFailed(null)} aria-label={t("common.close")}>✕</button>
+        </div>
+      )}
       {rated && (
         <div className="sg-tools">
           <RatingTools view={view} onChange={setView} />
@@ -479,6 +523,17 @@ function Viewer(props: {
   // Back closes it (backStack.ts): on a phone, Back used to leave the
   // gallery for wherever its link was opened from.
   useBackLayer(true, onClose);
+  // The keyboard's focus goes into the viewer, stays there (Tab), and goes
+  // back to the tile it was opened from - after keyboard use only, as the
+  // app's viewer does. It stayed on the tile behind, and Tab walked the
+  // grid underneath.
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = document.activeElement;
+    const back = el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
+    boxRef.current?.focus({ preventScroll: true });
+    return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
+  }, []);
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
@@ -522,6 +577,8 @@ function Viewer(props: {
       if (hit) { show(hit); return; }
       const b = await fetchPart(index, part, progress, () => cancelled);
       if (cancelled) return;
+      // Of no type a page may show (see fetchPart): its thumbnail instead.
+      if (b.type === "application/octet-stream") { setFailed(true); return; }
       const u = URL.createObjectURL(b);
       cache.set(index, u);
       show(u);
@@ -558,13 +615,14 @@ function Viewer(props: {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight" && !inField) onMove(1);
       if (e.key === "ArrowLeft" && !inField) onMove(-1);
+      if (e.key === "Tab" && boxRef.current) keepTabInside(boxRef.current, e);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose, onMove]);
 
   return (
-    <div className="sg-viewer" role="dialog" aria-label={item.name} onClick={onClose}>
+    <div className="sg-viewer" role="dialog" aria-modal="true" aria-label={item.name} onClick={onClose} ref={boxRef} tabIndex={-1}>
       <div className="sg-viewer-bar" onClick={e => e.stopPropagation()}>
         <span className="sg-viewer-name">{t("web.files.gallery.position", { name: item.name, index: position + 1, total: count })}</span>
         {shownRating && sheet && (
@@ -583,7 +641,14 @@ function Viewer(props: {
       </div>
       <div className="sg-stage" onClick={e => e.stopPropagation()}>
         {count > 1 && <button className="sg-nav prev" onClick={() => onMove(-1)} aria-label={t("web.files.gallery.previous")}>‹</button>}
-        {failed ? <p className="sg-name">{t("web.files.gallery.cant_show")}</p>
+        {failed ? (
+            // A type that can't be shown here (an SVG), or that didn't come:
+            // its thumbnail, when it has one, and why.
+            <div className="sg-cant">
+              {thumb && <img src={thumb} alt={item.name} />}
+              <p className="sg-name">{t("web.files.gallery.cant_show")}</p>
+            </div>
+          )
           : !src ? (
             // The thumbnail, blurred, while the photo itself arrives -
             // with how far along it is, so it never looks stuck.

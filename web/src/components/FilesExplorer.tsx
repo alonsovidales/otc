@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
-import { uploadFile } from "../net/upload";
 import { fileSize } from "../net/fileSize";
 import type {
   ReqEnvelope,
@@ -24,6 +23,7 @@ import { isTooBigForMemory } from "./bigFile";
 import { useBackLayer } from "./backStack";
 import { reloadAfterImagesChanged } from "./libraryStore";
 import { refuseOnDemo } from "../net/demo";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
@@ -38,10 +38,13 @@ import { refusedText } from "./photoCopies";
 import { openWaitingTab } from "./zipTab";
 import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
+import { readPieces, type PiecesResult } from "./mediaDownload";
+import { filesUploads, useUploadRows } from "./filesUploads";
+import { useDeviceBack } from "./useDeviceBack";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { LinkDialog } from "./ConfirmDialog";
+import { LinkDialog, Modal } from "./ConfirmDialog";
 
 // The viewer, loaded when first opened (lazyPart.ts).
 const MediaViewer = lazyPart(() => import("./MediaViewer"));
@@ -90,6 +93,8 @@ const cNoFile: PbFile = {
   hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined,
   uploadOnly: false, versions: 0, size64: 0n, outOfImages: false,
 };
+// The way up, the first row of every folder but the root's.
+const cUpEntry: PbFile = { ...cNoFile, mime: "inode/directory", path: ".." };
 // The grid asks for thumbnails this many paths at a time.
 const cThumbBatch = 24;
 // The most thumbnails kept: the ones seen longest ago go first (their
@@ -238,52 +243,15 @@ function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
 }
 
 // A file in pieces of at most 4 MB (ReadFile), as the sync clients read
-// it. GetFile answers with the whole file in one message: the device holds
-// about three times the file in memory while every other download waits
-// behind it, and past the bridge's message limit the download just fails.
-// Its original bytes and mime, or why not: the device's words ("" when it
-// gave none, or stopped sending). A request with no answer throws.
-//
-// Each piece looks the path up again, so a file replaced while it is read
-// (a sync client overriding it, a new version in an upload-only folder)
-// would join the old content's start to the new one's end. A piece of
-// other content starts the read over once, for the new content, as the
-// whole-file GetFile always gave one version.
-const cReadChunk = 4 << 20;
-const cChanged = Symbol("changed");
-type ReadResult = { parts: Uint8Array[]; mime: string } | { failed: string };
-async function readAll(path: string, hash = ""): Promise<ReadResult> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const got = await readOnce(path, hash);
-    if (got !== cChanged) return got;
-  }
-  return { failed: "" };
-}
-async function readOnce(path: string, hash: string): Promise<ReadResult | typeof cChanged> {
-  const parts: Uint8Array[] = [];
-  let mime = "";
-  let content = "";
-  let offset = 0;
-  let total = -1;
-  while (total < 0 || offset < total) {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      e.payload = { $case: "reqReadFile", reqReadFile: { path, hash, offset: BigInt(offset), length: cReadChunk } };
-    });
-    if (resp.payload?.$case !== "respFileChunk") return { failed: resp.errorMessage };
-    const chunk = resp.payload.respFileChunk;
-    if (total < 0) {
-      mime = chunk.mime;
-      content = chunk.hash;
-    } else if (chunk.hash !== content || Number(chunk.size) !== total) {
-      return cChanged;
-    }
-    total = Number(chunk.size);
-    if (chunk.data.length === 0 && offset < total) return { failed: "" };
-    parts.push(chunk.data);
-    offset += chunk.data.length;
-  }
-  return { parts, mime };
-}
+// it (mediaDownload.readPieces: a piece with no answer is asked again, a
+// file replaced meanwhile read again once). GetFile answers with the whole
+// file in one message: the device holds about three times the file in
+// memory while every other download waits behind it, and past the bridge's
+// message limit the download just fails. Its original bytes and mime, or
+// why not: the device's words ("" when it gave none, or stopped sending).
+// A request with no answer throws.
+type ReadResult = PiecesResult;
+const readAll = (path: string, hash = ""): Promise<ReadResult> => readPieces(path, hash);
 
 // What the device converts for display (HEIC to JPEG, see GetFile's
 // isHeicFile) still comes through GetFile, converted, as it always has.
@@ -309,6 +277,67 @@ function normPath(p: string) {
 function leafName(full: string) {
   const parts = full.split("/");
   return parts[parts.length - 1] || full;
+}
+
+// What a drop brings, taken while its event runs (the browser empties the
+// drop once the handler returns): its files, and its folders - which the
+// drop's list of files gives as one empty file each, so a dropped folder
+// used to fail or be stored as an empty file - read through their entries
+// with everything in them, each file with the path it takes under the
+// folder it was dropped on ("Trip/Day 1/a.jpg"). Hidden names (a leading
+// dot: .DS_Store) inside a dropped folder are left out, as the sync apps
+// leave them out.
+type Dropped = { file: File; rel: string };
+function takeDrop(dt: DataTransfer | null): { count: number; files: () => Promise<Dropped[]> } {
+  const taken: ({ file: File } | { dir: FileSystemDirectoryEntry })[] = [];
+  const items = Array.from(dt?.items ?? []).filter((it) => it.kind === "file");
+  if (items.length && typeof items[0].webkitGetAsEntry === "function") {
+    for (const it of items) {
+      const entry = it.webkitGetAsEntry();
+      if (entry?.isDirectory) taken.push({ dir: entry as FileSystemDirectoryEntry });
+      else {
+        const f = it.getAsFile();
+        if (f) taken.push({ file: f });
+      }
+    }
+  } else {
+    for (const f of Array.from(dt?.files ?? [])) taken.push({ file: f });
+  }
+  return {
+    count: taken.length,
+    files: async () => {
+      const out: Dropped[] = [];
+      for (const x of taken) {
+        if ("file" in x) out.push({ file: x.file, rel: x.file.name });
+        else await readDroppedFolder(x.dir, `${x.dir.name}/`, out);
+      }
+      return out;
+    },
+  };
+}
+async function readDroppedFolder(dir: FileSystemDirectoryEntry, prefix: string, out: Dropped[]) {
+  const reader = dir.createReader();
+  // Entries come in batches until one is empty.
+  for (;;) {
+    let batch: FileSystemEntry[];
+    try {
+      batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+    } catch {
+      return; // unreadable: what was read stays
+    }
+    if (!batch.length) return;
+    for (const e of batch) {
+      if (e.name.startsWith(".")) continue;
+      if (e.isDirectory) await readDroppedFolder(e as FileSystemDirectoryEntry, `${prefix}${e.name}/`, out);
+      else if (e.isFile) {
+        try {
+          out.push({ file: await new Promise<File>((resolve, reject) => (e as FileSystemFileEntry).file(resolve, reject)), rel: prefix + e.name });
+        } catch {
+          // A file the browser can't read is left out.
+        }
+      }
+    }
+  }
 }
 
 // The lock of an upload-only folder (issue #132), open or closed.
@@ -517,6 +546,11 @@ function FilesExplorerView({
   // versions the device listed (newest first), or null when closed.
   const [versionsOf, setVersionsOf] = useState<{ path: string; name: string; mime: string; size: number; versions: PbFile[] } | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(false);
+  // Why the older versions didn't come (the device's words, or ours): the
+  // pop-up says so with Try again, rather than list only the current one.
+  const [versionsError, setVersionsError] = useState<UiText | null>(null);
+  const versionsSeq = useRef(0);
+  const versionsTitleId = useId();
 
   // Issue #192: what the last listing said about keeping folders out of
   // Images - whether the device can (devices before release 108 leave it
@@ -546,9 +580,9 @@ function FilesExplorerView({
     if (viewer) URL.revokeObjectURL(viewer.url);
     setViewer(null);
   };
-  // Back closes the pop-ups as their × does (backStack.ts).
+  // Back closes the pop-ups as their × does (backStack.ts); the versions'
+  // pop-up is a Modal, which does it itself.
   useBackLayer(!!viewer, closeImage);
-  useBackLayer(!!versionsOf, () => setVersionsOf(null));
   // F11 of the 2026-10 review: what Files saves or shows in a tab is read
   // whole into memory first. A file past bigFile.ts's limit asks before
   // (BigFileDialog): its open, or one of its versions.
@@ -564,22 +598,14 @@ function FilesExplorerView({
   // other click a no-op until it's done.
   const [openingPath, setOpeningPath] = useState<string | null>(null);
 
-  // Issue #86: dropping files used to give ZERO visual feedback - the
-  // per-file upload is a single WebSocket send (the whole file goes out as
-  // one protobuf message) so there is no byte-level progress to report,
-  // and for a batch it looked like nothing was happening. This tracks each
-  // dropped file through its phases (reading -> sending -> done/failed) and
-  // renders a progress panel: an overall bar plus one row per file, so the
-  // user always sees what is being uploaded and when it finishes. The list
-  // auto-clears a couple seconds after the last upload settles.
-  type UploadItem = { name: string; size: number; status: "reading" | "sending" | "done" | "failed" };
-  const [uploads, setUploads] = useState<UploadItem[]>([]);
-  const uploadsTimer = useRef<number | null>(null);
-  const clearUploadsAfter = (delay = 2500) => {
-    if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current);
-    uploadsTimer.current = window.setTimeout(() => setUploads([]), delay);
-  };
-  useEffect(() => () => { if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current); }, []);
+  // Issue #86: every file dropped or picked with Upload is a row of the
+  // upload panel, in one queue sent one at a time (filesUploads.ts). The
+  // queue is the page's, not this component's: it goes on while another
+  // section shows, and its rows are here again when Files is opened.
+  const uploads = useUploadRows();
+  // Files is still open (a thumbnail that comes after makes no URL).
+  const liveRef = useRef(true);
+  useEffect(() => () => { liveRef.current = false; }, []);
 
   // List, grid or Storage (issue #195). The Storage view asks the device
   // what each entry takes (GetFolderUsage) whenever the folder is listed
@@ -632,6 +658,21 @@ function FilesExplorerView({
   // A photo or video the search picked, to open once its folder's listing
   // is in (see the request below).
   const mediaToOpen = useRef<{ dir: string; file: PbFile } | null>(null);
+  // A folder that couldn't be listed shows none of the folder before it:
+  // its rows under the new path resolved a click, "..", a drop or a
+  // delete against the wrong folder. Only the way up stays (and Refresh).
+  // A listing that failed is asked again once the device answers again
+  // (useDeviceBack): its screen lies over Files, which stays as it was.
+  const listBack = useDeviceBack(() => void loadListRef.current(pathRef.current));
+  const listFailed = useCallback((p: string, error: UiText | null) => {
+    listBack.failed();
+    setError(error ? () => error : null);
+    setListing(p === "/" ? [] : [cUpEntry]);
+    setSel({});
+    anchorRef.current = null;
+    setNoImg({ path: p, supported: false, folderOut: false });
+    setListed({ path: p });
+  }, [listBack]);
   const loadList = useCallback(async (p: string) => {
     const seq = ++listSeq.current;
     listingNow.current = p;
@@ -650,23 +691,10 @@ function FilesExplorerView({
         const lof: ListOfFiles = resp.payload.respListOfFiles;
         console.log('Files:', lof);
 
-        // inject ".." entry as directory to go up (4)
-        const up: PbFile = {
-          hash: "",
-          mime: "inode/directory",
-          created: undefined as any,
-          modified: undefined as any,
-          path: "..",
-          size: 0,
-          content: undefined,
-          uploadOnly: false,
-          versions: 0,
-          size64: 0n,
-          outOfImages: false,
-        };
-        // Don’t add .. at root
-        const files = p === "/" ? lof.files : [up, ...lof.files];
+        // inject ".." entry as directory to go up (4); not at the root
+        const files = p === "/" ? lof.files : [cUpEntry, ...lof.files];
 
+        listBack.ok();
         setListing(files);
         setListed({ path: p });
         const folderOut = !!lof.outOfImagesSupported && !!lof.folderOutOfImages;
@@ -691,85 +719,72 @@ function FilesExplorerView({
             coverIs(above.length ? above.reduce((a, b) => (b.length < a.length ? b : a)) : null);
           }, () => coverIs(null));
         }
+      } else if (isBridgeAnswer(resp)) {
+        // The bridge answering for the device (an error, its words gone:
+        // deviceStatus) is no answer from it.
+        listFailed(p, say("web.shell.connection.no_answer"));
       } else if (resp.error) {
         const message = resp.errorMessage;
-        setError(() => (message ? asIs(message) : say("web.files.list.list_failed")));
-        setListed({ path: p });
+        listFailed(p, message ? asIs(message) : say("web.files.list.list_failed"));
       } else {
-        setError(() => say("web.files.list.unexpected"));
-        setListed({ path: p });
+        listFailed(p, say("web.files.list.unexpected"));
       }
     } catch (e: any) {
       if (seq !== listSeq.current) return;
       // An empty message shows nothing, as it always did.
       const message: string = e?.message ?? String(e);
-      setError(message ? () => asIs(message) : null);
-      setListed({ path: p });
+      listFailed(p, message ? asIs(message) : null);
     } finally {
       if (seq === listSeq.current) {
         listingNow.current = null;
         setLoading(false);
       }
     }
-  }, [loadUsage]);
+  }, [loadUsage, listFailed, listBack]);
+  const loadListRef = useRef(loadList);
+  loadListRef.current = loadList;
 
   useEffect(() => { void loadList(path); }, [path, loadList]);
   useEffect(() => { saveFilesPath(path); }, [path]);
   const pathRef = useRef(path);
   pathRef.current = path;
 
-  // -------- drag & drop upload (2) ----------
-  // Issue #86: each dropped file is tracked through its phases so the UI can
-  // show an upload progress panel instead of a blank screen. The per-file
-  // "sending" phase covers the whole upload (in 4 MB pieces, see
-  // net/upload.ts), so it does not report byte-level progress - but seeing
-  // which file is in flight and the overall "N/M done" is what was missing.
-  const onDrop: React.DragEventHandler<HTMLDivElement> = async (ev) => {
-    ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
-    const files = Array.from(ev.dataTransfer.files ?? []);
+  // -------- uploads: drag & drop, and Upload (2) ----------
+  // Once the queue is empty the folder on screen is listed again when
+  // anything landed in or under it (a dropped folder's files bring its
+  // subfolders). Files closed meanwhile lists afresh when it is opened.
+  useEffect(() => filesUploads.onLanded((landed) => {
+    const here = normPath(pathRef.current);
+    if (landed.some((p) => p.startsWith(here))) void loadList(pathRef.current);
+  }), [loadList]);
+  // Files to send into `dir` (a folder's path, with its slash), each with
+  // the path it takes under it ("Trip/a.jpg" for a dropped folder's). Also
+  // after Files closed: a dropped folder is read before its files queue.
+  const queueUploads = (files: { file: File; rel: string }[], dir: string) => {
     if (!files.length || refuseOnDemo()) return;
+    filesUploads.add(files.map(({ file, rel }) => ({ file, path: joinPath(dir, rel), name: rel })));
+  };
+  const retryUploads = () => filesUploads.retry();
+  const closeUploads = () => filesUploads.close();
+
+  const onDrop: React.DragEventHandler<HTMLDivElement> = (ev) => {
+    ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
+    // Taken now: the browser empties the drop once this returns.
+    const taken = takeDrop(ev.dataTransfer);
+    if (!taken.count || refuseOnDemo()) return;
     // Over a search's results: back to the folder they go to, to see them
     // arrive.
     if (resultsRef.current) closeResults();
-
-    // Seed the tracker with one row per dropped file up front, so the panel
-    // appears immediately even before the first read/send finishes.
-    setUploads(files.map((f) => ({ name: f.name, size: f.size, status: "reading" as const })));
-    clearUploadsAfter(4000);
-
-    let failed = 0;
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "sending" } : u)));
-      try {
-        // The device refuses with a reply, not a dropped request: a file
-        // edited and dropped onto its own name ("Duplicated file"), or a
-        // failed disk write. The listing still shows the old file by that
-        // name, so a "Done" here would say the new content was kept. An
-        // upload that throws (the socket closed, or the device stopped
-        // taking pieces) lands in the catch below.
-        const resp: RespEnvelope = await uploadFile(joinPath(path, f.name), f, false);
-        if (resp.error || resp.payload?.$case !== "respFile") {
-          failed++;
-          setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "failed" } : u)));
-          console.error("Upload failed for", f.name, resp.errorMessage);
-          continue;
-        }
-
-        setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "done" } : u)));
-      } catch (err) {
-        failed++;
-        setUploads((prev) => prev.map((u, j) => (j === i ? { ...u, status: "failed" } : u)));
-        console.error("Upload failed for", f.name, err);
-      }
-    }
-
-    await loadList(path);
-    if (failed === 0) {
-      clearUploadsAfter(1500);
-    } else {
-      clearUploadsAfter(6000);
-    }
+    const dir = normPath(path);
+    void taken.files().then((files) => queueUploads(files, dir));
+  };
+  // Upload: the same queue, from the file chooser (a phone or tablet, the
+  // keyboard and screen readers have no drag and drop).
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const onUploadPicked: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    queueUploads(files.map((file) => ({ file, rel: file.name })), normPath(path));
   };
   const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => { e.preventDefault(); setDragOver(true); };
   const onDragLeave: React.DragEventHandler<HTMLDivElement> = () => setDragOver(false);
@@ -930,6 +945,13 @@ function FilesExplorerView({
           stopped = true;
           break;
         }
+        // The bridge answering for the device (it lost it on the way, or
+        // stopped waiting for a big folder): no word on this one either -
+        // it may well be gone. Not a refusal in the bridge's words.
+        if (isBridgeAnswer(resp)) {
+          stopped = true;
+          break;
+        }
         const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
         if (resp.error && resp.errorCode === "upload_only") {
           refused ??= (tt) => tt("web.files.list.upload_only_refused", { name: leafName(full) });
@@ -956,14 +978,23 @@ function FilesExplorerView({
   const toggleUploadOnly = async (f: PbFile) => {
     if (refuseOnDemo()) return;
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqSetUploadOnly", reqSetUploadOnly: { path: full, uploadOnly: !f.uploadOnly } };
-    });
-    // Issue #186: a folder inside another upload-only one can't be
-    // unlocked on its own; the device says which folder to unlock, as the
-    // apps show it. Silently reloading left the lock on with no word.
-    if (resp.error) alert(resp.errorMessage || t("web.files.list.update_failed"));
-    await loadList(path);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqSetUploadOnly", reqSetUploadOnly: { path: full, uploadOnly: !f.uploadOnly } };
+      });
+      // Issue #186: a folder inside another upload-only one can't be
+      // unlocked on its own; the device says which folder to unlock, as the
+      // apps show it. Silently reloading left the lock on with no word.
+      const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
+      if (resp.error || (ack && !ack.ok)) {
+        const words = isBridgeAnswer(resp) ? "" : resp.errorMessage || ack?.errorMsg;
+        showToast({ text: failText(words, say("web.files.list.update_failed")), error: true });
+      }
+    } catch {
+      // No answer: it was an unhandled rejection, with nothing said.
+      showToast({ text: say("web.files.list.update_failed"), error: true });
+    }
+    await loadList(pathRef.current);
   };
 
   // Issue #192: keep a folder (its full path) out of Images, or show it
@@ -1032,21 +1063,38 @@ function FilesExplorerView({
     else view?.focus({ preventScroll: true });
   }, [noImgRefocusTick, loading, noImg]);
 
-  // Issue #132: the versions badge - list a file's older versions.
+  // Issue #132: the versions badge - list a file's older versions. One
+  // that didn't come says why, with Try again: it used to list only the
+  // current one, as if there were none.
   const openVersions = async (f: PbFile) => {
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
+    const seq = ++versionsSeq.current;
     setVersionsLoading(true);
+    setVersionsError(null);
     setVersionsOf({ path: full, name: leafName(full), mime: f.mime, size: fileSize(f), versions: [] });
+    let error: UiText | null = null;
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqListFileVersions", reqListFileVersions: { path: full } };
       });
+      if (seq !== versionsSeq.current) return;
       if (resp.payload?.$case === "respFileVersions") {
         setVersionsOf({ path: full, name: leafName(full), mime: f.mime, size: fileSize(f), versions: resp.payload.respFileVersions.versions });
+      } else {
+        error = failText(isBridgeAnswer(resp) ? "" : resp.errorMessage, say("web.files.versions.load_failed"));
       }
-    } finally {
-      setVersionsLoading(false);
+    } catch {
+      error = say("web.files.versions.load_failed");
     }
+    if (seq !== versionsSeq.current) return;
+    setVersionsError(error ? () => error : null);
+    setVersionsLoading(false);
+  };
+  const closeVersions = () => {
+    versionsSeq.current++;
+    setVersionsOf(null);
+    setVersionsError(null);
+    setVersionsLoading(false);
   };
 
   // A version downloads by its hash; the current one is the row itself.
@@ -1141,8 +1189,11 @@ function FilesExplorerView({
   // ---- Issue #86: overall upload progress ----
   const uploadsDone = uploads.filter((u) => u.status === "done").length;
   const uploadsFailed = uploads.filter((u) => u.status === "failed").length;
-  const uploadsActive = uploads.length > 0 && uploads.some((u) => u.status === "reading" || u.status === "sending");
-  const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
+  const uploadsActive = uploads.some((u) => u.status === "waiting" || u.status === "reading" || u.status === "sending");
+  // By bytes, the ones done and what the device holds of the one on its way.
+  const uploadBytes = uploads.reduce((n, u) => n + u.size, 0);
+  const uploadSent = uploads.reduce((n, u) => n + (u.status === "done" ? u.size : u.status === "sending" ? u.sent : 0), 0);
+  const uploadsPct = uploadBytes > 0 ? Math.min(100, Math.floor((uploadSent / uploadBytes) * 100)) : uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
 
   // ---- Issue #196: the order of the list, the grid and a search's results ----
   // One choice for this browser (filesSort.ts): not per folder, nor on the
@@ -1300,6 +1351,9 @@ function FilesExplorerView({
             // (MediaViewer).
             e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch, smallThumbnails: true } };
           });
+          // Files closed while this was on its way: no URL is made that
+          // nothing would ever release.
+          if (!liveRef.current) return;
           const got: Record<string, string> = {};
           if (resp.payload?.$case === "respListOfFiles") {
             for (const f of resp.payload.respListOfFiles.files) {
@@ -1997,6 +2051,16 @@ function FilesExplorerView({
           </div>
         </div>
 
+        {/* Upload: files from this computer or phone into the folder, as a
+            drop on the page does. */}
+        <button type="button" className="fb-upload-btn" data-tour="files-upload"
+          onClick={() => { if (!refuseOnDemo()) uploadInputRef.current?.click(); }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4m-5 5 5-5 5 5M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {t("common.upload")}
+        </button>
+        <input ref={uploadInputRef} type="file" multiple hidden onChange={onUploadPicked} />
         {/* Storage keeps the device's order, largest first, and its own
             totals (issue #195). */}
         {viewMode !== "storage" && sortSelect}
@@ -2126,12 +2190,13 @@ function FilesExplorerView({
         </section>
       )}
 
-      {/* Issue #86: upload progress panel - shown while any dropped file is
-          still reading/sending, or briefly after the batch settles. */}
+      {/* Issue #86: the upload panel - while files are on their way, a
+          moment after they all are, and until closed when some failed. Its
+          title is read out as it changes (one file done, the end). */}
       {uploads.length > 0 && (
         <div className="fb-uploads">
           <div className="fb-uploads-head">
-            <span className="fb-uploads-title">
+            <span className="fb-uploads-title" role="status">
               {uploadsActive
                 ? t("web.files.upload.progress", { done: uploadsDone, total: uploads.length })
                 : uploadsFailed
@@ -2139,19 +2204,30 @@ function FilesExplorerView({
                   : t("web.files.upload.uploaded", { count: uploadsDone })}
             </span>
             <span className="fb-uploads-pct">{percentText(t, uploadsPct)}</span>
+            {!uploadsActive && uploadsFailed > 0 && (
+              <button type="button" className="btn small" onClick={retryUploads}>{t("common.try_again")}</button>
+            )}
+            {!uploadsActive && (
+              <button type="button" className="fb-uploads-close" onClick={closeUploads} aria-label={t("common.close")} data-tip={t("common.close")}>✕</button>
+            )}
           </div>
           <div className="fb-uploads-bar">
             <div className="fb-uploads-fill" style={{ width: `${uploadsPct}%` }} />
           </div>
           <ul className="fb-uploads-list">
-            {uploads.map((u, i) => (
-              <li key={i} className={`fb-uploads-item ${u.status}`}>
-                <span className="fb-uploads-name">{u.name}</span>
+            {uploads.map((u) => (
+              <li key={u.id} className={`fb-uploads-item ${u.status}`}>
+                <span className="fb-uploads-name" title={u.name}>
+                  {u.name}
+                  {u.status === "failed" && u.error && <span className="fb-uploads-why">{u.error(t)}</span>}
+                </span>
                 <span className="fb-uploads-size">{fmtBytes(t, u.size)}</span>
-                {/* "Uploading…" follows whatever the status is, as it always has. */}
                 <span className="fb-uploads-status">
+                  {u.status === "waiting" && t("web.files.upload.waiting")}
                   {u.status === "reading" && t("web.files.upload.reading")}
-                  {u.status === "sending" && <span className="fb-spinner" />} {t("web.files.upload.uploading")}
+                  {u.status === "sending" && (
+                    <><span className="fb-spinner" />{t("web.files.upload.uploading")} {u.size > 0 ? percentText(t, Math.min(100, Math.floor((u.sent / u.size) * 100))) : ""}</>
+                  )}
                   {u.status === "done" && t("web.files.upload.done")}
                   {u.status === "failed" && t("web.files.upload.failed")}
                 </span>
@@ -2312,14 +2388,24 @@ function FilesExplorerView({
       )}
 
       {/* Issue #132: the versions pop-up - every older version of the
-          file with when it was replaced and its size; each downloads. */}
+          file with when it was replaced and its size; each downloads. A
+          dialog (Modal): the focus goes into it and back, Tab stays in it,
+          Escape and Back close it. */}
       {versionsOf && (
-        <div className="fb-modal" onClick={() => setVersionsOf(null)}>
-          <div className="fb-modal-body fb-versions-body" onClick={(e) => e.stopPropagation()}>
-            <button className="fb-close" onClick={() => setVersionsOf(null)} aria-label={t("common.close")}>✕</button>
-            <h3 className="fb-versions-title">{t("web.files.versions.title", { name: versionsOf.name })}</h3>
-            <p className="fb-versions-hint">{t("web.files.versions.hint")}</p>
-            {versionsLoading && <div className="fb-row">{t("common.loading")}</div>}
+        <Modal labelledBy={versionsTitleId} wide onClose={closeVersions}>
+          <div className="fb-versions-head">
+            <h2 id={versionsTitleId} className="pg-dlg-title fb-versions-title">{t("web.files.versions.title", { name: versionsOf.name })}</h2>
+            <p className="pg-dlg-text">{t("web.files.versions.hint")}</p>
+          </div>
+            {versionsLoading && <Spinner label={t("common.loading")} />}
+            {!versionsLoading && versionsError && (
+              <div className="pg-dlg-error fb-versions-error" role="alert">
+                <span>{versionsError(t)}</span>
+                <button type="button" className="pg-btn outline" onClick={() => void openVersions({ ...cNoFile, path: versionsOf.path, mime: versionsOf.mime, size64: BigInt(versionsOf.size) })}>
+                  {t("common.try_again")}
+                </button>
+              </div>
+            )}
             {!versionsLoading && (
               <ul className="fb-versions-list">
                 <li className="fb-versions-item current">
@@ -2336,8 +2422,10 @@ function FilesExplorerView({
                 ))}
               </ul>
             )}
+          <div className="pg-dlg-actions">
+            <button type="button" className="pg-btn quiet" onClick={closeVersions} data-autofocus>{t("common.close")}</button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {viewer && (

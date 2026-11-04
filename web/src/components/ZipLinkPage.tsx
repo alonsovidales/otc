@@ -10,10 +10,15 @@
 // done, keeps a Download button that saves it again, and closes itself only
 // when nothing happened meanwhile (zipDownload.ts: a browser asking where
 // to save, or whether this site may download, keeps the tab and its
-// question).
+// question). A part that gets no answer (a Wi-Fi blip, the bridge losing
+// the device a moment) is asked again at the same offset a few times; past
+// that the page says so with Try again, which goes on from the part it
+// stopped at - a reload started over, and counted another opening of the
+// link.
 import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n";
 import { useWS } from "../net/useWS";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { asIs, percentText, say, type UiText } from "./uiText";
 import Spinner from "./Spinner";
@@ -24,6 +29,8 @@ import "./ZipLinkPage.css";
 
 const cZipName = "shared.zip";
 const cPartBytes = 4 << 20;
+// The pauses before a part with no answer is asked again.
+const cPartRetryPauses = [1_000, 3_000, 6_000];
 
 type State =
   | { kind: "preparing" }
@@ -31,7 +38,8 @@ type State =
   // Handed to the browser: its blob: URL, for the Download button.
   | { kind: "saved"; url: string }
   | { kind: "cancelled" }
-  | { kind: "failed"; text: UiText };
+  // retry: nothing answered - Try again goes on from where it stopped.
+  | { kind: "failed"; text: UiText; retry?: boolean };
 
 // The browser's own download of a blob: URL, as a click on a link would.
 function save(url: string) {
@@ -53,70 +61,96 @@ export default function ZipLinkPage({ link }: { link: string }) {
   const startedRef = useRef<string | null>(null);
   const stopWatchRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (startedRef.current === link) return;
-    startedRef.current = link;
-    void (async () => {
-      const [uuid, secret] = link.split("_").filter(Boolean);
-      if (!uuid || !secret) {
-        setState({ kind: "failed", text: say("web.shell.link.malformed") });
-        return;
-      }
-      try {
-        const parts: Uint8Array[] = [];
-        let offset = 0;
-        let total = -1;
-        while (total < 0 || offset < total) {
+  // What has come so far, kept for Try again.
+  const gotRef = useRef<{ parts: Uint8Array[]; offset: number; total: number; asked: boolean }>({ parts: [], offset: 0, total: -1, asked: false });
+  const runRef = useRef<() => Promise<void>>(async () => {});
+  runRef.current = async () => {
+    const [uuid, secret] = link.split("_").filter(Boolean);
+    if (!uuid || !secret) {
+      setState({ kind: "failed", text: say("web.shell.link.malformed") });
+      return;
+    }
+    const got = gotRef.current;
+    // One part, asked again while no answer comes; the answer, or null
+    // when none came.
+    const askPart = async (offset: number): Promise<RespEnvelope | null> => {
+      for (let tries = 0; ; tries++) {
+        try {
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
             e.payload = {
               $case: "reqDownloadSharedLink",
               reqDownloadSharedLink: { uuid, secret, offset: BigInt(offset), length: cPartBytes },
             };
           });
-          if (resp.payload?.$case !== "respFileChunk") {
-            // The device's own words, in the language the request carried.
-            setState({ kind: "failed", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.link.invalid") });
-            return;
-          }
-          const chunk = resp.payload.respFileChunk;
-          total = Number(chunk.size);
-          if (chunk.data.length === 0 && offset < total) {
-            setState({ kind: "failed", text: say("web.shell.link.stopped") });
-            return;
-          }
-          parts.push(chunk.data);
-          offset += chunk.data.length;
-          setState({ kind: "downloading", percent: receivedPercent(offset, total) });
-          if (parts.length === 1 && offset < total && isTooBigForMemory(total)) {
-            const go = await new Promise<boolean>((answer) => setBigAsk({ bytes: total, answer }));
-            setBigAsk(null);
-            if (!go) {
-              setState({ kind: "cancelled" });
-              return;
-            }
-          }
+          if (!isBridgeAnswer(resp)) return resp;
+        } catch {
+          // No answer: asked again below.
         }
-        if (total === 0) {
-          setState({ kind: "failed", text: say("web.shell.link.empty") });
+        if (tries >= cPartRetryPauses.length) return null;
+        await new Promise((r) => setTimeout(r, cPartRetryPauses[tries]));
+      }
+    };
+    try {
+      while (got.total < 0 || got.offset < got.total) {
+        const resp = await askPart(got.offset);
+        if (!resp) {
+          setState({ kind: "failed", text: say("web.shell.link.failed"), retry: true });
           return;
         }
-        const url = URL.createObjectURL(new Blob(parts as BlobPart[], { type: "application/zip" }));
-        // Watched from before the click: a dialog it opens takes the focus.
-        stopWatchRef.current = watchHandOff(window, document, cCloseAfterMs, (quiet) => {
-          // Images and Files open this tab for the ZIP: it has nothing more
-          // to do. A tab someone opened by hand stays (the browser refuses),
-          // saying it is done.
-          if (mayClose(quiet, document.visibilityState === "hidden", document.hasFocus())) window.close();
-        });
-        save(url);
-        setState({ kind: "saved", url });
-      } catch (err: unknown) {
-        // Reported on the page rather than with alert(), which blocks the
-        // whole tab until dismissed - and this page has nothing else.
-        const message = err instanceof Error ? err.message : "";
-        setState({ kind: "failed", text: message ? asIs(message) : say("web.shell.link.failed") });
+        if (resp.payload?.$case !== "respFileChunk") {
+          // The device's own words, in the language the request carried.
+          setState({ kind: "failed", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.link.invalid") });
+          return;
+        }
+        const chunk = resp.payload.respFileChunk;
+        got.total = Number(chunk.size);
+        if (chunk.data.length === 0 && got.offset < got.total) {
+          setState({ kind: "failed", text: say("web.shell.link.stopped"), retry: true });
+          return;
+        }
+        got.parts.push(chunk.data);
+        got.offset += chunk.data.length;
+        setState({ kind: "downloading", percent: receivedPercent(got.offset, got.total) });
+        if (!got.asked && got.parts.length === 1 && got.offset < got.total && isTooBigForMemory(got.total)) {
+          got.asked = true;
+          const go = await new Promise<boolean>((answer) => setBigAsk({ bytes: got.total, answer }));
+          setBigAsk(null);
+          if (!go) {
+            setState({ kind: "cancelled" });
+            return;
+          }
+        }
       }
-    })();
+      if (got.total === 0) {
+        setState({ kind: "failed", text: say("web.shell.link.empty") });
+        return;
+      }
+      const url = URL.createObjectURL(new Blob(got.parts as BlobPart[], { type: "application/zip" }));
+      // Watched from before the click: a dialog it opens takes the focus.
+      stopWatchRef.current = watchHandOff(window, document, cCloseAfterMs, (quiet) => {
+        // Images and Files open this tab for the ZIP: it has nothing more
+        // to do. A tab someone opened by hand stays (the browser refuses),
+        // saying it is done.
+        if (mayClose(quiet, document.visibilityState === "hidden", document.hasFocus())) window.close();
+      });
+      save(url);
+      setState({ kind: "saved", url });
+    } catch (err: unknown) {
+      // Reported on the page rather than with alert(), which blocks the
+      // whole tab until dismissed - and this page has nothing else.
+      const message = err instanceof Error ? err.message : "";
+      setState({ kind: "failed", text: message ? asIs(message) : say("web.shell.link.failed") });
+    }
+  };
+  const tryAgain = () => {
+    setState({ kind: "downloading", percent: receivedPercent(gotRef.current.offset, gotRef.current.total) });
+    void runRef.current();
+  };
+
+  useEffect(() => {
+    if (startedRef.current === link) return;
+    startedRef.current = link;
+    void runRef.current();
   }, [link]);
 
   // The file stays in memory while the page shows it (its Download button),
@@ -131,7 +165,12 @@ export default function ZipLinkPage({ link }: { link: string }) {
   let body;
   switch (state.kind) {
     case "failed":
-      body = <p className="zl-note zl-error" role="alert">{state.text(t)}</p>;
+      body = (
+        <div className="zl-failed">
+          <p className="zl-note zl-error" role="alert">{state.text(t)}</p>
+          {state.retry && <button type="button" className="zl-again" onClick={tryAgain}>{t("common.try_again")}</button>}
+        </div>
+      );
       break;
     case "cancelled":
       body = <p className="zl-note" role="status">{t("web.shell.link.cancelled")}</p>;

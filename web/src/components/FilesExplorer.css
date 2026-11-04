@@ -123,8 +123,13 @@
 /* Issue #86: upload progress panel. Shown while dropped files are being
    read/sent so the drop doesn't look like it did nothing. */
 .fb-uploads { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 10px 12px; }
-.fb-uploads-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.fb-uploads-title { color: var(--mist); font-weight: 600; }
+.fb-uploads-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.fb-uploads-title { color: var(--mist); font-weight: 600; flex: 1; min-width: 0; }
+.fb-uploads-head .btn { padding: 4px 12px; }
+.fb-uploads-close { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--mist-dim); cursor: pointer; }
+.fb-uploads-close:hover { background: var(--panel); color: var(--mist); }
+/* Why a file didn't upload: the device's words, under its name. */
+.fb-uploads-why { display: block; color: var(--danger); white-space: normal; font-size: 12px; }
 .fb-uploads-pct { color: var(--mist-dim); font-size: 13px; }
 .fb-uploads-bar { height: 6px; border-radius: 4px; background: var(--ink-2); overflow: hidden; }
 .fb-uploads-fill { height: 100%; background: var(--ember); border-radius: 4px; transition: width .25s ease; }
@@ -145,6 +150,10 @@
 
 /* Issue #51: the refresh button beside the path. Same box as the input so
    the row reads as one control; spins while the listing is in flight. */
+/* Upload, beside Sort by: files from this computer or phone into the folder. */
+.fb-upload-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); color: var(--mist); font: inherit; cursor: pointer; }
+.fb-upload-btn:hover { background: var(--panel); }
+.fb-upload-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
 .fb-refresh { margin-left: auto; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--ink-2); color: var(--mist); cursor: pointer; display: grid; place-items: center; }
 .fb-refresh:hover { background: var(--panel); }
 .fb-refresh:disabled { cursor: default; opacity: 0.7; }
@@ -181,9 +190,9 @@
 .fb-versions > svg { flex: none; }
 .fb-versions-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fb-versions:hover { border-color: var(--ember); color: var(--ember); }
-.fb-versions-body { width: min(560px, 95vw); padding: 16px; }
-.fb-versions-title { margin: 0 36px 4px 0; color: var(--mist); font-size: 16px; }
-.fb-versions-hint { margin: 0 0 12px; color: var(--mist-dim); font-size: 13px; }
+/* The versions pop-up is a Modal (ConfirmDialog.tsx, .pg-dlg). */
+.fb-versions-title { overflow-wrap: anywhere; }
+.fb-versions-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .fb-versions-list { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
 .fb-versions-item { display: grid; grid-template-columns: 1fr 90px auto; align-items: center; gap: 8px; padding: 8px 4px; border-top: 1px solid var(--line); color: var(--mist); }
 .fb-versions-item.current { border-top: 0; font-weight: 600; }

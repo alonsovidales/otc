@@ -15,9 +15,9 @@
 // Only Enter or Sign In sends the password, and it is never sent to a new
 // device (signInWithPassword refuses on the device's own answer): App shows
 // its setup instead. Nor is it sent again later by itself: when the bridge
-// answers for an unreachable device, its full-page screen takes the place
-// of this one, and the password comes back in the field with a note once
-// the device is back (App keeps it meanwhile).
+// answers for an unreachable device, its screen comes over the page, this
+// field and its password staying underneath, and the note under the field
+// says what happened once the device is back.
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import "./TopSignIn.css";
@@ -28,12 +28,8 @@ import { useT } from "../i18n";
 
 type Refusal = Extract<SignInResult, { reason: "wrong" | "unreachable" | "other" }>;
 
-// A sign-in the unreachable screen cut off, kept by App until the field is
-// back.
-export interface Interrupted {
-  password: string;
-}
-
+// A sign-in the device stopped answering during (the bridge answered for
+// it, or it can't reach its storage): read once its screen is gone.
 const cInterruptedNote: Refusal = {
   ok: false,
   reason: "unreachable",
@@ -54,15 +50,10 @@ interface Props {
   onNewDevice: (isPrimary: boolean, container: boolean) => void;
   // Lands the page, as after any sign-in (App's handleSignedIn).
   onSignedIn: () => void;
-  // A sign-in the unreachable screen cut off (see Interrupted), read as
-  // this mounts, and the call that hands one to App or (null) takes it
-  // back.
-  interrupted: Interrupted | null;
-  onInterrupted: (interrupted: Interrupted | null) => void;
 }
 
 export default function TopSignIn({
-  deviceHost, compact, open, onOpenChange, onNewDevice, onSignedIn, interrupted, onInterrupted,
+  deviceHost, compact, open, onOpenChange, onNewDevice, onSignedIn,
 }: Props) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -76,16 +67,6 @@ export default function TopSignIn({
   const fieldId = `${id}-password`;
   const noteId = `${id}-note`;
   const folded = compact && !open;
-
-  // Back after the unreachable screen: the password that was being sent,
-  // and why nothing came of it.
-  const [resumed] = useState(interrupted);
-  useEffect(() => {
-    if (!resumed || !inputRef.current) return;
-    inputRef.current.value = resumed.password;
-    setRefusal(cInterruptedNote);
-    onInterrupted(null);
-  }, [resumed, onInterrupted]);
 
   // A refusal leaves the field focused with the password selected, so the
   // next keystroke starts it again. Not when nothing answered: the same
@@ -127,7 +108,6 @@ export default function TopSignIn({
     busyRef.current = true;
     setBusy(true);
     setRefusal(null);
-    onInterrupted(null);
     try {
       const result = await signInWithPassword(password);
       if (result.ok) {
@@ -140,13 +120,11 @@ export default function TopSignIn({
         return;
       }
       // The bridge answered for the device, or the device can't reach its
-      // storage (#207): their screen is about to take the page, this field
-      // with it, so App keeps the password.
+      // storage (#207): their screen is about to come over the page, this
+      // field and its password staying underneath. What the note says is
+      // read once the device answers again, and the screen is gone.
       const away = getDeviceStatus()?.code;
-      if (result.reason === "unreachable" && (away === "device_unreachable" || away === "storage_unavailable")) {
-        onInterrupted({ password });
-      }
-      setRefusal(result);
+      setRefusal(result.reason === "unreachable" && (away === "device_unreachable" || away === "storage_unavailable") ? cInterruptedNote : result);
     } finally {
       busyRef.current = false;
       setBusy(false);

@@ -157,7 +157,7 @@
   },
   "web.images.collections.untitled": {
     "text": "Untitled collection",
-    "note": "Shown on the Collections page for a collection without a name.",
+    "note": "Shown for a collection without a name: on the Collections page, as its title in Images, in Add to collection's list, in the search field's chip and in the texts that name it.",
     "max": 32
   },
   "web.images.copies.all": {

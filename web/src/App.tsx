@@ -19,6 +19,7 @@ import { useFaceRecognition, watchFaceRecognition } from "./components/faceRecog
 import { usePlacesOn, watchPlaces } from "./components/places";
 import { watchMemories } from "./components/memories";
 import { watchSmartSearch } from "./components/smartSearch";
+import { watchUploads } from "./components/filesUploads";
 import { leaveFilesSearch } from "./components/filesNav";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
@@ -27,7 +28,7 @@ import { reregisterPush } from "./net/webPush";
 import { useLanguage, useT } from "./i18n";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
-import { cStorageRetryMs, getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
+import { cCoverLookMs, cStorageRetryMs, coverAfterMs, getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
 import { DemoBanner, DemoRefusedNotice, DemoWelcome } from "./components/DemoBanner";
 import { useDemo } from "./components/useDemo";
@@ -35,7 +36,7 @@ import DeviceUpdatedNotice from "./components/DeviceUpdatedNotice";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { asTabKey, loadLastTab, saveLastTab } from "./net/uiState";
 import AccountMenu from "./components/AccountMenu";
-import TopSignIn, { type Interrupted } from "./components/TopSignIn";
+import TopSignIn from "./components/TopSignIn";
 import LanguagePicker from "./components/LanguagePicker";
 import { pageEndpoint } from "./net/endpoint";
 import { claimAutoTour } from "./components/tourSeen";
@@ -191,10 +192,6 @@ function App() {
   // is new to setup's last step - the storage and WiFi steps come after its
   // password is set. See showSetup below.
   const [setupShown, setSetupShown] = useState(false);
-  // A sign-in the unreachable screen cut off (TopSignIn): its password goes
-  // back in the field when the device answers again, never sent by itself.
-  const [signInInterrupted, setSignInInterrupted] = useState<Interrupted | null>(null);
-  useEffect(() => { if (authenticated) setSignInInterrupted(null); }, [authenticated]);
 
   // Issue #56: the bridge's verdict on whether this device is reachable at
   // all, reported from ws.ts's socket callbacks (outside the component
@@ -207,11 +204,16 @@ function App() {
   // (net/shutDownHold.ts). Then as usual.
   const shutDownHold = useSyncExternalStore(subscribeShutDownHold, shutDownHeld);
   const deviceStatus = shutDownHold ? null : reportedStatus;
+  // The screen saying so, over the app (DeviceUnreachable): at once for a
+  // switched-off account or a device without its storage, a few seconds on
+  // for one the bridge couldn't reach (coverAfterMs) - which is often back
+  // by then.
+  const cover = useCover(deviceStatus);
 
-  // The menu goes with the rest of the app when the session ends or the
-  // device stops answering; a drawer left open would come back open over
-  // the page.
-  useEffect(() => { if (!authenticated || deviceStatus) setDrawerOpen(false); }, [authenticated, deviceStatus]);
+  // The menu goes with the rest of the app when the session ends; a drawer
+  // left open would come back open over the page. The device not answering
+  // for a while leaves it as it was, as everything else under its screen.
+  useEffect(() => { if (!authenticated) setDrawerOpen(false); }, [authenticated]);
 
   // People is there only while face recognition is on (faceRecognition.ts):
   // the device is asked once signed in. People remembered as the last tab
@@ -231,6 +233,9 @@ function App() {
   useEffect(() => (authenticated ? watchMemories() : undefined), [authenticated]);
   // Smart search (smartSearch.ts): whether it is on, asked at each sign-in.
   useEffect(() => (authenticated ? watchSmartSearch() : undefined), [authenticated]);
+  // Files' uploads (filesUploads.ts) go on in any section; the end of the
+  // sign-in forgets them, so none goes into the next one's folders.
+  useEffect(() => (authenticated ? watchUploads() : undefined), [authenticated]);
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and
@@ -403,7 +408,6 @@ function App() {
   const showSetup = (isPrimary: boolean, container: boolean) => {
     setSetupInfo({ isNewDevice: true, isPrimary, container });
     setSetupShown(true);
-    setSignInInterrupted(null);
     setTab("SignIn");
   };
   const finishSetup = () => {
@@ -548,15 +552,16 @@ function App() {
     </div>
   );
 
-  // Issue #56: nothing behind this is usable while the device is
-  // unreachable (or, #207, can't reach its storage) - every view's data
-  // comes from it - so this stands in
-  // front of the whole app rather than alongside it, and clears itself
-  // the moment a request succeeds again (see deviceStatus.noteResponse).
-  if (deviceStatus) {
-    return <DeviceUnreachable status={deviceStatus} />;
-  }
-
+  // Issue #56: nothing behind the unreachable screen is usable while the
+  // device is unreachable (or, #207, can't reach its storage) - every
+  // view's data comes from it - so it stands in front of the whole app
+  // rather than alongside it, and clears itself the moment a request
+  // succeeds again (see deviceStatus.noteResponse). In front of it, not in
+  // its place: the app stays mounted underneath, so a post being written,
+  // an open dialog, a delete under way and everything on the page are
+  // still there when the device answers again - a long request the bridge
+  // stopped waiting for used to unmount the composer with its caption and
+  // picks while the device went on to publish the post.
   return (
     <>
       <header className="topbar">
@@ -613,8 +618,6 @@ function App() {
             onOpenChange={setSignInOpen}
             onNewDevice={showSetup}
             onSignedIn={handleSignedIn}
-            interrupted={signInInterrupted}
-            onInterrupted={setSignInInterrupted}
           />
         )}
       </header>
@@ -643,7 +646,7 @@ function App() {
       {authenticated && demo && <DemoBanner />}
       {demo && <DemoRefusedNotice />}
       {servedByDevice && <DeviceUpdatedNotice />}
-      <ReconnectingBanner active={authenticated && !shutDownHold} />
+      <ReconnectingBanner active={authenticated && !shutDownHold && !cover} />
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}
       <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>
@@ -701,13 +704,38 @@ function App() {
         ) : signedOutPlaceholder)}
       </main>
       </div>
-      {tour && authenticated && !inSetup && (
+      {/* The tour's own modal dialog would lie over the screen below: it
+          waits, at its step, until the device answers again. */}
+      {tour && authenticated && !inSetup && !cover && (
         <Part kind="layer" onClose={() => closeTour(false)}>
           <Tour step={tour.step} faces={faces} onStep={moveTour} onSection={tourShow} onClose={closeTour} />
         </Part>
       )}
+      {cover && <DeviceUnreachable status={cover} />}
     </>
   )
+}
+
+// The unreachable screen's status (see cover in App): the reported one, once
+// it has lasted coverAfterMs - a device the bridge couldn't reach is asked
+// again meanwhile (cCoverLookMs), so one that answers by then never brings
+// the screen up. Gone the moment the device answers again.
+function useCover(status: DeviceStatus | null): DeviceStatus | null {
+  const [due, setDue] = useState(false);
+  const away = status !== null;
+  const wait = status ? coverAfterMs(status.code) : 0;
+  useEffect(() => {
+    if (!away) { setDue(false); return; }
+    if (wait <= 0) { setDue(true); return; }
+    const look = window.setTimeout(() => {
+      useWS.request((e) => { e.payload = { $case: "reqGetPubKey", reqGetPubKey: {} }; }).catch(() => {
+        // Still away: the screen comes.
+      });
+    }, cCoverLookMs);
+    const show = window.setTimeout(() => setDue(true), wait);
+    return () => { window.clearTimeout(look); window.clearTimeout(show); };
+  }, [away, wait]);
+  return due ? status : null;
 }
 
 // The device's address (the endpoint's host): what a password manager files

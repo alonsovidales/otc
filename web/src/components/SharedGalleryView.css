@@ -23,6 +23,11 @@
 .sg-actions .btn:focus-visible, .sg-tile:focus-visible, .sg-viewer .btn:focus-visible, .sg-nav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .sg-progress { max-width: 1400px; margin: 0 auto 14px; color: var(--mist-dim); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+/* A download that stopped: why, Try again and a close, over the grid. */
+.sg-dl-failed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--danger); }
+.sg-dl-failed span { flex: 1 1 16em; }
+.sg-dl-failed .btn { background: var(--panel); color: var(--mist); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+.sg-dl-failed .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .sg-bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 6px; overflow: hidden; }
 .sg-bar > div { height: 100%; background: var(--ember); transition: width 0.3s; }
 
@@ -37,6 +42,11 @@
 .sg-tile.on .sg-check { background: var(--ember); border-color: var(--ember); }
 
 .sg-viewer { position: fixed; inset: 0; background: rgba(10, 10, 10, 0.96); display: flex; flex-direction: column; z-index: 50; }
+/* It holds the keyboard's focus while open: no ring round the whole page. */
+.sg-viewer:focus { outline: none; }
+/* An item it can't show: its thumbnail, when it has one, and why. */
+.sg-cant { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; max-height: 100%; }
+.sg-cant img { max-height: 70vh; }
 .sg-viewer-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
 .sg-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mist-dim); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 .sg-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; padding: 0 8px 16px; }

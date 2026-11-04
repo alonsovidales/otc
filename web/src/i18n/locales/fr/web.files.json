@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Envoi…",
+  "web.files.upload.waiting": "En attente",
   "web.files.usage.empty": "Rien dans ce dossier n’occupe d’espace.",
   "web.files.usage.failed": "Impossible de calculer l’espace occupé par ce dossier.",
   "web.files.usage.needs_update": "Votre appareil doit être mis à jour pour afficher l’espace occupé par les dossiers.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Version actuelle",
   "web.files.versions.download_failed": "Impossible de télécharger cette version de \u2068{name}\u2069.",
   "web.files.versions.hint": "Le fichier se trouve dans un dossier en envoi uniquement : chaque envoi vers ce chemin a conservé le précédent.",
+  "web.files.versions.load_failed": "Impossible d’afficher les anciennes versions de ce fichier.",
   "web.files.versions.replaced": "Remplacée : {date}",
   "web.files.versions.tip": "Anciennes versions de ce fichier",
   "web.files.versions.title": "Versions de \u2068{name}\u2069"

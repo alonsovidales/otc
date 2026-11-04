@@ -128,8 +128,8 @@
     "en": "Like and comment"
   },
   "web.tour.upload.text": {
-    "text": "Arrasta ficheiros do computador para a página para os carregar e seleciona alguns para <b>{share}</b> uma ligação ou <b>{zip}</b>. O cadeado põe uma pasta em apenas carregamento: nada nela pode ser eliminado e as versões antigas ficam guardadas.",
-    "en": "Drag files from your computer onto the page to upload them, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
+    "text": "Carrega ficheiros com <b>{upload}</b> ou arrastando-os para a página e seleciona alguns para <b>{share}</b> uma ligação ou <b>{zip}</b>. O cadeado põe uma pasta em apenas carregamento: nada nela pode ser eliminado e as versões antigas ficam guardadas.",
+    "en": "Upload files with <b>{upload}</b> or by dragging them onto the page, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
   },
   "web.tour.upload.title": {
     "text": "Carregar e partilhar",

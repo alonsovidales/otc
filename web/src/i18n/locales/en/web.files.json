@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Uploading…",
+  "web.files.upload.waiting": "Waiting",
   "web.files.usage.empty": "Nothing in this folder takes up space.",
   "web.files.usage.failed": "Couldn't find out how much space this folder takes.",
   "web.files.usage.needs_update": "Your device needs an update to show how much space folders take.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Current",
   "web.files.versions.download_failed": "Couldn't download this version of \u2068{name}\u2069.",
   "web.files.versions.hint": "The file is in an upload-only folder, so each upload to this path kept the one before it.",
+  "web.files.versions.load_failed": "Couldn't list the older versions of this file.",
   "web.files.versions.replaced": "Replaced {date}",
   "web.files.versions.tip": "Older versions of this file",
   "web.files.versions.title": "Versions of \u2068{name}\u2069"

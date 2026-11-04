@@ -42,6 +42,7 @@ import { cNoRating, type RatingRefusal, type Ratings, type ShownRating } from ".
 import { ratingRefusalText } from "./ratingText";
 import { RateButton, RatingPanel } from "./RatingPanel";
 import { useRatingSheet } from "./useRatingSheet";
+import { safeImage, safeVideo } from "./inlineTypes";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -84,10 +85,21 @@ export type ViewerRating = {
 const noSubscribe = () => () => {};
 
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
+// How far apart a pinch's two fingers are.
+const touchDistance = (touches: ArrayLike<{ clientX: number; clientY: number }>) =>
+  Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+// A full-size file's Blob carries its type only when an <img> or a <video>
+// may show it from a blob: URL (inlineTypes.ts): an SVG photo (Images lists
+// image/*, and GetFile hands one back as it is) is application/octet-stream,
+// which no <img> draws, so the thumbnail stays - "Open image in new tab" on
+// it ran its script as a page of the device's origin, next to the session
+// token, where the page's CSP didn't reach (Social and Files already did
+// this).
+const shownType = (mime: string) => ((mime.toLowerCase().startsWith("video/") ? safeVideo(mime) : safeImage(mime)) ? mime : "application/octet-stream");
 const bytesToBlob = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content || !(content as ArrayLike<number>).length) return null;
   const u8 = content instanceof Uint8Array ? content : new Uint8Array(content);
-  return new Blob([u8 as BlobPart], { type: mime });
+  return new Blob([u8 as BlobPart], { type: shownType(mime) });
 };
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   const b = bytesToBlob(content, mime);
@@ -109,7 +121,7 @@ function fetchWhole(item: ViewerItem): Promise<Blob | null> {
     p = (async () => {
       if (isVideoFile(item)) {
         const parts = await readFileInPieces(item.path, () => {});
-        const clip = parts ? new Blob(parts as BlobPart[], { type: item.mime || "video/mp4" }) : null;
+        const clip = parts ? new Blob(parts as BlobPart[], { type: shownType(item.mime || "video/mp4") }) : null;
         if (clip && item.hash) fullSizeCache.put(item.hash, clip);
         return clip;
       }
@@ -311,6 +323,40 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   useEffect(() => () => { if (bigThumb) URL.revokeObjectURL(bigThumb.url); }, [bigThumb]);
   const itemPath = item?.path;
   const thumbStays = itemPath != null && stuck === itemPath;
+  // The video on screen's stall watch (issue #106): armed once per element
+  // - one per item, keyed by its path - and pushed back by every sign of
+  // life, its listeners and timer gone with it. The inline callback this
+  // was ran at every render, adding five listeners and another 30 s timer
+  // each time, and a slow video's timer, firing after a step to another
+  // video, failed that one as "stalled".
+  const itemPathRef = useRef(itemPath);
+  itemPathRef.current = itemPath;
+  const watchVideo = useCallback((el: HTMLVideoElement | null) => {
+    if (!el) return;
+    const path = el.dataset.path ?? "";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // A stall is "no sign of life for a while", not "not finished yet":
+    // a video that streams in slowly is left alone to do it.
+    const giveUp = () => {
+      if (el.readyState !== 0 || itemPathRef.current !== path) return;
+      setVideoProblem("stalled");
+      setStuck(path);
+    };
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(giveUp, cVideoStallMs);
+    };
+    const settled = () => clearTimeout(timer);
+    const signs = ["progress", "loadedmetadata", "loadeddata", "canplay", "playing"];
+    arm();
+    for (const ev of signs) el.addEventListener(ev, arm);
+    el.addEventListener("loadedmetadata", settled, { once: true });
+    return () => {
+      clearTimeout(timer);
+      for (const ev of signs) el.removeEventListener(ev, arm);
+      el.removeEventListener("loadedmetadata", settled);
+    };
+  }, []);
   // The full size usually fails because the connection did (a dropped
   // socket, the bridge not reaching the device), and then so does this
   // request. It is asked again like a grid's page (usePageRetry: 1 s
@@ -554,6 +600,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   });
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+  // The photos that left the viewer's collection while it was open
+  // (deleted, Not this person): a rating comment left unsaved on one goes
+  // with it (RatingPanel's dropped).
+  const goneRef = useRef(new Set<string>());
   const onDeleteChangedRef = useRef(onDeleteChanged);
   useLayoutEffect(() => { onDeleteChangedRef.current = onDeleteChanged; });
   // `every`: issue #201's "Delete all {count} copies".
@@ -565,6 +615,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     if (err || !mountedRef.current) return err;
     // One update with the caller's: the next item, or the viewer closed.
     if (itemsRef.current.every((x) => x.path === it.path)) restoreFocusRef.current = false;
+    goneRef.current.add(it.path);
     setAsking(null);
     onDeletedRef.current?.(it);
     return null;
@@ -576,6 +627,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const personFixed = (done: PersonFixDone) => {
     if (!mountedRef.current) return;
     if (itemsRef.current.every((x) => x.hash != null && done.hashes.has(x.hash))) restoreFocusRef.current = false;
+    for (const x of itemsRef.current) if (x.hash && done.hashes.has(x.hash)) goneRef.current.add(x.path);
     setFixing(null);
     setUnfacing(null);
     onPersonFixedRef.current?.(done);
@@ -819,8 +871,6 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   const modalTouchStartX = useRef<number | null>(null);
   const pinchStartDist = useRef<number | null>(null);
   const pinchStartScale = useRef(1);
-  const touchDistance = (touches: React.TouchList) =>
-    Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
   const onModalTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       pinchStartDist.current = touchDistance(e.touches);
@@ -829,13 +879,30 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
       modalTouchStartX.current = e.touches[0].clientX;
     }
   };
-  const onModalTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchStartDist.current) {
+  // The pinch's moves and ctrl+wheel (a trackpad's pinch) are the photo's
+  // zoom, not the page's: native listeners that may cancel - React's own
+  // wheel and touchmove are passive, so preventDefault did nothing there
+  // and the browser zoomed the whole page too.
+  const imgWrapRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !pinchStartDist.current) return;
       e.preventDefault();
       const scale = pinchStartScale.current * (touchDistance(e.touches) / pinchStartDist.current);
       setZoomScale(Math.min(4, Math.max(1, scale)));
-    }
-  };
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoomScale(s => Math.min(4, Math.max(1, s - e.deltaY * 0.01)));
+    };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, []);
   const onModalTouchEnd = (e: React.TouchEvent) => {
     if (pinchStartDist.current != null) { pinchStartDist.current = null; return; }
     if (modalTouchStartX.current == null || zoomScale !== 1) return;
@@ -844,12 +911,6 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     else if (dx > 30 && index > 0) onIndexChange(index - 1);
     modalTouchStartX.current = null;
   };
-  const onModalWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey) return;
-    e.preventDefault();
-    setZoomScale(s => Math.min(4, Math.max(1, s - e.deltaY * 0.01)));
-  };
-
   if (!item) return null;
   const name = items[index].path.split("/").pop();
   return (
@@ -964,11 +1025,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
           <button className="pg-close" aria-label={t("common.close")} data-tip={t("common.close")} onClick={onClose}>×</button>
         </div>
         <div
+          ref={imgWrapRef}
           className="pg-modal-imgwrap"
           onTouchStart={onModalTouchStart}
-          onTouchMove={onModalTouchMove}
           onTouchEnd={onModalTouchEnd}
-          onWheel={onModalWheel}
         >
           {(() => {
             const f = items[index];
@@ -1009,6 +1069,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               }
               return (
                 <video
+                  key={f.path}
+                  data-path={f.path}
                   src={hiURL}
                   controls
                   autoPlay
@@ -1031,25 +1093,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
                   onLoadedMetadata={(e) => {
                     if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) videoFails("codec");
                   }}
-                  ref={(el) => {
-                    if (!el) return;
-                    // A stall is "no sign of life for a while", not
-                    // "not finished yet" - so every event that proves
-                    // something is still happening pushes the
-                    // deadline back, and a video that streams in
-                    // slowly is left alone to do it.
-                    let timer: ReturnType<typeof setTimeout>;
-                    const giveUp = () => { if (el.readyState === 0) videoFails("stalled"); };
-                    const arm = () => {
-                      clearTimeout(timer);
-                      timer = setTimeout(giveUp, cVideoStallMs);
-                    };
-                    arm();
-                    for (const ev of ["progress", "loadedmetadata", "loadeddata", "canplay", "playing"]) {
-                      el.addEventListener(ev, arm);
-                    }
-                    el.addEventListener("loadedmetadata", () => clearTimeout(timer), { once: true });
-                  }}
+                  ref={watchVideo}
                 />
               );
             }
@@ -1091,6 +1135,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
               autoFocus={rateFocus}
               onRefused={ratingRefused}
               beforeChange={refuseOnDemo}
+              dropped={() => goneRef.current.has(item.path)}
             />
           </div>
         )}

@@ -14,14 +14,18 @@ import { fileSize } from "../net/fileSize";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
-import { requestStreamURL } from "../net/media";
+import { askStreamURL } from "../net/media";
 import { readFileInPieces } from "./mediaDownload";
+import BigFileDialog from "./BigFileDialog";
+import { isTooBigForMemory } from "./bigFile";
 import { useBackLayer } from "./backStack";
 import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
+import { cLookPosts, findSentPost, nextLookMs, postsBefore, publishOutcome, type SentPost } from "./postConfirm";
+import { subscribeDeviceStatus } from "../net/deviceStatus";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content) return "";
@@ -38,8 +42,14 @@ const fileKey = (f: MsgFile, idx?: number) =>
 const cFirstPagePhotos = 12;
 
 type Props = {
-  onCancel: () => void;
+  // Closed without a post the device confirmed: `unconfirmed` when one was
+  // sent whose answer never came (it may be in the feed by now).
+  onCancel: (unconfirmed: boolean) => void;
   onPosted: () => void;
+  // The posts the feed shows (their uuids): a post sent whose answer never
+  // came is none of them, nor of the newest the device has besides
+  // (postConfirm.postsBefore).
+  knownPosts?: () => readonly string[];
 };
 
 // Issue #87: matches the iOS composer's own Phone/Synced source toggle -
@@ -49,11 +59,17 @@ type Props = {
 // photo library to browse the way iOS does).
 type Source = "server" | "local";
 
-export default function NewPostPicker({ onCancel, onPosted }: Props) {
+export default function NewPostPicker({ onCancel, onPosted, knownPosts }: Props) {
   const t = useT();
+  // A post sent whose answer never came (postConfirm.ts): what was sent,
+  // looked for in the feed until it is there.
+  const [unconfirmed, setUnconfirmed] = useState<SentPost | null>(null);
+  const unconfirmedRef = useRef(unconfirmed);
+  unconfirmedRef.current = unconfirmed;
+  const cancel = () => onCancel(unconfirmedRef.current !== null);
   // Back closes it, as its × does (backStack.ts). Loaded when first opened
   // (Social wraps it in a layer's Part).
-  useBackLayer(true, onCancel);
+  useBackLayer(true, cancel);
   const [source, setSource] = useState<Source>("server");
 
   // -------- local files (issue #87) --------------------------------------
@@ -378,19 +394,34 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // Trimming needs the real video, not the thumbnail the strip shows. A
   // library pick streams from the device, as the viewer plays it
   // (GetMediaURL): a long clip is never read whole into this page, and the
-  // device needn't hand over a whole video in one GetFile. A clip it
-  // doesn't stream (a short one) is read in 4 MB ReadFile pieces. That can
-  // be a few seconds - hence the per-item spinner rather than a button that
-  // looks inert.
-  const openServerTrimmer = async (path: string) => {
+  // device never hands over a whole video in one GetFile - it refuses a big
+  // one. A clip it doesn't stream (a short one) is read in 4 MB ReadFile
+  // pieces, and so is any video on a device too old to stream, asked first
+  // above bigFile.ts' limit (it is held whole in this page). A stream the
+  // device failed to give is said so: falling back to reading it whole
+  // could put gigabytes in the tab. That can be a few seconds - hence the
+  // per-item spinner rather than a button that looks inert.
+  const [bigTrim, setBigTrim] = useState<{ path: string; bytes: number } | null>(null);
+  const openServerTrimmer = async (path: string, bigOk = false) => {
     const cached = trimUrlsRef.current.get(path);
     if (cached) { setTrimming({ kind: "server", path, url: cached }); return; }
     setTrimLoading(path);
     setError(null);
     try {
-      const stream = await requestStreamURL({ path });
-      if (stream) {
-        setTrimming({ kind: "server", path, url: stream });
+      const stream = await askStreamURL({ path });
+      if ("url" in stream) {
+        setTrimming({ kind: "server", path, url: stream.url });
+        return;
+      }
+      if ("failed" in stream) {
+        const words = stream.failed;
+        setError(() => (words ? asIs(words) : say("web.social.composer.trim_load_failed")));
+        return;
+      }
+      const picked = selectedFilesRef.current.get(path);
+      const bytes = picked ? fileSize(picked) : 0;
+      if ("old" in stream && !bigOk && isTooBigForMemory(bytes)) {
+        setBigTrim({ path, bytes });
         return;
       }
       const parts = await readFileInPieces(path, () => {});
@@ -481,6 +512,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     setPublishing(true);
     setError(null);
     setPartial(false);
+    // Posted again: whatever this answer says is what counts now.
+    setUnconfirmed(null);
     try {
       let paths: string[];
       // Index-aligned with localFiles (null where an upload failed) - kept
@@ -544,16 +577,35 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           .map(([path, range]) => ({ path, startSecs: range.start, endSecs: range.end }));
       }
 
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = {
-          $case: "reqNewSocialPublication",
-          reqNewSocialPublication: { text: caption, paths, trims },
-        };
-      });
-      if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
+      // The device makes the post before it answers (a video is cut and
+      // shrunk first): an answer that never comes leaves it made, or on
+      // its way, as often as not. It is looked for in the feed then
+      // (unconfirmed, below), not left to a guess - publishing again made
+      // every friend get it twice. The posts there already are none of it.
+      const before = await postsBefore(knownPosts?.() ?? [], (req) => useWS.request((e) => {
+        e.payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: req };
+      }));
+      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now(), before };
+      let answer: { resp: RespEnvelope } | { error: unknown };
+      try {
+        answer = { resp: await useWS.request(e => {
+          (e as any).payload = {
+            $case: "reqNewSocialPublication",
+            reqNewSocialPublication: { text: caption, paths, trims },
+          };
+        }) };
+      } catch (err) {
+        answer = { error: err };
+      }
+      const outcome = publishOutcome(answer);
+      if (outcome === "posted") {
         onPosted();
+      } else if (outcome === "unknown") {
+        setUnconfirmed(sent);
+      } else if (outcome === "unsent") {
+        setError(() => say("web.social.composer.not_sent"));
       } else {
-        const message = resp.errorMessage;
+        const message = "resp" in answer ? answer.resp.errorMessage : "";
         setError(() => (message ? asIs(message) : say("web.social.composer.publish_failed")));
       }
     } catch (err: any) {
@@ -564,13 +616,51 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     }
   };
 
+  // A post that may have been made: the newest posts are looked at soon,
+  // then every half minute (nextLookMs), and at once when the device
+  // answers again after its screen (deviceStatus). There, it is posted as
+  // if its answer had come: the composer closes and the feed shows it.
+  useEffect(() => {
+    if (!unconfirmed) return;
+    let live = true;
+    let looks = 0;
+    let busy = false;
+    let timer: number | undefined;
+    const look = async () => {
+      if (busy || !live) return;
+      busy = true;
+      window.clearTimeout(timer);
+      try {
+        const resp: RespEnvelope = await useWS.request((e) => {
+          e.payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { since: undefined, total: cLookPosts, excludeUuids: [] } };
+        });
+        if (!live) return;
+        if (resp.payload?.$case === "respSocialPublications" && findSentPost(resp.payload.respSocialPublications.publications, unconfirmed)) {
+          live = false;
+          onPosted();
+          return;
+        }
+      } catch {
+        // No answer again: the next look.
+      } finally {
+        busy = false;
+      }
+      if (live) timer = window.setTimeout(() => void look(), nextLookMs(++looks));
+    };
+    timer = window.setTimeout(() => void look(), nextLookMs(looks));
+    const off = subscribeDeviceStatus((status) => { if (!status) void look(); });
+    return () => { live = false; window.clearTimeout(timer); off(); };
+    // onPosted is Social's, made once per opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unconfirmed]);
+
   // How many photos and videos the post has so far.
   const picked = source === "local" ? localFiles.length : selected.length;
 
   return (
     <div className="np-root">
       <div className="np-header">
-        <button className="np-close" onClick={onCancel} aria-label={t("common.cancel")}>✕</button>
+        <button className="np-close" onClick={cancel} aria-label={t("common.cancel")}>✕</button>
         <div className="np-title">{t("web.social.composer.title")}</div>
         <div className="np-header-spacer" />
       </div>
@@ -857,6 +947,15 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         </div>
       )}
 
+      {bigTrim && (
+        <BigFileDialog
+          bytes={bigTrim.bytes}
+          kind="open"
+          onGo={() => { const p = bigTrim.path; setBigTrim(null); void openServerTrimmer(p, true); }}
+          onCancel={() => setBigTrim(null)}
+        />
+      )}
+
       {trimming && (
         <VideoTrimmer
           src={trimming.url}
@@ -868,6 +967,11 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           onApply={applyTrim}
           onCancel={() => setTrimming(null)}
         />
+      )}
+
+      {/* Sent, and no answer came: it may well be posted (postConfirm.ts). */}
+      {unconfirmed && !publishing && (
+        <div className="np-note" role="status">{t("web.social.composer.unconfirmed")}</div>
       )}
 
       {error && (
@@ -899,6 +1003,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             ? t("web.social.composer.uploading", uploading)
             : publishing
             ? t("web.social.composer.publishing")
+            : unconfirmed
+            ? t("web.social.composer.post_again")
             : picked ? t("web.social.composer.publish_count", { count: picked }) : t("web.social.composer.publish")}
         </button>
       </div>

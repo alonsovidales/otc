@@ -1078,6 +1078,10 @@
     "note": "Small label beside a user's name in Settings > Users while that user is disabled. Lower case in English.",
     "max": 12
   },
+  "web.settings.users.load_failed": {
+    "text": "Couldn't load the users.",
+    "note": "Settings › Users: in place of the list of users when it couldn't be read from the device (no answer) and the device gave no reason of its own. A Try again button follows."
+  },
   "web.settings.users.load_usage": {
     "text": "Load usage",
     "note": "Button on a user's row in Settings > Users that fetches the space the user takes and their open connections.",
@@ -1090,6 +1094,10 @@
   "web.settings.users.need_memory": {
     "text": "Adding users needs a device with at least 4 GB of memory.",
     "note": "In Settings > Users, in place of the Add user button on a device with less memory (a Raspberry Pi with 2 GB): it runs its owner's library only. 4 GB is memory (RAM)."
+  },
+  "web.settings.users.no_answer": {
+    "text": "Your device didn't answer in time and may still be working on it. The list shows how things stand now.",
+    "note": "Settings › Users: after creating or deleting a user, when the request went to the device but its answer never came (the connection dropped, or the relay stopped waiting). The device may still be making or removing the account; the list of users under it is asked for again."
   },
   "web.settings.users.none": {
     "text": "No additional users yet.",
@@ -1168,6 +1176,10 @@
     },
     "args": [["size", "text"], ["percent", "text"], ["count", "count"]],
     "note": "A user's usage in Settings > Users. {size} is the space the user's files take, already formatted (1234 MB); {percent} the share of the disk that is, already formatted (12.5%); {count} how many connections to that user are open now."
+  },
+  "web.settings.users.usage_failed": {
+    "text": "Couldn't load this user's usage.",
+    "note": "Settings › Users: after Load usage (web.settings.users.load_usage) on a user, when the device didn't answer or gave no reason of its own. Usage: the space and connections the user takes."
   },
   "web.settings.users.username": {
     "text": "username",

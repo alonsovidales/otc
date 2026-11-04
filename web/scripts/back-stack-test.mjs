@@ -103,6 +103,11 @@ function app(browser, firstTab = "PhotoGallery", { doc = "doc1", show = (t) => t
     layer.shut = () => { layer.open = false; layer.release(); };
     return layer;
   };
+  // The unreachable screen (useBackCover): it goes when the device answers.
+  a.cover = () => {
+    const release = a.stack.cover();
+    return { shut: release };
+  };
   return a;
 }
 
@@ -269,12 +274,71 @@ describe("layers", () => {
     b.back();
     await settle();
     assert.equal(dialog.closed, 0);
-    assert.equal(b.depth, 2); // its entry again
+    assert.equal(b.depth, 2); // back on its entry
     busy = false;
     b.back();
     await settle();
     assert.equal(dialog.closed, 1);
     assert.equal(b.depth, 1);
+  });
+
+  test("a layer at work stops a Back of several steps: the layers under it and the section stay", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const viewer = a.open("viewer");
+    await settle();
+    let busy = true;
+    const dialog = a.open("dialog", { busy: () => busy });
+    await settle();
+    assert.equal(b.depth, 4);
+    b.traverse(-3); // the browser's Back, long-pressed: the first entry
+    await settle(60);
+    assert.equal(dialog.closed, 0);
+    assert.equal(viewer.closed, 0, "nothing under it closes");
+    assert.deepEqual(a.shown, [], "nor does the section change");
+    assert.equal(b.depth, 4, "back on its entry, those between still there");
+    busy = false;
+    b.back();
+    await settle();
+    assert.equal(dialog.closed, 1);
+    b.back();
+    await settle();
+    assert.equal(viewer.closed, 1);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
+  test("a layer at work above which another closes: Back closes that one and stops at it", async () => {
+    const b = new Browser();
+    const a = app(b);
+    const dialog = a.open("dialog", { busy: () => true });
+    await settle();
+    const menu = a.open("menu");
+    await settle();
+    b.traverse(-2);
+    await settle(60);
+    assert.equal(menu.closed, 1);
+    assert.equal(dialog.closed, 0);
+    assert.equal(b.depth, 2, "on the dialog's entry");
+  });
+
+  test("history never goes forward to a layer at work: it gets an entry again", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const dialog = a.open("dialog", { busy: () => true });
+    await settle();
+    b.history.go = (d) => { if (d < 0) b.traverse(d); }; // a browser that won't go forward
+    b.back();
+    await settle(260);
+    assert.equal(dialog.closed, 0);
+    assert.equal(b.depth, 3);
+    assert.ok(b.here.layer, "its entry again");
+    assert.equal(b.here.tab, "Social");
   });
 
   test("a layer under another closing first: Back closes the top and skips its entry", async () => {
@@ -347,6 +411,145 @@ describe("layers", () => {
     assert.equal(dialog.closed, 1);
     assert.equal(viewer.closed, 1);
     assert.equal(b.depth, 1);
+  });
+});
+
+// The unreachable screen (DeviceUnreachable's useBackCover), over the app
+// that stays as it is under it.
+describe("the unreachable screen", () => {
+  test("over the composer: Back never reaches the composer, and does once it goes", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const composer = a.open("composer");
+    await settle();
+    const screen = a.cover();
+    await settle();
+    assert.equal(b.depth, 4);
+    b.back();
+    await settle();
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 0, "the caption and the picks stay");
+    assert.deepEqual(a.shown, []);
+    assert.equal(b.depth, 4, "back on the screen's entry");
+    // The device answers again: the screen goes, and its entry with it.
+    screen.shut();
+    await settle(60);
+    assert.equal(b.depth, 3);
+    assert.ok(b.here.layer, "on the composer's entry");
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 1);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
+  test("over the composer, a Back of several steps: the composer and the section stay", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const composer = a.open("composer");
+    await settle();
+    const screen = a.cover();
+    await settle();
+    b.traverse(-3); // to the Images entry the page loaded on
+    await settle(60);
+    assert.equal(composer.closed, 0);
+    assert.deepEqual(a.shown, []);
+    assert.equal(a.tab, "Social");
+    assert.equal(b.depth, 4);
+    screen.shut();
+    await settle(60);
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 1);
+    assert.deepEqual(a.shown, [], "Social's own entry is there still");
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
+  test("over a section moved to: Back leaves the section as it is", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("AdminPannel");
+    await settle();
+    const screen = a.cover();
+    await settle();
+    b.back();
+    await settle();
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, []);
+    assert.equal(a.tab, "AdminPannel");
+    assert.equal(b.left, 0);
+    screen.shut();
+    await settle(60);
+    assert.equal(b.depth, 2);
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+  });
+
+  test("up as the page loaded: Back leaves the site, as it would without it", async () => {
+    const b = new Browser();
+    const a = app(b, "Profile");
+    a.cover();
+    await settle();
+    assert.equal(b.depth, 2);
+    b.back();
+    await settle(60);
+    assert.equal(b.left, 1);
+  });
+
+  test("up over the entry the page loaded on, the sections it moved to left behind: Back leaves", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    b.back();
+    await settle();
+    assert.deepEqual(a.shown, ["PhotoGallery"]);
+    a.cover();
+    await settle();
+    b.back();
+    await settle(60);
+    assert.equal(b.left, 1);
+  });
+
+  test("up as the page loaded again: Back goes through it to the entries from before", async () => {
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    // The page loads again on Social's entry, the device away.
+    const again = app(b, "Social", { doc: "doc2" });
+    again.cover();
+    await settle();
+    b.back();
+    await settle(60);
+    assert.deepEqual(again.shown, ["PhotoGallery"]);
+    b.back();
+    await settle(60);
+    assert.equal(b.left, 1);
+  });
+
+  test("a switched-off account's screen has no cover: Back works as usual", async () => {
+    // DeviceUnreachable passes useBackCover(false) for it: nothing is
+    // written, and Back closes the composer under it.
+    const b = new Browser();
+    const a = app(b, "PhotoGallery");
+    a.go("Social");
+    await settle();
+    const composer = a.open("composer");
+    await settle();
+    b.back();
+    await settle();
+    assert.equal(composer.closed, 1);
   });
 });
 

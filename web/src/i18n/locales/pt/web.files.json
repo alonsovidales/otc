@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "A carregar…",
+  "web.files.upload.waiting": "Em espera",
   "web.files.usage.empty": "Nada nesta pasta ocupa espaço.",
   "web.files.usage.failed": "Não foi possível calcular quanto espaço ocupa esta pasta.",
   "web.files.usage.needs_update": "O teu dispositivo precisa de uma atualização para mostrar quanto espaço ocupam as pastas.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Atual",
   "web.files.versions.download_failed": "Não foi possível transferir esta versão de \u2068{name}\u2069.",
   "web.files.versions.hint": "O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.",
+  "web.files.versions.load_failed": "Não foi possível mostrar as versões anteriores deste ficheiro.",
   "web.files.versions.replaced": "Substituída em {date}",
   "web.files.versions.tip": "Versões anteriores deste ficheiro",
   "web.files.versions.title": "Versões do ficheiro \u2068{name}\u2069"

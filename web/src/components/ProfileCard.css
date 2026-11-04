@@ -38,6 +38,11 @@
   color: var(--ember);
   cursor: pointer;
 }
+/* Until the profile has loaded (ProfileCard.tsx): nothing to change yet. */
+.pc-btn.is-disabled, .pc-btn:disabled { opacity: .5; cursor: default; }
+.pc-input:disabled, .pc-textarea:disabled { opacity: .6; }
+.pc-load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pc-retry { border: 1px solid currentColor; border-radius: 999px; background: transparent; padding: 4px 12px; font: inherit; color: inherit; }
 
 .pc-right { display: flex; flex-direction: column; gap: 10px; }
 

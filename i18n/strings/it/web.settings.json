@@ -905,6 +905,10 @@
     "text": "inattivo",
     "en": "inactive"
   },
+  "web.settings.users.load_failed": {
+    "text": "Impossibile caricare gli utenti.",
+    "en": "Couldn't load the users."
+  },
   "web.settings.users.load_usage": {
     "text": "Mostra utilizzo",
     "en": "Load usage"
@@ -916,6 +920,10 @@
   "web.settings.users.need_memory": {
     "text": "Per aggiungere utenti serve un dispositivo con almeno 4 GB di memoria.",
     "en": "Adding users needs a device with at least 4 GB of memory."
+  },
+  "web.settings.users.no_answer": {
+    "text": "Il tuo dispositivo non ha risposto in tempo e potrebbe ancora starci lavorando. L’elenco mostra com’è la situazione adesso.",
+    "en": "Your device didn't answer in time and may still be working on it. The list shows how things stand now."
   },
   "web.settings.users.none": {
     "text": "Non ci sono ancora altri utenti.",
@@ -987,6 +995,10 @@
       "one": "{size} ({percent}) · {count} active",
       "other": "{size} ({percent}) · {count} active"
     }
+  },
+  "web.settings.users.usage_failed": {
+    "text": "Impossibile caricare l’utilizzo di questo utente.",
+    "en": "Couldn't load this user's usage."
   },
   "web.settings.users.username": {
     "text": "nome utente",

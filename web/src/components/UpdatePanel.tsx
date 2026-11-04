@@ -19,6 +19,8 @@ import { refuseOnDemo } from "../net/demo";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { shutDownRefusal } from "./settings/shutDown";
 import { noteShutDown } from "../net/shutDownHold";
+import { useDeviceBack } from "./useDeviceBack";
+import { useInstanceRole } from "./useInstanceRole";
 
 // Issue #183: releases have kinds and "major.minor" labels; one without a
 // label (from before them) shows as a build. The description is the
@@ -80,7 +82,7 @@ const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 export default function UpdatePanel() {
   const t = useT();
-  const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
+  const isPrimary = useInstanceRole();
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -96,21 +98,12 @@ export default function UpdatePanel() {
   const restartGen = useRef(0);
   useEffect(() => () => { restartGen.current++; }, []);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const resp: RespEnvelope = await useWS.request(e => {
-          (e as any).payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
-        });
-        setIsPrimary(resp.payload?.$case === "respInstanceRole" && resp.payload.respInstanceRole.isPrimary);
-      } catch {
-        setIsPrimary(false);
-      }
-    })();
-  }, []);
-
+  // A check that got no answer runs again once the device answers again -
+  // after an update's restart too, when the version shown has changed.
+  const checkBack = useDeviceBack(() => void checkRef.current());
   const check = useCallback(async () => {
     setChecking(true);
+    let answered = false;
     try {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = { $case: "reqCheckUpdate", reqCheckUpdate: {} };
@@ -130,6 +123,7 @@ export default function UpdatePanel() {
           container: u.container,
         });
         setError(null);
+        answered = true;
       } else if (resp.error) {
         setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.update.check_failed")));
       }
@@ -141,7 +135,11 @@ export default function UpdatePanel() {
     } finally {
       setChecking(false);
     }
-  }, []);
+    if (answered) checkBack.ok();
+    else checkBack.failed();
+  }, [checkBack]);
+  const checkRef = useRef(check);
+  checkRef.current = check;
 
   useEffect(() => {
     if (isPrimary) void check();

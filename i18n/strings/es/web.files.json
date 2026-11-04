@@ -674,6 +674,10 @@
     "text": "Subiendo…",
     "en": "Uploading…"
   },
+  "web.files.upload.waiting": {
+    "text": "En espera",
+    "en": "Waiting"
+  },
   "web.files.usage.empty": {
     "text": "Nada de esta carpeta ocupa espacio.",
     "en": "Nothing in this folder takes up space."
@@ -733,6 +737,10 @@
   "web.files.versions.hint": {
     "text": "El archivo está en una carpeta de solo subida, así que cada subida a esta ruta ha conservado la anterior.",
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.load_failed": {
+    "text": "No se han podido mostrar las versiones anteriores de este archivo.",
+    "en": "Couldn't list the older versions of this file."
   },
   "web.files.versions.replaced": {
     "text": "Sustituida: {date}",

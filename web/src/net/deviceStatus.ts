@@ -18,11 +18,14 @@
 // answer about anything asked, a password included), shown on the same
 // screen in words of its own, and held here too.
 
+import type { RespEnvelope } from "../proto/messages";
+
 export type DeviceStatusCode = "device_unreachable" | "account_disabled" | "storage_unavailable";
 
 export interface DeviceStatus {
   code: DeviceStatusCode;
-  /** The device/bridge's own wording, meant to be shown as-is. */
+  /** The device's own wording (storage_unavailable), meant to be shown
+   *  as-is; empty for the bridge's codes (withoutBridgeWords). */
   message: string;
 }
 
@@ -59,8 +62,48 @@ export function recheckMs(code: DeviceStatusCode): number | null {
   return code === cStorageUnavailable ? cStorageRetryMs : cUnreachableRetryMs;
 }
 
+/** How long the app waits before the screen comes over it (App.tsx): a
+ *  device the bridge couldn't reach is often back a moment later - a long
+ *  request the bridge stopped waiting for, the device dialling in again
+ *  after a blip - so its screen waits cCoverGraceMs, the device asked
+ *  again meanwhile (cCoverLookMs), and a page whose device answers by then
+ *  never sees it. A switched-off account and a device without its storage
+ *  are a state, not a blip: at once. The app stays as it is under the
+ *  screen either way (what is typed, a dialog, a post on its way). */
+export const cCoverGraceMs = 4_000;
+export const cCoverLookMs = 1_500;
+export function coverAfterMs(code: DeviceStatusCode): number {
+  return code === "device_unreachable" ? cCoverGraceMs : 0;
+}
+
+/** Whether an answer is the bridge's for the device rather than the
+ *  device's own: the bridge couldn't hand the request over, or lost the
+ *  device before its answer came (device_unreachable), or the account is
+ *  switched off. Nothing about what was asked: a request that went may
+ *  have been done, as when the socket closes before the answer. */
+export function isBridgeAnswer(resp: RespEnvelope): boolean {
+  return resp.payload?.$case === "respAck" && isDeviceStatusCode(resp.payload.respAck.code);
+}
+
+/** The bridge's answer for the device with its words taken out (the
+ *  envelope's error_message and the Ack's error_msg), anything else as it
+ *  came. They are the bridge's relay texts, English whatever the page's
+ *  language, and they read as a refusal; its code stays, so
+ *  isBridgeAnswer still tells it. ws.ts runs every answer through this as
+ *  it arrives, so no part of the app can show them: each says what failed
+ *  in its own words, or "The device did not answer". */
+export function withoutBridgeWords(resp: RespEnvelope): RespEnvelope {
+  if (!isBridgeAnswer(resp)) return resp;
+  resp.errorMessage = "";
+  if (resp.payload?.$case === "respAck") resp.payload.respAck.errorMsg = "";
+  return resp;
+}
+
 let current: DeviceStatus | null = null;
 const listeners = new Set<(s: DeviceStatus | null) => void>();
+// How many times the device has answered again after a status: see
+// deviceBackCount.
+let backs = 0;
 
 export function getDeviceStatus(): DeviceStatus | null {
   return current;
@@ -76,8 +119,27 @@ function publish(next: DeviceStatus | null) {
   // is down reports the same thing) and re-rendering the whole app for
   // each one is pure waste.
   if (current?.code === next?.code && current?.message === next?.message) return;
+  if (current && !next) backs++;
   current = next;
   listeners.forEach(fn => fn(current));
+}
+
+/** How many times the device has answered again (a status cleared) since
+ *  the page loaded. A load that failed notes it, so a device back before
+ *  anything listened still counts (whenDeviceBack). */
+export function deviceBackCount(): number {
+  return backs;
+}
+
+/** fn runs each time the device answers again after `since` (a
+ *  deviceBackCount taken as a load failed) - at once when it already has.
+ *  The unreachable screen lies over a page that stays mounted (App.tsx),
+ *  so a load that failed while the device was away runs again through
+ *  this (useDeviceBack). Returns the stop. */
+export function whenDeviceBack(since: number, fn: () => void): () => void {
+  const off = subscribeDeviceStatus((s) => { if (s === null) fn(); });
+  if (backs !== since) fn();
+  return off;
 }
 
 /**

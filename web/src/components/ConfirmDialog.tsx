@@ -15,33 +15,22 @@ import { useT } from "../i18n";
 import Spinner from "./Spinner";
 import type { UiText } from "./uiText";
 import { useBackLayer } from "./backStack";
+import { keepTabInside } from "./focusTrap";
 import "./PhotoGallery.css";
-
-const cFocusable = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
-
-// Tab and Shift+Tab within `box`: from its last control to its first and
-// back, and into it from wherever the focus fell (a control that was
-// removed, or disabled while busy, leaves it on the page).
-function keepTabInside(box: HTMLElement, e: KeyboardEvent) {
-  const all = [...box.querySelectorAll<HTMLElement>(cFocusable)]
-    .filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
-  if (!all.length) { e.preventDefault(); box.focus(); return; }
-  const first = all[0];
-  const last = all[all.length - 1];
-  const active = document.activeElement;
-  if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
-  else if (e.shiftKey && (active === first || active === box)) { e.preventDefault(); last.focus(); }
-  else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-}
 
 // A small card over the dimmed page. Focus moves into it (to the element
 // marked data-autofocus, else the card) and back when it closes; Tab stays
 // inside; Escape or a click on the dimmed page cancels - except while busy.
-// The keys are the document's, so they work wherever the focus fell.
-export function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
+// The keys are the document's, so they work wherever the focus fell, and
+// Escape goes no further (a page's own Escape - Images' selection - is
+// not this one's). `className` is the card's own look besides .pg-dlg;
+// `label` names it where no heading in it does (else `labelledBy`).
+export function Modal({ labelledBy, label, busy = false, wide = false, className, onClose, children }: {
   labelledBy: string;
+  label?: string;
   busy?: boolean;
   wide?: boolean;
+  className?: string;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -109,7 +98,8 @@ export function Modal({ labelledBy, busy = false, wide = false, onClose, childre
         if (fromBackdrop && !busy) onClose();
       }}
     >
-      <div ref={cardRef} className={`pg-dlg${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}>
+      <div ref={cardRef} className={`pg-dlg${wide ? " wide" : ""}${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true"
+        aria-labelledby={label ? undefined : labelledBy} aria-label={label} tabIndex={-1}>
         {children}
       </div>
     </div>

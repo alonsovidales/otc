@@ -15,15 +15,17 @@
 // device ended up). The rules are wifiFlow.ts, shared with the phones'
 // WifiSection (iOS) and WifiSection() (Android): change them together.
 //
-// While the device can't be reached the whole app gives way to
-// DeviceUnreachable, and this panel goes with it: the change under way is
-// kept at module level, so Settings coming back picks the wait up again
-// and shows how it went.
+// While the device can't be reached DeviceUnreachable lies over the app,
+// and this panel stays under it, its wait asking on. The change under way
+// is kept at module level all the same, so Settings opened again (or
+// another section and back) picks the wait up again and shows how it went.
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useWS } from "../../net/useWS";
 import { encryptForConnection } from "../../net/pwCrypto";
 import { refuseOnDemo } from "../../net/demo";
+import { isBridgeAnswer, isStorageUnavailable } from "../../net/deviceStatus";
+import { useDeviceBack } from "../useDeviceBack";
 import type { RespEnvelope, WifiJoin, WifiNetwork, WifiStatus } from "../../proto/messages";
 import { useT, type TFunction } from "../../i18n";
 import Spinner from "../Spinner";
@@ -326,31 +328,43 @@ export default function WifiPanel() {
   }, [take]);
 
   // The first look: the owner of the primary instance only, then the
-  // device's own answer.
-  useEffect(() => {
+  // device's own answer. One the device didn't give - nothing came, the
+  // bridge answered for it, it can't reach its storage - leaves what is
+  // shown as it is (nothing, so far) and looks again once the device
+  // answers again (useDeviceBack: the unreachable screen lies over
+  // Settings, which stays mounted; the bridge's answer hid the section).
+  const lookBack = useDeviceBack(() => void firstLookRef.current());
+  const firstLook = useCallback(async () => {
     if (unsupported) return;
-    void (async () => {
-      let primary = false;
-      try {
-        const resp: RespEnvelope = await useWS.request((e) => {
-          e.payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
-        });
-        primary = resp.payload?.$case === "respInstanceRole" && resp.payload.respInstanceRole.isPrimary;
-      } catch {
-        // Not known now: what is shown stays as it is (nothing, so far).
-        return;
-      }
-      if (!alive.current) return;
-      if (!primary) { setHidden(true); return; }
-      let resp: RespEnvelope;
-      try {
-        resp = await askStatus();
-      } catch {
-        return;
-      }
-      if (alive.current) apply(judgeStatus(resp), true);
-    })();
-  }, [apply]);
+    const noAnswer = (r: RespEnvelope) => isBridgeAnswer(r) || isStorageUnavailable(r.errorCode);
+    let primary = false;
+    try {
+      const resp: RespEnvelope = await useWS.request((e) => {
+        e.payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
+      });
+      if (noAnswer(resp)) { lookBack.failed(); return; }
+      primary = resp.payload?.$case === "respInstanceRole" && resp.payload.respInstanceRole.isPrimary;
+    } catch {
+      lookBack.failed();
+      return;
+    }
+    if (!alive.current) return;
+    if (!primary) { lookBack.ok(); setHidden(true); return; }
+    let resp: RespEnvelope;
+    try {
+      resp = await askStatus();
+    } catch {
+      lookBack.failed();
+      return;
+    }
+    if (!alive.current) return;
+    if (noAnswer(resp)) { lookBack.failed(); return; }
+    lookBack.ok();
+    apply(judgeStatus(resp), true);
+  }, [apply, lookBack]);
+  const firstLookRef = useRef(firstLook);
+  firstLookRef.current = firstLook;
+  useEffect(() => { void firstLook(); }, [firstLook]);
 
   // Coming back to this tab (the router's page in another one, say): the
   // device's network may have changed meanwhile. Not while a change runs:

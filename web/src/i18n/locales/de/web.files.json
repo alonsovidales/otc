@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Upload läuft…",
+  "web.files.upload.waiting": "Wartet",
   "web.files.usage.empty": "Nichts in diesem Ordner belegt Speicherplatz.",
   "web.files.usage.failed": "Der belegte Speicherplatz dieses Ordners konnte nicht ermittelt werden.",
   "web.files.usage.needs_update": "Dein Gerät braucht ein Update, um anzuzeigen, wie viel Speicherplatz Ordner belegen.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Aktuell",
   "web.files.versions.download_failed": "Diese Version von \u2068{name}\u2069 konnte nicht heruntergeladen werden.",
   "web.files.versions.hint": "Die Datei liegt in einem Ordner mit „Nur hochladen“, daher hat jeder Upload unter diesem Pfad die vorherige Version behalten.",
+  "web.files.versions.load_failed": "Die älteren Versionen dieser Datei konnten nicht angezeigt werden.",
   "web.files.versions.replaced": "Ersetzt: {date}",
   "web.files.versions.tip": "Ältere Versionen dieser Datei",
   "web.files.versions.title": "Versionen von \u2068{name}\u2069"

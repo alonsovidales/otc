@@ -52,6 +52,10 @@
     "text": "Elimina commento",
     "en": "Delete comment"
   },
+  "web.social.comment.delete_failed": {
+    "text": "Impossibile eliminare il commento.",
+    "en": "Couldn't delete the comment."
+  },
   "web.social.comment.failed": {
     "text": "Il tuo commento non è stato pubblicato. Riprova.",
     "en": "Your comment wasn't posted. Try again."
@@ -112,9 +116,17 @@
     "text": "Sposta {name} verso la fine",
     "en": "Move {name} later"
   },
+  "web.social.composer.not_sent": {
+    "text": "Impossibile raggiungere il tuo dispositivo, quindi non è stato pubblicato nulla. Riprova tra un momento.",
+    "en": "Your device couldn't be reached, so nothing was posted. Try again in a moment."
+  },
   "web.social.composer.order": {
     "text": "Ordine nel post: trascina, oppure usa ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_again": {
+    "text": "Pubblica di nuovo",
+    "en": "Post again"
   },
   "web.social.composer.post_uploaded": {
     "text": "Pubblica quelli caricati",
@@ -172,6 +184,10 @@
     "text": "Impossibile caricare quel video per tagliarlo.",
     "en": "Could not load that video to trim it."
   },
+  "web.social.composer.unconfirmed": {
+    "text": "Il tuo dispositivo non ha risposto in tempo, quindi potrebbe stare ancora preparando questo post (i video possono richiedere qualche minuto). Questa finestra si chiuderà da sola appena il post comparirà in Social; pubblicalo di nuovo solo se non compare.",
+    "en": "Your device didn't answer in time, so it may still be preparing this post (videos can take a few minutes). This closes by itself once the post is in Social; post it again only if it doesn't appear."
+  },
   "web.social.composer.upload_none": {
     "text": "Impossibile caricare nessuno dei file selezionati.",
     "en": "Could not upload any of the selected files."
@@ -221,6 +237,10 @@
   "web.social.feed.no_friends": {
     "text": "Aggiungi amici per vedere qui i loro post e condividere i tuoi con loro.",
     "en": "Add friends to see their posts here and share yours with them."
+  },
+  "web.social.feed.open_failed": {
+    "text": "Impossibile aprire quel post.",
+    "en": "Couldn't open that post."
   },
   "web.social.feed.user": {
     "text": "Utente",
@@ -481,6 +501,10 @@
   "web.social.post.delete": {
     "text": "Elimina post",
     "en": "Delete post"
+  },
+  "web.social.post.delete_failed": {
+    "text": "Impossibile eliminare il post.",
+    "en": "Couldn't delete the post."
   },
   "web.social.post.download_photo_position": {
     "text": "Scarica questa foto ({index} di {total})",

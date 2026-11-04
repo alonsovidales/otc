@@ -52,6 +52,10 @@
     "text": "Eliminar comentario",
     "en": "Delete comment"
   },
+  "web.social.comment.delete_failed": {
+    "text": "No se ha podido eliminar el comentario.",
+    "en": "Couldn't delete the comment."
+  },
   "web.social.comment.failed": {
     "text": "Tu comentario no se ha publicado. Vuelve a intentarlo.",
     "en": "Your comment wasn't posted. Try again."
@@ -112,9 +116,17 @@
     "text": "Mover {name} una posición después",
     "en": "Move {name} later"
   },
+  "web.social.composer.not_sent": {
+    "text": "No se ha podido contactar con tu dispositivo, así que no se ha publicado nada. Vuelve a intentarlo en un momento.",
+    "en": "Your device couldn't be reached, so nothing was posted. Try again in a moment."
+  },
   "web.social.composer.order": {
     "text": "Orden en la publicación: arrastra o usa ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_again": {
+    "text": "Publicar de nuevo",
+    "en": "Post again"
   },
   "web.social.composer.post_uploaded": {
     "text": "Publicar los que se han subido",
@@ -172,6 +184,10 @@
     "text": "No se ha podido cargar ese vídeo para recortarlo.",
     "en": "Could not load that video to trim it."
   },
+  "web.social.composer.unconfirmed": {
+    "text": "Tu dispositivo no ha respondido a tiempo, así que puede que aún esté preparando esta publicación (los vídeos pueden tardar unos minutos). Esto se cerrará solo en cuanto la publicación aparezca en Social; vuelve a publicarla solo si no aparece.",
+    "en": "Your device didn't answer in time, so it may still be preparing this post (videos can take a few minutes). This closes by itself once the post is in Social; post it again only if it doesn't appear."
+  },
   "web.social.composer.upload_none": {
     "text": "No se ha podido subir ninguno de los archivos seleccionados.",
     "en": "Could not upload any of the selected files."
@@ -221,6 +237,10 @@
   "web.social.feed.no_friends": {
     "text": "Añade amigos para ver aquí sus publicaciones y compartir las tuyas con ellos.",
     "en": "Add friends to see their posts here and share yours with them."
+  },
+  "web.social.feed.open_failed": {
+    "text": "No se ha podido abrir esa publicación.",
+    "en": "Couldn't open that post."
   },
   "web.social.feed.user": {
     "text": "Usuario",
@@ -481,6 +501,10 @@
   "web.social.post.delete": {
     "text": "Eliminar publicación",
     "en": "Delete post"
+  },
+  "web.social.post.delete_failed": {
+    "text": "No se ha podido eliminar la publicación.",
+    "en": "Couldn't delete the post."
   },
   "web.social.post.download_photo_position": {
     "text": "Descargar esta foto, {index} de {total}",

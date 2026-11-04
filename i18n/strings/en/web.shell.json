@@ -22,7 +22,7 @@
   "web.shell.big_file.open": {
     "text": "This is {size}; your browser will hold it all in memory before showing it. Continue?",
     "args": [["size", "text"]],
-    "note": "Under A large file (web.shell.big_file.title), before a big file from Files opens in a tab of its own (a PDF, say). {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Open."
+    "note": "Under A large file (web.shell.big_file.title), before a big file from Files opens in a tab of its own (a PDF, say), or a video opens in the new post's trimmer on a device too old to stream it. {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Open."
   },
   "web.shell.big_file.save": {
     "text": "This is {size}; your browser will hold it all in memory before saving. Continue?",
@@ -712,7 +712,11 @@
   },
   "web.shell.unreachable.disabled": {
     "text": "This account has been disabled",
-    "note": "Heading of the full page shown when the relay says the device's account is switched off. The relay's own explanation is shown under it."
+    "note": "Heading of the full page shown over the app when the relay says the device's account is switched off. web.shell.unreachable.disabled_text is shown under it."
+  },
+  "web.shell.unreachable.disabled_text": {
+    "text": "The owner of this device has disabled this account. Contact them if you believe this is a mistake.",
+    "note": "On the full page shown over the app when the relay says this account (a family member's account on someone's device) was disabled by the device's owner, under its heading (web.shell.unreachable.disabled). Them: the device's owner."
   },
   "web.shell.unreachable.note": {
     "text": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back.",
@@ -730,9 +734,13 @@
     "text": "Your device's storage isn't available",
     "note": "Heading of the full page shown when the device answers that it can't reach its storage disks (unplugged, switched off, or not ready). The device's own explanation is shown under it."
   },
+  "web.shell.unreachable.text": {
+    "text": "It looks like it's switched off, offline, or still starting up.",
+    "note": "On the full page shown over the app while the relay (off-the.cloud) can't reach the user's device, under its heading (web.shell.unreachable.title). The app is still there underneath and comes back as it was once the device answers again."
+  },
   "web.shell.unreachable.title": {
     "text": "This device isn't available right now",
-    "note": "Heading of the full page shown when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
+    "note": "Heading of the full page shown over the app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. web.shell.unreachable.text is shown under it."
   },
   "web.shell.unreachable.wifi_hint": {
     "text": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.",

@@ -23,6 +23,8 @@ import { replaceAddress } from "./backStack";
 import "./UpdatePanel.css";
 import "./BridgePanel.css";
 import { refuseOnDemo } from "../net/demo";
+import { isBridgeAnswer, isStorageUnavailable } from "../net/deviceStatus";
+import { useDeviceBack } from "./useDeviceBack";
 
 type Access = {
   enabled: boolean;
@@ -69,11 +71,20 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   const [providerReturnOk, setProviderReturnOk] = useState(() => returnAllowed(window.location.hostname));
   onStatusRef.current = onStatus;
 
+  // Asked again once the device answers again when nothing came (its
+  // screen lies over Settings, which stays as it was).
+  const accessBack = useDeviceBack(() => void refreshRef.current());
   const refresh = useCallback(async () => {
     try {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = { $case: "reqGetBridgeAccess", reqGetBridgeAccess: {} };
       });
+      if (isBridgeAnswer(resp) || isStorageUnavailable(resp.errorCode)) {
+        // No answer from the device: nothing is known yet.
+        accessBack.failed();
+        return;
+      }
+      accessBack.ok();
       if (resp.payload?.$case !== "respBridgeAccess") {
         // An additional user's instance: not theirs to change.
         setHidden(true);
@@ -85,8 +96,11 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
     } catch {
       // A restart onto the bridge drops this connection; the next poll
       // picks it up again.
+      accessBack.failed();
     }
-  }, []);
+  }, [accessBack]);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useEffect(() => { void refresh(); }, [refresh]);
 

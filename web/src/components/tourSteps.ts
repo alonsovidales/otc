@@ -105,8 +105,9 @@ export const cStepTargets: Readonly<Record<TourStepId, readonly (readonly string
   collections: [[".cv-grid .cv-card"]], // i18n-ignore: CSS selectors
   // The view switch, and a column's heading where the list has them, else Sort by.
   files: [[".fb-viewmode", ".fb-contents .fb-head .fb-sort-btn"], [".fb-viewmode", ".fb-sort"]], // i18n-ignore: CSS selectors
-  // A row's (or a tile's) tick, and the line saying files can be dragged here.
-  upload: [['.fb-contents .fb-row:not([data-key=".."]) .c-check', ".fb-tip"], [".fb-contents .fb-tile-check", ".fb-tip"], [".fb-tip"]], // i18n-ignore: CSS selectors
+  // Upload, a row's (or a tile's) tick, and the line saying files can be
+  // dragged here: one group, as Upload is always there.
+  upload: [['[data-tour="files-upload"]', '.fb-contents .fb-row:not([data-key=".."]) .c-check, .fb-contents .fb-tile-check', ".fb-tip"]], // i18n-ignore: CSS selectors
   social: [[".sv-post .sv-actions .sv-btn", ".sv-post .sv-newcomment"]], // i18n-ignore: CSS selectors
   post: [['[data-tour="new-post"]'], [".sv-empty-new"]],
   friends: [[".fr-address", ".add-friend"], [".add-friend"]],

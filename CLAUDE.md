@@ -1559,7 +1559,10 @@ start takes its file.
   An archive's link is `/#download=<uuid>_<secret>` (2026-10: the secret in the fragment, as a
   gallery's; `downloadLink.ts` still takes `?download=`). Its page is `ZipLinkPage.tsx` (rules in
   `zipDownload.ts`, `node web/scripts/zip-download-test.mjs`), in the tab Images' and Files'
-  Download ZIP open at the click (`zipTab.ts`): the percent rounded down (100% only with every byte
+  Download ZIP open at the click (`zipTab.ts`); a part with no answer is asked again after 1, 3 and
+  6 s, and past that the page says so with Try again, which goes on from that part (a reload
+  started over and counted another opening of the link): the percent rounded down (100% only
+  with every byte
   in), then the file handed to the browser and a tick, "Your download has started" and a Download
   button (an `<a download>` on the same `blob:` URL, kept while the page shows) that saves it again;
   2 s later the tab closes itself only when nothing took the focus or changed its visibility
@@ -2697,7 +2700,10 @@ the app's language (`name:<lang>`), towns' dots, one-way arrows and road numbers
 fetches (style, TileJSON, tiles, fonts, sprite) goes through `mapFetch.ts`: a worker made from a data: URL,
 whose opaque origin sends `Origin: null` and no Referer, so OpenFreeMap never learns the device's address
 (MapLibre's `otcmap://` protocol; index.html allows `connect-src https://tiles.openfreemap.org` and
-`worker-src data:`, nothing else). Zoom buttons are ours and the credits are written out (compact, MapLibre
+`worker-src data:`, nothing else). A browser that can't start that worker gets no map ("The map couldn't
+load", with Try again), never a fetch from the page, which would send `Origin: https://<device>...`
+(`node web/scripts/places-test.mjs` checks nothing is fetched without it). Zoom buttons are ours and
+the credits are written out (compact, MapLibre
 draws them from data: images img-src refuses). The arithmetic is `placesMath.ts` (`node
 web/scripts/places-test.mjs`): device zoom = floor(MapLibre zoom + 1) (512 px tiles there), the screen's
 tiles and one around, centre first, 64 a request, camera at rest 200 ms; the next zoom's 600 ms later;
@@ -3029,8 +3035,10 @@ Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and
 effect and revoked in its cleanup - only `blob:` URLs, never a `/media` stream URL. Social's `Post`
 is a module-level memo component: keep its callbacks stable and `highlighted` a boolean, or every
 post re-renders. Infinite-scroll grids use `usePageRetry` (1 s doubling to 10 s; user searches
-`reset()`). Files reads non-media with chunked `ReqReadFile` (`readAll`; a file replaced mid-read is
-read again) and uses `GetFile` only for what the device converts. `useWS`: `lastAuthRef`, the
+`reset()`). Files reads non-media with chunked `ReqReadFile` (`readAll`, which is
+`mediaDownload.readPieces`, as the viewers and downloads: a piece with no answer, or the bridge's,
+is asked again at the same offset after 1, 3 and 6 s; a file replaced mid-read is read again) and
+uses `GetFile` only for what the device converts. `useWS`: `lastAuthRef`, the
 password replayed on reconnect, is set on an ok Ack (or when nothing answered and nothing verified
 is held) and cleared when the device refuses it; a typed password that met a lockout is not replayed,
 and one typed on the page (`signInWithPassword`: `keepOnlyIfAccepted`) is never kept after no answer -
@@ -3042,7 +3050,9 @@ refused sign-in (`authOwed`); only a tab that has signed in (`hadSession`) redee
 on reconnect. Sign Out also clears `otc_files_path`, `otc_photo_search_tags` and a pending
 language change (`otc_language_pending`; `otc_language` stays). `net/`'s errors carry translated
 messages: test for a request with no answer with `err instanceof NoAnswer` (`net/ws.ts`), never
-by its text, and import `t` there from `../i18n/runtime`, never `../i18n` (a cycle through the
+by its text - `NoAnswer.sent` is false when it never left (no socket, or the sign-in useWS waited
+for failed), true when it went and nothing came - and import `t` there from `../i18n/runtime`,
+never `../i18n` (a cycle through the
 provider and `useWS`). `web/` has no test runner
 (`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
 SSR loader, `net-test.mjs` the socket's clocks and the password's sealing); `npm run lint` already
@@ -3107,7 +3117,8 @@ a failed restore, People without faces, Images back to Collections) rewrites the
 every layer calls `useBackLayer(open, close)` - the viewers (MediaViewer, the feed's, Files' and
 /shared's), `Modal` (so every ConfirmDialog and LinkDialog), the composer, the trimmer, the
 drawer, the tour, People's and Settings' dialogs - and Back closes the top one (`close` returning
-false keeps a dialog at work, which gets its entry again), else shows the entry's section
+false keeps a dialog at work: the Back stops there, however many steps it went, the layers under
+it and the section stay, and history goes forward to its entry again), else shows the entry's section
 (`sectionFor`: signed out, the landing page). A layer closed by its own button leaves its entry
 to the next one written at that moment (a pick in the drawer is one entry) or steps back off it;
 a Back that changes nothing goes on back. Entries keep the address (`#download`, `/shared#…`) and
@@ -3133,7 +3144,79 @@ only from a click: the feed's `PushCard` ("Get notified when family posts", Not 
 opens, a shared gallery's originals) asks first (`BigFileDialog`: "This is 1.2 GB; …"). Leave the
 bridge asks in a ConfirmDialog. The composer's trimmer streams a library video (GetMediaURL),
 else reads it in ReadFile pieces, as the viewer reads a clip the device won't stream: the web
-never asks for a whole video with GetFile.
+never asks for a whole video with GetFile. `net/media.ts`' `askStreamURL` tells the answers apart
+(`node web/scripts/stream-url-test.mjs`): a URL; none (not worth streaming: pieces); a device
+before issue #110 (`unknown_payload`: pieces, asked first above bigFile.ts' 500 MB); or a failure,
+said in the device's words with nothing read - never a fall back to reading a long video whole.
+
+Holding on through a slow device or a dropped connection (2026-11). The unreachable screen
+(`DeviceUnreachable.tsx`) is a modal `<dialog>` over the app, which stays mounted and inert under it:
+a composer's caption and picks, an open dialog and a page's state are there when the device answers
+again, and the focus goes back where it was. For `device_unreachable` it comes after 4 s
+(`deviceStatus.coverAfterMs`; App's `useCover` asks GetPubKey at 1.5 s), so a blip that mends itself
+never shows it; `account_disabled` and a device without its storage show it at once. Escape never
+closes it (a second one the browser takes as closing it brings it back) and its keys never reach the
+page; nor does Back while the device is away: it is a cover (`useBackCover`), so the browser's Back,
+Alt+Left or a back swipe, one step or several, never closes the composer under it or changes the
+section - unless nothing of the page's lies under it (no other layer, and it came up over the entry
+the page loaded on), when Back goes through it and leaves the site as it would without it. A
+switched-off account's has none (that lasts until the owner acts): Back works as usual. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
+those two codes in English only. `deviceStatus.isBridgeAnswer` tells the bridge's answer for the
+device from the device's own - every request that follows treats it as no answer, never as a refusal
+in the bridge's words. ws.ts takes those words out of it as it arrives (`withoutBridgeWords`, its
+code kept), so no part of the app can show them: each says what failed in its own (Files' listing
+"The device did not answer.", a sign-in the same or "This account has been disabled"). Nothing mounts again as the screen lifts, so a load that runs once and failed
+runs again when the device answers again or the browser is back online (`useDeviceBack`, on
+`deviceStatus.whenDeviceBack`, which counts a device back before anything listened too): Files'
+listing, Settings and its reprocess status, Users, the profile and the account button's, Alerts,
+Friends, Shared Links, Bridge, Wi-Fi's first look, Update's check, Tailscale's status and the role
+that shows Tailscale, Update and Logs (`useInstanceRole`; the bridge's answer used to hide them).
+Grids that page have `usePageRetry`; the library's lists ask again while they show. A post whose answer never came (`postConfirm.ts`, `node
+web/scripts/post-confirm-test.mjs`): unsent (`NoAnswer.sent` false) says nothing was posted; went and
+unanswered keeps the composer with a note, "Post again" on its button, and looks for the post among
+the newest four (the owner's own, none there as it went - those the feed showed, Social's
+`knownPosts`, and the newest four the device had besides, asked just before it went, 5 s at most:
+`postsBefore` -, the same caption, no more items than were sent, made no earlier than 15 minutes before it was sent) at 3, 7 and 15 s, then every 30 s and at once when the device
+answers again, closing as posted once it is there. Users' create and delete that went unanswered say
+the device may still be at it and list the users again, then 10 s on. Uploads from the web resume
+(issue #205's rules): a file of more than one 4 MB piece is hashed first (`net/sha256.ts`, fed a piece
+at a time - crypto.subtle hashes only a whole buffer and is missing on a plain-HTTP page) and a piece
+that fails is begun again with the same key after 2, 4, 8, 16, 30 and 30 s (`net/upload.ts`, `node
+web/scripts/transfer-test.mjs`). Files' uploads are one queue, a row each by id (waiting, reading,
+sending, done, failed with the device's words), sent one at a time from a drop or the Upload button
+beside Sort by (the browser's file chooser: phones, the keyboard and screen readers have no drag);
+a dropped folder's files go under their paths, hidden names left out. The queue is the page's
+(`filesUploads.ts`, `node web/scripts/files-uploads-test.mjs`), not Files': it goes on while another
+section shows (App unmounts Files) and Files shows its rows again when opened; the end of a sign-in
+forgets it (App's `watchUploads`), so nothing queued goes into the next one's folders. The panel goes
+2.5 s after the last when none failed, else stays with Try again until closed, its title a live region. A folder that
+can't be listed shows only ".." with its error. The tour's upload step rings Upload. Alerts asks the
+unread count and lists that many (`alertsRead.ts`, at most 500) before it marks them read, so it marks
+only what is on the page.
+
+Dialogs: Settings' (first password, delete a user, reprocess), the picture's crop
+(`PhotoCropDialog`) and Files' versions are `Modal`s (ConfirmDialog.tsx: focus in and back, Tab kept
+inside - `focusTrap.ts`, shared with /shared's viewer -, Escape and Back are Cancel except while
+busy; `label` names a card without a heading). Enter in the first-password dialog creates the user
+only from its fields. The profile can't be edited or saved until it has loaded (Save sends the name,
+the bio and the picture together); one that didn't come says why with Try again. Users ask the role
+again while nothing answers, and their list and Load usage say when they failed. The photo viewer's
+header is two rows below 720 px (Info, the name and Close; then the photo's actions from the right),
+so Close and Delete stay on a phone's screen; a pinch and ctrl+wheel are native listeners that may
+cancel (React's wheel and touchmove are passive), as the crop's wheel is; the stall watch is one ref
+callback per video element (keyed by path) with a cleanup; a full size's Blob, and /shared's, carry
+their type only when an `<img>` or `<video>` may show it from a `blob:` URL (`inlineTypes.ts`), else
+`application/octet-stream`, so an SVG keeps its thumbnail and never runs as a page of the device's
+origin; within 4 photos of the end of what is loaded the viewer asks for the next page (and after a
+jump, within 4 of its top, the page above). A rating
+comment left unsaved on a photo that left the collection goes with it (RatingPanel's `dropped`).
+/shared: a download that stops is a line in the progress strip with Try again (the items still to
+save) and a close, the grid staying; a download's piece with no answer, or the bridge's, is asked
+again after 1, 3 and 6 s; the viewer takes the focus as it opens and gives it back to its tile. The
+feed lets an autoplayed clip fetched whole go once its post is off the screen and fetches it again on
+the way back. On this day's thumbnails have a generation of their own (another sign-in only), so a
+refresh never drops the answers on their way. A collection without a name reads "Untitled
+collection" everywhere it is named (`libraryStore.collectionName`).
 
 "Your device was updated" (`components/DeviceUpdatedNotice.tsx`, rules in `deviceBuild.ts`,
 `node web/scripts/device-build-test.mjs`): a single-page app never reloads itself, so a tab open
@@ -3318,7 +3401,9 @@ rule): any scroll event that lowers `scrollY` by more than a pixel with the page
 - the scrollbar dragged too (`scrollArmsUp`) - or, as the page can't scroll above its top, a wheel
 up, Arrow Up/Page Up/Home/Shift+Space or a finger drawn down while it is (`nearTop`); a new search
 (`searchGenRef`) drops what the old one saw. The mark then asks `upwardRequest` (`newer_than` = the
-cutoff, never `before`) once within 600px of the screen.
+cutoff, never `before`) once within 600px of the screen. The viewer open within 4 photos of the top
+asks it too (`viewerAsksUp`, no arming: opening one of them asks for what is newer), as near the end
+it asks for the next page - a jump's first photo read as the newest, with no Previous.
 `oldest_first` false drops the page and stops it while the page is open. A page goes above newest
 first, without hashes shown (`notShown`), inside `keepTopTile`: the first tile below the bar
 (`data-key`) is measured around a `flushSync` and the window scrolled by what it moved (Chrome's

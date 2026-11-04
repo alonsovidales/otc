@@ -93,6 +93,8 @@
 .np-strip-moves button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .np-error { margin: 0 12px 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255,90,90,0.12); border: 1px solid #ff5a5a; color: #ff9a9a; font-size: 13px; }
+/* A post sent whose answer never came: not an error - it may be posted. */
+.np-note { margin: 0 12px 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 200, 87, 0.1); border: 1px solid var(--gold); color: var(--mist); font-size: 13px; }
 
 .np-composer { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--ink-2); }
 .np-caption { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink); color: var(--mist); font-size: 16px; }

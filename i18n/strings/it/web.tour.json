@@ -128,8 +128,8 @@
     "en": "Like and comment"
   },
   "web.tour.upload.text": {
-    "text": "Trascina i file dal computer nella pagina per caricarli, poi selezionane alcuni e scegli <b>{share}</b> per un link o <b>{zip}</b>. Il lucchetto rende una cartella di solo caricamento: niente si può eliminare e le versioni precedenti restano.",
-    "en": "Drag files from your computer onto the page to upload them, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
+    "text": "Carica i file con <b>{upload}</b> o trascinandoli nella pagina, poi selezionane alcuni e scegli <b>{share}</b> per un link o <b>{zip}</b>. Il lucchetto rende una cartella di solo caricamento: niente si può eliminare e le versioni precedenti restano.",
+    "en": "Upload files with <b>{upload}</b> or by dragging them onto the page, then select some to <b>{share}</b> a link or <b>{zip}</b>. The lock makes a folder upload only: nothing in it can be deleted and old versions are kept."
   },
   "web.tour.upload.title": {
     "text": "Carica e condividi",

@@ -12,6 +12,7 @@ import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { useBackLayer } from "./backStack";
+import { useInstanceRole } from "./useInstanceRole";
 import "./LogsPanel.css";
 
 type Source = "app" | "update";
@@ -21,18 +22,8 @@ const cRotated = "\n— log rotated —\n"; // i18n-ignore: inside the log text,
 
 export default function LogsPanel() {
   const t = useT();
-  const [isPrimary, setIsPrimary] = useState(false);
+  const isPrimary = useInstanceRole();
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    (async () => {
-      try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
-        });
-        setIsPrimary(resp.payload?.$case === "respInstanceRole" && resp.payload.respInstanceRole.isPrimary);
-      } catch { setIsPrimary(false); }
-    })();
-  }, []);
   if (!isPrimary) return null;
   return (
     <section className="sf-section">

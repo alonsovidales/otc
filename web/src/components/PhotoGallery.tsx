@@ -57,7 +57,7 @@ import { refreshSmartSearch, setSmartSearchOn } from "./smartSearch";
 import MemoriesStrip from "./MemoriesStrip";
 import { nameCollator } from "./filesSort";
 import { sortCollections } from "./librarySort";
-import { choosePersonCover, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
+import { choosePersonCover, collectionName, dropGroupLocally, personLabel, reloadGroups, reloadPeople, renameGroupLocally, setGroupRatingLocally, useGroups, usePeople } from "./libraryStore";
 import { asIs, say, type UiText } from "./uiText";
 import { favourites } from "./useFavourites";
 import { openWaitingTab } from "./zipTab";
@@ -69,7 +69,7 @@ import { coverImageFits, faceHash, type CoverChoice } from "./personCover";
 import PhotoCropDialog from "./PhotoCropDialog";
 import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import {
-  cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
+  cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest, viewerAsksUp,
   type ScrollAt, type UpCursor,
 } from "./newerPhotos";
 
@@ -81,6 +81,8 @@ const MediaViewer = lazyPart(() => import("./MediaViewer"));
 // grid stayed empty all that time. The pages after it, sent with the token,
 // get the device's own size; a device before release 97 answers 30 anyway.
 const cFirstPagePhotos = 12;
+// How near the end of the loaded photos the viewer asks for the next page.
+const cViewerAhead = 4;
 // While the date scrubber is dragged, a month that hasn't loaded shows this
 // many grey tiles at most: enough to read as "a lot", not thousands of nodes.
 const cMaxPlaceholders = 300;
@@ -971,6 +973,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       el.closest(".pg-tile")?.scrollIntoView({ block: "nearest" });
     });
   }, []);
+  // The viewer near the end of what is loaded asks for the next page, as
+  // the grid's end does nearing the screen: stepping through a big library
+  // in the viewer stopped at the last loaded page, which read as the
+  // library's end until the viewer was closed and the grid scrolled.
+  useEffect(() => {
+    if (openIdx == null || openIdx < items.length - cViewerAhead) return;
+    if (!loading && !endReached && !previewing && retryReady()) void fetchPage();
+  }, [openIdx, items.length, loading, endReached, previewing, retryTick, retryReady, fetchPage]);
   // The viewer shows the grid's own thumbnail while the full size loads.
   const viewerOpen = openIdx != null;
   // In a rated collection, with what its page said of its stars.
@@ -1488,7 +1498,8 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     if (!group || uncollecting || refuseOnDemo()) return;
     const files = sel;
     if (!files.length) return;
-    const name = group.name;
+    // A collection without a name is named as everywhere else.
+    const named = group.name;
     setUncollecting(true);
     try {
       const resp = await ask({ $case: "reqRemoveFromImageGroup", reqRemoveFromImageGroup: { groupId: group.id, paths: files.map((f) => f.path) } });
@@ -1498,9 +1509,9 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         const hashes = new Set(files.map((f) => f.hash));
         dropDeleted(new Set(items.filter((f) => hashes.has(f.hash)).map((f) => f.path)));
         clearSel();
-        showToast({ text: (t) => t("web.images.uncollect.done", { name }) });
+        showToast({ text: (t) => t("web.images.uncollect.done", { name: collectionName(named) }) });
       } else {
-        toastError((t) => t("web.images.uncollect.failed", { name }));
+        toastError((t) => t("web.images.uncollect.failed", { name: collectionName(named) }));
       }
     } catch {
       toastError(say("web.images.error.unreachable"));
@@ -1517,7 +1528,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
   const onCollected = (g: OpenGroup) => {
     setDialog(null);
     clearSel();
-    showToast({ text: (t) => t("web.images.collect.added", { name: g.name }), action: { label: say("web.images.collect.view"), run: () => openGroup(g) } });
+    showToast({ text: (t) => t("web.images.collect.added", { name: collectionName(g.name) }), action: { label: say("web.images.collect.view"), run: () => openGroup(g) } });
   };
 
   // Escape clears the selection - unless something on top of the grid
@@ -1727,6 +1738,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
     obs.observe(node);
     return () => obs.disconnect();
   }, [upOn, upArmed, upEnd, upLoading, upRetryTick, upRetryReady, fetchUp]);
+  // The viewer near the top of what is loaded asks for the page above, as
+  // near the end it asks for the next one (viewerAsksUp): stepping back
+  // from a jump's first photo did nothing. Its photos go above with the
+  // open one's index moved down (fetchUp), so Previous comes with them.
+  useEffect(() => {
+    if (!viewerAsksUp(openIdx, cViewerAhead, upOn, upEnd)) return;
+    if (!upLoadingRef.current && upRetryReady()) void fetchUp();
+  }, [openIdx, upOn, upEnd, upLoading, upRetryTick, upRetryReady, fetchUp]);
   // Once the first page has failed, its error stays up while the retries
   // run (the button shows them), rather than flipping back to grey tiles.
   const firstLoad = items.length === 0 && !pageError && (loading || !endReached);
@@ -1783,7 +1802,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
         <Empty
           icon={<SearchIcon size={32} />}
           title={t("web.images.grid.no_match_title")}
-          text={group ? t("web.images.grid.no_match_in", { name: group.name }) : t("web.images.grid.no_match_text")}
+          text={group ? t("web.images.grid.no_match_in", { name: collectionName(group.name) }) : t("web.images.grid.no_match_text")}
         >
           <button type="button" className="pg-btn outline" onClick={() => { clearSearch(); leaveArea(); }}>{t("web.images.grid.clear_search")}</button>
         </Empty>
@@ -2023,7 +2042,7 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       {dialog?.kind === "deleteCollection" && group && (
         <ConfirmDialog
           title={t("web.images.collection.delete_title")}
-          text={t("web.images.collection.delete_text", { name: group.name })}
+          text={t("web.images.collection.delete_text", { name: collectionName(group.name) })}
           confirm={t("common.delete")}
           busyText={t("common.deleting")}
           onConfirm={deleteCollection}
@@ -2239,7 +2258,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
     }
   };
 
-  const shown = saving ?? group.name;
+  const shown = collectionName(saving ?? group.name);
   return (
     <header className="pg-head">
       <button type="button" className="pg-back" onClick={onBack}>
@@ -2861,7 +2880,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
         onDone({ id: g.id, name: g.name, fileCount: g.fileCount, favourites: g.favourites, rating: g.rating });
         return;
       }
-      setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: g.name }));
+      setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: collectionName(g.name) }));
     } catch {
       setError(() => say("web.images.error.unreachable"));
     }
@@ -2950,7 +2969,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
                       ? <span className="pg-pick-cover pg-pick-fav"><FavouritesIcon size={22} /></span>
                       : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
                   <span className="pg-pick-text">
-                    <span className="pg-pick-name">{g.name}</span>
+                    <span className="pg-pick-name">{collectionName(g.name)}</span>
                     <span className="pg-pick-count">{itemsLabel(t, g.fileCount)}</span>
                   </span>
                   {busy === g.id && <Spinner />}

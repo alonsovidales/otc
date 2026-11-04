@@ -196,6 +196,7 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Uploaden…",
+  "web.files.upload.waiting": "Wacht",
   "web.files.usage.empty": "Niets in deze map neemt ruimte in.",
   "web.files.usage.failed": "Kan niet bepalen hoeveel ruimte deze map inneemt.",
   "web.files.usage.needs_update": "Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.",
@@ -216,6 +217,7 @@
   "web.files.versions.current": "Huidige versie",
   "web.files.versions.download_failed": "Kan deze versie van \u2068{name}\u2069 niet downloaden.",
   "web.files.versions.hint": "Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.",
+  "web.files.versions.load_failed": "Kan de oudere versies van dit bestand niet tonen.",
   "web.files.versions.replaced": "Vervangen: {date}",
   "web.files.versions.tip": "Oudere versies van dit bestand",
   "web.files.versions.title": "Versies van \u2068{name}\u2069"

@@ -28,6 +28,9 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { showSection } from "./showSection";
 import { safeImage, safeVideo } from "./inlineTypes";
 import { asIs, say, type UiText } from "./uiText";
+import { useToasts } from "./useToasts";
+import ToastView from "./ToastView";
+import { isBridgeAnswer } from "../net/deviceStatus";
 
 // The composer, loaded when first opened (lazyPart.ts).
 const NewPostPicker = lazyPart(() => import("./NewPostPicker"));
@@ -250,6 +253,14 @@ type PageResult = { ok: true } | { ok: false; error: UiText };
 
 function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onRegisterOpenComposer }: SocialProps) {
   const t = useT();
+  // What a delete or opening a post from an alert came to, when it wasn't
+  // done: the device's words, else ours (Images' toasts).
+  const { toast, showToast, dismissToast } = useToasts();
+  const toastFailed = useCallback((resp: RespEnvelope | null, ours: UiText) => {
+    const ack = resp?.payload?.$case === "respAck" ? resp.payload.respAck : null;
+    const words = !resp || isBridgeAnswer(resp) ? "" : ack?.errorMsg || resp.errorMessage;
+    showToast({ text: words ? asIs(words) : ours, error: true });
+  }, [showToast]);
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   // Whether the first page has answered - an empty feed before that is
@@ -422,13 +433,25 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
     let cancelled = false;
     (async () => {
       if (!feedRef.current.some(p => p.uuid === openPubUuid)) {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqGetPublication", reqGetPublication: { pubUuid: openPubUuid } };
-        });
+        // A post that didn't come (no answer, or gone since): said so, and
+        // the alert is done with all the same - it used to stay "being
+        // opened", so a second tap on it did nothing until a reload.
+        let resp: RespEnvelope | null = null;
+        try {
+          resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+            (e as any).payload = { $case: "reqGetPublication", reqGetPublication: { pubUuid: openPubUuid } };
+          });
+        } catch {
+          // As no answer, below.
+        }
         if (cancelled) return;
-        if (resp.payload?.$case === "respPublication" && resp.payload.respPublication.publication) {
+        if (resp?.payload?.$case === "respPublication" && resp.payload.respPublication.publication) {
           const pub = resp.payload.respPublication.publication;
           setFeed(prev => prev.some(p => p.uuid === pub.uuid) ? prev : [pub, ...prev]);
+        } else {
+          toastFailed(resp, say("web.social.feed.open_failed"));
+          onOpened?.();
+          return;
         }
       }
       // Double rAF: give React a chance to actually commit the (possibly
@@ -538,32 +561,39 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
     }
   }, [refreshPost]);
 
-  // Issue #34: delete one of your own posts.
+  // Issue #34: delete one of your own posts. Refused or unanswered, the
+  // post stays and that is said (it used to stay without a word).
   const deletePublication = useCallback(async (pub_uuid: string) => {
+    let resp: RespEnvelope | null = null;
     try {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqDelSocialPublication", reqDelSocialPublication: { pubUuid: pub_uuid } };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setFeed(prev => prev.filter(p => p.uuid !== pub_uuid));
+        return;
       }
-    } catch { /* leave the post in place; user can retry */ }
-  }, []);
+    } catch { /* below: the post stays; the user can retry */ }
+    toastFailed(resp, say("web.social.post.delete_failed"));
+  }, [toastFailed]);
 
   // Issue #35: delete a comment on one of your own posts (server enforces
   // the "own post" rule regardless of who wrote the comment). Issue #174:
   // also your own comment on a friend's post - the friend's device applies
   // the deletion because the comment is yours.
   const deleteComment = useCallback(async (comment_uuid: string) => {
+    let resp: RespEnvelope | null = null;
     try {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqDelSocialComment", reqDelSocialComment: { commentUuid: comment_uuid } };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setFeed(prev => prev.map(p => ({ ...p, comments: p.comments.filter(c => c.commentUuid !== comment_uuid) })));
+        return;
       }
-    } catch { /* leave the comment in place; user can retry */ }
-  }, []);
+    } catch { /* below: the comment stays; the user can retry */ }
+    toastFailed(resp, say("web.social.comment.delete_failed"));
+  }, [toastFailed]);
 
   // ---------------- New post picker (issue #32) ----------------
   // "+" button (now in the shared header, see onRegisterOpenComposer)
@@ -1040,8 +1070,10 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
       {authenticated && pickerOpen && (
         <Part kind="layer" onClose={() => setPickerOpen(false)}>
           <NewPostPicker
-            onCancel={() => setPickerOpen(false)}
+            // A post sent whose answer never came may be in the feed by now.
+            onCancel={(unconfirmed) => { setPickerOpen(false); if (unconfirmed) void loadFeed(); }}
             onPosted={() => { setPickerOpen(false); void loadFeed(); }}
+            knownPosts={() => feedRef.current.map((p) => p.uuid)}
           />
         </Part>
       )}
@@ -1173,6 +1205,7 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
           </div>
         </div>
       )}
+      <ToastView toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }
@@ -1490,7 +1523,11 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   // Issue #114: a video starts when you scroll onto it and stops when
   // you leave, so the feed plays itself. 60% visible means "mostly on
   // screen", which is also what stops two videos playing at once -
-  // only one post can be that visible at a time.
+  // only one post can be that visible at a time. Off the screen
+  // altogether, a clip fetched whole (a short one the device doesn't
+  // stream) lets its memory go, and is fetched again on the way back:
+  // posts stay mounted, so a long scroll through a feed of clips held
+  // every one of them, hundreds of MB.
   useEffect(() => {
     const node = mediaRef.current;
     if (!node || !isVideo) return;
@@ -1504,6 +1541,13 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           else if (current) void playInline(current);
         } else {
           videoElRef.current?.pause();
+          const held = inlineURLRef.current;
+          if (!entries[0]?.isIntersecting && held?.startsWith("blob:")) {
+            URL.revokeObjectURL(held);
+            inlineURLRef.current = null;
+            setInlineVideo(null);
+            setEnded(false);
+          }
         }
       },
       { threshold: [0, 0.6, 1] }

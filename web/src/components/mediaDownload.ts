@@ -26,6 +26,7 @@
 // advisory: no HTML or SVG shown in the app's origin).
 import { useEffect, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import type { MediaRef } from "../net/media";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { t as translate, type TFunction } from "../i18n";
@@ -236,34 +237,88 @@ function saveAs(href: string, name: string) {
   a.remove();
 }
 
-/** A library file's original bytes in pieces of at most 4 MB, as Files'
- *  readAll reads them, telling progress how far it got. Each piece looks
- *  the path up again, so a file replaced while it is read starts over
- *  once, for the new content. Null when the device stopped answering. */
-export async function readFileInPieces(path: string, progress: (done: number, total: number) => void): Promise<Uint8Array[] | null> {
+/** What reading a library file in pieces needs from outside: the socket
+ *  and a clock (the tests' own stand-ins). */
+export type PieceDeps = {
+  send: (payload: ReqEnvelope["payload"]) => Promise<RespEnvelope>;
+  sleep: (ms: number) => Promise<void>;
+};
+const livePieces: PieceDeps = {
+  send: (payload) => useWS.request((e: Partial<ReqEnvelope>) => { e.payload = payload; }),
+  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+};
+/** The pauses before a piece that got no answer is asked again, at the
+ *  same offset: a Wi-Fi blip in a long read used to fail it all. */
+export const cPieceRetryPauses = [1_000, 3_000, 6_000];
+
+/** What reading a file in pieces came to: its original bytes and type, or
+ *  why not - the device's words ("" when it gave none). */
+export type PiecesResult = { parts: Uint8Array[]; mime: string } | { failed: string };
+
+/** A library file's original bytes in pieces of at most 4 MB (ReadFile),
+ *  as the sync clients read it, telling progress how far it got - by its
+ *  hash when given (a kept version), else what the path holds now. Each
+ *  piece looks the path up again, so a file replaced while it is read
+ *  (a sync client overriding it, a new version in an upload-only folder)
+ *  starts over once, for the new content: the whole-file GetFile always
+ *  gave one version. A piece with no answer (the socket closed, nothing
+ *  in time, the bridge answering for the device) is asked again at the
+ *  same offset after cPieceRetryPauses; past them it throws, as a request
+ *  with no answer does. */
+export async function readPieces(path: string, hash = "", progress?: (done: number, total: number) => void, deps: PieceDeps = livePieces): Promise<PiecesResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const parts: Uint8Array[] = [];
+    let mime = "";
     let content = "";
     let offset = 0;
     let total = -1;
     let changed = false;
     while (total < 0 || offset < total) {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        e.payload = { $case: "reqReadFile", reqReadFile: { path, hash: "", offset: BigInt(offset), length: cReadPiece } };
-      });
-      if (resp.payload?.$case !== "respFileChunk") return null;
+      const resp = await askPiece(deps, { path, hash, offset: BigInt(offset), length: cReadPiece });
+      if (resp.payload?.$case !== "respFileChunk") return { failed: resp.errorMessage };
       const chunk = resp.payload.respFileChunk;
-      if (total >= 0 && (chunk.hash !== content || Number(chunk.size) !== total)) { changed = true; break; }
-      content = chunk.hash;
+      if (total < 0) {
+        mime = chunk.mime;
+        content = chunk.hash;
+      } else if (chunk.hash !== content || Number(chunk.size) !== total) {
+        changed = true;
+        break;
+      }
       total = Number(chunk.size);
-      if (chunk.data.length === 0 && offset < total) return null;
+      if (chunk.data.length === 0 && offset < total) return { failed: "" };
       parts.push(chunk.data);
       offset += chunk.data.length;
-      progress(offset, total);
+      progress?.(offset, total);
     }
-    if (!changed) return parts;
+    if (!changed) return { parts, mime };
   }
-  return null;
+  return { failed: "" };
+}
+
+// One piece, asked again while no answer comes (see readPieces).
+async function askPiece(deps: PieceDeps, req: { path: string; hash: string; offset: bigint; length: number }): Promise<RespEnvelope> {
+  for (let tries = 0; ; tries++) {
+    let failure: unknown;
+    try {
+      const resp = await deps.send({ $case: "reqReadFile", reqReadFile: req });
+      if (!isBridgeAnswer(resp)) return resp;
+      failure = resp;
+    } catch (e) {
+      failure = e;
+    }
+    if (tries >= cPieceRetryPauses.length) {
+      if (failure && typeof failure === "object" && "payload" in failure) return failure as RespEnvelope;
+      throw failure;
+    }
+    await deps.sleep(cPieceRetryPauses[tries]);
+  }
+}
+
+/** A library file's original bytes in pieces (readPieces), telling
+ *  progress how far it got. Null when the device didn't give them. */
+export async function readFileInPieces(path: string, progress: (done: number, total: number) => void): Promise<Uint8Array[] | null> {
+  const got = await readPieces(path, "", progress);
+  return "parts" in got ? got.parts : null;
 }
 
 /** Saves job's file. One at a time per key: the store says so before

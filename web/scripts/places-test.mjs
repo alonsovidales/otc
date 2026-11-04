@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Tests for Places' arithmetic (src/components/placesMath.ts): which tiles
-// the device is asked for, at which zoom, and how places become pins. The
-// web app has no test runner, so this loads the module through Vite's SSR
-// loader in Node, as newer-photos-test.mjs does:
+// the device is asked for, at which zoom, and how places become pins; and
+// the map's fetches (src/components/mapFetch.ts): only through its worker,
+// never from the page. The web app has no test runner, so this loads the
+// modules through Vite's SSR loader in Node, as newer-photos-test.mjs does:
 //
 //   node web/scripts/places-test.mjs        (needs web/node_modules)
 //
@@ -18,6 +19,7 @@ const WEB = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 let server;
 let m; // the module under test
+let mf; // the map's fetches
 before(async () => {
   const { createServer } = await import(join(WEB, "node_modules/vite/dist/node/index.js"));
   server = await createServer({
@@ -31,8 +33,27 @@ before(async () => {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   m = await server.ssrLoadModule("/src/components/placesMath.ts");
+  mf = await server.ssrLoadModule("/src/components/mapFetch.ts");
 });
 after(() => server?.close());
+
+describe("the map's fetches", () => {
+  test("no worker (Node has none, as a browser that refuses one): no map, and nothing fetched from the page", async () => {
+    const realFetch = globalThis.fetch;
+    const fetched = [];
+    globalThis.fetch = async (url) => { fetched.push(url); throw new Error("must not fetch"); };
+    try {
+      await assert.rejects(mf.mapFetch(`${mf.cMapHost}/styles/dark`));
+      await assert.rejects(mf.mapFetchJSON(`${mf.cMapHost}/planet`));
+      assert.deepEqual(fetched, [], "the page's own fetch would name the device's address in its Origin");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+  test("only the map service's host", async () => {
+    await assert.rejects(mf.mapFetch("https://example.com/tiles/1/2/3.pbf"), /not the map service/);
+  });
+});
 
 describe("the device's zoom", () => {
   test("is MapLibre's plus one, whole, within 0 to 20", () => {

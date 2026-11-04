@@ -274,6 +274,12 @@ async function send(req: { kind: MemoryHideKind; value: string; show: boolean; s
 const thumbs = { small: new Map<string, string>(), big: new Map<string, string>() };
 const thumbAsked = new Set<string>();
 let thumbVersion = 0;
+// The thumbnails' own generation: another sign-in (another library) only.
+// A refresh of the memories (a hide or its Undo, the 2-minute re-ask while
+// the device measures) bumps `gen` but asks for the same photos: an answer
+// on its way then was dropped, and the strip's and the viewer's effects,
+// keyed on the same paths, never asked again - covers stayed blank.
+let thumbGen = 0;
 const cThumbBatch = 24;
 
 const subscribeThumbs = subscribe;
@@ -287,7 +293,7 @@ export async function fetchThumbs(paths: readonly string[], small: boolean): Pro
   const cache = small ? thumbs.small : thumbs.big;
   const key = (p: string) => `${small ? "s" : "b"}|${p}`;
   const need = [...new Set(paths)].filter((p) => p && !cache.has(p) && !thumbAsked.has(key(p)));
-  const g = gen;
+  const g = thumbGen;
   for (let i = 0; i < need.length; i += cThumbBatch) {
     const batch = need.slice(i, i + cThumbBatch);
     batch.forEach((p) => thumbAsked.add(key(p)));
@@ -295,7 +301,7 @@ export async function fetchThumbs(paths: readonly string[], small: boolean): Pro
       const resp: RespEnvelope = await useWS.request((e) => {
         e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch, smallThumbnails: small } };
       });
-      if (resp.payload?.$case !== "respListOfFiles" || g !== gen) continue;
+      if (resp.payload?.$case !== "respListOfFiles" || g !== thumbGen) continue;
       const lof = resp.payload.respListOfFiles;
       const got = new Set<string>();
       for (const f of lof.files as MsgFile[]) {
@@ -320,6 +326,7 @@ export async function fetchThumbs(paths: readonly string[], small: boolean): Pro
 
 function forget() {
   gen++;
+  thumbGen++;
   picked = null;
   for (const m of [thumbs.small, thumbs.big]) {
     m.forEach((u) => { if (u) URL.revokeObjectURL(u); });

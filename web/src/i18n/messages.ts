@@ -242,6 +242,7 @@ export type MessageKey =
   | "web.files.upload.reading"
   | "web.files.upload.uploaded"
   | "web.files.upload.uploading"
+  | "web.files.upload.waiting"
   | "web.files.usage.empty"
   | "web.files.usage.failed"
   | "web.files.usage.needs_update"
@@ -254,6 +255,7 @@ export type MessageKey =
   | "web.files.versions.current"
   | "web.files.versions.download_failed"
   | "web.files.versions.hint"
+  | "web.files.versions.load_failed"
   | "web.files.versions.replaced"
   | "web.files.versions.tip"
   | "web.files.versions.title"
@@ -785,9 +787,11 @@ export type MessageKey =
   | "web.settings.users.enable"
   | "web.settings.users.hint"
   | "web.settings.users.inactive"
+  | "web.settings.users.load_failed"
   | "web.settings.users.load_usage"
   | "web.settings.users.local_hint"
   | "web.settings.users.need_memory"
+  | "web.settings.users.no_answer"
   | "web.settings.users.none"
   | "web.settings.users.password"
   | "web.settings.users.password_confirm"
@@ -804,6 +808,7 @@ export type MessageKey =
   | "web.settings.users.title"
   | "web.settings.users.update_failed"
   | "web.settings.users.usage"
+  | "web.settings.users.usage_failed"
   | "web.settings.users.username"
   | "web.settings.wifi.change"
   | "web.settings.wifi.confirm"
@@ -980,10 +985,12 @@ export type MessageKey =
   | "web.shell.top.new_post"
   | "web.shell.top.show_menu"
   | "web.shell.unreachable.disabled"
+  | "web.shell.unreachable.disabled_text"
   | "web.shell.unreachable.note"
   | "web.shell.unreachable.storage_note"
   | "web.shell.unreachable.storage_text"
   | "web.shell.unreachable.storage_title"
+  | "web.shell.unreachable.text"
   | "web.shell.unreachable.title"
   | "web.shell.unreachable.wifi_hint"
   | "web.social.alerts.collection_gone"
@@ -994,6 +1001,7 @@ export type MessageKey =
   | "web.social.comment.author"
   | "web.social.comment.confirm_delete"
   | "web.social.comment.delete"
+  | "web.social.comment.delete_failed"
   | "web.social.comment.failed"
   | "web.social.comment.like"
   | "web.social.comment.me"
@@ -1009,7 +1017,9 @@ export type MessageKey =
   | "web.social.composer.library"
   | "web.social.composer.move_earlier"
   | "web.social.composer.move_later"
+  | "web.social.composer.not_sent"
   | "web.social.composer.order"
+  | "web.social.composer.post_again"
   | "web.social.composer.post_uploaded"
   | "web.social.composer.publish"
   | "web.social.composer.publish_count"
@@ -1024,6 +1034,7 @@ export type MessageKey =
   | "web.social.composer.trim"
   | "web.social.composer.trim_item"
   | "web.social.composer.trim_load_failed"
+  | "web.social.composer.unconfirmed"
   | "web.social.composer.upload_none"
   | "web.social.composer.upload_partial"
   | "web.social.composer.uploading"
@@ -1035,6 +1046,7 @@ export type MessageKey =
   | "web.social.feed.loading_more"
   | "web.social.feed.new_post"
   | "web.social.feed.no_friends"
+  | "web.social.feed.open_failed"
   | "web.social.feed.user"
   | "web.social.friends.add_title"
   | "web.social.friends.address_hint"
@@ -1098,6 +1110,7 @@ export type MessageKey =
   | "web.social.likes.title"
   | "web.social.post.confirm_delete"
   | "web.social.post.delete"
+  | "web.social.post.delete_failed"
   | "web.social.post.download_photo_position"
   | "web.social.post.download_video_position"
   | "web.social.post.label_photo"
@@ -1413,6 +1426,7 @@ export interface MessageArgs {
   "web.files.upload.reading": undefined;
   "web.files.upload.uploaded": { count: number };
   "web.files.upload.uploading": undefined;
+  "web.files.upload.waiting": undefined;
   "web.files.usage.empty": undefined;
   "web.files.usage.failed": undefined;
   "web.files.usage.needs_update": undefined;
@@ -1425,6 +1439,7 @@ export interface MessageArgs {
   "web.files.versions.current": undefined;
   "web.files.versions.download_failed": { name: string };
   "web.files.versions.hint": undefined;
+  "web.files.versions.load_failed": undefined;
   "web.files.versions.replaced": { date: string };
   "web.files.versions.tip": undefined;
   "web.files.versions.title": { name: string };
@@ -1973,9 +1988,11 @@ export interface MessageArgs {
   "web.settings.users.enable": undefined;
   "web.settings.users.hint": undefined;
   "web.settings.users.inactive": undefined;
+  "web.settings.users.load_failed": undefined;
   "web.settings.users.load_usage": undefined;
   "web.settings.users.local_hint": undefined;
   "web.settings.users.need_memory": undefined;
+  "web.settings.users.no_answer": undefined;
   "web.settings.users.none": undefined;
   "web.settings.users.password": undefined;
   "web.settings.users.password_confirm": undefined;
@@ -1992,6 +2009,7 @@ export interface MessageArgs {
   "web.settings.users.title": undefined;
   "web.settings.users.update_failed": undefined;
   "web.settings.users.usage": { size: string; percent: string; count: number };
+  "web.settings.users.usage_failed": undefined;
   "web.settings.users.username": undefined;
   "web.settings.wifi.change": undefined;
   "web.settings.wifi.confirm": { ssid: string };
@@ -2170,10 +2188,12 @@ export interface MessageArgs {
   "web.shell.top.new_post": undefined;
   "web.shell.top.show_menu": undefined;
   "web.shell.unreachable.disabled": undefined;
+  "web.shell.unreachable.disabled_text": undefined;
   "web.shell.unreachable.note": undefined;
   "web.shell.unreachable.storage_note": undefined;
   "web.shell.unreachable.storage_text": undefined;
   "web.shell.unreachable.storage_title": undefined;
+  "web.shell.unreachable.text": undefined;
   "web.shell.unreachable.title": undefined;
   "web.shell.unreachable.wifi_hint": undefined;
   "web.shell.update.critical": { version: string; summary: string };
@@ -2190,6 +2210,7 @@ export interface MessageArgs {
   "web.social.comment.author": { name: string };
   "web.social.comment.confirm_delete": undefined;
   "web.social.comment.delete": undefined;
+  "web.social.comment.delete_failed": undefined;
   "web.social.comment.failed": undefined;
   "web.social.comment.like": undefined;
   "web.social.comment.me": undefined;
@@ -2205,7 +2226,9 @@ export interface MessageArgs {
   "web.social.composer.library": undefined;
   "web.social.composer.move_earlier": { name: string };
   "web.social.composer.move_later": { name: string };
+  "web.social.composer.not_sent": undefined;
   "web.social.composer.order": undefined;
+  "web.social.composer.post_again": undefined;
   "web.social.composer.post_uploaded": undefined;
   "web.social.composer.publish": undefined;
   "web.social.composer.publish_count": { count: number };
@@ -2220,6 +2243,7 @@ export interface MessageArgs {
   "web.social.composer.trim": undefined;
   "web.social.composer.trim_item": { name: string };
   "web.social.composer.trim_load_failed": undefined;
+  "web.social.composer.unconfirmed": undefined;
   "web.social.composer.upload_none": undefined;
   "web.social.composer.upload_partial": { count: number };
   "web.social.composer.uploading": { current: number; total: number };
@@ -2231,6 +2255,7 @@ export interface MessageArgs {
   "web.social.feed.loading_more": undefined;
   "web.social.feed.new_post": undefined;
   "web.social.feed.no_friends": undefined;
+  "web.social.feed.open_failed": undefined;
   "web.social.feed.user": undefined;
   "web.social.friends.add_title": undefined;
   "web.social.friends.address_hint": undefined;
@@ -2294,6 +2319,7 @@ export interface MessageArgs {
   "web.social.likes.title": undefined;
   "web.social.post.confirm_delete": undefined;
   "web.social.post.delete": undefined;
+  "web.social.post.delete_failed": undefined;
   "web.social.post.download_photo_position": { index: number; total: number };
   "web.social.post.download_video_position": { index: number; total: number };
   "web.social.post.label_photo": undefined;
@@ -2377,7 +2403,7 @@ export interface MessageArgs {
   "web.tour.skip": undefined;
   "web.tour.social.text": undefined;
   "web.tour.social.title": undefined;
-  "web.tour.upload.text": { share: string; zip: string };
+  "web.tour.upload.text": { upload: string; share: string; zip: string };
   "web.tour.upload.title": undefined;
   "web.tour.users.bridge": { bridge: string };
   "web.tour.users.text": { settings: string; users: string; add: string };

@@ -263,3 +263,9 @@ export function dropGroupLocally(id: string) {
 /** A person's name as shown: their name, or "Unnamed" in the language on
  *  screen (call it while rendering, from a component that uses useT). */
 export const personLabel = (p: Pick<Person, "name">) => p.name.trim() || t("web.shell.person.unnamed");
+
+/** A collection's name as shown: "Untitled collection" for one without a
+ *  name (its header, Add to collection, the search field's chip and what
+ *  they say), as the Collections page already showed it - it was blank
+ *  there, its rename button named by nothing. Words made when shown. */
+export const collectionName = (name: string) => name.trim() || t("web.images.collections.untitled");

@@ -625,6 +625,10 @@
     "text": "Esta cuenta se ha desactivado",
     "en": "This account has been disabled"
   },
+  "web.shell.unreachable.disabled_text": {
+    "text": "La persona propietaria de este dispositivo ha desactivado esta cuenta. Ponte en contacto con ella si crees que es un error.",
+    "en": "The owner of this device has disabled this account. Contact them if you believe this is a mistake."
+  },
   "web.shell.unreachable.note": {
     "text": "No se ha perdido nada: todo sigue en el propio dispositivo. Esta página sigue comprobándolo y se reanudará sola en cuanto vuelva.",
     "en": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back."
@@ -640,6 +644,10 @@
   "web.shell.unreachable.storage_title": {
     "text": "El almacenamiento de tu dispositivo no está disponible",
     "en": "Your device's storage isn't available"
+  },
+  "web.shell.unreachable.text": {
+    "text": "Parece que está apagado, sin conexión o todavía arrancando.",
+    "en": "It looks like it's switched off, offline, or still starting up."
   },
   "web.shell.unreachable.title": {
     "text": "Este dispositivo no está disponible ahora mismo",

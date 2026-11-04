@@ -162,7 +162,7 @@ function StepText({ id, faces, bridge }: { id: TourStepId; faces: boolean | null
     case "upload":
       return (
         <p>
-          <Trans k="web.tour.upload.text" args={{ share: t("common.share"), zip: t("web.files.selection.download_zip") }} parts={b} />
+          <Trans k="web.tour.upload.text" args={{ upload: t("common.upload"), share: t("common.share"), zip: t("web.files.selection.download_zip") }} parts={b} />
         </p>
       );
     case "social":

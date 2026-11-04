@@ -674,6 +674,10 @@
     "text": "Upload läuft…",
     "en": "Uploading…"
   },
+  "web.files.upload.waiting": {
+    "text": "Wartet",
+    "en": "Waiting"
+  },
   "web.files.usage.empty": {
     "text": "Nichts in diesem Ordner belegt Speicherplatz.",
     "en": "Nothing in this folder takes up space."
@@ -733,6 +737,10 @@
   "web.files.versions.hint": {
     "text": "Die Datei liegt in einem Ordner mit „Nur hochladen“, daher hat jeder Upload unter diesem Pfad die vorherige Version behalten.",
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.load_failed": {
+    "text": "Die älteren Versionen dieser Datei konnten nicht angezeigt werden.",
+    "en": "Couldn't list the older versions of this file."
   },
   "web.files.versions.replaced": {
     "text": "Ersetzt: {date}",

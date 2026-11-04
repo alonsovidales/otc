@@ -4,7 +4,7 @@
 // downloads): when it was made, until when it works, how often it was
 // opened, and the space its copy takes; deleting one deletes its copy. The
 // links themselves aren't here: the device never keeps them.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedLinkInfo } from "../proto/messages";
 import "./SharedGalleryShare.css";
@@ -12,6 +12,8 @@ import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
 import { refuseOnDemo } from "../net/demo";
+import { isBridgeAnswer } from "../net/deviceStatus";
+import { useDeviceBack } from "./useDeviceBack";
 
 // Sizes: whole KB, MB with one digit, GB with two. Dates in the page's
 // language (the browser's own format when it is that language).
@@ -24,16 +26,32 @@ export default function SharedLinksPanel() {
   const [error, setError] = useState<UiText | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  // A list that didn't come is asked again once the device answers again
+  // (its screen lies over Settings, which stays as it was).
+  const loadBack = useDeviceBack(() => void loadRef.current());
   const load = useCallback(async () => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqListSharedLinks", reqListSharedLinks: {} };
-    });
-    if (resp.payload?.$case === "respSharedLinks") { setLinks(resp.payload.respSharedLinks.links); setError(null); }
-    else {
-      const message = resp.errorMessage;
-      setError(() => (message ? asIs(message) : say("web.files.links.load_failed")));
+    let resp: RespEnvelope;
+    try {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqListSharedLinks", reqListSharedLinks: {} };
+      });
+    } catch {
+      setError(() => say("web.files.links.load_failed"));
+      loadBack.failed();
+      return;
     }
-  }, []);
+    if (resp.payload?.$case === "respSharedLinks") {
+      setLinks(resp.payload.respSharedLinks.links);
+      setError(null);
+      loadBack.ok();
+    } else {
+      const message = isBridgeAnswer(resp) ? "" : resp.errorMessage;
+      setError(() => (message ? asIs(message) : say("web.files.links.load_failed")));
+      loadBack.failed();
+    }
+  }, [loadBack]);
+  const loadRef = useRef(load);
+  loadRef.current = load;
   useEffect(() => { void load(); }, [load]);
 
   const del = async (l: SharedLinkInfo) => {

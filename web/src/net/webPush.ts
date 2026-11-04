@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useWS } from "./useWS";
+import { isBridgeAnswer } from "./deviceStatus";
 import { t } from "../i18n/runtime";
 
 // Issue #43: browser push notifications for new posts from friends. Fully
@@ -61,13 +62,23 @@ export async function enablePush(): Promise<boolean> {
       });
     })());
 
-  await registerSubscription(sub);
+  // A device that didn't take it sends nothing to this browser: the
+  // subscription goes again (Settings said "on" while none would ever
+  // come), and its words say why.
+  try {
+    await registerSubscription(sub);
+  } catch (err) {
+    await sub.unsubscribe().catch(() => false);
+    throw err;
+  }
   return true;
 }
 
+// Throws with the device's words (or ours) when it didn't keep the
+// subscription: its Ack used to go unread.
 async function registerSubscription(sub: PushSubscription): Promise<void> {
   const json = sub.toJSON();
-  await useWS.request((e) => {
+  const resp = await useWS.request((e) => {
     (e as any).payload = {
       $case: "reqRegisterWebPush",
       reqRegisterWebPush: {
@@ -77,6 +88,10 @@ async function registerSubscription(sub: PushSubscription): Promise<void> {
       },
     };
   });
+  const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
+  if (ack?.ok) return;
+  const words = isBridgeAnswer(resp) ? "" : ack?.errorMsg || resp.errorMessage;
+  throw new Error(words || t("web.social.push.failed"));
 }
 
 /** Sends this browser's subscription to the device again, if it has one:

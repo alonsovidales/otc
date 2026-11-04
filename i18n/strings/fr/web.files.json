@@ -674,6 +674,10 @@
     "text": "Envoi…",
     "en": "Uploading…"
   },
+  "web.files.upload.waiting": {
+    "text": "En attente",
+    "en": "Waiting"
+  },
   "web.files.usage.empty": {
     "text": "Rien dans ce dossier n’occupe d’espace.",
     "en": "Nothing in this folder takes up space."
@@ -733,6 +737,10 @@
   "web.files.versions.hint": {
     "text": "Le fichier se trouve dans un dossier en envoi uniquement : chaque envoi vers ce chemin a conservé le précédent.",
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.load_failed": {
+    "text": "Impossible d’afficher les anciennes versions de ce fichier.",
+    "en": "Couldn't list the older versions of this file."
   },
   "web.files.versions.replaced": {
     "text": "Remplacée : {date}",
