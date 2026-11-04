@@ -726,7 +726,8 @@ else
     storage_fstab_line add
     mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT"
 fi
-mkdir -p "$UNENC_PATH"
+# The storage's unencrypted directory is made in step 9, by the otc user
+# itself (otc_dir).
 # The service and MariaDB (its datadir is on the mirror, step 10) start
 # only once the storage is mounted, and stop if it goes: never on the
 # empty directory under the mount point, where new files would be written
@@ -913,22 +914,51 @@ done
 
 wiz_step directories
 log "[9/10] Runtime directories"
-# /var/lib/otc/users: issue #82's per-user config/identity directories -
-# under StateDirectory=otc (still writable under ProtectSystem=full,
-# unlike /etc itself), one subdirectory per spawned user, created by the
-# supervisor itself on demand - this just makes sure the parent exists
-# with the right ownership up front.
-mkdir -p /var/log/otc /etc/otc /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
-chown otc:otc /var/log/otc /var/www /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
+# otc_dir PATH MODE: a directory of the otc user's inside a directory that
+# user owns (/var/lib/otc, the storage root). Root never makes, chowns or
+# chmods a name there by following it: the otc user can put a symlink in
+# its place (a compromised old device can leave one on its disks for a
+# recovery), and a re-run of this script then handed whatever it pointed
+# at - /var/lib/dpkg/info, say - to the otc user. Anything there that isn't
+# a directory is removed (rm never follows a symlink), a missing directory
+# is made by the otc user itself, one root made in an earlier install is
+# handed over without following anything (chown -h), and the mode is set as
+# the otc user, who can only ever change what is already its own.
+otc_dir() {
+    local dir="${1%/}" mode="$2"
+    if [ -L "$dir" ] || { [ -e "$dir" ] && [ ! -d "$dir" ]; }; then
+        log "  $dir was not a directory: removed, and made again as one"
+        rm -f -- "$dir"
+    fi
+    if [ ! -d "$dir" ]; then
+        runuser -u otc -- mkdir -p -- "$dir" || die "could not make $dir"
+    fi
+    if [ "$(stat -c %U -- "$dir")" != otc ]; then
+        chown -h otc:otc -- "$dir" || die "could not hand $dir to the otc user"
+    fi
+    runuser -u otc -- chmod "$mode" -- "$dir" || die "could not set the permissions of $dir"
+}
+# Their parents: in directories of root's (/var/log, /var/lib, /var, /mnt),
+# so no other account can put anything in their place.
+mkdir -p /var/log/otc /etc/otc /var/lib/otc "$STORAGE_PATH"
+chown otc:otc /var/log/otc /var/www /var/lib/otc "$STORAGE_PATH"
 # Issue #157: the storage is the service's alone (everything in it is
 # read through the service).
-chmod 750 "$STORAGE_PATH" "$UNENC_PATH"
+chmod 750 "$STORAGE_PATH"
 # MariaDB's datadir lives under the storage root on the RAID
 # ($MOUNT_POINT/mysql, step 10), and the mysql user has to pass through it:
 # others may traverse the root (o+x) but not list or read it - everything
 # inside stays 0600/0750. Without this MariaDB can't start (2026-10-01).
 chmod o+x "$STORAGE_PATH" "$MOUNT_POINT"
 chmod 755 /var/log/otc
+# /var/lib/otc/users: issue #82's per-user config/identity directories -
+# under StateDirectory=otc (still writable under ProtectSystem=full,
+# unlike /etc itself), one subdirectory per spawned user, created by the
+# supervisor itself on demand - this just makes sure the parent exists
+# with the right ownership up front. The storage's unencrypted directory
+# is the service's alone (issue #157), like the rest of the storage.
+otc_dir /var/lib/otc/users 0755
+otc_dir "$UNENC_PATH" 0750
 
 # ---------------------------------------------------------------------------
 # 5. Database + config (device identity generated once, first run only)
@@ -998,6 +1028,12 @@ fi
 # where MariaDB just keeps using its normal default datadir.
 if [ "$SKIP_RAID" != "1" ]; then
     log "Pointing MariaDB's datadir at $MOUNT_POINT..."
+    # MariaDB's own directory, in the storage root the otc user owns: never
+    # a symlink, which the copy below would write MariaDB's files through
+    # and MariaDB would then run on. Checked before anything is stopped.
+    if [ -L "$MOUNT_POINT/mysql" ]; then
+        die "$MOUNT_POINT/mysql is a symbolic link, not MariaDB's directory - nothing was changed. Remove the link (or move the directory it points to in its place) and run the installer again"
+    fi
     systemctl stop mariadb || true
     mkdir -p "$MOUNT_POINT/mysql"
     if [ ! -d "$MOUNT_POINT/mysql/mysql" ]; then
