@@ -39,6 +39,7 @@ import { refusedText } from "./photoCopies";
 import { openWaitingTab } from "./zipTab";
 import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
+import { readPieces, type PiecesResult } from "./mediaDownload";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -239,52 +240,15 @@ function showInTab(tab: Window, parts: Uint8Array[], mime: string) {
 }
 
 // A file in pieces of at most 4 MB (ReadFile), as the sync clients read
-// it. GetFile answers with the whole file in one message: the device holds
-// about three times the file in memory while every other download waits
-// behind it, and past the bridge's message limit the download just fails.
-// Its original bytes and mime, or why not: the device's words ("" when it
-// gave none, or stopped sending). A request with no answer throws.
-//
-// Each piece looks the path up again, so a file replaced while it is read
-// (a sync client overriding it, a new version in an upload-only folder)
-// would join the old content's start to the new one's end. A piece of
-// other content starts the read over once, for the new content, as the
-// whole-file GetFile always gave one version.
-const cReadChunk = 4 << 20;
-const cChanged = Symbol("changed");
-type ReadResult = { parts: Uint8Array[]; mime: string } | { failed: string };
-async function readAll(path: string, hash = ""): Promise<ReadResult> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const got = await readOnce(path, hash);
-    if (got !== cChanged) return got;
-  }
-  return { failed: "" };
-}
-async function readOnce(path: string, hash: string): Promise<ReadResult | typeof cChanged> {
-  const parts: Uint8Array[] = [];
-  let mime = "";
-  let content = "";
-  let offset = 0;
-  let total = -1;
-  while (total < 0 || offset < total) {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      e.payload = { $case: "reqReadFile", reqReadFile: { path, hash, offset: BigInt(offset), length: cReadChunk } };
-    });
-    if (resp.payload?.$case !== "respFileChunk") return { failed: resp.errorMessage };
-    const chunk = resp.payload.respFileChunk;
-    if (total < 0) {
-      mime = chunk.mime;
-      content = chunk.hash;
-    } else if (chunk.hash !== content || Number(chunk.size) !== total) {
-      return cChanged;
-    }
-    total = Number(chunk.size);
-    if (chunk.data.length === 0 && offset < total) return { failed: "" };
-    parts.push(chunk.data);
-    offset += chunk.data.length;
-  }
-  return { parts, mime };
-}
+// it (mediaDownload.readPieces: a piece with no answer is asked again, a
+// file replaced meanwhile read again once). GetFile answers with the whole
+// file in one message: the device holds about three times the file in
+// memory while every other download waits behind it, and past the bridge's
+// message limit the download just fails. Its original bytes and mime, or
+// why not: the device's words ("" when it gave none, or stopped sending).
+// A request with no answer throws.
+type ReadResult = PiecesResult;
+const readAll = (path: string, hash = ""): Promise<ReadResult> => readPieces(path, hash);
 
 // What the device converts for display (HEIC to JPEG, see GetFile's
 // isHeicFile) still comes through GetFile, converted, as it always has.
