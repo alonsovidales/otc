@@ -487,7 +487,14 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   `DelEveryCopy` checks it before `PathsOfHash`, `DelPath` before the upload-only check, with or
   without every_copy - and the answer is `ContentChangedError`, `error_code` `changed`, message
   `dev.files.content_changed` ("refresh and try again"). Ignored when empty and for a folder's
-  path. A folder's path is DelPath as before; older devices ignore both fields. Measured
+  path. A folder's path is DelPath as before; older devices ignore both fields. Every delete is
+  bound to the content it means (2026-11, `delFileIf` -> `dao.DelFileIfHash`, the row read `for
+  update` in the delete's own transaction; it deleted by path alone, so a sync app's edit landing
+  between the check and the delete was deleted unseen): a file's to `DelFile.hash` when sent (the
+  check is the delete's, not only a look beforehand), a folder's files each to what was listed
+  under it - one given other content meanwhile stays, and so does the folder's keep-out flag - and
+  every_copy's to the content shown, the asked path first: changed, nothing is deleted
+  (`ContentChangedError`); another copy changed is no copy any more and stays. Measured
   on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
   before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
 - Dates taken (release 152's `updates/152.sh`; `files_manager/date_taken.go`, `exifinfo/taken.go`): for a

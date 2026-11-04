@@ -1826,9 +1826,27 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	// Images in one go, rather than per file.
 	var touched []string
 	defer func() { mg.reconcileAnalysis(session, touched) }()
+	kept := false
 	for _, entry := range entries {
-		hashes, err := mg.delFile(entry.Path)
+		// Each file only while it holds what the client showed for it, or
+		// what was found under the folder a moment ago: content synced
+		// over or edited meanwhile is new to whoever is deleting, and stays
+		// - nothing of the file itself, a folder's file skipped.
+		expected := entry.Hash
+		if isFile {
+			expected = shown
+		}
+		hashes, err := mg.delFileIf(entry.Path, expected)
 		touched = append(touched, hashes...)
+		if errors.Is(err, dao.ErrOtherContent) {
+			if isFile {
+				return &ContentChangedError{}
+			}
+			kept = true
+			log.Info("a file of a deleted folder holds other content since it was listed: kept")
+			log.Debug("kept, holding other content now:", entry.Path)
+			continue
+		}
 		if err != nil {
 			return err
 		}
@@ -1837,7 +1855,7 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	// whole delete worked - so it doesn't secretly keep a future folder of
 	// the same name out of Images. Not a deleted file's: "/a/b" can be a
 	// file row next to the folder "/a/b/" (resolvePaths took the file).
-	if !isFile {
+	if !isFile && !kept {
 		mg.clearOutOfImagesUnder(folderPath(path))
 	}
 	return nil
@@ -1858,12 +1876,20 @@ func (mg *Manager) DelFile(session *session.Session, path string) error {
 // delFile is DelFile, returning the content hashes the deleted rows held
 // (none when nothing was deleted).
 func (mg *Manager) delFile(path string) (hashes []string, err error) {
+	return mg.delFileIf(path, "")
+}
+
+// delFileIf is delFile of path only while it holds expected (any content
+// when ""): a path holding other content - given it since it was read -
+// is left as it is, with dao.ErrOtherContent. The delete's transaction
+// checks and deletes the row it holds locked, so nothing comes between.
+func (mg *Manager) delFileIf(path, expected string) (hashes []string, err error) {
 	// Issue #173: the deleted row's hash comes back from the delete's own
 	// transaction instead of a GetFileByPath beforehand - one query less
 	// per file (every file of a deleted folder comes through here), and
 	// the hash is the one of the row actually deleted. A missing path
 	// still fails with sql.ErrNoRows, as that GetFileByPath did.
-	hash, err := mg.dao.DelFileByPathHash(path)
+	hash, err := mg.dao.DelFileIfHash(path, expected)
 	if err != nil {
 		return nil, err
 	}
