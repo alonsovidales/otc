@@ -43,9 +43,17 @@ LIVE_INI=/etc/otc_dev.ini
 SETUP_WINDOW=$CONF/setup-window
 MODE_FILE=$CONF/storage-mode
 UPDATE_LOG=$CONF/update-log/update.log
+# Starts that failed in a row (start_backoff), in root's config volume.
+START_FAILS=$CONF/start-failures
 SHARE=/usr/share/otc
 RELEASE=$(cat "$SHARE/release")
 MIRROR_TOOL=/usr/local/sbin/otc-mirror
+SANDBOX=/usr/local/sbin/otc-sandbox
+# otc-sandbox for what runs unprivileged beside the device - MariaDB and
+# as_otc's commands (a model's download among them) - once its own check
+# passed (probe_sandbox); empty where the filter can't be installed (an
+# emulated architecture), which start_app's warning says once.
+SANDBOXED=()
 
 # install.sh's pinned models (its step 6): the image carries none of them.
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
@@ -70,6 +78,7 @@ APP_PID=
 APP_STARTED=0
 TAIL_PID=
 DL_PID=
+DUMP_PID=
 LAST_DUMP=
 RESTORE_DIR=
 MIRROR_ARRAY=
@@ -81,15 +90,55 @@ MIRROR_UUID=
 MIRROR_MOUNTED=0
 WATCH_PID=
 WATCH_STARTED=0
+# In `run`: a failure waits before the container stops (start_backoff), at
+# least BACKOFF_MIN seconds.
+BACKOFF=0
+BACKOFF_MIN=0
+# How long the device must run for its start to count as a success.
+STABLE_S=600
 
 log() { echo "[otc] $*"; }
 
 # die stops what this process started (the device, then MariaDB) and exits.
-# Never called from a subshell: there it would only end the subshell.
+# Never called from a subshell: there it would only end the subshell. In
+# `run` it waits first (start_backoff).
 die() {
     echo "[otc] ERROR: $*" >&2
     stop_all
+    [ "$BACKOFF" = 1 ] && start_backoff
     exit 1
+}
+
+# start_backoff: the wait before a failed `run` ends the container. Docker's
+# restart policy (unless-stopped) starts it again at once after a run of 10 s
+# or more, so a failure that doesn't go away by itself - a migration that
+# fails, MariaDB that can't start, a port another program holds - became a
+# tight loop: MariaDB's crash recovery at every start, the disks and the
+# logs churning, the reason only in docker logs. 30 s after the first
+# failure, doubling with each start that failed in a row up to 30 minutes
+# (at least BACKOFF_MIN); counted in root's config volume (START_FAILS),
+# forgotten once the device has run STABLE_S. A stop signal (docker compose
+# stop or restart) ends the wait at once.
+start_backoff() {
+    local n='' delay=30 i
+    [ -f "$START_FAILS" ] && [ ! -L "$START_FAILS" ] && n=$(head -c 16 "$START_FAILS" 2>/dev/null | head -n 1)
+    [[ "$n" =~ ^[0-9]{1,6}$ ]] || n=0
+    n=$(( 10#$n + 1 ))
+    { printf '%s\n' "$n" > "$START_FAILS.tmp" && mv -f "$START_FAILS.tmp" "$START_FAILS"; } 2>/dev/null \
+        || rm -f "$START_FAILS.tmp" 2>/dev/null
+    for ((i = 1; i < n && delay < 1800; i++)); do delay=$((delay * 2)); done
+    [ "$delay" -le 1800 ] || delay=1800
+    [ "$delay" -ge "$BACKOFF_MIN" ] || delay=$BACKOFF_MIN
+    log "the container stops in $delay s and starts again (failed start $n in a row; docker compose restart tries again now)"
+    pause "$delay"
+}
+
+# start_succeeded: the device has run STABLE_S since its last start, so the
+# next failure waits the least again.
+start_succeeded() {
+    [ -e "$START_FAILS" ] || [ -L "$START_FAILS" ] || return 0
+    [ $(( $(date +%s) - APP_STARTED )) -ge "$STABLE_S" ] || return 0
+    rm -f "$START_FAILS"
 }
 
 # alive: the process exists and is not a zombie waiting to be reaped.
@@ -100,9 +149,21 @@ alive() {
     [ "${s%% *}" != Z ]
 }
 
-# as_otc runs a command as the otc user, with no way back to root.
+# as_otc runs a command as the otc user, with no way back to root, under
+# the device's system-call filter (SANDBOXED).
 as_otc() {
-    HOME=$STATE USER=otc LOGNAME=otc setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs "$@"
+    HOME=$STATE USER=otc LOGNAME=otc "${SANDBOXED[@]}" setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs "$@"
+}
+
+# probe_sandbox sets SANDBOXED: otc-sandbox, when its check (--probe: the
+# filter installed, refusing and allowing what it should) answers "ok".
+# The device's own start goes through it whatever the answer (start_app),
+# so the log says once why it runs without.
+probe_sandbox() {
+    SANDBOXED=()
+    [ -x "$SANDBOX" ] || return 0
+    [ "$(timeout 10 "$SANDBOX" --probe 2>/dev/null)" = ok ] && SANDBOXED=("$SANDBOX")
+    return 0
 }
 
 # pause N: a sleep that a stop signal interrupts at once.
@@ -365,14 +426,12 @@ prepare_dirs() {
 # ---------------------------------------------------------------------------
 # 3. Models: downloaded as otc, moved into place only once their hash matches
 # ---------------------------------------------------------------------------
-# download_failed waits before giving up: Docker starts the container again
-# at once after a run longer than 10 s, so a model that keeps failing (a
-# hash that no longer matches, a host that cuts the transfer) would
-# otherwise be downloaded again and again, 870 MB each time. A stop signal
-# still ends the wait.
+# download_failed waits an hour at least before giving up (start_backoff):
+# a model that keeps failing (a hash that no longer matches, a host that cuts
+# the transfer) would otherwise be downloaded again and again, 870 MB each
+# time.
 download_failed() {
-    log "ERROR: $1 - trying again in an hour (or restart the container)"
-    pause 3600
+    BACKOFF_MIN=3600
     die "$1"
 }
 
@@ -492,12 +551,14 @@ start_mariadb() {
     install -d -o mysql -g mysql -m 0755 /run/mysqld || die "could not create /run/mysqld"
     if [ ! -d "$DATADIR/mysql" ]; then
         log "creating the database in $DATADIR"
-        out=$(mariadb-install-db --user=mysql --datadir="$DATADIR" --auth-root-authentication-method=socket --skip-test-db 2>&1) \
+        out=$("${SANDBOXED[@]}" mariadb-install-db --user=mysql --datadir="$DATADIR" --auth-root-authentication-method=socket --skip-test-db 2>&1) \
             || { echo "$out" | tail -n 30 >&2; die "could not create the database"; }
     fi
     pool=$(buffer_pool_mb)
     log "MariaDB's buffer pool: $pool MB"
-    env --default-signal mariadbd --user=mysql --port="$DB_PORT" --innodb-buffer-pool-size="${pool}M" &
+    # As root, under the device's system-call filter: it listens on the
+    # host's 127.0.0.1 (network_mode: host) and makes itself mysql.
+    env --default-signal "${SANDBOXED[@]}" mariadbd --user=mysql --port="$DB_PORT" --innodb-buffer-pool-size="${pool}M" &
     DB_PID=$!
     # Recovering after a power cut can take minutes on slow disks: wait as
     # long as MariaDB is at it, up to the 15 minutes Debian's own service
@@ -826,9 +887,15 @@ setup_password() {
 # that on a Pi). Its OOM score is raised so the kernel picks it before
 # MariaDB; lowering it back would need a privilege it doesn't have.
 # (A background job of this script starts with SIGINT ignored; env puts
-# every signal back to its default, as systemd starts a service.)
+# every signal back to its default, as systemd starts a service.) It runs
+# under otc-sandbox's system-call filter (docker/sandbox), which it and all
+# it starts keep: no new namespaces, mounts or bpf - what Docker's profile
+# refuses a container without CAP_SYS_ADMIN, which the mirror's compose file
+# adds for otc-mirror. Where the filter can't be installed (an emulated
+# architecture) it says so and the device runs without it.
 start_app() {
-    local mirror=()
+    local mirror=() sandbox=()
+    [ -x "$SANDBOX" ] && sandbox=("$SANDBOX")
     # The mirror the device watches and names in its alerts: its array, and
     # each disk's major:minor and name (the device's environment only).
     [ -z "$MIRROR_ARRAY" ] || mirror=(
@@ -839,7 +906,7 @@ start_app() {
     (
         cd "$STATE" || exit 1
         echo 500 > /proc/self/oom_score_adj
-        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc "${mirror[@]}" \
+        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc "${mirror[@]}" "${sandbox[@]}" \
             setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs /usr/bin/otc dev
     ) &
     APP_PID=$!
@@ -865,6 +932,7 @@ stop_app() {
 stop_all() {
     [ "$BASHPID" = "$$" ] || return 0
     stop_watch
+    stop_dump
     [ -z "$DL_PID" ] || kill -TERM "$DL_PID" 2>/dev/null
     stop_app
     [ -z "$TAIL_PID" ] || kill -TERM "$TAIL_PID" 2>/dev/null
@@ -917,13 +985,43 @@ handle_restart_request() {
     start_app
 }
 
+# nightly_dump: the night's copy of every database (dump_databases) at 03:00,
+# made by this script again (`dump`) in the background, in a process group
+# of its own. On a big library it takes minutes, and run in the foreground
+# it held the whole loop: a device that stopped meanwhile wasn't started
+# again, and a stop signal waited for it until Docker's grace ran out and
+# MariaDB was killed. Its outcome is read at a later look.
 nightly_dump() {
-    local today
+    local today rc
+    if [ -n "$DUMP_PID" ]; then
+        alive "$DUMP_PID" && return 0
+        wait "$DUMP_PID" 2>/dev/null
+        rc=$?
+        DUMP_PID=
+        [ "$rc" = 0 ] || log "WARNING: the nightly database copy failed (exit $rc)"
+    fi
     [ "$(date +%H)" = 03 ] || return 0
     today=$(date +%F)
     [ "$LAST_DUMP" = "$today" ] && return 0
     LAST_DUMP=$today
-    dump_databases || log "WARNING: the nightly database copy failed"
+    setsid env --default-signal "${BASH_SOURCE[0]}" dump &
+    DUMP_PID=$!
+}
+
+# stop_dump: a nightly copy still being made, stopped (its whole group: the
+# dump and its gzip), so MariaDB can stop cleanly after it.
+stop_dump() {
+    local i
+    [ -n "$DUMP_PID" ] || return 0
+    kill -TERM -- "-$DUMP_PID" 2>/dev/null
+    for ((i = 0; i < 10; i++)); do
+        kill -0 -- "-$DUMP_PID" 2>/dev/null || break
+        pause 1
+    done
+    kill -KILL -- "-$DUMP_PID" 2>/dev/null
+    wait "$DUMP_PID" 2>/dev/null
+    DUMP_PID=
+    log "the nightly database copy was stopped before it ended"
 }
 
 supervise() {
@@ -960,6 +1058,7 @@ supervise() {
         fi
         trigger reboot.request && handle_restart_request
         nightly_dump
+        start_succeeded
     done
 }
 
@@ -989,13 +1088,19 @@ newest_complete() {
 
 # dump_databases: a consistent copy of every database into
 # db-dumps/<day>/, written by otc (0600), keeping the last 7 days. Only a
-# run that copied every database marks the day .complete.
+# run that copied every database marks the day .complete. One at a time
+# (the nightly one and one asked for by hand would write the same files),
+# and what a copy stopped part-way left of that day is removed first.
 dump_databases() {
     local day dir db old keep ok=0
+    exec 9>>/run/otc-dump.lock
+    flock -n 9 || { log "a database copy is being written already"; return 1; }
     day=$(date +%F)
     dir=$DUMPS/$day
     as_otc mkdir -p -m 0700 "$DUMPS" "$dir" || return 1
     as_otc rm -f -- "$dir/.complete"
+    # shellcheck disable=SC2016 # sh expands it
+    as_otc sh -c 'rm -f -- "$1"/*.sql.gz.part' sh "$dir"
     for db in otc $(user_databases); do
         mariadb-dump --single-transaction --hex-blob --databases "$db" | gzip -c \
             | as_otc sh -c 'umask 077; cat > "$1"' sh "$dir/$db.sql.gz.part"
@@ -1086,6 +1191,7 @@ finish_prepare() {
 
 cmd_run() {
     trap on_stop TERM INT
+    BACKOFF=1
     log "Off The Cloud release $RELEASE (beta container)"
     storage_mode_check
     mirror_prepare
@@ -1108,7 +1214,7 @@ cmd_run() {
     setup_password
     [ -d "$DUMPS/$(date +%F)" ] && LAST_DUMP=$(date +%F)
     if [ "${OTC_LOG_STDOUT:-0}" = 1 ]; then
-        ( cd / && exec setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs \
+        ( cd / && exec "${SANDBOXED[@]}" setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs \
             tail -n 0 -F "$STATE/log/otc.log" 2>/dev/null ) &
         TAIL_PID=$!
     fi
@@ -1141,13 +1247,17 @@ cmd_dump() {
     dump_databases || exit 1
 }
 
-read_ports
-case "${1:-run}" in
-    run) cmd_run ;;
-    set-password) cmd_set_password ;;
-    dump) cmd_dump ;;
-    restore) cmd_restore "${2:-}" ;;
-    *)
-        echo "usage: otc-entrypoint [run | set-password | dump | restore [YYYY-MM-DD]]" >&2
-        exit 2 ;;
-esac
+# Run, not sourced (docker/entrypoint-test.sh loads the functions).
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    read_ports
+    probe_sandbox
+    case "${1:-run}" in
+        run) cmd_run ;;
+        set-password) cmd_set_password ;;
+        dump) cmd_dump ;;
+        restore) cmd_restore "${2:-}" ;;
+        *)
+            echo "usage: otc-entrypoint [run | set-password | dump | restore [YYYY-MM-DD]]" >&2
+            exit 2 ;;
+    esac
+fi

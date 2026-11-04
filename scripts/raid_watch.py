@@ -142,11 +142,14 @@ CONFIG = {
 # is set up or driven. Any of those turns the lights off for good and the
 # mirror is watched, repaired and grown exactly as on a Pi - an exception
 # here used to end the script, and systemd restarted it into the same one.
-try:
-    import RPi.GPIO as GPIO
-except Exception as e:
-    GPIO = None
-    print(f"WARNING: GPIO not available ({e}). No status lights; the mirror is still watched.")
+if sys.argv[1:2] == ["--ends-blank"]:
+    GPIO = None  # ends_blank's child reads a disk, and touches no light
+else:
+    try:
+        import RPi.GPIO as GPIO
+    except Exception as e:
+        GPIO = None
+        print(f"WARNING: GPIO not available ({e}). No status lights; the mirror is still watched.")
 
 def gpio_off(why):
     global GPIO
@@ -188,9 +191,23 @@ def led_set(slot: int, red_on: bool, green_on: bool):
 # ----------------------------
 # Helpers
 # ----------------------------
-def run(cmd, check=False, capture=True, text=True):
+# How long a command that reads a disk may take before it is given up
+# (run's timeout, run_bounded): mdadm reading a member's superblock,
+# blkid and wipefs looking for signatures, dumpe2fs, a disk's two ends. A
+# disk that stays attached but stops answering used to hold the whole loop
+# - the LEDs, StorageGuard, the repair - for minutes, in exactly the case
+# StorageGuard bounds its own commands for.
+SUPERBLOCK_READ_S = 10
+DISK_READ_S = 20
+DISK_WRITE_S = 60
+
+def run(cmd, check=False, capture=True, text=True, timeout=None):
+    """The command's CompletedProcess; never raises. With a timeout it is
+    run_bounded: given up (exit 124) after that many seconds."""
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
+    if timeout is not None:
+        return run_bounded(cmd, timeout)
     try:
         res = subprocess.run(cmd, check=check, capture_output=capture, text=text)
         return res
@@ -208,8 +225,14 @@ def mdadm_detail(raid_dev):
         }
       }
     Keys in 'members' are the RAID DEVICE SLOTS (RaidDevice), not mdadm 'Number'.
+    None when mdadm is given up (it reads a member's superblock, which a
+    disk that stopped answering never returns); any other failure parses
+    to no state and no members, as it always did.
     """
-    out = run([CONFIG["paths"]["mdadm"], "--detail", raid_dev]).stdout
+    r = run([CONFIG["paths"]["mdadm"], "--detail", raid_dev], timeout=SUPERBLOCK_READ_S)
+    if r.returncode == 124:
+        return None
+    out = r.stdout or ""
     info = {"state": "", "members": {}, "other_devices": set()}
 
     m = re.search(r"State\s*:\s*(.+)", out)
@@ -271,22 +294,18 @@ def md_fingerprint(raid_name, sys_root="/sys"):
         parts.append(f"{name}:{_read(os.path.join(base, name, 'slot'))}:{_read(os.path.join(base, name, 'state'))}")
     return tuple(parts)
 
-def mdadm_examine(dev):
-    """Return metadata: Events (int), Update Time (str), Array UUID (str)."""
-    out = run([CONFIG["paths"]["mdadm"], "--examine", dev]).stdout
-    events = None
-    update_time = None
-    uuid = None
-    m = re.search(r"Events :\s*(\d+)", out)
-    if m:
-        events = int(m.group(1))
-    m = re.search(r"Update Time :\s*(.+)", out)
-    if m:
-        update_time = m.group(1).strip()
-    m = re.search(r"Array UUID :\s*([0-9a-fA-F:-]+)", out)
-    if m:
-        uuid = m.group(1).strip()
-    return {"events": events, "update_time": update_time, "uuid": uuid}
+def rebuild_source_slot(members, rebuilding_slot):
+    """During a rebuild, the slot being copied from: a member md counts in
+    sync, not the one being rebuilt, the lowest slot first; None when there
+    is none. md's own state, from mdadm --detail: each member's superblock
+    used to be read (mdadm --examine) every poll while rebuilding, to
+    compare event counts - a disk read every half second, a crash when one
+    of them couldn't be read, and the wrong LED when the counts were
+    equal."""
+    for slot in sorted(members):
+        if slot != rebuilding_slot and in_sync(members[slot]):
+            return slot
+    return None
 
 def mdstat():
     """Return /proc/mdstat text."""
@@ -459,7 +478,7 @@ def prepare_disk_for_raid(disk):
     return part
 
 def add_member(raid_dev, new_dev):
-    return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev])
+    return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev], timeout=DISK_WRITE_S)
 
 # ----------------------------
 # Which disk may be added (and wiped)
@@ -505,7 +524,7 @@ def has_partitions(dev, sys_root="/sys"):
 def signatures(dev):
     """What blkid -p and wipefs find on dev: "" for nothing, else a few
     words; None when they can't read it."""
-    r = run([tool("blkid"), "-p", "-o", "export", dev])
+    r = run([tool("blkid"), "-p", "-o", "export", dev], timeout=DISK_READ_S)
     if r.returncode == 0:
         found = kv_lines(r.stdout)
         found.pop("DEVNAME", None)
@@ -519,7 +538,7 @@ def signatures(dev):
         return "several signatures"
     if r.returncode != 2:  # 2: nothing found
         return None
-    r = run([tool("wipefs"), "--no-act", "--noheadings", dev])
+    r = run([tool("wipefs"), "--no-act", "--noheadings", dev], timeout=DISK_READ_S)
     if r.returncode != 0:
         return None
     first = (r.stdout or "").strip().splitlines()
@@ -551,6 +570,30 @@ def uniform(data):
     """No data in it: all zero bytes, or all 0xFF."""
     return bool(data) and (data.count(0) == len(data) or data.count(0xFF) == len(data))
 
+def ends_blank(dev, timeout=DISK_READ_S):
+    """Whether dev's first and last MiB hold nothing (uniform), read by
+    read_ends in a child process given up after timeout seconds: a read
+    from a disk that stopped answering waits in the kernel for minutes,
+    and the loop goes on meanwhile. Raises OSError when they can't be
+    read."""
+    r = run([sys.executable, "-I", os.path.abspath(__file__), "--ends-blank", dev], timeout=timeout)
+    if r.returncode in (0, 1):
+        return r.returncode == 0
+    if r.returncode == 124:
+        raise OSError(errno.ETIMEDOUT, f"no answer in {timeout} s")
+    said = (r.stderr or "").strip().splitlines()
+    raise OSError(errno.EIO, said[-1] if said else f"exit {r.returncode}")
+
+def ends_blank_child(dev):
+    """--ends-blank's exit status: 0 blank, 1 holds data, 2 can't be read
+    (why on stderr)."""
+    try:
+        first, last = read_ends(dev)
+    except OSError as e:
+        sys.stderr.write(f"{e.strerror or e}\n")
+        return 2
+    return 0 if uniform(first) and uniform(last) else 1
+
 ARRAY_STATE = re.compile(r"^\s*Array State\s*:\s*([A-Za-z.]+)", re.M)
 
 def diverged(dev, members):
@@ -559,7 +602,7 @@ def diverged(dev, members):
     other lacks. True/False, or None when the superblock can't be read. A
     disk that only dropped out while the other went on still shows both
     slots active: it is behind, and a re-add catches it up."""
-    r = run([CONFIG["paths"]["mdadm"], "--examine", dev])
+    r = run([CONFIG["paths"]["mdadm"], "--examine", dev], timeout=SUPERBLOCK_READ_S)
     m = ARRAY_STATE.search(r.stdout or "") if r.returncode == 0 else None
     if not m:
         return None
@@ -574,8 +617,9 @@ def diverged(dev, members):
 def judge_disk(dev, array_uuid, members):
     """Whether dev may be added to the degraded mirror: ("add", why) for a
     blank disk or a former member of this mirror, ("refuse", why) for any
-    other, why being words for the storage log."""
-    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev])
+    other, why being words for the storage log. Every read of the disk is
+    given up after a while (a disk that doesn't answer is refused)."""
+    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev], timeout=SUPERBLOCK_READ_S)
     sb = kv_lines(r.stdout) if r.returncode == 0 else {}
     if sb.get("MD_UUID"):
         if array_uuid and sb["MD_UUID"].lower() == array_uuid.lower():
@@ -597,16 +641,16 @@ def judge_disk(dev, array_uuid, members):
     if found:
         return "refuse", f"it holds {found}"
     try:
-        first, last = read_ends(dev)
+        blank = ends_blank(dev)
     except OSError as e:
         return "refuse", f"it can't be read ({e.strerror or e})"
-    if not (uniform(first) and uniform(last)):
+    if not blank:
         return "refuse", "it holds data (no filesystem this device knows)"
     return "add", "it is blank"
 
 def array_uuid_of(raid_dev):
     """md0's UUID (mdadm --detail --export), or "" when it can't be read."""
-    r = run([CONFIG["paths"]["mdadm"], "--detail", "--export", raid_dev])
+    r = run([CONFIG["paths"]["mdadm"], "--detail", "--export", raid_dev], timeout=SUPERBLOCK_READ_S)
     return kv_lines(r.stdout).get("MD_UUID", "") if r.returncode == 0 else ""
 
 # The disks left alone, for the device (raidwatch reads it every minute
@@ -921,6 +965,8 @@ def use_disk(offer, offered, raid_dev, sys_root="/sys", proc_root="/proc"):
     if not array_in_mdstat(mdstat(), raid_name_from_dev(raid_dev)):
         raise UseRefused("not_degraded", f"{raid_dev} is not assembled")
     detail = mdadm_detail(raid_dev)
+    if detail is None:
+        raise UseRefused("failed", f"{raid_dev}'s state can't be read (mdadm --detail gave no answer)")
     members = detail.get("members", {})
     if not any(in_sync(m) for m in members.values()):
         raise UseRefused("not_degraded", f"{raid_dev} has no working disk to copy from")
@@ -960,7 +1006,7 @@ def use_disk(offer, offered, raid_dev, sys_root="/sys", proc_root="/proc"):
     # Its partitions' signatures first: once the partition table is gone
     # nothing finds them any more. wipefs opens each exclusively too.
     for part in partitions_of(name, sys_root) + [name]:
-        r = run([tool("wipefs"), "-a", "/dev/" + part])
+        r = run([tool("wipefs"), "-a", "/dev/" + part], timeout=DISK_WRITE_S)
         if r.returncode != 0:
             raise UseRefused("failed", f"wipefs -a /dev/{part} failed: {(r.stderr or r.stdout or '').strip()}")
     if disk_seq(name, sys_root) != entry["seq"]:
@@ -1073,11 +1119,11 @@ def grow_array(raid_dev):
     """mdadm --grow --size=max; an mdadm that refuses with an internal
     bitmap gets it dropped for the grow and put back."""
     mdadm = CONFIG["paths"]["mdadm"]
-    r = run([mdadm, "--grow", raid_dev, "--size=max"])
+    r = run([mdadm, "--grow", raid_dev, "--size=max"], timeout=DISK_WRITE_S)
     if r.returncode != 0 and "bitmap" in ((r.stderr or "") + (r.stdout or "")).lower():
-        run([mdadm, "--grow", raid_dev, "--bitmap=none"])
-        r = run([mdadm, "--grow", raid_dev, "--size=max"])
-        run([mdadm, "--grow", raid_dev, "--bitmap=internal"])
+        run([mdadm, "--grow", raid_dev, "--bitmap=none"], timeout=DISK_WRITE_S)
+        r = run([mdadm, "--grow", raid_dev, "--size=max"], timeout=DISK_WRITE_S)
+        run([mdadm, "--grow", raid_dev, "--bitmap=internal"], timeout=DISK_WRITE_S)
     return r
 
 def fs_needs_resize(raid_dev):
@@ -1085,10 +1131,10 @@ def fs_needs_resize(raid_dev):
     if run([CONFIG["paths"]["lsblk"], "-ndo", "FSTYPE", raid_dev]).stdout.strip() != "ext4":
         return False
     try:
-        dev_bytes = int(run([CONFIG["paths"]["blockdev"], "--getsize64", raid_dev]).stdout.strip())
+        dev_bytes = int(run([CONFIG["paths"]["blockdev"], "--getsize64", raid_dev], timeout=SUPERBLOCK_READ_S).stdout.strip())
     except ValueError:
         return False
-    out = run([CONFIG["paths"]["dumpe2fs"], "-h", raid_dev]).stdout
+    out = run([CONFIG["paths"]["dumpe2fs"], "-h", raid_dev], timeout=DISK_READ_S).stdout
     count = re.search(r"^Block count:\s*(\d+)", out, re.M)
     bsize = re.search(r"^Block size:\s*(\d+)", out, re.M)
     if not count or not bsize:
@@ -1205,20 +1251,21 @@ def _fs_uuid(dev):
 STORAGE_MOUNT_OPTS = "defaults,nosuid,nodev,nofail,x-systemd.device-timeout=3min"
 STORAGE_DROPINS = ("otc", "mariadb")
 
-def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
+def _add_fstab(dev, mount_point, fstab="/etc/fstab", unit_dir="/etc/systemd/system"):
     """Adds the storage's line - by its filesystem's UUID, which stays with
     the disk whatever sdX it gets - written beside fstab, flushed and
-    renamed over it. False when the line can't be made or written."""
+    renamed over it, and the drop-ins. False when the line can't be made or
+    written."""
     uuid = _fs_uuid(dev)
     if not uuid or "\n" in mount_point:
         _fail_bootstrap(f"could not read the new filesystem's UUID on {dev}")
         return False
+    tmp = f"{fstab}.otc.{os.getpid()}"
     try:
         text = Path(fstab).read_text()
         if text and not text.endswith("\n"):
             text += "\n"
         text += f"UUID={uuid}   {mount_point}   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
-        tmp = f"{fstab}.otc.{os.getpid()}"
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
         try:
             os.write(fd, text.encode())
@@ -1227,10 +1274,14 @@ def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
             os.close(fd)
         os.replace(tmp, fstab)
     except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
         _fail_bootstrap(f"could not write {fstab}: {e}")
         return False
     for unit in STORAGE_DROPINS:
-        d = f"/etc/systemd/system/{unit}.service.d"
+        d = os.path.join(unit_dir, f"{unit}.service.d")
         try:
             os.makedirs(d, mode=0o755, exist_ok=True)
             with open(os.path.join(d, "otc-storage.conf"), "w") as f:
@@ -1241,21 +1292,99 @@ def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
     run(["systemctl", "daemon-reload"])
     return True
 
+def _record_array(raid_dev, conf="/etc/mdadm/mdadm.conf"):
+    """The new mirror in mdadm.conf (its ARRAY line, from mdadm --detail
+    --brief) and the initramfs, so it comes up as raid_dev at the next boot
+    and not as md127 - unless mdadm.conf names it already. False, said why,
+    when that can't be done (the setup is tried again)."""
+    name = raid_name_from_dev(raid_dev)
+    try:
+        text = Path(conf).read_text()
+    except FileNotFoundError:
+        text = ""
+    except OSError as e:
+        _fail_bootstrap(f"could not read {conf}: {e}")
+        return False
+    if conf_array_uuid(text, name):
+        return True
+    r = run([CONFIG["paths"]["mdadm"], "--detail", "--brief", raid_dev], timeout=SUPERBLOCK_READ_S)
+    lines = [l for l in (r.stdout or "").splitlines() if l.startswith("ARRAY ")]
+    if r.returncode != 0 or not lines:
+        _fail_bootstrap(f"could not read {raid_dev}'s line for {conf}: {(r.stderr or '').strip()}")
+        return False
+    try:
+        os.makedirs(os.path.dirname(conf), exist_ok=True)
+        with open(conf, "a") as f:
+            if text and not text.endswith("\n"):
+                f.write("\n")
+            f.write("\n".join(lines) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError as e:
+        _fail_bootstrap(f"could not write {conf}: {e}")
+        return False
+    run(["update-initramfs", "-u"])
+    return True
+
+def _finish_setup(device_paths, mount_point, raid_dev, mountinfo="/proc/self/mountinfo",
+                  fstab="/etc/fstab", conf="/etc/mdadm/mdadm.conf", unit_dir="/etc/systemd/system"):
+    """The storage mounted already: a try before this one formatted and
+    mounted it, then stopped before its last steps (blkid had no UUID yet,
+    the card's root filesystem was full) - the retry used to take the mount
+    for a finished setup, so after the next reboot otc and MariaDB started
+    on the empty directory under the mount point. Those steps are done now:
+    the storage given to otc, the array in mdadm.conf, fstab's line and the
+    drop-ins. Only for what
+    this setup mounts - the disk the request named, or its mirror - and only
+    while fstab has no line for the mount point: a mount of the owner's own
+    is left as it is. False when a step fails (tried again)."""
+    try:
+        top = mount_on_top(mount_point, Path(mountinfo).read_text())
+    except OSError:
+        top = None
+    if top is None or _fstab_has(mount_point, fstab):
+        return True
+    source = top[1]
+    real = os.path.realpath(source) if source.startswith("/dev/") else source
+    if len(device_paths) == 1 and real == os.path.realpath(device_paths[0]):
+        dev = device_paths[0]
+    elif len(device_paths) == 2 and real == os.path.realpath(raid_dev):
+        dev = raid_dev
+        if not _record_array(raid_dev, conf):
+            return False
+    else:
+        return True
+    print(f"[raid-watch] {mount_point} is mounted from {dev} but /etc/fstab has no line for it: finishing the storage setup")
+    if not _own_storage(mount_point, os.path.join(mount_point, CONFIG["unenc_subdir"])):
+        return False
+    return _add_fstab(dev, mount_point, fstab, unit_dir)
+
 def _own_storage(mount_point, unenc_path):
     """The new filesystem's root and unencrypted/ as install.sh leaves
     them: the service's (a new filesystem's root is root's, and uploads
     failed), 0750, the root also o+x (MariaDB passes through it when its
-    datadir is on the storage)."""
+    datadir is on the storage). Each set on the directory opened without
+    following a link: when a later try finishes the setup, the service may
+    have written in the new storage already. False, said why, on failure."""
     import pwd
     try:
         otc = pwd.getpwnam("otc")
     except KeyError:
         print("[raid-watch] no otc user: the new storage keeps root's ownership")
-        return
-    os.makedirs(unenc_path, exist_ok=True)
-    for path, mode in ((mount_point, 0o751), (unenc_path, 0o750)):
-        os.lchown(path, otc.pw_uid, otc.pw_gid)
-        os.chmod(path, mode)
+        return True
+    try:
+        os.makedirs(unenc_path, exist_ok=True)
+        for path, mode in ((mount_point, 0o751), (unenc_path, 0o750)):
+            fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                os.fchown(fd, otc.pw_uid, otc.pw_gid)
+                os.fchmod(fd, mode)
+            finally:
+                os.close(fd)
+    except OSError as e:
+        _fail_bootstrap(f"could not give the new storage to the otc user: {e}")
+        return False
+    return True
 
 # The largest request the service writes (storage.RequestSetup).
 MAX_REQUEST_BYTES = 4096
@@ -1343,6 +1472,9 @@ def perform_pending_storage_setup():
         return True
 
     if os.path.ismount(mount_point):
+        # An earlier try may have mounted it and stopped before fstab.
+        if not _finish_setup(device_paths, mount_point, raid_dev):
+            return False
         print(f"[raid-watch] {mount_point} is already mounted — treating storage setup as already done.")
         drop_setup_request(req_path)
         return True
@@ -1382,7 +1514,8 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", dev, mount_point]):
             return False
-        _own_storage(mount_point, unenc_path)
+        if not _own_storage(mount_point, unenc_path):
+            return False
         if not _add_fstab(dev, mount_point):
             return False
         print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk); "
@@ -1407,11 +1540,10 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", raid_dev, mount_point]):
             return False
-        _own_storage(mount_point, unenc_path)
-        scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])
-        with open("/etc/mdadm/mdadm.conf", "a") as f:
-            f.write(scan.stdout)
-        run(["update-initramfs", "-u"])
+        if not _own_storage(mount_point, unenc_path):
+            return False
+        if not _record_array(raid_dev):
+            return False
         if not _add_fstab(raid_dev, mount_point):
             return False
         print(f"[raid-watch] RAID1 built on {raid_dev} from {d1}+{d2}, mounted at {mount_point}; "
@@ -1623,7 +1755,7 @@ def kernel_disk_lines(cursor, output=None):
         cmd = ["journalctl", "-k", "-b", "-o", "short-iso", "--no-pager", "--show-cursor"]
         if cursor:
             cmd += ["--after-cursor", cursor]
-        r = run(cmd)
+        r = run(cmd, timeout=DISK_READ_S)
         if r.returncode != 0:
             return None, cursor
         output = r.stdout or ""
@@ -1710,6 +1842,14 @@ def whole_fs_mounted(mount_point, mountinfo_text):
 
 _SOURCE_LINKS = {"UUID": "by-uuid", "LABEL": "by-label", "PARTUUID": "by-partuuid", "PARTLABEL": "by-partlabel"}
 
+def source_names_device(source):
+    """fstab's source names a block device this script can find again -
+    UUID=, LABEL=, PARTUUID=, PARTLABEL= or a /dev path - so what it takes
+    down it can mount back once the device is there. Not a network share
+    (server:/export, //server/share) nor a FUSE or ZFS source."""
+    kind, eq, _ = source.partition("=")
+    return bool(eq and kind in _SOURCE_LINKS) or source.startswith("/dev/")
+
 def source_device(source, dev_root="/dev", is_block=None):
     """The block device fstab's source names now (its real path), or None."""
     kind, eq, value = source.partition("=")
@@ -1759,7 +1899,11 @@ def source_present(source, mdstat_text, dev_root="/dev", is_block=None, sys_root
 # Linux 6.9 ext4's "emergency read-only" after an I/O error doesn't show
 # in mountinfo), is read once (O_DIRECT, in a child that may hang on a
 # dead disk) to see whether its device still answers. A mirror down to
-# one working disk is not gone: it runs on, as before.
+# one working disk is not gone: it runs on, as before. Only a filesystem
+# on a block device, whose fstab source names a device this can mount
+# back, is judged at all: btrfs, ZFS, NFS, SMB and FUSE mounts show an
+# anonymous 0:NN with nothing in sysfs behind it, and a share can't be
+# mounted back from here.
 #
 # Then it takes the storage down: MariaDB and the service stopped
 # (SIGTERM, killed after STORAGE_STOP_S - nothing they write reaches a
@@ -1854,11 +1998,19 @@ def storage_gone(mount_point, mountinfo_text, fstab_options="", sys_root="/sys",
     read-only (not when fstab mounts it so) or, fs_errors(mount id,
     device name) being true, has reported errors since it was mounted:
     since Linux 6.9 ext4 goes read-only on an I/O error without saying so
-    in mountinfo (its "emergency read-only")."""
+    in mountinfo (its "emergency read-only").
+
+    Only a filesystem on a block device is judged: btrfs, ZFS, NFS, SMB
+    and FUSE show an anonymous device (major 0) in mountinfo, with nothing
+    under /sys/dev/block to judge it by - taken for gone, a healthy btrfs
+    storage was stopped and mounted again every few seconds, and an NFS one
+    never came back."""
     top = mount_on_top(mount_point, mountinfo_text)
     if top is None:
         return ""
     majmin, source, superopts, mount_id = top
+    if majmin.split(":")[0] == "0":
+        return ""
     dev_dir = os.path.join(sys_root, "dev", "block", majmin)
     if not os.path.exists(dev_dir):
         return f"its device {source or majmin} is gone"
@@ -1878,6 +2030,86 @@ def storage_gone(mount_point, mountinfo_text, fstab_options="", sys_root="/sys",
                 what = "it turned read-only" if ro else "its filesystem reported errors"
                 return f"{what} and {source or majmin} can't be read ({err})"
     return ""
+
+# ----------------------------
+# A stopped array's disks, assembled again (issue #207)
+# ----------------------------
+# The dead array is stopped so that its disks, plugged in again, are
+# assembled afresh by udev's mdadm --incremental. Disks back before the
+# stop send no further event: a USB brownout drops both for a second, they
+# come back while md still holds the broken array (their incremental add
+# fails against it), and once it is stopped nothing assembled them - the
+# device stayed without its storage with both disks plugged in, until a
+# reboot or a replug. So while fstab's array isn't in /proc/mdstat at all,
+# the disks nothing holds that carry its superblock (its UUID, from
+# mdadm.conf) are handed to udev again as if plugged in (udevadm trigger
+# --action=add): the same mdadm --incremental - the newest disk wins, one
+# that dropped out first is re-added and copied from it - and mdadm's
+# last-resort start for a mirror that comes back with one disk. An add
+# event, not a change: udev's md rule in trixie's mdadm (4.4, the image's)
+# skips a bare disk's change event before the incremental assembly ("Bare
+# disks are ready when add event happens"); bookworm's 4.2 ran it for
+# both, so add works on every release's OS. At once after the stop;
+# otherwise (at boot, a disk plugged in) only once it has been apart 30 s,
+# which udev's own assembly takes far less than; then 30 s doubling to 10
+# min while it stays apart.
+#
+# Which array that is goes by fstab's source (StorageGuard._md_name):
+# /dev/mdN as install.sh writes it, or the array a UUID= line (what this
+# script's own setup writes), a LABEL= line or one of udev's links names
+# while it is there. A stopped array takes its node and udev's links with
+# it, so the name is remembered from the last time the source named it,
+# and a guard that never saw it (started while the array was apart) takes
+# CONFIG's raid_dev when mdadm.conf has its ARRAY line.
+ASSEMBLE_FIRST_S, ASSEMBLE_MAX_S = 30, 600
+
+def source_may_name_array(source):
+    """fstab's source may be an md array's while nothing answers to it: its
+    filesystem's UUID= or LABEL=, or a udev link (/dev/md/<name>,
+    /dev/disk/by-uuid, by-label, by-id/md-...). Not a disk's own name
+    (/dev/sdb1) nor a partition's PARTUUID=/PARTLABEL=."""
+    kind, eq, _ = source.partition("=")
+    if eq and kind in ("UUID", "LABEL"):
+        return True
+    return source.startswith(("/dev/md/", "/dev/disk/by-uuid/", "/dev/disk/by-label/", "/dev/disk/by-id/md-"))
+
+def md_uuid_hex(text):
+    """A UUID as 32 lowercase hex digits (mdadm's 1111aaaa:2222bbbb:...,
+    blkid's dashed form), or "" when it isn't one."""
+    h = re.sub(r"[^0-9a-fA-F]", "", text or "").lower()
+    return h if len(h) == 32 else ""
+
+def conf_array_uuid(conf_text, name):
+    """The UUID mdadm.conf's ARRAY line gives /dev/<name> (or /dev/md/<N>),
+    as md_uuid_hex; "" when it names none."""
+    want = {"/dev/" + name}
+    if name.startswith("md") and name[2:].isdigit():
+        want.add("/dev/md/" + name[2:])
+    for line in conf_text.splitlines():
+        f = line.split()
+        if len(f) < 2 or f[0] != "ARRAY" or f[1] not in want:
+            continue
+        for word in f[2:]:
+            k, eq, v = word.partition("=")
+            if eq and k.upper() == "UUID":
+                return md_uuid_hex(v)
+    return ""
+
+def unheld_disks(sys_root="/sys", proc_root="/proc"):
+    """The whole disks (sd*) with a card or disk in them that nothing holds
+    (no array or volume, mount or swap on them: never the system's), each
+    followed by its partitions."""
+    out = []
+    try:
+        names = sorted(e for e in os.listdir(os.path.join(sys_root, "block")) if WHOLE_DISK.fullmatch(e))
+    except OSError:
+        return out
+    for name in names:
+        if not disk_bytes(name, sys_root) or disk_held(name, sys_root, proc_root):
+            continue
+        out.append(name)
+        out.extend(partitions_of(name, sys_root))
+    return out
 
 def run_bounded(cmd, timeout):
     """run(), given up after timeout seconds: the command is killed and left
@@ -1951,16 +2183,19 @@ class StorageGuard:
     state is "none" (no storage line in fstab: a plain directory, nothing
     to watch), "ok", "waiting" (missing, for less than its grace) or
     "missing" (the LEDs say so; also while a storage that went is taken
-    down). dead_array is the md array fstab's source names while it holds
-    no data (md_dead): nothing is added to it, and it is stopped once
-    nothing is mounted from it."""
+    down). dead_array is the md array the storage is on (_md_name) while
+    it holds no data (md_dead): nothing is added to it, and it is stopped
+    once nothing is mounted from it; while that array is then apart, its
+    disks are handed to udev again (_assemble_again)."""
 
     def __init__(self, mount_point, fstab="/etc/fstab", mountinfo="/proc/self/mountinfo",
                  dev_root="/dev", sys_root="/sys", state_path=None, systemctl=None, active=None,
                  stopped=None, bounded=None, probe=None, read_mdstat=None,
-                 mono=time.monotonic, wall=time.time, uptime=system_uptime, is_block=None):
+                 mono=time.monotonic, wall=time.time, uptime=system_uptime, is_block=None,
+                 mdadm_conf="/etc/mdadm/mdadm.conf", proc_root="/proc"):
         self.mount_point = mount_point
         self.fstab, self.mountinfo, self.dev_root, self.sys_root = fstab, mountinfo, dev_root, sys_root
+        self.mdadm_conf, self.proc_root = mdadm_conf, proc_root
         self.state_path = state_path or STORAGE_STATE
         self.systemctl = systemctl or (lambda *args: run(["systemctl", *args]))
         self.active = active or unit_active
@@ -1975,6 +2210,9 @@ class StorageGuard:
         self.seen_mounted = False  # once this boot, as far as this process knows
         self.down = None           # the storage being taken down (_begin_down)
         self.dead_array = None
+        # (fstab's source, the md array it named - None for a disk) when
+        # the source last named a device (_md_name).
+        self.md_seen = None
         self.md_stop_at, self.md_stop_delay = 0.0, 0
         self.probed = {}           # major:minor -> when a suspect filesystem's device was last read
         self.fs_seen = {}          # {"id": mount id, "errors": ext4_errors when first seen}
@@ -1989,6 +2227,8 @@ class StorageGuard:
         self.mount_at, self.mount_delay = 0.0, 0
         self.degraded_at, self.degraded_delay = 0.0, 0
         self.told = False
+        # When fstab's array, apart, is next handed to udev (None: not seen apart).
+        self.assemble_at, self.assemble_delay, self.assemble_said = None, 0, None
 
     def _read(self, path):
         try:
@@ -2019,12 +2259,13 @@ class StorageGuard:
         return now != self.fs_seen["errors"]
 
     def _array_of(self, source, mdstat_text):
-        """The running md array fstab's source names, while it is dead; else
-        None. /proc/mdstat says "broken" for an array whose last disk
-        failed (both pulled), "active" for one that runs."""
-        real = source_device(source, self.dev_root, self.is_block)
-        name = os.path.basename(real) if real else ""
-        if not re.fullmatch(r"md\d+", name) or not re.search(rf"^{name}\s*:\s*(active|broken)\b", mdstat_text, re.M):
+        """The running md array the storage is on (_md_name), while it is
+        dead; else None. /proc/mdstat says "broken" for an array whose last
+        disk failed (both pulled), "active" for one that runs. By the
+        name: udev may drop a by-uuid link once blkid can't read the array
+        any more."""
+        name = self._md_name(source)
+        if not name or not re.search(rf"^{name}\s*:\s*(active|broken)\b", mdstat_text, re.M):
             return None
         return name if md_dead(os.path.join(self.sys_root, "block", name, "md")) else None
 
@@ -2044,7 +2285,9 @@ class StorageGuard:
         source = entry[0]
         self.dead_array = self._array_of(source, mdstat_text)
         info = self._read(self.mountinfo)
-        if self.down is None and whole_fs_mounted(self.mount_point, info):
+        # Taken down only what can be mounted back (source_names_device):
+        # a share or a FUSE source would stay unmounted for good.
+        if self.down is None and source_names_device(source) and whole_fs_mounted(self.mount_point, info):
             why = storage_gone(self.mount_point, info, entry[2], self.sys_root, self._probe, self._fs_errors)
             if why:
                 self._begin_down(why, mono)
@@ -2084,10 +2327,12 @@ class StorageGuard:
         # A dead array under the storage is stopped, now that nothing is
         # mounted from it: what the kernel holds of it is of no use, and
         # its disks, plugged in again, are assembled afresh from their own
-        # superblocks.
+        # superblocks - by udev for disks plugged in from now on, and here
+        # for those already back (_assemble_again).
         if self.dead_array:
             self._stop_array(mono)
             mdstat_text = (self.read_mdstat or mdstat)()
+        self._assemble_again(mono, mdstat_text, source)
         present = source_present(source, mdstat_text, self.dev_root, self.is_block, self.sys_root)
         if self.since is None:
             # Missing since the boot when the device has only just started
@@ -2189,6 +2434,68 @@ class StorageGuard:
         self.down = None
         return True
 
+    def _md_name(self, source):
+        """The md array the storage is on, by fstab's source: /dev/mdN (as
+        install.sh writes it), or the array the source names now. Nothing
+        answering to it (a stopped array takes its node and udev's links
+        with it): the array it named when last seen, or - for a guard that
+        never saw it, and a source that may be an array's
+        (source_may_name_array) - CONFIG's raid_dev when mdadm.conf has its
+        ARRAY line. None for a storage on a disk."""
+        m = re.fullmatch(r"/dev/(md\d+)", source)
+        if m:
+            return m.group(1)
+        real = source_device(source, self.dev_root, self.is_block)
+        if real is not None:
+            name = os.path.basename(real)
+            self.md_seen = (source, name if re.fullmatch(r"md\d+", name) else None)
+            return self.md_seen[1]
+        if self.md_seen is not None and self.md_seen[0] == source:
+            return self.md_seen[1]
+        if source_may_name_array(source):
+            name = raid_name_from_dev(CONFIG["raid_dev"])
+            if re.fullmatch(r"md\d+", name) and conf_array_uuid(self._read(self.mdadm_conf), name):
+                return name
+        return None
+
+    def _assemble_again(self, mono, mdstat_text, source):
+        """fstab's array not in /proc/mdstat at all: the disks nothing holds
+        that carry its superblock are handed to udev again (see "A stopped
+        array's disks, assembled again" above) - at once after this guard
+        stopped it, else once it has been apart ASSEMBLE_FIRST_S - then 30 s
+        doubling to 10 min while it stays apart."""
+        name = self._md_name(source)
+        if not name or array_in_mdstat(mdstat_text, name):
+            self.assemble_at, self.assemble_delay, self.assemble_said = None, 0, None
+            return
+        if self.assemble_at is None:
+            # Seen apart (at boot, a disk just plugged in): udev is given
+            # ASSEMBLE_FIRST_S to assemble it itself. After this guard's own
+            # mdadm --stop it is at once.
+            self.assemble_at = mono + ASSEMBLE_FIRST_S
+        if mono < self.assemble_at:
+            return
+        self.assemble_delay = min(max(ASSEMBLE_FIRST_S, 2 * self.assemble_delay), ASSEMBLE_MAX_S)
+        self.assemble_at = mono + self.assemble_delay
+        uuid = conf_array_uuid(self._read(self.mdadm_conf), name)
+        if not uuid:
+            return
+        members = []
+        for dev in unheld_disks(self.sys_root, self.proc_root):
+            r = self.bounded([CONFIG["paths"]["mdadm"], "--examine", "--export", "/dev/" + dev], 10)
+            if r.returncode == 0 and md_uuid_hex(kv_lines(r.stdout).get("MD_UUID", "")) == uuid:
+                members.append("/dev/" + dev)
+        if not members:
+            return
+        if members != self.assemble_said:
+            self.assemble_said = members
+            print(f"[raid-watch] /dev/{name} isn't assembled, and {', '.join(members)} carry its superblock: "
+                  "asking udev to assemble it again, as when they are plugged in (udevadm trigger --action=add)")
+        # add, not change: trixie's md rule skips a bare disk's change event.
+        r = self.bounded(["udevadm", "trigger", "--action=add", *members], 20)
+        if r.returncode != 0:
+            print(f"[raid-watch] udevadm trigger failed: {(r.stderr or '').strip()} (again in {self.assemble_delay} s)")
+
     def _stop_array(self, mono):
         """mdadm --stop for the dead array, again 10 s doubling to 5 min
         while it fails (something still holds the filesystem a lazy
@@ -2205,6 +2512,8 @@ class StorageGuard:
             print(f"[raid-watch] /dev/{name} stopped")
             self.dead_array = None
             self.md_stop_at, self.md_stop_delay = 0.0, 0
+            # Its disks already back are handed to udev at once.
+            self.assemble_at, self.assemble_delay, self.assemble_said = 0.0, 0, None
             return
         self.md_stop_delay = min(max(10, 2 * self.md_stop_delay), 300)
         self.md_stop_at = mono + self.md_stop_delay
@@ -2326,8 +2635,9 @@ def main():
     # (disk, size, model, port, attachment) -> judge_disk's verdict, while it
     # is plugged in.
     verdicts = {}
-    # The last mdadm --detail, the sysfs it was read with, and when.
-    md_cache = {"fp": None, "at": 0.0, "detail": None}
+    # The last mdadm --detail, the sysfs it was read with, and when; after
+    # one given up (a member that doesn't answer), not before "retry_at".
+    md_cache = {"fp": None, "at": 0.0, "detail": None, "retry_at": 0.0}
     # Since when md0 has been running (active in /proc/mdstat), as this
     # loop saw it: the repair and the grow wait REPAIR_SETTLE_S after it
     # started (see running_settled).
@@ -2346,7 +2656,9 @@ def main():
 
     kernel_lines()
 
-    try:
+    # The whole poll, every poll_s, for the device's life (keep_running
+    # runs it again after anything it raises).
+    def loop():
         while True:
             key = request_key(CONFIG["setup_request_file"])
             if key is not None and not (key == setup_retry["key"] and time.monotonic() < setup_retry["next_try"]):
@@ -2369,7 +2681,7 @@ def main():
             if os.path.lexists(USE_REQUEST):
                 if handle_use_request(seen["offered"], raid_dev):
                     seen["offered"] = {}
-                    md_cache.update(fp=None, at=0.0, detail=None)
+                    md_cache.update(fp=None, at=0.0, detail=None, retry_at=0.0)
                     mdst = mdstat()
                 if _TERM["pending"]:
                     print("[raid-watch] SIGTERM received. Cleaning up GPIO.")
@@ -2377,14 +2689,25 @@ def main():
                     raise SystemExit(0)
             # The fallback is what a failed `mdadm --detail` parses to.
             # mdadm only when md's sysfs changed, or every MDADM_EVERY_S.
+            # One given up (it reads a member's superblock, which a disk that
+            # stopped answering never returns) leaves the last answer, and
+            # mdadm isn't asked again for MDADM_EVERY_S, whatever changes.
             if array_present:
                 fp, mono_md = md_fingerprint(raid_name), time.monotonic()
-                if fp is None or fp != md_cache["fp"] or md_cache["detail"] is None \
-                        or mono_md - md_cache["at"] >= MDADM_EVERY_S:
-                    md_cache.update(fp=fp, at=mono_md, detail=mdadm_detail(raid_dev))
-                detail = md_cache["detail"]
+                if (fp is None or fp != md_cache["fp"] or md_cache["detail"] is None
+                        or mono_md - md_cache["at"] >= MDADM_EVERY_S) and mono_md >= md_cache["retry_at"]:
+                    got = mdadm_detail(raid_dev)
+                    if got is None:
+                        print(f"[raid-watch] mdadm --detail {raid_dev} gave no answer in {SUPERBLOCK_READ_S} s "
+                              f"(a disk that doesn't answer?): the last answer stands, asked again in {MDADM_EVERY_S} s")
+                        got = md_cache["detail"] or {"state": "", "members": {}, "other_devices": set()}
+                        md_cache["retry_at"] = mono_md + MDADM_EVERY_S
+                    else:
+                        md_cache["retry_at"] = 0.0
+                    md_cache.update(fp=fp, at=mono_md, detail=got)
+                detail = md_cache["detail"] or {"state": "", "members": {}, "other_devices": set()}
             else:
-                md_cache.update(fp=None, at=0.0, detail=None)
+                md_cache.update(fp=None, at=0.0, detail=None, retry_at=0.0)
                 detail = {"state": "", "members": {}, "other_devices": set()}
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})
@@ -2427,23 +2750,8 @@ def main():
                     rebuilding_slot = slot
                     break
 
-            # If we want to also confirm direction: compare Events counters.
-            # Only while rebuilding - the only time it's used. `mdadm
-            # --examine` reads each drive's superblock straight off the
-            # device; doing it every poll kept both USB pen drives busy
-            # around the clock, so they never idled and ran hot.
-            events_by_slot = {}
-            if rebuilding:
-                for slot, m in members.items():
-                    # Use the underlying member device (/dev/sdXN)
-                    ex = mdadm_examine(m["device"])
-                    events_by_slot[slot] = ex.get("events", 0)
-
-
-            # Choose source as the slot with highest Events
-            source_slot = None
-            if events_by_slot:
-                source_slot = max(events_by_slot, key=lambda s: events_by_slot[s])
+            # The copy's source: a member md counts in sync (no disk read).
+            source_slot = rebuild_source_slot(members, rebuilding_slot) if rebuilding else None
 
             # LED logic
             if "degraded" in state or len(members) < 2:
@@ -2464,7 +2772,7 @@ def main():
                 if rebuilding and rebuilding_slot is not None:
                     # Target (rebuilding) -> blink red
                     led.set_mode(rebuilding_slot, "blink_red")
-                    # Source (newer events) -> blink green
+                    # Source (in sync) -> blink green
                     src = source_slot if source_slot is not None else (0 if rebuilding_slot == 1 else 1)
                     led.set_mode(src, "blink_green")
                 else:
@@ -2630,8 +2938,43 @@ def main():
 
             time.sleep(CONFIG["poll_s"])
 
+    try:
+        keep_running(loop)
     finally:
         gpio_cleanup()
+
+def keep_running(loop, sleep=time.sleep, mono=time.monotonic):
+    """Runs loop() - the watcher's poll, forever - and runs it again after
+    anything it raises: one unexpected answer used to end the process, and
+    systemd restarting it into the same one could leave the unit failed by
+    its start limit - no LEDs, no StorageGuard, no repair - until a reboot.
+    Each new failure is printed with its traceback (later ones of the same
+    kind are counted); the pause before running again doubles from 1 s to
+    30 s while failures keep coming, back to 1 s after a minute without
+    one. A stop (SystemExit, KeyboardInterrupt) ends it, as does loop()
+    returning."""
+    import traceback
+    delay, last_at, seen = 0, None, {}
+    while True:
+        try:
+            loop()
+            return
+        except Exception as e:
+            at = mono()
+            if last_at is not None and at - last_at > 60:
+                delay = 0
+            last_at = at
+            what = f"{type(e).__name__}: {e}"
+            if what not in seen and len(seen) >= 100:
+                seen.clear()
+            seen[what] = seen.get(what, 0) + 1
+            n = seen[what]
+            if n == 1:
+                print("[raid-watch] the watcher's poll failed and starts again: " + traceback.format_exc().strip())
+            elif n in (10, 100, 1000) or n % 10000 == 0:
+                print(f"[raid-watch] the watcher's poll failed again ({n} times): {what}")
+            delay = min(max(1, 2 * delay), 30)
+            sleep(delay)
 
 def selftest():
     """python3 raid_watch.py --selftest: the storage log's helpers, with no
@@ -2737,14 +3080,17 @@ def selftest():
     selftest_disks()
     selftest_storage()
     selftest_storage_gone()
+    selftest_assemble()
+    selftest_bounded()
+    selftest_setup_finish()
     print("selftest ok")
 
 def selftest_disks():
     """Which disk may join the mirror (judge_disk, pick_candidate_disk), the
     storage setup's own checks, and the file the device's Alert reads."""
     import tempfile
-    global run, read_ends, has_partitions
-    real = (run, read_ends, has_partitions)
+    global run, ends_blank, has_partitions
+    real = (run, ends_blank, has_partitions)
     uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
     members = {0: {"device": "/dev/sda", "state": "active sync"}}
     # What each disk shows: mdadm --examine --export, --examine, blkid -p,
@@ -2782,13 +3128,13 @@ def selftest_disks():
         e = disks[dev].get("ends", (b"\0" * 64, b"\0" * 64))
         if isinstance(e, Exception):
             raise e
-        return e
+        return uniform(e[0]) and uniform(e[1])
 
-    run, read_ends, has_partitions = fake_run, fake_ends, lambda dev, sys_root="/sys": disks[dev].get("parts", False)
+    run, ends_blank, has_partitions = fake_run, fake_ends, lambda dev, sys_root="/sys": disks[dev].get("parts", False)
     try:
         got = {d: judge_disk(d, uuid, members) for d in disks}
     finally:
-        run, read_ends, has_partitions = real
+        run, ends_blank, has_partitions = real
     want = {
         "/dev/sdb": ("add", "it was a member of this mirror"),
         "/dev/sdc": ("refuse", "it was a member of this mirror but ran on its own since, so it holds changes the mirror lacks (copy what you need off it first)"),
@@ -2956,7 +3302,7 @@ def selftest_storage():
             g = StorageGuard("/mnt/storage", fstab=fstab_path, mountinfo=info_path, dev_root=dev,
                              sys_root=sys_root, state_path=state, systemctl=systemctl, active=lambda u: units[u],
                              mono=lambda: clock["mono"], wall=lambda: clock["wall"], uptime=lambda: uptime,
-                             is_block=is_block)
+                             is_block=is_block, mdadm_conf=os.path.join(tmp, "mdadm.conf"))
             g.unit = "mnt-storage.mount"
             return g
 
@@ -3210,6 +3556,20 @@ def selftest_storage_gone():
         shutil.rmtree(os.path.join(usb, "sdd"))
         assert storage_gone("/mnt/storage", root + one_line, "defaults", sys_root) == "its device /dev/sdb1 is gone"
         assert storage_gone("/mnt/storage", root, "defaults", sys_root) == ""      # not mounted: not this check
+        # No block device behind it (an anonymous 0:NN in mountinfo, nothing
+        # in /sys/dev/block): btrfs, NFS, FUSE are never judged - not even
+        # read when they turn read-only.
+        btrfs = "31 22 0:45 / /mnt/storage rw,relatime shared:12 - btrfs /dev/sdb1 rw,space_cache=v2,subvolid=5,subvol=/\n"
+        nfs = "31 22 0:52 / /mnt/storage rw,relatime shared:12 - nfs4 server:/export rw,vers=4.2,addr=192.168.1.2\n"
+        fuse = "31 22 0:60 / /mnt/storage rw,nosuid,nodev,relatime - fuse.mergerfs pool rw,user_id=0,group_id=0\n"
+        read = []
+        for line in (btrfs, nfs, fuse, btrfs.replace(" rw,space_cache", " ro,space_cache")):
+            assert storage_gone("/mnt/storage", root + line, "defaults", sys_root, lambda m: read.append(m) or "I/O error",
+                                lambda mount_id, dev: True) == "", line
+        assert read == [], read
+        assert source_names_device("UUID=ab-cd") and source_names_device("PARTLABEL=data") and source_names_device("/dev/md0")
+        assert not source_names_device("server:/export") and not source_names_device("//nas/share")
+        assert not source_names_device("pool/data") and not source_names_device("sshfs#me@host:/x")
 
         # Read-only by itself: read once; an answer means it is not gone.
         ro = md_line.replace("ext4 /dev/md0 rw", "ext4 /dev/md0 ro")
@@ -3280,7 +3640,8 @@ def selftest_storage_gone():
                                 stopped=lambda u: world["stopped"][u], bounded=bounded,
                                 probe=lambda m: probe(m, world.get("probe", "")),
                                 read_mdstat=lambda: world["mdstat"], mono=lambda: clock["mono"],
-                                wall=lambda: clock["wall"], uptime=lambda: 86400, is_block=is_block)
+                                wall=lambda: clock["wall"], uptime=lambda: 86400, is_block=is_block,
+                                mdadm_conf=os.path.join(tmp, "mdadm.conf"))
 
         def step(g, seconds=STORAGE_LOOK_S):
             clock["mono"] += seconds
@@ -3446,6 +3807,462 @@ def selftest_storage_gone():
         assert st == "missing" and "its device /dev/sdb1 is gone" in said, said
         assert calls[:2] == [("systemctl", "stop", "--no-block") + FULL_UNITS, ("umount", "/mnt/storage")], calls
         assert ("mdadm", "--stop", "/dev/md0") not in calls
+
+        # A storage with no block device behind it, mounted and in use: never
+        # taken down. Before, a btrfs storage by UUID was stopped, unmounted,
+        # mounted again and taken down 2 s later, for good; an NFS share was
+        # unmounted once and never mounted again.
+        for fstab_line, mounted in (
+                ("UUID=ab-cd   /mnt/storage   btrfs   defaults,nofail   0   0\n", btrfs),
+                ("server:/export   /mnt/storage   nfs4   defaults,nofail,_netdev   0   0\n", nfs),
+                ("pool   /mnt/storage   fuse.mergerfs   defaults,nofail   0   0\n", fuse)):
+            Path(fstab_path).write_text(fstab_line)
+            Path(info_path).write_text(root + mounted)
+            world["active"] = {"otc.service": True, DEGRADED_UNIT: False}
+            g = guard()
+            del calls[:]
+            for _ in range(10):
+                assert step(g)[0] == "ok"
+            assert calls == [] and g.down is None, (fstab_line, calls)
+        # A block device's mount whose fstab source can't be found again (a
+        # share's name): nothing that could not be mounted back is unmounted.
+        Path(fstab_path).write_text("server:/export   /mnt/storage   ext4   defaults,nofail   0   0\n")
+        Path(info_path).write_text(root + one_line)
+        g = guard()
+        del calls[:]
+        assert step(g)[0] == "ok" and calls == [], calls
+
+def selftest_setup_finish():
+    """First-sign-in storage setup cut short after the mount (blkid had no
+    UUID yet, the card was full): the next try finishes it - the array in
+    mdadm.conf, fstab's line and the drop-ins - instead of taking the mount
+    for a finished setup, and touches nothing it didn't mount."""
+    import tempfile
+    import io
+    import contextlib
+    global run, _own_storage
+    real = (run, _own_storage)
+    uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
+    ran = []
+    world = {"blkid": "0a1b2c3d-4e5f-6789-abcd-ef0123456789", "brief": f"ARRAY /dev/md0 metadata=1.2 name=otc:0 UUID={uuid}\n",
+             "owned": True}
+    def fake_own(mount_point, unenc_path):
+        ran.append(f"own {mount_point} {unenc_path}")
+        return world["owned"]
+    def fake_run(cmd, timeout=None, **_kw):
+        ran.append(" ".join([os.path.basename(cmd[0])] + list(cmd[1:])))
+        name = os.path.basename(cmd[0])
+        if name == "blkid":
+            return subprocess.CompletedProcess(cmd, 0 if world["blkid"] else 2, world["blkid"] + "\n", "")
+        if name == "mdadm" and cmd[1:3] == ["--detail", "--brief"]:
+            return subprocess.CompletedProcess(cmd, 0 if world["brief"] else 1, world["brief"], "" if world["brief"] else "mdadm: cannot open")
+        if name in ("update-initramfs", "systemctl"):
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        raise AssertionError(cmd)
+    with tempfile.TemporaryDirectory() as tmp:
+        mp = os.path.join(tmp, "storage")
+        os.makedirs(mp)
+        fstab, info, conf, units = (os.path.join(tmp, f) for f in ("fstab", "mountinfo", "mdadm.conf", "system"))
+        root = "22 1 179:2 / / rw,relatime shared:1 - ext4 /dev/mmcblk0p2 rw\n"
+        base = "PARTUUID=1-02  /  ext4  defaults  0  1\n"
+        def finish(paths, mounted_from):
+            Path(info).write_text(root + (f"31 22 8:16 / {mp} rw,nosuid,nodev,relatime - ext4 {mounted_from} rw\n" if mounted_from else ""))
+            del ran[:]
+            with contextlib.redirect_stdout(io.StringIO()):
+                return _finish_setup(paths, mp, "/dev/md0", info, fstab, conf, units)
+        run, _own_storage = fake_run, fake_own
+        try:
+            # One disk, mounted, fstab never written (blkid had no UUID yet):
+            # tried again until it can be, then the line and the drop-ins.
+            Path(fstab).write_text(base)
+            world["blkid"] = ""
+            assert finish(["/dev/sdb"], "/dev/sdb") is False and Path(fstab).read_text() == base, ran
+            assert ran[:2] == [f"own {mp} {os.path.join(mp, CONFIG['unenc_subdir'])}", "blkid -s UUID -o value /dev/sdb"], ran
+            assert not [f for f in os.listdir(tmp) if f.startswith("fstab.otc.")]
+            world["blkid"] = "0a1b2c3d-4e5f-6789-abcd-ef0123456789"
+            # The storage not given to otc yet (that step failed): tried again too.
+            world["owned"] = False
+            assert finish(["/dev/sdb"], "/dev/sdb") is False and Path(fstab).read_text() == base, ran
+            world["owned"] = True
+            assert finish(["/dev/sdb"], "/dev/sdb") is True, ran
+            assert Path(fstab).read_text() == base + f"UUID=0a1b2c3d-4e5f-6789-abcd-ef0123456789   {mp}   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
+            for unit in STORAGE_DROPINS:
+                assert f"RequiresMountsFor={mp}" in Path(units, f"{unit}.service.d", "otc-storage.conf").read_text()
+            assert "systemctl daemon-reload" in ran, ran
+            # Done: nothing more (the line is there).
+            assert finish(["/dev/sdb"], "/dev/sdb") is True and ran == [], ran
+            # Two disks: the mirror's ARRAY line first (mdadm.conf without it,
+            # its append had failed), the initramfs, then fstab.
+            Path(fstab).write_text(base)
+            Path(conf).write_text("# mdadm.conf\nARRAY /dev/md1 metadata=1.2 UUID=9999eeee:0000ffff:1212abab:3434cdcd")
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is True, ran
+            assert Path(conf).read_text().endswith(f"UUID=9999eeee:0000ffff:1212abab:3434cdcd\nARRAY /dev/md0 metadata=1.2 name=otc:0 UUID={uuid}\n")
+            assert ran[:2] == ["mdadm --detail --brief /dev/md0", "update-initramfs -u"] and ran[2].startswith("own "), ran
+            assert Path(fstab).read_text().count(f" {mp} ") == 1
+            # mdadm.conf naming it already: nothing appended, no initramfs.
+            Path(fstab).write_text(base)
+            before = Path(conf).read_text()
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is True and Path(conf).read_text() == before, ran
+            assert not any(r.startswith(("mdadm", "update-initramfs")) for r in ran) and any(r.startswith("own ") for r in ran), ran
+            # Its line can't be read: tried again, fstab untouched.
+            Path(fstab).write_text(base)
+            Path(conf).write_text("")
+            world["brief"] = ""
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is False and Path(fstab).read_text() == base
+            # Not this setup's mount (another disk, the other kind), or not
+            # mounted at all: nothing touched.
+            for paths, mounted in ((["/dev/sdb"], "/dev/sdz"), (["/dev/sdb"], "/dev/md0"), (["/dev/sdb", "/dev/sdc"], "/dev/sdb"),
+                                   ([], "/dev/sdb"), (["/dev/sdb"], "")):
+                assert finish(paths, mounted) is True and ran == [] and Path(fstab).read_text() == base, (paths, mounted, ran)
+        finally:
+            run, _own_storage = real
+
+        # The owner and modes, set on each directory opened without following
+        # a link: a symlink planted where unencrypted/ goes is refused, and
+        # what it points to keeps its mode. (As this user: the otc user is
+        # stood in for by the one running the test.)
+        import pwd
+        import collections
+        real_getpwnam = pwd.getpwnam
+        me = collections.namedtuple("pw", "pw_uid pw_gid")(os.getuid(), os.getgid())
+        pwd.getpwnam = lambda name: me if name == "otc" else real_getpwnam(name)
+        try:
+            new = os.path.join(tmp, "new")
+            os.makedirs(new)
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert _own_storage(new, os.path.join(new, "unencrypted")) is True
+            assert stat.S_IMODE(os.stat(new).st_mode) == 0o751
+            assert stat.S_IMODE(os.stat(os.path.join(new, "unencrypted")).st_mode) == 0o750
+            elsewhere = os.path.join(tmp, "elsewhere")
+            os.makedirs(elsewhere, mode=0o700)
+            os.chmod(elsewhere, 0o700)
+            planted = os.path.join(tmp, "planted")
+            os.makedirs(planted)
+            os.symlink(elsewhere, os.path.join(planted, "unencrypted"))
+            with contextlib.redirect_stdout(io.StringIO()) as said:
+                assert _own_storage(planted, os.path.join(planted, "unencrypted")) is False
+            assert "could not give the new storage to the otc user" in said.getvalue(), said.getvalue()
+            assert stat.S_IMODE(os.stat(elsewhere).st_mode) == 0o700
+        finally:
+            pwd.getpwnam = real_getpwnam
+
+def selftest_bounded():
+    """The loop never waits long on a disk, nor ends on one failure: a
+    command given up, mdadm --detail given up, a disk's two ends read in a
+    child that is given up, the rebuild's source from md's own state, and
+    keep_running."""
+    import tempfile
+    import io
+    import contextlib
+    global run
+    t = time.monotonic()
+    r = run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.5)
+    assert r.returncode == 124 and "given up after 0.5 s" in r.stderr and time.monotonic() - t < 10, (r, time.monotonic() - t)
+    assert run([sys.executable, "-c", "print('ok')"], timeout=10).stdout.strip() == "ok"
+
+    real = run
+    asked = []
+    def fake(answer):
+        def fake_run(cmd, timeout=None, **_kw):
+            asked.append((os.path.basename(cmd[0]), timeout))
+            return answer
+        return fake_run
+    detail = ("/dev/md0:\n             State : clean, degraded\n    Number   Major   Minor   RaidDevice State\n"
+              "       0       8        0        0      active sync   /dev/sda\n")
+    try:
+        run = fake(subprocess.CompletedProcess([], 124, "", "(given up after 10 s)"))
+        assert mdadm_detail("/dev/md0") is None and asked == [("mdadm", SUPERBLOCK_READ_S)], asked
+        run = fake(subprocess.CompletedProcess([], 0, detail, ""))
+        got = mdadm_detail("/dev/md0")
+        assert got["state"] == "clean, degraded" and got["members"] == {0: {"device": "/dev/sda", "state": "active sync"}}, got
+        run = fake(subprocess.CompletedProcess([], 1, "", "mdadm: cannot open /dev/md0"))
+        assert mdadm_detail("/dev/md0") == {"state": "", "members": {}, "other_devices": set()}   # as it always parsed
+    finally:
+        run = real
+
+    # A disk's two ends, read in a child: blank, data, can't be read, and a
+    # read that never answers (a FIFO nobody writes: open waits) given up.
+    with tempfile.TemporaryDirectory() as tmp:
+        disk = os.path.join(tmp, "disk")
+        Path(disk).write_bytes(b"\0" * (3 << 20))
+        assert ends_blank(disk) is True
+        Path(disk).write_bytes(b"\xff" * (1 << 20) + b"data" + b"\0" * (2 << 20))
+        assert ends_blank(disk) is True                  # the middle isn't read: the ends hold nothing
+        Path(disk).write_bytes(b"\0" * ((3 << 20) - 4) + b"tail")
+        assert ends_blank(disk) is False
+        try:
+            ends_blank(os.path.join(tmp, "none"))
+            raise AssertionError("a missing disk read as blank")
+        except OSError as e:
+            assert "No such file" in str(e.strerror), e
+        fifo = os.path.join(tmp, "fifo")
+        os.mkfifo(fifo)
+        t = time.monotonic()
+        try:
+            ends_blank(fifo, timeout=1)
+            raise AssertionError("a disk that never answers read as blank")
+        except OSError as e:
+            assert e.errno == errno.ETIMEDOUT and e.strerror == "no answer in 1 s", e
+        assert time.monotonic() - t < 10
+
+    # The rebuild's source: the member in sync, never the one being copied
+    # onto - the old event comparison picked slot 0 on a tie, whichever it was.
+    rebuilding = {0: {"device": "/dev/sdb", "state": "spare rebuilding"}, 1: {"device": "/dev/sda", "state": "active sync"}}
+    assert rebuild_source_slot(rebuilding, 0) == 1
+    assert rebuild_source_slot({0: {"state": "active sync"}, 1: {"state": "spare rebuilding"}}, 1) == 0
+    assert rebuild_source_slot({0: {"state": "spare rebuilding"}, 1: {"state": "faulty"}}, 0) is None
+    assert rebuild_source_slot({}, None) is None
+
+    # keep_running: a failure is printed once with its traceback, counted
+    # after, the poll started again after 1, 2, 4... s (up to 30), back to
+    # 1 s after a minute without one; a stop ends it.
+    clock = {"t": 0.0}
+    slept = []
+    script = iter([ValueError("x"), ValueError("x"), KeyError("y"), "pause", ValueError("x"), SystemExit(0)])
+    def loop():
+        step = next(script)
+        if step == "pause":
+            clock["t"] += 120
+            step = next(script)
+        raise step
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        try:
+            keep_running(loop, sleep=slept.append, mono=lambda: clock["t"])
+            raise AssertionError("keep_running ended without the stop")
+        except SystemExit:
+            pass
+    assert slept == [1, 2, 4, 1], slept
+    said = out.getvalue()
+    assert said.count("the watcher's poll failed and starts again") == 2 and "Traceback" in said, said
+    assert "ValueError: x" in said and "KeyError: 'y'" in said, said
+    ran = []
+    keep_running(lambda: ran.append(1), sleep=slept.append)
+    assert ran == [1]
+
+def selftest_assemble():
+    """A dead array's disks that were back before it was stopped (a USB
+    brownout: both gone for a second, back under new names while md still
+    held the broken array) are handed to udev again, as when plugged in,
+    once it is stopped, and while it stays apart - the disks nothing holds
+    that carry its UUID, never another array's, a held one or an empty
+    reader. fstab names the array /dev/md0 (install.sh) or by its
+    filesystem's UUID (this script's own setup), whose link and node go
+    with the stopped array."""
+    import tempfile
+    import io
+    import shutil
+    import contextlib
+    uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
+    fs_uuid = "0a1b2c3d-4e5f-6789-abcd-ef0123456789"
+    assert md_uuid_hex(uuid) == md_uuid_hex("1111AAAA-2222-BBBB-3333-CCCC4444DDDD") == "1111aaaa2222bbbb3333cccc4444dddd"
+    assert md_uuid_hex("not a uuid") == "" and md_uuid_hex("") == ""
+    conf = ("# mdadm.conf\nDEVICE partitions\nARRAY /dev/md1 metadata=1.2 UUID=9999eeee:0000ffff:1212abab:3434cdcd\n"
+            f"ARRAY /dev/md0 metadata=1.2 name=otc:0 UUID={uuid}\n")
+    assert conf_array_uuid(conf, "md0") == md_uuid_hex(uuid)
+    assert conf_array_uuid(conf.replace("/dev/md0 ", "/dev/md/0 "), "md0") == md_uuid_hex(uuid)
+    assert conf_array_uuid(conf, "md2") == "" and conf_array_uuid("", "md0") == ""
+    for source in ("UUID=" + fs_uuid, "LABEL=otc", "/dev/md/0", "/dev/disk/by-uuid/" + fs_uuid,
+                   "/dev/disk/by-label/otc", "/dev/disk/by-id/md-uuid-1111aaaa:2222bbbb:3333cccc:4444dddd"):
+        assert source_may_name_array(source), source
+    for source in ("/dev/sdb1", "PARTUUID=1-02", "PARTLABEL=data", "server:/export", "/dev/disk/by-id/usb-Disk-0:0"):
+        assert not source_may_name_array(source), source
+
+    root = "22 1 179:2 / / rw,relatime shared:1 - ext4 /dev/mmcblk0p2 rw\n"
+    md_line = "31 22 9:0 / /mnt/storage rw,relatime shared:12 - ext4 /dev/md0 rw\n"
+    by_name = "/dev/md0   /mnt/storage   ext4   defaults,nofail,x-systemd.device-timeout=3min   0   0\n"
+    by_uuid = f"UUID={fs_uuid}   /mnt/storage   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        sys_root, proc_root, dev = (os.path.join(tmp, d) for d in ("sys", "proc", "dev"))
+        md = _fake_md(sys_root, members=("sdc", "sdd"))
+        os.makedirs(os.path.join(proc_root, "self"))
+        Path(proc_root, "self", "mountinfo").write_text(root)
+        Path(proc_root, "swaps").write_text("Filename\tType\tSize\tUsed\tPriority\n")
+
+        def disk(name, size=6291456, holders=()):
+            base = os.path.join(sys_root, "block", name)
+            os.makedirs(os.path.join(base, "holders"), exist_ok=True)
+            Path(base, "size").write_text(f"{size}\n")
+            Path(base, "dev").write_text(f"8:{len(os.listdir(os.path.join(sys_root, 'block'))) * 16}\n")
+            for h in holders:
+                Path(base, "holders", h).write_text("")
+        os.makedirs(os.path.join(dev, "disk", "by-uuid"))
+        md0_node, link = os.path.join(dev, "md0"), os.path.join(dev, "disk", "by-uuid", fs_uuid)
+        blocks = set()
+        md0_real = os.path.realpath(md0_node)
+
+        def node(there):
+            """md0's node and its filesystem's by-uuid link: udev makes them
+            once md0 runs, and removes both once it is stopped."""
+            if there:
+                Path(md0_node).write_text("")
+                if not os.path.lexists(link):
+                    os.symlink("../../md0", link)
+                blocks.add(md0_real)
+            else:
+                for p in (link, md0_node):
+                    if os.path.lexists(p):
+                        os.remove(p)
+                blocks.discard(md0_real)
+        node(True)
+        fstab_path, info_path = os.path.join(tmp, "fstab"), os.path.join(tmp, "mountinfo")
+        conf_path, state_path = os.path.join(tmp, "mdadm.conf"), os.path.join(tmp, "storage.json")
+        Path(conf_path).write_text(conf)
+        apart = "Personalities : [raid1]\nunused devices: <none>\n"
+        running = "Personalities : [raid1]\nmd0 : active raid1 sdd[1] sdc[0]\n      3142656 blocks [2/2] [UU]\n"
+        broken = "Personalities : [raid1]\nmd0 : broken raid1 sdd[1]\n      3142656 blocks [2/1] [_U]\n"
+        world = {"mdstat": running, "superblocks": {}, "udev_assembles": True}
+        clock = {"mono": 9000.0}
+        calls = []
+
+        class R:
+            def __init__(self, rc=0, out="", err=""):
+                self.returncode, self.stdout, self.stderr = rc, out, err
+
+        def bounded(cmd, timeout):
+            calls.append(tuple([os.path.basename(cmd[0])] + list(cmd[1:])))
+            name = os.path.basename(cmd[0])
+            if name == "umount":
+                Path(info_path).write_text(root)
+                return R()
+            if name == "mdadm" and cmd[1:] == ["--stop", "/dev/md0"]:
+                world["mdstat"] = apart
+                node(False)
+                return R()
+            if name == "mdadm" and cmd[1:3] == ["--examine", "--export"]:
+                sb = world["superblocks"].get(cmd[3])
+                return R(0, f"MD_LEVEL=raid1\nMD_UUID={sb}\n") if sb else R(1, "", f"mdadm: No md superblock detected on {cmd[3]}.")
+            if name == "udevadm":
+                # udev's md rule as in trixie's mdadm 4.4: a bare disk's add
+                # event runs mdadm --incremental - md0 again, from sde and
+                # sdf - and its change event nothing ("Bare disks are ready
+                # when add event happens").
+                if world["udev_assembles"] and cmd[1:3] == ["trigger", "--action=add"]:
+                    for gone in ("dev-sdc", "dev-sdd"):
+                        shutil.rmtree(os.path.join(md, gone), ignore_errors=True)
+                    _fake_md(sys_root, members=("sde", "sdf"))
+                    world["mdstat"] = "Personalities : [raid1]\nmd0 : active raid1 sde[0] sdf[1]\n      3142656 blocks [2/2] [UU]\n"
+                    node(True)
+                return R()
+            raise AssertionError(cmd)
+
+        def guard(conf=conf_path):
+            return StorageGuard("/mnt/storage", fstab=fstab_path, mountinfo=info_path, dev_root=dev, sys_root=sys_root,
+                                state_path=state_path, systemctl=lambda *a: calls.append(("systemctl",) + a) or R(),
+                                active=lambda u: False, stopped=lambda u: True, bounded=bounded, probe=lambda m: "",
+                                read_mdstat=lambda: world["mdstat"], mono=lambda: clock["mono"], wall=lambda: clock["wall"],
+                                uptime=lambda: 86400, is_block=lambda p: p in blocks, mdadm_conf=conf, proc_root=proc_root)
+        clock["wall"] = clock["mono"]
+
+        def step(g, seconds=STORAGE_LOOK_S):
+            clock["mono"] += seconds
+            clock["wall"] += seconds
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                st = g.step(world["mdstat"])
+            return st, out.getvalue()
+
+        # Plugged in after the brownout: the two disks (sde, sdf), a backup
+        # disk of another array, one held by md127 and an empty card reader.
+        for name in ("sde", "sdf", "sdg", "sdh"):
+            disk(name)
+        disk("sdi", holders=("md127",))
+        disk("sdj", size=0)
+        superblocks = {"/dev/sde": uuid, "/dev/sdf": uuid.upper(), "/dev/sdg": "9999eeee:0000ffff:1212abab:3434cdcd",
+                       "/dev/sdi": uuid, "/dev/sdj": uuid}
+        trigger = ("udevadm", "trigger", "--action=add", "/dev/sde", "/dev/sdf")
+        for fstab_line in (by_name, by_uuid):
+            # md0 runs on sdc and sdd, mounted; then both drop for a second:
+            # md0 broken, its members gone, the disks back as sde and sdf
+            # before md0 was stopped - and udev drops the filesystem's link
+            # once blkid can't read md0 any more.
+            shutil.rmtree(os.path.join(sys_root, "devices", "virtual", "block", "md0"))
+            md = _fake_md(sys_root, members=("sdc", "sdd"))
+            world.update(mdstat=running, superblocks={}, udev_assembles=True)
+            node(True)
+            Path(fstab_path).write_text(fstab_line)
+            Path(info_path).write_text(root + md_line)
+            g = guard()
+            g.unit = "mnt-storage.mount"
+            assert step(g)[0] == "ok", fstab_line
+            shutil.rmtree(os.path.join(sys_root, "devices", "usb", "sdc"))
+            shutil.rmtree(os.path.join(sys_root, "devices", "usb", "sdd"))
+            assert md_dead(md) != ""
+            world.update(mdstat=broken, superblocks=dict(superblocks))
+            if fstab_line == by_uuid:
+                os.remove(link)
+            # Taken down (MariaDB and the service already stopped), md0 stopped,
+            # and its disks handed to udev as plugged in, in the same look.
+            # Before, nothing assembled them: no event came after the stop, and
+            # the change event handed over later runs no assembly on trixie -
+            # nor was anything handed over for a UUID= line, whose link had gone.
+            del calls[:]
+            st, said = step(g)
+            assert st == "missing" and "can't be used any more" in said, (fstab_line, said)
+            assert ("mdadm", "--stop", "/dev/md0") in calls and trigger in calls, (fstab_line, calls)
+            assert calls.index(trigger) > calls.index(("mdadm", "--stop", "/dev/md0")), calls
+            assert not any(c[:2] == ("mdadm", "--examine") and c[-1] in ("/dev/sdi", "/dev/sdj") for c in calls), calls
+            assert "/dev/md0 isn't assembled, and /dev/sde, /dev/sdf carry its superblock" in said, said
+            # udev assembled it: mounted at the next look, nothing triggered again.
+            del calls[:]
+            st, said = step(g)
+            assert ("systemctl", "start", "--no-block", "mnt-storage.mount") in calls, (fstab_line, calls)
+            assert not any(c[0] == "udevadm" for c in calls), calls
+
+        # Seen apart by a guard that didn't stop it (a boot, a plug-in): udev
+        # gets 30 s first; staying apart, again 30 s then 60 s later, said
+        # once for the same disks; reset once md0 is back. A guard started
+        # while it was apart never saw where a UUID= line led: CONFIG's
+        # raid_dev, as mdadm.conf names it.
+        for fstab_line in (by_name, by_uuid):
+            world["mdstat"], world["udev_assembles"] = apart, False
+            node(False)
+            Path(fstab_path).write_text(fstab_line)
+            Path(info_path).write_text(root)
+            g = guard()
+            g.unit = "mnt-storage.mount"
+            times = []
+            out = ""
+            start = clock["mono"] + STORAGE_LOOK_S
+            for _ in range(int(130 / STORAGE_LOOK_S)):
+                del calls[:]
+                _, said = step(g)
+                out += said
+                if trigger in calls:
+                    times.append(clock["mono"])
+            assert [round(t - start) for t in times] == [30, 60, 120], (fstab_line, times, start)
+            assert out.count("carry its superblock") == 1, out
+            world["mdstat"] = "Personalities : [raid1]\nmd0 : active raid1 sde[0] sdf[1]\n"
+            step(g)
+            assert g.assemble_delay == 0 and g.assemble_at is None
+            # mdadm.conf naming no md0: nothing read, nothing triggered.
+            world["mdstat"] = apart
+            g = guard(conf=os.path.join(tmp, "none.conf"))
+            del calls[:]
+            for _ in range(5):
+                step(g)
+            assert not any(c[0] in ("mdadm", "udevadm") for c in calls), (fstab_line, calls)
+        # Not an array: a single disk by UUID, seen there, then gone - nothing,
+        # though mdadm.conf names an md0 that isn't assembled.
+        Path(dev, "sdb1").write_text("")
+        blocks.add(os.path.realpath(os.path.join(dev, "sdb1")))
+        os.symlink("../../sdb1", os.path.join(dev, "disk", "by-uuid", "ab-cd"))
+        Path(fstab_path).write_text("UUID=ab-cd   /mnt/storage   ext4   defaults,nofail   0   0\n")
+        g = guard()
+        step(g)
+        assert g.md_seen == ("UUID=ab-cd", None), g.md_seen
+        os.remove(os.path.join(dev, "disk", "by-uuid", "ab-cd"))
+        del calls[:]
+        for _ in range(int(130 / STORAGE_LOOK_S)):
+            step(g)
+        assert not any(c[0] in ("mdadm", "udevadm") for c in calls), calls
+        # Nor a disk's own name.
+        Path(fstab_path).write_text("/dev/sdb1   /mnt/storage   ext4   defaults,nofail   0   0\n")
+        os.remove(os.path.join(dev, "sdb1"))
+        g = guard()
+        del calls[:]
+        for _ in range(int(130 / STORAGE_LOOK_S)):
+            step(g)
+        assert not any(c[0] in ("mdadm", "udevadm") for c in calls), calls
 
 def selftest_use():
     """Settings' request to erase a disk left alone and add it: the
@@ -3660,5 +4477,8 @@ def selftest_use():
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         selftest()
+    elif len(sys.argv) == 3 and sys.argv[1] == "--ends-blank":
+        # ends_blank's child: a disk's two ends read here, given up from there.
+        sys.exit(ends_blank_child(sys.argv[2]))
     else:
         main()

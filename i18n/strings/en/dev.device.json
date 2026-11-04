@@ -91,6 +91,14 @@
     "text": "the device has only just started; try again in a minute",
     "note": "Error in Settings when pressing Restart device within two minutes of the device starting."
   },
+  "dev.device.restart_update_running": {
+    "text": "an update is running; try again once it has finished",
+    "note": "Error in Settings when pressing Restart device while the device installs an update of its software: restarting it then could leave the update half done."
+  },
+  "dev.device.restart_wifi_changing": {
+    "text": "the device's Wi-Fi is being changed; try again in a few minutes",
+    "note": "Error in Settings when pressing Restart device while the device is switching to another Wi-Fi network (asked in Settings > Wi-Fi)."
+  },
   "dev.device.shutdown_in_container": {
     "text": "not available in Docker: stop the container on the server it runs on",
     "note": "Error in Settings when pressing Shut down device on a device that runs in Docker (a container on a home server or NAS): there is no machine of its own to switch off, the server stops and starts the container. Lowercase, like the other errors there."

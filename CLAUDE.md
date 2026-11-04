@@ -73,8 +73,12 @@ means one channel, so a join over it was pinned to 2.4 GHz) is raised only with
 `OTC_ALLOW_HOTSPOT=1`, which nothing sets - its code (captive DNS, `ap_allowed_on`, the band pin,
 the wizard's hotspot texts) stays for that switch alone. network_setup.py takes down a hotspot left
 over from an older image on every poll before setup and rechecks once a minute after it
-(`ap_recheck_s`), lifting the 2.4 GHz pin once (`lift_band_limit`); a Bluetooth join uses any band
-(`any_band` in the join request). network_setup.py makes its join only before setup - never once
+(`ap_recheck_s`), lifting the 2.4 GHz pin once (`lift_band_limit`: only an `OTC-WiFi` still pinned
+to a band is changed and brought up again, and the marker that it was done is root's,
+`/var/lib/otc-network-setup/wifi-band-lifted` - one in the otc user's `/var/lib/otc`, which that user
+could remove, had root re-activate the Wi-Fi every minute); a Bluetooth join uses any band
+(`any_band` in the join request). `python3 scripts/network_setup.py --selftest` tests the lift with
+nmcli stood in for. network_setup.py makes its join only before setup - never once
 root's `/etc/otc/.install-complete` exists (`setup_done()`'s own marker is in the otc user's
 `/var/lib/otc`) - opens the request with O_NOFOLLOW (a regular file of at most 4 KiB), and
 removes anything else found under that name (a directory too) without reading it. Release 143 puts
@@ -139,7 +143,12 @@ its disk offline (`device/state`), or - its device then read once, O_DIRECT in a
 after 10 s (`probe_read`, at most a minute apart), and gone only if that fails - a filesystem
 that turned itself read-only or whose ext4 error count or time moved since the mount was first
 seen (`ext4_errors`: from Linux 6.9 ext4's emergency read-only after an I/O error doesn't show in
-mountinfo). It then takes it down (`_begin_down`/`_down_step`): `systemctl stop --no-block
+mountinfo). Only a filesystem on a block device is judged, and only when fstab's source names one it
+can mount back (`source_names_device`: UUID=, LABEL=, PARTUUID=, PARTLABEL= or a /dev path): btrfs,
+ZFS, NFS, SMB and FUSE mounts show an anonymous `0:NN` with nothing under `/sys/dev/block`, and a
+storage mounted beforehand that way (install.sh's "already mounted") was taken for gone at the first
+look - a btrfs one stopped and mounted again every few seconds, an NFS one never mounted again. It
+then takes it down (`_begin_down`/`_down_step`): `systemctl stop --no-block
 mariadb.service otc.service` (SIGKILL after 30 s, the mount goes 10 s after that regardless:
 nothing they write reaches a disk, and InnoDB recovers from its log as after a power cut),
 `umount`, then `umount --lazy` when busy (each through `run_bounded`, which gives up on a command
@@ -147,7 +156,24 @@ stuck on a dead disk so the loop and the LEDs go on), and, once nothing is mount
 `mdadm --stop`s the dead array (10 s doubling to 5 min while a detached filesystem still holds
 it), so the disks plugged in again are assembled afresh by udev's `mdadm --incremental` from their
 own superblocks: the newer disk wins, one that dropped out first is kicked as non-fresh and re-added
-as a former member, copied from the newer. A dead array is never mounted (`source_present`) nor
+as a former member, copied from the newer. Disks already back when it is stopped send no further
+event (a USB brownout drops both for a second; they come back while md still holds the broken array,
+and their incremental add fails against it), so while fstab's array is not in `/proc/mdstat` at all
+the disks nothing holds that carry its superblock (its UUID from mdadm.conf, read with a bounded
+`mdadm --examine --export`) are handed to udev again (`_assemble_again`: `udevadm trigger
+--action=add`, the same incremental assembly and last-resort start as a plug-in; not `change`, which
+trixie's md rule, mdadm 4.4, skips for a bare disk - bookworm's 4.2 ran it on both) - at once after
+the guard's own stop, otherwise once it has been apart 30 s (udev's own assembly at boot or a plug-in
+is far quicker), then 30 s doubling to 10 min. Which array that is goes by fstab's source
+(`_md_name`, used by `_array_of` too): `/dev/mdN` as install.sh writes it, or what a `UUID=` line
+(raid_watch's own first-sign-in setup writes one), `LABEL=` or udev link led to - a stopped array
+takes its node and its filesystem's by-uuid link with it, so the guard remembers the name from the
+last time the source resolved (`md_seen`), and one started while the array was apart takes
+CONFIG's `raid_dev` when mdadm.conf has its ARRAY line. Checked on 2026-11-04 in a throwaway Debian
+13 VM (mdadm 4.4, two loop disks as md0, the guard on the real sysfs, udev and systemd): md0 failed
+to broken, taken down, stopped and assembled again by the add trigger and mounted 4 s later, for a
+`UUID=` and a `/dev/md0` line, and by a guard started while it was apart; with `change` it stayed
+apart. A dead array is never mounted (`source_present`) nor
 added to (`guard.dead_array` gates the repair), and the companion starts as soon as the storage is
 unmounted (grace 0; the outage, and the Alert's minutes, begin at the detection), as it does when a
 storage seen mounted goes with its device (the single disk, which systemd unmounts itself,
@@ -1076,7 +1102,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   GitHub Actions (the owner, 2026-10-26: Actions cost too much): `scripts/docker-release.sh
   [--no-publish] [--arch amd64|arm64] [N]` on the Mac, after `release.sh`. It verifies
   `VERSIONS.sig`, builds from the release's own `src.tar.gz` + `web-dist.tar.gz` (hashes checked)
-  with `docker/docker-bake.hcl` (the build file, test and client from HEAD by `git archive`), arm64
+  with `docker/docker-bake.hcl` (the build file, test and client from HEAD by `git archive`;
+  `APT_REFRESH`, the release and the day, set once a run, rebuilds `otc-base`'s package layer with
+  `apt-get upgrade` - BuildKit kept it, and Debian's fixes out of every image, for as long as the
+  base tag stayed; a container never upgrades its packages itself, docs/docker.md says so), arm64
   natively and amd64 under Rosetta (which shows amd64 containers an x86 `/proc/cpuinfo`, SSE4.1
   included), runs `docker/smoke/test-image.sh` on each (healthy, version, web app, set-password,
   `docker/smoke` sign-in client, restart, no panic), then `test-image.sh --mirror` (the same on two
@@ -1090,6 +1119,18 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   are never touched. The VM is stopped at the end if the script started it. Publishing needs gh's
   token with `write:packages` (`gh auth refresh -h github.com -s write:packages`, the owner's to
   run) and logs out of ghcr.io at the end. The test script runs on any Linux Docker host.
+  The entrypoint makes the nightly database copy (03:00) in the background, in a process group of
+  its own (`nightly_dump`: `otc-entrypoint dump` again; in the foreground it held the supervise loop -
+  a device that stopped wasn't started again, and a `docker stop` waited until Docker killed
+  MariaDB), stopped first by `stop_all` (`stop_dump`), one copy at a time (`flock` on
+  `/run/otc-dump.lock`, so a `docker exec ... dump` meanwhile is refused). In `run`, a `die` waits
+  before the container exits (`start_backoff`: Docker's `unless-stopped` starts a container that ran
+  10 s again at once, so a failure that stays - a migration, MariaDB, a busy port - was a tight
+  loop of MariaDB crash recoveries; 30 s doubling with each start that failed in a row up to 30
+  minutes, an hour at least after a model download - `download_failed` -, counted in root's
+  `$CONF/start-failures` and forgotten once the device has run 10 minutes, `start_succeeded`; a stop
+  signal ends the wait). `bash docker/entrypoint-test.sh` tests both on any Linux host, without
+  Docker or root (a copy with its paths in a temporary directory, MariaDB's tools stood in for).
   Mirror mode (opt-in: `docker/compose.mirror.yaml` through `COMPOSE_FILE`, which sets
   `OTC_MIRROR=1`): `.env` names two whole disks (`OTC_MIRROR_DISK1/2`, by-id paths Docker maps to
   `/dev/otc-disk1/2`; their basenames are the labels) and, by the same strings, any that may be wiped
@@ -1108,7 +1149,31 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `b 9:* rmw`, `SYS_ADMIN` + `MKNOD` + `SYS_RESOURCE` (online `resize2fs`) and AppArmor/SELinux off
   (Docker's AppArmor profile refuses mount; the devices in the long `source`/`target` form, as USB
   disks' by-id names hold a `:`): root in that container is close to root on the host, while the
-  device still runs with no capabilities. Rules otc-mirror keeps (each from a review or the VM):
+  device still runs with no capabilities - and, in either mode, under a seccomp filter of its own:
+  with `SYS_ADMIN` in the container, Docker's default profile allows every process in it `unshare`,
+  `setns`, clone with `CLONE_NEW*`, `mount` and `bpf` (it decides per container, by capability),
+  so code run in the device could take capabilities in a user namespace of its own (the nf_tables
+  kind of kernel bug). `otc-sandbox` (`docker/sandbox`, static, `/usr/local/sbin`; the entrypoint's
+  `start_app` runs `setpriv` through it; MariaDB, which listens on the host's 127.0.0.1 with
+  `network_mode: host`, `mariadb-install-db`, the log's tail and every `as_otc` helper - the models'
+  `curl` among them - run through it as well, once `probe_sandbox` found its `--probe` answering ok,
+  so no unprivileged process in the container is left outside) installs a classic-BPF filter
+  refusing what that profile refuses a container without `SYS_ADMIN` - those, the newer mount
+  calls, `perf_event_open`, `quotactl`, `syslog`, `sethostname`, and the keyring, file handles,
+  module loading and `pivot_root` - with clone's flags masked as Docker does and `clone3` answering
+  ENOSYS (glibc falls back to clone); calls of a foreign architecture and x32 are refused, and both
+  architectures' numbers are in the one program (`filter.go`; numbers checked against x/sys by
+  `tables_linux_test.go`). It sets no_new_privs, installs with `SECCOMP_FILTER_FLAG_TSYNC` and
+  execs the command; first a copy of itself (`--probe`) installs it and checks it - where it can't
+  be (Rosetta answers `seccomp()` EINVAL, so `docker-release.sh`'s amd64 tests run without it) the
+  device runs without, saying so (and MariaDB and the helpers then run without it too, with no
+  warning each). `test-image.sh` checks the device and `mariadbd` have one filter more than the
+  container's PID 1 and, in mirror mode, that a process run as the device's gets no user
+  namespace; `entrypoint-test.sh` checks what runs through it. Tests: `filter_test.go` (a BPF
+  interpreter: every call of both tables, clone's flags, clone3, foreign architectures, x32),
+  `sandbox_linux_test.go` (real calls under the filter: EPERM,
+  ENOSYS, and exec, glibc threads and pipes still working), run in the Linux VM and in containers
+  with the mirror's capabilities. Rules otc-mirror keeps (each from a review or the VM):
   only arrays named `otc`/`*:otc` are used (another system's raid1 never), and once
   `config/storage-mode` names this device's mirror (`OTC_MIRROR_UUID`) only that one; `mkfs.ext4`
   only on an array built in that run, never on one whose filesystem can't be read (a read error on a
@@ -1601,7 +1666,18 @@ start takes its file.
   root must not write in its log directory; `raidwatch.FollowLog` copies each new line into the
   device's own log as `storage: …` (Settings > Logs > Device, every app; its place kept in
   `<storage>/.storage-log-read`, by the file's first line). `python3 scripts/raid_watch.py
-  --selftest` tests the script's side. The Pi 5 has one USB controller per blue
+  --selftest` tests the script's side. Its loop never waits long on a disk: every command that reads
+  one goes through `run(..., timeout=)` (`run_bounded`: `mdadm --detail`/`--examine` 10 s, `blkid -p`,
+  `wipefs`, `dumpe2fs` and `journalctl` 20 s, `mdadm --add`/`--grow` and Settings' `wipefs -a` 60 s),
+  a disk's two ends are read in a child (`ends_blank`: the script again with `--ends-blank`, given
+  up after 20 s), a `mdadm --detail` given up leaves the last answer for 30 s, and a rebuild's source
+  is md's own in-sync member (`rebuild_source_slot`; each member's superblock used to be read every
+  half second while rebuilding). The poll runs under `keep_running`: anything it raises is logged
+  with its traceback (once per kind, then counted) and the poll starts again after 1 s doubling to
+  30 s - one unreadable superblock in a rebuild used to end the process - and `raid-watch.service`
+  restarts it 5 s after any failure with no start limit (`RestartSec=5`, `StartLimitIntervalSec=0`:
+  install.sh, Makefile.pi, and release 169's script for the units installed before;
+  `updater/raid_watch_unit_test.go`). The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
   replacement - since release 143 only a blank one (no partition table, no `blkid -p`/`wipefs`
@@ -1632,8 +1708,14 @@ start takes its file.
   `<storage>/.raid-use-answered`), and a request not taken in a minute is withdrawn with one. First-sign-in
   storage setup (`OTC_SKIP_RAID` hand installs) refuses storage that already holds files, a disk with a
   signature, partitions or an md superblock, and storage fstab already names; it reads its request with
-  O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750) and writes fstab by
-  `UUID=` with nofail and the drop-ins below (MariaDB stays on the SD card there). Tested on
+  O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750, set on each
+  directory opened O_NOFOLLOW) and writes fstab by `UUID=` with nofail and the drop-ins below
+  (MariaDB stays on the SD card there). A try cut short after the mount (blkid without a UUID yet, a
+  full card) is finished by the next one (`_finish_setup`: the storage given to otc, the mirror's
+  ARRAY line in mdadm.conf and the initramfs - `_record_array`, `mdadm --detail --brief` - fstab's
+  line and the drop-ins), only for the disk or mirror the request named and only while fstab has no
+  line there: it used to take the mount for a finished setup, and after a reboot otc and MariaDB
+  started on the empty directory under the mount point. Tested on
   `scsi_debug` disks in the Lima VM (`per_host_store=1`, or every disk shares one store). More storage:
   swap the cards for bigger ones one at a time (each is added and
   rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
@@ -1680,8 +1762,9 @@ start takes its file.
   app's files (`StaticHandler`), `/ws`, 503 for `/check_healty` (so update.sh's start check never
   counts it), `/media/` and the metrics; a port still held is tried every 5 s. Tests: nostorage's,
   websocket's `unavailable_test.go` (a fake bridge in a child process), api's
-  `TestServeUnavailable`, raid_watch's `selftest_storage` and `selftest_storage_gone` (a fake sysfs:
-  members pulled, offline, faulty, a broken array, ext4 errors, the takedown on a fake clock), updater's
+  `TestServeUnavailable`, raid_watch's `selftest_storage`, `selftest_storage_gone` (a fake sysfs:
+  members pulled, offline, faulty, a broken array, ext4 errors, btrfs/NFS/FUSE never judged, the
+  takedown on a fake clock) and `selftest_assemble` (disks back before the stop handed to udev), updater's
   `TestStorageUnitsAreTheSameInInstallAndRelease166`.
 - `wifiwatch` — the Wi-Fi watchdog (release 115). Pit (Pi 5, brcmfmac over SDIO) after ~27 h up
   kept receiving at 6.6 MB/s but sent at 0.15 MB/s, 7.7% of TCP segments retransmitted
@@ -1709,7 +1792,18 @@ start takes its file.
   wireless), driver module from sysfs (holders first, e.g. brcmfmac_wcc), the SDIO controller
   (`.../mmc_host/...`'s platform device) unbound and bound again only when no block device sits
   under it, the module back, power save off, NetworkManager reconnect; not connected within 150 s
-  -> it reboots (`rebooted`, mentioned in the Alert). At most one restart per 30 min
+  -> it reboots (`rebooted`, mentioned in the Alert). The whole restart reaches that fallback within
+  `RUN_BUDGET` (7 min) of its start, inside the unit's `TimeoutStartSec=8min`: every step goes
+  through the runner's own `bounded` (given up, killed and left behind when stuck in the kernel - a
+  wedged SDIO bus holding modprobe or the unbind -, never waited for), and none starts past what
+  the last wait for the connection needs (`FINAL_WAIT`, 90 s); that wait's own checks
+  (NetworkManager's `GENERAL.STATE`) use its time up to the deadline itself (`FINAL`: before, they
+  were refused for want of time once the steps had used theirs, and only a default route counted),
+  and a connection back at its very end still gets power saving off, at most 10 s past it. The bare
+  `timeout`s it had waited for good on such a command, and its waits added up to more than the
+  unit allows, so systemd could kill it before the reboot (`TestWifiRestartRunnerEndsInsideItsUnit`;
+  `bash otc-wifi-restart-runner.sh --selftest` on Linux tests `bounded`, `left` and the last wait's
+  checks). At most one restart per 30 min
   (`/run/otc-wifi-restart.last`). Tested with fake readings (`wifiwatch_test.go`) and
   `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi. A Settings › Wi-Fi change
   (release 140) never builds a streak: while `network.Joining()` is true - a change in flight and
@@ -1873,9 +1967,18 @@ start takes its file.
     Pi happens after the release, through Update.
 - `devicerestart` — Settings > Restart device (release 115): `RestartDevice` (137) ->
   `RestartingDevice{expected_seconds}` (68), owner of the main instance only (`sup == nil` refused;
-  older devices answer `unknown_payload`). Writes `/var/lib/otc/reboot.request`;
+  older devices answer `unknown_payload`), and - as Shut down device, under
+  `network.UnlessChanging`'s lock (`websocket/restart.go`) - refused while a Wi-Fi change
+  (`wifi_changing`, `dev.device.restart_wifi_changing`) or an update (`updater.Pending`,
+  `update_running`, `dev.device.restart_update_running`) runs: a restart in the minutes after an
+  update restarted the service, while update.sh checks that the new release starts, left a release
+  that doesn't start installed with its rollback never run. Writes `/var/lib/otc/reboot.request`;
   `otc-reboot.path` runs `otc-reboot-runner` (removes the request first, refuses in the first 2
-  minutes after boot - the device too - waits 3 s for the answer to leave, `systemctl reboot`). In
+  minutes after boot - the device too -, drops it while an update was asked for or runs and while
+  the Wi-Fi lock is held, which it then keeps until the machine goes down, as the shutdown runner;
+  `--dry-run` by hand; waits 3 s for the answer to leave, `systemctl reboot`). The apps show the
+  device's words for a refusal (`TestRestartDevice`; devicerestart's
+  `TestPowerRunnersRefuseDuringAnUpdateOrAWifiChange` runs both runners on Linux). In
   the Device version section of web `UpdatePanel`, iOS `UpdateSection`, Android `UpdateViewModel`:
   confirm, "Restarting…", then a `GetInstanceRole` every 5 s from 20 s on; back = the device's own
   answer (never the bridge's `device_unreachable` Ack) after a failed look or 90 s; "slow" after 5
@@ -4783,6 +4886,9 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 stalled transfer (no `--max-time`).
 More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
 every update (one that reads its request's words does so with `dd iflag=nofollow,nonblock`; each
+removes whatever is at its request path with `rm -rf --` - a directory there, which `rm -f` can't
+remove, had its `PathExists=` unit start it back to back for good; `-r` never follows a symlink;
+`updater/runner_requests_test.go`; each
 oneshot has a `TimeoutStartSec`, 2min for the bridge's, 3min for Tailscale's): `scripts/bridge-runner/`
 (switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for

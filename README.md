@@ -306,7 +306,8 @@ and the few things listed here:
   storage at all (above).
 - **Restart the device**: Settings > Device version > **Restart Device** (web, iPhone and
   Android; the device's owner only) restarts it cleanly; it is back in about a minute. Settings
-  shows when it is. From the console, `sudo reboot` does the same.
+  shows when it is. Not while an update or a Wi-Fi change runs: try again once it has finished.
+  From the console, `sudo reboot` does the same.
 - **Switch the device off**: Settings > Device version > **Shut Down Device** (release 164 or
   later; the device's owner only) stops everything cleanly and powers it off, so it can be
   unplugged without risking the microSD card: wait until its lights stop blinking. It stays off
@@ -424,10 +425,12 @@ $ sudo update-initramfs -u
 Create `/etc/systemd/system/raid-watch.service` with:
 ```
 [Unit]
+StartLimitIntervalSec=0
 Description=RAID1 watcher + LED driver
 After=mdadm.service
 
 [Service]
+RestartSec=5
 Type=simple
 ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
 Restart=on-failure

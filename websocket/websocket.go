@@ -33,7 +33,6 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
-	"github.com/alonsovidales/otc/devicerestart"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/diskspace"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
@@ -4296,22 +4295,15 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	// Settings > Restart device: the whole machine, so the owner of the
 	// main instance only - a supervised per-user instance (issue #82)
-	// shares the machine with the owner and its other users.
+	// shares the machine with the owner and its other users - and not
+	// while an update or a Wi-Fi change runs (restart.go).
 	case *pb.ReqEnvelope_ReqRestartDevice:
 		if ch.mg.sup == nil {
 			resp.Error = true
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		if err := devicerestart.Request(); err != nil {
-			log.Error("error requesting a device restart:", err)
-			resp.Error = true
-			resp.ErrorMessage = errText(lang, err)
-			break
-		}
-		resp.Payload = &pb.RespEnvelope_RespRestartingDevice{RespRestartingDevice: &pb.RestartingDevice{
-			ExpectedSeconds: int32(devicerestart.ExpectedDowntime / time.Second),
-		}}
+		restartDevice(resp, lang)
 
 	// Settings > Shut down device (issue #202): the whole machine too, so
 	// the owner of the main instance only (shutdown.go).

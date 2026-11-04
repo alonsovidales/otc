@@ -223,6 +223,12 @@ running. Settings › Shut Down Device isn't offered in Docker: stop the contain
 `<your folder>/state/log/otc.log` (only root can read it). To copy it into `docker logs` as well,
 add `OTC_LOG_STDOUT: "1"` under `environment:`.
 
+When the device can't start (a database update that fails, the database that won't start, a port
+another program holds), `docker logs otc` says why, and the container waits before it stops and
+Docker starts it again: 30 seconds the first time, twice as long each time it fails again, up to 30
+minutes (an hour when a model can't be downloaded), so it doesn't restart over and over. Once the
+problem is fixed, `docker compose restart` tries again straight away.
+
 ## Updating
 
 A new image is published for every device release, once it passes start-up and sign-in tests. The device tells you about a release only when its image is there: Settings › Device
@@ -247,8 +253,13 @@ To pin a release, change the `image:` line, for example to `ghcr.io/alonsovidale
 update a pinned device, change the number, then pull and start it as above. A tool that watches
 images, such as Diun or What's Up Docker, can tell you when `beta` changes.
 
+Each image also carries Debian's security updates (for ffmpeg, OpenSSL and the database, among
+others) as of the day it was built. A running container never updates its system packages by
+itself, as a Raspberry Pi does: they come with the next image, which is one more reason to update.
+
 On its first start, a new image brings the database up to date. Settings › Logs › Updates shows how
-that went. If it fails, the container stops and says why.
+that went. If it fails, the container says why, and stops after a wait (see
+[Everyday commands](#everyday-commands)).
 
 An older image won't start on a folder that a newer release has used, because the database may not
 work with older code. The log names the release that last used the folder: use that image or a newer
@@ -269,7 +280,9 @@ loads that. It keeps the last 7 days' copies, and always the newest complete one
 `state/models/` too: it is downloaded again.
 
 The nightly copy runs at 03:00 in the container's time zone: UTC, unless you uncomment `TZ` in
-`compose.yaml`. To make a copy now:
+`compose.yaml`. The device keeps running while it is made. Stopping the container stops a copy
+under way at once; that night's copy is then left incomplete, and the next night's is made as
+usual. To make a copy now (one at a time: not while the nightly one runs):
 
 ```
 docker exec otc otc-entrypoint dump
@@ -452,7 +465,12 @@ disks and arrays, and comes close to root on the server. What runs as root there
 own supervisor (its start-up and the script that watches over the device), the mirror helper, and the
 bridge setting's helper when the device asks for it. The device itself, the part the apps and the
 bridge talk to, and its database run as unprivileged users with no capabilities, as without the
-mirror.
+mirror. The device, its database and the start-up's helpers that run as the device's user (the
+models' download among them) also run under a system-call filter of the device's own, in either
+mode: with the mirror's `SYS_ADMIN`, Docker's own filter would let any process in the container
+create namespaces and call `mount` or `bpf`, and the device's filter refuses those again, as
+Docker's does without the mirror. On a machine that can't install it (an amd64 image emulated on an
+arm64 computer), the log says so and they run without it.
 
 ### Replacing a disk
 
@@ -570,7 +588,7 @@ On other Linux hosts:
 | `/mnt/storage/mysql holds files of user ...` | The database's files have another owner. If you changed it, the message gives the command that gives it back. |
 | `this storage was last used by release ..., newer than this image` | Use that release's image or a newer one (see [Updating](#updating)). |
 | `this processor lacks SSE4.1` | The image's photo decoder needs it. Use a server with a newer processor. |
-| `could not download ... - trying again in an hour` | The first start couldn't download a model. Check that the server can reach huggingface.co and github.com, then run `docker compose restart`. |
+| `could not download ...` (or `... does not match its pinned hash`), then `the container stops in 3600 s and starts again` | The first start couldn't download a model, and the container tries again in an hour. Check that the server can reach huggingface.co and github.com, then run `docker compose restart` to try at once. |
 | `MariaDB stopped while starting` | The database's own log is `storage/mysql/mariadb.err`. Two containers can't use the same folder. |
 | `the device stopped 5 times in 2 minutes` | The device's log, `state/log/otc.log`, says why. |
 | `... is not a disk: check OTC_MIRROR_DISK1 in .env` | The name in `.env` isn't a whole disk. Check it with `ls -l /dev/disk/by-id/` (see [Two disks, mirrored](#two-disks-mirrored-optional)). |

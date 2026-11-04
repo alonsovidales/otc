@@ -109,6 +109,16 @@ func DevDeviceRestartTooSoon() Msg {
 	return Msg{Key: "dev.device.restart_too_soon"}
 }
 
+// DevDeviceRestartUpdateRunning is dev.device.restart_update_running: "an update is running; try again once it has finished".
+func DevDeviceRestartUpdateRunning() Msg {
+	return Msg{Key: "dev.device.restart_update_running"}
+}
+
+// DevDeviceRestartWifiChanging is dev.device.restart_wifi_changing: "the device's Wi-Fi is being changed; try again in a few minutes".
+func DevDeviceRestartWifiChanging() Msg {
+	return Msg{Key: "dev.device.restart_wifi_changing"}
+}
+
 // DevDeviceShutdownInContainer is dev.device.shutdown_in_container: "not available in Docker: stop the container on the server it runs on".
 func DevDeviceShutdownInContainer() Msg {
 	return Msg{Key: "dev.device.shutdown_in_container"}

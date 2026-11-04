@@ -13,10 +13,18 @@
 #   docker buildx build -f docker/base.Dockerfile --target build -t otc-build --load docker
 #   docker buildx build -f docker/base.Dockerfile --target base -t otc-base --load docker
 #
-# They change when the pins below do, and are rebuilt now and then for
-# Debian's security fixes. Every version and hash is scripts/install.sh's:
-# change them there and here together. Nothing from the checkout is copied
-# in, so any directory will do as the build context.
+# They change when the pins below do. Every version and hash is
+# scripts/install.sh's: change them there and here together. Nothing from
+# the checkout is copied in, so any directory will do as the build context.
+#
+# base's Debian packages are those of the day its package layer was built:
+# BuildKit keeps that layer for as long as debian:trixie-slim and the lines
+# below stay the same, weeks of security fixes (ffmpeg, OpenSSL, MariaDB)
+# missing from every image built meanwhile. APT_REFRESH, which
+# scripts/docker-release.sh sets to the release and the day, runs it again
+# with Debian's upgrades; built by hand, pass --build-arg APT_REFRESH=$(date
+# +%F) for the same. A container never upgrades its packages itself: they
+# come with the next image.
 
 FROM debian:trixie-slim AS build
 ARG DEBIAN_FRONTEND=noninteractive
@@ -99,6 +107,7 @@ ENV PATH=/usr/local/go/bin:$PATH
 
 FROM debian:trixie-slim AS base
 ARG DEBIAN_FRONTEND=noninteractive
+ARG APT_REFRESH=
 # Fixed ids, made before MariaDB's package would pick one: the files on the
 # storage folder belong to these numbers, and a rebuilt image must not hand
 # them to someone else.
@@ -110,13 +119,15 @@ RUN groupadd -g "$OTC_UID" otc \
  && useradd -r -u "$OTC_UID" -g otc -d /var/lib/otc -s /usr/sbin/nologin otc \
  && groupadd -g "$MYSQL_UID" mysql \
  && useradd -r -u "$MYSQL_UID" -g mysql -d /nonexistent -s /usr/sbin/nologin mysql \
+ && echo "Debian's packages as of ${APT_REFRESH:-the last build of this layer}" \
  && apt-get update \
+ && apt-get -y --no-install-recommends --with-new-pkgs upgrade \
  && apt-get install -y --no-install-recommends ffmpeg mariadb-server mariadb-client tini \
         ca-certificates curl openssl iproute2 libjpeg62-turbo libpng16-16t64 mdadm e2fsprogs \
  && rm -rf /var/lib/apt/lists/* /var/lib/mysql/* \
  && [ "$(id -u otc)" = "$OTC_UID" ] && [ "$(id -u mysql)" = "$MYSQL_UID" ] && [ "$(id -g mysql)" = "$MYSQL_UID" ] \
  && for c in mysql mysqladmin mariadb-admin mariadb-dump mariadb-install-db mariadb-upgrade mariadbd \
-             ffmpeg ffprobe tini setpriv mountpoint ss curl openssl \
+             ffmpeg ffprobe tini setpriv setsid flock mountpoint ss curl openssl \
              mdadm mkfs.ext4 resize2fs dumpe2fs wipefs blkid blockdev losetup findmnt unshare; do \
         command -v "$c" >/dev/null || { echo "missing $c" >&2; exit 1; }; \
     done

@@ -31,7 +31,10 @@ DEFAULT_GH=https://github.com/alonsovidales/otc
 
 # Consumed first: a press that lands while this run is busy leaves a fresh
 # file behind, and the path unit picks that one up once this run is done.
-rm -f "$REQUEST"
+# Whatever is there goes (-r: a directory, which -f alone can't remove,
+# had the path unit start this again and again; a symlink is removed, never
+# followed).
+rm -rf -- "$REQUEST"
 
 # read_number <file>: the release number in a version file, or nothing
 # (status 1) when it is absent, empty or not a number - a write cut short

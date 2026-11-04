@@ -64,7 +64,11 @@ CONFIG = {
     # The connection profile the join creates, so it can be found again.
     "sta_connection_name": "OTC-WiFi",
     "scan_file": "/var/lib/otc/wifi_scan.json",
-    "band_lifted_marker": "/var/lib/otc/wifi-band-lifted",
+    # Root's own record that the 2.4GHz pin was lifted (lift_band_limit),
+    # in a directory of its own: the otc user owns /var/lib/otc and could
+    # remove a marker there, and root then brought the Wi-Fi connection up
+    # again at every recheck - the device off its network every minute.
+    "band_lifted_marker": "/var/lib/otc-network-setup/wifi-band-lifted",
     "ap_connection_name": "OTC-Setup",
     "ap_ssid": "Off The Cloud",
     "poll_s": 2,
@@ -563,18 +567,46 @@ def perform_pending_wifi_join():
         ensure_ap_mode()
 
 
+def own_dir(path):
+    """path, a directory of root's alone (made 0755 when missing); False
+    when what is there is anything else."""
+    try:
+        os.makedirs(path, mode=0o755, exist_ok=True)
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISDIR(st.st_mode) and st.st_uid == os.geteuid() and not st.st_mode & 0o022
+
+
 def lift_band_limit():
     """Setup is done and the hotspot is gone: let the owner's network
-    connection use 5GHz too. Once."""
+    connection use 5GHz too. Once: only a connection still pinned to a band
+    is changed and brought up again (which drops the Wi-Fi for a moment),
+    and root's own marker then says it was done. Nothing while
+    NetworkManager doesn't answer: tried again at the next recheck."""
     marker = Path(CONFIG["band_lifted_marker"])
     if marker.exists():
         return
     name = CONFIG["sta_connection_name"]
-    if name in run(["nmcli", "-t", "-f", "NAME", "connection", "show"]).stdout.splitlines():
-        run(["nmcli", "connection", "modify", name, "802-11-wireless.band", ""])
-        run(["nmcli", "connection", "up", name], timeout=90)
-        print("[network-setup] setup done - WiFi no longer limited to 2.4GHz")
-    safe_write(marker)
+    listed = run(["nmcli", "-t", "-f", "NAME", "connection", "show"])
+    if listed.returncode != 0:
+        return
+    if name in listed.stdout.splitlines():
+        band = run(["nmcli", "-g", "802-11-wireless.band", "connection", "show", name])
+        if band.returncode != 0:
+            return
+        if band.stdout.strip():
+            run(["nmcli", "connection", "modify", name, "802-11-wireless.band", ""])
+            run(["nmcli", "connection", "up", name], timeout=90)
+            print("[network-setup] setup done - WiFi no longer limited to 2.4GHz")
+    if own_dir(str(marker.parent)):
+        safe_write(marker)
+    elif not _marker_dir_said:
+        _marker_dir_said.append(True)
+        print(f"[network-setup] {marker.parent} is not root's own directory: the band is checked again at each recheck")
+
+
+_marker_dir_said = []
 
 
 def main():
@@ -615,5 +647,75 @@ def main():
         time.sleep(CONFIG["poll_s"])
 
 
+def selftest():
+    """python3 network_setup.py --selftest: lift_band_limit with nmcli
+    stood in for and its marker in a temporary directory - no root, no
+    NetworkManager."""
+    global run
+    real_run, real_marker = run, CONFIG["band_lifted_marker"]
+    calls = []
+    world = {}
+
+    def fake_run(cmd, timeout=None):
+        calls.append(" ".join(cmd))
+        if cmd[:5] == ["nmcli", "-t", "-f", "NAME", "connection"]:
+            rc, out = world["listed"]
+        elif cmd[:3] == ["nmcli", "-g", "802-11-wireless.band"]:
+            rc, out = world["band"]
+        elif cmd[:3] == ["nmcli", "connection", "modify"]:
+            world["band"] = (0, "\n")
+            rc, out = 0, ""
+        elif cmd[:3] == ["nmcli", "connection", "up"]:
+            rc, out = 0, ""
+        else:
+            raise AssertionError(cmd)
+        return subprocess.CompletedProcess(cmd, rc, out, "")
+
+    def lift(listed=(0, "Wired connection 1\nOTC-WiFi\n"), band=None):
+        world["listed"] = listed
+        if band is not None:
+            world["band"] = band
+        del calls[:]
+        with open(os.devnull, "w") as quiet:
+            saved, sys.stdout = sys.stdout, quiet
+            try:
+                lift_band_limit()
+            finally:
+                sys.stdout = saved
+        return [c for c in calls if " modify " in c or " up " in c]
+
+    changed = ["nmcli connection modify OTC-WiFi 802-11-wireless.band ", "nmcli connection up OTC-WiFi"]
+    with tempfile.TemporaryDirectory() as tmp:
+        marker = os.path.join(tmp, "otc-network-setup", "wifi-band-lifted")
+        CONFIG["band_lifted_marker"] = marker
+        run = fake_run
+        try:
+            # Joined on 2.4GHz during setup: lifted once, and root's marker
+            # written in its own directory.
+            assert lift(band=(0, "bg\n")) == changed, calls
+            assert os.path.exists(marker) and stat.S_IMODE(os.stat(os.path.dirname(marker)).st_mode) & 0o022 == 0
+            assert lift() == [] and calls == [], calls
+            # The marker gone: the band is read, already lifted, and nothing
+            # is brought up again - the otc user could remove the marker in
+            # its own directory, and root re-activated the Wi-Fi each minute.
+            os.remove(marker)
+            assert lift() == [] and calls == ["nmcli -t -f NAME connection show",
+                                              "nmcli -g 802-11-wireless.band connection show OTC-WiFi"], calls
+            assert os.path.exists(marker)
+            # NetworkManager not answering: nothing done, no marker.
+            os.remove(marker)
+            assert lift(listed=(8, "")) == [] and not os.path.exists(marker)
+            assert lift(band=(10, "")) == [] and not os.path.exists(marker)
+            # No such connection (set up over Bluetooth, or Settings' own
+            # profile): nothing to lift.
+            assert lift(listed=(0, "Wired connection 1\n")) == [] and os.path.exists(marker)
+        finally:
+            run, CONFIG["band_lifted_marker"] = real_run, real_marker
+    print("selftest ok")
+
+
 if __name__ == "__main__":
-    main()
+    if "--selftest" in sys.argv:
+        selftest()
+    else:
+        main()
