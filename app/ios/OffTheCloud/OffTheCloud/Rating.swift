@@ -6,9 +6,10 @@
 //
 //  A collection's Rating (the owner, 2026-11-02; devices from release
 //  163): while it is on, each photo of the collection has 1 to 5 stars and
-//  a comment, the same for the owner and for anyone rating through a
-//  shared link made with it (PhotoRating.from_link). The Android app and
-//  the web follow the same rules:
+//  a comment - for the owner the latest of anyone's, theirs or one through
+//  a shared link made with it (PhotoRating.from_link); a link's visitors
+//  see and change only their link's own (release 169). The Android app
+//  and the web follow the same rules:
 //    - The open collection's header has a star button that turns it on
 //      and off (SetImageGroupRating; off keeps the ratings, hidden). The
 //      first time it is turned on a one-line note says what it does.

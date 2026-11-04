@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // A collection's Rating (release 163; owner, 2026-11-02): with it on, every
-// photo of the collection can have 1 to 5 stars and a comment - one rating a
-// photo, the same for the owner and for anyone rating through the
-// collection's shared link (PhotoRating.from_link). The rules every screen
-// shares, the phones' as well:
+// photo of the collection can have 1 to 5 stars and a comment. The owner
+// sees one rating a photo, the latest of anyone's (PhotoRating.from_link
+// for one through a shared link); a shared link's visitors see and change
+// only their link's own (release 169). The rules every screen shares, the
+// phones' as well:
 //
 // - Show (RatingShow) narrows the grid to "5 stars", "4 stars or more"...
 //   "Rated" (1 or more), "Not rated" or "With a comment", and Sort by
