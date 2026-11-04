@@ -145,6 +145,13 @@ Right after setup the device works on your home network only, like a Raspberry P
 
 Give the server a fixed address in your router, so that address keeps working.
 
+The web app also works at a name of the server's: one with no dot, or one ending in `.local`,
+`.lan`, `.home`, `.home.arpa` or `.internal`. For a name of your own that your network's DNS points
+at the server, such as `nas.example.com`, uncomment `OTC_ALLOWED_ORIGINS` in `compose.yaml` and set
+it to the page's address, `http://nas.example.com:8080`. Without it the page opens but can't
+connect: the device only lets pages at its own names connect, so that no other website can reach it
+through your browser.
+
 ### From anywhere, with friends: the bridge
 
 In the web app, open Settings › Bridge access. Sign in with your Off The Cloud account, or paste a
@@ -495,6 +502,7 @@ Settings go in `.env` (the folder, the ports and the mirror's disks) or under `e
 | `TZ` | UTC | The time zone for the nightly database copy at 03:00, such as `Europe/Amsterdam`. |
 | `OTC_MEMORY_GB` | none | Sizes the device below `mem_limit`, in GB. |
 | `OTC_TRUSTED_PROXIES` | none | Your reverse proxy's addresses or ranges (see [Your own domain](#your-own-domain)). |
+| `OTC_ALLOWED_ORIGINS` | none | Other addresses of pages that may connect, separated by commas, such as `http://nas.example.com:8080`: a name of your own that your network's DNS points at the server (see [At home](#at-home)), or a reverse proxy that passes neither `Host` nor `X-Forwarded-Host` on. |
 | `OTC_OWNER_PASSWORD_FILE` | none | Sets the first owner password from a file as the container starts. |
 | `OTC_LOG_STDOUT` | `0` | `1` copies the device's own log into `docker logs`. |
 | `OTC_ALLOW_DOWNGRADE` | `0` | `1` starts an older image on a folder a newer release has used. |
