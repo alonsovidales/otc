@@ -590,7 +590,6 @@ private object PeopleIcons {
     val Problem: ImageVector by lazy { outlineIcon("Problem", circlePath(12f, 12f, 9f), "M12 7.5V13M12 16.5h.01", stroke = 1.4f) }
 }
 
-private val Danger = Color(0xFFE53935)
 
 // ---- the page ----
 
@@ -822,7 +821,7 @@ private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: 
                 mergeLabel, PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface,
                 dimmedLabel = S.androidPhotosPeopleMergeDimmed().resolve(), onClick = onMerge,
             )
-            BarButton(deleteLabel, PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
+            BarButton(deleteLabel, PeopleIcons.Trash, compact, tint = MaterialTheme.colorScheme.error, onClick = onDelete)
         }
     }
 }
@@ -901,8 +900,8 @@ private fun PersonTile(
                             onClick = { menu = false; onMergeWithOthers() },
                         )
                         DropdownMenuItem(
-                            text = { Text(S.commonDelete().resolve(), color = Danger) },
-                            leadingIcon = { Icon(PeopleIcons.Trash, null, tint = Danger) },
+                            text = { Text(S.commonDelete().resolve(), color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(PeopleIcons.Trash, null, tint = MaterialTheme.colorScheme.error) },
                             onClick = { menu = false; onDelete() },
                         )
                     }
@@ -1146,10 +1145,10 @@ private fun ConfirmPeopleDialog(
         confirmButton = {
             Button(
                 onClick = { if (!busy && ready) onConfirm() }, enabled = ready || busy,
-                colors = if (danger) ButtonDefaults.buttonColors(containerColor = Danger, contentColor = Color.White) else ButtonDefaults.buttonColors(),
+                colors = if (danger) ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError) else ButtonDefaults.buttonColors(),
             ) {
                 if (busy) {
-                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = if (danger) Color.White else colors.onPrimary)
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = if (danger) colors.onError else colors.onPrimary)
                     if (busyText != null) { Spacer(Modifier.width(8.dp)); Text(busyText) }
                 } else Text(action)
             }

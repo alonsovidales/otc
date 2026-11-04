@@ -189,7 +189,7 @@ fun SharedLinksView(onClose: () -> Unit) {
                 onDismissRequest = { vm.askDelete(null) },
                 title = { Text(S.appSettingsLinksDeleteTitle().resolve()) },
                 text = { Text(S.androidSettingsLinksDeleteText().resolve()) },
-                confirmButton = { TextButton(onClick = { scope.launch { vm.delete(l) } }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
+                confirmButton = { TextButton(onClick = { scope.launch { vm.delete(l) } }) { Text(S.commonDelete().resolve(), color = MaterialTheme.colorScheme.error) } },
                 dismissButton = { TextButton(onClick = { vm.askDelete(null) }) { Text(S.commonCancel().resolve()) } },
             )
         }
@@ -222,7 +222,7 @@ private fun SharedLinkRow(l: SharedLinkInfo, deleting: Boolean, onDelete: () -> 
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (deleting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            else IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.appSettingsLinksDeleteLink().resolve(), tint = Color(0xFFE53935)) }
+            else IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.appSettingsLinksDeleteLink().resolve(), tint = MaterialTheme.colorScheme.error) }
         }
     }
 }

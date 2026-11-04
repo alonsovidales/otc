@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.settings
 
 import android.Manifest
+import cloud.offthe.otc.ui.theme.warning
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -217,7 +218,7 @@ fun LimitedAccessNotice(onChange: () -> Unit) {
         PhotoSync.runForegroundAsync()
     }
     // The orange of the bridge's "left the bridge" line.
-    Caption(S.appSettingsLimitedWarning().resolve(), Color(0xFFFF9800))
+    Caption(S.appSettingsLimitedWarning().resolve(), MaterialTheme.colorScheme.warning)
     // Side by side while they fit.
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         // Asked with it, Android 14 offers its choice of photos again (only

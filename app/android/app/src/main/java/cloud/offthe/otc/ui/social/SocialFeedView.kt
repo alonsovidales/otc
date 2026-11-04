@@ -503,7 +503,7 @@ private fun PostCard(
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, S.appSocialPostMoreOptions().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) }, onClick = { menu = false; confirmDeletePost = true })
+                            DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; confirmDeletePost = true })
                         }
                     }
                 }
@@ -567,13 +567,13 @@ private fun PostCard(
     }
     if (confirmDeletePost) AlertDialog(
         onDismissRequest = { confirmDeletePost = false }, title = { Text(S.appSocialPostDeletePostTitle().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text(S.appSocialPostDeletePost().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmDeletePost = false }) { Text(S.commonCancel().resolve()) } },
     )
     commentPendingDelete?.let { uuid ->
         AlertDialog(
             onDismissRequest = { commentPendingDelete = null }, title = { Text(S.appSocialPostDeleteCommentTitle().resolve()) },
-            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text(S.appSocialPostDeleteComment().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text(S.appSocialPostDeleteComment().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { commentPendingDelete = null }) { Text(S.commonCancel().resolve()) } },
         )
     }

@@ -596,7 +596,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
     }
     // Issue #179: every action is a button on the row, as on the web and iOS.
     // Removing is a trash icon: the row ran to a second line of buttons.
-    val danger = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+    val danger = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
     val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
     val labels = if (f.leaving) listOf(S.appSocialFriendsRemoveNow().resolve()) else
         options.map { it.first.resolve() } + listOfNotNull(if (canDelete) (if (f.sent) S.appSocialFriendsCancelRequestButton() else S.commonDecline()).resolve() else null)
@@ -611,7 +611,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text(labels.last()) }
             if (canRemove) OutlinedIconButton(
                 onClick = { confirmingRemove = true },
-                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = Color(0xFFE53935)),
+                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 border = ButtonDefaults.outlinedButtonBorder(),
             ) { Icon(Icons.Outlined.Delete, S.appSocialFriendsRemoveButton().resolve()) }
         }
@@ -651,7 +651,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             onDismissRequest = { confirmingRemoveNow = false },
             title = { Text((if (name != null) S.appSocialFriendsRemoveNowTitle(name) else S.androidFriendsRemoveNowTitleUnnamed()).resolve()) },
             text = { Text(S.appSocialFriendsRemoveNowText().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text(S.androidFriendsRemoveNow().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text(S.androidFriendsRemoveNow().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmingRemoveNow = false }) { Text(S.androidFriendsKeepWaiting().resolve()) } },
         )
     }
@@ -660,7 +660,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             onDismissRequest = { confirmingDelete = false },
             title = { Text((if (f.sent) S.appSocialFriendsCancelConfirmTitle() else S.appSocialFriendsDeleteConfirmTitle()).resolve()) },
             text = { Text((if (f.sent) S.appSocialFriendsCancelConfirmText() else S.appSocialFriendsDeleteConfirmText()).resolve()) },
-            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel.resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel.resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text(S.commonCancel().resolve()) } },
         )
     }

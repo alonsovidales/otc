@@ -160,7 +160,7 @@ internal fun WallpaperBox(group: ImageGroup, onDismiss: () -> Unit) {
                     }
                 } else {
                     Spacer(Modifier.height(16.dp))
-                    val danger = Color(0xFFE53935)
+                    val danger = colors.error
                     OutlinedButton(
                         onClick = { Wallpaper.stop(); onDismiss() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
                         modifier = Modifier.fillMaxWidth(),

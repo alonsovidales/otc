@@ -4655,7 +4655,12 @@ through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is
 colours read at 4.5:1 (`ui/theme/Theme.kt`, `ThemeContrastTest.kt`): light mode's accent is ember
 deepened (`EmberDeep`, #B5371C) with white on it - ember itself is 2.7:1 on white -, dark mode's
 is ember with ember-ink (#26100A) on it, what removes or signs out takes the theme's `error`
-(#B3261E light, #FF8A75 dark), and the critical update's banner `AlertRed`. The
+(#B3261E light, #FF8A75 dark; a filled red button `error` with `onError`), a caption that warns
+the theme's `warning` (#FF9800 dark, `WarningDeep` #8F4E00 light: the orange is 2:1 on light
+surfaces), and the critical update's banner `AlertRed`. No screen hard-codes the old red #E53935
+or that orange for text or a button's content (`ThemeContrastTest.noScreenHardCodesTheOldRedOrOrange`
+scans the sources; the tour's drawings and the storage bar's fill aren't text). iOS doesn't
+follow yet (issue #211: white on ember, ember text in light mode, the system red and orange). The
 Bluetooth setup's Back steps back in the wizard (its `#back`) or leaves, asking first while the
 device installs (`setupLeaveAsks` / `leaveAsks`); `app.shell.setup_not_found` after 30 s of
 looking; Open Settings when access is needed (`ios.open_settings` / `android.open_settings`);

@@ -1883,7 +1883,7 @@ fun FilesExplorerView(initialPath: String) {
         AlertDialog(
             onDismissRequest = { vm.setConfirmDelete(false) },
             title = { Text(S.appFilesDeleteConfirm(n).resolve()) },
-            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); vm.deleteSelected() }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); vm.deleteSelected() }) { Text(S.commonDelete().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text(S.commonCancel().resolve()) } },
         )
     }

@@ -104,6 +104,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.ui.theme.AlertRed
 import cloud.offthe.otc.ui.theme.EmberInk
+import cloud.offthe.otc.ui.theme.warning
+import cloud.offthe.otc.ui.theme.WarningOrange
 import cloud.offthe.otc.data.SmartSearchAnnouncement
 import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
@@ -1100,7 +1102,7 @@ private fun UpdateSection() {
         when (st.restartPhase) {
             "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(S.appSettingsUpdateRestartingNote().resolve()) }
             "back" -> Caption(S.appSettingsUpdateBack().resolve())
-            "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), Color(0xFFFF9800))
+            "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), MaterialTheme.colorScheme.warning)
         }
         st.restartError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
         // Settings > Shut down device (issue #202): turned off cleanly, so it
@@ -1136,7 +1138,7 @@ private fun UpdateSection() {
 @Composable
 private fun KindBadge(kind: String) {
     val (label, color) = when (kind) {
-        "major" -> S.appSettingsUpdateMajor().resolve() to Color(0xFFFF9800)
+        "major" -> S.appSettingsUpdateMajor().resolve() to WarningOrange
         "critical" -> S.appSettingsUpdateCritical().resolve() to AlertRed
         else -> return
     }
@@ -1244,7 +1246,7 @@ private fun WifiSection() {
                 Spacer(Modifier.width(8.dp))
                 Caption(((if (st.phase == WifiViewModel.Phase.SENDING) null else st.note) ?: S.commonConnecting()).resolve())
             }
-            WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), Color(0xFFFF9800))
+            WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), MaterialTheme.colorScheme.warning)
             WifiViewModel.Phase.IDLE -> st.note?.let { Caption(it.resolve()) }
         }
         st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
@@ -1403,7 +1405,7 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
             RowButton(S.appSettingsBridgeLeave().resolve(), enabled = !st.busy, destructive = true) { confirmLeave = true }
             RowButton(S.appSettingsBridgeDeleteAccount().resolve(), enabled = !st.busy, destructive = true) { confirmDelete = true }
         } else {
-            if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), Color(0xFFFF9800))
+            if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), MaterialTheme.colorScheme.warning)
             Caption(S.appSettingsBridgeLocalOnly().resolve())
             RowLink(S.appSettingsBridgeAccountPage().resolve()) { open("account") }
         }

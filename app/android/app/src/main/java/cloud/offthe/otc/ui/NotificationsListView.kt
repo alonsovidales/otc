@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui
 
+import cloud.offthe.otc.ui.theme.warning
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -225,7 +226,7 @@ private fun ErrorRow(n: Notification, now: Long) {
         verticalAlignment = Alignment.Top,
     ) {
         Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9800), modifier = Modifier.size(26.dp))
+            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.warning, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
