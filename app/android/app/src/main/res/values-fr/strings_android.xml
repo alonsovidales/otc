@@ -18,8 +18,6 @@
         <item quantity="many">%1$s octets</item>
         <item quantity="other">%1$s octets</item>
     </plurals>
-    <string name="android_compose_move_left">Déplacer vers la gauche</string>
-    <string name="android_compose_move_right">Déplacer vers la droite</string>
     <string name="android_compose_record_video">Enregistrer une vidéo</string>
     <string name="android_compose_take_photo">Prendre une photo</string>
     <string name="android_download_changed">le fichier a changé sur l’appareil pendant le téléchargement</string>

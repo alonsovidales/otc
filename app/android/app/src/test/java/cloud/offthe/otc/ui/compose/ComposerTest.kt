@@ -3,6 +3,7 @@ package cloud.offthe.otc.ui.compose
 
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.appSocialComposeCaptionNeeded
+import cloud.offthe.otc.i18n.appSocialComposePosition
 import cloud.offthe.otc.i18n.english
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,6 +17,17 @@ import org.junit.Test
 class ComposerTest {
     private fun synced(path: String) = NewPostPickerViewModel.Item("$path#h#1", path)
     private fun phone(id: Long) = NewPostPickerViewModel.Item("local#$id", "")
+
+    /** TalkBack names a synced tile by its File's date, as Images' tile ("Photo, 5 October 2026"). */
+    @Test fun aSyncedTileIsNamedByItsDate() {
+        val at = java.time.ZonedDateTime.of(2026, 10, 5, 12, 0, 0, 0, java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        val photo = NewPostPickerViewModel.Item("/a.jpg#h#1", "/a.jpg", createdMs = at)
+        assertEquals("Photo, 5 October 2026", cloud.offthe.otc.ui.gallery.tileLabel(false, photo.takenMs, java.time.ZoneOffset.UTC).english())
+        val video = NewPostPickerViewModel.Item("/b.mp4#h#1", "/b.mp4", isVideo = true)
+        assertNull(video.takenMs)
+        assertEquals("Video", cloud.offthe.otc.ui.gallery.tileLabel(true, video.takenMs, java.time.ZoneOffset.UTC).english())
+        assertEquals("Number 2 in the post", S.appSocialComposePosition(2).english())
+    }
 
     @Test fun picksStayWhenTheGridShowsAnotherSource() {
         // Two from Synced, then the grid starts over on Phone (its items

@@ -53,14 +53,6 @@
       "other": "{count} bytes"
     }
   },
-  "android.compose_move_left": {
-    "text": "Déplacer vers la gauche",
-    "en": "Move left"
-  },
-  "android.compose_move_right": {
-    "text": "Déplacer vers la droite",
-    "en": "Move right"
-  },
   "android.compose_record_video": {
     "text": "Enregistrer une vidéo",
     "en": "Record a video"

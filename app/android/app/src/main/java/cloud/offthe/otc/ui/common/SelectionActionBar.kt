@@ -208,7 +208,7 @@ private val ClearTarget = 48.dp
  * Laid out as a [shown] square, but measured and touched as a [target]
  * square centred on it: a control drawn small that is easy to hit.
  */
-private fun Modifier.touchTarget(shown: Dp, target: Dp) = layout { measurable, _ ->
+internal fun Modifier.touchTarget(shown: Dp, target: Dp) = layout { measurable, _ ->
     val t = target.roundToPx()
     val s = shown.roundToPx()
     val placeable = measurable.measure(Constraints.fixed(t, t))

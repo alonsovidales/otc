@@ -54,14 +54,6 @@ fun S.androidBluetoothTurnOn(): UiText =
 fun S.androidCacheBytes(count: Int): UiText =
     UiText.Plural(R.plurals.android_cache_bytes, count, listOf(count))
 
-/** "Move left": Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post. */
-fun S.androidComposeMoveLeft(): UiText =
-    UiText.Res(R.string.android_compose_move_left)
-
-/** "Move right": Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post. */
-fun S.androidComposeMoveRight(): UiText =
-    UiText.Res(R.string.android_compose_move_right)
-
 /** "Record a video": Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post. */
 fun S.androidComposeRecordVideo(): UiText =
     UiText.Res(R.string.android_compose_record_video)

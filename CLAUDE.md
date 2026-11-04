@@ -4576,11 +4576,13 @@ The composer is a new view model per opening (Android `ComposerStore`, a `ViewMo
 as the dialog closes; iOS's `@StateObject` per sheet), and Android publishes in an app scope, so
 closing it doesn't stop a post. Picks are `ComposerPicks` (ids in post order with their items),
 kept across a source or tag change and published from there; a capture switches to Phone and
-waits for its page first; `captionNeeded` says "Add a caption to publish". For VoiceOver each of its
-tiles is one element (iOS `PickTile`: the photo or video and its date, `app.social.compose.position` once
-picked), its strip's × and arrows are named 44 pt targets (`app.social.compose.unpick`, `move_left`,
-`move_right`; the place in the post a badge on the thumbnail), and a tag chip's × is named as Images'
-(`app.shell.search_remove`) - a bare "×" read "multiplication sign". Android keeps Synced
+waits for its page first; `captionNeeded` says "Add a caption to publish". For VoiceOver and
+TalkBack each of its tiles is one element (`PickTile`: the photo or video and its date - Images'
+tile label, a Synced item's from its File's `created` -, `app.social.compose.position` once picked,
+as Android's state description, and selected), its strip's × and arrows are named 44 pt / 48 dp
+targets (`app.social.compose.unpick`, `move_left`, `move_right`; the place in the post a badge on
+the thumbnail), and a tag chip's × is named as Images' (`app.shell.search_remove`) - a bare "×"
+read "multiplication sign". Android keeps Synced
 tiles' late thumbnails in `State.thumbKeys`: an `Item` equals another by id, so a copy with a new
 key was an equal State the flow dropped. The feed's requests go through `socialRequest` (iOS) and
 Android's `FeedSend` helpers (`commentRefusal`, `deleteRefusal`, `fetchPost`): a comment the

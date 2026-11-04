@@ -18,8 +18,6 @@
         <item quantity="many">%1$s byte</item>
         <item quantity="other">%1$s byte</item>
     </plurals>
-    <string name="android_compose_move_left">Sposta a sinistra</string>
-    <string name="android_compose_move_right">Sposta a destra</string>
     <string name="android_compose_record_video">Registra un video</string>
     <string name="android_compose_take_photo">Scatta una foto</string>
     <string name="android_download_changed">il file è cambiato sul dispositivo durante il download</string>

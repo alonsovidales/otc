@@ -53,14 +53,6 @@
     "args": [["count", "count"]],
     "note": "Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB."
   },
-  "android.compose_move_left": {
-    "text": "Move left",
-    "note": "Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post."
-  },
-  "android.compose_move_right": {
-    "text": "Move right",
-    "note": "Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post."
-  },
   "android.compose_record_video": {
     "text": "Record a video",
     "note": "Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post.",

@@ -101,8 +101,6 @@ import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.ui.common.FitText
 import cloud.offthe.otc.i18n.UiText
-import cloud.offthe.otc.i18n.androidComposeMoveLeft
-import cloud.offthe.otc.i18n.androidComposeMoveRight
 import cloud.offthe.otc.i18n.androidComposeRecordVideo
 import cloud.offthe.otc.i18n.androidComposeTakePhoto
 import cloud.offthe.otc.i18n.appSocialComposeCamera
@@ -125,7 +123,6 @@ import cloud.offthe.otc.i18n.appSocialComposeTrimLoadFailed
 import cloud.offthe.otc.i18n.appSocialComposeUploading
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonOk
-import cloud.offthe.otc.i18n.commonRemove
 import cloud.offthe.otc.i18n.commonSearch
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.OTCConnection
@@ -156,6 +153,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.material.icons.filled.Close
+import cloud.offthe.otc.i18n.appShellSearchRemove
+import cloud.offthe.otc.i18n.appSocialComposeMoveLeft
+import cloud.offthe.otc.i18n.appSocialComposeMoveRight
+import cloud.offthe.otc.i18n.appSocialComposePosition
+import cloud.offthe.otc.i18n.appSocialComposeUnpick
+import cloud.offthe.otc.ui.common.touchTarget
+import cloud.offthe.otc.ui.gallery.tileLabel
+import java.time.ZoneId
 
 // Port of NewPostPicker.swift (issue #32): Phone / Synced source (issue
 // #49), tag filter for Synced, numbered selection with an "Order in post"
@@ -167,9 +178,17 @@ class NewPostPickerViewModel : ViewModel() {
     // while it has none - fetched by `tiles`). A phone item's comes
     // from MediaStore when its tile shows (see thumbOf), so pages scrolled
     // through don't each keep 60 bitmaps.
-    data class Item(val id: String, val path: String, val thumbKey: String? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
+    // createdMs: a synced item's date (its File's created); a phone item's
+    // is its asset's.
+    data class Item(
+        val id: String, val path: String, val thumbKey: String? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false,
+        val createdMs: Long? = null,
+    ) {
         override fun equals(other: Any?) = other is Item && other.id == id
         override fun hashCode() = id.hashCode()
+
+        /** When it was taken, for TalkBack's name of its tile (tileLabel). */
+        val takenMs: Long? get() = createdMs ?: asset?.dateAddedMs?.takeIf { it > 0 }
     }
 
     data class State(
@@ -392,7 +411,10 @@ class NewPostPickerViewModel : ViewModel() {
             val lof = resp.respListOfFiles
             val landed = ThumbStore.land(lof.filesList, thumbScope)
             if (mine != searchGeneration) return
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.byteSize}", f.path, thumbKey = landed.keys[f.path], isVideo = f.mime.startsWith("video/")) }
+            val newItems = lof.filesList.map { f ->
+                Item("${f.path}#${f.hash}#${f.byteSize}", f.path, thumbKey = landed.keys[f.path], isVideo = f.mime.startsWith("video/"),
+                    createdMs = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null)
+            }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             // Asked for as their tiles show or come near.
             tiles.note(landed.fetch, landed.refetch)
@@ -713,8 +735,13 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                         if (st.chips.isNotEmpty()) {
                             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 st.chips.forEach { chip ->
-                                    Row(Modifier.background(Color(0x262196F3), CircleShape).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                                        Text(chip); Spacer(Modifier.width(6.dp)); Text("×", Modifier.clickable { vm.removeChip(chip) })
+                                    Row(Modifier.background(Color(0x262196F3), CircleShape).padding(start = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(chip); Spacer(Modifier.width(2.dp))
+                                        // As Images' chips have it: a glyph named for
+                                        // TalkBack (a bare "×" read "multiplication sign").
+                                        Box(Modifier.size(28.dp).clip(CircleShape).clickable { vm.removeChip(chip) }, contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Close, S.appShellSearchRemove(chip).resolve(), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
                                     }
                                 }
                             }
@@ -843,7 +870,18 @@ private fun PickTile(
 ) {
     val bmp = thumbOf(item, thumbKey, sidePx, onLost, onUndecodable)
     val selected = selectionNumber != null
-    Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x33808080)).clickable(onClick = onTap)) {
+    // One element for TalkBack: what it is and when it was taken (Images'
+    // tile label), and its place in the post once picked - its number
+    // alone read "1".
+    val resources = LocalResources.current
+    Box(
+        Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x33808080)).clickable(onClick = onTap)
+            .semantics {
+                contentDescription = tileLabel(item.isVideo, item.takenMs, ZoneId.systemDefault()).resolve(resources)
+                selectionNumber?.let { stateDescription = S.appSocialComposePosition(it).resolve(resources) }
+                this.selected = selected
+            },
+    ) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize().alpha(if (selected) 0.75f else 1f), contentScale = ContentScale.Crop)
         if (selected) Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)))
         if (item.isVideo) {
@@ -852,7 +890,7 @@ private fun PickTile(
             }
         }
         if (selectionNumber != null) {
-            Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(22.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(22.dp).background(MaterialTheme.colorScheme.primary, CircleShape).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
                 Text("$selectionNumber", color = MaterialTheme.colorScheme.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -888,10 +926,26 @@ private fun SelectedThumb(
     moveLeft: () -> Unit, moveRight: () -> Unit, remove: () -> Unit, trim: (() -> Unit)?, trimRange: TrimRange?, trimLoading: Boolean,
 ) {
     val bmp = thumbOf(item, thumbKey, with(LocalDensity.current) { 60.dp.roundToPx() })
+    val resources = LocalResources.current
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(64.dp)) {
-            Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080)).clickable(enabled = trim != null && !trimLoading) { trim?.invoke() }) {
+            Box(
+                Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080))
+                    .then(if (trim != null) Modifier.clickable(enabled = !trimLoading) { trim() } else Modifier)
+                    // TalkBack: what it is, when it was taken and its place in
+                    // the post; a video's opens the trimmer.
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = tileLabel(item.isVideo, item.takenMs, ZoneId.systemDefault()).resolve(resources)
+                        stateDescription = S.appSocialComposePosition(position).resolve(resources)
+                    },
+            ) {
                 if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                // Its place in the post (the arrows below move it).
+                Text(
+                    "$position", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.TopStart).padding(3.dp).background(Color(0x99000000), CircleShape)
+                        .padding(horizontal = 5.dp).clearAndSetSemantics {},
+                )
                 if (trim != null) {
                     Box(Modifier.align(Alignment.BottomStart).padding(2.dp).background(if (trimRange == null) Color(0x99000000) else MaterialTheme.colorScheme.primary, CircleShape).padding(horizontal = 6.dp, vertical = 2.dp)) {
                         if (trimLoading) CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = Color.White)
@@ -902,12 +956,18 @@ private fun SelectedThumb(
                     }
                 }
             }
-            Icon(Icons.Default.Cancel, S.commonRemove().resolve(), Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(18.dp).clickable(onClick = remove), tint = Color.White)
+            // A 48 dp square answers it, the glyph as small as it was.
+            Box(
+                Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).touchTarget(18.dp, 48.dp).clickable(onClick = remove),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Cancel, S.appSocialComposeUnpick().resolve(), Modifier.size(18.dp), tint = Color.White)
+            }
         }
+        // Each arrow a 48 dp target, side by side under the thumbnail.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = moveLeft, enabled = canMoveLeft, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronLeft, S.androidComposeMoveLeft().resolve(), Modifier.size(18.dp)) }
-            Text("$position", style = MaterialTheme.typography.labelSmall)
-            IconButton(onClick = moveRight, enabled = canMoveRight, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronRight, S.androidComposeMoveRight().resolve(), Modifier.size(18.dp)) }
+            IconButton(onClick = moveLeft, enabled = canMoveLeft, modifier = Modifier.size(48.dp, 40.dp)) { Icon(Icons.Default.ChevronLeft, S.appSocialComposeMoveLeft().resolve(), Modifier.size(22.dp)) }
+            IconButton(onClick = moveRight, enabled = canMoveRight, modifier = Modifier.size(48.dp, 40.dp)) { Icon(Icons.Default.ChevronRight, S.appSocialComposeMoveRight().resolve(), Modifier.size(22.dp)) }
         }
     }
 }

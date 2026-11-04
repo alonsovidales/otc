@@ -18,8 +18,6 @@
         <item quantity="many">%1$s bytes</item>
         <item quantity="other">%1$s bytes</item>
     </plurals>
-    <string name="android_compose_move_left">Mover para a esquerda</string>
-    <string name="android_compose_move_right">Mover para a direita</string>
     <string name="android_compose_record_video">Gravar um vídeo</string>
     <string name="android_compose_take_photo">Tirar uma foto</string>
     <string name="android_download_changed">o ficheiro mudou no dispositivo durante a transferência</string>

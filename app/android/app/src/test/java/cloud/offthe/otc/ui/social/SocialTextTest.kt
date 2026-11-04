@@ -13,8 +13,6 @@ import cloud.offthe.otc.i18n.UiTextFormat
 import cloud.offthe.otc.i18n.androidAlertsCollapse
 import cloud.offthe.otc.i18n.androidAlertsExpand
 import cloud.offthe.otc.i18n.androidAlertsFriends
-import cloud.offthe.otc.i18n.androidComposeMoveLeft
-import cloud.offthe.otc.i18n.androidComposeMoveRight
 import cloud.offthe.otc.i18n.androidComposeRecordVideo
 import cloud.offthe.otc.i18n.androidComposeTakePhoto
 import cloud.offthe.otc.i18n.androidFriendsAskTheirsUnnamed
@@ -50,7 +48,10 @@ import cloud.offthe.otc.i18n.appSocialComposeCamera
 import cloud.offthe.otc.i18n.appSocialComposeCaptionPlaceholder
 import cloud.offthe.otc.i18n.appSocialComposeEmptyResponse
 import cloud.offthe.otc.i18n.appSocialComposeFilterPlaceholder
+import cloud.offthe.otc.i18n.appSocialComposeMoveLeft
+import cloud.offthe.otc.i18n.appSocialComposeMoveRight
 import cloud.offthe.otc.i18n.appSocialComposeOrder
+import cloud.offthe.otc.i18n.appSocialComposeUnpick
 import cloud.offthe.otc.i18n.appSocialComposePhotosAccess
 import cloud.offthe.otc.i18n.appSocialComposePublish
 import cloud.offthe.otc.i18n.appSocialComposePublishCount
@@ -337,8 +338,9 @@ class SocialTextTest {
         assertEquals("Publish" + " (3)", S.appSocialComposePublishCount(3).english())
         assertEquals("Order in post", S.appSocialComposeOrder().english())
         assertEquals("✂ Trim", S.appSocialComposeTrimBadge().english())
-        assertEquals("Move left", S.androidComposeMoveLeft().english())
-        assertEquals("Move right", S.androidComposeMoveRight().english())
+        assertEquals("Move left", S.appSocialComposeMoveLeft().english())
+        assertEquals("Move right", S.appSocialComposeMoveRight().english())
+        assertEquals("Remove from the post", S.appSocialComposeUnpick().english())
     }
 
     @Test fun commonWordsReused() {
