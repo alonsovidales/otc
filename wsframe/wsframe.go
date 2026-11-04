@@ -77,6 +77,13 @@ func (b *Budget) acquire(n int64) error {
 	return nil
 }
 
+// Held is how many bytes the budget holds right now.
+func (b *Budget) Held() int64 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.used
+}
+
 func (b *Budget) release(n int64) {
 	if n == 0 {
 		return

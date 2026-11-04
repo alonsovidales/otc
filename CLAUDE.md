@@ -2248,7 +2248,11 @@ keyed by domain (`bridgePool` in `bridge/websocket/websocket.go`) and proxies fr
 to the right device — the device never accepts inbound connections directly.
 
 Relay invariants: a `/ws` socket not yet paired has a 2 min read deadline (`cUnpairedReadTimeout`)
-and is closed on every return path unless a device relay owns it (`handedOff`). Every write to a
+and is closed on every return path unless a device relay owns it (`handedOff`); one address has at
+most 64 of them open (an IPv6 /64, and 256 per /48: `[bridge] max-unpaired-per-addr`), and their messages are
+read with 64 KiB outside a budget of their own (`unpairedBudget`, 256 MiB), held until each is
+handled - a pairing's first request until the device has it. A paired client's messages are read
+with 256 KiB outside `frameBudget` (`frameRules`): 32 in flight held 4 MiB each outside it. Every write to a
 client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
 a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
 so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and

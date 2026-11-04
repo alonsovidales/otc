@@ -288,7 +288,7 @@ type deviceRelay struct {
 	onDeath func()
 	once    sync.Once
 
-	stopPing chan struct{}  // closed once, from failAll, to stop pingLoop
+	stopPing chan struct{} // closed once, from failAll, to stop pingLoop
 	// dead is closed once, from failAll, when the connection is gone: the
 	// client paired with it is hung up on then (handleConnection), so its
 	// next request opens a socket with a live connection.
@@ -678,6 +678,10 @@ type Manager struct {
 	// pairedMu.
 	sessions  map[string]map[*clientSession]struct{}
 	anonByKey map[string]int
+	// unpairedByAddr counts the sockets not paired yet by address and
+	// /48 (reserveUnpaired).
+	unpairedMu     sync.Mutex
+	unpairedByAddr map[string]int
 
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
@@ -1581,20 +1585,44 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		}
 	}()
 
+	// One address may have only so many sockets waiting to pair (or to
+	// register, a device's): counted until this one does, or ends.
+	addr := clientAddr(r, conn)
+	unpairedKeys, ok := mg.reserveUnpaired(addr)
+	if !ok {
+		mg.logRefusal(clientaddr.Bucket(addr), "too many connections not paired yet from", addr) // i18n-ignore: a log line
+		return
+	}
+	unpairedHeld := true
+	stopUnpaired := func() {
+		if unpairedHeld {
+			unpairedHeld = false
+			mg.releaseUnpaired(unpairedKeys)
+		}
+	}
+	defer stopUnpaired()
+	// An unpaired message's budget share is held until it has been
+	// handled - a pairing's first request until the device has it - and
+	// given back here on the way out.
+	var unpairedRelease func()
+	defer func() {
+		if unpairedRelease != nil {
+			unpairedRelease()
+		}
+	}()
+
 	for {
 		// Small until the client is paired with a device (its first
 		// request, a device's registration); a relayed request may carry a
 		// whole file (up to 1000 MB) and is budgeted (see wsframe).
-		limit := int64(cUnpairedReadLimit)
-		if relay != nil {
-			limit = cRelayedReadLimit
-		} else {
+		limit, free, budget := frameRules(relay != nil)
+		if relay == nil {
 			// Once paired, the deadline is the session's (sessions.go):
 			// none after it has signed in, cAnonPairedIdle while it
 			// hasn't and has nothing in flight.
 			conn.SetReadDeadline(time.Now().Add(cUnpairedReadTimeout))
 		}
-		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
+		_, frame, releaseFrame, err := wsframe.ReadFree(conn, limit, free, budget)
 		if err != nil {
 			var ne net.Error
 			switch {
@@ -1726,8 +1754,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			}(frame)
 		} else {
 			// Unpaired: a small message (see cUnpairedReadLimit), handled
-			// right here - its share of the budget isn't needed past this.
-			releaseFrame()
+			// right here.
+			unpairedRelease = releaseFrame
 			var env pb.ReqEnvelope
 			if err := proto.Unmarshal(frame, &env); err != nil {
 				log.Error("bad proto:", err)
@@ -2216,7 +2244,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if ok {
 					// Reserved before a candidate is popped, so a refused
 					// client never costs the device the first round trip.
-					addr := clientAddr(r, conn)
 					pairKey := pairingKey(addr, r.Host)
 					shareKeys := anonKeys(addr, r.Host)
 					allowed := mg.reservePairing(pairKey)
@@ -2307,6 +2334,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 							continue
 						}
 						log.Debug("Connected")
+						releaseFrame()
+						unpairedRelease = nil
+						stopUnpaired()
 
 						picked = candidate
 						relay = candidate
@@ -2387,6 +2417,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 				}
 			}
+			// Handled, and the socket goes on: its next message is read.
+			releaseFrame()
+			unpairedRelease = nil
 		}
 	}
 }
@@ -2408,10 +2441,87 @@ const (
 	cUnpairedReadLimit = 8 << 20
 	// cRelayedReadLimit: a relayed request may carry a whole file.
 	cRelayedReadLimit = 1000<<20 + 1<<20
+	// cUnpairedFree and cRelayedFree are how much of a message is read
+	// outside its budget, before and after pairing. Every request but a
+	// file's piece fits; what goes past them is budgeted. Read whole up to
+	// 4 MiB (wsframe's default), anyone's socket held up to 8 MiB of an
+	// unfinished first message, and a paired one 32 messages of 4 MiB
+	// queued for the device: memory nothing bounded but the senders'
+	// bandwidth.
+	cUnpairedFree = 64 << 10
+	cRelayedFree  = 256 << 10
 )
+
+// frameRules is how a client's next message is read: its largest size,
+// how much of it outside its budget, and the budget for the rest
+// (wsframe.ReadFree).
+func frameRules(paired bool) (limit, free int64, budget *wsframe.Budget) {
+	if paired {
+		return cRelayedReadLimit, cRelayedFree, frameBudget
+	}
+	return cUnpairedReadLimit, cUnpairedFree, unpairedBudget
+}
 
 // frameBudget bounds the memory of large messages being relayed at once.
 var frameBudget = wsframe.NewBudget(8 << 30)
+
+// unpairedBudget is frameBudget for the messages of sockets not paired
+// yet, held until each has been handled: a device's logs, mostly. Of
+// their own, so strangers' first messages never take the room uploads
+// wait on.
+var unpairedBudget = wsframe.NewBudget(256 << 20)
+
+// cMaxUnpairedPerAddr caps the sockets one address (an IPv6 /64) has open
+// before they pair with a device or register as one, and four times it
+// those of one IPv6 /48: nothing did, and each holds a goroutine and the
+// message it is sending. Every client pairs with its first request and a
+// device's connection registers with its first, so even a household of
+// devices dialling in at once stays far below. [bridge]
+// max-unpaired-per-addr sets it (a load test's bridge, whose idle sockets
+// all come from one machine). Var so tests can shrink it.
+var cMaxUnpairedPerAddr = 64
+
+func maxUnpairedPerAddr() int {
+	return bridgeLimit("max-unpaired-per-addr", cMaxUnpairedPerAddr)
+}
+
+// reserveUnpaired counts one more socket not paired yet from addr, unless
+// its address or its /48 already has its cap; releaseUnpaired gives it
+// back.
+func (mg *Manager) reserveUnpaired(addr string) (keys []string, ok bool) {
+	limit := maxUnpairedPerAddr()
+	keys = []string{clientaddr.Bucket(addr)}
+	caps := []int{limit}
+	if w := clientaddr.Wide(addr); w != "" {
+		keys, caps = append(keys, w), append(caps, 4*limit)
+	}
+	mg.unpairedMu.Lock()
+	defer mg.unpairedMu.Unlock()
+	for i, k := range keys {
+		if mg.unpairedByAddr[k] >= caps[i] {
+			return nil, false
+		}
+	}
+	if mg.unpairedByAddr == nil {
+		mg.unpairedByAddr = map[string]int{}
+	}
+	for _, k := range keys {
+		mg.unpairedByAddr[k]++
+	}
+	return keys, true
+}
+
+func (mg *Manager) releaseUnpaired(keys []string) {
+	mg.unpairedMu.Lock()
+	defer mg.unpairedMu.Unlock()
+	for _, k := range keys {
+		if mg.unpairedByAddr[k] <= 1 {
+			delete(mg.unpairedByAddr, k)
+		} else {
+			mg.unpairedByAddr[k]--
+		}
+	}
+}
 
 // replyBudget is frameBudget for the devices' replies. Separate: a client's
 // request holds its frameBudget share until its reply has arrived, so
