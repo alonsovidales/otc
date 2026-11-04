@@ -136,10 +136,6 @@ final class SyncModel: ObservableObject {
     // permanent/stuck. This is a much shorter, dedicated retry just for
     // folders currently in .error.
     private static let errorRetryInterval: Duration = .seconds(30)
-    /// Two-way folders: more local deletions than this in one pass (and a
-    /// quarter of the folder) mean the device lost the files, not that the
-    /// owner deleted them - see reconcileRemoteFolder.
-    private static let massDeleteMin = 20
     // Issue #47: polling is the *only* way to notice a remote-side change
     // (no watcher possible there), so this needs to be short enough to
     // feel like "kept in sync" rather than the 10-minute upload-side
@@ -537,14 +533,38 @@ final class SyncModel: ObservableObject {
     /// Forgets the cached hashes of files no longer in the folder (deleted,
     /// renamed, or under the folder's old path after it moved), which
     /// were kept, and rewritten with the cache, for good. `present` is
-    /// the folder's files by cache key, from a scan that saw all of them:
-    /// a partial one would drop hashes still needed.
-    private func pruneHashCache(_ folderId: UUID, keeping present: Set<String>) async {
+    /// the folder's files by cache key, from a scan that saw all of them
+    /// but what is under `unknown` (full paths, each ending in "/"): the
+    /// folders that could not be read and, for a two-way folder, the disks
+    /// mounted in it that aren't now - unknown, not gone, so their entries
+    /// stay.
+    private func pruneHashCache(_ folderId: UUID, keeping present: Set<String>, under unknown: [String] = []) async {
         // First: a load after the prune would bring the stale entries back.
         await loadHashCacheIfNeeded(folderId)
-        let stale = localHashCache[folderId]?.keys.filter { !present.contains($0) } ?? []
+        let stale = localHashCache[folderId]?.keys.filter { key in
+            !present.contains(key) && !unknown.contains { key.hasPrefix($0) }
+        } ?? []
         guard !stale.isEmpty else { return }
         for key in stale { localHashCache[folderId]?.removeValue(forKey: key) }
+        hashCacheDirty.insert(folderId)
+    }
+
+    /// The cached hashes of the files of folders renamed only in case
+    /// (SyncPaths.matchFolderCase) follow them, so they aren't read again.
+    private func renameHashCache(_ folderId: UUID, _ renames: [SyncPaths.CaseRename]) async {
+        await loadHashCacheIfNeeded(folderId)
+        guard var cache = localHashCache[folderId] else { return }
+        var moved = false
+        for r in renames {
+            let prefix = r.fromDir + "/"
+            for (path, entry) in cache where path.utf8.starts(with: prefix.utf8) {
+                cache.removeValue(forKey: path)
+                cache[r.toDir + "/" + String(decoding: path.utf8.dropFirst(prefix.utf8.count), as: UTF8.self)] = entry
+                moved = true
+            }
+        }
+        guard moved else { return }
+        localHashCache[folderId] = cache
         hashCacheDirty.insert(folderId)
     }
 
@@ -569,6 +589,12 @@ final class SyncModel: ObservableObject {
     /// The device each loaded or saved record was made with; absent for an
     /// older version's record, which is taken as the configured device's.
     private var syncedDevices: [UUID: SyncPaths.RecordDevice] = [:]
+    /// What each record says about the folder here (its marker's token, the
+    /// disks mounted in it), whatever the device; and when the record's
+    /// file was written, as it was read - none once this run wrote it (a
+    /// record from before "mounts" is judged by it once: maybeMounts).
+    private var syncedMeta: [UUID: SyncPaths.FolderMeta] = [:]
+    private var syncedWritten: [UUID: Date] = [:]
     // Records whose last write failed: the next pass writes them again
     // even when nothing changed, or a relaunch would start from the
     // stale one on disk.
@@ -587,41 +613,39 @@ final class SyncModel: ObservableObject {
         guard !syncedLoaded.contains(folderId) else { return }
         syncedLoaded.insert(folderId)
         let url = Self.syncedURL(folderId)
-        let stored = await Task.detached(priority: .utility) { () -> (files: [String: String], device: SyncPaths.RecordDevice?)? in
-            guard let url, let data = try? Data(contentsOf: url) else { return nil }
-            return SyncPaths.parseRecord(data)
+        let stored = await Task.detached(priority: .utility) { () -> (files: [String: String], device: SyncPaths.RecordDevice?, meta: SyncPaths.FolderMeta, written: Date?)? in
+            guard let url, let data = try? Data(contentsOf: url), let record = SyncPaths.parseRecord(data) else { return nil }
+            let written = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+            return (record.files, record.device, record.meta, written)
         }.value
         // Removed meanwhile: stays removed.
         guard let stored, syncedLoaded.contains(folderId) else { return }
         lastSyncedByRemoteFolder[folderId] = stored.files
         if let device = stored.device { syncedDevices[folderId] = device } else { syncedDevices.removeValue(forKey: folderId) }
+        syncedMeta[folderId] = stored.meta
+        syncedWritten[folderId] = stored.written
     }
 
-    /// The device a pass at `domain` talks to, as records name it.
+    /// The device a pass at `domain` talks to, as records name it: its
+    /// address, and its pin only as this sign-in confirmed it
+    /// (WSClient.sessionPin) - the one stored from an earlier sign-in may be
+    /// of a device set up again since under the same name.
     private func recordDevice(_ domain: String?) -> SyncPaths.RecordDevice {
-        let pin = ws.localPin.map { $0.map { String(format: "%02x", $0) }.joined() }
+        let pin = ws.sessionPin().map { $0.map { String(format: "%02x", $0) }.joined() }
         return SyncPaths.RecordDevice(domain: SyncPaths.deviceDomainKey(domain ?? ""), pin: pin)
     }
 
-    /// Folder `folderId`'s record for `device`: the one loaded, or none when
-    /// it was made with another device - that pass only copies what one side
-    /// lacks, and deletes nothing.
-    private func record(_ folderId: UUID, for device: SyncPaths.RecordDevice) -> [String: String] {
-        let stored = lastSyncedByRemoteFolder[folderId] ?? [:]
-        if let made = syncedDevices[folderId], !SyncPaths.recordMatches(made, device), !stored.isEmpty {
-            syncLog.notice("the sync record of \(folderId.uuidString, privacy: .public) was made with another device (\(made.domain, privacy: .public)) - this pass only copies what one side lacks, and deletes nothing") // i18n-ignore: a log line
-            return [:]
-        }
-        return stored
-    }
-
-    private func saveSynced(_ folderId: UUID, _ synced: [String: String], device: SyncPaths.RecordDevice) {
+    /// Writes folder `folderId`'s record, made with `device`, and what it
+    /// says about the folder here (`meta`).
+    private func saveSynced(_ folderId: UUID, _ synced: [String: String], device: SyncPaths.RecordDevice, meta: SyncPaths.FolderMeta) {
         guard remoteFolders.contains(where: { $0.id == folderId }), let url = Self.syncedURL(folderId) else { return }
         syncedUnsaved.remove(folderId)
         syncedDevices[folderId] = device
+        syncedMeta[folderId] = meta
+        syncedWritten.removeValue(forKey: folderId)
         Task.detached(priority: .utility) {
             do {
-                guard let data = SyncPaths.encodeRecord(files: synced, device: device) else { throw CocoaError(.coderInvalidValue) }
+                guard let data = SyncPaths.encodeRecord(files: synced, device: device, meta: meta) else { throw CocoaError(.coderInvalidValue) }
                 try Self.writeDurably(data, to: url)
             } catch {
                 syncLog.error("could not save the sync record of \(folderId.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -639,6 +663,20 @@ final class SyncModel: ObservableObject {
         syncedLoaded.remove(folderId)
         syncedUnsaved.remove(folderId)
         syncedDevices.removeValue(forKey: folderId)
+        syncedMeta.removeValue(forKey: folderId)
+        syncedWritten.removeValue(forKey: folderId)
+        if let url = Self.syncedURL(folderId) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// The record of a folder picked again by the owner where it was, which
+    /// isn't the folder the record was made with (relink): gone, so the pass
+    /// is a first pass - it copies what one side lacks and deletes nothing.
+    /// It stays loaded (as none) for the pass that writes the new one.
+    private func forgetRecord(_ folderId: UUID) {
+        lastSyncedByRemoteFolder[folderId] = [:]
+        syncedDevices.removeValue(forKey: folderId)
+        syncedMeta.removeValue(forKey: folderId)
+        syncedWritten.removeValue(forKey: folderId)
         if let url = Self.syncedURL(folderId) { try? FileManager.default.removeItem(at: url) }
     }
 
@@ -1196,12 +1234,13 @@ final class SyncModel: ObservableObject {
 
     /// Whether `url` (syncing with `devicePath`) can be added. A folder
     /// waiting for its disk at that same place (a bookmark that didn't
-    /// resolve) is linked to it again instead - one folder, not two - and
-    /// false is returned: nothing more to add.
+    /// resolve), or waiting there for being another folder than the synced
+    /// one, is linked to it again instead - one folder, not two - and false
+    /// is returned: nothing more to add.
     private func admit(_ url: URL, devicePath: String) -> Bool {
         refusedFolder = nil
         let path = url.standardizedFileURL.path
-        if let id = missingRoots.first(where: { id in
+        if let id = missingRoots.union(replacedRoots).first(where: { id in
             let p = folders.first { $0.id == id }?.url.path ?? remoteFolders.first { $0.id == id }?.localURL.path
             return p.map { SyncPaths.overlap(path, with: [($0, "")], ignoringCase: true) == .same("") } ?? false
         }) {
@@ -1231,6 +1270,13 @@ final class SyncModel: ObservableObject {
 
     /// Folder `id`, waiting for its disk, picked again at `url`: its new
     /// bookmark replaces the one that didn't resolve, and its pass starts.
+    /// A two-way folder keeps its record only when the folder picked is the
+    /// one the record was made with (its marker, or most of its files: the
+    /// pass's identity check); else the owner has picked the folder to sync
+    /// now - another disk, a copy without its hidden files - and its record
+    /// goes (adoptOnce): that pass copies what one side lacks and deletes
+    /// nothing. Relinked to the old record, such a folder took every file
+    /// it lacked for one deleted here, and deleted it on the device.
     private func relink(_ id: UUID, to url: URL) {
         guard let bookmark = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) else { return }
         _ = url.startAccessingSecurityScopedResource()
@@ -1239,7 +1285,9 @@ final class SyncModel: ObservableObject {
             let r = remote[i]
             remote[i] = StoredRemoteFolder(id: id, remotePath: r.remotePath, bookmark: bookmark, outOfImages: r.outOfImages, uploadOnly: r.uploadOnly)
             persistRemoteFolders(bookmarks: remote)
+            remoteFolders[idx].localURL.stopAccessingSecurityScopedResource()
             remoteFolders[idx].localURL = url
+            adoptOnce.insert(id)
             if settings?.ready == true, ws.isConnected() {
                 Task {
                     guard let folder = self.remoteFolders.first(where: { $0.id == id }) else { return }
@@ -1305,9 +1353,26 @@ final class SyncModel: ObservableObject {
         remoteErrorRetryTasks.removeValue(forKey: f.id)
         forgetRequests(f.id)
         missingRoots.remove(f.id)
+        replacedRoots.remove(f.id)
+        adoptOnce.remove(f.id)
+        markFailed.remove(f.id)
+        trashFallbacks.remove(f.id)
+        goneMountsSeen.removeValue(forKey: f.id)
+        massHeld.removeValue(forKey: f.id)
+        unconfirmed.removeValue(forKey: f.id)
+        forgetFailedUnder(f.localURL.standardizedFileURL.path, keeping: [])
 
         dropHashCache(f.id)
-        f.localURL.stopAccessingSecurityScopedResource()
+        // Its marker goes with it (best effort; one on a disk that isn't
+        // there now stays, harmless) - off the main actor, where an unlink
+        // on a dead network share could hang the app. The folder's access
+        // ends once that is done.
+        let scoped = f.localURL
+        let marker = f.localURL.appendingPathComponent(SyncPaths.markerName(f.id)).path
+        Task.detached(priority: .utility) {
+            unlink(marker)
+            scoped.stopAccessingSecurityScopedResource()
+        }
         remoteFolders.removeAll { $0.id == f.id }
 
         var stored = existingStoredRemote()
@@ -1577,11 +1642,11 @@ final class SyncModel: ObservableObject {
             }
 
             // Upload only: what couldn't be read is simply not sent.
-            let (scan, present) = await Task.detached(priority: .utility) { () -> (LocalScan, Set<String>) in
-                let scan = Self.enumerateFilesRecursively(at: root)
-                return (scan, Set(scan.urls.map { $0.standardizedFileURL.path }))
+            let (scan, present) = await Task.detached(priority: .utility) { () -> (SyncPaths.FolderScan, Set<String>) in
+                let scan = SyncPaths.scanFolder(at: root)
+                return (scan, Set(scan.files.map { $0.standardizedFileURL.path }))
             }.value
-            let localFiles = scan.urls
+            let localFiles = scan.files
             // Right after the scan, so what the watcher caches during a
             // long pass stays.
             if scan.complete { await pruneHashCache(folder.id, keeping: present) }
@@ -1890,20 +1955,24 @@ final class SyncModel: ObservableObject {
               Self.isDirectory(url) else { return nil }
         _ = url.startAccessingSecurityScopedResource()
         syncLog.notice("the folder is at \(url.path, privacy: .public) - syncing it there") // i18n-ignore: a log line
-        if stale, let fresh = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) {
-            var remote = existingStoredRemote()
-            if let i = remote.firstIndex(where: { $0.id == id }) {
-                let r = remote[i]
-                remote[i] = StoredRemoteFolder(id: r.id, remotePath: r.remotePath, bookmark: fresh, outOfImages: r.outOfImages, uploadOnly: r.uploadOnly)
-                persistRemoteFolders(bookmarks: remote)
-            }
-            var backups = existingStored()
-            if let i = backups.firstIndex(where: { $0.id == id }) {
-                backups[i] = StoredFolder(id: id, bookmark: fresh, outOfImages: backups[i].outOfImages)
-                persistFolders(bookmarks: backups)
-            }
-        }
+        if stale { renewBookmark(id, at: url) }
         return url
+    }
+
+    /// Folder `id`'s stored bookmark made again for `url`, where it is now.
+    private func renewBookmark(_ id: UUID, at url: URL) {
+        guard let fresh = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) else { return }
+        var remote = existingStoredRemote()
+        if let i = remote.firstIndex(where: { $0.id == id }) {
+            let r = remote[i]
+            remote[i] = StoredRemoteFolder(id: r.id, remotePath: r.remotePath, bookmark: fresh, outOfImages: r.outOfImages, uploadOnly: r.uploadOnly)
+            persistRemoteFolders(bookmarks: remote)
+        }
+        var backups = existingStored()
+        if let i = backups.firstIndex(where: { $0.id == id }) {
+            backups[i] = StoredFolder(id: id, bookmark: fresh, outOfImages: backups[i].outOfImages)
+            persistFolders(bookmarks: backups)
+        }
     }
 
     private func startRemoteReconcileLoop() {
@@ -1970,7 +2039,7 @@ final class SyncModel: ObservableObject {
         remoteErrorRetryTasks[start.id]?.cancel()
         remoteErrorRetryTasks[start.id] = nil
 
-        guard let (folder, wasMissing) = localRootPresent(start.id) else {
+        guard var (folder, wasMissing) = localRootPresent(start.id) else {
             scheduleRemoteErrorRetry(for: start)
             return
         }
@@ -1981,28 +2050,107 @@ final class SyncModel: ObservableObject {
         }, show: { [weak self] in self?.updateRemoteState(folder.id, $0) }) else { return }
         defer { release() }
         // The device, as sync records name it: taken once, like the address.
-        let device = recordDevice(domainAtStart)
-        // As reconcile() - first, and never holding the pass up: upload only
-        // (issue #132) before anything could be deleted, and Images (issue
-        // #192) before anything is sent.
-        await applyRequestsBeforePass(folder.id)
-        // Upload only asked for and not acknowledged yet (it failed, or the
-        // device can't yet): no delete goes to the device until it is. A
-        // file deleted here keeps its baseline, and its delete goes once the
-        // device has the flag - which then refuses it and keeps the file
-        // (SyncPaths.keptOnDevice). As otc-sync's holdDeletes.
-        let holdDeletes = uploadOnlyPending[folder.id] == true
-
-        // Guards against a real prefix-collision risk in the recursive
-        // listing below: an unanchored "/subdir" would also match a
-        // sibling like "/subdir2/file.txt" (it's used as a regex prefix
-        // server-side — see dao.GetFilesByPath's recursive branch), so this
-        // needs the trailing "/" to only ever match this folder's own
-        // descendants. Same reasoning as remotePrefix in the upload-side
-        // reconcile() above.
-        let remotePrefix = folder.remotePath.hasSuffix("/") ? folder.remotePath : folder.remotePath + "/"
+        var device = recordDevice(domainAtStart)
 
         do {
+            // The folder here first: whether it is the one its record was
+            // made with (SyncPaths.judgeRoot) needs nothing from the device,
+            // and a folder that isn't waits without even listing it.
+            await loadSyncedIfNeeded(folder.id)
+            guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else { return }
+            // The record as it is on disk, whatever device it was made with:
+            // it still describes this folder.
+            var recorded = lastSyncedByRemoteFolder[folder.id] ?? [:]
+            var meta = syncedMeta[folder.id] ?? SyncPaths.FolderMeta()
+            var written = syncedWritten[folder.id]
+            // A record that names its device by its pin, and none confirmed
+            // on this sign-in: the device is asked now, once a minute at most.
+            if let pin = syncedDevices[folder.id]?.pin, !pin.isEmpty, device.pin == nil, await ws.confirmPin() {
+                device = recordDevice(domainAtStart)
+            }
+            // The record of the device this pass talks to - none when it was
+            // made with another one; uncertain when the device's pin isn't
+            // confirmed (SyncPaths.recordFor).
+            var record = SyncPaths.recordFor(stored: recorded, made: syncedDevices[folder.id], device: device)
+            if record.otherDevice, let made = syncedDevices[folder.id] {
+                syncLog.notice("the sync record of \(folder.id.uuidString, privacy: .public) was made with another device (\(made.domain, privacy: .public)) - this pass only copies what one side lacks, and deletes nothing") // i18n-ignore: a log line
+            }
+            var storedSynced = record.files
+            // A record written before paths were checked may hold one that
+            // leads outside the folder, or a dotfile that came down from the
+            // device: they leave with the next save.
+            var last = record.files.filter { SyncPaths.isSafeRelative($0.key) && !SyncPaths.isExcludedFromSync($0.key) }
+
+            // A folder renamed away, and a fresh one made where it was: the
+            // bookmark, which followed the rename, finds the folder that
+            // holds the marker.
+            var marker = await Self.marker(of: folder)
+            if !meta.root.isEmpty, marker != meta.root, let moved = followMarkedBookmark(folder.id, token: meta.root) {
+                folder = moved
+                marker = meta.root
+                wasMissing = true // its watcher watched the other folder
+            }
+            let localRoot = folder.localURL.standardizedFileURL.path
+            var view = await lookHere(folder, meta: meta, record: last, written: written)
+            // A folder that can't be listed (permission, the volume going)
+            // looks empty: every synced file would have been deleted from
+            // the device.
+            guard view.scan.rootReadable else { throw FolderProblem.unreadable }
+            var verdict = await identifyFolder(folder, view, recorded: recorded, meta: meta, marker: marker)
+            // Removed while its files were checked: its marker, deleted with
+            // it, isn't written back.
+            guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else { return }
+            if !verdict.ok {
+                // Picked again by the owner at this place (relink): the
+                // folder to sync now. Its record goes - that pass copies
+                // what one side lacks and deletes nothing.
+                guard adoptOnce.contains(folder.id) else {
+                    folderReplaced(folder)
+                    scheduleRemoteErrorRetry(for: folder)
+                    return
+                }
+                syncLog.notice("the folder \(localRoot, privacy: .public) picked again is not the one its sync record was made with - the record goes, and this pass deletes nothing") // i18n-ignore: a log line
+                forgetRecord(folder.id)
+                recorded = [:]
+                last = [:]
+                storedSynced = [:]
+                meta = SyncPaths.FolderMeta()
+                written = nil
+                record = (files: [:], uncertain: false, save: device, otherDevice: false)
+                view.maybe = SyncPaths.PathSet()
+                view.maybeMounts = []
+                verdict = SyncPaths.RootVerdict(ok: true, token: SyncPaths.newMarkerToken(), mark: true)
+            }
+            adoptOnce.remove(folder.id)
+            if folderBack(folder) {
+                wasMissing = true // its watcher went with it
+            }
+            meta = SyncPaths.FolderMeta(root: verdict.token, mounts: view.mounts, maybeMounts: view.maybeMounts)
+            if verdict.mark { await markFolder(folder, token: verdict.token) }
+            noteGoneMounts(folder, view.heldDirs)
+            let uncertain = record.uncertain
+            let saveDevice = record.save
+
+            // As reconcile() - first, and never holding the pass up: upload
+            // only (issue #132) before anything could be deleted, and Images
+            // (issue #192) before anything is sent.
+            await applyRequestsBeforePass(folder.id)
+            // Upload only asked for and not acknowledged yet (it failed, or
+            // the device can't yet): no delete goes to the device until it
+            // is. A file deleted here keeps its baseline, and its delete goes
+            // once the device has the flag - which then refuses it and keeps
+            // the file (SyncPaths.keptOnDevice). As otc-sync's holdDeletes.
+            let holdDeletes = uploadOnlyPending[folder.id] == true
+
+            // Guards against a real prefix-collision risk in the recursive
+            // listing below: an unanchored "/subdir" would also match a
+            // sibling like "/subdir2/file.txt" (it's used as a regex prefix
+            // server-side — see dao.GetFilesByPath's recursive branch), so
+            // this needs the trailing "/" to only ever match this folder's
+            // own descendants. Same reasoning as remotePrefix in the
+            // upload-side reconcile() above.
+            let remotePrefix = folder.remotePath.hasSuffix("/") ? folder.remotePath : folder.remotePath + "/"
+
             let listingStart = Date()
             syncLog.info("two-way \(folder.remotePath, privacy: .public): listing")
             let resp = try await ws.request(timeout: Self.listingRequest) { req in
@@ -2023,6 +2171,11 @@ final class SyncModel: ObservableObject {
             // another is one file. The device's own bytes address what it
             // has (the listed file's path); a new file goes up as its key.
             var remoteByRelative: [String: Msg_File] = [:]
+            // The keys of the device entries left out as unsafe: left out
+            // here too - a file here at one is neither sent over the
+            // device's nor taken for deleted there, and keeps its record. As
+            // otc-sync's excludedHere.
+            var excludedHere = Set<String>()
             if case .respListOfFiles(let lof) = resp.payload {
                 var outside = 0, twins = 0
                 var listedRelative: [String: String] = [:]
@@ -2032,11 +2185,15 @@ final class SyncModel: ObservableObject {
                     // folder here, so only paths inside it are taken.
                     guard let relative = SyncPaths.safeRelative(file.path, under: remotePrefix) else {
                         outside += 1
+                        if let raw = SyncPaths.relativeUnder(file.path, prefix: remotePrefix), !raw.isEmpty {
+                            excludedHere.insert(SyncPaths.key(raw))
+                        }
                         continue
                     }
                     let key = SyncPaths.key(relative)
                     guard SyncPaths.isSafeRelative(key) else {
                         outside += 1
+                        excludedHere.insert(key)
                         continue
                     }
                     if SyncPaths.isExcludedFromSync(key) { continue }
@@ -2058,44 +2215,44 @@ final class SyncModel: ObservableObject {
                 }
             }
 
-            let localRoot = folder.localURL.standardizedFileURL.path
-            // The relative paths are worked out off the main actor too.
-            let (scan, localByRelative, present) = await Task.detached(priority: .utility) { () -> (LocalScan, [String: URL], Set<String>) in
-                let scan = Self.enumerateFilesRecursively(at: folder.localURL)
-                var byRelative: [String: URL] = [:]
-                var present = Set<String>()
-                for url in scan.urls {
-                    let full = url.standardizedFileURL.path
-                    present.insert(full)
-                    guard full.hasPrefix(localRoot) else { continue }
-                    var relative = String(full.dropFirst(localRoot.count))
-                    if relative.hasPrefix("/") { relative.removeFirst() }
-                    // By key (NFC): this Mac hands out NFD here.
-                    byRelative[SyncPaths.key(relative)] = url
+            // A folder renamed only in case on the device is renamed so here
+            // too (SyncPaths.matchFolderCase), and the folder looked at
+            // again; what the record and the hash cache say of its files
+            // goes with them, so nothing is sent or fetched for it.
+            let deviceKeys = Set(remoteByRelative.keys)
+            for _ in 0..<8 {
+                let disk = view.diskRelative, renamedFrom = last
+                let renames = await Task.detached(priority: .utility) {
+                    SyncPaths.matchFolderCase(root: localRoot, local: disk, remote: deviceKeys, record: renamedFrom)
+                }.value
+                guard !renames.isEmpty else { break }
+                for r in renames {
+                    syncLog.notice("renamed \(r.fromDir, privacy: .public) to \((r.to as NSString).lastPathComponent, privacy: .public), as the device has it") // i18n-ignore: a log line
                 }
-                return (scan, byRelative, present)
-            }.value
-            // A folder that can't be listed (permission, the volume going)
-            // looks empty: every synced file would have been deleted from
-            // the device.
-            guard scan.rootReadable else {
-                throw FolderProblem.unreadable
+                last = SyncPaths.renamedRecord(last, renames)
+                await renameHashCache(folder.id, renames)
+                meta.mounts = meta.mounts.map { SyncPaths.renamedKey($0, renames) }
+                meta.maybeMounts = meta.maybeMounts.map { SyncPaths.renamedKey($0, renames) }
+                view = await lookHere(folder, meta: meta, record: last, written: written)
+                guard view.scan.rootReadable else { throw FolderProblem.unreadable }
+                meta.mounts = view.mounts
+                meta.maybeMounts = view.maybeMounts
             }
-            if scan.complete { await pruneHashCache(folder.id, keeping: present) }
+            // The hash cache forgets what is no longer here - only now that
+            // the folder is known to be the synced one (the empty mount
+            // point of a disk that isn't mounted emptied it, and every file
+            // was read again once the disk was back), and not what is under
+            // a folder that can't be read or a disk that isn't mounted:
+            // unknown, not gone.
+            await pruneHashCache(folder.id, keeping: view.present, under: view.unknownDirs.map { localRoot + "/" + $0 + "/" })
+            let localByRelative = view.byRelative
+            let lastSynced = last
 
             // Hashing is the slow part, so only do it for what's actually
             // on disk right now — remote's hash comes for free from the
             // listing above. A file that can't be read is left out of the
             // comparison entirely: treating it as "not here" would fetch
             // (and overwrite) something that is here, just unreadable.
-            await loadSyncedIfNeeded(folder.id)
-            // The record of the device this pass talks to - none when it was
-            // made with another one (record(_:for:)).
-            let storedSynced = record(folder.id, for: device)
-            // A record written before paths were checked may hold one
-            // that leads outside the folder, or a dotfile that came down
-            // from the device: they leave with the next save.
-            let lastSynced = storedSynced.filter { SyncPaths.isSafeRelative($0.key) && !SyncPaths.isExcludedFromSync($0.key) }
             var localHashes: [String: String] = [:]
             // What each hashed file looked like then, checked again just
             // before a download replaces it or a delete trashes it.
@@ -2122,6 +2279,7 @@ final class SyncModel: ObservableObject {
             for (i, item) in checks.enumerated() {
                 let relative = item.relative, url = item.check.url
                 if let size = item.check.size { localSizes[relative] = Int64(size) }
+                if excludedHere.contains(relative) { continue } // never compared (excludedHere)
                 if remoteByRelative[relative] == nil && lastSynced[relative] == nil {
                     newLocal.insert(relative)
                     continue
@@ -2152,20 +2310,26 @@ final class SyncModel: ObservableObject {
             syncLog.info("two-way \(folder.remotePath, privacy: .public): remote=\(remoteByRelative.count) local=\(localByRelative.count) hashed=\(localHashes.count) new=\(newLocal.count) unreadable=\(unreadable.count) baseline=\(lastSynced.count)")
 
             let allRelativePaths = Set(remoteByRelative.keys).union(localByRelative.keys).union(lastSynced.keys)
-            // Under a directory that couldn't be read: unknown here, not
-            // deleted - left alone, as an unreadable file is.
-            let failedRelatives = scan.failed.compactMap { url -> String? in
-                let full = url.standardizedFileURL.path
-                return full.hasPrefix(localRoot + "/") ? SyncPaths.key(String(full.dropFirst(localRoot.count + 1))) : nil
+            // Under a directory that couldn't be read, or a disk mounted in
+            // the folder that isn't now (or maybe one): unknown here, not
+            // deleted - left alone, as an unreadable file is, and counted
+            // with them. What is here but isn't synced (a link, what Finder
+            // hides; SyncPaths.FolderScan.skipped) is still here: its copy on
+            // the device stays, nothing comes down over it, and it is counted
+            // in the folder's note.
+            for dir in view.failedDirs.prefix(5) {
+                syncLog.error("two-way \(folder.remotePath, privacy: .public): cannot read \(dir, privacy: .public) - left as it is")
             }
-            if !failedRelatives.isEmpty {
-                for dir in failedRelatives.prefix(5) {
-                    syncLog.error("two-way \(folder.remotePath, privacy: .public): cannot read \(dir, privacy: .public) - left as it is")
-                }
-                for relative in allRelativePaths where failedRelatives.contains(where: { relative == $0 || relative.hasPrefix($0 + "/") }) {
+            var notSyncedHere = Set<String>()
+            for relative in allRelativePaths {
+                if view.unknown(relative) || view.maybe.covers(relative) {
                     unreadable.insert(relative)
+                } else if view.skipped.covers(relative) {
+                    notSyncedHere.insert(relative)
                 }
             }
+            // Of those, the ones the device has - what the note says is left there.
+            let leftOnDevice = notSyncedHere.filter { remoteByRelative[$0] != nil }.count
 
             // Conflicts (both sides changed the same file): the losing
             // version is kept as a "(conflict …)" copy next to it, which
@@ -2186,7 +2350,7 @@ final class SyncModel: ObservableObject {
             var emptiedFolders = Set<String>()
 
             for relative in allRelativePaths {
-                if unreadable.contains(relative) { continue }
+                if unreadable.contains(relative) || notSyncedHere.contains(relative) || excludedHere.contains(relative) { continue }
                 if newLocal.contains(relative) {
                     actions.append((relative, .upload, 0, nil))
                     continue
@@ -2301,22 +2465,68 @@ final class SyncModel: ObservableObject {
             // to the new ones (SyncPaths.movedHashes). As otc-sync.
             let moved = SyncPaths.movedHashes(listed: remoteByRelative.mapValues(\.hash), record: lastSynced)
             let localDeletes = actions.filter { $0.kind == .deleteLocal && !moved.contains(localHashes[$0.relative] ?? "") }.count
-            var guardNote: FolderProblem?
-            if localDeletes > Self.massDeleteMin && localDeletes * 4 > max(localByRelative.count, 1) {
+            var restored = 0
+            if SyncPaths.overMassDelete(localDeletes, of: localByRelative.count) {
                 syncLog.error("two-way \(folder.remotePath, privacy: .public): \(localDeletes) files gone from the device at once - restoring them instead of deleting them here")
                 actions = actions.map { a in
                     guard a.kind == .deleteLocal, localByRelative[a.relative] != nil else { return a }
                     newSynced.removeValue(forKey: a.relative)
                     return (a.relative, .upload, 0, nil)
                 }
-                guardNote = .restored(localDeletes)
+                restored = localDeletes
             }
+            // The same guard the other way (SyncPaths.heldDeviceDeletes):
+            // files gone from here in numbers are held on the device, their
+            // baselines kept here, and the folder says so until they are
+            // back here or deleted there too, which agrees. Files new here
+            // are hashed for it only when the count says it may hold (moves
+            // don't count, and only their hashes tell).
+            let deviceDeletes = actions.filter { $0.kind == .deleteRemote }.map { (relative: $0.relative, hash: $0.hash ?? "") }
+            var held = Set<String>()
+            if SyncPaths.overMassDelete(deviceDeletes.count, of: remoteByRelative.count) {
+                var here = Set(localHashes.values)
+                for key in newLocal {
+                    if let url = localByRelative[key], let hash = try? await cachedHash(for: url, folderId: folder.id) { here.insert(hash) }
+                }
+                held = SyncPaths.heldDeviceDeletes(deviceDeletes, deviceFiles: remoteByRelative.count, here: here)
+            }
+            noteMassHeld(folder, held.count)
+            if !held.isEmpty {
+                actions.removeAll { $0.kind == .deleteRemote && held.contains($0.relative) }
+                for relative in held {
+                    if let prior = lastSynced[relative] { newSynced[relative] = prior }
+                }
+            }
+            // A device whose pin this sign-in hasn't confirmed, where the
+            // record names its device by one (SyncPaths.recordFor): the same
+            // device most likely, or one set up again since under its name,
+            // empty. Nothing that can't be taken back goes ahead - no delete
+            // either way, no download over a file here - until it is
+            // confirmed; the rest does, and the baselines of what waits stay.
+            var waiting = 0
+            if uncertain {
+                var kept: [(relative: String, kind: ActionKind, size: Int, hash: String?)] = []
+                for a in actions {
+                    if a.kind == .deleteLocal || a.kind == .deleteRemote || (a.kind == .download && localByRelative[a.relative] != nil) {
+                        if let prior = lastSynced[a.relative] { newSynced[a.relative] = prior } else { newSynced.removeValue(forKey: a.relative) }
+                        waiting += 1
+                        continue
+                    }
+                    kept.append(a)
+                }
+                actions = kept
+            }
+            noteUnconfirmed(folder, waiting)
             // Local deletes first: a rename on another client that only
             // changes case ("Photo.jpg" -> "photo.jpg") then trashes the
             // old name before the new one comes down, in one pass.
             actions = actions.filter { $0.kind == .deleteLocal } + actions.filter { $0.kind != .deleteLocal }
 
             syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote, \(deletesHeld) delete(s) waiting for upload only")
+            // What the pass couldn't sync, and the paths it had something to
+            // do for - failures backed off elsewhere are forgotten.
+            var failures = SyncPaths.PassFailures()
+            var acted = Set<String>()
             if !actions.isEmpty {
                 // Of the whole folder, as reconcile(): every path on either
                 // side counts, and what already agrees is done - "610 of
@@ -2342,9 +2552,9 @@ final class SyncModel: ObservableObject {
                         for rest in actions[i...] {
                             if let prior = lastSynced[rest.relative] { newSynced[rest.relative] = prior } else { newSynced.removeValue(forKey: rest.relative) }
                         }
-                        SyncPaths.removeEmptiedFolders(emptiedFolders, root: folder.localURL.standardizedFileURL.path)
-                        if newSynced != storedSynced || syncedUnsaved.contains(folder.id) || syncedDevices[folder.id] != device {
-                            saveSynced(folder.id, newSynced, device: device)
+                        SyncPaths.removeEmptiedFolders(emptiedFolders, root: localRoot)
+                        if newSynced != storedSynced || syncedUnsaved.contains(folder.id) || syncedDevices[folder.id] != saveDevice || syncedMeta[folder.id] != meta {
+                            saveSynced(folder.id, newSynced, device: saveDevice, meta: meta)
                         }
                         lastSyncedByRemoteFolder[folder.id] = newSynced
                         updateRemoteState(folder.id, .error(.offline))
@@ -2373,6 +2583,16 @@ final class SyncModel: ObservableObject {
                     let asListed: () async throws -> Void = { [weak self] in
                         try await self?.deviceStillAsListed(remotePath, listed)
                     }
+                    // A transfer that failed for a reason of its own waits a
+                    // while (failWait), and still counts as not synced.
+                    let transfer = action.kind != .deleteLocal && action.kind != .deleteRemote
+                    let failKey = localURL.standardizedFileURL.path
+                    acted.insert(failKey)
+                    if transfer, let kind = failWait(failKey) {
+                        failures.add(kind)
+                        if let prior = lastSynced[action.relative] { newSynced[action.relative] = prior } else { newSynced.removeValue(forKey: action.relative) }
+                        continue
+                    }
                     do {
                         switch action.kind {
                         case .upload:
@@ -2392,7 +2612,7 @@ final class SyncModel: ObservableObject {
                             // Overwriting it, and then deleting the other name,
                             // lost the file. Left alone; the next pass decides.
                             if localByRelative[action.relative] == nil, FileManager.default.fileExists(atPath: localURL.path) {
-                                throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"]) // i18n-ignore: a file's error, only logged
+                                throw ChangedHere(description: "another file is already at this name here - left alone") // i18n-ignore: a file's error, only logged
                             }
                             try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: localStamps[action.relative] ?? .absent, folderId: folder.id)
                         case .downloadKeepLocal:
@@ -2405,11 +2625,37 @@ final class SyncModel: ObservableObject {
                             // appeared during the download is not overwritten.
                             try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: .absent, folderId: folder.id)
                         case .uploadKeepRemote(let remoteHash):
-                            let copy = Self.conflictURL(for: localURL, from: nil)
-                            try await download(remotePath, to: copy, expectedHash: remoteHash, folderId: folder.id)
-                            syncLog.info("conflict on \(action.relative, privacy: .public): the other version kept as \(copy.lastPathComponent, privacy: .public)")
+                            // A busy file is left as it is before a copy is
+                            // made for it, and a copy of the device's version
+                            // an earlier pass kept (its upload failed) is the
+                            // one kept: each pass used to download another,
+                            // a full copy a minute. As otc-sync.
+                            if let busy = busyFiles[localURL.path], busy.until > Date() { throw BusyFile() }
+                            if let kept = await conflictCopyOf(folder.id, localURL, hash: remoteHash) {
+                                syncLog.info("conflict on \(action.relative, privacy: .public): the other version is already kept as \(kept.lastPathComponent, privacy: .public)")
+                            } else {
+                                let copy = Self.conflictURL(for: localURL, from: nil)
+                                try await download(remotePath, to: copy, expectedHash: remoteHash, expectLocal: .absent, folderId: folder.id)
+                                syncLog.info("conflict on \(action.relative, privacy: .public): the other version kept as \(copy.lastPathComponent, privacy: .public)")
+                            }
+                            guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
+                                syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
+                                return
+                            }
                             newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id, check: asListed)
                         case .deleteRemote:
+                            // Still nothing here by that very name, right
+                            // before it goes: a file put back during the pass,
+                            // or anything the scan doesn't sync (a link, a
+                            // hidden file) - left for the next pass. Only that
+                            // name: on a disk that ignores case the old name
+                            // finds the new one after a rename made here only
+                            // in case, whose upload goes with this delete
+                            // (SyncPaths.presentAsNamed).
+                            let relative = action.relative
+                            if await Task.detached(priority: .utility, operation: { SyncPaths.presentAsNamed(root: localRoot, rel: relative) }).value {
+                                throw ChangedHere(description: "something is here at this name again - not deleted on the device") // i18n-ignore: a file's error, only logged
+                            }
                             try await asListed()
                             if try await delete(remotePath) == .keptOnDevice, let hash = action.hash {
                                 // The folder is upload only on the device:
@@ -2421,11 +2667,12 @@ final class SyncModel: ObservableObject {
                         // the device was a mistake.
                         case .deleteLocal:
                             guard Self.localMatches(localURL, localStamps[action.relative] ?? .absent) else {
-                                throw NSError(domain: "sync.delete", code: 2, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not deleted"]) // i18n-ignore: a file's error, only logged
+                                throw ChangedHere(description: "changed here during the pass - not deleted") // i18n-ignore: a file's error, only logged
                             }
-                            try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
+                            try trashHere(localURL, folderId: folder.id, root: localRoot)
                             emptiedFolders.insert(localURL.deletingLastPathComponent().standardizedFileURL.path)
                         }
+                        if transfer { noteSynced(failKey) }
                     } catch {
                         // Revert this one path back to its pre-reconcile
                         // baseline so a transient failure gets retried next
@@ -2435,32 +2682,376 @@ final class SyncModel: ObservableObject {
                         } else {
                             newSynced.removeValue(forKey: action.relative)
                         }
-                        print("Error syncing \(action.relative): \(error)")
+                        // Changed during the pass, busy, or the link went: as
+                        // it is, for the next pass. Anything else is counted,
+                        // and a transfer waits before it is tried again.
+                        if Self.isTransient(error) {
+                            syncLog.info("two-way \(folder.remotePath, privacy: .public): \(action.relative, privacy: .public) \(Self.logText(error), privacy: .public)")
+                        } else {
+                            failures.add(Self.failKind(error))
+                            if transfer {
+                                noteFailed(failKey, error)
+                            } else {
+                                syncLog.error("two-way \(folder.remotePath, privacy: .public): error syncing \(action.relative, privacy: .public): \(Self.logText(error), privacy: .public)")
+                            }
+                        }
                     }
                 }
             }
+            forgetFailedUnder(localRoot, keeping: acted)
 
-            let removedFolders = SyncPaths.removeEmptiedFolders(emptiedFolders, root: folder.localURL.standardizedFileURL.path)
+            let removedFolders = SyncPaths.removeEmptiedFolders(emptiedFolders, root: localRoot)
             if removedFolders > 0 {
                 syncLog.info("two-way \(folder.remotePath, privacy: .public): removed \(removedFolders) folder(s) left empty by deletions on the device")
             }
-            if newSynced != storedSynced || syncedUnsaved.contains(folder.id) || syncedDevices[folder.id] != device {
-                saveSynced(folder.id, newSynced, device: device)
+            // What went to the folder's own trash (no Trash there) is kept
+            // for folderTrashDays.
+            let mounts = meta.mounts
+            await Task.detached(priority: .utility) { SyncPaths.pruneFolderTrashes(root: localRoot, mounts: mounts) }.value
+            if newSynced != storedSynced || syncedUnsaved.contains(folder.id) || syncedDevices[folder.id] != saveDevice || syncedMeta[folder.id] != meta {
+                saveSynced(folder.id, newSynced, device: saveDevice, meta: meta)
             }
             lastSyncedByRemoteFolder[folder.id] = newSynced
             if wasMissing {
                 // Back after it was missing: its watcher went with it.
                 startRemoteWatcher(for: folder)
             }
-            // The guard's note stays on the folder until the next pass, so
-            // the owner learns the device had lost those files.
-            updateRemoteState(folder.id, guardNote.map { .error($0) } ?? .watching)
+            // The pass ends saying what is left undone, the most pressing
+            // first (SyncPaths.passNote); the note stays on the folder until
+            // the next pass.
+            let note = SyncPaths.passNote(held: held.count, unconfirmed: waiting, failures: failures, unreadable: unreadable.count,
+                                          restored: restored, notSyncedHere: leftOnDevice)
+            updateRemoteState(folder.id, note.map { FolderState.error(FolderProblem($0)) } ?? .watching)
         } catch {
             syncLog.error("two-way \(folder.remotePath, privacy: .public): failed: \(Self.logText(error), privacy: .public)")
             updateRemoteState(folder.id, .error(FolderProblem(error)))
             scheduleRemoteErrorRetry(for: folder)
         }
         saveHashCache(folder.id)
+    }
+
+    // MARK: - Is it the synced folder? (SyncPaths.judgeRoot)
+
+    /// What a two-way pass sees of its folder here (lookHere).
+    private struct LocalView: Sendable {
+        var scan: SyncPaths.FolderScan
+        /// The files by key.
+        var byRelative: [String: URL] = [:]
+        /// Each file's path below the folder as the disk spells it, by key.
+        var diskRelative: [String: String] = [:]
+        /// The files' full paths, as the hash cache keys them.
+        var present: Set<String> = []
+        /// The folders that could not be read (as the disk spells them), and
+        /// by key.
+        var failedDirs: [String] = []
+        var failed = SyncPaths.PathSet()
+        /// The mounts the record lists that aren't now, by key.
+        var heldMounts = SyncPaths.PathSet()
+        /// What the scan skipped (links, what Finder hides), by key.
+        var skipped = SyncPaths.PathSet()
+        /// Folders held as maybe a disk not mounted (keys).
+        var maybe = SyncPaths.PathSet()
+        var goneDirs: [String] = []
+        /// What the record keeps of the disks mounted in the folder.
+        var mounts: [String] = []
+        var maybeMounts: [String] = []
+
+        /// `rel` is under a folder that could not be read, or under a disk
+        /// mounted in the folder that isn't now - unknown here rather than
+        /// gone, so nothing is done for it either way.
+        func unknown(_ rel: String) -> Bool { failed.covers(rel) || heldMounts.covers(rel) }
+
+        /// The mounts that aren't now, known or maybe.
+        var heldDirs: [String] { (goneDirs + maybeMounts).sorted() }
+
+        /// What is under these is unknown here, not gone.
+        var unknownDirs: [String] { failedDirs + heldDirs }
+    }
+
+    /// Scans the folder (SyncPaths.scanFolder, off the main actor) and keys
+    /// what it found; `meta` is what the record says of the folder, `record`
+    /// the record of this device's files and `written` when its file was
+    /// written (SyncPaths.maybeMounts).
+    private func lookHere(_ folder: RemoteFolder, meta: SyncPaths.FolderMeta, record: [String: String], written: Date?) async -> LocalView {
+        let root = folder.localURL
+        return await Task.detached(priority: .utility) { () -> LocalView in
+            let scan = SyncPaths.scanFolder(at: root)
+            var view = LocalView(scan: scan)
+            let rootPath = root.standardizedFileURL.path
+            for url in scan.files {
+                let full = url.standardizedFileURL.path
+                guard let rel = SyncPaths.relativePath(full, root: rootPath), !rel.isEmpty else { continue }
+                view.present.insert(full)
+                // By key (NFC): this Mac hands out NFD here.
+                let key = SyncPaths.key(rel)
+                view.byRelative[key] = url
+                view.diskRelative[key] = rel
+            }
+            for url in scan.failed {
+                guard let rel = SyncPaths.relativePath(url.standardizedFileURL.path, root: rootPath), !rel.isEmpty else { continue }
+                view.failedDirs.append(rel)
+                view.failed.insert(SyncPaths.key(rel))
+            }
+            let (gone, keep) = SyncPaths.goneMounts(root: rootPath, recorded: meta.mounts, now: scan.mounts)
+            view.goneDirs = gone
+            view.mounts = keep
+            for m in gone { view.heldMounts.insert(SyncPaths.key(m)) }
+            for s in scan.skipped { view.skipped.insert(SyncPaths.key(s)) }
+            let known = view
+            let maybe = SyncPaths.maybeMounts(root: rootPath, meta: meta, record: record, here: Set(view.byRelative.keys),
+                                              known: { known.unknown($0) || known.skipped.covers($0) }, written: written)
+            view.maybeMounts = maybe
+            for m in maybe { view.maybe.insert(m) }
+            return view
+        }.value
+    }
+
+    /// The token in the folder's marker file, read off the main actor.
+    private nonisolated static func marker(of folder: RemoteFolder) async -> String {
+        let root = folder.localURL, id = folder.id
+        return await Task.detached(priority: .utility) { SyncPaths.readMarker(in: root, id: id) }.value
+    }
+
+    /// SyncPaths.judgeRoot for this pass: what the marker file says, and
+    /// when that isn't enough, the hashes of the files the record lists that
+    /// are here, leaving out those unknown here (the maybe mounts are not
+    /// left out: only what is known to be unknown is). Hashes only as far as
+    /// the answer needs - the cache answers most - showing the files it
+    /// checks.
+    private func identifyFolder(_ folder: RemoteFolder, _ view: LocalView, recorded: [String: String], meta: SyncPaths.FolderMeta,
+                                marker: String) async -> SyncPaths.RootVerdict {
+        if !meta.root.isEmpty, marker == meta.root { return SyncPaths.RootVerdict(ok: true, token: meta.root) }
+        let unknown: (String) -> Bool = { view.unknown($0) || view.skipped.covers($0) }
+        let (listed, present) = SyncPaths.rootEvidence(record: recorded, present: { view.byRelative[$0] != nil }, unknown: unknown)
+        var here: [String: String] = [:]
+        let files = present.compactMap { rel in view.byRelative[rel].map { (rel, $0) } }
+        if listed > 0, !files.isEmpty {
+            await loadHashCacheIfNeeded(folder.id)
+            let urls = files.map(\.1)
+            let checks = await Task.detached(priority: .utility) { [cache = localHashCache[folder.id] ?? [:]] in
+                await Self.checkAgainstCache(urls, cache: cache) { i, url in
+                    await self.updateRemoteState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: i + 1, total: urls.count, name: url.lastPathComponent)))
+                }
+            }.value
+            var unchanged = 0
+            var misses: [(String, URL)] = []
+            for ((rel, url), check) in zip(files, checks) {
+                if let hit = check.hit {
+                    here[rel] = hit
+                    if hit == recorded[rel] { unchanged += 1 }
+                } else {
+                    misses.append((rel, url))
+                }
+            }
+            var lastShown = Date.distantPast
+            for (i, (rel, url)) in misses.enumerated() {
+                if SyncPaths.rootSettled(listed: listed, unchanged: unchanged, left: misses.count - i) { break }
+                if Date().timeIntervalSince(lastShown) > 0.3 {
+                    lastShown = Date()
+                    updateRemoteState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: files.count - misses.count + i + 1, total: files.count, name: url.lastPathComponent)))
+                    saveHashCacheEvery(folder.id)
+                }
+                if let entry = try? await cachedHashEntry(for: url, folderId: folder.id) {
+                    here[rel] = entry.hash
+                    if entry.hash == recorded[rel] { unchanged += 1 }
+                }
+            }
+        }
+        return SyncPaths.judgeRoot(recorded: meta.root, marker: marker, record: recorded, here: here, unknown: unknown)
+    }
+
+    /// Two-way folders waiting for not being the folder that was synced
+    /// (folderReplaced): the same wait as a missing one.
+    private var replacedRoots: Set<UUID> = []
+    /// Folders picked again where they were (relink): the next pass takes
+    /// the folder there for the one to sync, whatever its record says.
+    private var adoptOnce: Set<UUID> = []
+    /// Folders whose marker couldn't be written, logged once each.
+    private var markFailed: Set<UUID> = []
+
+    /// Holds a two-way folder whose folder is there but isn't the one it was
+    /// synced with: as a missing one, its watcher stops (it watches what is
+    /// at the path now, not the disk mounted there later), the pass that
+    /// finds the folder again starts a new one, and nothing changes on either
+    /// side meanwhile. Logged once.
+    private func folderReplaced(_ folder: RemoteFolder) {
+        if replacedRoots.insert(folder.id).inserted {
+            syncLog.notice("the folder \(folder.localURL.path, privacy: .public) is not the one that was synced (a disk or share not mounted there, another disk, a folder made afresh, iCloud's Desktop & Documents turned off?) - waiting for it, nothing changed on either side; if it is the one to sync now, add it again") // i18n-ignore: a log line
+        }
+        remoteFolderWatchers.removeValue(forKey: folder.id)?.stop()
+        updateRemoteState(folder.id, .error(.folderReplaced))
+    }
+
+    /// The folder is the synced one, and whether it wasn't at the pass
+    /// before (folderReplaced) - then its watcher starts again.
+    private func folderBack(_ folder: RemoteFolder) -> Bool {
+        guard replacedRoots.remove(folder.id) != nil else { return false }
+        syncLog.notice("the folder \(folder.localURL.path, privacy: .public) is the synced one again - syncing it") // i18n-ignore: a log line
+        return true
+    }
+
+    /// Writes the folder's marker; a folder that can't take it is checked by
+    /// its files at each pass instead, and said once.
+    private func markFolder(_ folder: RemoteFolder, token: String) async {
+        let url = folder.localURL.appendingPathComponent(SyncPaths.markerName(folder.id))
+        let failure = await Task.detached(priority: .utility) { () -> String? in
+            guard let data = SyncPaths.markerData(token: token) else { return "it could not be encoded" } // i18n-ignore: only logged
+            do {
+                try Self.writeDurably(data, to: url)
+                return nil
+            } catch {
+                return error.localizedDescription
+            }
+        }.value
+        guard let failure else {
+            markFailed.remove(folder.id)
+            return
+        }
+        if markFailed.insert(folder.id).inserted {
+            syncLog.error("could not mark \(folder.localURL.path, privacy: .public) as the folder this Mac syncs (\(failure, privacy: .public)) - its files are checked again at each pass instead") // i18n-ignore: a log line
+        }
+    }
+
+    /// A folder renamed away, and another made where it was: the stored
+    /// bookmark followed the rename, and the folder it finds holds the
+    /// marker with the record's `token` - the folder is synced there from
+    /// now on. nil when the bookmark finds nothing else, or another folder.
+    private func followMarkedBookmark(_ id: UUID, token: String) -> RemoteFolder? {
+        guard let idx = remoteFolders.firstIndex(where: { $0.id == id }),
+              let bookmark = existingStoredRemote().first(where: { $0.id == id })?.bookmark else { return nil }
+        let current = remoteFolders[idx].localURL.standardizedFileURL.path
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
+                                 relativeTo: nil, bookmarkDataIsStale: &stale),
+              url.standardizedFileURL.path != current, Self.isDirectory(url) else { return nil }
+        _ = url.startAccessingSecurityScopedResource()
+        guard SyncPaths.readMarker(in: url, id: id) == token else {
+            url.stopAccessingSecurityScopedResource()
+            return nil
+        }
+        syncLog.notice("the folder synced is at \(url.path, privacy: .public) now (another folder is where it was) - syncing it there") // i18n-ignore: a log line
+        remoteFolderWatchers.removeValue(forKey: id)?.stop()
+        remoteFolders[idx].localURL.stopAccessingSecurityScopedResource()
+        remoteFolders[idx].localURL = url
+        renewBookmark(id, at: url)
+        return remoteFolders[idx]
+    }
+
+    /// The disks mounted in each folder that aren't now, as last logged.
+    private var goneMountsSeen: [UUID: [String]] = [:]
+
+    /// Logs the folders mounted inside a two-way folder that are not
+    /// mounted now - when that changes, not at every pass.
+    private func noteGoneMounts(_ folder: RemoteFolder, _ gone: [String]) {
+        guard goneMountsSeen[folder.id] ?? [] != gone else { return }
+        goneMountsSeen[folder.id] = gone.isEmpty ? nil : gone
+        guard !gone.isEmpty else { return }
+        syncLog.notice("\(folder.localURL.path, privacy: .public): nothing is mounted on \(gone.joined(separator: ", "), privacy: .public) now (a disk or share not connected?) - what was synced under it is left as it is on both sides until it is back") // i18n-ignore: a log line
+    }
+
+    /// Deletes held by the guard the other way, and changes waiting for the
+    /// device's pin, per folder, as last logged.
+    private var massHeld: [UUID: Int] = [:]
+    private var unconfirmed: [UUID: Int] = [:]
+
+    private func noteMassHeld(_ folder: RemoteFolder, _ n: Int) {
+        guard massHeld[folder.id] ?? 0 != n else { return }
+        massHeld[folder.id] = n == 0 ? nil : n
+        guard n > 0 else { return }
+        syncLog.error("two-way \(folder.remotePath, privacy: .public): \(n) files gone from here at once - not deleted on the device, which keeps them (deleted there too, they are gone everywhere)")
+    }
+
+    private func noteUnconfirmed(_ folder: RemoteFolder, _ n: Int) {
+        guard unconfirmed[folder.id] ?? 0 != n else { return }
+        unconfirmed[folder.id] = n == 0 ? nil : n
+        guard n > 0 else { return }
+        syncLog.notice("two-way \(folder.remotePath, privacy: .public): the device hasn't confirmed it is the one this folder was synced with (its home-network certificate) - \(n) delete(s) or overwrite(s) wait until it has") // i18n-ignore: a log line
+    }
+
+    // MARK: - Files that keep failing (SyncPaths.failDelay)
+
+    /// The two-way files whose transfer failed for a reason of their own,
+    /// by local path: until when each waits, for how long it waited last,
+    /// and why.
+    private var failing: [String: (until: Date, delay: TimeInterval, kind: SyncPaths.FailKind)] = [:]
+
+    /// `path` failed recently and waits now: why.
+    private func failWait(_ path: String) -> SyncPaths.FailKind? {
+        guard let f = failing[path], f.until > Date() else { return nil }
+        return f.kind
+    }
+
+    private func noteFailed(_ path: String, _ error: Error) {
+        let delay = SyncPaths.failDelay(after: failing[path]?.delay)
+        failing[path] = (Date().addingTimeInterval(delay), delay, Self.failKind(error))
+        syncLog.error("\(path, privacy: .public) could not be synced (\(Self.logText(error), privacy: .public)) - tried again in \(Int(delay))s")
+    }
+
+    private func noteSynced(_ path: String) { failing.removeValue(forKey: path) }
+
+    /// Drops the waits of the files in `root` the pass had nothing to do
+    /// for (`keeping`: those it acted on, or held back).
+    private func forgetFailedUnder(_ root: String, keeping: Set<String>) {
+        let prefix = root + "/"
+        for path in Array(failing.keys) where path.hasPrefix(prefix) && !keeping.contains(path) {
+            failing.removeValue(forKey: path)
+        }
+    }
+
+    /// An error that says nothing about the file: left for the next pass as
+    /// it is, never waited for nor counted - the file changed (here or on the
+    /// device) during the pass, is busy, or the connection went. As
+    /// otc-sync's transient.
+    private nonisolated static func isTransient(_ error: Error) -> Bool {
+        error is ChangedHere || error is ChangedOnDevice || error is BusyFile || WSClient.isDropped(error)
+    }
+
+    private nonisolated static func failKind(_ error: Error) -> SyncPaths.FailKind {
+        switch error as? SyncPaths.RoomProblem {
+        case .noSpace?: return .noSpace
+        case .tooLarge?: return .tooLarge
+        case nil: return .other
+        }
+    }
+
+    /// The file is not as the pass planned it: edited, created or put back
+    /// here meanwhile. Left for the next pass. As otc-sync's errChangedHere.
+    struct ChangedHere: Error, CustomStringConvertible {
+        let description: String
+    }
+
+    /// A copy of the device's version of `url` (its `hash`) that an earlier
+    /// pass kept next to it (SyncPaths.isDeviceConflictCopy), when there is
+    /// one: that pass's upload of this Mac's version failed.
+    private func conflictCopyOf(_ folderId: UUID, _ url: URL, hash: String) async -> URL? {
+        let dir = url.deletingLastPathComponent()
+        let name = url.lastPathComponent
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return nil }
+        for candidate in names.sorted() where SyncPaths.isDeviceConflictCopy(candidate, of: name) {
+            let copy = dir.appendingPathComponent(candidate)
+            var st = stat()
+            guard lstat(copy.path, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else { continue }
+            if let h = try? await cachedHash(for: copy, folderId: folderId), h == hash { return copy }
+        }
+        return nil
+    }
+
+    /// Folders whose deletes went to their own trash, logged once each.
+    private var trashFallbacks: Set<UUID> = []
+
+    /// Moves a file a two-way pass deletes here to the Trash - or, where
+    /// the volume has none (an SMB or NFS share), to the folder's own
+    /// (SyncPaths.folderTrash). Never deleted outright: a file that can't be
+    /// moved anywhere stays, and the error keeps its baseline.
+    private func trashHere(_ url: URL, folderId: UUID, root: String) throws {
+        do {
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        } catch {
+            if trashFallbacks.insert(folderId).inserted {
+                syncLog.notice("the Trash can't take files from \(root, privacy: .public) (\(error.localizedDescription, privacy: .public)) - what is deleted there goes to \(SyncPaths.folderTrashName, privacy: .public) in it, for \(SyncPaths.folderTrashDays) days") // i18n-ignore: a log line
+            }
+            try SyncPaths.folderTrash(url.standardizedFileURL.path, root: root)
+        }
     }
 
     /// The device's file is no longer what a pass's listing said: edited,
@@ -2510,10 +3101,12 @@ final class SyncModel: ObservableObject {
     }
 
     private func startRemoteWatcher(for start: RemoteFolder) {
-        // Not while its folder isn't there (localRootPresent): the pass
-        // that finds it again starts it, at the folder's URL then.
+        // Not while its folder isn't there (localRootPresent), nor while
+        // the folder there isn't the synced one (folderReplaced): it would
+        // watch the empty mount point, not the disk mounted over it later.
+        // The pass that finds it again starts it, at the folder's URL then.
         guard remoteFolderWatchers[start.id] == nil, let folder = remoteFolders.first(where: { $0.id == start.id }),
-              !missingRoots.contains(folder.id) else { return }
+              !missingRoots.contains(folder.id), !replacedRoots.contains(folder.id) else { return }
         let watcher = FolderWatcher { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
@@ -2626,6 +3219,17 @@ final class SyncModel: ObservableObject {
             if let expectedHash, !expectedHash.isEmpty, chunk.hash != expectedHash {
                 throw NSError(domain: "sync.download", code: 4, userInfo: [NSLocalizedDescriptionKey: "the file changed on the device during the download - not written"]) // i18n-ignore: a file's error, only logged
             }
+            // Its size known: refused before anything is written when this
+            // disk can't take it (SyncPaths.roomProblem) - it used to fill
+            // the disk, fail, free it and start again at every pass; on a
+            // FAT32 stick, write 4 GB of a 5 GB file every minute.
+            if offset == 0 {
+                let dir = dest.deletingLastPathComponent()
+                if let limits = await Task.detached(priority: .utility, operation: { SyncPaths.volumeLimits(dir) }).value,
+                   let problem = SyncPaths.roomProblem(size: chunk.size, free: limits.free, maxFile: limits.maxFile) {
+                    throw problem
+                }
+            }
             if chunk.offset != offset || (chunk.data.isEmpty && offset < chunk.size) || offset + Int64(chunk.data.count) > chunk.size {
                 throw NSError(domain: "sync.download", code: 5, userInfo: [NSLocalizedDescriptionKey: "the device sent a chunk that doesn't fit the file - not written"]) // i18n-ignore: a file's error, only logged
             }
@@ -2649,7 +3253,7 @@ final class SyncModel: ObservableObject {
             // Checked last, right before the rename: the pass leaves the
             // path for the next one, which sees the edit and decides again.
             if let expectLocal, !Self.localMatches(dest, expectLocal) {
-                throw NSError(domain: "sync.download", code: 7, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not overwritten"]) // i18n-ignore: a file's error, only logged
+                throw ChangedHere(description: "changed here during the pass - not overwritten") // i18n-ignore: a file's error, only logged
             }
             if FileManager.default.fileExists(atPath: dest.path) {
                 _ = try FileManager.default.replaceItemAt(dest, withItemAt: part)
@@ -3134,7 +3738,12 @@ final class SyncModel: ObservableObject {
     /// A thrown error as the log has it: ours by their case (logs stay
     /// English, docs/i18n.md), the system's in its own words.
     nonisolated static func logText(_ error: Error) -> String {
-        error is FolderProblem ? String(describing: error) : RequestFailure.logText(error)
+        switch error {
+        case is FolderProblem, is ChangedHere, is ChangedOnDevice, is BusyFile, is SyncPaths.RoomProblem:
+            return String(describing: error)
+        default:
+            return RequestFailure.logText(error)
+        }
     }
 
     @discardableResult
@@ -3158,58 +3767,6 @@ final class SyncModel: ObservableObject {
         return .deleted
     }
 
-    /// What enumerateFilesRecursively found.
-    private struct LocalScan {
-        var urls: [URL] = []
-        /// What could not be read (a directory without permission): what
-        /// is under it is not "gone", it is unknown.
-        var failed: [URL] = []
-        /// false when the folder itself could not be listed - an empty
-        /// list then says nothing about what it holds.
-        var rootReadable = true
-        /// Every file of the folder is in `urls`.
-        var complete: Bool { rootReadable && failed.isEmpty }
-    }
-
-    // `static`/`nonisolated` and self-contained (no access to `self`) on
-    // purpose: walking a whole folder tree can take a while for a large
-    // library, and calling this straight from @MainActor `reconcile()`
-    // used to do that walk (and every file's hash below) right on the main
-    // thread — freezing the popover UI, which is what made the folder list
-    // look "stuck"/unopenable rather than just slow. Being a plain
-    // self-free static function makes it safe to hop off-actor via
-    // `Task.detached` at the call site.
-    private nonisolated static func enumerateFilesRecursively(at root: URL) -> LocalScan {
-        var scan = LocalScan()
-        // The enumerator skipped what it couldn't read without a word, and
-        // a two-way pass took those files for deleted here.
-        final class Failures: @unchecked Sendable { var urls: [URL] = [] }
-        let failures = Failures()
-        if let e = FileManager.default.enumerator(at: root,
-                                                  includingPropertiesForKeys: [.isRegularFileKey],
-                                                  options: [.skipsHiddenFiles],
-                                                  errorHandler: { url, _ in failures.urls.append(url); return true }) {
-            for case let file as URL in e {
-                // A download in progress (download() writes to a
-                // ".otc-part" file first) is not a file of the folder: it
-                // used to be found here and uploaded, half-written. As
-                // otc-sync's scan.
-                if file.lastPathComponent.hasSuffix(".otc-part") { continue }
-                // Office's and Explorer's scratch files (SyncPaths.skippedName).
-                if SyncPaths.skippedName(file.lastPathComponent) { continue }
-                if (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
-                    scan.urls.append(file)
-                }
-            }
-        } else {
-            scan.rootReadable = false
-        }
-        let rootPath = root.standardizedFileURL.path
-        if failures.urls.contains(where: { $0.standardizedFileURL.path == rootPath }) { scan.rootReadable = false }
-        scan.failed = failures.urls
-        return scan
-    }
-
     // You can refine this to use relative paths per folder root.
     // `root` is a remoteDeviceRoot() the caller already has: a pass takes
     // it once (not cached for good - renaming the Mac changes it, as
@@ -3227,10 +3784,10 @@ final class SyncModel: ObservableObject {
         return "/mac/\(deviceName)"
     }
 
-    // See enumerateFilesRecursively's comment — same reasoning: this used to
-    // run synchronously on the main actor inside reconcile()'s per-file
-    // loop, so hashing e.g. a multi-GB video blocked the whole UI for as
-    // long as that took. `nonisolated static` lets it run off-actor.
+    // `static`/`nonisolated` and self-contained, as SyncPaths.scanFolder:
+    // this used to run synchronously on the main actor inside reconcile()'s
+    // per-file loop, so hashing e.g. a multi-GB video blocked the whole UI
+    // for as long as that took. `nonisolated static` lets it run off-actor.
     // Read a chunk at a time, as otc-sync's sha256File: a memory-mapped
     // file truncated by another app mid-hash crashed the app (SIGBUS), and
     // on a volume Foundation won't map the whole file was read into RAM.
@@ -3500,6 +4057,21 @@ enum FolderProblem: Error, Equatable {
     case restored(Int)
     /// The folder on this Mac isn't there (an unplugged disk): it waits.
     case folderNotFound
+    /// The folder at its place isn't the one that was synced (an empty
+    /// mount point, another disk, a folder made afresh): it waits too.
+    case folderReplaced
+    /// What a two-way pass ended saying (SyncPaths.PassNote): so many
+    /// deletes here held on the device, changes waiting for the device to be
+    /// recognized, files without room here, too large for this disk, failed
+    /// otherwise, unreadable here, or left on the device for being links or
+    /// hidden here.
+    case deletesHeld(Int)
+    case deviceUnconfirmed(Int)
+    case noSpace(Int)
+    case tooLarge(Int)
+    case filesFailed(Int)
+    case unreadableFiles(Int)
+    case notSyncedHere(Int)
     /// A request got no answer (WSClient).
     case request(RequestFailure)
 
@@ -3508,6 +4080,19 @@ enum FolderProblem: Error, Equatable {
         case let problem as FolderProblem: self = problem
         case let failure as RequestFailure: self = .request(failure)
         default: self = .message(error.localizedDescription)
+        }
+    }
+
+    init(_ note: SyncPaths.PassNote) {
+        switch note {
+        case .deletesHeld(let n): self = .deletesHeld(n)
+        case .deviceUnconfirmed(let n): self = .deviceUnconfirmed(n)
+        case .noSpace(let n): self = .noSpace(n)
+        case .tooLarge(let n): self = .tooLarge(n)
+        case .filesFailed(let n): self = .filesFailed(n)
+        case .unreadable(let n): self = .unreadableFiles(n)
+        case .restored(let n): self = .restored(n)
+        case .notSyncedHere(let n): self = .notSyncedHere(n)
         }
     }
 
@@ -3520,6 +4105,14 @@ enum FolderProblem: Error, Equatable {
         // As digits, as before ("1234 files", not "1,234").
         case .restored(let files): return S.macosFoldersRestoredFiles(files: String(files))
         case .folderNotFound: return S.deskMainFolderNotFound
+        case .folderReplaced: return S.deskMainFolderReplaced
+        case .deletesHeld(let files): return S.deskMainDeletesHeld(files: files)
+        case .deviceUnconfirmed(let files): return S.deskMainDeviceUnconfirmed(files: files)
+        case .noSpace(let files): return S.deskMainNoSpace(files: files)
+        case .tooLarge(let files): return S.deskMainTooLargeForDisk(files: files)
+        case .filesFailed(let files): return S.deskMainFilesFailed(files: files)
+        case .unreadableFiles(let files): return S.deskMainFilesUnreadable(files: files)
+        case .notSyncedHere(let files): return S.deskMainFilesNotSyncedHere(files: files)
         case .request(let failure): return failure.errorDescription ?? ""
         }
     }

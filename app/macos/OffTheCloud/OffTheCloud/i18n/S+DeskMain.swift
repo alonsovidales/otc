@@ -289,7 +289,7 @@ extension S {
 
     /// {files} file(s) could not be read
     ///
-    /// otc-sync: a two-way folder's state in the tray menu when some files in it couldn't be read on this computer. {files} is how many.
+    /// Both apps: a two-way folder's state (in otc-sync's tray menu, beside the folder on the Mac) when some files in it couldn't be read on this computer, or are under a folder that couldn't be read or a disk that isn't connected. {files} is how many.
     static func deskMainFilesUnreadable(files: Int) -> String {
         L("desk.main.files_unreadable", table: "DeskMain", files)
     }
