@@ -37,7 +37,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -48,6 +47,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gofrs/flock"
+	"golang.org/x/term"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/autostart"
 	"github.com/alonsovidales/otc/app/desktop/internal/browser"
@@ -194,10 +194,34 @@ func cmdFlash(args []string) error {
 	if disk.Size < flasher.MinCardSize {
 		return fmt.Errorf("the card is too small (%s) - it needs 8 GB or more", flasher.HumanSize(disk.Size))
 	}
+	// A disk holding a folder otc-sync syncs is no card.
+	if cfg, err := config.Load(); err == nil {
+		var paths []string
+		for _, f := range cfg.Folders {
+			paths = append(paths, f.Path)
+		}
+		for _, f := range cfg.RemoteFolders {
+			paths = append(paths, f.LocalPath)
+		}
+		if folder, ok := flasher.HoldsFolder(*disk, paths); ok {
+			return fmt.Errorf("%s holds %s, which otc-sync syncs - it can't be the device's card", disk.Label(), folder)
+		}
+	}
+	in := bufio.NewReader(os.Stdin)
 	fmt.Printf("Everything on %s will be erased. Type yes to continue: ", disk.Label())
-	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	line, _ := in.ReadString('\n')
 	if strings.TrimSpace(line) != "yes" {
 		return errors.New("cancelled")
+	}
+	// Every USB disk is listed: one far larger than a card is likely a
+	// backup drive.
+	if disk.Size > flasher.LargeDiskSize {
+		size := flasher.HumanSize(disk.Size)
+		fmt.Printf("%s is much larger than an SD card - is it really the card? To erase it anyway, type its size (%s): ", disk.Label(), size)
+		line, _ = in.ReadString('\n')
+		if !strings.EqualFold(strings.Join(strings.Fields(line), " "), size) {
+			return errors.New("cancelled")
+		}
 	}
 	path, err := flasher.Download(context.Background(), func(done, total int64) {
 		if total > 0 {
@@ -426,8 +450,29 @@ func (a *app) start(cfg *config.Config) error {
 	eng.Start()
 	go a.watchConfig()
 	go a.retryPassword()
+	go a.heartbeat()
 
 	return nil
+}
+
+// stateHeartbeat is how often the engine's process writes state.json
+// whatever happens. A tray next to the service, and `otc-sync status`, take
+// one older than 30 s for a sync that isn't running; it was written only on
+// changes, so a service waiting on a wrong password - or on nothing - went
+// quiet and read as "Sync not running", its Change Password shortcut gone.
+var stateHeartbeat = 10 * time.Second
+
+func (a *app) heartbeat() {
+	t := time.NewTicker(stateHeartbeat)
+	defer t.Stop()
+	for {
+		select {
+		case <-a.quit:
+			return
+		case <-t.C:
+			a.scheduleStateWrite()
+		}
+	}
 }
 
 // retryPassword reads the password again while a device is set and it
@@ -950,6 +995,30 @@ func cmdSettings(args []string) error {
 	if err := checkNewDevice(current, domain, *insecure); err != nil {
 		return err
 	}
+	// The new password is read before anything is saved.
+	var newPw *string
+	switch {
+	case *pwStdin:
+		raw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		pw := strings.TrimRight(raw, "\r\n")
+		newPw = &pw
+	case *pwPrompt:
+		pw, err := readPasswordPrompt()
+		if err != nil {
+			return err
+		}
+		newPw = &pw
+	}
+	// Another device: the password kept is the old device's, and goes
+	// before the new address is saved - a running sync would sign in to the
+	// new device with it, sealed to that device's key. The new one, if
+	// given, only once the address is saved, so the old device is never
+	// sent it either.
+	if !engine.SameDevice(current.Domain, domain) {
+		if err := config.SavePassword(""); err != nil {
+			return err
+		}
+	}
 	cfg, err := config.Edit(func(c *config.Config) (bool, error) {
 		// Checked again under the lock: a folder added meanwhile.
 		if err := checkNewDevice(c, domain, true); err != nil {
@@ -972,18 +1041,14 @@ func cmdSettings(args []string) error {
 			return err
 		}
 	}
-	switch {
-	case *pwStdin:
-		raw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err := config.SavePassword(strings.TrimRight(raw, "\r\n")); err != nil {
+	if newPw != nil {
+		if err := config.SavePassword(*newPw); err != nil {
 			return err
 		}
-	case *pwPrompt:
-		pw, err := readPasswordPrompt()
-		if err != nil {
-			return err
-		}
-		if err := config.SavePassword(pw); err != nil {
+		// A password kept in the keyring changes no file: config.json is
+		// written again, as it is, for a running sync to read it (as the
+		// tray does next to the service).
+		if _, err := config.Edit(func(*config.Config) (bool, error) { return true, nil }); err != nil {
 			return err
 		}
 	}
@@ -1019,19 +1084,20 @@ func checkNewDevice(cfg *config.Config, domain string, insecure bool) error {
 	return nil
 }
 
+// readPasswordPrompt asks for the password on the terminal without showing
+// it as it is typed - a Windows console included (golang.org/x/term), where
+// the stty this used to go through doesn't exist, and the password stayed
+// on the screen and in the console's scrollback. Standard input that isn't
+// a terminal (a pipe) is read as a line.
 func readPasswordPrompt() (string, error) {
 	fmt.Fprint(os.Stderr, "Password: ")
-	// Without a terminal package: turn echo off through stty where there is one.
-	restore := func() {}
-	if runtime.GOOS != "windows" {
-		if err := exec.Command("stty", "-F", "/dev/tty", "-echo").Run(); err == nil {
-			restore = func() { _ = exec.Command("stty", "-F", "/dev/tty", "echo").Run() }
-		} else if err := exec.Command("sh", "-c", "stty -echo < /dev/tty").Run(); err == nil {
-			restore = func() { _ = exec.Command("sh", "-c", "stty echo < /dev/tty").Run() }
-		}
+	if fd := int(os.Stdin.Fd()); term.IsTerminal(fd) {
+		b, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+
+		return string(b), err
 	}
 	raw, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	restore()
 	fmt.Fprintln(os.Stderr)
 	if err != nil && raw == "" {
 		return "", err

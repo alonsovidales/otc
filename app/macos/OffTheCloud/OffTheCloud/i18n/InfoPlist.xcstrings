@@ -1,0 +1,147 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        }
+      }
+    },
+    "NSBluetoothAlwaysUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud verwendet Bluetooth, um ein neues Gerät einzurichten: Es findet das Gerät und zeigt seine Einrichtungsseite an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud uses Bluetooth to set up a new device: it finds the device and shows its setup page."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud usa el Bluetooth para configurar un dispositivo nuevo: encuentra el dispositivo y muestra su página de configuración."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud utilise le Bluetooth pour configurer un nouvel appareil : il trouve l’appareil et affiche sa page de configuration."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud usa il Bluetooth per configurare un nuovo dispositivo: trova il dispositivo e ne mostra la pagina di configurazione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud gebruikt Bluetooth om een nieuw apparaat in te stellen: het vindt het apparaat en toont de configuratiepagina ervan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Off The Cloud usa o Bluetooth para configurar um novo dispositivo: encontra o dispositivo e mostra a respetiva página de configuração."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud verbindet sich in deinem Heimnetz mit deinem eigenen Gerät, damit deine Dateien synchronisiert werden, ohne den Umweg über das Internet zu nehmen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud connects to your own device on your home network, so your files sync without going out to the internet and back."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud se conecta a tu propio dispositivo en tu red doméstica, para que tus archivos se sincronicen sin salir a internet y volver."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud se connecte à votre propre appareil sur votre réseau domestique, pour que vos fichiers se synchronisent sans faire l’aller-retour par internet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud si connette al tuo dispositivo sulla tua rete domestica, così i tuoi file si sincronizzano senza passare da internet e tornare indietro."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud maakt verbinding met je eigen apparaat op je thuisnetwerk, zodat je bestanden synchroniseren zonder via internet heen en weer te gaan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Off The Cloud liga-se ao teu próprio dispositivo na tua rede doméstica, para que os teus ficheiros sejam sincronizados sem saírem para a internet e voltarem."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

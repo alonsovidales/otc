@@ -149,18 +149,20 @@ func (e *Engine) saveAllHashCaches() {
 
 // pruneHashCache drops the entries of files that are no longer in the
 // folder, so renames and deletes don't grow the cache (and its file)
-// forever. local and failed are enumerateFiles(root) of this pass, taken
-// before anything is hashed: entries added later in the pass stay. What
-// is under a directory that could not be read is unknown, not gone, so
-// its entries stay too - a folder with one such directory for good
-// (lost+found at a mount's root) is still pruned everywhere else.
-func (e *Engine) pruneHashCache(folderID, root string, local, failed []string) {
+// forever. local is the files this pass found (enumerateFiles(root)),
+// before anything but them is hashed: entries added later in the pass
+// stay. What is under unknown - the directories, relative to root, that
+// could not be read, and for a two-way folder the disks mounted in it that
+// aren't now - is unknown, not gone, so its entries stay too: a folder with
+// one such directory for good (lost+found at a mount's root) is still
+// pruned everywhere else.
+func (e *Engine) pruneHashCache(folderID, root string, local, unknownDirs []string) {
 	keep := make(map[string]struct{}, len(local))
 	for _, p := range local {
 		keep[p] = struct{}{}
 	}
-	unknown := make([]string, 0, len(failed))
-	for _, d := range failed {
+	unknown := make([]string, 0, len(unknownDirs))
+	for _, d := range unknownDirs {
 		unknown = append(unknown, filepath.Join(root, filepath.FromSlash(d))+string(filepath.Separator))
 	}
 	e.mu.Lock()

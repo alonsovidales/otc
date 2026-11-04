@@ -127,6 +127,14 @@
     "text": "CPU: {percent}%",
     "en": "CPU: {percent}%"
   },
+  "desk.main.deletes_held": {
+    "text": "{files} bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook",
+    "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
+  },
+  "desk.main.device_unconfirmed": {
+    "text": "Wijzigingen wachten tot deze computer het apparaat herkent: {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Apparaat {device} loskoppelen…",
     "en": "Disconnect from {device}…"
@@ -174,6 +182,14 @@
     "text": "Alleen uploaden (een optie voor een map die vanaf deze computer wordt gesynchroniseerd; staat altijd aan bij een reservekopie)\nHet apparaat bewaart elke oudere versie van een bestand, en niets in de map kan op het apparaat worden verwijderd. Bestanden die je op deze computer verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen. Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze computer hebt verwijderd terwijl de optie aanstond, komen dan hier terug.",
     "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
   },
+  "desk.main.files_failed": {
+    "text": "Bestanden die niet gesynchroniseerd konden worden (zie het logboek): {files}",
+    "en": "{files} file(s) could not be synced - see the log"
+  },
+  "desk.main.files_not_synced_here": {
+    "text": "Bestanden die hier koppelingen of verborgen zijn (blijven ongewijzigd op het apparaat): {files}",
+    "en": "{files} file(s) are links or hidden here - left as they are on the device"
+  },
   "desk.main.files_unreadable": {
     "text": "Onleesbare bestanden: {files}",
     "en": "{files} file(s) could not be read"
@@ -209,6 +225,10 @@
   "desk.main.folder_overlap_why": {
     "text": "Een map kan maar één keer worden gesynchroniseerd: als die in een andere gesynchroniseerde map stond of er zelf een bevatte, zouden de bestanden erin twee keer worden gesynchroniseerd en zou elke synchronisatie de wijzigingen van de andere ongedaan maken.",
     "en": "A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes."
+  },
+  "desk.main.folder_replaced": {
+    "text": "Niet de gesynchroniseerde map – sluit de schijf weer aan",
+    "en": "Not the folder that was synced - reconnect its drive"
   },
   "desk.main.folder_synced": {
     "text": "Gesynchroniseerd",
@@ -278,9 +298,17 @@
     "text": "Geheugen: {amount}",
     "en": "Memory: {amount}"
   },
+  "desk.main.names_not_allowed": {
+    "text": "Bestanden op het apparaat met namen die Windows niet toestaat (hier niet gesynchroniseerd): {files}",
+    "en": "{files} file(s) on the device have names Windows can't use - not synced here"
+  },
   "desk.main.no_folders": {
     "text": "Nog geen mappen – voeg er hieronder een toe.",
     "en": "No folders yet — add one below."
+  },
+  "desk.main.no_space": {
+    "text": "Niet genoeg ruimte hier voor bestanden van het apparaat: {files}",
+    "en": "Not enough space here for {files} file(s) from the device"
   },
   "desk.main.no_storage": {
     "text": "Je apparaat kan zijn opslagschijven niet bereiken. Controleer of ze zijn aangesloten en aanstaan; het start vanzelf weer op zodra ze terug zijn.",
@@ -310,6 +338,10 @@
   "desk.main.open_web_app_tip": {
     "text": "{address} openen in je browser",
     "en": "Open {address} in your browser"
+  },
+  "desk.main.password_required": {
+    "text": "Voer het wachtwoord van het apparaat {device} in om ermee te verbinden.",
+    "en": "Enter the password of {device} to connect to it."
   },
   "desk.main.password_title": {
     "text": "Off The Cloud — Wachtwoord van apparaat {device}",
@@ -476,6 +508,10 @@
   "desk.main.title": {
     "text": "Off The Cloud — Synchronisatie",
     "en": "Off The Cloud — Sync"
+  },
+  "desk.main.too_large_for_disk": {
+    "text": "Bestanden te groot voor deze schijf (FAT32 kan bestanden tot 4 GB bevatten): {files}",
+    "en": "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
   },
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",

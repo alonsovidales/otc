@@ -32,6 +32,10 @@
     "text": "die Karte wird verwendet ({mount}): Schließe alle Fenster oder Programme, die sie nutzen, und versuche es erneut",
     "en": "the card is in use ({mount}): close any window or program using it and try again"
   },
+  "desk.folders.flash_card_mounted": {
+    "text": "das Laufwerk ist vom System unter {mount} eingehängt, nicht vom Desktop – hänge es zuerst aus, wenn es wirklich die Karte ist",
+    "en": "the disk is mounted at {mount} by the system, not by the desktop - unmount it first if it really is the card"
+  },
   "desk.folders.flash_card_too_small": {
     "text": "die Karte ist zu klein ({size}) – sie braucht mindestens 8 GB",
     "en": "the card is too small ({size}) - it needs 8 GB or more"
@@ -258,6 +262,10 @@
     "text": "Wähle die SD-Karte:",
     "en": "Choose the SD card:"
   },
+  "desk.folders.setup_disk_has_folder": {
+    "text": "{disk} enthält {folder}, einen Ordner, den otc-sync synchronisiert – das kann nicht die Karte für das Gerät sein. Wähle ein anderes Laufwerk.",
+    "en": "{disk} holds {folder}, a folder otc-sync syncs - it can't be the device's card. Choose another disk."
+  },
   "desk.folders.setup_downloading": {
     "text": "Wird heruntergeladen… {done} von {total} MB",
     "en": "Downloading… {done} of {total} MB"
@@ -280,6 +288,11 @@
     "text": "Damit wird die SD-Karte für ein neues Gerät von Off The Cloud vorbereitet:\n\n1. Das Image des Geräts herunterladen (etwa 560 MB).\n2. Es auf eine SD-Karte mit mindestens 8 GB schreiben – alles auf der Karte wird gelöscht.\n3. Den Download löschen.\n\nDu brauchst einen Raspberry Pi 5 mit 8 GB RAM, die SD-Karte und zwei USB-Laufwerke.",
     "en": "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the device image (about 560 MB).\n2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n3. Delete the download.\n\nYou need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",
     "reviewed": "claude-backtranslation 2026-10-11 #0f32c725"
+  },
+  "desk.folders.setup_large_disk": {
+    "text": "{disk} ist viel größer als eine SD-Karte. Ist das wirklich die Karte für das Gerät? Alles darauf wird gelöscht, endgültig.",
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "reviewed": "claude-backtranslation 2026-11-04 #5186dce7"
   },
   "desk.folders.setup_not_written": {
     "text": "Die Karte wurde nicht beschrieben: Zum Beschreiben einer SD-Karte sind Administratorrechte nötig. Wähle {item} erneut, wenn du so weit bist (der Download bleibt erhalten).",

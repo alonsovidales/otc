@@ -79,11 +79,13 @@ final class SettingsStore: ObservableObject {
     // owner's consent (App Store guideline 2.4.5(iii)).
 
     @Published var domain: String {
-        didSet { save() }
+        didSet { if !applying { save() } }
     }
     @Published var password: String {
-        didSet { save() }
+        didSet { if !applying { save() } }
     }
+    /// apply() saves the pair itself, in its own order.
+    private var applying = false
 
     init() {
         domain = UserDefaults.standard.string(forKey: Self.cDomainKey) ?? ""
@@ -109,10 +111,29 @@ final class SettingsStore: ObservableObject {
 
     /// Both halves at once, from the Settings panel's Connect button. The
     /// two assignments still publish twice; SyncModel's short debounce
-    /// folds them into one reconnect with the new pair.
+    /// folds them into one reconnect with the new pair. What is stored is
+    /// never another device's address with this one's password, nor the
+    /// reverse - each assignment used to save both, so for a moment the
+    /// new address was stored with the old password, which a launch then
+    /// would have sent to the new device: for another device the old
+    /// password goes first, then the address, then the new password; for
+    /// the same one the password, then the respelled address. As
+    /// otc-sync's saveConnection.
     func apply(domain newDomain: String, password newPassword: String) {
-        domain = newDomain.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newDomain.trimmingCharacters(in: .whitespacesAndNewlines)
+        let otherDevice = !SyncPaths.sameDevice(trimmed, domain)
+        applying = true
+        domain = trimmed
         password = newPassword
+        applying = false
+        if otherDevice {
+            Keychain.delete(key: Self.cPasswordKey)
+            UserDefaults.standard.set(domain, forKey: Self.cDomainKey)
+            Keychain.saveString(key: Self.cPasswordKey, value: password)
+        } else {
+            Keychain.saveString(key: Self.cPasswordKey, value: password)
+            UserDefaults.standard.set(domain, forKey: Self.cDomainKey)
+        }
     }
 
     private func save() {

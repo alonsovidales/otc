@@ -229,6 +229,16 @@
     "text": "Geen submappen hier.",
     "en": "No subfolders here."
   },
+  "macos.plist.nsbluetoothalwaysusagedescription": {
+    "text": "Off The Cloud gebruikt Bluetooth om een nieuw apparaat in te stellen: het vindt het apparaat en toont de configuratiepagina ervan.",
+    "en": "Off The Cloud uses Bluetooth to set up a new device: it finds the device and shows its setup page.",
+    "reviewed": "claude-backtranslation 2026-11-04 #21cf01e2"
+  },
+  "macos.plist.nslocalnetworkusagedescription": {
+    "text": "Off The Cloud maakt verbinding met je eigen apparaat op je thuisnetwerk, zodat je bestanden synchroniseren zonder via internet heen en weer te gaan.",
+    "en": "Off The Cloud connects to your own device on your home network, so your files sync without going out to the internet and back.",
+    "reviewed": "claude-backtranslation 2026-11-04 #407ccd90"
+  },
   "macos.popover.back_up": {
     "text": "Reservekopie maken",
     "en": "Back Up"

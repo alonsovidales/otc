@@ -307,9 +307,15 @@ func TestTwoWayCaseOnlyRename(t *testing.T) {
 
 	for pass := 0; pass < 2; pass++ {
 		e.reconcileRemoteFolder(f)
+		var names []string
 		entries, _ := os.ReadDir(local)
-		if len(entries) != 1 || entries[0].Name() != "A.txt" {
-			t.Fatalf("pass %d: folder holds %v, want only A.txt", pass+1, entries)
+		for _, en := range entries {
+			if !strings.HasPrefix(en.Name(), ".") { // the folder's marker
+				names = append(names, en.Name())
+			}
+		}
+		if len(names) != 1 || names[0] != "A.txt" {
+			t.Fatalf("pass %d: folder holds %v, want only A.txt", pass+1, names)
 		}
 	}
 	if len(d.deletes) != 0 {

@@ -152,6 +152,19 @@ final class WSClient {
     /// GetLocalEndpoint holds up the "Connected" of a bridge sign-in, so a
     /// lost answer must not hold it for long. As otc-sync's localAskTO.
     private static let localAskTimeout: TimeInterval = 5
+    /// The pin the current socket's home connection was dialled with (nil
+    /// for the configured address): its TLS handshake checked it.
+    private var connPin: Data?
+    /// The device's certificate pin as this sign-in confirmed it
+    /// (sessionPin): the home route's handshake checked it, or the device
+    /// answered it over this sign-in (GetLocalEndpoint). pinKnown says
+    /// whether there is one; pinAsked is when confirmPin last asked.
+    private var signedInPin: Data?
+    private var pinKnown = false
+    private var pinAsked: Date?
+    /// confirmPin asks once a minute at most per sign-in. As otc-sync's
+    /// pinAskEvery.
+    private static let pinAskEvery: TimeInterval = 60
 
     // MARK: Configure
     /// domain: "your.domain.tld" (no scheme, no path); if you pass a full URL, it will be used as-is.
@@ -211,11 +224,61 @@ final class WSClient {
     /// A home endpoint is stored for the configured address.
     var hasLocalEndpoint: Bool { queue.sync { local != nil } }
 
-    /// The certificate pin of the home endpoint held for the configured
-    /// device, nil when there is none: the device's own identity (it keeps
-    /// the certificate on its storage), which sync records are bound to
-    /// (SyncPaths.RecordDevice).
-    var localPin: Data? { queue.sync { local?.pin } }
+    /// The device's certificate pin as the signed-in connection confirmed
+    /// it, nil when it didn't: the home route's TLS handshake checked it, or
+    /// the device answered it over this sign-in (GetLocalEndpoint). That is
+    /// the device's own identity (it keeps the certificate on its storage),
+    /// which sync records are bound to (SyncPaths.RecordDevice). The pin
+    /// stored from an earlier sign-in is not: a device set up again from
+    /// scratch under the same name has another, and one whose home listener
+    /// isn't up yet (local_unavailable) used to leave the record to the
+    /// address alone. As otc-sync's SessionPin.
+    func sessionPin() -> Data? { queue.sync { isOpen && signedIn && pinKnown ? signedInPin : nil } }
+
+    /// Asks the device signed in to where it is on the home network when
+    /// this sign-in hasn't confirmed its pin (sessionPin), at most once a
+    /// minute, and says whether the pin is known now. An answer is kept as a
+    /// sign-in's is; the connection doesn't move. As otc-sync's ConfirmPin.
+    func confirmPin() async -> Bool {
+        enum Start { case known, no, ask(NWConnection, String, UInt64) }
+        let start: Start = queue.sync {
+            guard isOpen, signedIn, let conn, let domain else { return .no }
+            if pinKnown { return .known }
+            if let asked = pinAsked, Date().timeIntervalSince(asked) < Self.pinAskEvery { return .no }
+            pinAsked = Date()
+            return .ask(conn, domain, localGen)
+        }
+        guard case let .ask(conn, domain, gen) = start else {
+            if case .known = start { return true }
+            return false
+        }
+        guard let resp = try? await request(on: conn, timeout: Self.localAskTimeout, { req in
+            req.payload = .reqGetLocalEndpoint(Msg_GetLocalEndpoint())
+        }) else { return false }
+        let answer = Self.localAnswer(resp, domain: domain)
+        return queue.sync { () -> Bool in
+            guard self.conn === conn, isOpen, signedIn, gen == localGen, self.domain == domain else { return false }
+            switch answer {
+            case .keep:
+                return false
+            case .clear:
+                if local != nil {
+                    local = nil
+                    LocalEndpointStore.clear()
+                }
+                return false
+            case .store(let ep):
+                if !(local?.sameRoute(as: ep) ?? false) {
+                    local = ep
+                    skipHomeOnce = false
+                    LocalEndpointStore.save(ep)
+                }
+                signedInPin = ep.pin
+                pinKnown = true
+                return true
+            }
+        }
+    }
 
     /// Whether the device answers on the home network right now, pinned as
     /// always, without touching the current connection: a WebSocket that
@@ -287,13 +350,14 @@ final class WSClient {
             return
         }
         let gen = connGen
+        let pin = local.pin
         let race = LocalRace(queue: queue) { [weak self] winner in
             guard let self else { winner?.cancel(); return }
             // connect() or disconnect() since: theirs is the connection.
             guard gen == self.connGen, self.autoReconnect else { winner?.cancel(); return }
             self.localRace = nil
             if let winner {
-                self.adopt(winner, route: .home)
+                self.adopt(winner, route: .home, pin: pin)
             } else {
                 self.dialConfigured()
             }
@@ -333,14 +397,16 @@ final class WSClient {
         let conn = NWConnection(to: endpoint, using: params)
         self.conn = conn
         route = .bridge
+        connPin = nil
         watch(conn)
         conn.start(queue: queue)
     }
 
-    /// The home connection that won the race, already open.
-    private func adopt(_ conn: NWConnection, route: ConnectionRoute) {
+    /// The home connection that won the race, already open, pinned to `pin`.
+    private func adopt(_ conn: NWConnection, route: ConnectionRoute, pin: Data) {
         self.conn = conn
         self.route = route
+        connPin = pin
         watch(conn)
         opened(conn)
     }
@@ -389,6 +455,10 @@ final class WSClient {
         // resetting on every socket would retry each second.
         isOpen = true
         signedIn = false
+        // This socket's sign-in confirms its own pin, or none.
+        signedInPin = nil
+        pinKnown = false
+        pinAsked = nil
         lastSeen = Date()
         sending = [:]
         startKeepAlive(conn)
@@ -696,6 +766,8 @@ final class WSClient {
     private func authenticateThenAnnounce() {
         guard let conn = self.conn else { return }
         let route = self.route
+        // The home route's handshake checked it.
+        let dialledPin = route == .home ? connPin : nil
         guard let key = self.key else { self.signedIn = true; self.signIns &+= 1; self.onConnect?(route); return }
         Task { [weak self] in
             guard let self else { return }
@@ -708,21 +780,30 @@ final class WSClient {
                     // at its next reconnect, maybe days and a big upload
                     // later. Once per connect, so an answer that keeps
                     // changing can't bounce it back and forth.
-                    if route == .bridge, await self.learnLocalEndpoint(on: conn) {
-                        let switched = self.queue.sync { () -> Bool in
-                            guard self.conn === conn, self.autoReconnect, !self.triedNewHome else { return false }
-                            self.triedNewHome = true
-                            self.backoffSeconds = 1
-                            self.startConnecting()
-                            return true
+                    var confirmed = dialledPin
+                    if route == .bridge {
+                        let (worthTrying, answered) = await self.learnLocalEndpoint(on: conn)
+                        if worthTrying {
+                            let switched = self.queue.sync { () -> Bool in
+                                guard self.conn === conn, self.autoReconnect, !self.triedNewHome else { return false }
+                                self.triedNewHome = true
+                                self.backoffSeconds = 1
+                                self.startConnecting()
+                                return true
+                            }
+                            if switched { return }
                         }
-                        if switched { return }
+                        // The device's own answer, on this sign-in.
+                        if let answered { confirmed = answered }
                     }
                     let (current, missedHome) = self.queue.sync { () -> (Bool, Bool) in
                         // Open still: a socket that dropped while the
                         // device was asked is already reconnecting.
                         guard self.conn === conn, self.isOpen else { return (false, false) }
                         self.backoffSeconds = 1; self.signedIn = true; self.signIns &+= 1
+                        self.signedInPin = confirmed
+                        self.pinKnown = confirmed != nil
+                        self.pinAsked = nil
                         let missed = route == .bridge && self.triedNewHome
                         self.triedNewHome = false
                         return (true, missed)
@@ -796,11 +877,12 @@ final class WSClient {
     }
 
     /// Asks the device, signed in through the bridge on `conn`, where it is
-    /// on the home network, and stores or forgets that. True when it gave
-    /// an endpoint other than the one held: worth trying now.
-    private func learnLocalEndpoint(on conn: NWConnection) async -> Bool {
+    /// on the home network, and stores or forgets that. `worthTrying` when
+    /// it gave an endpoint other than the one held; `pin`, the pin the
+    /// device gave (nil when it gave none, or didn't answer).
+    private func learnLocalEndpoint(on conn: NWConnection) async -> (worthTrying: Bool, pin: Data?) {
         let (gen, domain) = queue.sync { (localGen, self.domain) }
-        guard let domain else { return false }
+        guard let domain else { return (false, nil) }
         let resp: Resp
         do {
             resp = try await request(on: conn, timeout: Self.localAskTimeout) { req in
@@ -808,27 +890,27 @@ final class WSClient {
             }
         } catch {
             // A network error: what is stored stays.
-            return false
+            return (false, nil)
         }
         let answer = Self.localAnswer(resp, domain: domain)
-        return queue.sync { () -> Bool in
+        return queue.sync { () -> (Bool, Data?) in
             // Forgotten meanwhile (Disconnect, another device): not stored.
-            guard gen == localGen, self.domain == domain else { return false }
+            guard gen == localGen, self.domain == domain else { return (false, nil) }
             switch answer {
             case .keep:
-                return false
+                return (false, nil)
             case .clear:
                 if local != nil {
                     local = nil
                     LocalEndpointStore.clear()
                 }
-                return false
+                return (false, nil)
             case .store(let ep):
-                if let local, local.sameRoute(as: ep) { return false }
+                if let local, local.sameRoute(as: ep) { return (false, ep.pin) }
                 local = ep
                 skipHomeOnce = false
                 LocalEndpointStore.save(ep)
-                return true
+                return (true, ep.pin)
             }
         }
     }

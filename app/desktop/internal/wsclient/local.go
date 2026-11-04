@@ -237,9 +237,8 @@ func (c *Client) HasLocalEndpoint() bool {
 }
 
 // LocalPin is the certificate pin of the home-network endpoint held for
-// the configured device, nil when there is none: the device's own identity
-// (it keeps the certificate on its storage), which sync records are bound
-// to (engine.recordDevice).
+// the configured device, nil when there is none - as stored, not
+// confirmed: SessionPin is the one sync records go by.
 func (c *Client) LocalPin() []byte {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -248,6 +247,83 @@ func (c *Client) LocalPin() []byte {
 	}
 
 	return bytes.Clone(c.local.Pin)
+}
+
+// SessionPin is the device's certificate pin as the signed-in connection
+// confirmed it, and whether it did: the home route's TLS handshake checked
+// it, or the device answered it over this sign-in (GetLocalEndpoint). That
+// is the device's own identity (it keeps the certificate on its storage),
+// which sync records are bound to (engine.recordDevice). The pin stored
+// from an earlier sign-in is not: a device set up again from scratch under
+// the same name has another, and a question left unanswered (a busy
+// device) used to leave the old one standing for it.
+func (c *Client) SessionPin() ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.open || !c.signedIn || !c.pinKnown {
+		return nil, false
+	}
+
+	return bytes.Clone(c.sessionPin), true
+}
+
+// pinAskEvery bounds ConfirmPin: once a minute at most per sign-in.
+const pinAskEvery = time.Minute
+
+// ConfirmPin asks the device signed in to for its home-network endpoint
+// when this sign-in hasn't confirmed its pin (SessionPin), at most once a
+// minute, and says whether the pin is known now. An answer is kept as
+// learnLocal keeps one (OnLocalEndpoint); the connection doesn't move.
+func (c *Client) ConfirmPin(ctx context.Context) bool {
+	c.mu.Lock()
+	if !c.open || !c.signedIn || c.conn == nil {
+		c.mu.Unlock()
+
+		return false
+	}
+	if c.pinKnown {
+		c.mu.Unlock()
+
+		return true
+	}
+	if !c.pinAsked.IsZero() && time.Since(c.pinAsked) < pinAskEvery {
+		c.mu.Unlock()
+
+		return false
+	}
+	c.pinAsked = time.Now()
+	gen, conn := c.gen, c.conn
+	c.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, localAskTO)
+	resp, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
+		r.Payload = &pb.ReqEnvelope_ReqGetLocalEndpoint{ReqGetLocalEndpoint: &pb.GetLocalEndpoint{}}
+	})
+	cancel()
+	if err != nil {
+		return false
+	}
+	verdict, ep := judgeLocal(resp)
+	if verdict == localKeep {
+		return false
+	}
+	c.mu.Lock()
+	if !c.currentLocked(gen, conn) {
+		c.mu.Unlock()
+
+		return false
+	}
+	changed := !ep.Equal(c.local)
+	c.local = ep.clone()
+	if ep != nil {
+		c.sessionPin, c.pinKnown = bytes.Clone(ep.Pin), true
+	}
+	domain := c.domain
+	c.mu.Unlock()
+	if changed && c.OnLocalEndpoint != nil {
+		c.OnLocalEndpoint(domain, ep.clone())
+	}
+
+	return ep != nil
 }
 
 // Route is the way the signed-in connection goes; RouteNone when there
@@ -333,25 +409,26 @@ func judgeLocal(resp *pb.RespEnvelope) (localVerdict, *LocalEndpoint) {
 // where it answers at home, keeps that (OnLocalEndpoint), and tries it
 // right away when it is new: OnConnect hasn't run, so nothing is in
 // flight that moving could interrupt. It returns the home-network
-// connection to move to, or nil to stay.
-func (c *Client) learnLocal(gen int64, conn *websocket.Conn) (*websocket.Conn, string) {
+// connection to move to, or nil to stay, and the endpoint the device gave
+// (nil when it gave none, or didn't answer).
+func (c *Client) learnLocal(gen int64, conn *websocket.Conn) (*websocket.Conn, string, *LocalEndpoint) {
 	ctx, cancel := context.WithTimeout(context.Background(), localAskTO)
 	resp, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqGetLocalEndpoint{ReqGetLocalEndpoint: &pb.GetLocalEndpoint{}}
 	})
 	cancel()
 	if err != nil {
-		return nil, "" // no answer: what is stored stays
+		return nil, "", nil // no answer: what is stored stays
 	}
 	verdict, ep := judgeLocal(resp)
 	if verdict == localKeep {
-		return nil, ""
+		return nil, "", nil
 	}
 	c.mu.Lock()
 	if !c.currentLocked(gen, conn) {
 		c.mu.Unlock()
 
-		return nil, ""
+		return nil, "", nil
 	}
 	changed := !ep.Equal(c.local)
 	c.local = ep.clone()
@@ -362,12 +439,12 @@ func (c *Client) learnLocal(gen int64, conn *websocket.Conn) (*websocket.Conn, s
 	}
 	// Unchanged, it was tried at the start of this dial already.
 	if !changed || ep == nil {
-		return nil, ""
+		return nil, "", ep
 	}
 	lconn, u, err := dialLocal(context.Background(), ep)
 	if err != nil {
-		return nil, ""
+		return nil, "", ep
 	}
 
-	return lconn, u
+	return lconn, u, ep
 }

@@ -195,6 +195,20 @@ extension S {
         L("desk.main.cpu_line", table: "DeskMain", percent)
     }
 
+    /// {files} files deleted here at once are kept on the device - if that was meant, delete them there too
+    ///
+    /// Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too (from the web app or a phone). {files} is how many.
+    static func deskMainDeletesHeld(files: Int) -> String {
+        L("desk.main.deletes_held", table: "DeskMain", files)
+    }
+
+    /// {files} change(s) wait until this computer recognizes the device
+    ///
+    /// Both apps: a two-way folder's state when the app is connected but hasn't yet confirmed that the device is the very one the folder was synced with (by the device's own home-network certificate) - it could be a device set up again from scratch under the same name. Deletes, and downloads over files on this computer, wait until it has; usually that is at the next connection. {files} is how many changes wait.
+    static func deskMainDeviceUnconfirmed(files: Int) -> String {
+        L("desk.main.device_unconfirmed", table: "DeskMain", files)
+    }
+
     /// Disconnect from {device}…
     ///
     /// otc-sync: tray menu item shown once a device is set; asks before forgetting the device. {device} is the device's address (for example cala.off-the.cloud).
@@ -259,9 +273,23 @@ extension S {
     /// otc-sync: fourth paragraph of the What Do These Do? dialog: a heading line (the Upload only option), a line break, then what it means. "Files" is the app's file browser section. Keep the line break.
     static var deskMainExplainUploadOnly: String { L("desk.main.explain_upload_only", table: "DeskMain") }
 
+    /// {files} file(s) could not be synced - see the log
+    ///
+    /// Both apps: a two-way folder's state when some files couldn't be uploaded, downloaded or deleted for a reason of their own (the device refused them, for example). The app tries them again later, less often each time; the log says why. {files} is how many.
+    static func deskMainFilesFailed(files: Int) -> String {
+        L("desk.main.files_failed", table: "DeskMain", files)
+    }
+
+    /// {files} file(s) are links or hidden here - left as they are on the device
+    ///
+    /// Both apps: a two-way folder's state when files it synced before are now symbolic links on this computer, inside a linked folder, or hidden (Windows' Hidden attribute; hidden in the Finder on a Mac). The app doesn't sync those, and leaves the device's copies as they are instead of deleting them. {files} is how many.
+    static func deskMainFilesNotSyncedHere(files: Int) -> String {
+        L("desk.main.files_not_synced_here", table: "DeskMain", files)
+    }
+
     /// {files} file(s) could not be read
     ///
-    /// otc-sync: a two-way folder's state in the tray menu when some files in it couldn't be read on this computer. {files} is how many.
+    /// Both apps: a two-way folder's state (in otc-sync's tray menu, beside the folder on the Mac) when some files in it couldn't be read on this computer, or are under a folder that couldn't be read or a disk that isn't connected. {files} is how many.
     static func deskMainFilesUnreadable(files: Int) -> String {
         L("desk.main.files_unreadable", table: "DeskMain", files)
     }
@@ -313,6 +341,11 @@ extension S {
     ///
     /// Both apps: the explanation after desk.main.folder_overlap_same, _inside or _holds, when a folder being added is refused.
     static var deskMainFolderOverlapWhy: String { L("desk.main.folder_overlap_why", table: "DeskMain") }
+
+    /// Not the folder that was synced - reconnect its drive
+    ///
+    /// Both apps: a two-way folder's state when its place on this computer holds a folder that isn't the one that was synced - the empty folder a disk or network share leaves when it isn't connected, another disk with the same name or drive letter, a folder made afresh. The app waits, changes nothing on either side, and carries on by itself once the synced folder is back. Shown after a warning sign.
+    static var deskMainFolderReplaced: String { L("desk.main.folder_replaced", table: "DeskMain") }
 
     /// Synced
     ///
@@ -404,10 +437,24 @@ extension S {
         L("desk.main.memory_line", table: "DeskMain", amount)
     }
 
+    /// {files} file(s) on the device have names Windows can't use - not synced here
+    ///
+    /// otc-sync on Windows: a two-way folder's state when some files on the device have names Windows doesn't allow (with characters such as \ ? * : or a name ending in a dot or a space, made on a Mac, Linux or a phone). They stay on the device as they are and aren't downloaded here. {files} is how many.
+    static func deskMainNamesNotAllowed(files: Int) -> String {
+        L("desk.main.names_not_allowed", table: "DeskMain", files)
+    }
+
     /// No folders yet — add one below.
     ///
     /// Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.
     static var deskMainNoFolders: String { L("desk.main.no_folders", table: "DeskMain") }
+
+    /// Not enough space here for {files} file(s) from the device
+    ///
+    /// Both apps: a two-way folder's state when files from the device couldn't be downloaded because this computer's disk doesn't have room for them (the app always leaves some space free). It tries them again later, less often each time. {files} is how many.
+    static func deskMainNoSpace(files: Int) -> String {
+        L("desk.main.no_space", table: "DeskMain", files)
+    }
 
     /// Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.
     ///
@@ -454,6 +501,13 @@ extension S {
     /// Both apps: tooltip of Open Web App. {address} is the web app's address (for example https://cala.off-the.cloud/), never translated.
     static func deskMainOpenWebAppTip(address: String) -> String {
         L("desk.main.open_web_app_tip", table: "DeskMain", address)
+    }
+
+    /// Enter the password of {device} to connect to it.
+    ///
+    /// otc-sync: warning after Connect to a Device… when the password field was left empty for a device other than the one the kept password belongs to (or none is kept); the password dialog then opens again. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainPasswordRequired(device: String) -> String {
+        L("desk.main.password_required", table: "DeskMain", device)
     }
 
     /// Off The Cloud — Password for {device}
@@ -678,6 +732,13 @@ extension S {
     ///
     /// Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. "Off The Cloud" is the product name; "Sync" names this app, the sync client.
     static var deskMainTitle: String { L("desk.main.title", table: "DeskMain") }
+
+    /// {files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)
+    ///
+    /// Both apps: a two-way folder's state when files from the device can't be downloaded because the disk the folder is on is formatted as FAT32 (common on USB sticks and SD cards), which can't hold a file of 4 GB or more. {files} is how many. FAT32 is the name of the disk format.
+    static func deskMainTooLargeForDisk(files: Int) -> String {
+        L("desk.main.too_large_for_disk", table: "DeskMain", files)
+    }
 
     /// Off The Cloud — {status}
     ///

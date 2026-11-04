@@ -1458,6 +1458,100 @@
         }
       }
     },
+    "desk.main.deletes_held" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld hier auf einmal gelöschte Dateien bleiben auf dem Gerät – wenn das so gewollt war, lösche sie dort ebenfalls"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld files deleted here at once are kept on the device - if that was meant, delete them there too"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld archivos eliminados aquí de una vez se conservan en el dispositivo: si era lo que querías, elimínalos también allí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file eliminati qui tutti insieme restano sul dispositivo: se era voluto, eliminali anche lì"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ficheiros eliminados aqui de uma só vez continuam no dispositivo: se era isso que querias, elimina-os também lá"
+          }
+        }
+      }
+    },
+    "desk.main.device_unconfirmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Änderungen warten, bis dieser Computer das Gerät erkennt: %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld change(s) wait until this computer recognizes the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambios en espera hasta que este ordenador reconozca el dispositivo: %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifications en attente jusqu’à ce que cet ordinateur reconnaisse l’appareil : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld modifiche in attesa che questo computer riconosca il dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wijzigingen wachten tot deze computer het apparaat herkent: %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterações à espera de que este computador reconheça o dispositivo: %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.disconnect_menu" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1975,6 +2069,100 @@
         }
       }
     },
+    "desk.main.files_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien nicht synchronisiert (siehe Protokoll): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) could not be synced - see the log"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos que no se han podido sincronizar (consulta el registro): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers qui n’ont pas pu être synchronisés (voir le journal) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile sincronizzare %1$lld file: vedi il log"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden die niet gesynchroniseerd konden worden (zie het logboek): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros que não foi possível sincronizar (consulta o registo): %1$lld"
+          }
+        }
+      }
+    },
+    "desk.main.files_not_synced_here" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien, die hier Links oder versteckt sind (auf dem Gerät unverändert gelassen): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) are links or hidden here - left as they are on the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos que aquí son enlaces o están ocultos (se dejan como están en el dispositivo): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers qui sont ici des liens ou cachés (laissés tels quels sur l’appareil) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file qui sono collegamenti o nascosti: restano come sono sul dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden die hier koppelingen of verborgen zijn (blijven ongewijzigd op het apparaat): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros que aqui são ligações ou estão ocultos (ficam como estão no dispositivo): %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.files_unreadable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2394,6 +2582,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uma pasta só pode ser sincronizada uma vez: se estivesse dentro de outra pasta sincronizada, ou se contivesse uma, os seus ficheiros seriam sincronizados duas vezes e cada sincronização desfaria as alterações da outra."
+          }
+        }
+      }
+    },
+    "desk.main.folder_replaced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht der synchronisierte Ordner – Laufwerk neu verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not the folder that was synced - reconnect its drive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es la carpeta que se sincronizaba: reconecta su disco"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n’est pas le dossier synchronisé : reconnectez son disque"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è la cartella sincronizzata: ricollega il suo disco"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet de gesynchroniseerde map – sluit de schijf weer aan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é a pasta que era sincronizada: volta a ligar o disco"
           }
         }
       }
@@ -3150,6 +3385,53 @@
         }
       }
     },
+    "desk.main.names_not_allowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien auf dem Gerät mit Namen, die Windows nicht zulässt (hier nicht synchronisiert): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) on the device have names Windows can't use - not synced here"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos del dispositivo con nombres que Windows no admite (no se sincronizan aquí): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers de l’appareil dont Windows n’accepte pas le nom (non synchronisés ici) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file sul dispositivo hanno nomi che Windows non accetta: non vengono sincronizzati qui"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden op het apparaat met namen die Windows niet toestaat (hier niet gesynchroniseerd): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros do dispositivo com nomes que o Windows não aceita (não sincronizados aqui): %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.no_folders" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3193,6 +3475,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ainda não há pastas: adiciona uma abaixo."
+          }
+        }
+      }
+    },
+    "desk.main.no_space" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht genug Speicherplatz hier für Dateien vom Gerät: %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough space here for %1$lld file(s) from the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos del dispositivo para los que no hay espacio aquí: %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers de l’appareil pour lesquels il n’y a pas assez de place ici : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio insufficiente qui per %1$lld file del dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet genoeg ruimte hier voor bestanden van het apparaat: %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros do dispositivo para os quais não há espaço aqui: %1$lld"
           }
         }
       }
@@ -3522,6 +3851,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir %1$@ no teu navegador"
+          }
+        }
+      }
+    },
+    "desk.main.password_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib das Passwort des Geräts %1$@ ein, um dich damit zu verbinden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the password of %1$@ to connect to it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe la contraseña del dispositivo %1$@ para conectarte a él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez le mot de passe de l’appareil %1$@ pour vous y connecter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la password del dispositivo %1$@ per connetterti."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer het wachtwoord van het apparaat %1$@ in om ermee te verbinden."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduz a palavra-passe do dispositivo %1$@ para te ligares a ele."
           }
         }
       }
@@ -5462,6 +5838,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Off The Cloud — Sincronização"
+          }
+        }
+      }
+    },
+    "desk.main.too_large_for_disk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien zu groß für dieses Laufwerk (FAT32 fasst Dateien bis 4 GB): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos demasiado grandes para este disco (FAT32 admite archivos de hasta 4 GB): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers trop volumineux pour ce disque (FAT32 accepte des fichiers jusqu’à 4 Go) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file sono troppo grandi per questo disco (FAT32 accetta file fino a 4 GB)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden te groot voor deze schijf (FAT32 kan bestanden tot 4 GB bevatten): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros demasiado grandes para este disco (o FAT32 aceita ficheiros até 4 GB): %1$lld"
           }
         }
       }

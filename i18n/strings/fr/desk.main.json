@@ -127,6 +127,14 @@
     "text": "Processeur : {percent} %",
     "en": "CPU: {percent}%"
   },
+  "desk.main.deletes_held": {
+    "text": "{files} fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas",
+    "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
+  },
+  "desk.main.device_unconfirmed": {
+    "text": "Modifications en attente jusqu’à ce que cet ordinateur reconnaisse l’appareil : {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Se déconnecter de l’appareil {device}…",
     "en": "Disconnect from {device}…"
@@ -174,6 +182,14 @@
     "text": "Envoi uniquement (une option pour un dossier synchronisé depuis cet ordinateur ; toujours activée pour une sauvegarde)\nL’appareil conserve toutes les anciennes versions d’un fichier, et rien dans le dossier ne peut être supprimé sur l’appareil. Les fichiers que vous supprimez sur cet ordinateur restent sur l’appareil et ne sont pas téléchargés de nouveau ; les fichiers ajoutés ou modifiés sur l’appareil continuent d’arriver ici. Vous pourrez désactiver cette option plus tard depuis l’app web ou l’app pour téléphone (le cadenas sur le dossier dans Fichiers) ; les fichiers supprimés sur cet ordinateur pendant qu’elle était activée reviennent alors ici.",
     "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
   },
+  "desk.main.files_failed": {
+    "text": "Fichiers qui n’ont pas pu être synchronisés (voir le journal) : {files}",
+    "en": "{files} file(s) could not be synced - see the log"
+  },
+  "desk.main.files_not_synced_here": {
+    "text": "Fichiers qui sont ici des liens ou cachés (laissés tels quels sur l’appareil) : {files}",
+    "en": "{files} file(s) are links or hidden here - left as they are on the device"
+  },
   "desk.main.files_unreadable": {
     "text": "Fichiers illisibles : {files}",
     "en": "{files} file(s) could not be read"
@@ -209,6 +225,10 @@
   "desk.main.folder_overlap_why": {
     "text": "Un dossier ne peut être synchronisé qu’une seule fois : s’il se trouvait dans un autre dossier synchronisé, ou s’il en contenait un, ses fichiers seraient synchronisés deux fois, et chaque synchronisation annulerait les modifications de l’autre.",
     "en": "A folder can be synced only once: inside another synced folder, or holding one, its files would be synced twice, and each sync would undo the other's changes."
+  },
+  "desk.main.folder_replaced": {
+    "text": "Ce n’est pas le dossier synchronisé : reconnectez son disque",
+    "en": "Not the folder that was synced - reconnect its drive"
   },
   "desk.main.folder_synced": {
     "text": "Synchronisé",
@@ -278,9 +298,17 @@
     "text": "Mémoire : {amount}",
     "en": "Memory: {amount}"
   },
+  "desk.main.names_not_allowed": {
+    "text": "Fichiers de l’appareil dont Windows n’accepte pas le nom (non synchronisés ici) : {files}",
+    "en": "{files} file(s) on the device have names Windows can't use - not synced here"
+  },
   "desk.main.no_folders": {
     "text": "Pas encore de dossiers : ajoutez-en un ci-dessous.",
     "en": "No folders yet — add one below."
+  },
+  "desk.main.no_space": {
+    "text": "Fichiers de l’appareil pour lesquels il n’y a pas assez de place ici : {files}",
+    "en": "Not enough space here for {files} file(s) from the device"
   },
   "desk.main.no_storage": {
     "text": "Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.",
@@ -310,6 +338,10 @@
   "desk.main.open_web_app_tip": {
     "text": "Ouvrir {address} dans votre navigateur",
     "en": "Open {address} in your browser"
+  },
+  "desk.main.password_required": {
+    "text": "Saisissez le mot de passe de l’appareil {device} pour vous y connecter.",
+    "en": "Enter the password of {device} to connect to it."
   },
   "desk.main.password_title": {
     "text": "Off The Cloud — Mot de passe de l’appareil {device}",
@@ -476,6 +508,10 @@
   "desk.main.title": {
     "text": "Off The Cloud — Synchronisation",
     "en": "Off The Cloud — Sync"
+  },
+  "desk.main.too_large_for_disk": {
+    "text": "Fichiers trop volumineux pour ce disque (FAT32 accepte des fichiers jusqu’à 4 Go) : {files}",
+    "en": "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
   },
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",

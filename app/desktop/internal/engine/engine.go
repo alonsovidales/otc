@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -221,6 +222,7 @@ type Engine struct {
 	lastSynced   map[string]map[string]string // remote folder id -> relative path (pathKey) -> hash
 	savedSynced  map[string]map[string]string // what is on disk (record.go)
 	savedDevice  map[string]recordDevice      // the device of what is on disk
+	savedMeta    map[string]folderMeta        // what the record on disk says about its folder
 	syncedFiles  map[string]syncedFile        // the device each loaded record was made with
 	watchers     map[string]*Watcher
 	remoteWatch  map[string]*Watcher
@@ -251,12 +253,29 @@ type Engine struct {
 	// Folders whose own folder was missing at their last pass
 	// (localRootPresent): waiting for it, watcher stopped.
 	missingRoot map[string]bool
+	// Two-way folders whose folder was there at their last pass but wasn't
+	// the one synced (rootid.go): waiting for it the same way.
+	replacedRoot map[string]bool
+	// The disks or shares mounted in a two-way folder that weren't at its
+	// last pass, as last logged (noteGoneMounts).
+	goneMountsSeen map[string]string
+	// Deletes the device-side mass-deletion guard holds per two-way
+	// folder, as last logged (noteMassHeld).
+	massHeld map[string]int
+	// Changes a two-way folder holds until the device's pin is confirmed,
+	// as last logged (noteUnconfirmed).
+	unconfirmed map[string]int
+	// Two-way folders whose marker couldn't be written, as last logged
+	// (markFolder).
+	markFailed map[string]bool
 	// The passes holding one of the maxPasses slots (passSlot), and a
 	// channel closed whenever one is freed.
 	passing  map[string]passEntry
 	passWake chan struct{}
 	// Files that changed while they were being sent, backed off (busy.go).
 	busy map[string]busyBackoff
+	// Two-way files whose transfer failed, backed off (fail.go).
+	failing map[string]failBackoff
 	// Backups whose SetUploadOnly the device linked now acknowledged, and
 	// the last error logged for the others (see ensureUploadOnly).
 	uploadOnlyOK  map[string]bool
@@ -294,6 +313,9 @@ type Engine struct {
 	// langSentAt is when the last SetLanguage went out: languageWindow
 	// runs from the change or from it, whichever is later.
 	langSentAt time.Time
+
+	// pinSource stands for e.ws.SessionPin in the tests (record.go).
+	pinSource func() ([]byte, bool)
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -317,6 +339,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		lastSynced:    map[string]map[string]string{},
 		savedSynced:   map[string]map[string]string{},
 		savedDevice:   map[string]recordDevice{},
+		savedMeta:     map[string]folderMeta{},
 		syncedFiles:   map[string]syncedFile{},
 		watchers:      map[string]*Watcher{},
 		remoteWatch:   map[string]*Watcher{},
@@ -338,6 +361,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		hashLoaded:    map[string]bool{},
 		hashSavedAt:   map[string]time.Time{},
 		missingRoot:   map[string]bool{},
+		replacedRoot:  map[string]bool{},
 		passing:       map[string]passEntry{},
 		passWake:      make(chan struct{}),
 		busy:          map[string]busyBackoff{},
@@ -505,9 +529,15 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 			e.dropFolderLocked(f.ID)
 		}
 	}
+	// Removed two-way folders: their markers go with their records
+	// (rootid.go), once e.mu is let go - an unlink on a share that stopped
+	// answering (the likely reason to remove the folder) can block for
+	// good, and with it everything that takes e.mu.
+	var unmark []config.RemoteFolder
 	for _, f := range old.RemoteFolders {
 		if !keepR[f.ID] {
 			e.dropRemoteFolderLocked(f.ID)
+			unmark = append(unmark, f)
 		}
 	}
 	credsChanged := old.Domain != cfg.Domain || oldPw != password
@@ -545,6 +575,9 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		}
 	}
 	e.mu.Unlock()
+	if len(unmark) > 0 {
+		go removeMarkers(unmark)
+	}
 	e.notify()
 	if credsChanged {
 		dropLanguagePending(droppedLanguage)
@@ -603,6 +636,11 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	}
 	e.dropSyncedLocked(id)
 	delete(e.heldDeletes, id)
+	delete(e.replacedRoot, id)
+	delete(e.goneMountsSeen, id)
+	delete(e.massHeld, id)
+	delete(e.unconfirmed, id)
+	delete(e.markFailed, id)
 	delete(e.remoteStates, id)
 	e.dropRequestsLocked(id)
 	e.dropHashCacheLocked(id)
@@ -1548,6 +1586,52 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// The device, as sync records name it (record.go): taken once, at the
 	// start, like the address.
 	device := e.deviceFor(domainAtStart)
+
+	// The folder here first: whether it is the one its record was made
+	// with (rootid.go) needs nothing from the device, and a folder that
+	// isn't waits without even listing it.
+	e.mu.Lock()
+	recorded, meta, written := e.recordedLocked(f.ID)
+	pinned := e.recordPinnedLocked(f.ID)
+	e.mu.Unlock()
+	// A record that names its device by its pin, and none confirmed on
+	// this sign-in (record.go): the device is asked now, once a minute at
+	// most.
+	if pinned && device.Pin == "" && e.ws.ConfirmPin(context.Background()) {
+		device = e.deviceFor(domainAtStart)
+	}
+	e.mu.Lock()
+	last, uncertain, saveDevice := e.recordForDeviceLocked(f.ID, device)
+	e.mu.Unlock()
+	if last == nil {
+		last = map[string]string{}
+	}
+	lv, err := e.lookHere(f, meta, last, written)
+	if err != nil {
+		e.setRemoteState(f.ID, errorState(err))
+		e.scheduleRemoteRetry(f)
+
+		return
+	}
+	// The maybe mounts (mounts.go) are not left out of the folder's
+	// identity: only what is known to be unknown here is.
+	verdict := e.identifyFolder(f, lv.byRel, recorded, meta,
+		func(rel string) bool { return lv.unknown(rel) || lv.skipped.covers(rel) })
+	if !verdict.ok {
+		e.folderReplaced(f)
+		e.scheduleRemoteRetry(f)
+
+		return
+	}
+	if e.folderBack(f) {
+		wasMissing = true // its watcher went with it
+	}
+	meta.Root, meta.Mounts, meta.MaybeMounts = verdict.token, lv.mounts, lv.maybeMounts
+	if verdict.mark {
+		e.markFolder(f, verdict.token)
+	}
+	e.noteGoneMounts(f, lv.heldDirs())
+
 	// As reconcile - first, and never holding the pass up: upload only
 	// (issue #132) before anything could be deleted, and Images (issue
 	// #192) before anything is sent.
@@ -1580,6 +1664,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// one file. The device's own bytes address what it has (deviceRel);
 	// a new file goes up as its key.
 	remoteByRel := map[string]*pb.File{}
+	// Device entries whose names Windows can't hold (names.go).
+	unusable := 0
+	// The keys of the device entries left out for their names (those, and
+	// the unsafe ones): left out here too - a file here at one is neither
+	// sent over the device's nor taken for deleted there, and keeps its
+	// record.
+	excludedHere := map[string]bool{}
 	if lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles); ok {
 		skipped, twins := 0, 0
 		for _, rf := range lof.RespListOfFiles.Files {
@@ -1588,8 +1679,17 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			// deleted from the device) outside the folder.
 			rel, under := strings.CutPrefix(rf.Path, remotePrefix)
 			key := pathKey(rel)
+			if under && rel != "" && (unusableName(rel) || unusableName(key)) {
+				unusable++
+				excludedHere[key] = true
+
+				continue
+			}
 			if !under || !safeRelative(rel) || !safeRelative(key) {
 				skipped++
+				if under && rel != "" {
+					excludedHere[key] = true
+				}
 
 				continue
 			}
@@ -1615,45 +1715,49 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		if twins > 0 {
 			log.Printf("two-way %s: %d name(s) listed twice by the device in two Unicode normalizations - one of each is synced, the other left as it is", f.RemotePath, twins)
 		}
+		if unusable > 0 {
+			log.Printf("two-way %s: %d device file(s) have names Windows can't hold as they are - left as they are, not synced here", f.RemotePath, unusable)
+		}
 	}
 
-	local, failedDirs, err := enumerateFiles(f.LocalPath)
-	if err != nil {
-		e.setRemoteState(f.ID, errorState(err))
-		e.scheduleRemoteRetry(f)
+	// A folder renamed only in case on the device is renamed so here too,
+	// on a disk that ignores case (casefix.go), and the folder looked at
+	// again; what the record and the hash cache say of its files goes with
+	// them, so nothing is sent or fetched for it.
+	deviceKeys := make(map[string]bool, len(remoteByRel))
+	for k := range remoteByRel {
+		deviceKeys[k] = true
+	}
+	for round := 0; round < 8; round++ {
+		renames := matchFolderCase(f.LocalPath, lv.byRel, deviceKeys, last)
+		if len(renames) == 0 {
+			break
+		}
+		last = renamedRecord(last, renames)
+		e.renameHashCache(f, renames)
+		for i, m := range meta.Mounts {
+			meta.Mounts[i] = renamedKey(m, renames)
+		}
+		for i, m := range meta.MaybeMounts {
+			meta.MaybeMounts[i] = renamedKey(m, renames)
+		}
+		if lv, err = e.lookHere(f, meta, last, written); err != nil {
+			e.setRemoteState(f.ID, errorState(err))
+			e.scheduleRemoteRetry(f)
 
-		return
-	}
-	e.pruneHashCache(f.ID, f.LocalPath, local, failedDirs)
-	e.mu.Lock()
-	last := e.recordForLocked(f.ID, device)
-	e.mu.Unlock()
-	if last == nil {
-		last = map[string]string{}
-	}
-	localByRel := map[string]string{}
-	localTwins := 0
-	for _, p := range local {
-		rel, err := filepath.Rel(f.LocalPath, p)
-		if err != nil {
-			continue
+			return
 		}
-		rel = filepath.ToSlash(rel)
-		key := pathKey(rel)
-		if prev, dup := localByRel[key]; dup {
-			// Two files here whose names differ only in normalization
-			// (Linux and Windows keep both): the NFC one is synced, the
-			// other left alone.
-			localTwins++
-			if prevRel, _ := filepath.Rel(f.LocalPath, prev); filepath.ToSlash(prevRel) == key {
-				continue
-			}
-		}
-		localByRel[key] = p
+		meta.Mounts, meta.MaybeMounts = lv.mounts, lv.maybeMounts
 	}
-	if localTwins > 0 {
-		log.Printf("two-way %s: %d name(s) here twice, in two Unicode normalizations - one of each is synced", f.RemotePath, localTwins)
-	}
+	// The hash cache forgets what is no longer here - only now that the
+	// folder is known to be the synced one (the empty mount point of a disk
+	// that isn't mounted emptied it, and every file was read again once the
+	// disk was back), and not what is under a folder that can't be read or a
+	// disk that isn't mounted: unknown, not gone.
+	e.pruneHashCache(f.ID, f.LocalPath, lv.files, lv.unknownDirs())
+	local, localByRel, skippedSet := lv.files, lv.byRel, lv.skipped
+	unknownHere := func(rel string) bool { return lv.unknown(rel) || lv.maybe.covers(rel) }
+
 	localHashes := map[string]string{}
 	// The stat each hash was taken with: sizes for the progress bar, and
 	// what the file must still look like before a planned action
@@ -1681,6 +1785,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			lastShown = time.Now()
 			e.setRemoteState(f.ID, checkingState(i+1, len(local), filepath.Base(p)))
 			e.saveHashCacheEvery(f.ID)
+		}
+		if excludedHere[key] {
+			continue // never compared (excludedHere)
 		}
 		if _, onDevice := remoteByRel[key]; !onDevice {
 			if _, synced := last[key]; !synced {
@@ -1718,15 +1825,22 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// Under a directory that could not be read (permissions, a dead
 	// network mount) files look deleted here; they are left out like an
 	// unreadable file, or their device copies would be deleted - and are
-	// counted in the folder's "could not be read" like one.
+	// counted in the folder's "could not be read" like one. So are those
+	// under a disk or share mounted in the folder that isn't now.
+	notSyncedHere := map[string]bool{}
 	for rel := range all {
-		for _, d := range failedDirs {
-			d = pathKey(d)
-			if rel == d || strings.HasPrefix(rel, d+"/") {
-				unreadable[rel] = true
-
-				break
-			}
+		switch {
+		case unknownHere(rel):
+			unreadable[rel] = true
+		case skippedSet.covers(rel):
+			notSyncedHere[rel] = true
+		}
+	}
+	// Of those, the ones the device has - what the note says is left there.
+	leftOnDevice := 0
+	for rel := range notSyncedHere {
+		if remoteByRel[rel] != nil {
+			leftOnDevice++
 		}
 	}
 
@@ -1737,7 +1851,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	var actions []action
 	deletesHeld := 0 // waiting for upload only (holdDeletes)
 	for rel := range all {
-		if unreadable[rel] {
+		if unreadable[rel] || notSyncedHere[rel] || excludedHere[rel] {
 			continue
 		}
 		if newLocal[rel] {
@@ -1871,6 +1985,70 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			i18n.DeskMainRestoredFiles(localDeletes))
 	}
 
+	// The same guard the other way. A delete on the device is for good -
+	// its versions and, with the last copy, its content - and files gone
+	// from here in numbers are what a folder emptied by accident looks like:
+	// a disk or share mounted inside it that isn't, a program that emptied
+	// it, a folder that isn't the synced one at all (rootid.go). Past a
+	// handful of files and a quarter of what the device holds, those deletes
+	// are held: the files stay on the device, their baselines here, and the
+	// folder says so until they are back here or deleted there too (from the
+	// web or a phone), which agrees. A file whose content is here under
+	// another name is no loss - a folder moved or renamed here - and its
+	// delete goes.
+	var heldNote FolderState
+	held := e.holdMassDeviceDeletes(f, actions, localByRel, localHashes, newLocal, remoteByRel)
+	e.noteMassHeld(f, len(held))
+	if len(held) > 0 {
+		kept := actions[:0]
+		for _, a := range actions {
+			if held[a.relative] {
+				newSynced[a.relative] = last[a.relative]
+
+				continue
+			}
+			kept = append(kept, a)
+		}
+		actions = kept
+		heldNote = noteState(
+			fmt.Sprintf("%d files deleted here at once are kept on the device - if that was meant, delete them there too", len(held)), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainDeletesHeld(len(held)))
+	}
+
+	// A device whose pin this sign-in hasn't confirmed, where the record
+	// names its device by one (record.go): the same device most likely, or
+	// one set up again since under its name, empty. Nothing that can't be
+	// taken back goes ahead - no delete either way, no download over a file
+	// here - until it is confirmed; the rest does, and the baselines of what
+	// waits stay.
+	var waitNote FolderState
+	if uncertain {
+		waiting := 0
+		kept := actions[:0]
+		for _, a := range actions {
+			_, here := localByRel[a.relative]
+			if a.kind == actDeleteLocal || a.kind == actDeleteRemote || (a.kind == actDownload && here) {
+				if prior, ok := last[a.relative]; ok {
+					newSynced[a.relative] = prior
+				} else {
+					delete(newSynced, a.relative)
+				}
+				waiting++
+
+				continue
+			}
+			kept = append(kept, a)
+		}
+		actions = kept
+		e.noteUnconfirmed(f, waiting)
+		if waiting > 0 {
+			waitNote = noteState(fmt.Sprintf("%d change(s) wait until this computer recognizes the device", waiting), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+				i18n.DeskMainDeviceUnconfirmed(waiting))
+		}
+	} else {
+		e.noteUnconfirmed(f, 0)
+	}
+
 	// Local deletes first: on a disk that ignores case (Windows, macOS) a
 	// file renamed only in case elsewhere is a download of "A.txt" and a
 	// delete of "a.txt" here - the same file. Downloading first, the delete
@@ -1986,6 +2164,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// The folders local deletions emptied: removed after the pass (see
 	// removeEmptiedDirs).
 	emptied := map[string]bool{}
+	// What the pass couldn't sync, and the paths it had something to do
+	// for - failures backed off elsewhere are forgotten (fail.go).
+	var failures passFailures
+	acted := map[string]bool{}
 	for i, a := range actions {
 		if !e.stillSyncing(f.ID, domainAtStart) {
 			log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
@@ -2005,7 +2187,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			e.mu.Lock()
 			e.lastSynced[f.ID] = newSynced
 			e.mu.Unlock()
-			e.saveSyncedFor(f.ID, device, newSynced)
+			e.saveSyncedFor(f.ID, saveDevice, meta, newSynced)
 			e.setRemoteState(f.ID, msgState(i18n.DeskMainFolderOffline()))
 
 			return
@@ -2022,11 +2204,25 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		localPath := localPathOf(a.relative)
 		remotePath := remotePathOf(a.relative)
+		acted[localPath] = true
 		// The device's file must still be what the listing said when an
 		// upload replaces it or a delete removes it (deviceStillAsListed).
 		listed := remoteByRel[a.relative]
 		asListed := func() error { return e.deviceStillAsListed(remotePath, listed) }
+		transfer := a.kind != actDeleteLocal && a.kind != actDeleteRemote
 		var err error
+		// A transfer that failed for a reason of its own waits a while
+		// (fail.go), and still counts as not synced.
+		if kind, waiting := e.failWait(localPath); transfer && waiting {
+			failures.add(kind)
+			if prior, ok := last[a.relative]; ok {
+				newSynced[a.relative] = prior
+			} else {
+				delete(newSynced, a.relative)
+			}
+
+			continue
+		}
 		switch a.kind {
 		case actUpload:
 			fi, statErr := os.Stat(localPath)
@@ -2068,9 +2264,23 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			}
 		case actUploadKeepRemote:
 			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
-			copyPath := conflictPath(localPath, "", time.Now())
-			if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
-				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+			// A busy file is left as it is before a copy is made for it, and
+			// a copy of the device's version an earlier pass kept (its
+			// upload failed) is the one kept: each pass used to download
+			// another.
+			if e.busyWait(localPath) {
+				err = errBusyFile
+
+				break
+			}
+			copyPath, kept := e.conflictCopyOf(f.ID, localPath, remoteHash)
+			if !kept {
+				copyPath = conflictPath(localPath, "", time.Now())
+				if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
+					log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+				}
+			}
+			if err == nil {
 				if !e.stillSyncing(f.ID, domainAtStart) {
 					log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
 
@@ -2085,7 +2295,21 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		case actDeleteRemote:
-			if err = asListed(); err == nil {
+			// Still nothing here by that very name, right before it goes: a
+			// file put back during the pass, or anything the scan doesn't
+			// sync (a link, a hidden file) - left for the next pass. Only
+			// that name: on a disk that ignores case, the file the old name
+			// finds after a rename made here only in case is the new name,
+			// whose upload goes with this delete (presentAsNamed).
+			if here, herr := presentAsNamed(f.LocalPath, a.relative); herr != nil {
+				err = herr
+			} else if here {
+				err = errChangedHere
+			}
+			if err == nil {
+				err = asListed()
+			}
+			if err == nil {
 				err = e.deleteRemote(remotePath)
 			}
 			if errors.Is(err, errKeptOnDevice) {
@@ -2095,8 +2319,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				err = nil
 			}
 		case actDeleteLocal:
+			// To the trash, never deleted outright (trash.go).
 			if err = stillAsScanned(a.relative, localPath); err == nil {
-				err = os.Remove(localPath)
+				err = moveToTrash(localPath, f.LocalPath)
 			}
 			if err == nil {
 				emptied[filepath.Dir(localPath)] = true
@@ -2110,43 +2335,330 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else {
 				delete(newSynced, a.relative)
 			}
-			if errors.Is(err, errChangedHere) || errors.Is(err, errChangedOnDevice) || errors.Is(err, errBusyFile) {
+			switch {
+			case transient(err):
 				log.Printf("%s %v", a.relative, err)
-			} else {
+			case transfer:
+				failures.add(failKindOf(err))
+				e.noteFailed(localPath, err)
+			default:
+				failures.add(failKindOf(err))
 				log.Printf("error syncing %s: %v", a.relative, err)
 			}
+		} else if transfer {
+			e.noteSynced(localPath)
 		}
 	}
+	e.forgetFailedUnder(f.LocalPath, acted)
 
 	if n := removeEmptiedDirs(emptied, f.LocalPath); n > 0 {
 		log.Printf("%s: removed %d folder(s) left empty by deletions on the device", f.RemotePath, n)
 	}
+	pruneFolderTrashes(f.LocalPath, meta.Mounts, time.Now())
+	pruneSystemTrash(time.Now())
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
-	e.saveSyncedFor(f.ID, device, newSynced)
+	e.saveSyncedFor(f.ID, saveDevice, meta, newSynced)
 	if wasMissing {
 		// Back after it was missing: its watcher went with it.
 		e.startRemoteWatcher(f)
 	}
-	// Files under a directory that could not be read are in unreadable
-	// (see above) and counted here. Such a directory with nothing synced
-	// under it - lost+found at a mount's root, System Volume Information
-	// at a drive's - is only logged (enumerateFiles), as on the Mac: it
-	// would otherwise hold the folder in an error for good.
-	if len(unreadable) > 0 {
+	// The pass ends saying what is left undone, the most pressing first:
+	// deletes held here, then files it couldn't sync (no room for them
+	// here first). Files under a directory that could not be read are
+	// in unreadable (see above) and counted here. Such a directory with
+	// nothing synced under it - lost+found at a mount's root, System Volume
+	// Information at a drive's - is only logged (enumerateFiles), as on the
+	// Mac: it would otherwise hold the folder in an error for good.
+	switch {
+	case heldNote.Kind != "":
+		e.setRemoteState(f.ID, heldNote)
+	case waitNote.Kind != "":
+		e.setRemoteState(f.ID, waitNote)
+	case failures.total() > 0:
+		e.setRemoteState(f.ID, failures.note())
+	case len(unreadable) > 0:
 		e.setRemoteState(f.ID, noteState(
 			fmt.Sprintf("%d file(s) could not be read", len(unreadable)), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
 			i18n.DeskMainFilesUnreadable(len(unreadable))))
-
-		return
-	}
-	if guardNote.Kind != "" {
+	case guardNote.Kind != "":
 		e.setRemoteState(f.ID, guardNote)
-
-		return
+	case leftOnDevice > 0:
+		e.setRemoteState(f.ID, noteState(
+			fmt.Sprintf("%d file(s) are links or hidden here - left as they are on the device", leftOnDevice), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainFilesNotSyncedHere(leftOnDevice)))
+	case unusable > 0:
+		e.setRemoteState(f.ID, noteState(
+			fmt.Sprintf("%d file(s) on the device have names Windows can't use - not synced here", unusable), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainNamesNotAllowed(unusable)))
+	default:
+		e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
 	}
-	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
+}
+
+// holdMassDeviceDeletes is the device-side mass-deletion guard: the paths
+// whose deletes on the device the pass holds - every planned one whose
+// content isn't here under another name, when there are more than
+// massDeleteMin of them and more than a quarter of the files the device
+// lists - or none. Files new here are hashed for it only when the count
+// says it may hold (moves don't count, and only their hashes tell).
+func (e *Engine) holdMassDeviceDeletes(f config.RemoteFolder, actions []action, localByRel, localHashes map[string]string,
+	newLocal map[string]bool, remoteByRel map[string]*pb.File) map[string]bool {
+	deviceFiles := max(len(remoteByRel), 1)
+	over := func(n int) bool { return n > massDeleteMin && n*4 > deviceFiles }
+	deletes := 0
+	for _, a := range actions {
+		if a.kind == actDeleteRemote {
+			deletes++
+		}
+	}
+	if !over(deletes) {
+		return nil
+	}
+	here := map[string]bool{}
+	for key, p := range localByRel {
+		h, ok := localHashes[key]
+		if !ok {
+			if !newLocal[key] {
+				continue // could not be read
+			}
+			var err error
+			if h, err = e.cachedHash(f.ID, p); err != nil {
+				continue
+			}
+		}
+		here[h] = true
+	}
+	held := map[string]bool{}
+	for _, a := range actions {
+		if a.kind == actDeleteRemote && !here[a.hash] {
+			held[a.relative] = true
+		}
+	}
+	if !over(len(held)) {
+		return nil
+	}
+
+	return held
+}
+
+// markFolder writes the folder's marker (rootid.go); a folder that can't
+// take it is checked by its files at each pass instead, and said once.
+func (e *Engine) markFolder(f config.RemoteFolder, token string) {
+	err := writeMarker(f.LocalPath, f.ID, token)
+	e.mu.Lock()
+	if e.markFailed == nil {
+		e.markFailed = map[string]bool{}
+	}
+	first := err != nil && !e.markFailed[f.ID]
+	if err != nil {
+		e.markFailed[f.ID] = true
+	} else {
+		delete(e.markFailed, f.ID)
+	}
+	e.mu.Unlock()
+	if first {
+		log.Printf("could not mark %s as the folder otc-sync syncs (%v) - its files are checked again at each pass instead", f.LocalPath, err)
+	}
+}
+
+// noteUnconfirmed logs how many changes of a two-way folder wait for the
+// device's pin to be confirmed - when that changes, not at every pass.
+func (e *Engine) noteUnconfirmed(f config.RemoteFolder, n int) {
+	e.mu.Lock()
+	if e.unconfirmed == nil {
+		e.unconfirmed = map[string]int{}
+	}
+	changed := e.unconfirmed[f.ID] != n
+	if n == 0 {
+		delete(e.unconfirmed, f.ID)
+	} else {
+		e.unconfirmed[f.ID] = n
+	}
+	e.mu.Unlock()
+	if changed && n > 0 {
+		log.Printf("%s: the device hasn't confirmed it is the one this folder was synced with (its home-network certificate) - %d delete(s) or overwrite(s) wait until it has", f.RemotePath, n)
+	}
+}
+
+// noteMassHeld logs how many deletes the device-side mass-deletion guard
+// holds for a two-way folder - when that changes, not at every pass.
+func (e *Engine) noteMassHeld(f config.RemoteFolder, n int) {
+	e.mu.Lock()
+	if e.massHeld == nil {
+		e.massHeld = map[string]int{}
+	}
+	changed := e.massHeld[f.ID] != n
+	if n == 0 {
+		delete(e.massHeld, f.ID)
+	} else {
+		e.massHeld[f.ID] = n
+	}
+	e.mu.Unlock()
+	if changed && n > 0 {
+		log.Printf("%s: %d files gone from here at once - not deleted on the device, which keeps them (deleted there too, they are gone everywhere)", f.RemotePath, n)
+	}
+}
+
+// noteGoneMounts logs the folders mounted inside a two-way folder that are
+// not mounted now (mounts.go) - when that changes, not at every pass.
+func (e *Engine) noteGoneMounts(f config.RemoteFolder, gone []string) {
+	now := strings.Join(gone, "\x00")
+	e.mu.Lock()
+	if e.goneMountsSeen == nil {
+		e.goneMountsSeen = map[string]string{}
+	}
+	changed := e.goneMountsSeen[f.ID] != now
+	if now == "" {
+		delete(e.goneMountsSeen, f.ID)
+	} else {
+		e.goneMountsSeen[f.ID] = now
+	}
+	e.mu.Unlock()
+	if changed && now != "" {
+		log.Printf("%s: nothing is mounted on %s now (a disk or share not connected?) - what was synced under it is left as it is on both sides until it is back", f.LocalPath, strings.Join(gone, ", "))
+	}
+}
+
+// localView is what a two-way pass sees of its folder here (lookHere).
+type localView struct {
+	folderScan
+	// byRel is the files by key (pathKey of the path below the folder).
+	byRel map[string]string
+	// failed, heldMounts and skipped are the scan's unreadable folders,
+	// the mounts the record lists that aren't now (mounts.go) and what it
+	// skipped, by key; goneDirs and mounts are mounts.go's.
+	failed, heldMounts, skipped pathSet
+	goneDirs, mounts            []string
+	// maybe is maybeMounts by key: folders held as maybe a disk or share
+	// not mounted (mounts.go).
+	maybe       pathSet
+	maybeMounts []string
+}
+
+// unknown: rel is under a folder that could not be read, or under a disk
+// or share mounted in the folder that isn't now - unknown here rather than
+// gone, so nothing is done for it either way.
+func (lv localView) unknown(rel string) bool { return lv.failed.covers(rel) || lv.heldMounts.covers(rel) }
+
+// unknownDirs are the folders (relative, slash-separated) what is under is
+// unknown here, not gone: those that could not be read and the mounts that
+// aren't now, known or maybe.
+func (lv localView) unknownDirs() []string {
+	return append(append([]string(nil), lv.folderScan.failed...), lv.heldDirs()...)
+}
+
+// heldDirs are the mounts that aren't now, known (goneDirs) or maybe.
+func (lv localView) heldDirs() []string {
+	held := append(append([]string(nil), lv.goneDirs...), lv.maybeMounts...)
+	sort.Strings(held)
+
+	return held
+}
+
+// lookHere scans the folder (scanFolder) and keys what it found; meta is
+// what the record says of the folder, record the record of this device's
+// files and written when its file was written (maybeMounts).
+func (e *Engine) lookHere(f config.RemoteFolder, meta folderMeta, record map[string]string, written time.Time) (localView, error) {
+	scan, err := scanFolder(f.LocalPath)
+	if err != nil {
+		return localView{}, err
+	}
+	lv := localView{folderScan: scan, byRel: map[string]string{}, failed: pathSet{}, heldMounts: pathSet{}, skipped: pathSet{}, maybe: pathSet{}}
+	twins := 0
+	for _, p := range scan.files {
+		rel, err := filepath.Rel(f.LocalPath, p)
+		if err != nil {
+			continue
+		}
+		rel = filepath.ToSlash(rel)
+		key := pathKey(rel)
+		if prev, dup := lv.byRel[key]; dup {
+			// Two files here whose names differ only in normalization
+			// (Linux and Windows keep both): the NFC one is synced, the
+			// other left alone.
+			twins++
+			if prevRel, _ := filepath.Rel(f.LocalPath, prev); filepath.ToSlash(prevRel) == key {
+				continue
+			}
+		}
+		lv.byRel[key] = p
+	}
+	if twins > 0 {
+		log.Printf("two-way %s: %d name(s) here twice, in two Unicode normalizations - one of each is synced", f.RemotePath, twins)
+	}
+	for _, d := range scan.failed {
+		lv.failed[pathKey(d)] = true
+	}
+	lv.goneDirs, lv.mounts = goneMounts(f.LocalPath, meta.Mounts, scan.mounts)
+	for _, m := range lv.goneDirs {
+		lv.heldMounts[pathKey(m)] = true
+	}
+	// What is here but isn't synced (folderScan.skipped): a file synced
+	// before that is now a link, or under one, or hidden on Windows, is
+	// still here - its copy on the device stays, nothing comes down over
+	// it, and it is counted in the folder's note.
+	for _, s := range scan.skipped {
+		lv.skipped[pathKey(s)] = true
+	}
+	lv.maybeMounts = maybeMounts(f.LocalPath, meta, record, lv.byRel,
+		func(rel string) bool { return lv.unknown(rel) || lv.skipped.covers(rel) }, written)
+	for _, m := range lv.maybeMounts {
+		lv.maybe[m] = true
+	}
+
+	return lv, nil
+}
+
+// identifyFolder is judgeRoot for this pass: what the marker file says,
+// and when that isn't enough, the hashes of the files the record lists that
+// are here (local, by key), leaving out those unknown here. It hashes only
+// as far as the answer needs, showing the files it checks.
+func (e *Engine) identifyFolder(f config.RemoteFolder, local map[string]string, recorded map[string]string, meta folderMeta,
+	unknown func(string) bool) rootVerdict {
+	marker := readMarker(f.LocalPath, f.ID)
+	if meta.Root != "" && marker == meta.Root {
+		return rootVerdict{ok: true, token: meta.Root}
+	}
+	listed := 0
+	var present []string
+	for rel, entry := range recorded {
+		if strings.HasPrefix(entry, keptOnDevicePrefix) || unknown(rel) {
+			continue
+		}
+		listed++
+		if _, ok := local[rel]; ok {
+			present = append(present, rel)
+		}
+	}
+	sort.Strings(present)
+	here := map[string]string{}
+	unchanged := 0
+	var lastShown time.Time
+	for i, rel := range present {
+		// Settled either way: at least half unchanged, or too few left.
+		if unchanged*2 >= listed || (unchanged+len(present)-i)*2 < listed {
+			break
+		}
+		p := local[rel]
+		if time.Since(lastShown) > time.Second {
+			lastShown = time.Now()
+			e.setRemoteState(f.ID, checkingState(i+1, len(present), filepath.Base(p)))
+		}
+		fi, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		if h, err := e.cachedHashInfo(f.ID, p, fi); err == nil {
+			here[rel] = h
+			if h == recorded[rel] {
+				unchanged++
+			}
+		}
+	}
+
+	return judgeRoot(meta.Root, marker, recorded, here, unknown)
 }
 
 // movedOnDevice: the hashes of the files the device lists at paths the
@@ -2289,7 +2801,9 @@ const massDeleteMin = 20
 
 func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 	e.mu.Lock()
-	if _, ok := e.remoteWatch[f.ID]; ok || e.stopped || !e.remoteConfiguredLocked(f.ID) {
+	// Not on a folder that isn't the synced one (rootid.go): it would go on
+	// watching it once the synced one is mounted over it.
+	if _, ok := e.remoteWatch[f.ID]; ok || e.stopped || !e.remoteConfiguredLocked(f.ID) || e.replacedRoot[f.ID] {
 		e.mu.Unlock()
 
 		return
@@ -2478,6 +2992,14 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, rea
 		last = c.RespFileChunk
 		if expectedHash != "" && last.Hash != "" && last.Hash != expectedHash {
 			return errors.New("the file changed on the device while downloading - will retry") // i18n-ignore: a file's error, only logged
+		}
+		// Its size known: refused before anything is written when this
+		// disk can't take it (fail.go) - it used to fill the disk, fail,
+		// free it and start again at every pass.
+		if at == 0 {
+			if err := roomFor(filepath.Dir(dest), last.Size); err != nil {
+				return err
+			}
 		}
 		size = last.Size
 		if len(last.Data) == 0 && offset < size {
@@ -2726,24 +3248,66 @@ func removeEmptiedDirs(dirs map[string]bool, root string) int {
 	return removed
 }
 
-// enumerateFiles walks a tree for regular files, leaving out what is never
+// enumerateFiles is scanFolder's files and unreadable directories.
+func enumerateFiles(root string) (out, failed []string, err error) {
+	s, err := scanFolder(root)
+
+	return s.files, s.failed, err
+}
+
+// folderScan is what scanFolder found below a folder.
+type folderScan struct {
+	// files are the regular files to sync (full paths).
+	files []string
+	// failed are the directories that could not be read (relative to the
+	// root, slash-separated): what is under them is unknown, not gone.
+	failed []string
+	// skipped is what is here but isn't synced, and isn't left out by its
+	// name on both sides (skip.go) - a symbolic link, to a file or a folder
+	// (the scan never follows one), anything that is neither a regular
+	// file nor a folder (on Windows also a junction), and on Windows a file
+	// or folder with the Hidden or System attribute - relative to the
+	// root, slash-separated. A file synced before that is one of these now,
+	// or is under one, is still here: its copy on the device must not be
+	// deleted for it.
+	skipped []string
+	// mounts are the folders below the root that are another file system
+	// than their parent - a disk or a share mounted there (mounts.go) -,
+	// relative to the root, slash-separated, as the disk spells them.
+	mounts []string
+}
+
+// scanFolder walks a tree for regular files, leaving out what is never
 // synced (skip.go: hidden entries, like the macOS enumerator's
 // .skipsHiddenFiles, this client's own partial downloads, Office's and
-// Explorer's scratch files). failed lists the directories below root that
-// could not be read (relative to root, slash-separated): what is under
-// them is unknown, not gone. An unreadable root is an error.
-func enumerateFiles(root string) (out, failed []string, err error) {
-	err = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+// Explorer's scratch files), and notes what it skipped for other reasons
+// and the file systems mounted below it (folderScan). An unreadable root is
+// an error.
+func scanFolder(root string) (folderScan, error) {
+	var s folderScan
+	// Each folder's file system, to find those mounted below the root.
+	devs := map[string]uint64{}
+	if fi, err := os.Stat(root); err == nil {
+		if dev, ok := fileSystemOf(fi); ok {
+			devs[root] = dev
+		}
+	}
+	rel := func(p string) string {
+		r, _ := filepath.Rel(root, p)
+
+		return filepath.ToSlash(r)
+	}
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			if p == root {
 				return err
 			}
 			// Below the root only a directory's ReadDir reports here.
 			if rel, ok := unreadableDir(root, p, err); ok {
-				if len(failed) < 5 {
+				if len(s.failed) < 5 {
 					log.Printf("cannot read directory %s: %v", rel, err)
 				}
-				failed = append(failed, rel)
+				s.failed = append(s.failed, rel)
 			}
 
 			return nil
@@ -2751,27 +3315,47 @@ func enumerateFiles(root string) (out, failed []string, err error) {
 		if p == root {
 			return nil
 		}
-		skip := strings.HasPrefix(d.Name(), ".")
-		if !skip && runtime.GOOS == "windows" {
-			if fi, err := d.Info(); err == nil && hiddenAttr(fi) {
-				skip = true
-			}
-		}
-		if skip {
+		if strings.HasPrefix(d.Name(), ".") {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
 
 			return nil
 		}
-		if d.Type().IsRegular() && !strings.HasSuffix(p, ".otc-part") && !skippedName(d.Name()) {
-			out = append(out, p)
+		if runtime.GOOS == "windows" {
+			if fi, err := d.Info(); err == nil && hiddenAttr(fi) {
+				s.skipped = append(s.skipped, rel(p))
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+
+				return nil
+			}
+		}
+		switch {
+		case d.IsDir():
+			if parent, ok := devs[filepath.Dir(p)]; ok {
+				if fi, err := d.Info(); err == nil {
+					if dev, ok := fileSystemOf(fi); ok {
+						devs[p] = dev
+						if dev != parent {
+							s.mounts = append(s.mounts, rel(p))
+						}
+					}
+				}
+			}
+		case strings.HasSuffix(p, ".otc-part") || skippedName(d.Name()):
+			// Never synced, either way, by its name.
+		case d.Type().IsRegular():
+			s.files = append(s.files, p)
+		default:
+			s.skipped = append(s.skipped, rel(p))
 		}
 
 		return nil
 	})
 
-	return out, failed, err
+	return s, err
 }
 
 // unreadableDir: the directory below root whose read failed with err, as
@@ -2912,6 +3496,42 @@ func conflictPath(path, from string, at time.Time) string {
 		}
 		candidate = filepath.Join(dir, fmt.Sprintf("%s (%s %d)%s", stem, label, i, ext))
 	}
+}
+
+// conflictCopyRe matches the names conflictPath gives the device's
+// version of a file: "name (conflict 2026-11-04 10.16).ext", "… 10.16 2)…".
+const conflictCopyRe = ` \(conflict \d{4}-\d{2}-\d{2} \d{2}\.\d{2}( \d+)?\)`
+
+// conflictCopyOf is a copy of the device's version of path (hash) that an
+// earlier pass kept next to it, when there is one: that pass's upload of
+// the local version failed, and the next one is to reuse it rather than
+// download another.
+func (e *Engine) conflictCopyOf(folderID, path, hash string) (string, bool) {
+	dir, base := filepath.Split(path)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" {
+		stem, ext = base, ""
+	}
+	re, err := regexp.Compile("^" + regexp.QuoteMeta(stem) + conflictCopyRe + regexp.QuoteMeta(ext) + "$")
+	if err != nil {
+		return "", false
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	for _, en := range entries {
+		if !en.Type().IsRegular() || !re.MatchString(en.Name()) {
+			continue
+		}
+		p := filepath.Join(dir, en.Name())
+		if h, err := e.cachedHash(folderID, p); err == nil && h == hash {
+			return p, true
+		}
+	}
+
+	return "", false
 }
 
 // hostLabel is this computer's name for conflict copies.

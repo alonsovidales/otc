@@ -93,21 +93,31 @@ func TestEditsDontLoseEachOther(t *testing.T) {
 	}
 }
 
-// Reset Settings… puts the unreadable file aside, renamed, and starts over.
+// Reset Settings… puts the unreadable file aside, renamed, and starts over
+// - without the old device's password, in the keyring or the file.
 func TestResetKeepsTheFile(t *testing.T) {
-	withConfigDir(t)
-	p, _ := path("config.json")
-	if err := os.WriteFile(p, []byte("{not json"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	aside, err := Reset(time.Date(2026, 10, 27, 15, 4, 5, 0, time.UTC))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if raw, err := os.ReadFile(aside); err != nil || string(raw) != "{not json" {
-		t.Fatalf("not kept: %v", err)
-	}
-	if cfg, err := Load(); err != nil || cfg.Domain != "" {
-		t.Fatalf("after the reset: %+v %v", cfg, err)
+	for _, inFile := range []string{"", "1"} {
+		withConfigDir(t)
+		t.Setenv("OTC_SYNC_NO_KEYRING", inFile)
+		p, _ := path("config.json")
+		if err := os.WriteFile(p, []byte("{not json"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := SavePassword("the old device's"); err != nil {
+			t.Fatal(err)
+		}
+		aside, err := Reset(time.Date(2026, 10, 27, 15, 4, 5, 0, time.UTC))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if raw, err := os.ReadFile(aside); err != nil || string(raw) != "{not json" {
+			t.Fatalf("not kept: %v", err)
+		}
+		if cfg, err := Load(); err != nil || cfg.Domain != "" {
+			t.Fatalf("after the reset: %+v %v", cfg, err)
+		}
+		if pw, err := LoadPassword(); err != nil || pw != "" {
+			t.Fatalf("password file %q: the password outlived the reset (%v)", inFile, err)
+		}
 	}
 }

@@ -159,6 +159,16 @@ func DeskMainCpuLine(percent int) Msg {
 	return Msg{Key: "desk.main.cpu_line", Args: map[string]any{"percent": int64(percent)}}
 }
 
+// DeskMainDeletesHeld is desk.main.deletes_held: "{files} files deleted here at once are kept on the device - if that was meant, d…".
+func DeskMainDeletesHeld(files int) Msg {
+	return Msg{Key: "desk.main.deletes_held", Args: map[string]any{"files": int64(files)}}
+}
+
+// DeskMainDeviceUnconfirmed is desk.main.device_unconfirmed: "{files} change(s) wait until this computer recognizes the device".
+func DeskMainDeviceUnconfirmed(files int) Msg {
+	return Msg{Key: "desk.main.device_unconfirmed", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainDisconnectMenu is desk.main.disconnect_menu: "Disconnect from {device}…".
 func DeskMainDisconnectMenu(device string) Msg {
 	return Msg{Key: "desk.main.disconnect_menu", Args: map[string]any{"device": device}}
@@ -214,6 +224,16 @@ func DeskMainExplainUploadOnly() Msg {
 	return Msg{Key: "desk.main.explain_upload_only"}
 }
 
+// DeskMainFilesFailed is desk.main.files_failed: "{files} file(s) could not be synced - see the log".
+func DeskMainFilesFailed(files int) Msg {
+	return Msg{Key: "desk.main.files_failed", Args: map[string]any{"files": int64(files)}}
+}
+
+// DeskMainFilesNotSyncedHere is desk.main.files_not_synced_here: "{files} file(s) are links or hidden here - left as they are on the device".
+func DeskMainFilesNotSyncedHere(files int) Msg {
+	return Msg{Key: "desk.main.files_not_synced_here", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainFilesUnreadable is desk.main.files_unreadable: "{files} file(s) could not be read".
 func DeskMainFilesUnreadable(files int) Msg {
 	return Msg{Key: "desk.main.files_unreadable", Args: map[string]any{"files": int64(files)}}
@@ -257,6 +277,11 @@ func DeskMainFolderOverlapSame(name string) Msg {
 // DeskMainFolderOverlapWhy is desk.main.folder_overlap_why: "A folder can be synced only once: inside another synced folder, or holding one, …".
 func DeskMainFolderOverlapWhy() Msg {
 	return Msg{Key: "desk.main.folder_overlap_why"}
+}
+
+// DeskMainFolderReplaced is desk.main.folder_replaced: "Not the folder that was synced - reconnect its drive".
+func DeskMainFolderReplaced() Msg {
+	return Msg{Key: "desk.main.folder_replaced"}
 }
 
 // DeskMainFolderSynced is desk.main.folder_synced: "Synced".
@@ -339,9 +364,19 @@ func DeskMainMemoryLine(amount string) Msg {
 	return Msg{Key: "desk.main.memory_line", Args: map[string]any{"amount": amount}}
 }
 
+// DeskMainNamesNotAllowed is desk.main.names_not_allowed: "{files} file(s) on the device have names Windows can't use - not synced here".
+func DeskMainNamesNotAllowed(files int) Msg {
+	return Msg{Key: "desk.main.names_not_allowed", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainNoFolders is desk.main.no_folders: "No folders yet — add one below.".
 func DeskMainNoFolders() Msg {
 	return Msg{Key: "desk.main.no_folders"}
+}
+
+// DeskMainNoSpace is desk.main.no_space: "Not enough space here for {files} file(s) from the device".
+func DeskMainNoSpace(files int) Msg {
+	return Msg{Key: "desk.main.no_space", Args: map[string]any{"files": int64(files)}}
 }
 
 // DeskMainNoStorage is desk.main.no_storage: "Your device can't reach its storage disks. Check they're plugged in and switched…".
@@ -377,6 +412,11 @@ func DeskMainOpenWebApp() Msg {
 // DeskMainOpenWebAppTip is desk.main.open_web_app_tip: "Open {address} in your browser".
 func DeskMainOpenWebAppTip(address string) Msg {
 	return Msg{Key: "desk.main.open_web_app_tip", Args: map[string]any{"address": address}}
+}
+
+// DeskMainPasswordRequired is desk.main.password_required: "Enter the password of {device} to connect to it.".
+func DeskMainPasswordRequired(device string) Msg {
+	return Msg{Key: "desk.main.password_required", Args: map[string]any{"device": device}}
 }
 
 // DeskMainPasswordTitle is desk.main.password_title: "Off The Cloud — Password for {device}".
@@ -567,6 +607,11 @@ func DeskMainSwitchDeviceTitle(device string) Msg {
 // DeskMainTitle is desk.main.title: "Off The Cloud — Sync".
 func DeskMainTitle() Msg {
 	return Msg{Key: "desk.main.title"}
+}
+
+// DeskMainTooLargeForDisk is desk.main.too_large_for_disk: "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)".
+func DeskMainTooLargeForDisk(files int) Msg {
+	return Msg{Key: "desk.main.too_large_for_disk", Args: map[string]any{"files": int64(files)}}
 }
 
 // DeskMainTrayTip is desk.main.tray_tip: "Off The Cloud — {status}".

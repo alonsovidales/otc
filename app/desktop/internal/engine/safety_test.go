@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
-	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
 )
 
 // storedDevice is a fake device whose listings are what it stores now.
@@ -51,11 +50,13 @@ func writeFiles(t *testing.T, dir string, files map[string]string) {
 	}
 }
 
+// countFiles counts the files under dir that a sync would see: not the
+// hidden ones (the folder's marker, rootid.go).
 func countFiles(t *testing.T, dir string) int {
 	t.Helper()
 	n := 0
 	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
+		if err == nil && !d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
 			n++
 		}
 
@@ -92,7 +93,7 @@ func TestRecordOfAnotherDeviceDeletesNothing(t *testing.T) {
 	}
 	f := config.RemoteFolder{ID: "r1", RemotePath: "/linux/pc/home/u/Docs", LocalPath: local}
 	e := twoWayEngine(t, d, "b.off-the.cloud", f)
-	e.saveSyncedFor(f.ID, recordDevice{Domain: "a.off-the.cloud"}, rec) // device A's
+	e.saveSyncedFor(f.ID, recordDevice{Domain: "a.off-the.cloud"}, folderMeta{}, rec) // device A's
 
 	e.reconcileRemoteFolder(f)
 	files, deletes, _ := d.snapshot()
@@ -113,12 +114,13 @@ func TestRecordOfAnotherDeviceDeletesNothing(t *testing.T) {
 // it always was: deletes made here still go.
 func TestOlderRecordIsTheConfiguredDevices(t *testing.T) {
 	withConfigDir(t)
-	d := storedDevice(map[string][]byte{"/pc/folder/a.txt": []byte("a")})
+	d := storedDevice(map[string][]byte{"/pc/folder/a.txt": []byte("a"), "/pc/folder/b.txt": []byte("b")})
 	local := t.TempDir()
+	writeFiles(t, local, map[string]string{"b.txt": "b"}) // a.txt deleted here
 	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/folder", LocalPath: local}
 	e := twoWayEngine(t, d, "cala.off-the.cloud", f)
 	p, _ := syncedPath(f.ID)
-	if err := os.WriteFile(p, []byte(`{"a.txt": "`+sha([]byte("a"))+`"}`), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte(`{"a.txt": "`+sha([]byte("a"))+`", "b.txt": "`+sha([]byte("b"))+`"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	e.reconcileRemoteFolder(f)
@@ -150,8 +152,8 @@ func TestRecordGoesByTheDevicePin(t *testing.T) {
 			local := t.TempDir()
 			f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/folder", LocalPath: local}
 			e := twoWayEngine(t, d, "ws://192.168.1.20:8080/ws", f)
-			e.ws.SetLocalEndpoint(wsclient.NewLocalEndpoint([]string{"192.168.1.20"}, 8443, pin))
-			e.saveSyncedFor(f.ID, recordDevice{Domain: "cala.off-the.cloud", Pin: hex.EncodeToString(tc.recordPin)},
+			e.pinSource = func() ([]byte, bool) { return pin, true } // as this sign-in confirmed it
+			e.saveSyncedFor(f.ID, recordDevice{Domain: "cala.off-the.cloud", Pin: hex.EncodeToString(tc.recordPin)}, markedMeta(t, f),
 				map[string]string{"a.txt": sha([]byte("a"))})
 			e.reconcileRemoteFolder(f)
 			_, deletes, _ := d.snapshot()
@@ -162,6 +164,61 @@ func TestRecordGoesByTheDevicePin(t *testing.T) {
 				t.Fatal("the device's file did not come down")
 			}
 		})
+	}
+}
+
+// A record named by its device's pin, and a sign-in that hasn't confirmed
+// one (the device didn't answer in time, or a device set up again under
+// the same name whose home listener isn't up yet): nothing is deleted on
+// either side, nor downloaded over a file here, and the record keeps its
+// pin. Once the pin is confirmed, the same device's deletes go.
+func TestUnconfirmedDeviceChangesNothingIrreversibly(t *testing.T) {
+	withConfigDir(t)
+	pin := bytes.Repeat([]byte{7}, 32)
+	d := storedDevice(map[string][]byte{"/pc/folder/keep.txt": []byte("k"), "/pc/folder/b.txt": []byte("b, newer on the device"),
+		"/pc/folder/new.txt": []byte("new on the device")})
+	local := t.TempDir()
+	writeFiles(t, local, map[string]string{"keep.txt": "k", "b.txt": "b", "mine.txt": "made here"})
+	// a.txt: deleted here since; gone.txt: deleted on the device since.
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/folder", LocalPath: local}
+	e := twoWayEngine(t, d, "cala.off-the.cloud", f)
+	e.pinSource = func() ([]byte, bool) { return nil, false }
+	rec := map[string]string{"keep.txt": sha([]byte("k")), "b.txt": sha([]byte("b")), "a.txt": sha([]byte("a")), "gone.txt": sha([]byte("g"))}
+	d.files["/pc/folder/a.txt"] = []byte("a")
+	writeFiles(t, local, map[string]string{"gone.txt": "g"})
+	e.saveSyncedFor(f.ID, recordDevice{Domain: "cala.off-the.cloud", Pin: hex.EncodeToString(pin)}, markedMeta(t, f), rec)
+
+	e.reconcileRemoteFolder(f)
+	got, deletes, _ := d.snapshot()
+	if len(deletes) != 0 || got["/pc/folder/a.txt"] == nil {
+		t.Fatalf("deleted on the device: %v", deletes)
+	}
+	if b, _ := os.ReadFile(filepath.Join(local, "b.txt")); string(b) != "b" {
+		t.Fatalf("downloaded over a file here: %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(local, "gone.txt")); err != nil {
+		t.Fatalf("deleted here: %v", err)
+	}
+	// What can be taken back goes: a new file each way.
+	if n, _ := os.ReadFile(filepath.Join(local, "new.txt")); string(n) != "new on the device" || got["/pc/folder/mine.txt"] == nil {
+		t.Fatalf("new files: here %q, on the device %v", n, keysOf(got))
+	}
+	if st := remoteState(e, f.ID); st.Msg == nil || st.Msg.Key != "desk.main.device_unconfirmed" {
+		t.Fatalf("state %+v", st)
+	}
+	p, _ := syncedPath(f.ID)
+	data, _ := os.ReadFile(p)
+	if _, dev, ok := parseRecord(data); !ok || dev == nil || dev.Pin != hex.EncodeToString(pin) {
+		t.Fatalf("record saved as %s: the pin went", data)
+	}
+
+	e.pinSource = func() ([]byte, bool) { return pin, true }
+	e.reconcileRemoteFolder(f)
+	if _, deletes, _ := d.snapshot(); len(deletes) != 1 || !strings.HasSuffix(deletes[0], "/a.txt") {
+		t.Fatalf("deletes once confirmed: %v", deletes)
+	}
+	if _, err := os.Stat(filepath.Join(local, "gone.txt")); !os.IsNotExist(err) {
+		t.Fatalf("gone.txt still here once confirmed: %v", err)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncruces/zenity"
 
+	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/flasher"
 	"github.com/alonsovidales/otc/i18n"
 )
@@ -118,12 +119,27 @@ func (u *ui) setupDevice() {
 			disk = flasher.Disk{}
 			continue
 		}
+		// A disk holding a folder otc-sync syncs is no card: refused.
+		if folder, ok := flasher.HoldsFolder(disk, syncedPaths(u.c.Config())); ok {
+			_ = dlgWarning(i18n.DeskFoldersSetupDiskHasFolder(disk.LabelIn(l), folder).Render(l), opts...)
+			disk = flasher.Disk{}
+			continue
+		}
 		break
 	}
 	l, opts = setupOpts()
 	if dlgQuestion(i18n.DeskFoldersSetupEraseQuestion(disk.LabelIn(l)).Render(l),
 		append(opts, dlgOK(i18n.DeskFoldersSetupErase().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon)...) != nil {
 		return
+	}
+	// The list offers every USB disk: one far larger than a card is likely
+	// a backup drive, and asked about a second time.
+	if disk.Size > flasher.LargeDiskSize {
+		l, opts = setupOpts()
+		if dlgQuestion(i18n.DeskFoldersSetupLargeDisk(disk.LabelIn(l)).Render(l),
+			append(opts, dlgOK(i18n.DeskFoldersSetupErase().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon)...) != nil {
+			return
+		}
 	}
 
 	// 3. Write, as administrator.
@@ -159,6 +175,19 @@ func (u *ui) setupDevice() {
 		steps += "\n\n" + i18n.DeskFoldersSetupWindowsFormat().Render(l)
 	}
 	_ = dlgInfo(steps, append(opts, dlgTitle(i18n.DeskFoldersSetupCardReadyTitle().Render(l)))...)
+}
+
+// syncedPaths are the folders cfg syncs on this computer.
+func syncedPaths(cfg *config.Config) []string {
+	var out []string
+	for _, f := range cfg.Folders {
+		out = append(out, f.Path)
+	}
+	for _, f := range cfg.RemoteFolders {
+		out = append(out, f.LocalPath)
+	}
+
+	return out
 }
 
 // setupOpts is the menu's language now and the options every setup dialog

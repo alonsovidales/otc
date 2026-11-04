@@ -49,8 +49,9 @@ Download it from [off-the.cloud](https://off-the.cloud/#download) or the
 
 *Setting up a new device*: "Set Up a New Device…" in the tray menu (or `otc-sync flash` in a
 terminal) downloads the device image, checks its signature, writes it to an SD card (it asks for
-administrator permission and lists only cards and removable disks), verifies the card and deletes
-the download. The Mac app has the same wizard and uses Raspberry Pi Imager to write the card.
+administrator permission and lists only cards and removable disks; it refuses a disk that holds a
+folder otc-sync syncs, and asks a second time before erasing one larger than 128 GB), verifies the
+card and deletes the download. The Mac app has the same wizard and uses Raspberry Pi Imager to write the card.
 
 *Windows*: run the `.exe` once; it appears in the tray and asks for your device and password,
 and once connected, whether to start at login ("Start at Login" / "Not Now"). Keep it somewhere
@@ -99,6 +100,32 @@ computer can be:
 A folder synced from the device has no options: it keeps what is set for it on the device. The
 tray asks the options in one checklist on Linux, and one Yes / No / Cancel question each on
 Windows (its dialogs have no checkboxes). A device that hasn't been updated yet does them once it is.
+
+*Nothing deleted by mistake*: a file deleted on the device (from the web app, a phone or another
+computer) goes to this computer's trash rather than away for good - the desktop's trash on Linux
+(otc-sync empties what it put there after 30 days, so a computer with no desktop doesn't fill up),
+the Recycle Bin on Windows, and on a disk without one (a network share, a USB stick on Windows, a
+drive whose Recycle Bin is turned off or too small for the file) a `.otc-trash` folder inside the
+synced folder (or at the top of a disk mounted inside it), emptied after 30 days. Many files deleted on this computer at once (more than 20, and a quarter of the
+folder) aren't deleted on the device: the folder says so, and deleting them there too finishes the
+job; the same guard keeps files the device lost from being deleted here. Each two-way folder holds a
+small hidden file, `.otc-sync-<id>`, by which otc-sync knows it is the folder it synced: when a disk
+or network share isn't mounted and its empty mount point is there instead - or another disk, or a
+new folder at the same place - the folder says "Not the folder that was synced" and changes nothing
+until the right one is back. To sync the folder that is there now instead, remove it from otc-sync
+and add it again, which deletes nothing. A file that is now a link, a file hidden in Windows'
+Explorer and a device file whose name Windows can't hold are left as they are on the device, and the
+folder says so, as it does for files that couldn't be downloaded (no room on the disk, or a file
+over 4 GB on a FAT32 one).
+
+The Mac app follows the same rules. What is deleted on the device goes to the Trash, or on a
+network share that has none to the same `.otc-trash` folder; many files deleted on the Mac at once
+stay on the device; and each two-way folder holds the same kind of hidden `.otc-sync-<id>` file -
+when iCloud's Desktop & Documents is turned off and macOS leaves an empty Documents folder in place
+of the synced one, or another disk with the same name is plugged in, the folder waits instead of
+emptying the device's copy. To sync the folder that is there now, pick it again with Add Folder…,
+which links it to its row and deletes nothing. A file hidden in the Finder or turned into a link
+stays as it is on the device, and the folder says so.
 
 Only one process syncs at a time: with the service installed, the tray app becomes a viewer of
 it, and every change made from the tray or the command line is picked up by the service at once.

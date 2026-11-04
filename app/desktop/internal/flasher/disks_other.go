@@ -20,3 +20,5 @@ func dropCache(device)                               {}
 func eject(Disk)                                     {}
 func openStatus(path string) (*os.File, error)       { return nil, errUnsupported }
 func elevate(string, []string) (func() error, error) { return nil, errUnsupported }
+func diskMountPoints(Disk) []string                  { return nil }
+func under(p, top string) bool                       { return p == top }

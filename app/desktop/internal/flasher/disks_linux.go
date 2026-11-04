@@ -121,6 +121,52 @@ func systemDisks() map[string]bool {
 	return out
 }
 
+// disksBehind are the disks a mount source is on: the disk of a partition,
+// and for device-mapper (LUKS, LVM) the disks under it.
+func disksBehind(dev string) map[string]bool {
+	out := map[string]bool{}
+	var mark func(dev string)
+	mark = func(dev string) {
+		if real, err := filepath.EvalSymlinks(dev); err == nil {
+			dev = real
+		}
+		out[baseDisk(dev)] = true
+		slaves, _ := os.ReadDir(filepath.Join("/sys/class/block", filepath.Base(dev), "slaves"))
+		for _, s := range slaves {
+			mark("/dev/" + s.Name())
+		}
+	}
+	mark(dev)
+
+	return out
+}
+
+// diskMountPoints are where the file systems on d are mounted.
+func diskMountPoints(d Disk) []string {
+	name := filepath.Base(d.ID)
+	var out []string
+	for _, m := range mounts() {
+		if strings.HasPrefix(m.source, "/dev/") && disksBehind(m.source)[name] {
+			out = append(out, m.target)
+		}
+	}
+
+	return out
+}
+
+// under: p is top or inside it.
+func under(p, top string) bool {
+	return p == top || top == "/" || strings.HasPrefix(p, strings.TrimSuffix(top, "/")+"/")
+}
+
+// automounted: a mount point the desktop's automounter makes for a card or
+// a USB disk (udisks2: /media/<user>/<label>, /run/media/<user>/<label>).
+// The writer unmounts only those: a disk mounted elsewhere (an fstab line,
+// /mnt/backup) was mounted on purpose, and is likely no card.
+func automounted(target string) bool {
+	return strings.HasPrefix(target, "/media/") || strings.HasPrefix(target, "/run/media/")
+}
+
 type mount struct{ source, target string }
 
 func mounts() []mount {
@@ -145,10 +191,20 @@ type linuxDisk struct{ *os.File }
 
 func (d linuxDisk) Sync() error { return d.File.Sync() }
 
-// openDisk unmounts whatever the desktop mounted from the card and opens
-// it exclusively (O_EXCL fails while anything still has it mounted).
+// openDisk unmounts what the desktop mounted from the card and opens it
+// exclusively (O_EXCL fails while anything still has it mounted). A file
+// system mounted from it anywhere else isn't unmounted: the card is
+// refused, to be unmounted by hand if it really is the card.
 func openDisk(d Disk) (device, error) {
 	name := filepath.Base(d.ID)
+	for _, m := range mounts() {
+		if strings.HasPrefix(m.source, "/dev/") && disksBehind(m.source)[name] && !automounted(m.target) {
+			return nil, &msgError{
+				english: fmt.Sprintf("the disk is mounted at %s by the system, not by the desktop - unmount it first if it really is the card", m.target), // i18n-ignore: Error's English (the command line's); Msg is the tray's
+				m:       i18n.DeskFoldersFlashCardMounted(m.target),
+			}
+		}
+	}
 	for _, m := range mounts() {
 		if strings.HasPrefix(m.source, "/dev/") && baseDisk(m.source) == name {
 			if err := unix.Unmount(m.target, 0); err != nil {
