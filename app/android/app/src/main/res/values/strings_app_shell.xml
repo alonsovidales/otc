@@ -49,6 +49,7 @@
     <string name="app_shell_endpoint_custom">Custom address</string>
     <string name="app_shell_endpoint_custom_note">For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Device name</string>
+    <string name="app_shell_home_port_unreachable">This phone signs in to your device through its encrypted home-network port (%1$s), and that port isn\'t answering, so your password wasn\'t sent to the unencrypted address. Check that the device is on and that nothing blocks port %1$s, such as a firewall or a container that doesn\'t publish it.</string>
     <string name="app_shell_host_not_found">That address can\'t be found. Check the device name or address.</string>
     <string name="app_shell_insecure">Couldn\'t make a secure connection to that address.</string>
     <string name="app_shell_keep_out_of_images">Keep out of Images</string>

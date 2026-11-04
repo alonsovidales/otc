@@ -50,6 +50,7 @@
     <string name="app_shell_endpoint_custom">Eigene Adresse</string>
     <string name="app_shell_endpoint_custom_note">Für ein Gerät, das nicht die Bridge von Off The Cloud nutzt – deine eigene Bridge, Tailscale Funnel oder das lokale Netzwerk (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Gerätename</string>
+    <string name="app_shell_home_port_unreachable">Dieses Handy meldet sich bei deinem Gerät über dessen verschlüsselten Port im Heimnetz (%1$s) an, und dieser Port antwortet nicht, deshalb wurde dein Passwort nicht an die unverschlüsselte Adresse gesendet. Prüfe, ob das Gerät eingeschaltet ist und ob nichts den Port %1$s blockiert, etwa eine Firewall oder ein Container, der ihn nicht veröffentlicht.</string>
     <string name="app_shell_host_not_found">Diese Adresse wurde nicht gefunden. Prüfe den Gerätenamen oder die Adresse.</string>
     <string name="app_shell_insecure">Es konnte keine sichere Verbindung zu dieser Adresse hergestellt werden.</string>
     <string name="app_shell_keep_out_of_images">In „Bilder“ ausblenden</string>

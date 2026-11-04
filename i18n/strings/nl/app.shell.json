@@ -177,6 +177,11 @@
     "text": "Apparaatnaam",
     "en": "Device name"
   },
+  "app.shell.home_port_unreachable": {
+    "text": "Deze telefoon logt in op je apparaat via zijn versleutelde poort op het thuisnetwerk ({port}), en die poort antwoordt niet, dus je wachtwoord is niet naar het onversleutelde adres verstuurd. Controleer of het apparaat aanstaat en of niets poort {port} blokkeert, zoals een firewall of een container die hem niet publiceert.",
+    "en": "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.",
+    "reviewed": "claude-backtranslation 2026-11-04 #48a01aa7"
+  },
   "app.shell.host_not_found": {
     "text": "Dat adres kan niet worden gevonden. Controleer de apparaatnaam of het adres.",
     "en": "That address can't be found. Check the device name or address."

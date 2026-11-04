@@ -53,6 +53,7 @@
     <string name="app_shell_endpoint_custom">Adresse personnalisée</string>
     <string name="app_shell_endpoint_custom_note">Pour un appareil qui n’est pas sur la passerelle Off The Cloud : votre propre passerelle, Tailscale Funnel ou le réseau local (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Nom de l’appareil</string>
+    <string name="app_shell_home_port_unreachable">Ce téléphone se connecte à votre appareil par son port chiffré du réseau domestique (%1$s), et ce port ne répond pas : votre mot de passe n’a donc pas été envoyé à l’adresse non chiffrée. Vérifiez que l’appareil est allumé et que rien ne bloque le port %1$s, comme un pare-feu ou un conteneur qui ne le publie pas.</string>
     <string name="app_shell_host_not_found">Cette adresse est introuvable. Vérifiez le nom ou l’adresse de l’appareil.</string>
     <string name="app_shell_insecure">Impossible d’établir une connexion sécurisée avec cette adresse.</string>
     <string name="app_shell_keep_out_of_images">Exclure d’Images</string>

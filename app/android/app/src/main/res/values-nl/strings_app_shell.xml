@@ -50,6 +50,7 @@
     <string name="app_shell_endpoint_custom">Aangepast adres</string>
     <string name="app_shell_endpoint_custom_note">Voor een apparaat dat niet via de Off The Cloud-bridge werkt: je eigen bridge, Tailscale Funnel of het lokale netwerk (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Apparaatnaam</string>
+    <string name="app_shell_home_port_unreachable">Deze telefoon logt in op je apparaat via zijn versleutelde poort op het thuisnetwerk (%1$s), en die poort antwoordt niet, dus je wachtwoord is niet naar het onversleutelde adres verstuurd. Controleer of het apparaat aanstaat en of niets poort %1$s blokkeert, zoals een firewall of een container die hem niet publiceert.</string>
     <string name="app_shell_host_not_found">Dat adres kan niet worden gevonden. Controleer de apparaatnaam of het adres.</string>
     <string name="app_shell_insecure">Kan geen beveiligde verbinding met dat adres maken.</string>
     <string name="app_shell_keep_out_of_images">Buiten Afbeeldingen houden</string>

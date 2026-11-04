@@ -21,6 +21,11 @@ import Security
 enum HomeNetwork {
     /// How long the addresses get, all together, before the bridge.
     static let raceBudget: TimeInterval = 2.5
+    /// A pinned ws:// address whose first race found nothing while the
+    /// address itself answers (OTCConnection.probeInTheClear): the network
+    /// is up, so the device is looked for once more, given longer - a
+    /// phone whose Wi-Fi was just waking, a busy device.
+    static let secondRaceBudget: TimeInterval = 10
 
     /// What a network change or a return to the foreground does.
     enum Check: Equatable {
@@ -52,12 +57,47 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
     let port: Int
     /// SHA-256 of the device certificate's DER.
     let pin: Data
+    /// This phone has signed in over the pinned link to the device with
+    /// this pin (OTCConnection: a home sign-in, the route check's move
+    /// home). Only then does a ws:// endpoint go the pinned way alone: a
+    /// device whose encrypted port this phone can't reach (a firewall
+    /// letting only 8080 through, a container publishing only 8080) keeps
+    /// signing in at its ws:// address as before. Kept while the pin stays
+    /// the same (`keepingReach`); false in what an older version stored.
+    let reached: Bool
 
-    init(endpoint: String, addresses: [String], port: Int, pin: Data) {
+    init(endpoint: String, addresses: [String], port: Int, pin: Data, reached: Bool = false) {
         self.endpoint = endpoint
         self.addresses = addresses
         self.port = port
         self.pin = pin
+        self.reached = reached
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case endpoint, addresses, port, pin, reached
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(endpoint: try c.decode(String.self, forKey: .endpoint),
+                  addresses: try c.decode([String].self, forKey: .addresses),
+                  port: try c.decode(Int.self, forKey: .port),
+                  pin: try c.decode(Data.self, forKey: .pin),
+                  reached: try c.decodeIfPresent(Bool.self, forKey: .reached) ?? false)
+    }
+
+    /// The same, signed in to over the pinned link from this phone.
+    func reachedHere() -> LocalEndpoint {
+        LocalEndpoint(endpoint: endpoint, addresses: addresses, port: port, pin: pin, reached: true)
+    }
+
+    /// A new answer from the device, keeping what `known` (stored before
+    /// it) says of the pinned link: reached stays while the pin is the
+    /// same; a new certificate must be reached again.
+    func keepingReach(of known: LocalEndpoint?) -> LocalEndpoint {
+        guard !reached, let known, known.reached, known.pin == pin, known.endpoint == endpoint else { return self }
+        return reachedHere()
     }
 
     /// nil when the answer has nothing usable. Only what the device lists,
@@ -101,7 +141,7 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
         var h = host ?? ""
         if h.hasPrefix("[") && h.hasSuffix("]") { h = String(h.dropFirst().dropLast()) }
         guard !h.isEmpty, !addresses.contains(where: { $0.caseInsensitiveCompare(h) == .orderedSame }) else { return self }
-        return LocalEndpoint(endpoint: endpoint, addresses: addresses + [h], port: port, pin: pin)
+        return LocalEndpoint(endpoint: endpoint, addresses: addresses + [h], port: port, pin: pin, reached: reached)
     }
 
     // MARK: Storage
@@ -136,14 +176,14 @@ struct LocalEndpoint: Codable, Equatable, Sendable {
 
     /// The same device at another address (Leave the Bridge points the app
     /// at its home-network address): what was learned on `old` is kept for
-    /// `new`, so the first sign-in there is already pinned. Anything else
-    /// stored goes, as clear(unlessFor:).
+    /// `new`, so the first sign-in there is already pinned once the pinned
+    /// link was reached. Anything else stored goes, as clear(unlessFor:).
     static func move(from old: String, to new: String) {
         guard old != new, let ep = stored(for: old) else {
             clear(unlessFor: new)
             return
         }
-        LocalEndpoint(endpoint: new, addresses: ep.addresses, port: ep.port, pin: ep.pin).save()
+        LocalEndpoint(endpoint: new, addresses: ep.addresses, port: ep.port, pin: ep.pin, reached: ep.reached).save()
     }
 
     /// The pin stored for `endpoint`, if any (DeviceChange: the device the
@@ -232,6 +272,10 @@ final class PinnedSession: NSObject, @unchecked Sendable {
     }
     private let lock = NSLock()
     private var handlers: [Int: Handlers] = [:]
+    /// When a certificate other than the pin was last shown at each
+    /// "host:port" (`authorityKey`): a race tells "something else holds
+    /// this address" from "nothing answered" by it.
+    private var otherCertificates: [String: Date] = [:]
 
     private static let sessionsLock = NSLock()
     private static var sessions: [Data: PinnedSession] = [:]
@@ -269,18 +313,51 @@ final class PinnedSession: NSObject, @unchecked Sendable {
         lock.withLock { remove ? handlers.removeValue(forKey: task.taskIdentifier) : handlers[task.taskIdentifier] }
     }
 
+    /// What a race came to: the winner, if any, and whether one of its
+    /// addresses showed a certificate other than the pin - something else
+    /// holds that address (another network using the same range, the device
+    /// set up again from scratch) - rather than only timing out or
+    /// refusing (the port blocked, the phone away from home).
+    struct RaceResult {
+        let winner: (link: HomeLink, task: URLSessionWebSocketTask)?
+        let otherCertificate: Bool
+    }
+
     /// Opens wss://<address>:<port>/ws on every address at once. The first
     /// whose WebSocket handshake completes - so whose certificate matched
     /// the pin - wins and the others are cancelled; nil when none did
     /// within `budget`.
     func race(_ ep: LocalEndpoint, budget: TimeInterval = HomeNetwork.raceBudget) async -> (link: HomeLink, task: URLSessionWebSocketTask)? {
+        await contest(ep, budget: budget).winner
+    }
+
+    /// race, saying why nothing won (RaceResult).
+    func contest(_ ep: LocalEndpoint, budget: TimeInterval = HomeNetwork.raceBudget) async -> RaceResult {
+        let started = Date()
         let candidates: [(String, URLSessionWebSocketTask)] = ep.addresses.compactMap { a in
             guard let url = ep.socketURL(for: a) else { return nil }
             let t = session.webSocketTask(with: url)
             t.maximumMessageSize = WSClient.maxMessageSize
             return (a, t)
         }
-        guard !candidates.isEmpty else { return nil }
+        guard !candidates.isEmpty else { return RaceResult(winner: nil, otherCertificate: false) }
+        let winner = await run(candidates, ep: ep, budget: budget)
+        guard winner == nil else { return RaceResult(winner: winner, otherCertificate: false) }
+        let keys = Set(ep.addresses.map { Self.authorityKey($0, port: ep.port) })
+        let other = lock.withLock { otherCertificates.contains { keys.contains($0.key) && $0.value >= started } }
+        return RaceResult(winner: nil, otherCertificate: other)
+    }
+
+    /// "host:port" as a race and a TLS challenge both name it: no IPv6
+    /// brackets, the host's case ignored.
+    static func authorityKey(_ host: String, port: Int) -> String {
+        var h = host.lowercased()
+        if h.hasPrefix("[") && h.hasSuffix("]") { h = String(h.dropFirst().dropLast()) }
+        return "\(h):\(port)"
+    }
+
+    private func run(_ candidates: [(String, URLSessionWebSocketTask)], ep: LocalEndpoint,
+                     budget: TimeInterval) async -> (link: HomeLink, task: URLSessionWebSocketTask)? {
         let race = SocketRace(tasks: candidates.map(\.1))
         return await withTaskCancellationHandler {
             await withCheckedContinuation { cont in
@@ -315,9 +392,15 @@ extension PinnedSession: URLSessionWebSocketDelegate, URLSessionDataDelegate {
     /// for the pinned certificate.
     private func decide(_ challenge: URLAuthenticationChallenge,
                         _ completionHandler: (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust,
+        let space = challenge.protectionSpace
+        guard space.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let trust = space.serverTrust,
               CertificatePin.leafMatches(trust, pin: pin) else {
+            if space.authenticationMethod == NSURLAuthenticationMethodServerTrust, space.serverTrust != nil {
+                // A certificate was shown, and it isn't the device's.
+                let key = Self.authorityKey(space.host, port: space.port)
+                lock.withLock { otherCertificates[key] = Date() }
+            }
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }

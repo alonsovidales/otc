@@ -177,6 +177,11 @@
     "text": "Nombre del dispositivo",
     "en": "Device name"
   },
+  "app.shell.home_port_unreachable": {
+    "text": "Este teléfono inicia sesión en tu dispositivo a través de su puerto cifrado de la red doméstica ({port}), y ese puerto no responde, así que tu contraseña no se envió a la dirección sin cifrar. Comprueba que el dispositivo está encendido y que nada bloquea el puerto {port}, como un cortafuegos o un contenedor que no lo publica.",
+    "en": "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.",
+    "reviewed": "claude-backtranslation 2026-11-04 #785639f1"
+  },
   "app.shell.host_not_found": {
     "text": "No se encuentra esa dirección. Comprueba el nombre o la dirección del dispositivo.",
     "en": "That address can't be found. Check the device name or address."

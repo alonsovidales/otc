@@ -957,23 +957,35 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     transfer runs (`TransferActivity` / `OTCConnection.transfer {}` / `folderBusy`). A check put
     off is recorded and runs after. Settings shows "Connected over your home network" or
     "Connected through off-the.cloud".
-  - A ws:// address on the phones (a device set up without the bridge, or left it): a private
-    address or a `.local` name is the home network only while the phone is at home, and on
-    another network with the same range whoever held it got the sign-in in the clear, the key the
-    password is sealed with included. Once its device's pin is known (`OTCConnection.pinnedOnly`:
-    learned at the first sign-in there, or kept by Leave the Bridge, `LocalEndpoint.move`) it
-    goes only the pinned way, the address's own host raced too at the pinned port
-    (`LocalEndpoint.including`: a `.local` name or a Tailscale address where the listed ones
-    don't answer). When that finds nothing, whatever answers at the address is asked for
-    GetPubKey alone (`probeInTheClear`, nothing of the phone's in it) and never sent the
-    password: nothing answers - the usual "isn't answering"; `storage_unavailable` - issue
-    #207's state in the app's own words (a device without its storage serves no listener, and
-    nothing proves it is the device); anything else - `app.shell.not_known_device` (something
-    else answers there; a device set up again from scratch is reached again through "Set up or
-    connect a different device"). http:// media goes only while the session itself is in the
-    clear (`signedInInClear`: a first sign-in, a device without a pin). Every sign-in over the
-    home link asks GetLocalEndpoint again there (`updateOverHome`: new addresses only, the pin
-    never dropped). Tests: `PinnedAddressTests.swift`.
+  - A ws:// address on the phones (a device set up without the bridge, or left it; iOS so far,
+    Android still signs in over ws:// after a missed pinned race): a private address or a
+    `.local` name is the home network only while the phone is at home, and on another network
+    with the same range whoever held it got the sign-in in the clear, the key the password is
+    sealed with included. Its connects race the pinned link with the address's own host added at
+    the pinned port (`OTCConnection.raceTargets`, `LocalEndpoint.including`: a `.local` name or a
+    Tailscale address where the listed ones don't answer, a container's own addresses). Once this
+    phone has signed in over that link (`LocalEndpoint.reached`, set at a home sign-in - the
+    route check's move home included - kept while the pin is the same, `keepingReach`, and by
+    Leave the Bridge, `LocalEndpoint.move`) the address goes only the pinned way
+    (`OTCConnection.pinnedOnly`). Until then a missed race goes on to the address as before, so a
+    device whose encrypted port the phone can't reach (a firewall letting only 8080 through, a
+    container publishing only 8080) keeps working; a stored endpoint from before has no
+    `reached` and counts as not reached. Pinned only, a missed race asks whatever answers at the
+    address for GetPubKey alone (`probeInTheClear`, nothing of the phone's in it) and never
+    sends it the password: nothing answers - the usual "isn't answering"; `storage_unavailable` -
+    issue #207's state in the app's own words (a device without its storage serves no listener,
+    and nothing proves it is the device); anything else - the network is up, so the link is
+    raced once more with a longer budget (`HomeNetwork.secondRaceBudget`, 10 s: a Wi-Fi just
+    waking, a busy device) and signed in over if it answers. Still nothing: a certificate other
+    than the pin seen at one of its addresses (`PinnedSession.contest`'s `otherCertificate`) is
+    `app.shell.not_known_device` (something else holds the address; a device set up again from
+    scratch is reached again through "Set up or connect a different device"), only timeouts and
+    refusals are `app.shell.home_port_unreachable` with the port (error 9, no pointer to that
+    button: whoever answers can't be told from the device). http:// media goes only while the
+    session itself is in the clear (`signedInInClear`: a first sign-in, a device without a pin
+    or not reached). Every sign-in over the home link asks GetLocalEndpoint again there
+    (`updateOverHome`: new addresses only, the pin never dropped). Tests:
+    `PinnedAddressTests.swift`, `HomeNetworkTests.swift` (the race's outcome).
   - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
     ExoPlayer on the pinned OkHttp client; iOS streams local media through an
     `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
@@ -4306,8 +4318,8 @@ Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the sam
 without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it;
 both show the can't-connect card, never `statusCode`. A request is sent again only if it never left
 (`retriesAfter`; else `WSClient.SentNoAnswer`), and ws:// goes only to the home network
-(`CleartextRule`, before dialling and for media URLs) - and only over the pinned home link once
-its device's pin is known (Home network, above).
+(`CleartextRule`, before dialling and for media URLs) - and, on iOS so far, only over the pinned
+home link once this phone has reached its device there (Home network, above).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
 `unknown_payload` fallback. iOS keeps its temporary copies in folders of their own

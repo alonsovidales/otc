@@ -53,6 +53,7 @@
     <string name="app_shell_endpoint_custom">Endereço personalizado</string>
     <string name="app_shell_endpoint_custom_note">Para um dispositivo que não está na ponte Off The Cloud: a tua própria ponte, o Tailscale Funnel ou a rede local (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Nome do dispositivo</string>
+    <string name="app_shell_home_port_unreachable">Este telemóvel inicia sessão no teu dispositivo através da sua porta encriptada da rede doméstica (%1$s), e essa porta não responde, por isso a tua palavra-passe não foi enviada para o endereço não encriptado. Verifica se o dispositivo está ligado e se nada bloqueia a porta %1$s, como uma firewall ou um contentor que não a publica.</string>
     <string name="app_shell_host_not_found">Não é possível encontrar esse endereço. Verifica o nome ou o endereço do dispositivo.</string>
     <string name="app_shell_insecure">Não foi possível estabelecer uma ligação segura a esse endereço.</string>
     <string name="app_shell_keep_out_of_images">Manter fora de Imagens</string>

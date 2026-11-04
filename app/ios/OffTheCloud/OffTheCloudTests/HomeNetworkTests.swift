@@ -224,14 +224,46 @@ DgMCGgUABBR+1dGhR5jekE6FFuZrpwXE0PpSMgQQRxHu9Z2J2jjcmw37u5wv0wICCAA=
         try await Task.sleep(for: .milliseconds(300))
         #expect(server.connections > 0)
         #expect(server.receivedBytes == 0)
+        // Said: another certificate holds that address.
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep)
+        #expect(r.winner == nil)
+        #expect(r.otherCertificate)
     }
 
     @Test func nothingAnsweringEndsAtTheBudget() async {
         let ep = LocalEndpoint(endpoint: "e", addresses: ["192.0.2.1"], port: 8443, pin: Self.goodPin)
         let started = Date()
-        let won = await PinnedSession.forPin(Self.goodPin).race(ep, budget: 0.5)
-        #expect(won == nil)
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep, budget: 0.5)
+        #expect(r.winner == nil)
+        // Nothing seen: no certificate to blame.
+        #expect(!r.otherCertificate)
         #expect(Date().timeIntervalSince(started) < 2)
+    }
+
+    @Test func aRefusedPortIsNoOtherCertificate() async throws {
+        // A port nothing listens on (a server that was there and stopped).
+        let server = try await TestServer.start(Self.goodP12, mode: .raw)
+        let port = server.port
+        server.stop()
+        try await Task.sleep(for: .milliseconds(100))
+        let ep = LocalEndpoint(endpoint: "e", addresses: ["127.0.0.1"], port: port, pin: Self.goodPin)
+        let started = Date()
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep, budget: 5)
+        #expect(r.winner == nil)
+        #expect(!r.otherCertificate)
+        // Refused at once, not waited out.
+        #expect(Date().timeIntervalSince(started) < 4)
+    }
+
+    @Test func theRightCertificateAfterAnotherIsNoOtherCertificate() async throws {
+        // A certificate seen before a race began isn't counted in it.
+        let bad = try await TestServer.start(Self.badP12, mode: .raw)
+        let badEP = LocalEndpoint(endpoint: "e", addresses: ["127.0.0.1"], port: bad.port, pin: Self.goodPin)
+        #expect(await PinnedSession.forPin(Self.goodPin).contest(badEP).otherCertificate)
+        bad.stop()
+        try await Task.sleep(for: .milliseconds(100))
+        let r = await PinnedSession.forPin(Self.goodPin).contest(badEP, budget: 2)
+        #expect(!r.otherCertificate)
     }
 
     static func trust(_ der: Data) throws -> SecTrust {

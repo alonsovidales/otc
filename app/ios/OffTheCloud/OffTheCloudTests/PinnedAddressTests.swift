@@ -112,14 +112,48 @@ private func refusingPort() throws -> Int {
 // MARK: - The rules
 
 struct PinnedAddressRuleTests {
-    @Test func onlyAWsAddressWithAPinGoesThePinnedWayAlone() throws {
-        let pinned = LocalEndpoint(endpoint: "e", addresses: ["192.168.1.20"], port: 8443, pin: HomeNetworkTests.goodPin)
+    @Test func onlyAWsAddressWhosePinnedLinkWasReachedGoesThatWayAlone() throws {
+        let pinned = LocalEndpoint(endpoint: "e", addresses: ["192.168.1.20"], port: 8443, pin: HomeNetworkTests.goodPin, reached: true)
         #expect(OTCConnection.pinnedOnly(try #require(URL(string: "ws://192.168.1.20:8080/ws")), stored: pinned))
         #expect(OTCConnection.pinnedOnly(try #require(URL(string: "WS://otc.local:8080/ws")), stored: pinned))
         // Through the bridge: the bridge is the way when home isn't.
         #expect(!OTCConnection.pinnedOnly(try #require(URL(string: "wss://cala.off-the.cloud/ws")), stored: pinned))
         // A first sign-in: nothing known yet.
         #expect(!OTCConnection.pinnedOnly(try #require(URL(string: "ws://192.168.1.20:8080/ws")), stored: nil))
+        // The pin known, but its link never reached from this phone (a
+        // firewall letting only 8080 through, a container publishing only
+        // 8080): the address goes as before.
+        let unreached = LocalEndpoint(endpoint: "e", addresses: ["192.168.1.20"], port: 8443, pin: HomeNetworkTests.goodPin)
+        #expect(!OTCConnection.pinnedOnly(try #require(URL(string: "ws://192.168.1.20:8080/ws")), stored: unreached))
+    }
+
+    @Test func aWsAddresssOwnHostIsRacedEitherWay() throws {
+        let ep = LocalEndpoint(endpoint: "e", addresses: ["172.17.0.2"], port: 8443, pin: HomeNetworkTests.goodPin)
+        #expect(OTCConnection.raceTargets(try #require(URL(string: "ws://otc.local:8080/ws")), ep).addresses == ["172.17.0.2", "otc.local"])
+        #expect(OTCConnection.raceTargets(try #require(URL(string: "wss://cala.off-the.cloud/ws")), ep) == ep)
+    }
+
+    @Test func theLinkStaysReachedWhileThePinIsTheSame() throws {
+        let endpoint = "ws://otc.local:8080/ws"
+        let reached = LocalEndpoint(endpoint: endpoint, addresses: ["192.168.1.20"], port: 8443, pin: HomeNetworkTests.goodPin, reached: true)
+        // A new DHCP lease, said by the same device.
+        let moved = LocalEndpoint(endpoint: endpoint, addresses: ["192.168.1.21"], port: 8443, pin: HomeNetworkTests.goodPin)
+        #expect(moved.keepingReach(of: reached).reached)
+        #expect(moved.keepingReach(of: reached).addresses == ["192.168.1.21"])
+        // A new certificate (the device set up again) must be reached again.
+        let other = LocalEndpoint(endpoint: endpoint, addresses: ["192.168.1.20"], port: 8443, pin: Data(repeating: 7, count: 32))
+        #expect(!other.keepingReach(of: reached).reached)
+        #expect(!moved.keepingReach(of: nil).reached)
+        #expect(!moved.keepingReach(of: moved).reached)
+        // Kept through the race's own host, and through the Keychain's JSON.
+        #expect(reached.including(host: "otc.local").reached)
+        let json = try JSONEncoder().encode(reached)
+        #expect(try JSONDecoder().decode(LocalEndpoint.self, from: json) == reached)
+        // What an older version stored has no such field: never reached.
+        let old = #"{"endpoint":"ws://otc.local:8080/ws","addresses":["192.168.1.20"],"port":8443,"pin":"\#(HomeNetworkTests.goodPin.base64EncodedString())"}"#
+        let decoded = try JSONDecoder().decode(LocalEndpoint.self, from: Data(old.utf8))
+        #expect(decoded.pin == HomeNetworkTests.goodPin)
+        #expect(!decoded.reached)
     }
 
     @Test func theAddresssOwnHostIsRacedToo() {
@@ -157,11 +191,14 @@ struct PinnedAddressRuleTests {
         defer {
             if let saved { Keychain.saveString(key: "local_endpoint", value: saved) } else { LocalEndpoint.clear() }
         }
-        try #require(LocalEndpoint(HomeNetworkTests.answer(["192.168.1.20"]), endpoint: bridge)).save()
+        try #require(LocalEndpoint(HomeNetworkTests.answer(["192.168.1.20"]), endpoint: bridge)).reachedHere().save()
         LocalEndpoint.move(from: bridge, to: home)
         let moved = try #require(LocalEndpoint.stored(for: home))
         #expect(moved.pin == HomeNetworkTests.goodPin)
         #expect(moved.addresses == ["192.168.1.20"])
+        // Reached at home while on the bridge: pinned from the first
+        // sign-in at the new address.
+        #expect(moved.reached)
         #expect(LocalEndpoint.stored(for: bridge) == nil)
         // Nothing stored for where it comes from: nothing for where it goes,
         // and another address's goes, as when any other address is saved.
@@ -194,6 +231,8 @@ struct PinnedAddressSignInTests {
             let s = SecretsStore.loadOrCreate()
             s.saveCredentials(endpoint: "", password: "")
             c.signInTimeout = 120
+            c.raceBudget = HomeNetwork.raceBudget
+            c.secondRaceBudget = HomeNetwork.secondRaceBudget
             c.reset()
         }
         try await body(c)
@@ -213,7 +252,7 @@ struct PinnedAddressSignInTests {
         // certificate answers): the pinned way finds nothing.
         let other = try await TestServer.start(HomeNetworkTests.badP12, mode: .raw)
         defer { other.stop() }
-        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: other.port, pin: HomeNetworkTests.goodPin)
+        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: other.port, pin: HomeNetworkTests.goodPin, reached: true)
         try await signedOff(endpoint: url.absoluteString, stored: known) { c in
             await #expect(throws: (any Error).self) {
                 _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
@@ -244,7 +283,7 @@ struct PinnedAddressSignInTests {
         let home = try await TestServer.start(HomeNetworkTests.goodP12, mode: .webSocketDevice({ device.reply($0) }))
         defer { home.stop() }
         device.homePort = Int32(home.port)
-        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: home.port, pin: HomeNetworkTests.goodPin)
+        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: home.port, pin: HomeNetworkTests.goodPin, reached: true)
         try await signedOff(endpoint: url.absoluteString, stored: known) { c in
             _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
             #expect(c.authenticated)
@@ -253,6 +292,34 @@ struct PinnedAddressSignInTests {
             // The ws:// address itself was never dialled.
             #expect(plain.asked.isEmpty)
             #expect(!c.signedInInClear)
+        }
+    }
+
+    @Test func aMissedFirstRaceIsLookedForAgainOnceTheAddressAnswers() async throws {
+        guard SecretsStore.loadOrCreate().endpoint.isEmpty, HomeNetworkTests.keychainWorks else { return }
+        let plain = try StandInAnswers()
+        let address = try DeviceStandIn(answersPings: true, reply: { plain.reply($0) }) { _ in 0 }
+        let url = try await address.start()
+        defer { address.stop() }
+        let device = try StandInAnswers()
+        device.homePin = HomeNetworkTests.goodPin
+        let home = try await TestServer.start(HomeNetworkTests.goodP12, mode: .webSocketDevice({ device.reply($0) }))
+        defer { home.stop() }
+        device.homeAddresses = ["127.0.0.1"]
+        device.homePort = Int32(home.port)
+        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: home.port, pin: HomeNetworkTests.goodPin, reached: true)
+        try await signedOff(endpoint: url.absoluteString, stored: known) { c in
+            // A cold start: the first race ends before the device could
+            // answer (the Wi-Fi waking, a busy device).
+            c.raceBudget = 0
+            _ = try await c.request(timeout: 15) { $0.payload = .reqGetTags(.init()) }
+            // The address answered its key, so the device was looked for
+            // again and signed in to over its pinned link.
+            #expect(c.authenticated)
+            #expect(c.route == .home)
+            #expect(device.count("auth") == 1)
+            #expect(plain.count("pubkey") == 1)
+            #expect(plain.count("auth") == 0)
         }
     }
 
@@ -265,7 +332,7 @@ struct PinnedAddressSignInTests {
         let address = try DeviceStandIn(answersPings: true, reply: { answers.reply($0) }) { _ in 0 }
         let url = try await address.start()
         defer { address.stop() }
-        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: try refusingPort(), pin: HomeNetworkTests.goodPin)
+        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: try refusingPort(), pin: HomeNetworkTests.goodPin, reached: true)
         try await signedOff(endpoint: url.absoluteString, stored: known) { c in
             c.storageHold = 60
             defer { c.storageHold = StorageWait.hold }
@@ -278,8 +345,11 @@ struct PinnedAddressSignInTests {
         }
     }
 
-    @Test func aFirstSignInLearnsThePinAndTheNextGoesNoOtherWay() async throws {
+    @Test func aDeviceWhoseEncryptedPortIsNeverReachedSignsInAsBefore() async throws {
         guard SecretsStore.loadOrCreate().endpoint.isEmpty, HomeNetworkTests.keychainWorks else { return }
+        // A firewall that lets only 8080 through, or a container publishing
+        // only 8080: the device says where its encrypted port is, and this
+        // phone never gets there.
         let answers = try StandInAnswers()
         answers.homePin = HomeNetworkTests.goodPin
         answers.homePort = Int32(try refusingPort())
@@ -287,6 +357,8 @@ struct PinnedAddressSignInTests {
         let url = try await address.start()
         defer { address.stop() }
         try await signedOff(endpoint: url.absoluteString, stored: nil) { c in
+            // Its listed address never answers: no need to wait it out.
+            c.raceBudget = 0.5
             // Nothing known of the device: its first sign-in goes as before.
             _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
             #expect(c.authenticated)
@@ -295,14 +367,54 @@ struct PinnedAddressSignInTests {
             // ...and learns its certificate.
             await until { LocalEndpoint.stored(for: url.absoluteString) != nil }
             #expect(LocalEndpoint.stored(for: url.absoluteString)?.pin == HomeNetworkTests.goodPin)
-            // From then on it goes only the pinned way: here nothing holds
-            // the certificate, so whatever answers isn't sent the password.
+            #expect(LocalEndpoint.stored(for: url.absoluteString)?.reached == false)
+            // The pinned link isn't there: the next sign-in goes as the
+            // first did, as it did before this phone knew the pin.
+            c.invalidate()
+            _ = try await c.request(timeout: 15) { $0.payload = .reqGetTags(.init()) }
+            #expect(c.authenticated)
+            #expect(answers.count("auth") == 2)
+        }
+    }
+
+    @Test func onceReachedTheAddressGoesOnlyThePinnedWay() async throws {
+        guard SecretsStore.loadOrCreate().endpoint.isEmpty, HomeNetworkTests.keychainWorks else { return }
+        let plain = try StandInAnswers()
+        let address = try DeviceStandIn(answersPings: true, reply: { plain.reply($0) }) { _ in 0 }
+        let url = try await address.start()
+        defer { address.stop() }
+        let device = try StandInAnswers()
+        device.homePin = HomeNetworkTests.goodPin
+        let home = try await TestServer.start(HomeNetworkTests.goodP12, mode: .webSocketDevice({ device.reply($0) }))
+        defer { home.stop() }
+        // Where it says it is at home: a new address (a new DHCP lease).
+        device.homePort = Int32(home.port)
+        // Learned through the address, never reached yet.
+        let known = LocalEndpoint(endpoint: url.absoluteString, addresses: ["127.0.0.1"], port: home.port, pin: HomeNetworkTests.goodPin)
+        try await signedOff(endpoint: url.absoluteString, stored: known) { c in
+            _ = try await c.request(timeout: 10) { $0.payload = .reqGetTags(.init()) }
+            #expect(c.route == .home)
+            // Reached from this phone: from now on the only way.
+            #expect(LocalEndpoint.stored(for: url.absoluteString)?.reached == true)
+            // The new address the device gives over that link keeps it.
+            await until { LocalEndpoint.stored(for: url.absoluteString)?.addresses == device.homeAddresses }
+            #expect(LocalEndpoint.stored(for: url.absoluteString)?.addresses == device.homeAddresses)
+            #expect(LocalEndpoint.stored(for: url.absoluteString)?.reached == true, "the home link's answer keeps it")
+            // That address never answers here: no need to wait it out.
+            c.raceBudget = 0.5
+            c.secondRaceBudget = 1
+            // The device's encrypted port stops answering; whatever answers
+            // at the address can't be told from the device.
+            home.stop()
             c.invalidate()
             await #expect(throws: (any Error).self) {
-                _ = try await c.request(timeout: 15) { $0.payload = .reqGetTags(.init()) }
+                _ = try await c.request(timeout: 20) { $0.payload = .reqGetTags(.init()) }
             }
-            #expect(answers.count("auth") == 1)
-            #expect(c.lastError == S.appShellNotKnownDevice(button: S.appShellLeaveButton))
+            #expect(plain.count("pubkey") >= 1)
+            #expect(plain.count("auth") == 0, "no password in the clear once the pinned link was reached")
+            #expect(!c.authenticated)
+            // Said as it is, without pointing to setting the device up again.
+            #expect(c.lastError == S.appShellHomePortUnreachable(port: String(home.port)))
         }
     }
 }

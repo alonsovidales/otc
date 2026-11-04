@@ -220,6 +220,13 @@ extension S {
     /// Placeholder of the field for the device's name on the Off The Cloud bridge (first screen and the connection card); .off-the.cloud follows it.
     static var appShellEndpointDeviceName: String { L("app.shell.endpoint_device_name", table: "AppShell") }
 
+    /// This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.
+    ///
+    /// Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), and this phone has signed in to the device before over the device's encrypted connection on the home network, on its own port ({port}, a number such as 8443). Now the address answers but that port doesn't, so the app refused to send the password unencrypted. A container is a Docker container; publishing a port is Docker's word for letting the network reach it.
+    static func appShellHomePortUnreachable(port: String) -> String {
+        L("app.shell.home_port_unreachable", table: "AppShell", port)
+    }
+
     /// That address can't be found. Check the device name or address.
     ///
     /// Why the app can't connect, on the card shown over the app: the device's name or address doesn't exist on the internet.
