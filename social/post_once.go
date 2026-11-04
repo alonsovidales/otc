@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -108,19 +110,33 @@ func (po *postsOnce) once(key [sha256.Size]byte, run func() (string, error)) (st
 	if po.making == nil {
 		po.making = map[[sha256.Size]byte]*posting{}
 	}
-	p := &posting{done: make(chan struct{})}
+	// A run that panics (recovered by the request's handler) leaves this
+	// error for whoever waits for it, and the post not remembered.
+	p := &posting{done: make(chan struct{}), err: errPostCut}
 	po.making[key] = p
 	po.mu.Unlock()
 
-	defer close(p.done)
+	// Whatever happens, after the run: it isn't being made any more, it is
+	// remembered when it was made, and then whoever waits gets its answer.
+	defer func() {
+		po.mu.Lock()
+		delete(po.making, key)
+		if p.err == nil {
+			po.remember(key, p.uuid)
+		}
+		po.mu.Unlock()
+		close(p.done)
+	}()
 	p.uuid, p.err = run()
+	return p.uuid, p.err
+}
 
-	po.mu.Lock()
-	defer po.mu.Unlock()
-	delete(po.making, key)
-	if p.err != nil {
-		return p.uuid, p.err
-	}
+// errPostCut: the post being made failed without saying why (a panic).
+var errPostCut = devtext.New(i18n.DevErrInternal())
+
+// remember notes the post key made as uuid, now: the ones past the window
+// go, and past cMaxRecentPosts the oldest. Under po.mu.
+func (po *postsOnce) remember(key [sha256.Size]byte, uuid string) {
 	if po.made == nil {
 		po.made = map[[sha256.Size]byte]recentPost{}
 	}
@@ -139,8 +155,7 @@ func (po *postsOnce) once(key [sha256.Size]byte, run func() (string, error)) (st
 		}
 		delete(po.made, oldest)
 	}
-	po.made[key] = recentPost{uuid: p.uuid, made: time.Now()}
-	return p.uuid, nil
+	po.made[key] = recentPost{uuid: uuid, made: time.Now()}
 }
 
 // forget drops what is remembered of the post uuid (it was deleted).

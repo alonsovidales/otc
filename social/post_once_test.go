@@ -97,3 +97,37 @@ func TestRecentPostsAreBounded(t *testing.T) {
 		t.Fatalf("%d remembered", n)
 	}
 }
+
+// A post whose making panics (the request's handler recovers it) gives
+// whoever waited for it an error, and is made again when sent again rather
+// than staying "being made" for good.
+func TestAPostThatPanickedIsMadeAgain(t *testing.T) {
+	var po postsOnce
+	key := postKey("boom", nil, nil)
+	release := make(chan struct{})
+	waited := make(chan error, 1)
+	go func() {
+		defer func() { recover() }()
+		po.once(key, func() (string, error) {
+			go func() {
+				_, err := po.once(key, func() (string, error) { return "never", nil })
+				waited <- err
+			}()
+			<-release
+			panic("a bug while cutting the video")
+		})
+	}()
+	time.Sleep(50 * time.Millisecond)
+	close(release)
+	select {
+	case err := <-waited:
+		if err == nil {
+			t.Fatal("the one waiting got no error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the one waiting never got an answer")
+	}
+	if uuid, err := po.once(key, func() (string, error) { return "post-2", nil }); err != nil || uuid != "post-2" {
+		t.Fatalf("sent again: %q %v", uuid, err)
+	}
+}
