@@ -24,6 +24,10 @@
     "text": "para otros usuarios hace falta un dispositivo con al menos 4 GB de memoria",
     "en": "other users need a device with at least 4 GB of memory"
   },
+  "dev.users.password_needed": {
+    "text": "un usuario con acceso al puente necesita una primera contraseña: actualiza esta app y vuelve a añadir el usuario",
+    "en": "a user with bridge access needs a first password: update this app and add the user again"
+  },
   "dev.users.port_in_use": {
     "text": "otro usuario ya usa el puerto {port}",
     "en": "port {port} is already in use by another user"

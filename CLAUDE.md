@@ -2055,7 +2055,12 @@ start takes its file.
   (`dao.OpenUserDatabase` + `session.New`) before its instance spawns, so nobody can claim the account
   by signing in first; the person changes it later with `ChangeKey`. `RespUsers.password_set` is set
   on every CreateUser answer of a device that knows the field - unset, an older device ignored the
-  password and the clients say the first sign-in sets it. `createUser` runs one at a time
+  password and the clients say the first sign-in sets it. A user with `request_bridge_access` and no
+  first password (an app from before 2026-10-23) is refused before anything is looked up
+  (`dev.users.password_needed`: update the app and add them again): the account was anyone's who
+  signed in first at `<username>.<bridge>`, a guessable name the bridge's public name check shows
+  appearing; one for the home network only may still come without one (its first sign-in sets it, as
+  `ReqCreateUser.password`'s comment says). `createUser` runs one at a time
   (`createUsers`: two tabs adding one name both passed the checks), refuses a username over 63
   characters - a DNS label, within `users.username` - before anything (`dev.users.username_too_long`),
   and anything failing once the account's database is being made (half made too), its folder or its

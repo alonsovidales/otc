@@ -4516,6 +4516,16 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if len(username) > cMaxUsername {
 		return nil, false, devtext.New(i18n.DevUsersUsernameTooLong(cMaxUsername))
 	}
+	// An account on the bridge with no password would be anyone's who
+	// signs in first through it, at <username>.<bridge> - a name anyone can
+	// guess, and watch for on the bridge's public name check: whoever got
+	// there before its person would choose the password and have an
+	// account on the owner's device. Every app has sent a first password
+	// since 2026-10-23; an older one is told, in the device's words, to
+	// update. A user for the home network only may still come without one.
+	if req.RequestBridgeAccess && len(req.Password) == 0 {
+		return nil, false, devtext.New(i18n.DevUsersPasswordNeeded())
+	}
 	// Checked before anything is provisioned, so a password the device
 	// can't read or won't take leaves nothing to clean up.
 	var password string

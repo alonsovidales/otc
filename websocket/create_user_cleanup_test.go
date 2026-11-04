@@ -164,3 +164,22 @@ func TestCreateUserTakesBackWhatAFailureLeft(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A user with bridge access comes with a first password, or not at all:
+// without one the account was anyone's who signed in first through the
+// bridge. Refused before anything is looked up or registered; a user for
+// the home network only may still come without one.
+func TestCreateUserWithBridgeAccessNeedsAPassword(t *testing.T) {
+	p := fakeProvisioning(t, t.TempDir())
+	ch, mock := usersOwner(t)
+	_, _, err := ch.createUser(&pb.ReqCreateUser{Username: "kim", RequestBridgeAccess: true})
+	if got, want := devtext.Text("es", err), i18n.DevUsersPasswordNeeded().Render("es"); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if len(p.provisioned) != 0 {
+		t.Fatal("provisioned for a user refused")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}

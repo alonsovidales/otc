@@ -211,6 +211,7 @@ var headEnglish = []struct {
 	// A username's length: new, so its English is the catalog's from the
 	// start.
 	{"dev.users.username_too_long", i18n.DevUsersUsernameTooLong(63), "username must be at most 63 characters long"},
+	{"dev.users.password_needed", i18n.DevUsersPasswordNeeded(), "a user with bridge access needs a first password: update this app and add the user again"},
 
 	{"dev.device.already_on_bridge", i18n.DevDeviceAlreadyOnBridge(), "this device is already on the bridge"},
 	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 4 GB of memory"},

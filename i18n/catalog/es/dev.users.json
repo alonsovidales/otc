@@ -5,6 +5,7 @@
   "dev.users.confirm_mismatch": {"text": "el nombre de usuario de confirmación no coincide"},
   "dev.users.name_taken_on_bridge": {"text": "{domain} ya está ocupado en el puente: elige otro nombre de usuario o desmarca “Solicitar acceso al puente” para crear este usuario solo para tu propia red"},
   "dev.users.need_memory": {"text": "para otros usuarios hace falta un dispositivo con al menos 4 GB de memoria"},
+  "dev.users.password_needed": {"text": "un usuario con acceso al puente necesita una primera contraseña: actualiza esta app y vuelve a añadir el usuario"},
   "dev.users.port_in_use": {"text": "otro usuario ya usa el puerto {port}"},
   "dev.users.stop_failed": {"text": "no se ha podido detener el proceso de {username}: {detail}"},
   "dev.users.storage_dir_failed": {"text": "al crear la carpeta de almacenamiento: {detail}"},

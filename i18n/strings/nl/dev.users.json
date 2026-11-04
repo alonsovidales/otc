@@ -24,6 +24,10 @@
     "text": "voor andere gebruikers is een apparaat met minstens 4 GB geheugen nodig",
     "en": "other users need a device with at least 4 GB of memory"
   },
+  "dev.users.password_needed": {
+    "text": "een gebruiker met toegang tot de bridge heeft een eerste wachtwoord nodig: werk deze app bij en voeg de gebruiker opnieuw toe",
+    "en": "a user with bridge access needs a first password: update this app and add the user again"
+  },
   "dev.users.port_in_use": {
     "text": "poort {port} is al in gebruik door een andere gebruiker",
     "en": "port {port} is already in use by another user"
