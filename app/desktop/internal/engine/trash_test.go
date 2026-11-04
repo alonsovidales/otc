@@ -106,3 +106,33 @@ func TestMountedDisksTrashIsPruned(t *testing.T) {
 		}
 	}
 }
+
+// The Recycle Bin is used only where it keeps the file: the shell deletes
+// for good, without a word, a file larger than the bin and every file where
+// it is turned off. Without its size, Windows' default at its smallest (5%
+// of the volume) is taken.
+func TestRecycleBinTakes(t *testing.T) {
+	const gb = 1 << 30
+	for _, tc := range []struct {
+		name    string
+		size    int64
+		off     bool
+		maxMB   uint64
+		known   bool
+		total   uint64
+		recycle bool
+	}{
+		{"small file, bin of 10 GB", 1 << 20, false, 10240, true, 500 * gb, true},
+		{"larger than the bin", 11 * gb, false, 10240, true, 500 * gb, false},
+		{"almost the bin's size", 9*gb + gb/2, false, 10240, true, 500 * gb, false},
+		{"bin turned off", 1, true, 10240, true, 500 * gb, false},
+		{"bin of no size", 1, false, 0, true, 500 * gb, false},
+		{"size unknown, within 5% of the volume", 20 * gb, false, 0, false, 500 * gb, true},
+		{"size unknown, over it", 30 * gb, false, 0, false, 500 * gb, false},
+		{"nothing known", 1, false, 0, false, 0, false},
+	} {
+		if got := recycleBinTakes(tc.size, tc.off, tc.maxMB, tc.known, tc.total); got != tc.recycle {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.recycle)
+		}
+	}
+}

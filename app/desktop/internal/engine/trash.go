@@ -122,6 +122,26 @@ func trashTop(p, root string) string {
 	return top
 }
 
+// recycleBinTakes: Windows' Recycle Bin keeps a file of size bytes rather
+// than deleting it for good - which the shell does without a word, with
+// the no-confirmation flag otc-sync's silent delete needs, for a file
+// larger than the bin holds and for every file where the bin is turned off
+// ("Don't move files to the Recycle Bin", the NoRecycleFiles policy). The
+// bin's size is maxMB megabytes when Windows keeps one for the volume
+// (known); else Windows' default is taken at its smallest, 5% of the
+// volume's total bytes. A file is kept when it is within 90% of it.
+func recycleBinTakes(size int64, off bool, maxMB uint64, known bool, volTotal uint64) bool {
+	if off || size < 0 {
+		return false
+	}
+	limit := volTotal / 20
+	if known {
+		limit = maxMB << 20
+	}
+
+	return limit > 0 && uint64(size) <= limit/10*9
+}
+
 // freeName is p, or p with a number before its extension ("a 2.txt") when
 // something is at p already.
 func freeName(p string) (string, error) {

@@ -10,11 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 var procSHFileOperationW = windows.NewLazySystemDLL("shell32.dll").NewProc("SHFileOperationW")
@@ -44,8 +46,65 @@ const (
 // network one), where the shell would delete it for good.
 var errNoRecycleBin = errors.New("no Recycle Bin on this disk") // i18n-ignore: a file's error, only logged
 
+// errNotRecycled: the disk's Recycle Bin would delete the file for good -
+// it is turned off, or the file is larger than it holds (recycleBinTakes).
+var errNotRecycled = errors.New("the Recycle Bin would delete it for good (turned off, or the file is too large for it)") // i18n-ignore: a file's error, only logged
+
+// recycleBinSettings are the Recycle Bin settings of the volume whose root
+// is vol, as Explorer's Properties keeps them for this user: whether it is
+// off (NukeOnDelete, or the NoRecycleFiles policy for this user or the
+// computer) and its size in megabytes (MaxCapacity), when it has one.
+func recycleBinSettings(vol *uint16) (off bool, maxMB uint64, known bool) {
+	const policies = `Software\Microsoft\Windows\CurrentVersion\Policies\Explorer`
+	for _, root := range []registry.Key{registry.CURRENT_USER, registry.LOCAL_MACHINE} {
+		if dwordValue(root, policies, "NoRecycleFiles") == 1 {
+			return true, 0, false
+		}
+	}
+	name := make([]uint16, 64)
+	if windows.GetVolumeNameForVolumeMountPoint(vol, &name[0], uint32(len(name))) != nil {
+		return false, 0, false
+	}
+	// \\?\Volume{guid}\ -> {guid}
+	guid := windows.UTF16ToString(name)
+	i, j := strings.IndexByte(guid, '{'), strings.IndexByte(guid, '}')
+	if i < 0 || j < i {
+		return false, 0, false
+	}
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Explorer\BitBucket\Volume\`+guid[i:j+1], registry.QUERY_VALUE)
+	if err != nil {
+		return false, 0, false
+	}
+	defer k.Close()
+	if n, _, err := k.GetIntegerValue("NukeOnDelete"); err == nil && n != 0 {
+		return true, 0, false
+	}
+	if n, _, err := k.GetIntegerValue("MaxCapacity"); err == nil {
+		return false, n, true
+	}
+
+	return false, 0, false
+}
+
+// dwordValue is the integer value name of key path under root, 0 when it
+// isn't there.
+func dwordValue(root registry.Key, path, name string) uint64 {
+	k, err := registry.OpenKey(root, path, registry.QUERY_VALUE)
+	if err != nil {
+		return 0
+	}
+	defer k.Close()
+	n, _, err := k.GetIntegerValue(name)
+	if err != nil {
+		return 0
+	}
+
+	return n
+}
+
 // systemTrash moves p to the Recycle Bin, as Explorer's Delete does, with
-// no dialog. Only on a fixed disk: elsewhere the shell deletes outright.
+// no dialog. Only on a fixed disk, and where the bin keeps the file
+// (recycleBinTakes): elsewhere the shell deletes outright.
 func systemTrash(p string) error {
 	abs, err := filepath.Abs(p)
 	if err != nil {
@@ -65,6 +124,19 @@ func systemTrash(p string) error {
 	}
 	if windows.GetDriveType(&vol[0]) != windows.DRIVE_FIXED {
 		return errNoRecycleBin
+	}
+	// A file the Recycle Bin wouldn't keep - too large for it, or the bin
+	// turned off - the shell deletes for good: it goes to the folder's own
+	// trash instead.
+	fi, err := os.Lstat(abs)
+	if err != nil {
+		return err
+	}
+	off, maxMB, known := recycleBinSettings(&vol[0])
+	var free, total, totalFree uint64
+	_ = windows.GetDiskFreeSpaceEx(&vol[0], &free, &total, &totalFree)
+	if !recycleBinTakes(fi.Size(), off, maxMB, known, total) {
+		return errNotRecycled
 	}
 	// pFrom is a list of names, each ending in a NUL, ending in another.
 	from, err := windows.UTF16FromString(abs)

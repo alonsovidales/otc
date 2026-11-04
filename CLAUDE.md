@@ -3449,10 +3449,13 @@ What a two-way pass deletes here goes to the trash: the Mac's Trash, and otc-syn
 `.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo`; what otc-sync put there is
 emptied after 30 days, as a service with no desktop has nobody to do it - only its own entries,
 listed in `<config dir>/trashed.jsonl` and still as it left them (`pruneOwnTrash`) -, the Recycle
-Bin on Windows,
-fixed disks only; else a `.otc-trash/<day>/` folder in the synced folder - at the top of a disk
-mounted in it for a file on that disk, which a rename can't leave -, never synced, each emptied of
-days older than 30 after a pass, `pruneFolderTrashes`); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once
+Bin on Windows, fixed disks only and only for a file the bin keeps - the shell deletes for good,
+under the silent delete's FOF_NOCONFIRMATION, a file larger than the bin and every file where it is
+off, so the volume's `BitBucket` settings (NukeOnDelete, MaxCapacity; else 5% of the volume) and
+the NoRecycleFiles policy are read first (`recycleBinTakes`); else a `.otc-trash/<day>/` folder in
+the synced folder - at the top of a disk mounted in it for a file on that disk, which a rename
+can't leave -, never synced, each emptied of days older than 30 after a pass,
+`pruneFolderTrashes`); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once
 (`SyncModel.migrateLocalFolders`, gated by `sync.folders.migratedToTwoWay`; `engine.migrateFolders`
 skips `OneWay`), and the sync record (relative path -> hash after the last pass) is saved per folder
 (`synced/<id>.json`), so a delete made while the app was closed still propagates. Issue #134: both send a file's own creation and modification times with
