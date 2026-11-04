@@ -368,6 +368,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if acc == nil {
 		// The same email signed up with a password (or the other
 		// provider) earlier: same person, link rather than duplicate.
+		created := false
 		acc, err = a.dao.GetAccountByEmail(email)
 		if err != nil {
 			a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
@@ -399,19 +400,25 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// Google and Apple verify the email themselves.
 			// The browser's language for its emails, as at an email sign-up
 			// (the callback is a top-level navigation, Apple's a form post).
-			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true,
+			newAccount := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true,
 				Lang: requestLanguage("", r)}
-			if err := a.dao.CreateAccount(&created); err != nil {
+			if err := a.dao.CreateAccount(&newAccount); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
 				a.pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
-			acc = &created
-			log.Info("account created with", p.name, ":", created.ID) // not the email (issue #162)
-			a.notifyNewAccount(created.Email)
+			acc = &newAccount
+			created = true
+			log.Info("account created with", p.name, ":", newAccount.ID) // not the email (issue #162)
+			a.notifyNewAccount(newAccount.Email)
 		}
 		if err := a.dao.LinkAccountLogin(p.name, subject, acc.ID); err != nil {
 			log.Error("error linking a", p.name, "login:", err)
+		}
+		// A proven email/password account keeps its password when linked:
+		// its owner is told, since that password may not be theirs.
+		if !created && acc.PasswordHash != "" {
+			a.notifyProviderLinked(acc, p.name)
 		}
 		// The provider proved the address: an email sign-up still waiting
 		// for its link is verified now.

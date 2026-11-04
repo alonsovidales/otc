@@ -116,6 +116,8 @@ var accountCols = []string{"id", "email", "name", "surname", "country", "passwor
 func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
+	// No password left to tell anyone about.
+	a.send = func(to, subject, body string) error { t.Errorf("an email to %s: %s", to, subject); return nil }
 	state := strings.Repeat("ab", 32)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
@@ -657,10 +659,17 @@ func TestOAuthStartOnlyAsAPage(t *testing.T) {
 
 // A verified email/password account that signs in with Google (the same
 // email) is linked and keeps its password: the person who proved the
-// address is the one proving it again. Nothing ends its sessions either.
+// address is the one proving it again. Nothing ends its sessions either,
+// but the address is told that the password goes on working - someone may
+// have signed up with it first and had their confirmation link clicked -
+// greeted by no name (whoever signed up typed it).
 func TestProviderLinkKeepsAVerifiedAccountsPassword(t *testing.T) {
 	a, mock := testAccounts(t)
 	newFakeIdP(t, a)
+	a.tld = "off-the.cloud"
+	type email struct{ to, subject, body string }
+	sent := make(chan email, 2)
+	a.send = func(to, subject, body string) error { sent <- email{to, subject, body}; return nil }
 	state := strings.Repeat("ef", 32)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
@@ -679,6 +688,16 @@ func TestProviderLinkKeepsAVerifiedAccountsPassword(t *testing.T) {
 	}
 	if c := sessionCookie(w); !strings.HasPrefix(c, "acc1|3|") {
 		t.Errorf("the provider user's cookie: %q", c)
+	}
+	select {
+	case e := <-sent:
+		if e.to != "a@b.c" || e.subject != "Google sign-in added to your Off The Cloud account" ||
+			!strings.HasPrefix(e.body, "Hello,\n\nYou can now sign in to your Off The Cloud account (a@b.c) with Google. The account also has a password") ||
+			!strings.Contains(e.body, "at https://off-the.cloud/account, sign out, choose Forgot your password?") {
+			t.Errorf("the email: %+v", e)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("the owner was not told the password stays")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)

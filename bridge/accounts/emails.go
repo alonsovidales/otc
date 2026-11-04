@@ -100,6 +100,17 @@ func (a *Accounts) identityEmail(lang, name, domain string) (subject, body strin
 	return subject, body
 }
 
+// providerLinkEmail tells the owner of an account with a password (email,
+// its address) that it can now be signed in to with provider (Google or
+// Apple) too, and that the password still works - which they may never
+// have set. It greets no one by name: the name was typed by whoever made
+// the account.
+func (a *Accounts) providerLinkEmail(lang, email, provider string) (subject, body string) {
+	subject = i18n.MailProviderLinkSubject(provider).Render(lang)
+	body = emailGreeting(lang, "") + "\n\n" + i18n.MailProviderLinkBody(email, provider, a.accountPage(lang)).Render(lang) + "\n\n" + a.signature()
+	return subject, body
+}
+
 // inactivityEmail is the warning that an account unused for five months
 // (email, its address) is removed on removeOn unless it is used.
 func (a *Accounts) inactivityEmail(lang, name, email string, removeOn time.Time) (subject, body string) {

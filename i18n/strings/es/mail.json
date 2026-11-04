@@ -85,6 +85,16 @@
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #11317a22"
   },
+  "mail.provider_link.body": {
+    "text": "Ya puedes iniciar sesión en tu cuenta de Off The Cloud ({email}) con {provider}. La cuenta también tiene una contraseña, que sigue funcionando.\n\nSi esa contraseña la elegiste tú, no tienes que hacer nada más.\n\nSi no, otra persona creó esta cuenta con tu dirección de correo antes que tú y todavía puede iniciar sesión con ella: en {link}, cierra sesión, elige ¿Has olvidado tu contraseña? y pon una contraseña nueva. Así se cierra la sesión de todos los demás.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #eea8dee3"
+  },
+  "mail.provider_link.subject": {
+    "text": "Inicio de sesión con {provider} añadido a tu cuenta de Off The Cloud",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #fd776607"
+  },
   "mail.reset.body": {
     "text": "Alguien (esperemos que tú) ha solicitado restablecer la contraseña de la cuenta de Off The Cloud asociada a este correo electrónico. Para elegir una nueva, abre este enlace:\n\n{link}\n\nEl enlace funciona durante una hora y una sola vez. Al establecer una contraseña nueva, se cerrará la sesión de tu cuenta en todos los demás sitios.\n\nSi no lo has solicitado, ignora este correo: tu contraseña seguirá como está.",
     "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",

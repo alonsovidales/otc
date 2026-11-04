@@ -94,6 +94,20 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e09bca76"
   },
+  "mail.provider_link.body": {
+    "text": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "args": [["email", "text"], ["provider", "text"], ["link", "text"]],
+    "note": "Text of the email sent when someone first signs in with Google or Apple to an Off The Cloud account that was made with an email and a password: the account keeps its password, which may have been set by someone who signed up with this person's address before them. Plain text: keep the empty lines. It follows the greeting (mail.greeting.plain) and is signed \"- Off The Cloud\" with the website's address below. {email} is the account's email address, {provider} Google or Apple (never translated), {link} the account page's address. Forgot your password? is the account page's link (site.account.forgot.open): use its words.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #18486b6f"
+  },
+  "mail.provider_link.subject": {
+    "text": "{provider} sign-in added to your Off The Cloud account",
+    "args": [["provider", "text"]],
+    "note": "Subject of the email sent when someone first signs in with Google or Apple to an Off The Cloud account that also has a password (mail.provider_link.body). {provider} is Google or Apple, never translated.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #4889b369"
+  },
   "mail.reset.body": {
     "text": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",
     "args": [["link", "text"]],

@@ -85,6 +85,16 @@
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #175e7a6c"
   },
+  "mail.provider_link.body": {
+    "text": "Já podes iniciar sessão na tua conta Off The Cloud ({email}) com {provider}. A conta também tem uma palavra-passe, que continua a funcionar.\n\nSe foste tu a escolher essa palavra-passe, não precisas de fazer mais nada.\n\nSe não, outra pessoa criou esta conta com o teu endereço de email antes de ti e ainda pode iniciar sessão nela: em {link}, termina a sessão, escolhe Esqueceste-te da palavra-passe? e define uma nova palavra-passe. Isso termina a sessão de todas as outras pessoas.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #b9e67c6e"
+  },
+  "mail.provider_link.subject": {
+    "text": "Início de sessão com {provider} adicionado à tua conta Off The Cloud",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #75e4bb03"
+  },
   "mail.reset.body": {
     "text": "Alguém (esperamos que tu) pediu para repor a palavra-passe da conta Off The Cloud associada a este email. Para escolheres uma nova, abre esta ligação:\n\n{link}\n\nA ligação funciona durante uma hora e só uma vez. Definir uma nova palavra-passe termina a sessão da tua conta em todos os outros locais.\n\nSe não pediste isto, ignora este email: a tua palavra-passe mantém-se igual.",
     "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",

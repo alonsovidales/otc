@@ -85,6 +85,16 @@
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #f08f7715"
   },
+  "mail.provider_link.body": {
+    "text": "du kannst dich jetzt mit {provider} bei deinem Konto bei Off The Cloud ({email}) anmelden. Das Konto hat außerdem ein Passwort, das weiterhin funktioniert.\n\nWenn du dieses Passwort selbst gewählt hast, musst du nichts weiter tun.\n\nWenn nicht, hat jemand anderes dieses Konto vor dir mit deiner E-Mail-Adresse angelegt und kann sich damit noch anmelden: Melde dich unter {link} ab, wähle „Passwort vergessen?“ und lege ein neues Passwort fest. Damit werden alle anderen abgemeldet.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #c980a42c"
+  },
+  "mail.provider_link.subject": {
+    "text": "Anmeldung mit {provider} zu deinem Konto bei Off The Cloud hinzugefügt",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #3b241b01"
+  },
   "mail.reset.body": {
     "text": "jemand – hoffentlich du – hat angefordert, das Passwort des Kontos bei Off The Cloud für diese E-Mail-Adresse zurückzusetzen. Um ein neues zu wählen, öffne diesen Link:\n\n{link}\n\nDer Link funktioniert eine Stunde lang und nur einmal. Wenn du ein neues Passwort festlegst, wird dein Konto überall sonst abgemeldet.\n\nWenn du das nicht angefordert hast, ignoriere diese E-Mail: Dein Passwort bleibt unverändert.",
     "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",

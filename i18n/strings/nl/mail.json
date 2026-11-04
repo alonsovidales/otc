@@ -85,6 +85,16 @@
     "en": "Your Off The Cloud account will be removed on {date}",
     "reviewed": "claude-backtranslation 2026-10-11 #f8e79edb"
   },
+  "mail.provider_link.body": {
+    "text": "Je kunt nu met {provider} inloggen op je Off The Cloud-account ({email}). Het account heeft ook een wachtwoord, dat blijft werken.\n\nAls je dat wachtwoord zelf hebt gekozen, hoef je verder niets te doen.\n\nZo niet, dan heeft iemand anders dit account vóór jou met je e-mailadres aangemaakt en kan die er nog steeds mee inloggen: log uit op {link}, kies Wachtwoord vergeten? en stel een nieuw wachtwoord in. Daarmee wordt iedereen anders uitgelogd.",
+    "en": "You can now sign in to your Off The Cloud account ({email}) with {provider}. The account also has a password, which goes on working.\n\nIf you chose that password yourself, there is nothing more to do.\n\nIf you didn't, someone else made this account with your email address before you, and can still sign in with it: at {link}, sign out, choose Forgot your password? and set a new password. That signs everyone else out.",
+    "reviewed": "claude-backtranslation 2026-11-04 #0a984249"
+  },
+  "mail.provider_link.subject": {
+    "text": "Inloggen met {provider} toegevoegd aan je Off The Cloud-account",
+    "en": "{provider} sign-in added to your Off The Cloud account",
+    "reviewed": "claude-backtranslation 2026-11-04 #aae4ddf7"
+  },
   "mail.reset.body": {
     "text": "Iemand – hopelijk jij – heeft gevraagd om het wachtwoord van het Off The Cloud-account voor dit e-mailadres opnieuw in te stellen. Open deze link om een nieuw wachtwoord te kiezen:\n\n{link}\n\nDe link werkt één uur lang, en maar één keer. Als je een nieuw wachtwoord instelt, wordt je account overal elders uitgelogd.\n\nHeb je hier niet om gevraagd? Negeer deze e-mail dan: je wachtwoord blijft zoals het is.",
     "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",

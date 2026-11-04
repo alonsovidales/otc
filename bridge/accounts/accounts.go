@@ -1621,6 +1621,40 @@ func (a *Accounts) notifyNewIdentity(accountID, domain string, send func(to, sub
 	}
 }
 
+// notifyProviderLinked tells the owner of acc, an account with a password
+// that a Google or Apple sign-in was just linked to (provider, its name),
+// that the password goes on working: someone may have signed up with the
+// address first, and the confirmation link they had sent been clicked. In
+// the background, best effort: a failure is only logged, by the account's
+// id.
+func (a *Accounts) notifyProviderLinked(acc *dao.Account, provider string) {
+	send := a.send
+	if send == nil {
+		if a.mailer == nil {
+			return
+		}
+		send = a.mailer.Send
+	}
+	subject, body := a.providerLinkEmail(acc.Lang, acc.Email, providerTitle(provider))
+	id, to := acc.ID, acc.Email
+	go func() {
+		if err := send(to, subject, body); err != nil {
+			log.Error("could not tell account", id, "about a new sign-in method:", err)
+		}
+	}()
+}
+
+// providerTitle is a provider's name as people know it.
+func providerTitle(name string) string {
+	switch name {
+	case "google":
+		return "Google" // i18n-ignore: a brand, never translated
+	case "apple":
+		return "Apple" // i18n-ignore: a brand, never translated
+	}
+	return name
+}
+
 // notifyNewAccount tells the project that an account was created, at its
 // own address (info@off-the.cloud, the mailer's): the new account's email
 // and nothing else. In the background, so a slow SMTP server never holds

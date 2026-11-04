@@ -99,6 +99,16 @@ func MailInactivitySubject(date string) Msg {
 	return Msg{Key: "mail.inactivity.subject", Args: map[string]any{"date": date}}
 }
 
+// MailProviderLinkBody is mail.provider_link.body: "You can now sign in to your Off The Cloud account ({email}) with {provider}. The…".
+func MailProviderLinkBody(email string, provider string, link string) Msg {
+	return Msg{Key: "mail.provider_link.body", Args: map[string]any{"email": email, "provider": provider, "link": link}}
+}
+
+// MailProviderLinkSubject is mail.provider_link.subject: "{provider} sign-in added to your Off The Cloud account".
+func MailProviderLinkSubject(provider string) Msg {
+	return Msg{Key: "mail.provider_link.subject", Args: map[string]any{"provider": provider}}
+}
+
 // MailResetBody is mail.reset.body: "Someone - hopefully you - asked to reset the password of the Off The Cloud accou…".
 func MailResetBody(link string) Msg {
 	return Msg{Key: "mail.reset.body", Args: map[string]any{"link": link}}
