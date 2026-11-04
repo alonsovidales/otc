@@ -104,6 +104,11 @@ func DevUpdateNoSpace(path string, free string, needed string) Msg {
 	return Msg{Key: "dev.update.no_space", Args: map[string]any{"path": path, "free": free, "needed": needed}}
 }
 
+// DevUpdateNoUpdater is dev.update.no_updater: "This device was set up without the updater, so it can't install releases itself:…".
+func DevUpdateNoUpdater() Msg {
+	return Msg{Key: "dev.update.no_updater"}
+}
+
 // DevUpdateProtobufVersionMissing is dev.update.protobuf_version_missing: "couldn't find google.golang.org/protobuf's version in go.mod".
 func DevUpdateProtobufVersionMissing() Msg {
 	return Msg{Key: "dev.update.protobuf_version_missing"}
@@ -224,9 +229,19 @@ func DevUpdateUpdated(version string) Msg {
 	return Msg{Key: "dev.update.updated", Args: map[string]any{"version": version}}
 }
 
+// DevUpdateUpdatedOsPending is dev.update.updated_os_pending: "Updated to version {version}, but the system's security updates could not be set…".
+func DevUpdateUpdatedOsPending(version string) Msg {
+	return Msg{Key: "dev.update.updated_os_pending", Args: map[string]any{"version": version}}
+}
+
 // DevUpdateUptodate is dev.update.uptodate: "Already up to date".
 func DevUpdateUptodate() Msg {
 	return Msg{Key: "dev.update.uptodate"}
+}
+
+// DevUpdateUsersUnreadable is dev.update.users_unreadable: "release {release} could not read this device's list of users - press Update to t…".
+func DevUpdateUsersUnreadable(release string) Msg {
+	return Msg{Key: "dev.update.users_unreadable", Args: map[string]any{"release": release}}
 }
 
 // DevUpdateVerifiedManifestMissing is dev.update.verified_manifest_missing: "the verified manifest is missing".

@@ -3,10 +3,9 @@
 # machine into a running OTC device: RAID1 storage, MariaDB, a native Go
 # toolchain, ONNX Runtime, the RAM++ tagging model, the database schema, app
 # config, the RAID status-LED watcher, a systemd service, and the otc binary
-# itself — built from source, live, on this machine, using the exact same
-# versions/URLs Makefile.pi already automates over SSH from a dev machine
-# (see that file for the authoritative, more granular version, e.g. to
-# re-run just one step).
+# itself — built from source, live, on this machine, from the signed
+# release verified-install.sh checked (Makefile.pi runs that same installer
+# over SSH from another computer).
 #
 # Deliberately NOT installed here: network-setup.service (the first-boot
 # WiFi/AP watcher, scripts/network_setup.py). It can take down the very
@@ -29,8 +28,7 @@
 #
 # Disaster recovery ("the Pi died, I swapped it and kept the two data
 # disks"): this script builds a RAID1 array on OTC_DISK1/OTC_DISK2 (default
-# /dev/sda + /dev/sdb) the exact same way Makefile.pi's `raid`/`mariadb`
-# targets do, including pointing MariaDB's datadir onto it — so re-running
+# /dev/sda + /dev/sdb) and points MariaDB's datadir onto it — so re-running
 # this script against a freshly re-imaged machine with the SAME two data
 # disks re-attached reassembles the existing array (via `mdadm --assemble
 # --scan`, tried before ever considering a wipe) and picks the recovered
@@ -357,7 +355,6 @@ apt-get install -y mariadb-server build-essential git curl wget rsync ca-certifi
 OPENCV_MIN=4.10
 OPENCV_SRC_VERSION=4.10.0
 OPENCV_SRC_SHA=b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9
-OPENCV_BUILD_DIR=/var/tmp/otc-opencv
 opencv_ok() {
     local v
     v=$(pkg-config --modversion opencv4 2>/dev/null || true)
@@ -368,8 +365,15 @@ if ! opencv_ok; then
     log "[1/10] OpenCV $OPENCV_SRC_VERSION, built from source because the system's is too old (5 to 30 minutes)"
     log "this system's OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || echo none), face recognition needs $OPENCV_MIN or newer"
     apt-get install -y cmake libjpeg-dev libpng-dev
-    rm -rf "$OPENCV_BUILD_DIR"
-    mkdir -p "$OPENCV_BUILD_DIR"
+    # The build happens in a directory mktemp makes (0700, root's): /var/tmp
+    # is everyone's, and another account could make a fixed name there
+    # first - then swap the sources after their hash was checked, and root
+    # would build and install its code into /usr/local. Earlier runs'
+    # directories (and the log of the fixed name before) go first, root's
+    # only.
+    find /var/tmp -maxdepth 1 -user root \( \( -type d \( -name otc-opencv -o -name 'otc-opencv.??????' \) \) \
+        -o \( -type f -name otc-opencv-build.log \) \) -exec rm -rf -- {} + 2>/dev/null || true
+    OPENCV_BUILD_DIR="$(mktemp -d /var/tmp/otc-opencv.XXXXXX)" || die "could not make a directory in /var/tmp to build OpenCV in"
     if [ "$(df -Pk "$OPENCV_BUILD_DIR" | awk 'NR == 2 {print $4}')" -lt $((2 * 1024 * 1024)) ]; then
         wiz_error opencv_space path "$OPENCV_BUILD_DIR"
         die "not enough free space in $OPENCV_BUILD_DIR to build OpenCV: it needs 2 GB"
@@ -381,7 +385,7 @@ if ! opencv_ok; then
     ocv_mem=$(awk '/^MemAvailable:/ {print int($2 / 1048576)}' /proc/meminfo)
     [ "$ocv_mem" -lt "$ocv_jobs" ] && ocv_jobs=$ocv_mem
     [ "$ocv_jobs" -ge 1 ] || ocv_jobs=1
-    ocv_log=/var/tmp/otc-opencv-build.log
+    ocv_log="$OPENCV_BUILD_DIR/build.log"
     log "building OpenCV with $ocv_jobs jobs (full output in $ocv_log)"
     # The build's own output goes to the log; its progress shows here
     # every 10%, so a long build doesn't look stuck.
@@ -405,8 +409,16 @@ if ! opencv_ok; then
         die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"
     fi
     ldconfig
+    # The sources and the build tree go now (about 2 GB); the log, in the
+    # same directory, only once pkg-config finds what was installed - the
+    # failure below points at it.
+    rm -rf "$OPENCV_BUILD_DIR/src.tar.gz" "$OPENCV_BUILD_DIR/opencv-$OPENCV_SRC_VERSION" "$OPENCV_BUILD_DIR/build"
+    if ! opencv_ok; then
+        log "OpenCV built and installed, but pkg-config finds $(pkg-config --modversion opencv4 2>/dev/null || echo none), not $OPENCV_MIN or newer"
+        wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"
+        die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"
+    fi
     rm -rf "$OPENCV_BUILD_DIR"
-    opencv_ok || { wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"; die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"; }
     log "OpenCV $(pkg-config --modversion opencv4) installed in /usr/local"
 fi
 
@@ -501,21 +513,39 @@ fi
 # packets carrying IPv4 options are dropped before the kernel's TCP code
 # sees them: that bug needs them, and nothing OTC serves uses them (an
 # nftables table of its own, otc-ipv4-options.service). The same as
-# updates/161.sh, for the devices installed before.
+# updates/corrected/161.sh, for the devices installed before
+# (updater/os_security_test.go).
+#
+# Nothing in it waits for an answer, and it sets up all it can before it
+# reports a failure (status 1): an update has no terminal, so debconf asks
+# nothing, dpkg keeps a configuration file someone changed (confold) and
+# takes the package's default for the rest (confdef) instead of asking on
+# standard input and failing, an apt run cut short (a power cut) is
+# finished first, apt waits up to 10 minutes for another apt (the daily
+# one), and a failed install is tried once more with fresh lists. The
+# IPv4-options filter needs no package where nft is there already.
 otc_os_security() {
+    local rc=0 conf=/etc/apt/apt.conf.d/52otc-security-updates reboot=true
+    local apt_get=(apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o DPkg::Lock::Timeout=600)
+    export DEBIAN_FRONTEND=noninteractive
+    dpkg --force-confdef --force-confold --configure -a || true
     # A device that hasn't asked in months has stale lists: ask first (an
     # offline device installs from what it has, or fails here).
-    apt-get update || true
-    apt-get install -y unattended-upgrades nftables
-    cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APTEOF'
+    "${apt_get[@]}" update || true
+    if ! "${apt_get[@]}" install unattended-upgrades nftables; then
+        dpkg --force-confdef --force-confold --configure -a || true
+        "${apt_get[@]}" update || true
+        "${apt_get[@]}" install unattended-upgrades nftables \
+            || { echo "WARNING: unattended-upgrades and nftables could not be installed"; rc=1; }
+    fi
+    cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APTEOF' || rc=1
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 APTEOF
-    local conf=/etc/apt/apt.conf.d/52otc-security-updates reboot=true
     if [ "${OTC_SECURITY_REBOOT:-1}" = "0" ] || grep -q 'Automatic-Reboot "false"' "$conf" 2>/dev/null; then
         reboot=false
     fi
-    cat > "$conf" <<APTEOF
+    cat > "$conf" <<APTEOF || rc=1
 // Off The Cloud (scripts/install.sh, updates/161.sh): the system's security
 // updates install by themselves every day, and when one needs a restart (a
 // new kernel) the device restarts at 04:00. Debian's and Ubuntu's security
@@ -529,8 +559,8 @@ Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
 Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 DPkg::Lock::Timeout "600";
 APTEOF
-    mkdir -p /etc/otc
-    cat > /etc/otc/ipv4-options.nft <<'NFTEOF'
+    mkdir -p /etc/otc || rc=1
+    cat > /etc/otc/ipv4-options.nft <<'NFTEOF' || rc=1
 #!/usr/sbin/nft -f
 # Off The Cloud: TCP packets carrying IPv4 options never reach the kernel's
 # TCP code (CVE-2026-98432 needs them; nothing the device serves uses them).
@@ -544,7 +574,7 @@ table ip otc_ipv4_options {
 	}
 }
 NFTEOF
-    cat > /etc/systemd/system/otc-ipv4-options.service <<'UNITEOF'
+    cat > /etc/systemd/system/otc-ipv4-options.service <<'UNITEOF' || rc=1
 [Unit]
 Description=Off The Cloud: drop TCP packets carrying IPv4 options (CVE-2026-98432)
 DefaultDependencies=no
@@ -561,12 +591,18 @@ ExecStart=/usr/sbin/nft -f /etc/otc/ipv4-options.nft
 [Install]
 WantedBy=sysinit.target
 UNITEOF
-    systemctl daemon-reload
-    systemctl enable otc-ipv4-options.service
-    systemctl restart otc-ipv4-options.service
+    systemctl daemon-reload || rc=1
+    if [ -x /usr/sbin/nft ]; then
+        { systemctl enable otc-ipv4-options.service && systemctl restart otc-ipv4-options.service; } \
+            || { echo "WARNING: the IPv4-options filter could not be loaded"; rc=1; }
+    else
+        echo "WARNING: nft is not installed, so the IPv4-options filter can't be loaded yet"
+        rc=1
+    fi
+    return "$rc"
 }
 log "[1/10] security updates and the IPv4-options filter"
-otc_os_security
+otc_os_security || die "the system's security updates could not be set up (see the lines above) - run the installer again"
 
 wiz_step account
 log "[2/10] otc service account"
@@ -726,7 +762,8 @@ else
     storage_fstab_line add
     mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT"
 fi
-mkdir -p "$UNENC_PATH"
+# The storage's unencrypted directory is made in step 9, by the otc user
+# itself (otc_dir).
 # The service and MariaDB (its datadir is on the mirror, step 10) start
 # only once the storage is mounted, and stop if it goes: never on the
 # empty directory under the mount point, where new files would be written
@@ -913,22 +950,51 @@ done
 
 wiz_step directories
 log "[9/10] Runtime directories"
-# /var/lib/otc/users: issue #82's per-user config/identity directories -
-# under StateDirectory=otc (still writable under ProtectSystem=full,
-# unlike /etc itself), one subdirectory per spawned user, created by the
-# supervisor itself on demand - this just makes sure the parent exists
-# with the right ownership up front.
-mkdir -p /var/log/otc /etc/otc /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
-chown otc:otc /var/log/otc /var/www /var/lib/otc /var/lib/otc/users "$STORAGE_PATH" "$UNENC_PATH"
+# otc_dir PATH MODE: a directory of the otc user's inside a directory that
+# user owns (/var/lib/otc, the storage root). Root never makes, chowns or
+# chmods a name there by following it: the otc user can put a symlink in
+# its place (a compromised old device can leave one on its disks for a
+# recovery), and a re-run of this script then handed whatever it pointed
+# at - /var/lib/dpkg/info, say - to the otc user. Anything there that isn't
+# a directory is removed (rm never follows a symlink), a missing directory
+# is made by the otc user itself, one root made in an earlier install is
+# handed over without following anything (chown -h), and the mode is set as
+# the otc user, who can only ever change what is already its own.
+otc_dir() {
+    local dir="${1%/}" mode="$2"
+    if [ -L "$dir" ] || { [ -e "$dir" ] && [ ! -d "$dir" ]; }; then
+        log "  $dir was not a directory: removed, and made again as one"
+        rm -f -- "$dir"
+    fi
+    if [ ! -d "$dir" ]; then
+        runuser -u otc -- mkdir -p -- "$dir" || die "could not make $dir"
+    fi
+    if [ "$(stat -c %U -- "$dir")" != otc ]; then
+        chown -h otc:otc -- "$dir" || die "could not hand $dir to the otc user"
+    fi
+    runuser -u otc -- chmod "$mode" -- "$dir" || die "could not set the permissions of $dir"
+}
+# Their parents: in directories of root's (/var/log, /var/lib, /var, /mnt),
+# so no other account can put anything in their place.
+mkdir -p /var/log/otc /etc/otc /var/lib/otc "$STORAGE_PATH"
+chown otc:otc /var/log/otc /var/www /var/lib/otc "$STORAGE_PATH"
 # Issue #157: the storage is the service's alone (everything in it is
 # read through the service).
-chmod 750 "$STORAGE_PATH" "$UNENC_PATH"
+chmod 750 "$STORAGE_PATH"
 # MariaDB's datadir lives under the storage root on the RAID
 # ($MOUNT_POINT/mysql, step 10), and the mysql user has to pass through it:
 # others may traverse the root (o+x) but not list or read it - everything
 # inside stays 0600/0750. Without this MariaDB can't start (2026-10-01).
 chmod o+x "$STORAGE_PATH" "$MOUNT_POINT"
 chmod 755 /var/log/otc
+# /var/lib/otc/users: issue #82's per-user config/identity directories -
+# under StateDirectory=otc (still writable under ProtectSystem=full,
+# unlike /etc itself), one subdirectory per spawned user, created by the
+# supervisor itself on demand - this just makes sure the parent exists
+# with the right ownership up front. The storage's unencrypted directory
+# is the service's alone (issue #157), like the rest of the storage.
+otc_dir /var/lib/otc/users 0755
+otc_dir "$UNENC_PATH" 0750
 
 # ---------------------------------------------------------------------------
 # 5. Database + config (device identity generated once, first run only)
@@ -946,6 +1012,27 @@ if command -v iw >/dev/null 2>&1; then
         iw dev "$dev" set power_save off 2>/dev/null || true
     done
 fi
+# A TCP connection that sat idle for a moment starts again from slow start
+# on Linux, as if it were new. The bridge connections the device keeps open
+# for the apps do sit idle between two requests, and each piece of a video
+# sent over one then spent several round trips reaching full speed: the
+# window TCP learnt on the connection is kept instead
+# (net.ipv4.tcp_slow_start_after_idle=0), now and at every boot. The same
+# as updates/169.sh, for the devices installed before
+# (updater/release169_test.go).
+otc_network_tuning() {
+    local conf=/etc/sysctl.d/80-otc-network.conf want
+    want='# Off The Cloud (scripts/install.sh, updates/169.sh): a connection that sat
+# idle - the bridge connections the device keeps open for the apps - keeps
+# the window TCP learnt on it instead of starting again from slow start.
+net.ipv4.tcp_slow_start_after_idle = 0'
+    if [ "$(cat "$conf" 2>/dev/null)" != "$want" ]; then
+        { mkdir -p /etc/sysctl.d && printf '%s\n' "$want" > "$conf.tmp.$$" && chmod 0644 "$conf.tmp.$$" \
+            && mv -f "$conf.tmp.$$" "$conf"; } || { rm -f "$conf.tmp.$$"; return 1; }
+    fi
+    sysctl -q -w net.ipv4.tcp_slow_start_after_idle=0
+}
+otc_network_tuning || log "WARNING: TCP keeps slowing down connections that sat idle (net.ipv4.tcp_slow_start_after_idle could not be set)"
 
 wiz_step service
 log "[10/10] Database, config, and the systemd service"
@@ -990,20 +1077,68 @@ if [ -n "$mariadb_pool" ] && [ -d /etc/mysql/mariadb.conf.d ]; then
     fi
 fi
 # <<< release 143
-# Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
-# target) before touching it any further below - a recovered array already
-# holding a previous device's /mysql/mysql is used as-is (the rsync is
-# skipped); a fresh/empty array is seeded from the package's own
-# just-initialized datadir instead. Skipped entirely under OTC_SKIP_RAID=1,
-# where MariaDB just keeps using its normal default datadir.
+# mariadb_datadir DIR SEED ACCOUNT: DIR made MariaDB's datadir, owned by
+# ACCOUNT (mysql) - seeded from SEED, the package's own just-initialized
+# datadir, unless DIR holds a datadir already (its mysql/, as a recovered
+# array's does), which is used as it is.
+#
+# DIR sits in the storage root the otc user owns, and the otc service keeps
+# running through a re-run of this script: it can rename DIR and put a
+# symlink in its place at any moment, which a check of the name and a later
+# use of it can't tell apart - and the copy, run as root, wrote MariaDB's
+# files through such a link and gave its target the datadir's owner and
+# mode (/etc/systemd/system's, say). So root never uses the name past one
+# step: it changes into the directory (cd -P resolves a link there and
+# then) and goes on only if that directory is DIR itself; everything after
+# works on ".", the directory root is in, wherever its name goes. A
+# directory still to be seeded is made root's alone first (nobody else can
+# add to it from then on), and is seeded only if nothing in it is anyone
+# else's or writable by anyone else - a fresh one is empty, one an earlier
+# run left half-copied holds only root's and MariaDB's files. chown -R
+# never follows a link.
+mariadb_datadir() {
+    local dir="${1%/}" seed="${2%/}" account="$3" want
+    want="$(cd -P -- "${dir%/*}" && pwd -P)/${dir##*/}" || return 1
+    if [ -L "$dir" ] || { [ -e "$dir" ] && [ ! -d "$dir" ]; }; then
+        echo "$dir is not a directory" >&2
+        return 1
+    fi
+    mkdir -p -- "$dir" || return 1
+    (
+        cd -P -- "$dir" || exit 1
+        if [ "$(pwd -P)" != "$want" ]; then
+            echo "$dir changed while it was being set up (it is $(pwd -P) now)" >&2
+            exit 1
+        fi
+        if [ ! -d mysql ] || [ -L mysql ]; then
+            chown root:root . && chmod 0700 . || exit 1
+            if [ -n "$(find . -mindepth 1 \( \( ! -user root ! -user "$account" \) -o \( ! -type l \
+                \( -perm -0002 -o \( -perm -0020 ! -group root ! -group "$account" \) \) \) \) -print -quit)" ]; then
+                echo "$dir holds files of another account, and no datadir to keep" >&2
+                exit 1
+            fi
+            rsync -aHAX --numeric-ids -- "$seed/" ./ || exit 1
+        fi
+        chown -R "$account:$account" . || exit 1
+    )
+}
+# Point MariaDB's datadir at the RAID array before touching it any further
+# below - a recovered array already holding a previous device's
+# mysql/mysql is used as-is; a fresh/empty array is seeded from the
+# package's own just-initialized datadir instead (mariadb_datadir). Skipped
+# entirely under OTC_SKIP_RAID=1, where MariaDB just keeps using its normal
+# default datadir.
 if [ "$SKIP_RAID" != "1" ]; then
     log "Pointing MariaDB's datadir at $MOUNT_POINT..."
-    systemctl stop mariadb || true
-    mkdir -p "$MOUNT_POINT/mysql"
-    if [ ! -d "$MOUNT_POINT/mysql/mysql" ]; then
-        rsync -aHAX --numeric-ids /var/lib/mysql/ "$MOUNT_POINT/mysql/"
+    # A symlink or a file there (an old device can leave one on its disks
+    # for a recovery) stops the install before anything is stopped;
+    # mariadb_datadir checks again, on the directory itself.
+    if [ -L "$MOUNT_POINT/mysql" ] || { [ -e "$MOUNT_POINT/mysql" ] && [ ! -d "$MOUNT_POINT/mysql" ]; }; then
+        die "$MOUNT_POINT/mysql is not a directory (a symbolic link, or a file), so it can't be MariaDB's - nothing was changed. Remove it (or move the directory a link points to in its place) and run the installer again"
     fi
-    chown -R mysql:mysql "$MOUNT_POINT/mysql"
+    systemctl stop mariadb || true
+    mariadb_datadir "$MOUNT_POINT/mysql" /var/lib/mysql mysql \
+        || die "could not set up $MOUNT_POINT/mysql as MariaDB's directory (see above) - MariaDB is stopped. Check what is there and run the installer again"
     if grep -q "^datadir" /etc/mysql/mariadb.conf.d/50-server.cnf; then
         sed -i "s#^datadir.*#datadir = $MOUNT_POINT/mysql#" /etc/mysql/mariadb.conf.d/50-server.cnf
     else
@@ -1039,14 +1174,24 @@ else
     DEVICE_UUID=$(command -v uuidgen >/dev/null 2>&1 && uuidgen || cat /proc/sys/kernel/random/uuid)
     BRIDGE_SECRET=$(openssl rand -hex 24)
     OTC_DB_PASS=$(openssl rand -base64 24 | tr -d '=+/')
-    {
-        echo "# Generated $(date -u +%FT%TZ) by scripts/install.sh."
-        echo "# Keep this file out of git — it holds this device's DB password and bridge secret."
-        echo "DEVICE_UUID=$DEVICE_UUID"
-        echo "BRIDGE_SECRET=$BRIDGE_SECRET"
-        echo "OTC_DB_PASS=$OTC_DB_PASS"
-    } > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
+    # Like the config below: made unreadable to other accounts from the
+    # start (umask 077; a chmod after the write left it readable for a
+    # moment), flushed, and renamed into place.
+    env_tmp="$ENV_FILE.tmp.$$"
+    rm -f "$env_tmp"
+    (
+        umask 077
+        {
+            echo "# Generated $(date -u +%FT%TZ) by scripts/install.sh."
+            echo "# Keep this file out of git — it holds this device's DB password and bridge secret."
+            echo "DEVICE_UUID=$DEVICE_UUID"
+            echo "BRIDGE_SECRET=$BRIDGE_SECRET"
+            echo "OTC_DB_PASS=$OTC_DB_PASS"
+        } > "$env_tmp"
+    )
+    chmod 600 "$env_tmp"
+    sync "$env_tmp" 2>/dev/null || sync
+    mv -Tf "$env_tmp" "$ENV_FILE"
 fi
 
 # A heredoc, not `mysql -e "..."`, because this SQL carries prose comments
@@ -1383,13 +1528,19 @@ SQL
     ALTER TABLE faces ADD COLUMN IF NOT EXISTS quality FLOAT NULL;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_quality_done TINYINT(1) NOT NULL DEFAULT 0;
 SQL
-    # Release 158 (updates/158.sh): whether the user chose Image Tagging -
-    # until then the device sets it by its memory. Added once, marking a
-    # switch already off (the old default was on) as their choice.
-    if [ -z "$(mysql "$db" -N -B -e "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'image_tagging_chosen'")" ]; then
+    # Release 158 (updates/corrected/158.sh): whether the user chose Image
+    # Tagging - until then the device sets it by its memory. A switch
+    # already off (the old default was on) is marked as their choice, once:
+    # the column is added with no value, given one from the switch, and only
+    # then made NOT NULL, so a run cut in between finishes the job the next
+    # time (a column still NULL-able). It used to be added NOT NULL first,
+    # and a run cut before the marking found it there and skipped it, leaving
+    # an "off" to the memory default.
+    if [ "$(mysql "$db" -N -B -e "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'image_tagging_chosen'")" != NO ]; then
         mysql "$db" <<'SQL'
-    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_chosen TINYINT(1) NOT NULL DEFAULT 0;
-    UPDATE settings SET image_tagging_chosen = 1 WHERE image_tagging_enabled = 0;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_chosen TINYINT(1) NULL;
+    UPDATE settings SET image_tagging_chosen = (image_tagging_enabled = 0) WHERE image_tagging_chosen IS NULL;
+    ALTER TABLE settings MODIFY image_tagging_chosen TINYINT(1) NOT NULL DEFAULT 0;
 SQL
     fi
     # Release 163 (updates/163.sh): collection Rating - a collection's
@@ -1460,25 +1611,36 @@ SQL
 # A user whose database has gone missing entirely is skipped with a
 # warning rather than failing the whole install - the rest of the device
 # is fine, and failing here would block the upgrade for everyone else on
-# it.
-if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; then
-    for user_db in $(mysql otc -N -B -e 'SELECT db_name FROM users' 2>/dev/null); do
-        # The otc service writes this table, and the name reaches SQL, grep
-        # and mysql's command line here as root: only the shape the device
-        # itself generates (dao's checkGenerated), so nothing can pass as
-        # an option or break out of the quotes. Not echoed: untrusted text.
-        if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
-            log "  WARNING: skipping a users row whose db_name this device didn't generate"
-            continue
-        fi
-        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -qxF -- "$user_db"; then
-            log "  migrating additional user database $user_db"
-            apply_schema_migrations "$user_db"
-        else
-            log "  WARNING: user database $user_db is in the users table but doesn't exist - skipping"
-        fi
-    done
-fi
+# it. The list itself must be read, though: the table was made just above,
+# so a query that fails is the database failing (a restart, an error), not
+# "no other users" - it used to read as that, and every other user's
+# database was left behind, for good, by a run that then succeeded.
+user_dbs="$(mysql otc -N -B -e 'SELECT db_name FROM users')" || {
+    log "ERROR: could not read the users table, so the other users' databases can't be brought up to date - nothing was skipped: run this again"
+    false
+}
+for user_db in $user_dbs; do
+    # The otc service writes this table, and the name reaches SQL, grep
+    # and mysql's command line here as root: only the shape the device
+    # itself generates (dao's checkGenerated), so nothing can pass as
+    # an option or break out of the quotes. Not echoed: untrusted text.
+    if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
+        log "  WARNING: skipping a users row whose db_name this device didn't generate"
+        continue
+    fi
+    # The same for the answer to "does it exist?": only a database that is
+    # really missing is skipped.
+    user_db_found="$(mysql -N -B -e "SHOW DATABASES LIKE '$user_db'")" || {
+        log "ERROR: could not ask the database whether $user_db exists - nothing was skipped: run this again"
+        false
+    }
+    if grep -qxF -- "$user_db" <<<"$user_db_found"; then
+        log "  migrating additional user database $user_db"
+        apply_schema_migrations "$user_db"
+    else
+        log "  WARNING: user database $user_db is in the users table but doesn't exist - skipping"
+    fi
+done
 # <<< schema-migrations
 
 # Local-only (no bridge): the subdomain is the bare name, no ".<bridge>".
@@ -1591,13 +1753,12 @@ sync "$INI_TMP" 2>/dev/null || sync
 mv -Tf "$INI_TMP" "$INI_FILE"
 
 # Issue #97 follow-up: the RAID status LEDs (scripts/raid_watch.py, driven
-# over GPIO) are installed by Makefile.pi's `raid-watch` target and baked
-# into the prebuilt image by build_image.sh - but this installer, the path
-# most devices are actually set up through, never installed them at all.
-# A device brought up with `curl | bash` had a perfectly healthy array and
-# two dark LEDs, with nothing on the device even hinting why (no service,
-# no script, no log). Same unit the other two paths install, so all three
-# agree.
+# over GPIO) are baked into the prebuilt image by build_image.sh - but this
+# installer, the path most devices are actually set up through (Makefile.pi
+# runs it too), never installed them at all. A device brought up with
+# `curl | bash` had a perfectly healthy array and two dark LEDs, with
+# nothing on the device even hinting why (no service, no script, no log).
+# Same unit the image installs, so both agree.
 log "Status LEDs (raid-watch.service)"
 # The GPIO binding is genuinely optional: raid_watch.py degrades to a
 # dry-run when it can't import one (see its RPi.GPIO import), which is the

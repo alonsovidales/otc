@@ -82,6 +82,10 @@
     "text": "no hay espacio libre suficiente para la actualización: {path} tiene {free} libres y necesita {needed}",
     "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
+  "dev.update.no_updater": {
+    "text": "Este dispositivo se configuró sin el actualizador, así que no puede instalar versiones por sí mismo: vuelve a ejecutar en él el script de instalación del README, que conserva sus datos y añade el actualizador",
+    "en": "This device was set up without the updater, so it can't install releases itself: run the README's install script on it again, which keeps its data and adds the updater"
+  },
   "dev.update.protobuf_version_missing": {
     "text": "no se ha encontrado la versión de google.golang.org/protobuf en go.mod",
     "en": "couldn't find google.golang.org/protobuf's version in go.mod"
@@ -182,9 +186,17 @@
     "text": "Actualizado a la versión {version}",
     "en": "Updated to version {version}"
   },
+  "dev.update.updated_os_pending": {
+    "text": "Actualizado a la versión {version}, pero no se han podido configurar las actualizaciones de seguridad del sistema: la actualización a la próxima versión lo volverá a intentar",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again"
+  },
   "dev.update.uptodate": {
     "text": "Ya está actualizado",
     "en": "Already up to date"
+  },
+  "dev.update.users_unreadable": {
+    "text": "la versión {release} no ha podido leer la lista de usuarios de este dispositivo: pulsa Actualizar para volver a intentarlo",
+    "en": "release {release} could not read this device's list of users - press Update to try again"
   },
   "dev.update.verified_manifest_missing": {
     "text": "falta el manifiesto verificado",

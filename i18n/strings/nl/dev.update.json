@@ -82,6 +82,10 @@
     "text": "niet genoeg vrije ruimte voor de update: {path} heeft {free} vrij en heeft {needed} nodig",
     "en": "not enough free space for the update: {path} has {free} free, it needs {needed}"
   },
+  "dev.update.no_updater": {
+    "text": "Dit apparaat is ingesteld zonder het updateprogramma en kan releases dus niet zelf installeren: voer het installatiescript uit de README er opnieuw op uit – het behoudt de gegevens en voegt het updateprogramma toe",
+    "en": "This device was set up without the updater, so it can't install releases itself: run the README's install script on it again, which keeps its data and adds the updater"
+  },
   "dev.update.protobuf_version_missing": {
     "text": "kan de versie van google.golang.org/protobuf niet vinden in go.mod",
     "en": "couldn't find google.golang.org/protobuf's version in go.mod"
@@ -182,9 +186,17 @@
     "text": "Bijgewerkt naar versie {version}",
     "en": "Updated to version {version}"
   },
+  "dev.update.updated_os_pending": {
+    "text": "Bijgewerkt naar versie {version}, maar de beveiligingsupdates van het systeem konden niet worden ingesteld: de update naar de volgende versie probeert het opnieuw",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again"
+  },
   "dev.update.uptodate": {
     "text": "Al up-to-date",
     "en": "Already up to date"
+  },
+  "dev.update.users_unreadable": {
+    "text": "release {release} kon de lijst met gebruikers van dit apparaat niet lezen: druk op Bijwerken om het opnieuw te proberen",
+    "en": "release {release} could not read this device's list of users - press Update to try again"
   },
   "dev.update.verified_manifest_missing": {
     "text": "het geverifieerde manifest ontbreekt",

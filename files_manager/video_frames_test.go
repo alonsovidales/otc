@@ -10,8 +10,8 @@ import (
 )
 
 // requireFFmpeg skips the test when ffmpeg/ffprobe aren't on PATH, rather
-// than failing — they're present on the actual devices (see Makefile.pi)
-// but not guaranteed on every dev/CI machine.
+// than failing — they're present on the actual devices (see
+// scripts/install.sh) but not guaranteed on every dev/CI machine.
 func requireFFmpeg(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("ffmpeg"); err != nil {

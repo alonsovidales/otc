@@ -92,6 +92,10 @@
     "args": [["path", "text"], ["free", "text"], ["needed", "text"]],
     "note": "Why an update failed, after Update failed: in Settings > Device version. The device checks its free space before it downloads or builds anything, and there wasn't enough, so nothing was changed. {path} is the place checked, such as / (the system disk) or /run/otc-update (part of the memory); {free} and {needed} are sizes already written out, such as 412 MB and 1.0 GB."
   },
+  "dev.update.no_updater": {
+    "text": "This device was set up without the updater, so it can't install releases itself: run the README's install script on it again, which keeps its data and adds the updater",
+    "note": "Error shown in Settings > Device version when Update is pressed on a device that was set up by hand without the root helper that installs updates, so Update can do nothing there. The install script is the one-line command in the project's README; run again on the device, it keeps everything stored on it and adds that helper. README is the name of the project's main document: keep it as it is."
+  },
   "dev.update.protobuf_version_missing": {
     "text": "couldn't find google.golang.org/protobuf's version in go.mod",
     "note": "Why an update failed, after Update failed: in Settings > Device version. A build step could not find a library's version. google.golang.org/protobuf (a library) and go.mod (a file) are names: keep them as they are."
@@ -213,9 +217,19 @@
     "args": [["version", "text"]],
     "note": "Shown in Settings > Device version once an update finished. {version} is the release number the device is now on, such as 118."
   },
+  "dev.update.updated_os_pending": {
+    "text": "Updated to version {version}, but the system's security updates could not be set up: the update to the next version tries again",
+    "args": [["version", "text"]],
+    "note": "Shown in Settings > Device version once an update finished, when the part of it outside the app could not be set up: the operating system's automatic security updates (and a network filter that comes with them), for instance because the system's package manager failed. The device is on the new version anyway, and the update to the next version (once one is published) tries that part again. {version} is the release number the device is now on, such as 118."
+  },
   "dev.update.uptodate": {
     "text": "Already up to date",
     "note": "Shown in Settings > Device version when Update found nothing to install: the device already runs the newest release."
+  },
+  "dev.update.users_unreadable": {
+    "text": "release {release} could not read this device's list of users - press Update to try again",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A release's changes could not read the list of this device's users (its database did not answer), so the update stopped there rather than leave the other users' data behind; pressing Update again retries it. {release} is the release's number, such as 118. Update is the name of the button that starts an update."
   },
   "dev.update.verified_manifest_missing": {
     "text": "the verified manifest is missing",

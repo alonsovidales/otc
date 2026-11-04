@@ -14,19 +14,25 @@
 # a major or critical starts the next major (1.5 -> 2.0). Both go into
 # scripts/updates/RELEASES, signed into RELEASES.sig.
 #
-# If scripts/updates/<N>.sh exists (N = the manifest's last version + 1) it
-# is the release's migration script. In order:
-#   0. runs `make i18n-check` in release mode on a `git archive` of HEAD
-#      (docs/i18n.md) and stops there if it fails;
-#   1. builds the web bundle (web-dist.tar.gz) and tags HEAD as vN;
+# If scripts/updates/<N>.sh is committed (N = the manifest's last version +
+# 1) it is the release's migration script; one that isn't committed stops
+# the release (anything untracked under scripts/updates does). Everything a
+# release ships comes from HEAD as committed, never from this checkout's
+# other files. In order:
+#   0. unpacks a `git archive` of HEAD, installs the web app's packages there
+#      from its lockfile (npm ci), and runs `make i18n-check` in release mode
+#      on it (docs/i18n.md), stopping there if it fails;
+#   1. builds the web bundle (web-dist.tar.gz) in that same tree and tags
+#      HEAD as vN;
 #   2. makes the release's own source archive (src.tar.gz: `git archive` of
 #      the tag, gzip -n - reproducible), which devices build from instead of
 #      GitHub's generated archive. The manifest and its signature are
 #      export-ignore'd (.gitattributes): they carry the archive's hash, so
 #      they can't be inside it;
-#   3. appends the manifest line - version, script sha, web sha, summary,
-#      source sha - and signs the whole manifest with the release key
-#      (Ed25519; ~/.otc/otc-release-signing.pem, its passphrase in the
+#   3. appends the manifest line - version, script sha (of the script as
+#      that archive holds it, which is what devices check), web sha,
+#      summary, source sha - and signs the whole manifest with the release
+#      key (Ed25519; ~/.otc/otc-release-signing.pem, its passphrase in the
 #      Keychain item otc-release-signing) into scripts/updates/VERSIONS.sig;
 #   4. publishes the GitHub release with both archives, checks what was
 #      published, and only then commits and pushes the manifest (a failure
@@ -53,48 +59,67 @@ OPENSSL="$(command -v /opt/homebrew/bin/openssl || command -v openssl)"
 
 [ -f "$KEY" ] || { echo "no release signing key at $KEY"; exit 1; }
 # Read before anything changes, so a locked Keychain fails here and not
-# half-way (after the tag). Over SSH: security unlock-keychain first.
-KEY_PASS="$(security find-generic-password -s otc-release-signing -a otc -w 2>/dev/null)" \
+# half-way (after the tag). Over SSH: security unlock-keychain first. A
+# shell variable, never exported: the build below runs the web app's npm
+# packages (Vite, its plugins, the TypeScript compiler) and Go programs,
+# and any of them could read an exported variable and the key's fixed path
+# - the one trust anchor every device has. Only the signer gets it (sign).
+unset KEY_PASS release_pass
+release_pass="$(security find-generic-password -s otc-release-signing -a otc -w 2>/dev/null)" \
     || { echo "can't read the signing key's passphrase from the Keychain (locked? run: security unlock-keychain)"; exit 1; }
-[ -n "$KEY_PASS" ] || { echo "the Keychain item otc-release-signing is empty"; exit 1; }
-export KEY_PASS
+[ -n "$release_pass" ] || { echo "the Keychain item otc-release-signing is empty"; exit 1; }
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "commit (or stash) your changes first"; git status --short --untracked-files=no; exit 1; }
+# A release script that isn't committed would have its hash signed into the
+# manifest and be missing from the source archive: every device's update
+# would stop at it, and at every release after it.
+[ -z "$(git status --porcelain --untracked-files=all -- scripts/updates)" ] \
+    || { echo "scripts/updates has files that aren't committed - commit or remove them first"; git status --short --untracked-files=all -- scripts/updates; exit 1; }
 git fetch -q origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "HEAD is not origin/main - pull or push first"; exit 1; }
 
 last="$(grep -v '^#' "$MANIFEST" | awk -F'\t' 'NF{v=$1} END{print v}')"
 N=$((last + 1))
-if [ -f "scripts/updates/$N.sh" ]; then
-    SCRIPT_SHA="$(shasum -a 256 "scripts/updates/$N.sh" | awk '{print $1}')"
+if git cat-file -e "HEAD:scripts/updates/$N.sh" 2>/dev/null; then
+    HAS_SCRIPT=1
 else
-    SCRIPT_SHA=-
+    HAS_SCRIPT=""
 fi
 last_label="$(grep -v '^#' "$KINDS" | awk -F'\t' 'NF>=3{l=$3} END{print l}')"
 lmaj="${last_label%%.*}"; lmin="${last_label#*.}"
 if [ "$KIND" = minor ]; then LABEL="$lmaj.$((lmin + 1))"; else LABEL="$((lmaj + 1)).0"; fi
-echo "release $N = version $LABEL ($KIND; migration script: $SCRIPT_SHA)"
+echo "release $N = version $LABEL ($KIND; migration script: ${HAS_SCRIPT:+scripts/updates/$N.sh}${HAS_SCRIPT:-none})"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 
-# The translations' gate (docs/i18n.md), before anything is built or tagged:
-# `make i18n-check` in release mode - catalog, generated files, the
-# hard-coded-text ratchet, the Go builds. It runs on exactly what is about
-# to be tagged, a `git archive` of HEAD, not on this checkout: an untracked
-# or ignored file here (a generated file never committed) would pass the
-# check and still be missing from src.tar.gz, which devices build from. Only
-# what is never committed comes from this checkout: the TypeScript compiler
-# for the web scanner, and proto/generated (gitignored; devices run protoc
-# themselves, here it is `make pb`'s output).
+# What is about to be tagged, a `git archive` of HEAD, not this checkout: an
+# untracked or ignored file here (a generated file never committed, a
+# component never added, a web/.env.local) would pass the checks and go
+# into the web bundle while missing from src.tar.gz, which devices build
+# from. The web app's packages are installed there from its lockfile
+# (npm ci), not taken from this checkout's node_modules, whatever was
+# installed into that since. Only proto/generated comes from here
+# (gitignored; devices run protoc themselves, here it is `make pb`'s output).
 [ -f proto/generated/messages.pb.go ] || { echo "proto/generated is missing - run make pb first"; exit 1; }
 mkdir "$work/check"
 git archive --format=tar HEAD | tar -xf - -C "$work/check"
 cp -R proto/generated "$work/check/proto/"
-ln -s "$PWD/web/node_modules" "$work/check/web/node_modules"
+npm ci --prefix "$work/check/web" --no-audit --no-fund --prefer-offline >/dev/null \
+    || { echo "npm ci failed in the archive of HEAD - nothing was built or tagged"; exit 1; }
+
+# The translations' gate (docs/i18n.md), before anything is built or tagged:
+# `make i18n-check` in release mode - catalog, generated files, the
+# hard-coded-text ratchet (its web scanner uses the packages just
+# installed), the Go builds.
 make -C "$work/check" --no-print-directory i18n-check I18N_RELEASE=1 \
     || { echo "make i18n-check failed on HEAD - nothing was built or tagged"; exit 1; }
 
-npm run build --prefix web >/dev/null
-tar -cf - -C web/dist . | gzip -n > "$work/web-dist.tar.gz"
+# Built in the same tree. No VITE_ variable of this shell (a VITE_DEVICE
+# left from testing against a device) reaches the bundle.
+(
+    for v in $(compgen -e | grep '^VITE_' || true); do unset "$v"; done
+    npm run build --prefix "$work/check/web" >/dev/null
+) || { echo "the web app's build failed on HEAD - nothing was tagged"; exit 1; }
+tar -cf - -C "$work/check/web/dist" . | gzip -n > "$work/web-dist.tar.gz"
 WEB_SHA="$(shasum -a 256 "$work/web-dist.tar.gz" | awk '{print $1}')"
 
 git tag "v$N"
@@ -104,6 +129,17 @@ SRC_SHA="$(shasum -a 256 "$work/src.tar.gz" | awk '{print $1}')"
 if tar -tzf "$work/src.tar.gz" | grep -q "scripts/updates/VERSIONS"; then
     git tag -d "v$N" >/dev/null; echo "the source archive contains the manifest - check .gitattributes"; exit 1
 fi
+# The release script's hash is that of the script as the archive holds it:
+# exactly what every device checks before it runs it.
+if [ -n "$HAS_SCRIPT" ]; then
+    SCRIPT_SHA="$(tar -xzOf "$work/src.tar.gz" "otc-$N/scripts/updates/$N.sh" | shasum -a 256 | awk '{print $1}')" || SCRIPT_SHA=""
+    if ! [[ "$SCRIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || [ "$SCRIPT_SHA" = "$(printf '' | shasum -a 256 | awk '{print $1}')" ]; then
+        git tag -d "v$N" >/dev/null; echo "scripts/updates/$N.sh is not in the source archive - check .gitattributes"; exit 1
+    fi
+else
+    SCRIPT_SHA=-
+fi
+echo "migration script: $SCRIPT_SHA"
 # Every device downloads this on every update and stages it in RAM: about
 # 11 MB once the screenshots and the bridge binary are export-ignore'd.
 SRC_SIZE="$(wc -c < "$work/src.tar.gz" | tr -d ' ')"
@@ -117,12 +153,13 @@ printf '%s\t%s\t%s\n' "$N" "$KIND" "$LABEL" >> "$KINDS"
 
 # sign FILE OUT: the raw Ed25519 signature of FILE. The key is decrypted
 # with `openssl pkcs8` and piped straight into the signer, never written;
-# retried, since signing has been seen to fail now and then and work a
+# the passphrase is in that one process's environment, and no other's.
+# Retried, since signing has been seen to fail now and then and work a
 # moment later.
 sign() {
     local attempt
     for attempt in 1 2 3 4 5; do
-        if "$OPENSSL" pkcs8 -in "$KEY" -passin env:KEY_PASS 2>/dev/null \
+        if KEY_PASS="$release_pass" "$OPENSSL" pkcs8 -in "$KEY" -passin env:KEY_PASS 2>/dev/null \
             | "$OPENSSL" pkeyutl -sign -inkey /dev/stdin -rawin -in "$1" -out "$2" 2>/dev/null; then
             return 0
         fi
