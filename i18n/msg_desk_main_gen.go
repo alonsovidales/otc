@@ -409,6 +409,11 @@ func DeskMainOpenWebAppTip(address string) Msg {
 	return Msg{Key: "desk.main.open_web_app_tip", Args: map[string]any{"address": address}}
 }
 
+// DeskMainPasswordRequired is desk.main.password_required: "Enter the password of {device} to connect to it.".
+func DeskMainPasswordRequired(device string) Msg {
+	return Msg{Key: "desk.main.password_required", Args: map[string]any{"device": device}}
+}
+
 // DeskMainPasswordTitle is desk.main.password_title: "Off The Cloud — Password for {device}".
 func DeskMainPasswordTitle(device string) Msg {
 	return Msg{Key: "desk.main.password_title", Args: map[string]any{"device": device}}

@@ -876,45 +876,91 @@ func (u *ui) settingsDialog() {
 		}
 	}
 	// Both halves are asked for before anything is saved, so the engine
-	// reconnects once with the new pair - not once with the new device and
-	// the old password, which would spend one of the device's five
-	// password attempts per minute for nothing. In the menu's language as
-	// the dialog opens: one may have been picked in the Language menu
-	// while the first dialog was open (at the first start, it opens by
-	// itself).
-	l = lang()
-	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(deviceLabel(domain)).Render(l))
-	if err != nil {
-		return
-	}
-	if pw != "" {
-		if err := u.c.SetPassword(pw); err != nil {
-			_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
-
+	// signs in once, with the new pair - never to the new device with the
+	// old password, nor the old device with the new one, which would spend
+	// one of its five password attempts per minute for nothing
+	// (saveConnection). In the menu's language as the dialog opens: one may
+	// have been picked in the Language menu while the first dialog was open
+	// (at the first start, it opens by itself). An empty field keeps the
+	// password only for the device it belongs to: another one would be sent
+	// the old device's password, sealed to its own key - whoever runs that
+	// address could read it.
+	newDevice := !engine.SameDevice(cfg.Domain, domain)
+	var pw string
+	for {
+		l = lang()
+		if pw, err = askPassword(l, i18n.DeskMainPasswordTitle(deviceLabel(domain)).Render(l)); err != nil {
 			return
 		}
+		if !passwordMissing(newDevice, pw, u.c.Password()) {
+			break
+		}
+		_ = dlgWarning(i18n.DeskMainPasswordRequired(deviceLabel(domain)).Render(l), dlgTitle("Off The Cloud"))
 	}
 	oldDomain := cfg.Domain
 	// config.json as it is now, with the new device: what the tray
 	// changed while the dialogs were open - a language picked in its
 	// Language menu, a change for the device set up now - stays.
-	if !u.edit(func(latest *config.Config) (bool, error) {
-		if !engine.SameDevice(latest.Domain, domain) && len(latest.Folders)+len(latest.RemoteFolders) > 0 {
-			if !switching {
-				return false, errFoldersAdded
+	saveAddress := func() bool {
+		if !u.edit(func(latest *config.Config) (bool, error) {
+			if !engine.SameDevice(latest.Domain, domain) && len(latest.Folders)+len(latest.RemoteFolders) > 0 {
+				if !switching {
+					return false, errFoldersAdded
+				}
+				latest.Folders, latest.RemoteFolders = nil, nil
 			}
-			latest.Folders, latest.RemoteFolders = nil, nil
-		}
-		latest.Domain = domain
+			latest.Domain = domain
 
-		return true, nil
-	}) {
+			return true, nil
+		}) {
+			return false
+		}
+		if !engine.SameDevice(oldDomain, domain) {
+			_ = config.ClearLocalEndpoint() // the old device's (issue #190)
+		}
+
+		return true
+	}
+	if !saveConnection(u.c, newDevice, pw, saveAddress) {
 		return
 	}
-	if !engine.SameDevice(oldDomain, domain) {
-		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
-	}
 	u.waitForConnection(domain)
+}
+
+// passwordMissing: Connect can't go on with the password field left empty
+// (entered "") - for another device than the one the kept password
+// (stored) belongs to, which would be sent the old device's password, or
+// when none is kept.
+func passwordMissing(newDevice bool, entered, stored string) bool {
+	return entered == "" && (newDevice || stored == "")
+}
+
+// saveConnection saves what Connect asked for: the password pw ("": keep
+// the one kept, the same device only) and, through saveAddress, the
+// address. For another device the old password goes first and the new one
+// only once the new address is saved, so neither device is ever sent the
+// other's: each save reconnects the engine, here or in the service (it
+// used to sign in to the old device with the new password, which counted
+// against its attempts). For the same device, the new password and then
+// the respelled address. False when a step failed (and said so).
+func saveConnection(c Controller, newDevice bool, pw string, saveAddress func() bool) bool {
+	set := func(p string) bool {
+		if err := c.SetPassword(p); err != nil {
+			_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
+
+			return false
+		}
+
+		return true
+	}
+	if newDevice {
+		return set("") && saveAddress() && set(pw)
+	}
+	if pw != "" && !set(pw) {
+		return false
+	}
+
+	return saveAddress()
 }
 
 // errFoldersAdded: folders were added while the Connect dialogs were open

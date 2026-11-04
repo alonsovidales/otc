@@ -457,7 +457,9 @@ func EditSaving(edit func(*Config) (changed bool, err error), save func(*Config)
 // Reset puts config.json (and its copy) aside, renamed with the time -
 // kept, never deleted - so the next Load starts over with no device and no
 // folders: the tray's "Reset Settings…", for a config.json that can't be
-// read. Returns the name it was given.
+// read. The password goes too (the keyring's and the secret file): it was
+// the old device's, and a Connect that left the field empty used to send
+// it to whatever device was entered next. Returns the name it was given.
 func Reset(now time.Time) (string, error) {
 	p, err := path("config.json")
 	if err != nil {
@@ -469,6 +471,9 @@ func Reset(now time.Time) (string, error) {
 	}
 	if err := os.Rename(p+".bak", aside+".bak"); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
+	}
+	if err := SavePassword(""); err != nil {
+		return aside, err
 	}
 
 	return aside, nil
@@ -594,16 +599,23 @@ func MovePasswordToFile(pw string) error {
 	if err := SavePassword(pw); err != nil {
 		return err
 	}
-	_ = keyring.Delete(keyringService, keyringUser)
+	if !noKeyring() {
+		_ = keyring.Delete(keyringService, keyringUser)
+	}
 
 	return nil
 }
 
 // SavePassword stores it in the keyring when there is one, else in the
-// fallback file. Never logged.
+// fallback file; "" forgets it in both. Never logged. With
+// OTC_SYNC_NO_KEYRING=1 the keyring isn't touched at all, not even to
+// delete: its item may be another app's (the Mac app's, on a developer's
+// Mac).
 func SavePassword(pw string) error {
 	if pw == "" {
-		_ = keyring.Delete(keyringService, keyringUser)
+		if !noKeyring() {
+			_ = keyring.Delete(keyringService, keyringUser)
+		}
 		p, err := path("secret")
 		if err != nil {
 			return err

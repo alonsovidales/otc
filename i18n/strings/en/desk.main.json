@@ -420,6 +420,11 @@
     "args": [["address", "text"]],
     "note": "Both apps: tooltip of Open Web App. {address} is the web app's address (for example https://cala.off-the.cloud/), never translated."
   },
+  "desk.main.password_required": {
+    "text": "Enter the password of {device} to connect to it.",
+    "args": [["device", "text"]],
+    "note": "otc-sync: warning after Connect to a Device… when the password field was left empty for a device other than the one the kept password belongs to (or none is kept); the password dialog then opens again. {device} is the device's address (for example cala.off-the.cloud)."
+  },
   "desk.main.password_title": {
     "text": "Off The Cloud — Password for {device}",
     "args": [["device", "text"]],

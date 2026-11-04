@@ -3808,6 +3808,53 @@
         }
       }
     },
+    "desk.main.password_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib das Passwort des Geräts %1$@ ein, um dich damit zu verbinden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the password of %1$@ to connect to it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe la contraseña del dispositivo %1$@ para conectarte a él."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez le mot de passe de l’appareil %1$@ pour vous y connecter."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la password del dispositivo %1$@ per connetterti."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer het wachtwoord van het apparaat %1$@ in om ermee te verbinden."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduz a palavra-passe do dispositivo %1$@ para te ligares a ele."
+          }
+        }
+      }
+    },
     "desk.main.password_title" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -80,6 +80,7 @@
   "desk.main.open_folder_tip": {"text": "Abrir {path} no teu gestor de ficheiros"},
   "desk.main.open_web_app": {"text": "Abrir app web"},
   "desk.main.open_web_app_tip": {"text": "Abrir {address} no teu navegador"},
+  "desk.main.password_required": {"text": "Introduz a palavra-passe do dispositivo {device} para te ligares a ele."},
   "desk.main.password_title": {"text": "Off The Cloud — Palavra-passe do dispositivo {device}"},
   "desk.main.percent": {"text": "{percent}%"},
   "desk.main.remove_message": {"text": "A pasta é removida desta app. Os seus ficheiros ficam neste computador e no dispositivo."},

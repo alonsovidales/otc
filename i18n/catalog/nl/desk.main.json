@@ -80,6 +80,7 @@
   "desk.main.open_folder_tip": {"text": "{path} openen in je bestandsbeheerder"},
   "desk.main.open_web_app": {"text": "Webapp openen"},
   "desk.main.open_web_app_tip": {"text": "{address} openen in je browser"},
+  "desk.main.password_required": {"text": "Voer het wachtwoord van het apparaat {device} in om ermee te verbinden."},
   "desk.main.password_title": {"text": "Off The Cloud — Wachtwoord van apparaat {device}"},
   "desk.main.percent": {"text": "{percent}%"},
   "desk.main.remove_message": {"text": "De map wordt uit deze app verwijderd. De bestanden erin blijven op deze computer en op het apparaat staan."},

@@ -950,6 +950,30 @@ func cmdSettings(args []string) error {
 	if err := checkNewDevice(current, domain, *insecure); err != nil {
 		return err
 	}
+	// The new password is read before anything is saved.
+	var newPw *string
+	switch {
+	case *pwStdin:
+		raw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		pw := strings.TrimRight(raw, "\r\n")
+		newPw = &pw
+	case *pwPrompt:
+		pw, err := readPasswordPrompt()
+		if err != nil {
+			return err
+		}
+		newPw = &pw
+	}
+	// Another device: the password kept is the old device's, and goes
+	// before the new address is saved - a running sync would sign in to the
+	// new device with it, sealed to that device's key. The new one, if
+	// given, only once the address is saved, so the old device is never
+	// sent it either.
+	if !engine.SameDevice(current.Domain, domain) {
+		if err := config.SavePassword(""); err != nil {
+			return err
+		}
+	}
 	cfg, err := config.Edit(func(c *config.Config) (bool, error) {
 		// Checked again under the lock: a folder added meanwhile.
 		if err := checkNewDevice(c, domain, true); err != nil {
@@ -972,18 +996,14 @@ func cmdSettings(args []string) error {
 			return err
 		}
 	}
-	switch {
-	case *pwStdin:
-		raw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err := config.SavePassword(strings.TrimRight(raw, "\r\n")); err != nil {
+	if newPw != nil {
+		if err := config.SavePassword(*newPw); err != nil {
 			return err
 		}
-	case *pwPrompt:
-		pw, err := readPasswordPrompt()
-		if err != nil {
-			return err
-		}
-		if err := config.SavePassword(pw); err != nil {
+		// A password kept in the keyring changes no file: config.json is
+		// written again, as it is, for a running sync to read it (as the
+		// tray does next to the service).
+		if _, err := config.Edit(func(*config.Config) (bool, error) { return true, nil }); err != nil {
 			return err
 		}
 	}

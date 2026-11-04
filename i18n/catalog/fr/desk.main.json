@@ -80,6 +80,7 @@
   "desk.main.open_folder_tip": {"text": "Ouvrir {path} dans votre gestionnaire de fichiers"},
   "desk.main.open_web_app": {"text": "Ouvrir l’app web"},
   "desk.main.open_web_app_tip": {"text": "Ouvrir {address} dans votre navigateur"},
+  "desk.main.password_required": {"text": "Saisissez le mot de passe de l’appareil {device} pour vous y connecter."},
   "desk.main.password_title": {"text": "Off The Cloud — Mot de passe de l’appareil {device}"},
   "desk.main.percent": {"text": "{percent} %"},
   "desk.main.remove_message": {"text": "Le dossier est retiré de cette app. Ses fichiers restent sur cet ordinateur et sur l’appareil."},

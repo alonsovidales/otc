@@ -496,6 +496,13 @@ extension S {
         L("desk.main.open_web_app_tip", table: "DeskMain", address)
     }
 
+    /// Enter the password of {device} to connect to it.
+    ///
+    /// otc-sync: warning after Connect to a Device… when the password field was left empty for a device other than the one the kept password belongs to (or none is kept); the password dialog then opens again. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainPasswordRequired(device: String) -> String {
+        L("desk.main.password_required", table: "DeskMain", device)
+    }
+
     /// Off The Cloud — Password for {device}
     ///
     /// otc-sync: title of the dialog that asks for the device's password. {device} is the device's address (for example cala.off-the.cloud).

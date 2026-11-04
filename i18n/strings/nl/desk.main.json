@@ -335,6 +335,10 @@
     "text": "{address} openen in je browser",
     "en": "Open {address} in your browser"
   },
+  "desk.main.password_required": {
+    "text": "Voer het wachtwoord van het apparaat {device} in om ermee te verbinden.",
+    "en": "Enter the password of {device} to connect to it."
+  },
   "desk.main.password_title": {
     "text": "Off The Cloud — Wachtwoord van apparaat {device}",
     "en": "Off The Cloud — Password for {device}"

@@ -80,6 +80,7 @@
   "desk.main.open_folder_tip": {"text": "Apri {path} nel file manager"},
   "desk.main.open_web_app": {"text": "Apri app web"},
   "desk.main.open_web_app_tip": {"text": "Apri {address} nel browser"},
+  "desk.main.password_required": {"text": "Inserisci la password del dispositivo {device} per connetterti."},
   "desk.main.password_title": {"text": "Off The Cloud — Password del dispositivo {device}"},
   "desk.main.percent": {"text": "{percent}%"},
   "desk.main.remove_message": {"text": "La cartella viene rimossa da questa app. I suoi file restano su questo computer e sul dispositivo."},

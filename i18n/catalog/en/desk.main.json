@@ -80,6 +80,7 @@
   "desk.main.open_folder_tip": {"text": "Open {path} in your file manager", "args": [["path", "user"]]},
   "desk.main.open_web_app": {"text": "Open Web App"},
   "desk.main.open_web_app_tip": {"text": "Open {address} in your browser", "args": [["address", "text"]]},
+  "desk.main.password_required": {"text": "Enter the password of {device} to connect to it.", "args": [["device", "text"]]},
   "desk.main.password_title": {"text": "Off The Cloud — Password for {device}", "args": [["device", "text"]]},
   "desk.main.percent": {"text": "{percent}%", "args": [["percent", "int"]]},
   "desk.main.remove_message": {"text": "The folder is taken out of this app. Its files stay on this computer and on the device."},
