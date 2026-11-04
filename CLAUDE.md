@@ -1069,19 +1069,24 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `setns`, clone with `CLONE_NEW*`, `mount` and `bpf` (it decides per container, by capability),
   so code run in the device could take capabilities in a user namespace of its own (the nf_tables
   kind of kernel bug). `otc-sandbox` (`docker/sandbox`, static, `/usr/local/sbin`; the entrypoint's
-  `start_app` runs `setpriv` through it) installs a classic-BPF filter refusing what that profile
-  refuses a container without `SYS_ADMIN` - those, the newer mount calls, `perf_event_open`,
-  `quotactl`, `syslog`, `sethostname`, and the keyring, file handles, module loading and
-  `pivot_root` - with clone's flags masked as Docker does and `clone3` answering ENOSYS (glibc falls
-  back to clone); calls of a foreign architecture and x32 are refused, and both architectures'
-  numbers are in the one program (`filter.go`; numbers checked against x/sys by
+  `start_app` runs `setpriv` through it; MariaDB, which listens on the host's 127.0.0.1 with
+  `network_mode: host`, `mariadb-install-db`, the log's tail and every `as_otc` helper - the models'
+  `curl` among them - run through it as well, once `probe_sandbox` found its `--probe` answering ok,
+  so no unprivileged process in the container is left outside) installs a classic-BPF filter
+  refusing what that profile refuses a container without `SYS_ADMIN` - those, the newer mount
+  calls, `perf_event_open`, `quotactl`, `syslog`, `sethostname`, and the keyring, file handles,
+  module loading and `pivot_root` - with clone's flags masked as Docker does and `clone3` answering
+  ENOSYS (glibc falls back to clone); calls of a foreign architecture and x32 are refused, and both
+  architectures' numbers are in the one program (`filter.go`; numbers checked against x/sys by
   `tables_linux_test.go`). It sets no_new_privs, installs with `SECCOMP_FILTER_FLAG_TSYNC` and
   execs the command; first a copy of itself (`--probe`) installs it and checks it - where it can't
   be (Rosetta answers `seccomp()` EINVAL, so `docker-release.sh`'s amd64 tests run without it) the
-  device runs without, saying so. `test-image.sh` checks the device has one filter more than the
+  device runs without, saying so (and MariaDB and the helpers then run without it too, with no
+  warning each). `test-image.sh` checks the device and `mariadbd` have one filter more than the
   container's PID 1 and, in mirror mode, that a process run as the device's gets no user
-  namespace. Tests: `filter_test.go` (a BPF interpreter: every call of both tables, clone's flags,
-  clone3, foreign architectures, x32), `sandbox_linux_test.go` (real calls under the filter: EPERM,
+  namespace; `entrypoint-test.sh` checks what runs through it. Tests: `filter_test.go` (a BPF
+  interpreter: every call of both tables, clone's flags, clone3, foreign architectures, x32),
+  `sandbox_linux_test.go` (real calls under the filter: EPERM,
   ENOSYS, and exec, glibc threads and pipes still working), run in the Linux VM and in containers
   with the mirror's capabilities. Rules otc-mirror keeps (each from a review or the VM):
   only arrays named `otc`/`*:otc` are used (another system's raid1 never), and once

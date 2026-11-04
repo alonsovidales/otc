@@ -16,11 +16,12 @@
 #      password signs in, and the device reports <release>;
 #   6. after `docker compose restart` it is healthy again and 5 passes again;
 #   7. the log has no Go panic;
-#   8. after each start, the device's process runs under its own system-call
-#      filter (otc-sandbox): one more than the container's first process -
-#      on an emulated architecture (an amd64 image under Rosetta, which
-#      can't install one) the log says it runs without - and, with
-#      --mirror, a process run as the device's can't make a user namespace.
+#   8. after each start, the device's process and MariaDB's run under the
+#      device's own system-call filter (otc-sandbox): one more than the
+#      container's first process - on an emulated architecture (an amd64
+#      image under Rosetta, which can't install one) the log says the device
+#      runs without, and MariaDB has none either - and, with --mirror, a
+#      process run as the device's can't make a user namespace.
 # With --mirror it does all that on two mirrored disks (docker/compose.mirror.yaml):
 # two blank 3 GiB loop devices on the Docker host, made from files next to the
 # data dir by a privileged container of <image> (it refuses to start when the
@@ -206,25 +207,32 @@ emulated=false
 [ -n "$image_arch" ] && [ -n "$host_arch" ] && [ "$image_arch" != "$host_arch" ] && emulated=true
 
 check_sandbox() {
-    local pid pid1 dev
+    local pid pid1 dev db_pid db
     # shellcheck disable=SC2016 # the container's sh expands them
     pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do [ "$(tr "\0" " " < "$p/cmdline" 2>/dev/null)" = "/usr/bin/otc dev " ] && { echo "${p#/proc/}"; break; }; done')
     [ -n "$pid" ] || fail "no device process ($1)"
+    # shellcheck disable=SC2016 # the container's sh expands them
+    db_pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = mariadbd ] && { echo "${p#/proc/}"; break; }; done')
+    [ -n "$db_pid" ] || fail "no MariaDB process ($1)"
     pid1=$(docker exec "$c" awk '/^Seccomp_filters:/ {print $2}' /proc/1/status)
     dev=$(docker exec "$c" awk '/^Seccomp_filters:/ {print $2}' "/proc/$pid/status")
+    db=$(docker exec "$c" awk '/^Seccomp_filters:/ {print $2}' "/proc/$db_pid/status")
     if $emulated; then
         docker logs "$c" 2>&1 | grep "otc-sandbox: WARNING" >/dev/null \
             || [ "$dev" = $(( pid1 + 1 )) ] \
             || fail "the device runs under $dev system-call filters, the container under $pid1, and the log doesn't say why ($1)"
-        echo "the device's system-call filters: $dev, the container's $pid1 (an emulated $image_arch image)"
+        [ "$db" = "$pid1" ] || [ "$db" = $(( pid1 + 1 )) ] \
+            || fail "MariaDB runs under $db system-call filters, the container under $pid1 ($1)"
+        echo "the device's system-call filters: $dev, MariaDB's $db, the container's $pid1 (an emulated $image_arch image)"
         return 0
     fi
     [ "$dev" = $(( pid1 + 1 )) ] || fail "the device runs under $dev system-call filters, the container under $pid1: not under its own ($1)"
+    [ "$db" = $(( pid1 + 1 )) ] || fail "MariaDB runs under $db system-call filters, the container under $pid1: not under the device's ($1)"
     if $mirror && docker exec "$c" otc-sandbox setpriv --reuid 7310 --regid 7310 --clear-groups --no-new-privs \
             unshare --user true 2>/dev/null; then
         fail "a process run as the device's may make a user namespace in mirror mode ($1)"
     fi
-    echo "the device runs under its own system-call filter ($dev, the container's $pid1)"
+    echo "the device and MariaDB run under the device's own system-call filter ($dev and $db, the container's $pid1)"
 }
 
 no_panic() {

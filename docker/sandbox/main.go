@@ -2,7 +2,9 @@
 
 // otc-sandbox runs a command under a system-call filter of its own. The
 // Docker image's entrypoint starts the device's process through it, before
-// setpriv makes it the otc user (docker/entrypoint.sh, start_app):
+// setpriv makes it the otc user (docker/entrypoint.sh, start_app), and
+// MariaDB and the commands it runs as the otc user (as_otc) too, once
+// --probe answered "ok" (probe_sandbox):
 //
 //	otc-sandbox <command> [arguments...]
 //

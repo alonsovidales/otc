@@ -18,6 +18,9 @@
 #      look, said when it failed.
 #   3. The device is started through otc-sandbox, setpriv and its
 #      environment after it (without the binary, as before).
+#   4. MariaDB, as_otc's commands and the log's tail run through otc-sandbox
+#      too, once its check answered ok; without the binary, or where the
+#      check fails (an emulated architecture), as before.
 #
 # The loaded script reads the variables set here (BACKOFF, APP_STARTED,
 # LAST_DUMP) and calls the functions stood in for; `a && b || fail` is the
@@ -200,4 +203,51 @@ wait "$APP_PID"
 want="env --default-signal HOME=$work/state USER=otc LOGNAME=otc setpriv --reuid 7310 --regid 7310 --init-groups --no-new-privs /usr/bin/otc dev"
 [ "$(cat "$work/started")" = "$want" ] || fail "without otc-sandbox, the device was started as: $(cat "$work/started")"
 echo "ok: the device starts under otc-sandbox"
+
+# --- 4. MariaDB and the otc user's helpers under the filter too ------------
+# otc-sandbox stood in for: its check answers as FAKE_PROBE says, and what it
+# runs is written down before it is run.
+cat > "$work/bin/otc-sandbox" <<EOF
+#!/bin/sh
+[ "\$1" = --probe ] && { echo "\${FAKE_PROBE:-ok}"; exit 0; }
+printf '%s\n' "\$*" >> "$work/sandboxed"
+exec "\$@"
+EOF
+# mariadbd: its arguments written down, running until it is stopped.
+cat > "$work/bin/mariadbd" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" > "$work/mariadbd"
+exec sleep 30
+EOF
+printf '#!/bin/sh\necho "This installation is already upgraded: no need to run mariadb-upgrade"\n' > "$work/bin/mariadb-upgrade"
+chmod 0755 "$work/bin/otc-sandbox" "$work/bin/mariadbd" "$work/bin/mariadb-upgrade"
+install() { :; }
+mkdir -p "$DATADIR/mysql"
+SANDBOX=$work/bin/otc-sandbox
+export FAKE_PROBE=ok
+probe_sandbox
+[ "${SANDBOXED[*]}" = "$SANDBOX" ] || fail "otc-sandbox's check said ok, but it isn't used: '${SANDBOXED[*]}'"
+: > "$work/sandboxed"
+[ "$(as_otc echo hello)" = hello ] || fail "as_otc under otc-sandbox"
+[ "$(cat "$work/sandboxed")" = "setpriv --reuid 7310 --regid 7310 --init-groups --no-new-privs echo hello" ] \
+    || fail "as_otc ran: $(cat "$work/sandboxed")"
+: > "$work/sandboxed"
+start_mariadb >/dev/null
+mariadb_pid=$DB_PID
+for ((i = 0; i < 50; i++)); do [ -s "$work/mariadbd" ] && break; sleep 0.1; done
+grep -q "^mariadbd --user=mysql --port=$DB_PORT " "$work/sandboxed" \
+    || fail "MariaDB wasn't started through otc-sandbox: $(cat "$work/sandboxed")"
+grep -q "^--user=mysql --port=$DB_PORT --innodb-buffer-pool-size=" "$work/mariadbd" || fail "mariadbd got: $(cat "$work/mariadbd")"
+kill -TERM "$mariadb_pid" 2>/dev/null
+stop_mariadb
+# A check that fails, or no binary: everything as before, without it.
+for how in fails missing; do
+    if [ "$how" = fails ]; then FAKE_PROBE="seccomp: invalid argument"; else SANDBOX=$work/none; fi
+    probe_sandbox
+    [ "${#SANDBOXED[@]}" = 0 ] || fail "otc-sandbox is used though its check $how: '${SANDBOXED[*]}'"
+    : > "$work/sandboxed"
+    [ "$(as_otc echo hello)" = hello ] || fail "as_otc without otc-sandbox ($how)"
+    [ ! -s "$work/sandboxed" ] || fail "as_otc went through otc-sandbox ($how): $(cat "$work/sandboxed")"
+done
+echo "ok: MariaDB and the otc user's helpers run under otc-sandbox"
 echo "PASS"

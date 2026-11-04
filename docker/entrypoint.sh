@@ -49,6 +49,11 @@ SHARE=/usr/share/otc
 RELEASE=$(cat "$SHARE/release")
 MIRROR_TOOL=/usr/local/sbin/otc-mirror
 SANDBOX=/usr/local/sbin/otc-sandbox
+# otc-sandbox for what runs unprivileged beside the device - MariaDB and
+# as_otc's commands (a model's download among them) - once its own check
+# passed (probe_sandbox); empty where the filter can't be installed (an
+# emulated architecture), which start_app's warning says once.
+SANDBOXED=()
 
 # install.sh's pinned models (its step 6): the image carries none of them.
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
@@ -144,9 +149,21 @@ alive() {
     [ "${s%% *}" != Z ]
 }
 
-# as_otc runs a command as the otc user, with no way back to root.
+# as_otc runs a command as the otc user, with no way back to root, under
+# the device's system-call filter (SANDBOXED).
 as_otc() {
-    HOME=$STATE USER=otc LOGNAME=otc setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs "$@"
+    HOME=$STATE USER=otc LOGNAME=otc "${SANDBOXED[@]}" setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs "$@"
+}
+
+# probe_sandbox sets SANDBOXED: otc-sandbox, when its check (--probe: the
+# filter installed, refusing and allowing what it should) answers "ok".
+# The device's own start goes through it whatever the answer (start_app),
+# so the log says once why it runs without.
+probe_sandbox() {
+    SANDBOXED=()
+    [ -x "$SANDBOX" ] || return 0
+    [ "$(timeout 10 "$SANDBOX" --probe 2>/dev/null)" = ok ] && SANDBOXED=("$SANDBOX")
+    return 0
 }
 
 # pause N: a sleep that a stop signal interrupts at once.
@@ -534,12 +551,14 @@ start_mariadb() {
     install -d -o mysql -g mysql -m 0755 /run/mysqld || die "could not create /run/mysqld"
     if [ ! -d "$DATADIR/mysql" ]; then
         log "creating the database in $DATADIR"
-        out=$(mariadb-install-db --user=mysql --datadir="$DATADIR" --auth-root-authentication-method=socket --skip-test-db 2>&1) \
+        out=$("${SANDBOXED[@]}" mariadb-install-db --user=mysql --datadir="$DATADIR" --auth-root-authentication-method=socket --skip-test-db 2>&1) \
             || { echo "$out" | tail -n 30 >&2; die "could not create the database"; }
     fi
     pool=$(buffer_pool_mb)
     log "MariaDB's buffer pool: $pool MB"
-    env --default-signal mariadbd --user=mysql --port="$DB_PORT" --innodb-buffer-pool-size="${pool}M" &
+    # As root, under the device's system-call filter: it listens on the
+    # host's 127.0.0.1 (network_mode: host) and makes itself mysql.
+    env --default-signal "${SANDBOXED[@]}" mariadbd --user=mysql --port="$DB_PORT" --innodb-buffer-pool-size="${pool}M" &
     DB_PID=$!
     # Recovering after a power cut can take minutes on slow disks: wait as
     # long as MariaDB is at it, up to the 15 minutes Debian's own service
@@ -1195,7 +1214,7 @@ cmd_run() {
     setup_password
     [ -d "$DUMPS/$(date +%F)" ] && LAST_DUMP=$(date +%F)
     if [ "${OTC_LOG_STDOUT:-0}" = 1 ]; then
-        ( cd / && exec setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs \
+        ( cd / && exec "${SANDBOXED[@]}" setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs \
             tail -n 0 -F "$STATE/log/otc.log" 2>/dev/null ) &
         TAIL_PID=$!
     fi
@@ -1231,6 +1250,7 @@ cmd_dump() {
 # Run, not sourced (docker/entrypoint-test.sh loads the functions).
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     read_ports
+    probe_sandbox
     case "${1:-run}" in
         run) cmd_run ;;
         set-password) cmd_set_password ;;

@@ -458,11 +458,12 @@ disks and arrays, and comes close to root on the server. What runs as root there
 own supervisor (its start-up and the script that watches over the device), the mirror helper, and the
 bridge setting's helper when the device asks for it. The device itself, the part the apps and the
 bridge talk to, and its database run as unprivileged users with no capabilities, as without the
-mirror. The device also runs under a system-call filter of its own, in either mode: with the mirror's
-`SYS_ADMIN`, Docker's own filter would let any process in the container create namespaces and call
-`mount` or `bpf`, and the device's filter refuses those again, as Docker's does without the mirror.
-On a machine that can't install it (an amd64 image emulated on an arm64 computer), the log says so
-and the device runs without it.
+mirror. The device, its database and the start-up's helpers that run as the device's user (the
+models' download among them) also run under a system-call filter of the device's own, in either
+mode: with the mirror's `SYS_ADMIN`, Docker's own filter would let any process in the container
+create namespaces and call `mount` or `bpf`, and the device's filter refuses those again, as
+Docker's does without the mirror. On a machine that can't install it (an amd64 image emulated on an
+arm64 computer), the log says so and they run without it.
 
 ### Replacing a disk
 
