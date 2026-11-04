@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "impossibile elencare i file remoti"},
   "desk.main.cpu_line": {"text": "CPU: {percent}%"},
   "desk.main.deletes_held": {"text": "{files} file eliminati qui tutti insieme restano sul dispositivo: se era voluto, eliminali anche lì"},
+  "desk.main.device_unconfirmed": {"text": "{files} modifiche in attesa che questo computer riconosca il dispositivo"},
   "desk.main.disconnect_menu": {"text": "Disconnetti dal dispositivo {device}…"},
   "desk.main.disconnect_message": {"text": "Tutte le tue cartelle sincronizzate vengono rimosse da questa app, così nessuna inizia per errore a sincronizzarsi con un altro dispositivo. I file restano su questo computer e sul dispositivo. Puoi aggiungere di nuovo le cartelle dopo la connessione."},
   "desk.main.disconnect_title": {"text": "Disconnettersi dal dispositivo {device}?"},

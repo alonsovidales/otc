@@ -88,14 +88,35 @@ func deviceDomainKey(domain string) string {
 // folders are synced (they would sync with the other one), not a respelling.
 func SameDevice(a, b string) bool { return deviceDomainKey(a) == deviceDomainKey(b) }
 
-// deviceFor is the identity of the device a pass at domain talks to now.
+// deviceFor is the identity of the device a pass at domain talks to now:
+// its address, and its pin only as this sign-in confirmed it
+// (wsclient.SessionPin) - the one stored from an earlier sign-in may be of
+// a device set up again since under the same name.
 func (e *Engine) deviceFor(domain string) recordDevice {
 	d := recordDevice{Domain: deviceDomainKey(domain)}
-	if pin := e.ws.LocalPin(); len(pin) > 0 {
+	if pin, ok := e.confirmedPin(); ok && len(pin) > 0 {
 		d.Pin = hex.EncodeToString(pin)
 	}
 
 	return d
+}
+
+// confirmedPin is e.ws.SessionPin (a test sets pinSource).
+func (e *Engine) confirmedPin() ([]byte, bool) {
+	if e.pinSource != nil {
+		return e.pinSource()
+	}
+
+	return e.ws.SessionPin()
+}
+
+// recordPinned: the record on disk for folder id names its device by its
+// pin; e.mu must be held.
+func (e *Engine) recordPinnedLocked(folderID string) bool {
+	e.loadSyncedLocked(folderID)
+	sf, ok := e.syncedFiles[folderID]
+
+	return ok && sf.device != nil && sf.device.Pin != ""
 }
 
 // syncRecord is the record file as it is written.
@@ -233,15 +254,33 @@ func (e *Engine) recordedLocked(folderID string) (map[string]string, folderMeta)
 // the pass deletes nothing, on either side. An older version's record,
 // which doesn't say, is taken as this device's. e.mu must be held.
 func (e *Engine) recordForLocked(folderID string, dev recordDevice) map[string]string {
-	e.loadSyncedLocked(folderID)
-	last := e.lastSynced[folderID]
-	if sf, ok := e.syncedFiles[folderID]; ok && sf.device != nil && !sf.device.matches(dev) && len(last) > 0 {
-		log.Printf("the sync record of %s was made with another device (%s) - this pass only copies what one side lacks, and deletes nothing", folderID, sf.device.Domain)
-
-		return map[string]string{}
-	}
+	last, _, _ := e.recordForDeviceLocked(folderID, dev)
 
 	return last
+}
+
+// recordForDeviceLocked is recordForLocked, and whether the device is
+// uncertain: the record names its device by a pin, the pass knows none
+// (wsclient.SessionPin), and the address is the same - the device, or one
+// set up again since under its name. Then the pass uses the record but
+// changes nothing it can't take back (unconfirmedHold), and the record
+// keeps its pin (saved is the device to save it with). e.mu must be held.
+func (e *Engine) recordForDeviceLocked(folderID string, dev recordDevice) (last map[string]string, uncertain bool, saved recordDevice) {
+	e.loadSyncedLocked(folderID)
+	last = e.lastSynced[folderID]
+	sf, ok := e.syncedFiles[folderID]
+	switch {
+	case !ok || sf.device == nil:
+		return last, false, dev
+	case sf.device.Pin != "" && dev.Pin == "" && sf.device.Domain == dev.Domain:
+		return last, len(last) > 0, *sf.device
+	case !sf.device.matches(dev) && len(last) > 0:
+		log.Printf("the sync record of %s was made with another device (%s) - this pass only copies what one side lacks, and deletes nothing", folderID, sf.device.Domain)
+
+		return map[string]string{}, false, dev
+	}
+
+	return last, false, dev
 }
 
 // saveSyncedFor writes the folder's record, made with dev, after a pass

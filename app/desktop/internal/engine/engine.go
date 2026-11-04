@@ -262,6 +262,9 @@ type Engine struct {
 	// Deletes the device-side mass-deletion guard holds per two-way
 	// folder, as last logged (noteMassHeld).
 	massHeld map[string]int
+	// Changes a two-way folder holds until the device's pin is confirmed,
+	// as last logged (noteUnconfirmed).
+	unconfirmed map[string]int
 	// The passes holding one of the maxPasses slots (passSlot), and a
 	// channel closed whenever one is freed.
 	passing  map[string]passEntry
@@ -307,6 +310,9 @@ type Engine struct {
 	// langSentAt is when the last SetLanguage went out: languageWindow
 	// runs from the change or from it, whichever is later.
 	langSentAt time.Time
+
+	// pinSource stands for e.ws.SessionPin in the tests (record.go).
+	pinSource func() ([]byte, bool)
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -624,6 +630,7 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	delete(e.replacedRoot, id)
 	delete(e.goneMountsSeen, id)
 	delete(e.massHeld, id)
+	delete(e.unconfirmed, id)
 	delete(e.remoteStates, id)
 	e.dropRequestsLocked(id)
 	e.dropHashCacheLocked(id)
@@ -1575,7 +1582,16 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// isn't waits without even listing it.
 	e.mu.Lock()
 	recorded, meta := e.recordedLocked(f.ID)
-	last := e.recordForLocked(f.ID, device)
+	pinned := e.recordPinnedLocked(f.ID)
+	e.mu.Unlock()
+	// A record that names its device by its pin, and none confirmed on
+	// this sign-in (record.go): the device is asked now, once a minute at
+	// most.
+	if pinned && device.Pin == "" && e.ws.ConfirmPin(context.Background()) {
+		device = e.deviceFor(domainAtStart)
+	}
+	e.mu.Lock()
+	last, uncertain, saveDevice := e.recordForDeviceLocked(f.ID, device)
 	e.mu.Unlock()
 	if last == nil {
 		last = map[string]string{}
@@ -1957,6 +1973,40 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			i18n.DeskMainDeletesHeld(len(held)))
 	}
 
+	// A device whose pin this sign-in hasn't confirmed, where the record
+	// names its device by one (record.go): the same device most likely, or
+	// one set up again since under its name, empty. Nothing that can't be
+	// taken back goes ahead - no delete either way, no download over a file
+	// here - until it is confirmed; the rest does, and the baselines of what
+	// waits stay.
+	var waitNote FolderState
+	if uncertain {
+		waiting := 0
+		kept := actions[:0]
+		for _, a := range actions {
+			_, here := localByRel[a.relative]
+			if a.kind == actDeleteLocal || a.kind == actDeleteRemote || (a.kind == actDownload && here) {
+				if prior, ok := last[a.relative]; ok {
+					newSynced[a.relative] = prior
+				} else {
+					delete(newSynced, a.relative)
+				}
+				waiting++
+
+				continue
+			}
+			kept = append(kept, a)
+		}
+		actions = kept
+		e.noteUnconfirmed(f, waiting)
+		if waiting > 0 {
+			waitNote = noteState(fmt.Sprintf("%d change(s) wait until this computer recognizes the device", waiting), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+				i18n.DeskMainDeviceUnconfirmed(waiting))
+		}
+	} else {
+		e.noteUnconfirmed(f, 0)
+	}
+
 	// Local deletes first: on a disk that ignores case (Windows, macOS) a
 	// file renamed only in case elsewhere is a download of "A.txt" and a
 	// delete of "a.txt" here - the same file. Downloading first, the delete
@@ -2095,7 +2145,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			e.mu.Lock()
 			e.lastSynced[f.ID] = newSynced
 			e.mu.Unlock()
-			e.saveSyncedFor(f.ID, device, meta, newSynced)
+			e.saveSyncedFor(f.ID, saveDevice, meta, newSynced)
 			e.setRemoteState(f.ID, msgState(i18n.DeskMainFolderOffline()))
 
 			return
@@ -2259,7 +2309,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
-	e.saveSyncedFor(f.ID, device, meta, newSynced)
+	e.saveSyncedFor(f.ID, saveDevice, meta, newSynced)
 	if wasMissing {
 		// Back after it was missing: its watcher went with it.
 		e.startRemoteWatcher(f)
@@ -2274,6 +2324,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	switch {
 	case heldNote.Kind != "":
 		e.setRemoteState(f.ID, heldNote)
+	case waitNote.Kind != "":
+		e.setRemoteState(f.ID, waitNote)
 	case failures.total() > 0:
 		e.setRemoteState(f.ID, failures.note())
 	case len(unreadable) > 0:
@@ -2335,6 +2387,25 @@ func (e *Engine) holdMassDeviceDeletes(f config.RemoteFolder, actions []action, 
 	}
 
 	return held
+}
+
+// noteUnconfirmed logs how many changes of a two-way folder wait for the
+// device's pin to be confirmed - when that changes, not at every pass.
+func (e *Engine) noteUnconfirmed(f config.RemoteFolder, n int) {
+	e.mu.Lock()
+	if e.unconfirmed == nil {
+		e.unconfirmed = map[string]int{}
+	}
+	changed := e.unconfirmed[f.ID] != n
+	if n == 0 {
+		delete(e.unconfirmed, f.ID)
+	} else {
+		e.unconfirmed[f.ID] = n
+	}
+	e.mu.Unlock()
+	if changed && n > 0 {
+		log.Printf("%s: the device hasn't confirmed it is the one this folder was synced with (its home-network certificate) - %d delete(s) or overwrite(s) wait until it has", f.RemotePath, n)
+	}
 }
 
 // noteMassHeld logs how many deletes the device-side mass-deletion guard

@@ -131,6 +131,10 @@
     "text": "{files} archivos eliminados aquí de una vez se conservan en el dispositivo: si era lo que querías, elimínalos también allí",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
   },
+  "desk.main.device_unconfirmed": {
+    "text": "Cambios en espera hasta que este ordenador reconozca el dispositivo: {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Desconectar del dispositivo {device}…",
     "en": "Disconnect from {device}…"

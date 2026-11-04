@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "impossible de lister les fichiers distants"},
   "desk.main.cpu_line": {"text": "Processeur : {percent} %"},
   "desk.main.deletes_held": {"text": "{files} fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas"},
+  "desk.main.device_unconfirmed": {"text": "Modifications en attente jusqu’à ce que cet ordinateur reconnaisse l’appareil : {files}"},
   "desk.main.disconnect_menu": {"text": "Se déconnecter de l’appareil {device}…"},
   "desk.main.disconnect_message": {"text": "Tous vos dossiers synchronisés sont retirés de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec un autre appareil. Les fichiers eux-mêmes restent sur cet ordinateur et sur l’appareil. Vous pourrez ajouter de nouveau les dossiers une fois la connexion établie."},
   "desk.main.disconnect_title": {"text": "Se déconnecter de l’appareil {device} ?"},

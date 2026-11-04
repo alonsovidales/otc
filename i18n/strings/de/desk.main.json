@@ -131,6 +131,10 @@
     "text": "{files} hier auf einmal gelöschte Dateien bleiben auf dem Gerät – wenn das so gewollt war, lösche sie dort ebenfalls",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
   },
+  "desk.main.device_unconfirmed": {
+    "text": "Änderungen warten, bis dieser Computer das Gerät erkennt: {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Vom Gerät {device} trennen…",
     "en": "Disconnect from {device}…"

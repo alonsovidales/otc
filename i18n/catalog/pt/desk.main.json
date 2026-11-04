@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "não foi possível listar os ficheiros remotos"},
   "desk.main.cpu_line": {"text": "CPU: {percent}%"},
   "desk.main.deletes_held": {"text": "{files} ficheiros eliminados aqui de uma só vez continuam no dispositivo: se era isso que querias, elimina-os também lá"},
+  "desk.main.device_unconfirmed": {"text": "Alterações à espera de que este computador reconheça o dispositivo: {files}"},
   "desk.main.disconnect_menu": {"text": "Desligar do dispositivo {device}…"},
   "desk.main.disconnect_message": {"text": "Todas as tuas pastas sincronizadas são removidas desta app, para que nenhuma comece a sincronizar com outro dispositivo por engano. Os próprios ficheiros ficam neste computador e no dispositivo. Podes voltar a adicionar as pastas depois de te ligares."},
   "desk.main.disconnect_title": {"text": "Desligar do dispositivo {device}?"},

@@ -167,6 +167,11 @@
     "args": [["files", "int"]],
     "note": "Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too (from the web app or a phone). {files} is how many."
   },
+  "desk.main.device_unconfirmed": {
+    "text": "{files} change(s) wait until this computer recognizes the device",
+    "args": [["files", "int"]],
+    "note": "Both apps: a two-way folder's state when the app is connected but hasn't yet confirmed that the device is the very one the folder was synced with (by the device's own home-network certificate) - it could be a device set up again from scratch under the same name. Deletes, and downloads over files on this computer, wait until it has; usually that is at the next connection. {files} is how many changes wait."
+  },
   "desk.main.disconnect_menu": {
     "text": "Disconnect from {device}…",
     "args": [["device", "text"]],

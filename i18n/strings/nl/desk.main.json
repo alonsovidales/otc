@@ -131,6 +131,10 @@
     "text": "{files} bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
   },
+  "desk.main.device_unconfirmed": {
+    "text": "Wijzigingen wachten tot deze computer het apparaat herkent: {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Apparaat {device} loskoppelen…",
     "en": "Disconnect from {device}…"

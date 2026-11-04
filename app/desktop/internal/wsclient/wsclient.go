@@ -6,6 +6,7 @@
 package wsclient
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -141,8 +142,15 @@ type Client struct {
 	local     *LocalEndpoint
 	skipLocal bool
 	route     Route
-	conn      *websocket.Conn
-	open      bool
+	// sessionPin is the device's certificate pin as this sign-in confirmed
+	// it (SessionPin): the home route's handshake checked it, or the
+	// device itself answered it (GetLocalEndpoint). pinKnown says whether
+	// there is one; pinAsked is when ConfirmPin last asked.
+	sessionPin []byte
+	pinKnown   bool
+	pinAsked   time.Time
+	conn       *websocket.Conn
+	open       bool
 	// signedIn: the device accepted the password on this socket.
 	// IsConnected is both - an open socket still signing in used to count,
 	// so a folder's first ListFiles raced the Auth and got "not
@@ -291,7 +299,7 @@ func (c *Client) dial(gen int64) {
 		conn, lu, err := dialLocal(context.Background(), local)
 		if err == nil {
 			log.Printf("connected over the home network (%s)", lu)
-			c.run(gen, conn, RouteLocal)
+			c.run(gen, conn, RouteLocal, local.Pin)
 
 			return
 		}
@@ -318,11 +326,12 @@ func (c *Client) dial(gen int64) {
 
 		return
 	}
-	c.run(gen, conn, RouteRemote)
+	c.run(gen, conn, RouteRemote, nil)
 }
 
-// run signs in on a fresh socket and, once it is in, announces it.
-func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
+// run signs in on a fresh socket and, once it is in, announces it. pin is
+// the certificate the home route's handshake checked (nil elsewhere).
+func (c *Client) run(gen int64, conn *websocket.Conn, route Route, pin []byte) {
 	conn.SetReadLimit(maxMessageSize)
 	c.seen()
 	conn.SetPongHandler(func(string) error {
@@ -436,10 +445,14 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 		return
 	}
 	if route == RouteRemote {
-		if lconn, lu := c.learnLocal(gen, conn); lconn != nil {
-			c.moveLocal(gen, conn, lconn, lu)
+		lconn, lu, learnt := c.learnLocal(gen, conn)
+		if lconn != nil {
+			c.moveLocal(gen, conn, lconn, lu, learnt.Pin)
 
 			return
+		}
+		if learnt != nil {
+			pin = learnt.Pin // the device's own answer, on this sign-in
 		}
 	}
 	c.mu.Lock()
@@ -455,6 +468,7 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 	c.signedIn = true
 	c.signIns++
 	c.route = route
+	c.sessionPin, c.pinKnown, c.pinAsked = bytes.Clone(pin), len(pin) > 0, time.Time{}
 	c.mu.Unlock()
 	if c.OnConnect != nil {
 		c.OnConnect()
@@ -464,7 +478,7 @@ func (c *Client) run(gen int64, conn *websocket.Conn, route Route) {
 // moveLocal swaps a connection signed in at the configured address, on
 // which nothing else was sent, for lconn on the home network, and signs
 // in there. The old one is closed unreported: its attempt is superseded.
-func (c *Client) moveLocal(gen int64, conn, lconn *websocket.Conn, lu string) {
+func (c *Client) moveLocal(gen int64, conn, lconn *websocket.Conn, lu string, pin []byte) {
 	c.mu.Lock()
 	if !c.currentLocked(gen, conn) || !c.autoRecon {
 		c.mu.Unlock()
@@ -480,7 +494,7 @@ func (c *Client) moveLocal(gen int64, conn, lconn *websocket.Conn, lu string) {
 	c.mu.Unlock()
 	_ = conn.Close()
 	log.Printf("the device is on this network: moving to %s", lu)
-	c.run(ngen, lconn, RouteLocal)
+	c.run(ngen, lconn, RouteLocal, pin)
 }
 
 // errSuperseded ends a sign-in whose attempt is no longer the client's.

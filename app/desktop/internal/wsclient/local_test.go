@@ -70,7 +70,8 @@ func pinOf(c tls.Certificate) []byte {
 // fakeDevice answers sign-in and GetLocalEndpoint, and counts what it got.
 type fakeDevice struct {
 	pubDER []byte
-	// local answers GetLocalEndpoint; nil never answers it.
+	// local answers GetLocalEndpoint; nil (or a nil answer) never
+	// answers it.
 	local func() *pb.RespEnvelope
 	// requests counts HTTP requests of any kind, upgrades included.
 	requests, conns, auths, asks atomic.Int32
@@ -122,7 +123,9 @@ func (d *fakeDevice) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if d.local == nil {
 				continue
 			}
-			resp = d.local()
+			if resp = d.local(); resp == nil {
+				continue // not answered this time
+			}
 		}
 		resp.Id = req.Id
 		b, _ := proto.Marshal(resp)
@@ -533,5 +536,89 @@ func TestReconnectChoosesTheRouteAgain(t *testing.T) {
 	c.Disconnect()
 	if c.Reconnect() {
 		t.Fatal("Reconnect after Disconnect")
+	}
+}
+
+// The pin sync records go by is only the one this sign-in confirmed: the
+// home route's handshake checked it, or the device answered it. The one
+// stored from before (a device set up again since has another) is not,
+// when the question goes unanswered.
+func TestSessionPinOnlyWhenConfirmed(t *testing.T) {
+	old := localAskTO
+	localAskTO = 300 * time.Millisecond
+	t.Cleanup(func() { localAskTO = old })
+	stored := NewLocalEndpoint([]string{"127.0.0.1"}, closedPort(t), make([]byte, 32))
+
+	t.Run("unanswered", func(t *testing.T) {
+		bridge := newFakeDevice(t) // never answers GetLocalEndpoint
+		c := New()
+		connected(t, c, bridgeServer(t, bridge), stored)
+		if pin, ok := c.SessionPin(); ok || pin != nil {
+			t.Fatalf("session pin %x %v, want none", pin, ok)
+		}
+		if c.LocalPin() == nil {
+			t.Fatal("the stored endpoint went")
+		}
+	})
+	t.Run("answered by the device", func(t *testing.T) {
+		cert := deviceCert(t)
+		ep := NewLocalEndpoint([]string{"127.0.0.1"}, closedPort(t), pinOf(cert))
+		bridge := newFakeDevice(t)
+		bridge.local = endpointAnswer(ep)
+		c := New()
+		connected(t, c, bridgeServer(t, bridge), stored)
+		if pin, ok := c.SessionPin(); !ok || string(pin) != string(pinOf(cert)) || c.Route() != RouteRemote {
+			t.Fatalf("session pin %x %v, route %q", pin, ok, c.Route())
+		}
+	})
+	t.Run("the home route", func(t *testing.T) {
+		cert := deviceCert(t)
+		home := newFakeDevice(t)
+		_, port := homeServer(t, home, cert)
+		c := New()
+		connected(t, c, bridgeServer(t, newFakeDevice(t)), NewLocalEndpoint([]string{"127.0.0.1"}, port, pinOf(cert)))
+		if pin, ok := c.SessionPin(); !ok || string(pin) != string(pinOf(cert)) || c.Route() != RouteLocal {
+			t.Fatalf("session pin %x %v, route %q", pin, ok, c.Route())
+		}
+	})
+}
+
+// ConfirmPin asks again a device that didn't answer at the sign-in, at
+// most once a minute, and keeps what it says.
+func TestConfirmPinAsksAgain(t *testing.T) {
+	old := localAskTO
+	localAskTO = 300 * time.Millisecond
+	t.Cleanup(func() { localAskTO = old })
+	cert := deviceCert(t)
+	ep := NewLocalEndpoint([]string{"127.0.0.1"}, closedPort(t), pinOf(cert))
+	var answer atomic.Bool
+	bridge := newFakeDevice(t)
+	bridge.local = func() *pb.RespEnvelope {
+		if !answer.Load() {
+			return nil
+		}
+
+		return endpointAnswer(ep)()
+	}
+	c := New()
+	var learnt atomic.Pointer[LocalEndpoint]
+	c.OnLocalEndpoint = func(_ string, got *LocalEndpoint) { learnt.Store(got) }
+	connected(t, c, bridgeServer(t, bridge), nil)
+	if c.ConfirmPin(context.Background()) {
+		t.Fatal("confirmed by a device that doesn't answer")
+	}
+	answer.Store(true)
+	asks := bridge.asks.Load()
+	if c.ConfirmPin(context.Background()) || bridge.asks.Load() != asks {
+		t.Fatal("asked again within the minute")
+	}
+	c.mu.Lock()
+	c.pinAsked = time.Now().Add(-2 * pinAskEvery)
+	c.mu.Unlock()
+	if !c.ConfirmPin(context.Background()) {
+		t.Fatal("not confirmed once the device answers")
+	}
+	if pin, ok := c.SessionPin(); !ok || string(pin) != string(pinOf(cert)) || !learnt.Load().Equal(ep) {
+		t.Fatalf("session pin %x %v, learnt %+v", pin, ok, learnt.Load())
 	}
 }

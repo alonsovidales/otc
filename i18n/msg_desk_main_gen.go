@@ -164,6 +164,11 @@ func DeskMainDeletesHeld(files int) Msg {
 	return Msg{Key: "desk.main.deletes_held", Args: map[string]any{"files": int64(files)}}
 }
 
+// DeskMainDeviceUnconfirmed is desk.main.device_unconfirmed: "{files} change(s) wait until this computer recognizes the device".
+func DeskMainDeviceUnconfirmed(files int) Msg {
+	return Msg{Key: "desk.main.device_unconfirmed", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainDisconnectMenu is desk.main.disconnect_menu: "Disconnect from {device}…".
 func DeskMainDisconnectMenu(device string) Msg {
 	return Msg{Key: "desk.main.disconnect_menu", Args: map[string]any{"device": device}}

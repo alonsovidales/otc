@@ -202,6 +202,13 @@ extension S {
         L("desk.main.deletes_held", table: "DeskMain", files)
     }
 
+    /// {files} change(s) wait until this computer recognizes the device
+    ///
+    /// Both apps: a two-way folder's state when the app is connected but hasn't yet confirmed that the device is the very one the folder was synced with (by the device's own home-network certificate) - it could be a device set up again from scratch under the same name. Deletes, and downloads over files on this computer, wait until it has; usually that is at the next connection. {files} is how many changes wait.
+    static func deskMainDeviceUnconfirmed(files: Int) -> String {
+        L("desk.main.device_unconfirmed", table: "DeskMain", files)
+    }
+
     /// Disconnect from {device}…
     ///
     /// otc-sync: tray menu item shown once a device is set; asks before forgetting the device. {device} is the device's address (for example cala.off-the.cloud).

@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "kan externe bestanden niet weergeven"},
   "desk.main.cpu_line": {"text": "CPU: {percent}%"},
   "desk.main.deletes_held": {"text": "{files} bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook"},
+  "desk.main.device_unconfirmed": {"text": "Wijzigingen wachten tot deze computer het apparaat herkent: {files}"},
   "desk.main.disconnect_menu": {"text": "Apparaat {device} loskoppelen…"},
   "desk.main.disconnect_message": {"text": "Al je gesynchroniseerde mappen worden uit deze app verwijderd, zodat geen enkele map per ongeluk met een ander apparaat gaat synchroniseren. De bestanden zelf blijven op deze computer en op het apparaat staan. Je kunt de mappen opnieuw toevoegen nadat je verbinding hebt gemaakt."},
   "desk.main.disconnect_title": {"text": "Apparaat {device} loskoppelen?"},

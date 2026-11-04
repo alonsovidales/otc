@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "Dateien auf dem Gerät nicht abrufbar"},
   "desk.main.cpu_line": {"text": "CPU: {percent} %"},
   "desk.main.deletes_held": {"text": "{files} hier auf einmal gelöschte Dateien bleiben auf dem Gerät – wenn das so gewollt war, lösche sie dort ebenfalls"},
+  "desk.main.device_unconfirmed": {"text": "Änderungen warten, bis dieser Computer das Gerät erkennt: {files}"},
   "desk.main.disconnect_menu": {"text": "Vom Gerät {device} trennen…"},
   "desk.main.disconnect_message": {"text": "Alle deine synchronisierten Ordner werden aus dieser App entfernt, damit keiner davon versehentlich mit einem anderen Gerät synchronisiert wird. Die Dateien selbst bleiben auf diesem Computer und auf dem Gerät. Du kannst die Ordner nach dem Verbinden wieder hinzufügen."},
   "desk.main.disconnect_title": {"text": "Vom Gerät {device} trennen?"},

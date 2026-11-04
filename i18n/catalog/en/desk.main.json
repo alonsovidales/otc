@@ -31,6 +31,7 @@
   "desk.main.could_not_list": {"text": "could not list remote files"},
   "desk.main.cpu_line": {"text": "CPU: {percent}%", "args": [["percent", "int"]]},
   "desk.main.deletes_held": {"text": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too", "args": [["files", "int"]]},
+  "desk.main.device_unconfirmed": {"text": "{files} change(s) wait until this computer recognizes the device", "args": [["files", "int"]]},
   "desk.main.disconnect_menu": {"text": "Disconnect from {device}…", "args": [["device", "text"]]},
   "desk.main.disconnect_message": {"text": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting."},
   "desk.main.disconnect_title": {"text": "Disconnect from {device}?", "args": [["device", "text"]]},

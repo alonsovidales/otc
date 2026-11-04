@@ -131,6 +131,10 @@
     "text": "{files} fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas",
     "en": "{files} files deleted here at once are kept on the device - if that was meant, delete them there too"
   },
+  "desk.main.device_unconfirmed": {
+    "text": "Modifications en attente jusqu’à ce que cet ordinateur reconnaisse l’appareil : {files}",
+    "en": "{files} change(s) wait until this computer recognizes the device"
+  },
   "desk.main.disconnect_menu": {
     "text": "Se déconnecter de l’appareil {device}…",
     "en": "Disconnect from {device}…"

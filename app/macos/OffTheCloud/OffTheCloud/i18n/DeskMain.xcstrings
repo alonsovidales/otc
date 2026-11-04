@@ -1505,6 +1505,53 @@
         }
       }
     },
+    "desk.main.device_unconfirmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Änderungen warten, bis dieser Computer das Gerät erkennt: %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld change(s) wait until this computer recognizes the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambios en espera hasta que este ordenador reconozca el dispositivo: %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifications en attente jusqu’à ce que cet ordinateur reconnaisse l’appareil : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld modifiche in attesa che questo computer riconosca il dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wijzigingen wachten tot deze computer het apparaat herkent: %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterações à espera de que este computador reconheça o dispositivo: %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.disconnect_menu" : {
       "extractionState" : "manual",
       "localizations" : {
