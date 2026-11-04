@@ -97,9 +97,19 @@ final class FreeUpSpace: @unchecked Sendable {
             isVideo: asset.mediaType == .video,
             edited: asset.hasAdjustments,
             burst: asset.representsBurst || asset.burstIdentifier != nil,
-            live: asset.mediaSubtypes.contains(.photoLive),
-            pair: isPair(PHAssetResource.assetResources(for: asset).map(\.type))
+            live: asset.mediaSubtypes.contains(.photoLive)
         )
+    }
+
+    /// Whether `asset` may go: its traits, then - only for one they let
+    /// through, as PhotoKit lists its resources for it - whether it is a
+    /// pair.
+    static func eligible(_ asset: PHAsset, skipped: Bool, cutoff: Date, includeVideos: Bool, livePhotos: Bool) -> Bool {
+        var t = traits(of: asset)
+        t.skipped = skipped
+        guard eligible(t, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) else { return false }
+        t.pair = isPair(PHAssetResource.assetResources(for: asset).map(\.type))
+        return eligible(t, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos)
     }
 
     /// Pure: resources of these types hold a picture the sync doesn't send:
@@ -205,9 +215,8 @@ final class FreeUpSpace: @unchecked Sendable {
         let skippedNow = PhotoSources.skippedAssetIDs(skippedAlbums).union(SavedToPhone.shared.ids())
         var toDelete: [PHAsset] = []
         PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
-            var traits = Self.traits(of: asset)
-            traits.skipped = skippedNow.contains(asset.localIdentifier)
-            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            if Self.eligible(asset, skipped: skippedNow.contains(asset.localIdentifier), cutoff: cutoff,
+                             includeVideos: includeVideos, livePhotos: livePhotos) {
                 toDelete.append(asset)
             }
         }
@@ -241,9 +250,8 @@ final class FreeUpSpace: @unchecked Sendable {
         ])
         var out: [PHAsset] = []
         PHAsset.fetchAssets(with: opts).enumerateObjects { asset, _, _ in
-            var traits = Self.traits(of: asset)
-            traits.skipped = skipped.contains(asset.localIdentifier)
-            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            if Self.eligible(asset, skipped: skipped.contains(asset.localIdentifier), cutoff: cutoff,
+                             includeVideos: includeVideos, livePhotos: livePhotos) {
                 out.append(asset)
             }
         }
