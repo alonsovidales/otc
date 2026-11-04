@@ -1649,10 +1649,14 @@ start takes its file.
   `RUN_BUDGET` (7 min) of its start, inside the unit's `TimeoutStartSec=8min`: every step goes
   through the runner's own `bounded` (given up, killed and left behind when stuck in the kernel - a
   wedged SDIO bus holding modprobe or the unbind -, never waited for), and none starts past what
-  the last wait for the connection needs (`FINAL_WAIT`, 90 s); the bare `timeout`s it had waited
-  for good on such a command, and its waits added up to more than the unit allows, so systemd could
-  kill it before the reboot (`TestWifiRestartRunnerEndsInsideItsUnit`; `bash
-  otc-wifi-restart-runner.sh --selftest` on Linux tests `bounded`). At most one restart per 30 min
+  the last wait for the connection needs (`FINAL_WAIT`, 90 s); that wait's own checks
+  (NetworkManager's `GENERAL.STATE`) use its time up to the deadline itself (`FINAL`: before, they
+  were refused for want of time once the steps had used theirs, and only a default route counted),
+  and a connection back at its very end still gets power saving off, at most 10 s past it. The bare
+  `timeout`s it had waited for good on such a command, and its waits added up to more than the
+  unit allows, so systemd could kill it before the reboot (`TestWifiRestartRunnerEndsInsideItsUnit`;
+  `bash otc-wifi-restart-runner.sh --selftest` on Linux tests `bounded`, `left` and the last wait's
+  checks). At most one restart per 30 min
   (`/run/otc-wifi-restart.last`). Tested with fake readings (`wifiwatch_test.go`) and
   `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi. A Settings › Wi-Fi change
   (release 140) never builds a streak: while `network.Joining()` is true - a change in flight and

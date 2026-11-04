@@ -43,7 +43,9 @@ func TestWifiRestartRunnerEndsInsideItsUnit(t *testing.T) {
 	minutes, _ := strconv.Atoi(m[1])
 	unit := time.Duration(minutes) * time.Minute
 	// The checks before the restart (the lock, its NetworkManager connection,
-	// at most 20 s) and the reboot itself take well under a minute.
+	// at most 20 s), power saving switched off after a connection back at the
+	// very end of the last wait (at most 10 s past RUN_BUDGET) and the reboot
+	// itself take well under a minute.
 	if got := time.Duration(budget)*time.Second + time.Minute; got > unit {
 		t.Errorf("RUN_BUDGET %d s plus a minute is %v, more than the unit's TimeoutStartSec %v", budget, got, unit)
 	}

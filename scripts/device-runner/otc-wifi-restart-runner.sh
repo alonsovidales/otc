@@ -23,14 +23,16 @@
 # restarts instead: a device left off the network by its own watchdog
 # could otherwise only be fixed by pulling the plug.
 #
-# All of it, the reboot included, ends within RUN_BUDGET of the start,
-# well inside the unit's TimeoutStartSec: every step is bounded (bounded:
-# a command stuck in the kernel - a wedged SDIO bus holding modprobe or
-# the unbind - is left behind, never waited for), and none starts past
-# what the last wait for the connection needs. The waits used to add up
-# to more than the unit allows, and systemd killed the runner before its
-# reboot fallback, leaving the device off its network with the Wi-Fi
-# driver out.
+# The reboot fallback comes within RUN_BUDGET of the start, well inside
+# the unit's TimeoutStartSec: every step is bounded (bounded: a command
+# stuck in the kernel - a wedged SDIO bus holding modprobe or the unbind -
+# is left behind, never waited for), and none starts past what the last
+# wait for the connection needs (FINAL_WAIT). That wait's own checks -
+# NetworkManager's state - use its time up to the deadline itself, and a
+# connection back at its very end still gets power saving off, at most
+# 10 s later. The waits used to add up to more than the unit allows, and
+# systemd killed the runner before its reboot fallback, leaving the device
+# off its network with the Wi-Fi driver out.
 #
 # The answer goes to /var/lib/otc/wifi-restart-status.json: state running,
 # done, failed or rebooted, which the watchdog reads back.
@@ -56,17 +58,23 @@ RUN_BUDGET=420
 FINAL_WAIT=90
 # Unset until the restart starts: no step is cut short before.
 DEADLINE=
+# 1 once the last wait for the connection has begun (wait_connected
+# final): from then on left() measures against DEADLINE itself, not
+# DEADLINE - FINAL_WAIT - that time is the last wait's own.
+FINAL=0
 
 log() { echo "[otc-wifi-restart] $*"; }
 
 uptime_s() { cut -d. -f1 /proc/uptime; }
 
 # left <seconds>: <seconds>, or less when the restart's steps must end
-# sooner to leave the last wait its FINAL_WAIT; 0 when none is left.
+# sooner to leave the last wait its FINAL_WAIT - or, in that wait (FINAL),
+# to end by DEADLINE; 0 when none is left.
 left() {
     local n="$1" room
     if [ -n "$DEADLINE" ]; then
-        room=$(( DEADLINE - FINAL_WAIT - $(uptime_s) ))
+        room=$(( DEADLINE - $(uptime_s) ))
+        [ "$FINAL" = 1 ] || room=$(( room - FINAL_WAIT ))
         [ "$room" -lt "$n" ] && n="$room"
     fi
     [ "$n" -gt 0 ] && echo "$n" || echo 0
@@ -104,34 +112,6 @@ bounded() {
     done
     wait "$pid"
 }
-
-# --selftest, by hand on Linux as any user: bounded and left, with real
-# commands and the real clock. Touches nothing.
-if [ "${1:-}" = --selftest ]; then
-    broken() { echo "FAIL: $*" >&2; exit 1; }
-    start=$(uptime_s)
-    bounded 5 true || broken "true"
-    bounded 5 sh -c 'exit 7'; [ $? = 7 ] || broken "an exit status"
-    bounded 2 sleep 30; [ $? = 124 ] || broken "a command past its time"
-    bounded 2 sh -c 'trap "" TERM; exec sleep 30'; [ $? = 124 ] || broken "a command ignoring TERM"
-    [ $(( $(uptime_s) - start )) -le 12 ] || broken "bounded waited $(( $(uptime_s) - start )) s"
-    DEADLINE=$(( $(uptime_s) + FINAL_WAIT + 3 ))
-    n="$(left 30)"; [ "$n" -ge 2 ] && [ "$n" -le 3 ] || broken "left 30 with 3 s to go: $n"
-    t=$(uptime_s)
-    bounded 30 sleep 30; [ $? = 124 ] && [ $(( $(uptime_s) - t )) -le 6 ] || broken "a step past the deadline"
-    DEADLINE=$(( $(uptime_s) + FINAL_WAIT - 1 ))
-    [ "$(left 30)" = 0 ] || broken "left with no time"
-    ran="$(mktemp)"
-    rm -f "$ran"
-    bounded 30 touch "$ran"; [ $? = 124 ] && [ ! -e "$ran" ] || broken "a step started with no time left"
-    echo "selftest ok"
-    exit 0
-fi
-
-# Whatever is there goes: a directory, which -f alone can't remove, had the
-# path unit start this again and again; a symlink is removed, never
-# followed.
-rm -rf -- "$REQUEST"
 
 # Temp file moved into place: the directory is the otc user's, and a plain
 # "> $STATUS_FILE" as root would follow a symlink put there. dd's
@@ -175,11 +155,13 @@ connected() {
 
 # wait_connected <seconds> [final]: connected again within <seconds> - for
 # a step, never past what the last wait needs (left()); for the last wait
-# ("final"), never past the deadline.
+# ("final"), never past the deadline, and its checks with the time up to
+# it (FINAL).
 wait_connected() {
     local until=$(( $(uptime_s) + $1 ))
     if [ -n "$DEADLINE" ]; then
         if [ "${2:-}" = final ]; then
+            FINAL=1
             [ "$until" -gt "$DEADLINE" ] && until="$DEADLINE"
         else
             until=$(( $(uptime_s) + $(left "$1") ))
@@ -191,6 +173,56 @@ wait_connected() {
     done
     connected
 }
+
+# --selftest, by hand on Linux as any user: bounded, left and the last
+# wait's checks, with real commands and the real clock (NetworkManager and
+# the default route stood in for). Touches nothing.
+if [ "${1:-}" = --selftest ]; then
+    broken() { echo "FAIL: $*" >&2; exit 1; }
+    start=$(uptime_s)
+    bounded 5 true || broken "true"
+    bounded 5 sh -c 'exit 7'; [ $? = 7 ] || broken "an exit status"
+    bounded 2 sleep 30; [ $? = 124 ] || broken "a command past its time"
+    bounded 2 sh -c 'trap "" TERM; exec sleep 30'; [ $? = 124 ] || broken "a command ignoring TERM"
+    [ $(( $(uptime_s) - start )) -le 12 ] || broken "bounded waited $(( $(uptime_s) - start )) s"
+    DEADLINE=$(( $(uptime_s) + FINAL_WAIT + 3 ))
+    n="$(left 30)"; [ "$n" -ge 2 ] && [ "$n" -le 3 ] || broken "left 30 with 3 s to go: $n"
+    t=$(uptime_s)
+    bounded 30 sleep 30; [ $? = 124 ] && [ $(( $(uptime_s) - t )) -le 6 ] || broken "a step past the deadline"
+    DEADLINE=$(( $(uptime_s) + FINAL_WAIT - 1 ))
+    [ "$(left 30)" = 0 ] || broken "left with no time"
+    ran="$(mktemp)"
+    rm -f "$ran"
+    bounded 30 touch "$ran"; [ $? = 124 ] && [ ! -e "$ran" ] || broken "a step started with no time left"
+    # The last wait, begun inside its FINAL_WAIT (the steps took their
+    # time): NetworkManager is still asked - no default route here, and it
+    # says connected (100). Before, its check was refused for want of time
+    # and the device rebooted.
+    # shellcheck disable=SC2329 # run by connected() and bounded
+    default_iface() { :; }
+    # shellcheck disable=SC2329
+    nmcli() { echo 100; }
+    nm=1 iface=wlan0
+    DEADLINE=$(( $(uptime_s) + 6 ))
+    t=$(uptime_s)
+    wait_connected 30 final || broken "NetworkManager wasn't asked in the last wait"
+    [ $(( $(uptime_s) - t )) -le 2 ] || broken "the last wait took $(( $(uptime_s) - t )) s to see the connection"
+    n="$(left 30)"; [ "$n" -ge 3 ] && [ "$n" -le 6 ] || broken "left 30 in the last wait, 6 s before the deadline: $n"
+    # Not connected: asked until the deadline, never past it.
+    # shellcheck disable=SC2329
+    nmcli() { echo 30; }
+    t=$(uptime_s)
+    wait_connected 30 final && broken "connected with NetworkManager saying disconnected"
+    [ "$(uptime_s)" -le $(( DEADLINE + 2 )) ] || broken "the last wait went $(( $(uptime_s) - DEADLINE )) s past its deadline"
+    [ "$(left 10)" = 0 ] || broken "left past the deadline: $(left 10)"
+    echo "selftest ok"
+    exit 0
+fi
+
+# Whatever is there goes: a directory, which -f alone can't remove, had the
+# path unit start this again and again; a symlink is removed, never
+# followed.
+rm -rf -- "$REQUEST"
 
 # Settings > Wi-Fi changes the network as root too (otc-wifi-join-runner),
 # holding this lock for the whole change: a restart in the middle would
@@ -329,6 +361,10 @@ else
 fi
 
 if wait_connected "$CONNECT_WAIT" final; then
+    # Connected: no reboot follows, so the deadline no longer holds -
+    # power saving goes off even for a connection back at its very end
+    # (at most 10 s more, inside the unit's time).
+    DEADLINE=
     command -v iw >/dev/null 2>&1 && bounded 10 iw dev "$iface" set power_save off 2>/dev/null
     log "done: connected again"
     status done "The Wi-Fi was restarted" restarted
