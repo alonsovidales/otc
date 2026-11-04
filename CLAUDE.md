@@ -4788,12 +4788,7 @@ config is written temp (0640 root:otc), sync, rename. The device's MariaDB accou
 and, with GRANT OPTION, on `otc_%` (in a GRANT the `_` of `otc_<uuid>` is itself a wildcard: an
 escaped `otc\_%` can't hand ALL on `otc_<uuid>` to that user's account - error 1044), plus CREATE
 USER and RELOAD - nothing on `*.*` (install.sh, the container's entrypoint, release 143's REVOKE;
-tested in the Lima VM by provisioning, measuring and dropping a user through `dao`). A limit of
-that narrowing: MariaDB's CREATE USER is server-wide - `ALTER USER` reaches root@localhost too -
-and the datadir sits in the storage root the otc user owns, so a compromised service can still
-make itself MariaDB's root (FILE, files as the `mysql` account) or drop root's account, which every
-release script signs in with. Provisioning the per-user accounts through a root runner that checks
-the name, and the datadir under a root-owned directory, would close it.
+tested in the Lima VM by provisioning, measuring and dropping a user through `dao`).
 
 **Checking it worked**: a device shows its version under Settings → Device version. The full
 log of any run is at `/var/log/otc-update/update.log` (Settings › Logs › Updates), and the current
