@@ -81,6 +81,8 @@ const MediaViewer = lazyPart(() => import("./MediaViewer"));
 // grid stayed empty all that time. The pages after it, sent with the token,
 // get the device's own size; a device before release 97 answers 30 anyway.
 const cFirstPagePhotos = 12;
+// How near the end of the loaded photos the viewer asks for the next page.
+const cViewerAhead = 4;
 // While the date scrubber is dragged, a month that hasn't loaded shows this
 // many grey tiles at most: enough to read as "a lot", not thousands of nodes.
 const cMaxPlaceholders = 300;
@@ -971,6 +973,14 @@ function PhotoGalleryView({ onShowCollections, onShowMap }: PhotoGalleryProps) {
       el.closest(".pg-tile")?.scrollIntoView({ block: "nearest" });
     });
   }, []);
+  // The viewer near the end of what is loaded asks for the next page, as
+  // the grid's end does nearing the screen: stepping through a big library
+  // in the viewer stopped at the last loaded page, which read as the
+  // library's end until the viewer was closed and the grid scrolled.
+  useEffect(() => {
+    if (openIdx == null || openIdx < items.length - cViewerAhead) return;
+    if (!loading && !endReached && !previewing && retryReady()) void fetchPage();
+  }, [openIdx, items.length, loading, endReached, previewing, retryTick, retryReady, fetchPage]);
   // The viewer shows the grid's own thumbnail while the full size loads.
   const viewerOpen = openIdx != null;
   // In a rated collection, with what its page said of its stars.

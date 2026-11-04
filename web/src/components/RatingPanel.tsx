@@ -111,7 +111,7 @@ export function RatingStars({ value, onPick, autoFocus = false }: {
 }
 
 /** One photo's stars and comment, in a viewer. */
-export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, sheet = false, autoFocus = false, id, onRefused, beforeChange }: {
+export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, sheet = false, autoFocus = false, id, onRefused, beforeChange, dropped }: {
   /** The photo's key in `ratings` (its path, an item's index). */
   ratingKey: string;
   ratings: Ratings;
@@ -129,6 +129,11 @@ export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, 
   onRefused: (r: RatingRefusal) => void;
   /** Asked before any change; true stops it (a demo device). */
   beforeChange?: () => boolean;
+  /** Whether the photo has left the collection meanwhile (deleted, Not
+   *  this person): its unsaved comment goes with it, not saved as the
+   *  panel goes - the device refused it, and a "rating refused" note
+   *  followed a delete that worked. */
+  dropped?: () => boolean;
 }) {
   const t = useT();
   useSyncExternalStore(ratings.subscribe, ratings.version);
@@ -153,8 +158,8 @@ export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, 
 
   // The latest of everything, for a change that lands after a render and
   // for the save as the panel goes.
-  const latest = useRef({ draft, shown, listed, ratingKey, onRefused, beforeChange });
-  useLayoutEffect(() => { latest.current = { draft, shown, listed, ratingKey, onRefused, beforeChange }; });
+  const latest = useRef({ draft, shown, listed, ratingKey, onRefused, beforeChange, dropped });
+  useLayoutEffect(() => { latest.current = { draft, shown, listed, ratingKey, onRefused, beforeChange, dropped }; });
   const commit = useCallback((want: RatingValue) => {
     const now = latest.current;
     if (now.beforeChange?.()) return;
@@ -165,7 +170,8 @@ export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, 
   // Moving on to another photo, or closing the viewer, with text not saved
   // yet saves it, with the stars the photo has.
   useEffect(() => () => {
-    const { draft: text, shown: now } = latest.current;
+    const { draft: text, shown: now, dropped: gone } = latest.current;
+    if (gone?.()) return;
     const c = cleanComment(text);
     if (c !== now.comment) commit({ stars: now.stars, comment: c });
   }, [commit]);
