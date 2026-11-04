@@ -1176,7 +1176,8 @@ video copy, with `RespEnvelope.error_code` "storage_full" (also for a write that
 it. A size is the client's to say: BeginUpload refuses one over a pebibyte (`cMaxUploadSize`, "bad
 size"), and what a write needs saturates at MaxInt64 rather than wrapping (`sealedSize` past an
 exbibyte, `addSizes` for the uploads under way) - a size near MaxInt64 came out negative, nothing to
-write, and turned the reserve off for every upload while its own lived (`TestImpossibleSizesDontWrap`). What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
+write, and turned the reserve off for every upload while its own lived (`TestImpossibleSizesDontWrap`).
+What is left is statfs' f_bavail in f_frsize units (package `diskspace`: f_bfree counts ext4's
 5% for root, which neither otc nor MariaDB can use - a 4 TB mirror showed ~200 GB free while
 uploads failed); Status' raid/disk size is used plus available, so the apps' free (size - usage)
 is what can be written, and Settings > Users' share is of that size. `storagewatch` (main instance,

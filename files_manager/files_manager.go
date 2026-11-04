@@ -1838,8 +1838,9 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	for _, entry := range entries {
 		// Each file only while it holds what the client showed for it, or
 		// what was found under the folder a moment ago: content synced
-		// over or edited meanwhile is new to whoever is deleting, and stays
-		// - nothing of the file itself, a folder's file skipped.
+		// over or edited meanwhile is new to whoever is deleting, and
+		// stays. The file asked for is then refused as changed, a file of
+		// the folder skipped.
 		expected := entry.Hash
 		if isFile {
 			expected = shown
