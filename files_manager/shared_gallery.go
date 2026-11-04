@@ -734,9 +734,9 @@ func (mg *Manager) OpenSharedGallery(id, secret string) (*pb.SharedGallery, erro
 		Created:     timestamppb.New(time.Unix(man.Created, 0)),
 		Expires:     timestamppb.New(time.Unix(man.Expires, 0)),
 	}
-	// Rating (release 163): each photo's rating in the collection now,
-	// while the link takes ratings.
-	rated, stars, comments := mg.galleryRatings(id, man)
+	// Rating (release 163): each photo's rating by this link's visitors
+	// (release 169: theirs only), while the link takes ratings.
+	rated, stars, comments := mg.galleryRatings(id, secret, man)
 	out.Rating = rated
 	for i, it := range man.Items {
 		out.Items = append(out.Items, &pb.SharedGalleryItem{

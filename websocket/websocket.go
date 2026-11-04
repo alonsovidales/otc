@@ -318,6 +318,19 @@ func (mg *Manager) ActiveConnections() int64 {
 // the package.
 var fileSize = dao.FileSize
 
+// reconcileRatingSources gives the ratings stored before release 169 (or
+// since by an older binary) their source's row: each link's visitors see
+// theirs only (dao.ReconcileRatingSources). At start, before anything is
+// served.
+func reconcileRatingSources(d *dao.Dao) {
+	if d == nil {
+		return
+	}
+	if err := d.ReconcileRatingSources(); err != nil && !errors.Is(err, dao.ErrSchemaBehind) {
+		log.Error("could not give the collections' ratings their sources:", err)
+	}
+}
+
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor, staticPath string) (mg *Manager) {
 	log.Debug("Init Websocket")
 	initDemoMode()
@@ -403,6 +416,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// Profile pictures within dao.MaxProfilePictureBytes (pictures.go): the
 	// owner's own made small, the friends' stored before the cap dropped.
 	go mg.fitStoredPictures()
+	// Each rated link's visitors see their own ratings (release 169).
+	reconcileRatingSources(dao)
 
 	// Issue #62: re-sync on every startup too, not just on the next
 	// register - the bridge's own copy of this device's push registrations

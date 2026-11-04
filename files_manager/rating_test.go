@@ -70,6 +70,42 @@ func TestRatingSeals(t *testing.T) {
 	if _, err := openWithKey(key, shared, ratingAAD("g2", "h1")); err == nil {
 		t.Error("opened in another collection")
 	}
+
+	// A link's comment for its visitors (release 169): under a key made
+	// from the link's own secret, on its own link's row only; one stored
+	// before (cSealV1) under the collection's link key the manifest holds.
+	secret := strings.Repeat("ab", 32)
+	theirs, err := sealLinkComment("link-1", secret, "g1", "h1", []byte("Brighter, please"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if theirs[0] != cSealLinkV2 || bytes.Contains(theirs, []byte("Brighter")) {
+		t.Fatalf("sealed %x", theirs)
+	}
+	man := &galleryManifest{RatingKey: key}
+	if got, err := openLinkComment(man, "link-1", secret, "g1", "h1", theirs); err != nil || string(got) != "Brighter, please" {
+		t.Fatalf("open: %q %v", got, err)
+	}
+	for name, open := range map[string]func() ([]byte, error){
+		"another link's secret": func() ([]byte, error) {
+			return openLinkComment(man, "link-1", strings.Repeat("cd", 32), "g1", "h1", theirs)
+		},
+		"another link":  func() ([]byte, error) { return openLinkComment(man, "link-2", secret, "g1", "h1", theirs) },
+		"another photo": func() ([]byte, error) { return openLinkComment(man, "link-1", secret, "g1", "h2", theirs) },
+		"the collection's key": func() ([]byte, error) {
+			return openWithKey(key, append([]byte{cSealV1}, theirs[1:]...), ratingAAD("g1", "h1"))
+		},
+		"made to look like before": func() ([]byte, error) {
+			return openLinkComment(man, "link-1", secret, "g1", "h1", append([]byte{cSealV1}, theirs[1:]...))
+		},
+	} {
+		if _, err := open(); err == nil {
+			t.Errorf("opened with %s", name)
+		}
+	}
+	if got, err := openLinkComment(man, "link-1", secret, "g1", "h1", shared); err != nil || string(got) != "ok" {
+		t.Fatalf("one stored before: %q %v", got, err)
+	}
 }
 
 func TestNormalizeRating(t *testing.T) {
@@ -172,11 +208,27 @@ func fileRowFor(path, hash string) *sqlmock.Rows {
 		AddRow(hash, "image/jpeg", time.Now(), time.Now(), path, 1)
 }
 
-const upsertRating = "insert into `photo_ratings` \\(`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`\\) select"
+const (
+	upsertSource = "insert into `photo_rating_sources` \\(`group_id`, `hash`, `source`, `stars`, `comment`, `link_comment`, `updated`\\) select"
+	upsertShown  = "insert into `photo_ratings` \\(`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`\\) select"
+)
 
-// The owner's rating: stars in the clear, the comment sealed to the key
-// pair - and with the collection's link key once it has one - only in a
-// collection whose Rating is on, for a photo in it.
+// expectRating expects one rating's transaction (dao.SetPhotoRating): its
+// source's row, then what the owner sees.
+func expectRating(mock sqlmock.Sqlmock, source string, stars int, comment, linkComment any, hash string) {
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs(source, stars, comment, linkComment, sqlmock.AnyArg(), "g1", hash).WillReturnResult(sqlmock.NewResult(0, 1))
+	var link any
+	if source != "" {
+		link = source
+	}
+	mock.ExpectExec(upsertShown).WithArgs(stars, sqlmock.AnyArg(), link, sqlmock.AnyArg(), "g1", hash).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+}
+
+// The owner's own rating: stars in the clear, the comment sealed to the
+// key pair - never for a link's visitors, whatever key the collection has -
+// only in a collection whose Rating is on, for a photo in it.
 func TestOwnerSetsPhotoRating(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	mg, mock := ratingMock(t)
@@ -191,45 +243,33 @@ func TestOwnerSetsPhotoRating(t *testing.T) {
 		mock.ExpectQuery("select `g`.`rating`, exists").WithArgs("h1", "g1").WillReturnRows(rows)
 	}
 
+	// No link key read: the owner's comment is sealed to the key pair
+	// alone (sqlmock refuses any query not expected).
 	target(true, true, true)
 	v.expect(mock) // EnsureRatingKeys
 	v.expect(mock) // the public key
-	mock.ExpectQuery("select `rating_key` from `image_groups` where `id` = \\?").WithArgs("g1").
-		WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(nil))
 	var comment []byte
-	mock.ExpectExec(upsertRating).WithArgs(5, descCapture{&comment}, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	expectRating(mock, "", 5, descCapture{&comment}, nil, "h1")
 	r, err := mg.SetPhotoRating(ses, "g1", "/p/a.jpg", 5, " Love it ")
-	if err != nil || r.Stars != 5 || r.Comment != "Love it" || r.FromLink || r.Updated == nil {
+	if err != nil || r.Stars != 5 || r.Comment != "Love it" || r.FromLink || r.Updated == nil || r.Updated.AsTime().Nanosecond() != 0 {
 		t.Fatalf("%+v %v", r, err)
 	}
 	if got, err := openWithPrivate(v.priv, comment, ratingAAD("g1", "h1")); err != nil || string(got) != "Love it" {
 		t.Fatalf("stored comment: %q %v", got, err)
 	}
 
-	// With a link key: the visitors' copy too.
-	key := bytes.Repeat([]byte{3}, 32)
+	// Stars alone touch no key; 0 and "" clear it - kept as the owner's
+	// clear, and the owner sees none.
 	target(true, true, true)
-	v.expect(mock)
-	v.expect(mock)
-	mock.ExpectQuery("select `rating_key` from `image_groups`").WithArgs("g1").
-		WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(ses.Encrypt(key)))
-	var shared []byte
-	mock.ExpectExec(upsertRating).WithArgs(2, sqlmock.AnyArg(), descCapture{&shared}, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
-	if _, err := mg.SetPhotoRating(ses, "g1", "/p/a.jpg", 2, "Crop it"); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := openWithKey(key, shared, ratingAAD("g1", "h1")); err != nil || string(got) != "Crop it" {
-		t.Fatalf("the visitors' copy: %q %v", got, err)
-	}
-
-	// Stars alone touch no key; 0 and "" clear it.
-	target(true, true, true)
-	mock.ExpectExec(upsertRating).WithArgs(3, nil, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
+	expectRating(mock, "", 3, nil, nil, "h1")
 	if r, err := mg.SetPhotoRating(ses, "g1", "/p/a.jpg", 3, ""); err != nil || r.Stars != 3 || r.Comment != "" {
 		t.Fatalf("stars alone: %+v %v", r, err)
 	}
 	target(true, true, true)
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs("", 0, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\? and `hash` = \\?").WithArgs("g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	if r, err := mg.SetPhotoRating(ses, "g1", "/p/a.jpg", 0, "  "); err != nil || r.Stars != 0 || r.Comment != "" || r.Updated != nil {
 		t.Fatalf("cleared: %+v %v", r, err)
 	}
@@ -252,8 +292,10 @@ func TestOwnerSetsPhotoRating(t *testing.T) {
 	}
 	// Taken out of the collection between the check and the write.
 	target(true, true, true)
-	mock.ExpectExec(upsertRating).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("select 1 from `photo_ratings`").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("select 1 from `image_group_files`").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectRollback()
 	if _, err := mg.SetPhotoRating(ses, "g1", "/p/a.jpg", 4, ""); !errors.Is(err, ErrNotInCollection) {
 		t.Errorf("taken out meanwhile: %v", err)
 	}
@@ -277,13 +319,11 @@ func TestOwnerSetsPhotoRating(t *testing.T) {
 }
 
 // The first rated link of a collection makes its link key - of two made
-// at once the one stored first is used - and gives the comments made
-// before their copy under it.
-func TestCollectionLinkKeyCopiesTheComments(t *testing.T) {
+// at once the one stored first is used. The comments made before get no
+// copy under it: no link's visitors read the owner's own notes.
+func TestCollectionLinkKeyMadeOnce(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	mg, mock := ratingMock(t)
-	v := newRatingVault(t, ses)
-	old, _ := sealToPublic(v.priv.PublicKey(), []byte("Older comment"), ratingAAD("g1", "h1"))
 	first := bytes.Repeat([]byte{5}, 32)
 
 	mock.ExpectQuery("select `rating_key` from `image_groups`").WithArgs("g1").WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(nil))
@@ -292,21 +332,12 @@ func TestCollectionLinkKeyCopiesTheComments(t *testing.T) {
 		WithArgs(descCapture{&made}, "g1").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("select `rating_key` from `image_groups`").WithArgs("g1").
 		WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(ses.Encrypt(first)))
-	mock.ExpectQuery("where `group_id` = \\? and `comment` is not null and `shared_comment` is null").WithArgs("g1").
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "stars", "comment", "shared_comment", "link", "updated"}).AddRow("h1", 0, old, nil, nil, time.Now()))
-	v.expect(mock)
-	var shared []byte
-	mock.ExpectExec("update `photo_ratings` set `shared_comment` = \\? where `group_id` = \\? and `hash` = \\? and `comment` = \\?").
-		WithArgs(descCapture{&shared}, "g1", "h1", old).WillReturnResult(sqlmock.NewResult(0, 1))
 	key, err := mg.collectionLinkKey(ses, "g1", true)
 	if err != nil || !bytes.Equal(key, first) {
 		t.Fatalf("%x %v, want the key stored first", key, err)
 	}
 	if opened, err := ses.Decrypt(made); err != nil || len(opened) != 32 || bytes.Equal(opened, first) {
 		t.Fatalf("the key offered isn't a new one sealed with the owner's key: %v", err)
-	}
-	if got, err := openWithKey(key, shared, ratingAAD("g1", "h1")); err != nil || string(got) != "Older comment" {
-		t.Fatalf("copied: %q %v", got, err)
 	}
 	// Without create, none is made.
 	mock.ExpectQuery("select `rating_key` from `image_groups`").WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(nil))
@@ -316,11 +347,11 @@ func TestCollectionLinkKeyCopiesTheComments(t *testing.T) {
 }
 
 // A gallery made with Rating: its manifest holds the collection's link key
-// and each photo's hash, its row the collection. Its visitors rate (their
-// comment sealed to the owner's public key and under the link key), see
-// every photo's current rating, and are refused once the link no longer
-// takes ratings or the photo left; the owner is alerted at most once an
-// hour per link.
+// and each photo's hash, its row the collection. Its visitors rate - their
+// link's own rating, the comment sealed to the owner's public key and for
+// them under the link's own key - see their link's ratings only, and are
+// refused once the link no longer takes ratings or the photo left; the
+// owner is alerted at most once an hour per link.
 func TestRatedSharedGallery(t *testing.T) {
 	storage, ses := galleryTestEnv(t)
 	files := []*pb.File{
@@ -366,8 +397,11 @@ func TestRatedSharedGallery(t *testing.T) {
 	target(files[1].Hash, true, true)
 	v.expect(mock)
 	var comment, shared []byte
-	mock.ExpectExec(upsertRating).WithArgs(4, descCapture{&comment}, descCapture{&shared}, id, sqlmock.AnyArg(), "g1", files[1].Hash).
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs(id, 4, descCapture{&comment}, descCapture{&shared}, sqlmock.AnyArg(), "g1", files[1].Hash).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(upsertShown).WithArgs(4, sqlmock.AnyArg(), id, sqlmock.AnyArg(), "g1", files[1].Hash).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	mock.ExpectExec("update `shared_links` set `rating_alerted` = \\?").WithArgs(sqlmock.AnyArg(), id, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("select `name` from `image_groups` where `id` = \\?").WithArgs("g1").WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Wedding"))
 	notice, err := mg.RateSharedGalleryItem(id, secret, 1, 4, " Brighter, please ")
@@ -378,32 +412,53 @@ func TestRatedSharedGallery(t *testing.T) {
 	if got, err := openWithPrivate(v.priv, comment, aad); err != nil || string(got) != "Brighter, please" {
 		t.Fatalf("the owner's copy: %q %v", got, err)
 	}
-	if got, err := openWithKey(key, shared, aad); err != nil || string(got) != "Brighter, please" {
+	if got, err := openLinkComment(&galleryManifest{RatingKey: key}, id, secret, "g1", files[1].Hash, shared); err != nil || string(got) != "Brighter, please" {
 		t.Fatalf("the visitors' copy: %q %v", got, err)
+	}
+	if _, err := openWithKey(key, append([]byte{cSealV1}, shared[1:]...), aad); err == nil {
+		t.Fatal("the visitors' copy opens with the collection's key: any link's would")
 	}
 
 	// Within the hour: stored, nobody told again. Stars alone need no key.
 	alive()
 	linkRating("g1", true)
 	target(files[0].Hash, true, true)
-	mock.ExpectExec(upsertRating).WithArgs(5, nil, nil, id, sqlmock.AnyArg(), "g1", files[0].Hash).WillReturnResult(sqlmock.NewResult(0, 1))
+	expectRating(mock, id, 5, nil, nil, files[0].Hash)
 	mock.ExpectExec("update `shared_links` set `rating_alerted`").WillReturnResult(sqlmock.NewResult(0, 0))
 	if notice, err := mg.RateSharedGalleryItem(id, secret, 0, 5, ""); err != nil || notice != nil {
 		t.Fatalf("again: %+v %v", notice, err)
 	}
 
-	// The page shows every photo's rating now.
+	// The page shows this link's ratings: asked for its own rows alone; a
+	// comment stored before release 169 opens with the collection's key.
+	before, _ := sealWithKey(key, []byte("From before"), ratingAAD("g1", files[0].Hash))
 	alive()
 	mock.ExpectExec("update `shared_links` set `opens`").WillReturnResult(sqlmock.NewResult(0, 1))
 	linkRating("g1", true)
 	mock.ExpectQuery("select `rating` from `image_groups` where `id` = \\?").WithArgs("g1").WillReturnRows(sqlmock.NewRows([]string{"rating"}).AddRow(true))
-	mock.ExpectQuery("from `photo_ratings` where `group_id` = \\? and `hash` in").WithArgs("g1", files[0].Hash, files[1].Hash).
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "stars", "comment", "shared_comment", "link", "updated"}).
-			AddRow(files[0].Hash, 5, nil, nil, id, time.Now()).
-			AddRow(files[1].Hash, 4, comment, shared, nil, time.Now()))
+	mock.ExpectQuery("from `photo_rating_sources` where `group_id` = \\? and `source` = \\? and `hash` in").WithArgs("g1", id, files[0].Hash, files[1].Hash).
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "stars", "link_comment", "updated"}).
+			AddRow(files[0].Hash, 5, before, time.Now()).
+			AddRow(files[1].Hash, 4, shared, time.Now()))
 	g, err := mg.OpenSharedGallery(id, secret)
-	if err != nil || !g.Rating || g.Items[0].Stars != 5 || g.Items[0].Comment != "" || g.Items[1].Stars != 4 || g.Items[1].Comment != "Brighter, please" {
+	if err != nil || !g.Rating || g.Items[0].Stars != 5 || g.Items[0].Comment != "From before" || g.Items[1].Stars != 4 || g.Items[1].Comment != "Brighter, please" {
 		t.Fatalf("open: %+v %v", g, err)
+	}
+
+	// Taking theirs back (0 and ""): their row goes, and the owner sees the
+	// latest left - here none.
+	alive()
+	linkRating("g1", true)
+	target(files[1].Hash, true, true)
+	mock.ExpectBegin()
+	mock.ExpectExec("delete from `photo_rating_sources` where `group_id` = \\? and `hash` = \\? and `source` = \\?").WithArgs("g1", files[1].Hash, id).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `link` from `photo_ratings`").WillReturnRows(sqlmock.NewRows([]string{"link"}).AddRow(id))
+	mock.ExpectQuery("select `source`, `stars`, `comment`, `updated` from `photo_rating_sources`").WillReturnRows(sqlmock.NewRows([]string{"source", "stars", "comment", "updated"}))
+	mock.ExpectExec("delete from `photo_ratings`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	mock.ExpectExec("update `shared_links` set `rating_alerted`").WillReturnResult(sqlmock.NewResult(0, 0))
+	if _, err := mg.RateSharedGalleryItem(id, secret, 1, 0, ""); err != nil {
+		t.Fatalf("taken back: %v", err)
 	}
 
 	// The collection's Rating off: the page takes none, and a rating is
@@ -542,8 +597,6 @@ func TestStartRatedSharedGallery(t *testing.T) {
 	v.expect(mock)
 	mock.ExpectQuery("select `rating_key` from `image_groups`").WithArgs("g1").
 		WillReturnRows(sqlmock.NewRows([]string{"rating_key"}).AddRow(ses.Encrypt(key)))
-	mock.ExpectQuery("`comment` is not null and `shared_comment` is null").WithArgs("g1").
-		WillReturnRows(sqlmock.NewRows([]string{"hash", "stars", "comment", "shared_comment", "link", "updated"}))
 	mock.ExpectQuery("select `rating` from `image_groups` where `id` = \\?").WithArgs("g1").WillReturnRows(sqlmock.NewRows([]string{"rating"}).AddRow(false))
 	mock.ExpectExec("update `image_groups` set `rating` = \\? where `id` = \\?").WithArgs(true, "g1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("insert into `shared_links` \\(`uuid`, `size`, `created`, `kind`, `description`, `files`, `expires`, `group_id`, `rating`\\)").

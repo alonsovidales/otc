@@ -2524,17 +2524,33 @@ references or looks better than the chosen one (`coverMayChange`); the faces fou
 once after a sign-in (`BackfillFaceQuality`, Background work "faces", `settings.face_quality_done`), then
 everyone's face is chosen again (`TestBestFacesMySQL`, `face_covers_test.go`). **Rating** (owner,
 2026-11-02; release 163's `updates/163.sh`; device side `files_manager/rating.go`, `dao/ratings.go`,
-`websocket/rating.go`): `image_groups.rating` turns it on for a collection (off keeps the ratings);
-`photo_ratings` holds one row per (collection, hash) - the stars plain (searched and sorted like
-tags' scores: `searchMediaRatedClauses`, a left join on the member `ig`, ranked), the comment sealed
-to the user's X25519 key pair (`vault.rating_public`/`rating_private`, the private half under
-`ses.Encrypt`, made at the first sign-in that finds none; ephemeral ECDH + HKDF-SHA256 +
-AES-256-GCM, bound to group and hash) and again under the collection's link key
-(`image_groups.rating_key`, sealed with the owner's key, carried in each rated gallery's sealed
-manifest as `rating_key`; `shared_comment`), which is how a link's visitor sees the current comments
-while the owner is signed out. A rating row goes with the photo's membership (same transaction) and
-with the collection; it is inserted from the membership row, so a photo taken out meanwhile leaves
-none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
+`websocket/rating.go`): `image_groups.rating` turns it on for a collection (off keeps the ratings).
+Each one who rates keeps their own rating of a photo (release 169's `updates/169.sh`:
+`photo_rating_sources`, one row per (collection, hash, source) - source `""` the owner's, else the
+link's uuid): a link's visitors see and change only their link's (`dao.LinkRatings`) - until then one
+row was shared by the owner and every link, so a client saw another's comments and the owner's own
+notes, and could overwrite or clear them. `photo_ratings` stays what the owner sees and the searches
+use, one row per (collection, hash): the latest change of anyone's, its `link` whose (`from_link`),
+set in the change's own transaction (`dao.SetPhotoRating`). A link taking theirs back (0 and "")
+deletes its row and, when the owner saw it, shows the latest left; the owner's clear stays a row with
+neither, which hides the older ones from the owner; sources keep their time to the microsecond, so of
+two changes in one second the later is the latest. The apps show the owner that one rating per photo,
+as before. The stars are plain (searched and sorted like tags' scores: `searchMediaRatedClauses`, a
+left join on the member `ig`, ranked); a comment is sealed to the user's X25519 key pair
+(`vault.rating_public`/`rating_private`, the private half under `ses.Encrypt`, made at the first
+sign-in that finds none; ephemeral ECDH + HKDF-SHA256 + AES-256-GCM, bound to group and hash), and a
+link's also for its visitors while the owner is signed out (`link_comment`) under a key made from the
+link's own secret (`linkCommentKey`, HKDF; `cSealLinkV2`), which only its visitors' requests present
+and the device never keeps - one stored before release 169 (`cSealV1`) under the collection's link
+key (`image_groups.rating_key`, sealed with the owner's key, still made with the collection's first
+rated link and carried in each rated gallery's sealed manifest as `rating_key`, where having one says
+the link takes ratings). The owner's own comments are never sealed for a link (release 163 copied
+them under the collection's key at its first rated link). At each start `dao.ReconcileRatingSources`
+gives every rating stored before - or by an older binary put back by an update that didn't start -
+its source's row (a link's comment from `shared_comment`, which nothing writes any more) and drops the
+owner's comments' copies. A rating row goes with the photo's membership (same transaction, every
+source's) and with the collection; it is inserted from the membership row, so a photo taken out
+meanwhile leaves none. Rated galleries record each item's hash in the manifest and `shared_links.group_id`/`rating`;
 `RateSharedGalleryItem` is public (per-address and device-wide token buckets, `visitorRatings`) and
 alerts plus pushes at most once an hour per link (`shared_links.rating_alerted`, a conditional
 update; a `NotificationRating` row through `dao.AddRatingNotification`: never grouped, its keys rendered

@@ -58,7 +58,10 @@ func TestRatingOwnerRequests(t *testing.T) {
 		mock.ExpectQuery("select `g`.`rating`, exists").WithArgs("h1", "g1").WillReturnRows(sqlmock.NewRows([]string{"rating", "member"}).AddRow(on, member))
 	}
 	target(true, true)
-	mock.ExpectExec("insert into `photo_ratings`").WithArgs(4, nil, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectBegin()
+	mock.ExpectExec("insert into `photo_rating_sources`").WithArgs("", 4, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `photo_ratings`").WithArgs(4, nil, nil, sqlmock.AnyArg(), "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	resp, _ = ch.processMessage(setPhotoRatingReq("g1", "/a.jpg", 4, ""))
 	if got, ok := resp.GetPayload().(*pb.RespEnvelope_RespPhotoRating); resp.Error || !ok || got.RespPhotoRating.Stars != 4 || got.RespPhotoRating.FromLink {
 		t.Errorf("rated: %+v", resp)

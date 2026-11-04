@@ -3266,7 +3266,8 @@ func (dao *Dao) AddPathsToImageGroup(groupID string, paths []string) error {
 // photo (issue #201), so taking out one of its paths takes the photo out
 // whatever other copies it has. Paths that aren't members change nothing.
 // The pictures themselves are untouched; their ratings in the group
-// (release 163) go with them, in the same transaction.
+// (release 163), each source's (169), go with them, in the same
+// transaction.
 func (dao *Dao) RemovePathsFromImageGroup(groupID string, paths []string) error {
 	if len(paths) == 0 {
 		return nil
@@ -3287,10 +3288,12 @@ func (dao *Dao) RemovePathsFromImageGroup(groupID string, paths []string) error 
 			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(
-		"delete from `photo_ratings` where `group_id` = ?"+
-			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...); err != nil && !isNoSuchTable(err) {
-		return err
+	for _, table := range []string{"photo_ratings", "photo_rating_sources"} {
+		if _, err := tx.Exec(
+			"delete from `"+table+"` where `group_id` = ?"+
+				" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...); err != nil && !isNoSuchTable(err) {
+			return err
+		}
 	}
 	return tx.Commit()
 }
@@ -3301,7 +3304,8 @@ func (dao *Dao) RenameImageGroup(id, name string) (err error) {
 }
 
 // DeleteImageGroup removes the group, its memberships and its photos'
-// ratings (release 163). The pictures themselves are untouched - a group
+// ratings (release 163, each source's since 169). The pictures themselves
+// are untouched - a group
 // is a way of looking at them, not where they live.
 func (dao *Dao) DeleteImageGroup(id string) error {
 	tx, err := dao.db.Begin()
@@ -3312,8 +3316,10 @@ func (dao *Dao) DeleteImageGroup(id string) error {
 	if _, err := tx.Exec("delete from `image_group_files` where `group_id` = ?", id); err != nil {
 		return err
 	}
-	if _, err := tx.Exec("delete from `photo_ratings` where `group_id` = ?", id); err != nil && !isNoSuchTable(err) {
-		return err
+	for _, table := range []string{"photo_ratings", "photo_rating_sources"} {
+		if _, err := tx.Exec("delete from `"+table+"` where `group_id` = ?", id); err != nil && !isNoSuchTable(err) {
+			return err
+		}
 	}
 	if _, err := tx.Exec("delete from `image_groups` where `id` = ?", id); err != nil {
 		return err

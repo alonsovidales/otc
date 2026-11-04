@@ -125,6 +125,8 @@ func TestRatingsGoWithTheirMembership(t *testing.T) {
 		WithArgs("g1", "/a.jpg", "/b.jpg").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\? and `hash` in \\(select `hash` from `files` where `path` in \\(\\?,\\?\\)\\)").
 		WithArgs("g1", "/a.jpg", "/b.jpg").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("delete from `photo_rating_sources` where `group_id` = \\? and `hash` in \\(select `hash` from `files` where `path` in \\(\\?,\\?\\)\\)").
+		WithArgs("g1", "/a.jpg", "/b.jpg").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
 	if err := d.RemovePathsFromImageGroup("g1", []string{"/a.jpg", "/b.jpg"}); err != nil {
 		t.Fatal(err)
@@ -133,14 +135,16 @@ func TestRatingsGoWithTheirMembership(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("delete from `image_group_files`").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("delete from `photo_ratings`").WillReturnError(noSuchTable)
+	mock.ExpectExec("delete from `photo_rating_sources`").WillReturnError(noSuchTable)
 	mock.ExpectCommit()
 	if err := d.RemovePathsFromImageGroup("g1", []string{"/a.jpg"}); err != nil {
-		t.Fatalf("without the table: %v", err)
+		t.Fatalf("without the tables: %v", err)
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec("delete from `image_group_files` where `group_id` = \\?").WithArgs("g1").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\?").WithArgs("g1").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec("delete from `photo_rating_sources` where `group_id` = \\?").WithArgs("g1").WillReturnResult(sqlmock.NewResult(0, 4))
 	mock.ExpectExec("delete from `image_groups` where `id` = \\?").WithArgs("g1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	if err := d.DeleteImageGroup("g1"); err != nil {
@@ -157,38 +161,88 @@ func TestRatingsGoWithTheirMembership(t *testing.T) {
 	}
 }
 
-// A rating is written only from the photo's membership row, and cleared
-// by deleting it.
+const (
+	upsertSource = "insert into `photo_rating_sources` \\(`group_id`, `hash`, `source`, `stars`, `comment`, `link_comment`, `updated`\\) select `group_id`, `hash`, \\?, \\?, \\?, \\?, \\? from `image_group_files` where `group_id` = \\? and `hash` = \\? on duplicate key update"
+	upsertShown  = "insert into `photo_ratings` \\(`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`\\) select `group_id`, `hash`, \\?, \\?, null, \\?, \\? from `image_group_files` where `group_id` = \\? and `hash` = \\? on duplicate key update"
+)
+
+// A rating is its source's own (release 169), written only from the
+// photo's membership row, and what the owner sees is the latest change -
+// in one transaction. A link's visitors taking theirs back deletes their
+// row and shows the owner the latest left; the owner's own clear stays a
+// row with neither, hiding the older ones.
 func TestSetPhotoRating(t *testing.T) {
 	d, mock := ratingsMock(t)
-	at := time.Date(2026, 11, 2, 21, 0, 0, 0, time.UTC)
-	const upsert = "insert into `photo_ratings` \\(`group_id`, `hash`, `stars`, `comment`, `shared_comment`, `link`, `updated`\\) select `group_id`, `hash`, \\?, \\?, \\?, \\?, \\? from `image_group_files` where `group_id` = \\? and `hash` = \\? on duplicate key update"
+	at := time.Date(2026, 11, 2, 21, 0, 0, 123456000, time.UTC)
+	second := at.Truncate(time.Second)
 
-	mock.ExpectExec(upsert).WithArgs(4, []byte("sealed"), []byte("shared"), "link-1", at, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	// A link's rating: its own row (its comment for its visitors too), and
+	// the owner sees it, the comment sealed to the owner's key only.
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs("link-1", 4, []byte("sealed"), []byte("shared"), at, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(upsertShown).WithArgs(4, []byte("sealed"), "link-1", second, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Stars: 4, Comment: []byte("sealed"), SharedComment: []byte("shared"), Link: "link-1", Updated: at}); err != nil || !stored {
-		t.Fatalf("insert: %v %v", stored, err)
+		t.Fatalf("a link's: %v %v", stored, err)
 	}
-	// Stars alone: no comment, no shared copy, no link.
-	mock.ExpectExec(upsert).WithArgs(2, nil, nil, nil, at, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
-	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Stars: 2, SharedComment: []byte("stray"), Updated: at}); err != nil || !stored {
-		t.Fatalf("update: %v %v", stored, err)
+	// The owner's: no copy for anyone.
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs("", 2, []byte("mine"), nil, at, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectExec(upsertShown).WithArgs(2, []byte("mine"), nil, second, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
+	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Stars: 2, Comment: []byte("mine"), SharedComment: []byte("stray"), Updated: at}); err != nil || !stored {
+		t.Fatalf("the owner's: %v %v", stored, err)
 	}
-	// Nothing written: not a member (no row), or the same values (a row).
-	mock.ExpectExec(upsert).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("select 1 from `photo_ratings` where `group_id` = \\? and `hash` = \\?").WithArgs("g1", "gone").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	// Not a member: nothing written.
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("select 1 from `image_group_files` where `group_id` = \\? and `hash` = \\?").WithArgs("g1", "gone").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectRollback()
 	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "gone", Stars: 2, Updated: at}); err != nil || stored {
 		t.Fatalf("not a member: %v %v", stored, err)
 	}
-	mock.ExpectExec(upsert).WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("select 1 from `photo_ratings`").WithArgs("g1", "h1").WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
-	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Stars: 2, Updated: at}); err != nil || !stored {
-		t.Fatalf("unchanged: %v %v", stored, err)
-	}
+	// The owner's clear: kept as a row with neither, and the owner sees
+	// none.
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WithArgs("", 0, nil, nil, at, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
 	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\? and `hash` = \\?").WithArgs("g1", "h1").WillReturnResult(sqlmock.NewResult(0, 1))
-	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1"}); err != nil || !stored {
-		t.Fatalf("clear: %v %v", stored, err)
+	mock.ExpectCommit()
+	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Updated: at}); err != nil || !stored {
+		t.Fatalf("the owner's clear: %v %v", stored, err)
 	}
-	mock.ExpectExec(upsert).WillReturnError(ratingColumn)
+	// A link's taken back, while the owner saw it: the latest left shows.
+	mock.ExpectBegin()
+	mock.ExpectExec("delete from `photo_rating_sources` where `group_id` = \\? and `hash` = \\? and `source` = \\?").WithArgs("g1", "h1", "link-1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `link` from `photo_ratings` where `group_id` = \\? and `hash` = \\? for update").WithArgs("g1", "h1").WillReturnRows(sqlmock.NewRows([]string{"link"}).AddRow("link-1"))
+	mock.ExpectQuery("select `source`, `stars`, `comment`, `updated` from `photo_rating_sources` where `group_id` = \\? and `hash` = \\? order by `updated` desc limit 1").
+		WithArgs("g1", "h1").WillReturnRows(sqlmock.NewRows([]string{"source", "stars", "comment", "updated"}).AddRow("link-2", 3, nil, at))
+	mock.ExpectExec(upsertShown).WithArgs(3, nil, "link-2", second, "g1", "h1").WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
+	if stored, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Link: "link-1", Updated: at}); err != nil || !stored {
+		t.Fatalf("taken back: %v %v", stored, err)
+	}
+	// ... the latest left the owner's clear: the owner sees none.
+	mock.ExpectBegin()
+	mock.ExpectExec("delete from `photo_rating_sources`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `link` from `photo_ratings`").WillReturnRows(sqlmock.NewRows([]string{"link"}).AddRow("link-2"))
+	mock.ExpectQuery("select `source`, `stars`, `comment`, `updated` from `photo_rating_sources`").WillReturnRows(sqlmock.NewRows([]string{"source", "stars", "comment", "updated"}).AddRow("", 0, nil, at))
+	mock.ExpectExec("delete from `photo_ratings` where `group_id` = \\? and `hash` = \\?").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if _, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Link: "link-2", Updated: at}); err != nil {
+		t.Fatal(err)
+	}
+	// ... while the owner saw another's: left as it is.
+	mock.ExpectBegin()
+	mock.ExpectExec("delete from `photo_rating_sources`").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `link` from `photo_ratings`").WillReturnRows(sqlmock.NewRows([]string{"link"}).AddRow(nil))
+	mock.ExpectCommit()
+	if _, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Link: "link-3", Updated: at}); err != nil {
+		t.Fatal(err)
+	}
+	// A database before release 169.
+	mock.ExpectBegin()
+	mock.ExpectExec(upsertSource).WillReturnError(&mysql.MySQLError{Number: 1146, Message: "Table 'otc.photo_rating_sources' doesn't exist"})
+	mock.ExpectRollback()
 	if _, err := d.SetPhotoRating("g1", PhotoRatingRow{Hash: "h1", Stars: 1}); !errors.Is(err, ErrSchemaBehind) {
 		t.Fatalf("schema behind: %v", err)
 	}
@@ -222,6 +276,44 @@ func TestPhotoRatings(t *testing.T) {
 	mock.ExpectQuery("from `photo_ratings`").WillReturnError(noSuchTable)
 	if got, err := d.PhotoRatings("g1", []string{"h1"}); err != nil || len(got) != 0 {
 		t.Fatalf("no table: %v %v", got, err)
+	}
+}
+
+// A link's visitors read their link's ratings only; none without the
+// table, or for no link.
+func TestLinkRatings(t *testing.T) {
+	d, mock := ratingsMock(t)
+	at := time.Date(2026, 11, 2, 21, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("select `hash`, `stars`, `link_comment`, `updated` from `photo_rating_sources` where `group_id` = \\? and `source` = \\? and `hash` in \\(\\?, \\?\\)").
+		WithArgs("g1", "link-1", "h1", "h2").
+		WillReturnRows(sqlmock.NewRows([]string{"hash", "stars", "link_comment", "updated"}).AddRow("h1", 5, []byte("theirs"), at))
+	got, err := d.LinkRatings("g1", "link-1", []string{"h1", "h2"})
+	if err != nil || len(got) != 1 || got["h1"].Stars != 5 || got["h1"].Link != "link-1" || string(got["h1"].SharedComment) != "theirs" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if got, err := d.LinkRatings("g1", "", []string{"h1"}); err != nil || len(got) != 0 {
+		t.Fatalf("the owner's own through a link: %v %v", got, err)
+	}
+	mock.ExpectQuery("from `photo_rating_sources`").WillReturnError(&mysql.MySQLError{Number: 1146, Message: "Table 'otc.photo_rating_sources' doesn't exist"})
+	if got, err := d.LinkRatings("g1", "link-1", []string{"h1"}); err != nil || len(got) != 0 {
+		t.Fatalf("no table: %v %v", got, err)
+	}
+}
+
+// At start, every rating of what the owner sees gets its source's row when
+// it has none or an older one, and the owner's own comments' copies for
+// links go; a database before release 169 is left alone.
+func TestReconcileRatingSources(t *testing.T) {
+	d, mock := ratingsMock(t)
+	mock.ExpectExec("insert into `photo_rating_sources` \\(`group_id`, `hash`, `source`, `stars`, `comment`, `link_comment`, `updated`\\) select `pr`.`group_id`, `pr`.`hash`, coalesce\\(`pr`.`link`, ''\\), .* from `photo_ratings` as `pr` on duplicate key update").
+		WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec("update `photo_ratings` set `shared_comment` = null where `link` is null and `shared_comment` is not null").WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := d.ReconcileRatingSources(); err != nil {
+		t.Fatal(err)
+	}
+	mock.ExpectExec("insert into `photo_rating_sources`").WillReturnError(&mysql.MySQLError{Number: 1146, Message: "Table 'otc.photo_rating_sources' doesn't exist"})
+	if err := d.ReconcileRatingSources(); !errors.Is(err, ErrSchemaBehind) {
+		t.Fatalf("no table: %v", err)
 	}
 }
 
