@@ -16,8 +16,17 @@
 // it shows, and the layer it is for (doc: the page load that opened it; a
 // reload's layers are gone). The rules:
 //   - Back past a layer's entry closes the layer, the top one first. One
-//     that can't close now (a dialog at work) stays, and gets an entry
-//     again.
+//     that can't close now (a dialog at work) stops the Back there: it,
+//     the layers under it and the section stay as they are, and history
+//     goes forward to its entry again - however far the Back went (a
+//     long press or right click on the browser's Back picks an entry
+//     several steps back).
+//   - A cover (the unreachable screen: useBackCover) is such a layer for
+//     as long as it is open, so Back never closes what lies under it nor
+//     changes the section behind it - unless nothing does: no other layer
+//     is open and it opened over the entry the page loaded on. Then Back
+//     goes through it as if it weren't there (it stays on the page, its
+//     entry gone): off the site, or to the entries from before a reload.
 //   - Back onto an entry of another section shows that section.
 //   - A layer that closed by itself (its ×, Esc, its backdrop) leaves its
 //     entry: the next entry written at that moment takes its place (a pick
@@ -60,7 +69,7 @@ export interface BackWindow {
 // on without it: from history's first entry there is nowhere to go.
 const cStepWaitMs = 3000;
 
-type Layer = { key: string; close: () => boolean | void; entry: number | null };
+type Layer = { key: string; close: () => boolean | void; entry: number | null; cover: boolean };
 
 /** The stack's part of a history state; null for an entry it didn't write. */
 export function backEntryOf(state: unknown): BackEntry | null {
@@ -73,8 +82,9 @@ export type BackStack = ReturnType<typeof createBackStack>;
 /** The history of one page load (`doc` tells its layers from a reload's). */
 export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStepWaitMs) {
   let started = false;
-  // The entry history is on.
+  // The entry history is on, and the one the page loaded on.
   let at = 0;
+  let loadAt = 0;
   // The section the page shows (App's); undefined where there are none (/shared).
   let tab: string | undefined;
   // Open layers, in the order they opened; entry null until it has one.
@@ -82,8 +92,9 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
   // A section moved to, its entry not written yet.
   let pushTab = false;
   // A history.go of ours, until its popstate: tidy when it steps off a
-  // dead entry (what the page shows stays), else a Back going on.
-  let step: { tidy: boolean; timer: unknown } | null = null;
+  // dead entry (what the page shows stays), `to` when it goes forward to
+  // the entry of a layer that stopped a Back, else a Back going on.
+  let step: { tidy: boolean; to?: number; timer: unknown } | null = null;
   let settleTimer: unknown = null;
   let nextKey = 0;
   let onSection: ((tab: string) => string) | null = null;
@@ -103,6 +114,7 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
     started = true;
     const cur = backEntryOf(win.history.state);
     at = cur?.i ?? 0;
+    loadAt = at;
     // The entry the page loaded on shows its section and no layer (a
     // reload with the viewer open left the viewer's entry).
     write(false, { i: at, tab: tab ?? cur?.tab });
@@ -123,17 +135,24 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
     if (settleTimer === null) settleTimer = win.setTimeout(settle, 0);
   };
 
-  const go = (delta: number, tidy: boolean) => {
+  const go = (delta: number, tidy: boolean, to?: number) => {
     const timer = win.setTimeout(() => {
       step = null;
       // History didn't move. A dead entry it was to leave shows what the
       // page shows from now on, rather than being tried again and again.
       if (tidy) write(false, { i: at, tab });
+      // Nor back up to the layer that stopped a Back: it and those under
+      // it whose entries lie ahead get entries again, from here.
+      if (to !== undefined) for (const l of layers) if (l.entry !== null && l.entry > at) l.entry = null;
       schedule();
     }, stepWaitMs);
-    step = { tidy, timer };
+    step = { tidy, to, timer };
     win.history.go(delta);
   };
+
+  // A cover with nothing of the page's under it: no other layer, and its
+  // entry right over the one the page loaded on.
+  const bare = (k: number, l: Layer) => k === 0 && l.entry === loadAt + 1;
 
   // The entry history is on belongs to a layer that is no longer open.
   const onDeadEntry = () => {
@@ -187,18 +206,34 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
       schedule();
       return;
     }
+    if (ours?.to === at) {
+      // Back on the entry of the layer that stopped a Back: as it was.
+      schedule();
+      return;
+    }
     let changed = false;
-    let kept = false;
+    // The layer that stops this Back, if one does.
+    let stop: Layer | null = null;
     for (let k = layers.length - 1; k >= 0; k--) {
       const l = layers[k];
       if (l.entry === null || l.entry <= at) continue;
-      if (l.close() === false) {
-        l.entry = null;
-        kept = true;
-      } else {
+      if (l.cover && bare(k, l)) {
+        // Back goes through it: nothing on the page changes.
         layers.splice(k, 1);
-        changed = true;
+        continue;
       }
+      if (l.cover || l.close() === false) {
+        stop = l;
+        break;
+      }
+      layers.splice(k, 1);
+      changed = true;
+    }
+    if (stop) {
+      // It, what lies under it and the section stay: history goes forward
+      // to its entry again (the entries between are there still).
+      go(stop.entry! - at, false, stop.entry!);
+      return;
     }
     if (e.tab && e.tab !== tab && onSection) {
       // App may show another (a section that needs a session, signed
@@ -208,26 +243,36 @@ export function createBackStack(win: BackWindow, doc: string, stepWaitMs = cStep
       tab = shown;
       if (shown !== e.tab) write(false, { i: at, tab, layer: e.layer });
     }
-    if (back && !changed && !kept) {
+    if (back && !changed) {
       go(-1, false);
       return;
     }
     schedule();
   };
 
+  // A layer opened (see layer and cover); returns its release.
+  const open = (close: () => boolean | void, cover: boolean) => {
+    start();
+    const key = `${doc}:${++nextKey}`;
+    layers.push({ key, close, entry: null, cover });
+    schedule();
+    return () => {
+      const k = layers.findIndex((l) => l.key === key);
+      if (k < 0) return; // Back closed it, or went through it
+      layers.splice(k, 1);
+      schedule();
+    };
+  };
+
   return {
     /** A layer opened; close() is Back's (false: it stays). Returns its release. */
     layer(close: () => boolean | void): () => void {
-      start();
-      const key = `${doc}:${++nextKey}`;
-      layers.push({ key, close, entry: null });
-      schedule();
-      return () => {
-        const k = layers.findIndex((l) => l.key === key);
-        if (k < 0) return; // Back closed it
-        layers.splice(k, 1);
-        schedule();
-      };
+      return open(close, false);
+    },
+    /** A cover opened (the rules above): Back never gets under it while
+     *  something of the page's lies there. Returns its release. */
+    cover(): () => void {
+      return open(() => false, true);
     },
     /** The section shown: moved to (push, an entry of its own) or corrected
      *  (the entry history is on says it). */
@@ -300,5 +345,15 @@ export function useBackLayer(open: boolean, close: () => boolean | void) {
   useEffect(() => {
     if (!open || !pageStack) return;
     return pageStack.layer(() => closeRef.current());
+  }, [open]);
+}
+
+/** While `open`, this is a cover over the page (the unreachable screen):
+ *  Back leaves what lies under it as it is, or, with nothing there, goes
+ *  through it (the rules at the top). */
+export function useBackCover(open: boolean) {
+  useEffect(() => {
+    if (!open || !pageStack) return;
+    return pageStack.cover();
   }, [open]);
 }

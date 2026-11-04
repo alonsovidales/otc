@@ -2729,7 +2729,8 @@ a failed restore, People without faces, Images back to Collections) rewrites the
 every layer calls `useBackLayer(open, close)` - the viewers (MediaViewer, the feed's, Files' and
 /shared's), `Modal` (so every ConfirmDialog and LinkDialog), the composer, the trimmer, the
 drawer, the tour, People's and Settings' dialogs - and Back closes the top one (`close` returning
-false keeps a dialog at work, which gets its entry again), else shows the entry's section
+false keeps a dialog at work: the Back stops there, however many steps it went, the layers under
+it and the section stay, and history goes forward to its entry again), else shows the entry's section
 (`sectionFor`: signed out, the landing page). A layer closed by its own button leaves its entry
 to the next one written at that moment (a pick in the drawer is one entry) or steps back off it;
 a Back that changes nothing goes on back. Entries keep the address (`#download`, `/shared#…`) and
@@ -2767,8 +2768,11 @@ again, and the focus goes back where it was. For `device_unreachable` it comes a
 (`deviceStatus.coverAfterMs`; App's `useCover` asks GetPubKey at 1.5 s), so a blip that mends itself
 never shows it; `account_disabled` and a device without its storage show it at once. Escape never
 closes it (a second one the browser takes as closing it brings it back) and its keys never reach the
-page; nor does Back: it is a back layer that won't close (`useBackLayer(true, () => false)`), so the
-browser's Back, Alt+Left or a back swipe never closes the composer under it or changes the section. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
+page; nor does Back while the device is away: it is a cover (`useBackCover`), so the browser's Back,
+Alt+Left or a back swipe, one step or several, never closes the composer under it or changes the
+section - unless nothing of the page's lies under it (no other layer, and it came up over the entry
+the page loaded on), when Back goes through it and leaves the site as it would without it. A
+switched-off account's has none (that lasts until the owner acts): Back works as usual. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
 those two codes in English only. `deviceStatus.isBridgeAnswer` tells the bridge's answer for the
 device from the device's own - every request that follows treats it as no answer, never as a refusal
 in the bridge's words. Nothing mounts again as the screen lifts, so a load that runs once and failed

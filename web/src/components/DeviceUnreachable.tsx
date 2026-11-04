@@ -15,18 +15,18 @@
 // password - it checked nothing.
 //
 // It lies over the app, which stays as it is underneath (App.tsx): a modal
-// dialog, so the page behind takes no click, key, focus or Back meanwhile, and
-// what was typed or open there - a post being written, a dialog, a
-// download - is still there when the device answers again. The words are
-// the web app's own in the language on screen, never the bridge's (its
-// relay texts are always English): only the device's own explanation of
-// its storage is shown as it comes.
+// dialog, so the page behind takes no click, key or focus meanwhile, nor
+// Back while the device is away (below), and what was typed or open there
+// - a post being written, a dialog, a download - is still there when the
+// device answers again. The words are the web app's own in the language on
+// screen, never the bridge's (its relay texts are always English): only
+// the device's own explanation of its storage is shown as it comes.
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { useWS } from "../net/useWS";
 import { cStorageUnavailable, recheckMs, type DeviceStatus } from "../net/deviceStatus";
 import { useT } from "../i18n";
 import LanguagePicker from "./LanguagePicker";
-import { useBackLayer } from "./backStack";
+import { useBackCover } from "./backStack";
 import "./DeviceUnreachable.css";
 
 // How often to check whether the device is answering again (recheckMs):
@@ -77,11 +77,14 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
     };
   }, [every]);
 
-  // Back can't close it either (a layer that won't close: backStack.ts):
-  // the browser's Back, Alt+Left or a back swipe would otherwise go to the
-  // layer under it - the composer, closed with its caption and picks - or
-  // change the section behind it. Its entry goes with it.
-  useBackLayer(true, () => false);
+  // Nor does Back get under it (a cover: backStack.ts): the browser's
+  // Back, Alt+Left or a back swipe would otherwise close the layer under
+  // it - the composer, with its caption and picks - or change the section
+  // behind it, however many steps back it went. With nothing of the page's
+  // under it (it came up as the page loaded) Back goes through it and
+  // leaves the site, as it would without it. Not for a switched-off
+  // account: that lasts until the owner acts, and Back works as usual.
+  useBackCover(!disabled);
 
   // Over everything, the page behind inert; what had the focus there has
   // it again once the device answers. The browser may close a modal dialog
