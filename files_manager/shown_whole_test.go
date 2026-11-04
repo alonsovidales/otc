@@ -29,8 +29,8 @@ func sized(path, mime string, size int64) *pb.File {
 }
 
 // What GetFile sends whole is a third of the content budget, at least
-// 64 MB - never a HEIC (sent as its JPEG, bounded by the decode budget) or
-// a video (the web composer's trimmer has no other way to read one yet).
+// 64 MB, whatever the file is: a video too (every client streams one or
+// reads it in pieces), and a HEIC, read whole to be converted.
 func TestOverShownWhole(t *testing.T) {
 	mg := &Manager{contentBudget: newMemBudget(1500 << 20)}
 	mg.sizesBackfilled.Store(true)
@@ -47,8 +47,10 @@ func TestOverShownWhole(t *testing.T) {
 		{sized("/scans/a.tif", "image/tiff", 1500<<20), true},
 		{sized("/scans/b.tif", "image/tiff", 400<<20), false},
 		{sized("/docs/c.pdf", "application/pdf", 900<<20), true},
-		{sized("/photos/d.HEIC", "image/heic", 900<<20), false},
-		{sized("/videos/e.mov", "video/quicktime", 3<<30), false},
+		{sized("/photos/d.HEIC", "image/heic", 900<<20), true},
+		{sized("/photos/d2.HEIC", "image/heic", 9<<20), false},
+		{sized("/videos/e.mov", "video/quicktime", 3<<30), true},
+		{sized("/videos/f.mov", "video/quicktime", 7<<20), false},
 	} {
 		if got := mg.overShownWhole(c.f); got != c.over {
 			t.Errorf("%s: over %v, want %v", c.f.Path, got, c.over)

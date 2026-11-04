@@ -181,14 +181,14 @@ func (mg *Manager) shownWholeLimit() int64 {
 }
 
 // overShownWhole is whether GetFile refuses f as too large to send whole
-// (shownWholeLimit). A HEIC is sent as its JPEG, which the decode budget
-// bounds (heicToJpeg). A video isn't capped yet: the web composer's
-// trimmer fetches one whole with GetFile and has no other way to read it,
-// while every viewer streams videos and downloads read in parts.
+// (shownWholeLimit), whatever it is. Videos were let through while the web
+// composer's trimmer fetched one whole with GetFile: a multi-GB library
+// video went into one reply, held twice over. Since release 143 the web
+// streams a video or reads it in ReadFile pieces, as the apps always did
+// (they ask GetFile only for photos, and the sync apps never). A HEIC,
+// sent as its JPEG, is read whole before it is converted: held to the
+// same limit (a phone's is a few MB).
 func (mg *Manager) overShownWhole(f *pb.File) bool {
-	if isHeicFile(f.Path, f.Mime) || strings.HasPrefix(f.Mime, "video/") {
-		return false
-	}
 	return mg.budgetSize(f) > mg.shownWholeLimit()
 }
 

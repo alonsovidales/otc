@@ -1412,9 +1412,11 @@ start takes its file.
   over the whole budget run alone, and a 1.5 GB TIFF in a viewer, or a friend syncing a multi-GB
   post video, killed the device): `GetPublicationMedia` refuses a post's file over
   `MaxPublicationMedia` (256 MB, or a third of the budget: 85 MB on a 4 GB Pi) and `GetFile` one over
-  `shownWholeLimit` (a third of the budget, at least 64 MB) - never a HEIC (sent as its JPEG, which the
-  decode budget bounds) nor, for now, a video (the web composer's trimmer, `NewPostPicker`, fetches
-  a library video whole and has no other way to read it; every viewer streams videos) - with
+  `shownWholeLimit` (a third of the budget, at least 64 MB), whatever it is - a video and a HEIC (read
+  whole to be converted) too since 2026-11: the web composer's trimmer streams a library video or
+  reads it in ReadFile pieces since release 143, as the viewers do, and the apps ask GetFile only for
+  photos (iOS's `FileDownload` and Android's `ChunkedDownload` fall back to it only on a device from
+  before ReadFile), the sync apps never - with
   `RespEnvelope.error_code` "too_large" (`websocket/content_codes.go`), reserving nothing. The
   viewers keep the thumbnail, downloads read in parts, a friend's device keeps the post's thumbnail
   (its sync logs the refusal; fetching it through GetMediaURL is still to do). `GetFileInfo` reads a
