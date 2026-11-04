@@ -529,12 +529,15 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 			e.dropFolderLocked(f.ID)
 		}
 	}
+	// Removed two-way folders: their markers go with their records
+	// (rootid.go), once e.mu is let go - an unlink on a share that stopped
+	// answering (the likely reason to remove the folder) can block for
+	// good, and with it everything that takes e.mu.
+	var unmark []config.RemoteFolder
 	for _, f := range old.RemoteFolders {
 		if !keepR[f.ID] {
 			e.dropRemoteFolderLocked(f.ID)
-			// Its marker goes with its record (rootid.go); one on a disk
-			// that isn't there now stays, harmless.
-			removeMarker(f.LocalPath, f.ID)
+			unmark = append(unmark, f)
 		}
 	}
 	credsChanged := old.Domain != cfg.Domain || oldPw != password
@@ -572,6 +575,9 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		}
 	}
 	e.mu.Unlock()
+	if len(unmark) > 0 {
+		go removeMarkers(unmark)
+	}
 	e.notify()
 	if credsChanged {
 		dropLanguagePending(droppedLanguage)

@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 )
@@ -374,5 +376,51 @@ func TestGoneMounts(t *testing.T) {
 	s := newPathSet([]string{"nas"})
 	if !s.covers("nas") || !s.covers("nas/a/b.jpg") || s.covers("nasty.txt") || s.covers("x/nas") {
 		t.Fatal("pathSet.covers")
+	}
+}
+
+// A folder removed from otc-sync loses its marker, and the removal never
+// holds the engine: an unlink on a share that stopped answering can block
+// for good, and the tray, Snapshot and state.json all wait on e.mu.
+func TestRemovedFolderLosesItsMarkerOffTheLock(t *testing.T) {
+	withConfigDir(t)
+	d := storedDevice(map[string][]byte{"/pc/docs/a.txt": []byte("a")})
+	local := t.TempDir()
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/docs", LocalPath: local}
+	e := twoWayEngine(t, d, "dev", f)
+	e.reconcileRemoteFolder(f)
+	if readMarker(local, f.ID) == "" {
+		t.Fatal("not marked")
+	}
+	real := removeMarker
+	started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	t.Cleanup(func() {
+		once.Do(func() { close(release) })
+		<-done
+		removeMarker = real
+	})
+	removeMarker = func(root, id string) {
+		close(started)
+		<-release // a dead mount's unlink
+		real(root, id)
+		close(done)
+	}
+	go e.UpdateConfig(&config.Config{Domain: "dev"}, "pw")
+	<-started
+	snap := make(chan struct{})
+	go func() {
+		e.Snapshot()
+		close(snap)
+	}()
+	select {
+	case <-snap:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the engine waited on the marker's removal")
+	}
+	once.Do(func() { close(release) })
+	<-done
+	if _, err := os.Lstat(markerPath(local, f.ID)); !os.IsNotExist(err) {
+		t.Fatalf("the marker is still there: %v", err)
 	}
 }

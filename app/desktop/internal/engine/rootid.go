@@ -97,8 +97,17 @@ func writeMarker(root, id, token string) error {
 }
 
 // removeMarker deletes folder id's marker file in root, if it is there: the
-// folder was removed from otc-sync.
-func removeMarker(root, id string) { _ = os.Remove(markerPath(root, id)) }
+// folder was removed from otc-sync. One on a disk that isn't there now
+// stays, harmless.
+var removeMarker = func(root, id string) { _ = os.Remove(markerPath(root, id)) }
+
+// removeMarkers removes the markers of folders removed from otc-sync, one
+// after the other - off the engine's lock, and best effort (UpdateConfig).
+func removeMarkers(folders []config.RemoteFolder) {
+	for _, f := range folders {
+		removeMarker(f.LocalPath, f.ID)
+	}
+}
 
 func newMarkerToken() string {
 	b := make([]byte, 16)
