@@ -119,7 +119,12 @@ its disk offline (`device/state`), or - its device then read once, O_DIRECT in a
 after 10 s (`probe_read`, at most a minute apart), and gone only if that fails - a filesystem
 that turned itself read-only or whose ext4 error count or time moved since the mount was first
 seen (`ext4_errors`: from Linux 6.9 ext4's emergency read-only after an I/O error doesn't show in
-mountinfo). It then takes it down (`_begin_down`/`_down_step`): `systemctl stop --no-block
+mountinfo). Only a filesystem on a block device is judged, and only when fstab's source names one it
+can mount back (`source_names_device`: UUID=, LABEL=, PARTUUID=, PARTLABEL= or a /dev path): btrfs,
+ZFS, NFS, SMB and FUSE mounts show an anonymous `0:NN` with nothing under `/sys/dev/block`, and a
+storage mounted beforehand that way (install.sh's "already mounted") was taken for gone at the first
+look - a btrfs one stopped and mounted again every few seconds, an NFS one never mounted again. It
+then takes it down (`_begin_down`/`_down_step`): `systemctl stop --no-block
 mariadb.service otc.service` (SIGKILL after 30 s, the mount goes 10 s after that regardless:
 nothing they write reaches a disk, and InnoDB recovers from its log as after a power cut),
 `umount`, then `umount --lazy` when busy (each through `run_bounded`, which gives up on a command

@@ -1710,6 +1710,14 @@ def whole_fs_mounted(mount_point, mountinfo_text):
 
 _SOURCE_LINKS = {"UUID": "by-uuid", "LABEL": "by-label", "PARTUUID": "by-partuuid", "PARTLABEL": "by-partlabel"}
 
+def source_names_device(source):
+    """fstab's source names a block device this script can find again -
+    UUID=, LABEL=, PARTUUID=, PARTLABEL= or a /dev path - so what it takes
+    down it can mount back once the device is there. Not a network share
+    (server:/export, //server/share) nor a FUSE or ZFS source."""
+    kind, eq, _ = source.partition("=")
+    return bool(eq and kind in _SOURCE_LINKS) or source.startswith("/dev/")
+
 def source_device(source, dev_root="/dev", is_block=None):
     """The block device fstab's source names now (its real path), or None."""
     kind, eq, value = source.partition("=")
@@ -1759,7 +1767,11 @@ def source_present(source, mdstat_text, dev_root="/dev", is_block=None, sys_root
 # Linux 6.9 ext4's "emergency read-only" after an I/O error doesn't show
 # in mountinfo), is read once (O_DIRECT, in a child that may hang on a
 # dead disk) to see whether its device still answers. A mirror down to
-# one working disk is not gone: it runs on, as before.
+# one working disk is not gone: it runs on, as before. Only a filesystem
+# on a block device, whose fstab source names a device this can mount
+# back, is judged at all: btrfs, ZFS, NFS, SMB and FUSE mounts show an
+# anonymous 0:NN with nothing in sysfs behind it, and a share can't be
+# mounted back from here.
 #
 # Then it takes the storage down: MariaDB and the service stopped
 # (SIGTERM, killed after STORAGE_STOP_S - nothing they write reaches a
@@ -1854,11 +1866,19 @@ def storage_gone(mount_point, mountinfo_text, fstab_options="", sys_root="/sys",
     read-only (not when fstab mounts it so) or, fs_errors(mount id,
     device name) being true, has reported errors since it was mounted:
     since Linux 6.9 ext4 goes read-only on an I/O error without saying so
-    in mountinfo (its "emergency read-only")."""
+    in mountinfo (its "emergency read-only").
+
+    Only a filesystem on a block device is judged: btrfs, ZFS, NFS, SMB
+    and FUSE show an anonymous device (major 0) in mountinfo, with nothing
+    under /sys/dev/block to judge it by - taken for gone, a healthy btrfs
+    storage was stopped and mounted again every few seconds, and an NFS one
+    never came back."""
     top = mount_on_top(mount_point, mountinfo_text)
     if top is None:
         return ""
     majmin, source, superopts, mount_id = top
+    if majmin.split(":")[0] == "0":
+        return ""
     dev_dir = os.path.join(sys_root, "dev", "block", majmin)
     if not os.path.exists(dev_dir):
         return f"its device {source or majmin} is gone"
@@ -2044,7 +2064,9 @@ class StorageGuard:
         source = entry[0]
         self.dead_array = self._array_of(source, mdstat_text)
         info = self._read(self.mountinfo)
-        if self.down is None and whole_fs_mounted(self.mount_point, info):
+        # Taken down only what can be mounted back (source_names_device):
+        # a share or a FUSE source would stay unmounted for good.
+        if self.down is None and source_names_device(source) and whole_fs_mounted(self.mount_point, info):
             why = storage_gone(self.mount_point, info, entry[2], self.sys_root, self._probe, self._fs_errors)
             if why:
                 self._begin_down(why, mono)
@@ -3210,6 +3232,20 @@ def selftest_storage_gone():
         shutil.rmtree(os.path.join(usb, "sdd"))
         assert storage_gone("/mnt/storage", root + one_line, "defaults", sys_root) == "its device /dev/sdb1 is gone"
         assert storage_gone("/mnt/storage", root, "defaults", sys_root) == ""      # not mounted: not this check
+        # No block device behind it (an anonymous 0:NN in mountinfo, nothing
+        # in /sys/dev/block): btrfs, NFS, FUSE are never judged - not even
+        # read when they turn read-only.
+        btrfs = "31 22 0:45 / /mnt/storage rw,relatime shared:12 - btrfs /dev/sdb1 rw,space_cache=v2,subvolid=5,subvol=/\n"
+        nfs = "31 22 0:52 / /mnt/storage rw,relatime shared:12 - nfs4 server:/export rw,vers=4.2,addr=192.168.1.2\n"
+        fuse = "31 22 0:60 / /mnt/storage rw,nosuid,nodev,relatime - fuse.mergerfs pool rw,user_id=0,group_id=0\n"
+        read = []
+        for line in (btrfs, nfs, fuse, btrfs.replace(" rw,space_cache", " ro,space_cache")):
+            assert storage_gone("/mnt/storage", root + line, "defaults", sys_root, lambda m: read.append(m) or "I/O error",
+                                lambda mount_id, dev: True) == "", line
+        assert read == [], read
+        assert source_names_device("UUID=ab-cd") and source_names_device("PARTLABEL=data") and source_names_device("/dev/md0")
+        assert not source_names_device("server:/export") and not source_names_device("//nas/share")
+        assert not source_names_device("pool/data") and not source_names_device("sshfs#me@host:/x")
 
         # Read-only by itself: read once; an answer means it is not gone.
         ro = md_line.replace("ext4 /dev/md0 rw", "ext4 /dev/md0 ro")
@@ -3446,6 +3482,30 @@ def selftest_storage_gone():
         assert st == "missing" and "its device /dev/sdb1 is gone" in said, said
         assert calls[:2] == [("systemctl", "stop", "--no-block") + FULL_UNITS, ("umount", "/mnt/storage")], calls
         assert ("mdadm", "--stop", "/dev/md0") not in calls
+
+        # A storage with no block device behind it, mounted and in use: never
+        # taken down. Before, a btrfs storage by UUID was stopped, unmounted,
+        # mounted again and taken down 2 s later, for good; an NFS share was
+        # unmounted once and never mounted again.
+        for fstab_line, mounted in (
+                ("UUID=ab-cd   /mnt/storage   btrfs   defaults,nofail   0   0\n", btrfs),
+                ("server:/export   /mnt/storage   nfs4   defaults,nofail,_netdev   0   0\n", nfs),
+                ("pool   /mnt/storage   fuse.mergerfs   defaults,nofail   0   0\n", fuse)):
+            Path(fstab_path).write_text(fstab_line)
+            Path(info_path).write_text(root + mounted)
+            world["active"] = {"otc.service": True, DEGRADED_UNIT: False}
+            g = guard()
+            del calls[:]
+            for _ in range(10):
+                assert step(g)[0] == "ok"
+            assert calls == [] and g.down is None, (fstab_line, calls)
+        # A block device's mount whose fstab source can't be found again (a
+        # share's name): nothing that could not be mounted back is unmounted.
+        Path(fstab_path).write_text("server:/export   /mnt/storage   ext4   defaults,nofail   0   0\n")
+        Path(info_path).write_text(root + one_line)
+        g = guard()
+        del calls[:]
+        assert step(g)[0] == "ok" and calls == [], calls
 
 def selftest_use():
     """Settings' request to erase a disk left alone and add it: the
