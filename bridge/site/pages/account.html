@@ -808,8 +808,11 @@
         return;
       }
       if (!r.ok) { $('#add-msg').textContent = errText(r, t('manualFailed')); $('#add-msg').className = 'msg bad'; return; }
-      $('#add-out').replaceChildren(...identityBlock(r));
+      // The page is drawn again with the new name, and only then the
+      // identity, shown once, put in it: drawn before, it went with the
+      // old page.
       const d = await api('GET', '/api/account/domains'); domains = d.domains || []; renderDomainsOnly();
+      $('#add-out').replaceChildren(...identityBlock(r));
     };
     bindDomainButtons();
   }
