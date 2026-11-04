@@ -119,6 +119,8 @@
     <string name="android_settings_upload_waiting">Waiting</string>
     <string name="android_settings_uploading">Uploading \u2068%1$s\u2069</string>
     <string name="android_setup_language_later">The setup page will switch to %1$s once the installation starts.</string>
+    <string name="android_setup_other_domain_text">This device says its address is \u2068%1$s\u2069, which isn\'t an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.</string>
+    <string name="android_setup_other_domain_title">Open this address?</string>
     <string name="android_signal_good">Good signal</string>
     <string name="android_signal_strong">Strong signal</string>
     <string name="android_signal_weak">Weak signal</string>

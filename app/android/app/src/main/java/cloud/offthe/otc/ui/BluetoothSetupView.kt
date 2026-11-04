@@ -31,6 +31,8 @@ import cloud.offthe.otc.i18n.appShellSetupLeave
 import cloud.offthe.otc.i18n.appShellSetupLeaveText
 import cloud.offthe.otc.i18n.appShellSetupLeaveTitle
 import cloud.offthe.otc.i18n.appShellSetupNotFound
+import cloud.offthe.otc.i18n.androidSetupOtherDomainText
+import cloud.offthe.otc.i18n.androidSetupOtherDomainTitle
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonTryAgain
 import androidx.compose.foundation.layout.Spacer
@@ -349,8 +351,23 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         }
                         val valid = chosenPassword.isNotEmpty() || password.isNotEmpty()
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
+                        // An address that isn't an off-the.cloud name (a bridge
+                        // of one's own - or something nearby passing for the
+                        // device) is opened only once the owner has seen it:
+                        // the photos would go there.
+                        var confirmDomain by remember(domain) { mutableStateOf(false) }
+                        val open = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }
+                        Button(onClick = { if (domainNeedsConfirm(domain)) confirmDomain = true else open() }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
                             Text(S.appShellSetupOpenDevice().resolve())
+                        }
+                        if (confirmDomain) {
+                            AlertDialog(
+                                onDismissRequest = { confirmDomain = false },
+                                title = { Text(S.androidSetupOtherDomainTitle().resolve()) },
+                                text = { Text(S.androidSetupOtherDomainText(domain).resolve()) },
+                                confirmButton = { TextButton(onClick = { confirmDomain = false; open() }) { Text(S.appShellSetupOpenDevice().resolve()) } },
+                                dismissButton = { TextButton(onClick = { confirmDomain = false }) { Text(S.commonCancel().resolve()) } },
+                            )
                         }
                     }
                 }
@@ -466,6 +483,21 @@ private fun signal(rssi: Int): UiText = when {
     rssi >= -60 -> S.androidSignalStrong()
     rssi >= -75 -> S.androidSignalGood()
     else -> S.androidSignalWeak()
+}
+
+/**
+ * Whether the wizard's [domain] is an off-the.cloud device name
+ * ("name.off-the.cloud"), which the app opens at once; empty (no bridge) too.
+ * Anything else - a bridge of one's own, or a look-alike such as
+ * "name.off-the.cloud.example.net" from something nearby passing for the
+ * device - is opened only after the owner has seen it.
+ */
+fun domainNeedsConfirm(domain: String): Boolean {
+    if (domain.isEmpty()) return false
+    val suffix = "." + SecretsStore.bridgeDomain
+    if (!domain.lowercase().endsWith(suffix)) return true
+    val name = domain.dropLast(suffix.length)
+    return !Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", RegexOption.IGNORE_CASE).matches(name)
 }
 
 /** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */

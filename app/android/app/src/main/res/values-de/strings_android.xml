@@ -120,6 +120,8 @@
     <string name="android_settings_upload_waiting">Wartet</string>
     <string name="android_settings_uploading">\u2068%1$s\u2069 wird hochgeladen</string>
     <string name="android_setup_language_later">Die Einrichtungsseite wird auf %1$s umgestellt, sobald die Installation beginnt.</string>
+    <string name="android_setup_other_domain_text">Dieses Gerät gibt \u2068%1$s\u2069 als seine Adresse an, keine off-the.cloud-Adresse. Öffne sie nur, wenn du das Gerät mit einer eigenen Bridge eingerichtet hast: Sonst ist es vielleicht nicht dein Gerät, und deine Fotos würden dorthin gehen.</string>
+    <string name="android_setup_other_domain_title">Diese Adresse öffnen?</string>
     <string name="android_signal_good">Gutes Signal</string>
     <string name="android_signal_strong">Starkes Signal</string>
     <string name="android_signal_weak">Schwaches Signal</string>

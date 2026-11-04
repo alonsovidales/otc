@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui
 
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSetupOtherDomainText
 import cloud.offthe.otc.i18n.appShellSetupLeaveText
 import cloud.offthe.otc.i18n.appShellSetupLeaveTitle
 import cloud.offthe.otc.i18n.appShellSetupNotFound
@@ -24,6 +25,25 @@ class BluetoothSetupTest {
         assertFalse(setupLeaveAsks(installStarted = true, readyDomain = ""))
         assertEquals("Leave the setup?", S.appShellSetupLeaveTitle().english())
         assertEquals("The device goes on installing. Open the setup again to follow it, or sign in once it's done.", S.appShellSetupLeaveText().english())
+    }
+
+    /** An address the wizard reports that isn't an off-the.cloud name is opened only once the owner has seen it. */
+    @Test fun anotherDomainIsOpenedOnlyOnceSeen() {
+        assertFalse(domainNeedsConfirm("pit.off-the.cloud"))
+        assertFalse(domainNeedsConfirm("Pit.Off-The.Cloud"))
+        // No bridge: otc.local at home.
+        assertFalse(domainNeedsConfirm(""))
+        // A look-alike, a deeper name, a bridge of one's own.
+        assertTrue(domainNeedsConfirm("pit.off-the.cloud.example.net"))
+        assertTrue(domainNeedsConfirm("a.pit.off-the.cloud"))
+        assertTrue(domainNeedsConfirm("off-the.cloud"))
+        assertTrue(domainNeedsConfirm("photos.example.net"))
+        assertTrue(domainNeedsConfirm("pit-off-the.cloud"))
+        assertEquals("wss://pit.off-the.cloud/ws", endpointForDomain("pit.off-the.cloud"))
+        assertEquals(
+            "This device says its address is ⁨photos.example.net⁩, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+            S.androidSetupOtherDomainText("photos.example.net").english(),
+        )
     }
 
     @Test fun nothingFoundForHalfAMinuteSaysWhatToCheck() {
