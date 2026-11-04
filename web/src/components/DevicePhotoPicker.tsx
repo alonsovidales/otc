@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { File as MsgFile, ImageGroup, RespEnvelope } from "../proto/messages";
-import { say, type UiText } from "./uiText";
+import { asIs, say, type UiText } from "./uiText";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import { useBackLayer } from "./backStack";
 import "./DevicePhotoPicker.css";
 
@@ -47,6 +48,12 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const urls = useRef<string[]>([]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<UiText | null>(null);
+  // A page of photos that didn't come: why, with Try again - a first page
+  // that failed used to read "No photos here yet".
+  const [pageError, setPageError] = useState<UiText | null>(null);
+  // Read by the scroll's own asks, which wait for Try again after one.
+  const failedRef = useRef(false);
+  failedRef.current = pageError !== null;
   const gen = useRef(0);
   // How many photos the grid holds, for SearchPhotos.have (a ref: the
   // page request's closure would read a stale `items`).
@@ -58,11 +65,15 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const resp: RespEnvelope = await useWS.request(e => {
-        // Only the names and counts are shown: the small covers cost least.
-        (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: { smallThumbnails: true } };
-      });
-      if (resp.payload?.$case === "respImageGroups") setGroups(resp.payload.respImageGroups.groups ?? []);
+      try {
+        const resp: RespEnvelope = await useWS.request(e => {
+          // Only the names and counts are shown: the small covers cost least.
+          (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: { smallThumbnails: true } };
+        });
+        if (resp.payload?.$case === "respImageGroups") setGroups(resp.payload.respImageGroups.groups ?? []);
+      } catch {
+        // No collections to pick from: All photos still works.
+      }
     })();
   }, []);
 
@@ -73,6 +84,7 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
     const sendToken = fresh ? "" : token;
     busy.current = true;
     setLoading(true);
+    setPageError(null);
     try {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = {
@@ -89,7 +101,12 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
           },
         };
       });
-      if (my !== gen.current || resp.payload?.$case !== "respListOfFiles") return;
+      if (my !== gen.current) return;
+      if (resp.payload?.$case !== "respListOfFiles") {
+        const words = isBridgeAnswer(resp) ? "" : resp.errorMessage;
+        setPageError(() => (words ? asIs(words) : say("web.images.error.unreachable")));
+        return;
+      }
       const lof = resp.payload.respListOfFiles;
       const added = (lof.files ?? []).map(f => ({ f, url: thumbURL(f) }));
       added.forEach(a => a.url && urls.current.push(a.url));
@@ -100,6 +117,8 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
       });
       setToken(lof.token || "");
       setDone(!lof.token);
+    } catch {
+      if (my === gen.current) setPageError(() => say("web.images.error.unreachable"));
     } finally {
       if (my === gen.current) {
         busy.current = false;
@@ -120,7 +139,7 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
     const node = sentinelRef.current;
     if (!node) return;
     const obs = new IntersectionObserver(
-      entries => { if (entries[0]?.isIntersecting) void fetchPage(false); },
+      entries => { if (entries[0]?.isIntersecting && !failedRef.current) void fetchPage(false); },
       { root: gridRef.current, rootMargin: "0px 0px 400px 0px" },
     );
     obs.observe(node);
@@ -133,9 +152,9 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   // keep going until it is full.
   useEffect(() => {
     const g = gridRef.current;
-    if (!g || loading || done || items.length === 0) return;
+    if (!g || loading || done || items.length === 0 || pageError) return;
     if (g.scrollHeight <= g.clientHeight + 400) void fetchPage(false);
-  }, [items, loading, done, fetchPage]);
+  }, [items, loading, done, fetchPage, pageError]);
 
   const pick = async (f: MsgFile) => {
     setOpening(f.path);
@@ -186,7 +205,13 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
               {opening === f.path && <span className="dpp-spinner" aria-label={t("web.images.picker.opening")} />}
             </button>
           ))}
-          {!loading && items.length === 0 && <p className="dpp-empty">{t("web.images.picker.empty")}</p>}
+          {!loading && pageError && (
+            <div className="dpp-empty dpp-failed" role="alert">
+              <p>{pageError(t)}</p>
+              <button type="button" className="dpp-retry" onClick={() => void fetchPage(items.length === 0)}>{t("common.try_again")}</button>
+            </div>
+          )}
+          {!loading && !pageError && items.length === 0 && <p className="dpp-empty">{t("web.images.picker.empty")}</p>}
           <div ref={sentinelRef} className="dpp-sentinel" />
         </div>
       </div>

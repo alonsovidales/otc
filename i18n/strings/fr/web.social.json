@@ -52,6 +52,10 @@
     "text": "Supprimer le commentaire",
     "en": "Delete comment"
   },
+  "web.social.comment.delete_failed": {
+    "text": "Impossible de supprimer le commentaire.",
+    "en": "Couldn't delete the comment."
+  },
   "web.social.comment.failed": {
     "text": "Votre commentaire n’a pas été publié. Réessayez.",
     "en": "Your comment wasn't posted. Try again."
@@ -233,6 +237,10 @@
   "web.social.feed.no_friends": {
     "text": "Ajoutez des amis pour voir leurs publications ici et partager les vôtres avec eux.",
     "en": "Add friends to see their posts here and share yours with them."
+  },
+  "web.social.feed.open_failed": {
+    "text": "Impossible d’ouvrir cette publication.",
+    "en": "Couldn't open that post."
   },
   "web.social.feed.user": {
     "text": "Utilisateur",
@@ -493,6 +501,10 @@
   "web.social.post.delete": {
     "text": "Supprimer la publication",
     "en": "Delete post"
+  },
+  "web.social.post.delete_failed": {
+    "text": "Impossible de supprimer la publication.",
+    "en": "Couldn't delete the post."
   },
   "web.social.post.download_photo_position": {
     "text": "Télécharger cette photo ({index} sur {total})",

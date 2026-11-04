@@ -52,6 +52,10 @@
     "text": "Reactie verwijderen",
     "en": "Delete comment"
   },
+  "web.social.comment.delete_failed": {
+    "text": "Kan de reactie niet verwijderen.",
+    "en": "Couldn't delete the comment."
+  },
   "web.social.comment.failed": {
     "text": "Je reactie is niet geplaatst. Probeer het opnieuw.",
     "en": "Your comment wasn't posted. Try again."
@@ -233,6 +237,10 @@
   "web.social.feed.no_friends": {
     "text": "Voeg vrienden toe om hier hun berichten te zien en die van jou met hen te delen.",
     "en": "Add friends to see their posts here and share yours with them."
+  },
+  "web.social.feed.open_failed": {
+    "text": "Kan dat bericht niet openen.",
+    "en": "Couldn't open that post."
   },
   "web.social.feed.user": {
     "text": "Gebruiker",
@@ -493,6 +501,10 @@
   "web.social.post.delete": {
     "text": "Bericht verwijderen",
     "en": "Delete post"
+  },
+  "web.social.post.delete_failed": {
+    "text": "Kan het bericht niet verwijderen.",
+    "en": "Couldn't delete the post."
   },
   "web.social.post.download_photo_position": {
     "text": "Deze foto downloaden ({index} van {total})",

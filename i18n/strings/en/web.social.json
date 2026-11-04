@@ -68,6 +68,10 @@
     "text": "Delete comment",
     "note": "Social feed: tooltip and screen-reader name of the bin button on a comment you can delete (on your post, or your own)."
   },
+  "web.social.comment.delete_failed": {
+    "text": "Couldn't delete the comment.",
+    "note": "Social feed: a moment's note at the foot of the page when deleting a comment failed (no answer) and the device gave no reason of its own. The comment stays."
+  },
   "web.social.comment.failed": {
     "text": "Your comment wasn't posted. Try again.",
     "note": "Under a post's comment field when sending the comment failed and the device gave no reason of its own; the comment stays in the field."
@@ -272,6 +276,10 @@
   "web.social.feed.no_friends": {
     "text": "Add friends to see their posts here and share yours with them.",
     "note": "Social feed, empty, for an owner who has no friends yet: under web.social.feed.empty_text, above the button Add friends (web.social.feed.add_friends)."
+  },
+  "web.social.feed.open_failed": {
+    "text": "Couldn't open that post.",
+    "note": "Social feed: a moment's note at the foot of the page when a post tapped in Alerts couldn't be fetched from the device (no answer, or it was deleted) and the device gave no reason of its own."
   },
   "web.social.feed.user": {
     "text": "User",
@@ -569,6 +577,10 @@
   "web.social.post.delete": {
     "text": "Delete post",
     "note": "Social feed: tooltip and screen-reader name of the bin button on one of your own posts."
+  },
+  "web.social.post.delete_failed": {
+    "text": "Couldn't delete the post.",
+    "note": "Social feed: a moment's note at the foot of the page when deleting one of your posts failed (no answer) and the device gave no reason of its own. The post stays."
   },
   "web.social.post.download_photo_position": {
     "text": "Download this photo {index} of {total}",

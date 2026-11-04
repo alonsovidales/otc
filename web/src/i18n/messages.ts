@@ -998,6 +998,7 @@ export type MessageKey =
   | "web.social.comment.author"
   | "web.social.comment.confirm_delete"
   | "web.social.comment.delete"
+  | "web.social.comment.delete_failed"
   | "web.social.comment.failed"
   | "web.social.comment.like"
   | "web.social.comment.me"
@@ -1042,6 +1043,7 @@ export type MessageKey =
   | "web.social.feed.loading_more"
   | "web.social.feed.new_post"
   | "web.social.feed.no_friends"
+  | "web.social.feed.open_failed"
   | "web.social.feed.user"
   | "web.social.friends.add_title"
   | "web.social.friends.address_hint"
@@ -1105,6 +1107,7 @@ export type MessageKey =
   | "web.social.likes.title"
   | "web.social.post.confirm_delete"
   | "web.social.post.delete"
+  | "web.social.post.delete_failed"
   | "web.social.post.download_photo_position"
   | "web.social.post.download_video_position"
   | "web.social.post.label_photo"
@@ -2201,6 +2204,7 @@ export interface MessageArgs {
   "web.social.comment.author": { name: string };
   "web.social.comment.confirm_delete": undefined;
   "web.social.comment.delete": undefined;
+  "web.social.comment.delete_failed": undefined;
   "web.social.comment.failed": undefined;
   "web.social.comment.like": undefined;
   "web.social.comment.me": undefined;
@@ -2245,6 +2249,7 @@ export interface MessageArgs {
   "web.social.feed.loading_more": undefined;
   "web.social.feed.new_post": undefined;
   "web.social.feed.no_friends": undefined;
+  "web.social.feed.open_failed": undefined;
   "web.social.feed.user": undefined;
   "web.social.friends.add_title": undefined;
   "web.social.friends.address_hint": undefined;
@@ -2308,6 +2313,7 @@ export interface MessageArgs {
   "web.social.likes.title": undefined;
   "web.social.post.confirm_delete": undefined;
   "web.social.post.delete": undefined;
+  "web.social.post.delete_failed": undefined;
   "web.social.post.download_photo_position": { index: number; total: number };
   "web.social.post.download_video_position": { index: number; total: number };
   "web.social.post.label_photo": undefined;

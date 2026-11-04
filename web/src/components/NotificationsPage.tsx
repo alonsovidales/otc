@@ -20,6 +20,8 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { findGroup } from "./libraryStore";
 import { openGroup } from "./photoFilter";
 import { StarGlyph } from "./RatingPanel";
+import { alertsLimit, cAlertsFirst } from "./alertsRead";
+import { isBridgeAnswer } from "../net/deviceStatus";
 
 const POLL_MS = 5000;
 
@@ -125,6 +127,8 @@ function Alerts({
   // gets an Accept button), and the ones accepted from here.
   const [awaiting, setAwaiting] = useState<Set<string>>(new Set());
   const [acceptedHere, setAcceptedHere] = useState<Set<string>>(new Set());
+  // The friend request being accepted (its domain): one press at a time.
+  const [accepting, setAccepting] = useState<string | null>(null);
 
   // Issue #78 follow-up: an avatar on the left (who did this) and, when
   // the notification points at a post/comment, a small thumbnail on the
@@ -148,32 +152,51 @@ function Alerts({
   }, [images]);
 
   // Issue #78: "when the user opens the section all the notifications will
-  // change to acknowledged" - fetch the list, then immediately mark
-  // everything read. A list that didn't come says so, with Try again (it
-  // used to say "Loading…" for good), and marks nothing read.
+  // change to acknowledged" - fetch the list, then mark everything read,
+  // once every alert still unread is on it (alertsRead.ts: the device marks
+  // them all, so the newest 50 alone hid the rest, and those that came in
+  // meanwhile, as read). A list that didn't come says so, with Try again
+  // (it used to say "Loading…" for good), and marks nothing read.
   useEffect(() => {
     let cancelled = false;
+    const listAlerts = (limit: number) => useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqListNotifications", reqListNotifications: { limit } };
+    });
     (async () => {
       setLoadError(null);
       let resp: RespEnvelope;
       try {
-        resp = await useWS.request((e: Partial<ReqEnvelope>) => {
-          e.payload = { $case: "reqListNotifications", reqListNotifications: { limit: 50 } };
-        });
+        resp = await listAlerts(cAlertsFirst);
       } catch {
         if (!cancelled) setLoadError(() => say("web.social.alerts.load_failed"));
         return;
       }
       if (cancelled) return;
       if (resp.payload?.$case !== "respNotifications") {
-        const words = resp.errorMessage;
+        const words = isBridgeAnswer(resp) ? "" : resp.errorMessage;
         setLoadError(() => (words ? asIs(words) : say("web.social.alerts.load_failed")));
         return;
       }
-      const list = resp.payload.respNotifications.notifications;
+      let list = resp.payload.respNotifications.notifications;
       setNotifications(list);
       onAcknowledged();
       try {
+        // Every alert unread now on the page before they are all marked
+        // read: as many listed again as the device says are unread.
+        for (let pass = 0; pass < 2; pass++) {
+          const c: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+            e.payload = { $case: "reqGetNotificationCount", reqGetNotificationCount: {} };
+          });
+          if (cancelled) return;
+          if (c.payload?.$case !== "respNotificationCount") break;
+          const limit = alertsLimit(list.length, list.filter((n) => !n.acknowledged).length, c.payload.respNotificationCount.unacknowledgedCount);
+          if (limit === null) break;
+          const again = await listAlerts(limit);
+          if (cancelled) return;
+          if (again.payload?.$case !== "respNotifications") break;
+          list = again.payload.respNotifications.notifications;
+          setNotifications(list);
+        }
         if (list.some((n) => n.type === NotificationType.NotificationFriendRequest)) {
           const fr: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
             e.payload = { $case: "reqFriendshipsList", reqFriendshipsList: {} };
@@ -195,19 +218,32 @@ function Alerts({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTry]);
 
-  const accept = async (domain: string) => {
-    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
+  // Accept on a friend request's row. Refused, the device's words (else
+  // ours) show under the row - it used to stay as it was without a word;
+  // with no answer, ours, and the button stays to press again.
+  const accept = async (n: PbNotification) => {
+    const domain = n.actorDomain;
+    if (refuseOnDemo() || accepting) return; // a demo device (net/demo.ts)
+    setAccepting(domain);
+    setRowNote(null);
+    let resp: RespEnvelope | null = null;
     try {
-      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      resp = await useWS.request((e: Partial<ReqEnvelope>) => {
         e.payload = { $case: "reqChangeFriendStatus", reqChangeFriendStatus: { domain, status: FriendShipStatus.Accepted } };
       });
-      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setAwaiting((s) => { const n = new Set(s); n.delete(domain); return n; });
-        setAcceptedHere((s) => new Set(s).add(domain));
-      }
     } catch {
-      // No answer: the button stays, to press again.
+      // No answer: below.
+    } finally {
+      setAccepting(null);
     }
+    const ack = resp?.payload?.$case === "respAck" ? resp.payload.respAck : null;
+    if (ack?.ok) {
+      setAwaiting((s) => { const next = new Set(s); next.delete(domain); return next; });
+      setAcceptedHere((s) => new Set(s).add(domain));
+      return;
+    }
+    const words = !resp || isBridgeAnswer(resp) ? "" : ack?.errorMsg || resp.errorMessage;
+    setRowNote({ uuid: n.uuid, text: words ? asIs(words) : say("web.social.friends.update_failed") });
   };
 
   // Rating: the collection the alert names, in Images - listed again first
@@ -348,7 +384,9 @@ function Alerts({
                   <div className="np-open">{content}</div>
                 )}
                 {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && (
-                  <button className="np-accept" onClick={() => void accept(n.actorDomain)}>{t("common.accept")}</button>
+                  <button className="np-accept" onClick={() => void accept(n)} disabled={accepting !== null} aria-busy={accepting === n.actorDomain || undefined}>
+                    {accepting === n.actorDomain ? <Spinner /> : t("common.accept")}
+                  </button>
                 )}
                 {n.type === NotificationType.NotificationFriendRequest && acceptedHere.has(n.actorDomain) && (
                   <span className="np-accepted">{t("web.social.alerts.friends")}</span>
