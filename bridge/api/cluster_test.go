@@ -183,3 +183,36 @@ func TestForwardedResponsesGetAWriteDeadline(t *testing.T) {
 		}
 	}
 }
+
+// Redis is asked which node holds an address only when it can be a
+// device's: a made-up Host is served here even if Redis named a node.
+func TestClusterAsksOnlyAboutDeviceAddresses(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	node2 := cluster.New("bridge2", "", testToken, rdb)
+	back := httptest.NewServer(internalHandler(node2, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "served by bridge2")
+	})))
+	t.Cleanup(back.Close)
+	node2 = cluster.New("bridge2", strings.TrimPrefix(back.URL, "http://"), testToken, rdb)
+	if err := node2.Announce(); err != nil {
+		t.Fatal(err)
+	}
+	if err := node2.Hold("198.51.100.20", "x.y.off-the.cloud", "evil.example", "cala.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+	local := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "served by bridge1") })
+	front := newClusterRouter(cluster.New("bridge1", "127.0.0.1:2", testToken, rdb), fakeLocal{}, "off-the.cloud", local)
+	for host, want := range map[string]string{
+		"198.51.100.20":      "served by bridge1",
+		"x.y.off-the.cloud":  "served by bridge1",
+		"evil.example":       "served by bridge1",
+		"cala.off-the.cloud": "served by bridge2",
+	} {
+		w := httptest.NewRecorder()
+		front.ServeHTTP(w, httptest.NewRequest("GET", "https://"+host+"/", nil))
+		if w.Body.String() != want {
+			t.Errorf("%s: %q, want %q", host, w.Body.String(), want)
+		}
+	}
+}

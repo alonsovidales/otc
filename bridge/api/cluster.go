@@ -12,6 +12,7 @@ import (
 
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/limits"
+	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -47,8 +48,10 @@ func newClusterRouter(c *cluster.Cluster, local localHolder, tld string, next ht
 
 func (cr *clusterRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A request another node already forwarded is served here, whatever
-	// the state here: never forwarded twice, so never in a loop.
-	if r.Header.Get(cluster.HopHeader) != "1" && r.Host != cr.tld && !cr.local.HasLocal(r.Host) {
+	// the state here: never forwarded twice, so never in a loop. Redis is
+	// asked only about an address that can be a device's: anyone can send
+	// a made-up Host.
+	if r.Header.Get(cluster.HopHeader) != "1" && r.Host != cr.tld && websocket.IsDeviceHost(r.Host, cr.tld) && !cr.local.HasLocal(r.Host) {
 		if addr, ok := cr.cluster.Locate(r.Host); ok {
 			cr.proxy(addr).ServeHTTP(withWriteDeadline(w, r), r)
 			return

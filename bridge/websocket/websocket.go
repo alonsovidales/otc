@@ -259,6 +259,11 @@ var (
 // uplink. Var so tests can shrink it.
 var cUnpairedReadTimeout = 2 * time.Minute
 
+// cUnpairedMaxRefusals: a socket not paired yet is closed after this many
+// requests answered "unreachable" (or refused), about two and a half
+// minutes of the web's unreachable screen. Var so tests can shrink it.
+var cUnpairedMaxRefusals = 30
+
 type deviceRelay struct {
 	conn    *gorilla.Conn
 	writeMu sync.Mutex // gorilla tolerates only one concurrent writer
@@ -683,6 +688,17 @@ type Manager struct {
 	unpairedMu     sync.Mutex
 	unpairedByAddr map[string]int
 
+	// tld is [otc-api] tld: device addresses are one label under it
+	// (IsDeviceHost). "" when not configured: any host may be one.
+	tld string
+	// disabled remembers the devices' disabled flags for a few seconds,
+	// and lookupPerAddr limits the lookups of the ones it doesn't
+	// (hosts.go).
+	disabledMu    sync.Mutex
+	disabled      map[string]disabledFlag
+	disabledKept  int
+	lookupPerAddr *limits.Rate
+
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
 	// applies them, so a claim and its release are never reordered.
@@ -844,6 +860,7 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 		logsPerDomain:    limits.NewRate(3.0/3600, 3),
 		pairPerAddr:      limits.NewRate(cPairPerSecond, cPairBurst),
 		refusalLog:       limits.NewRate(1.0/60, 1),
+		lookupPerAddr:    limits.NewRate(cLookupPerSecond, cLookupBurst),
 		baseUrl:          baseUrl,
 		dao:              dao,
 		openRegistration: cfg.HasSection("accounts") && cfg.GetStr("accounts", "open-registration") == "true",
@@ -852,6 +869,9 @@ func Init(baseUrl string, dao *dao.Dao) (mg *Manager) {
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 		bridges: make(map[string]*bridgePool),
+	}
+	if cfg.HasSection("otc-api") {
+		mg.tld = cfg.GetStr("otc-api", "tld")
 	}
 	if dao != nil {
 		mg.onlineEvents = make(chan onlineEvent, 4096)
@@ -1610,6 +1630,8 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 			unpairedRelease()
 		}
 	}()
+	// How many requests the socket had answered for the device, unpaired.
+	refused := 0
 
 	for {
 		// Small until the client is paired with a device (its first
@@ -2094,6 +2116,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					resp.Error = true
 					resp.ErrorMessage = cInternalErrorMsg
 				} else {
+					mg.rememberDisabled(req.Domain, req.Disabled, time.Now())
 					log.Info("Set device disabled:", req.Domain, req.Disabled)
 					resp.Payload = &pb.RespEnvelope_RespAck{
 						RespAck: &pb.Ack{Ok: true},
@@ -2208,7 +2231,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				// disabled-page check at all) gets a real explanation
 				// instead of a generic connection failure indistinguishable
 				// from "temporarily unreachable".
-				if disabled, err := mg.dao.IsDeviceDisabled(r.Host); err != nil {
+				if disabled, err := mg.DeviceDisabled(addr, r.Host); err != nil {
 					log.Error("error checking disabled state for", r.Host, ":", err)
 				} else if disabled {
 					resp.Error = true
@@ -2413,6 +2436,13 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					respBin, _ := proto.Marshal(resp)
 					if err := writeClient(conn, respBin); err != nil {
 						log.Error("error responding, closing the connection:", err)
+						return
+					}
+					// A client asking again and again on one socket (the
+					// web's unreachable screen asks every 5 s) is let go
+					// after a while: its next attempt opens a new one.
+					if refused++; refused >= cUnpairedMaxRefusals {
+						log.Debug("closing a connection that kept asking for a device it couldn't have:", r.Host)
 						return
 					}
 				}

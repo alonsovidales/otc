@@ -102,6 +102,9 @@ type API struct {
 	// beaconPerAddr limits the unauthenticated setup-beacon reports (each
 	// is a write on the shared primary) per address.
 	beaconPerAddr *limits.Rate
+	// onlinePerAddr limits the device-online questions (each may ask
+	// Redis) per address.
+	onlinePerAddr *limits.Rate
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
@@ -118,6 +121,20 @@ func (api *API) oneOff(domain string, frame []byte) ([]byte, error) {
 	return api.websocket.ForwardOneOff(domain, frame)
 }
 
+// deviceDisabled is whether r's device is disabled: the relay's answer
+// (remembered a few seconds, looked up only for an address that can be a
+// device's and within the client's lookups - websocket.DeviceDisabled),
+// or without a relay (tests) the database's, for a device's address.
+func (api *API) deviceDisabled(r *http.Request) (bool, error) {
+	if api.websocket != nil {
+		return api.websocket.DeviceDisabled(requestAddr(r), r.Host)
+	}
+	if !websocket.IsDeviceHost(r.Host, api.tld) {
+		return false, nil
+	}
+	return api.dao.IsDeviceDisabled(r.Host)
+}
+
 // cOneOffPerSecond/cOneOffBurst: a page load fetches a few dozen assets at
 // once and a video player a range every second or two, well within these.
 const (
@@ -130,6 +147,13 @@ const (
 const (
 	cSetupBeaconPerSecond = 1
 	cSetupBeaconBurst     = 10
+)
+
+// cOnlinePerSecond/cOnlineBurst: the setup wizard asks every 5 s whether
+// the device it set up is online.
+const (
+	cOnlinePerSecond = 1
+	cOnlineBurst     = 10
 )
 
 // requestAddr is the client's address: the connecting one, or - for a
@@ -163,6 +187,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
+		onlinePerAddr:     limits.NewRate(cOnlinePerSecond, cOnlineBurst),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -373,12 +398,16 @@ func (api *API) registerAdminAPIs() {
 // its own backend. Proxied to the device instead, via proxyStaticAsset.
 func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	if r.Host != api.tld {
+		// Limited first: every lookup below is the shared database's.
+		if !api.allowOneOff(w, r) {
+			return
+		}
 		// Issue #93: a disabled additional user (issue #90) has its own
 		// process actually stopped - nothing on the device is left running
 		// to explain that, so this is checked before ever attempting to
 		// proxy anything (which would otherwise just look like the device
 		// being offline, indistinguishable from any other outage).
-		if disabled, err := api.dao.IsDeviceDisabled(r.Host); err != nil {
+		if disabled, err := api.deviceDisabled(r); err != nil {
 			log.Error("error checking disabled state for", r.Host, ":", err)
 		} else if disabled {
 			api.serveOwnPage(w, r, "disabled.html", http.StatusServiceUnavailable)
@@ -453,9 +482,6 @@ func staticCacheControl(urlPath, file string, versioned bool) string {
 // copy of anything if the device can't answer.
 func (api *API) proxyStaticAsset(w http.ResponseWriter, r *http.Request) {
 	log.Debug("proxying static asset:", r.Host, r.URL.Path)
-	if !api.allowOneOff(w, r) {
-		return
-	}
 	req := &pb.ReqEnvelope{
 		Id: 1,
 		Payload: &pb.ReqEnvelope_ReqGetStaticAsset{
@@ -1095,6 +1121,14 @@ func (api *API) deviceOnline(w http.ResponseWriter, r *http.Request) {
 	if !cNamePattern.MatchString(name) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_name", errorText(i18n.ApiErrorInvalidNameShort()))
 		return
+	}
+	// Each answer may ask Redis which node holds the device.
+	if api.onlinePerAddr != nil {
+		if ok, retry := api.onlinePerAddr.Take(clientaddr.Bucket(requestAddr(r))); !ok {
+			limits.RetryAfter(w, retry)
+			writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests") // i18n-ignore: machine-read, the wizard's poll
+			return
+		}
 	}
 	online := api.websocket != nil && api.websocket.IsOnline(api.deviceDomain(name))
 	writeJSON(w, http.StatusOK, map[string]any{"online": online, "domain": api.deviceDomain(name)})

@@ -2252,7 +2252,13 @@ and is closed on every return path unless a device relay owns it (`handedOff`); 
 most 64 of them open (an IPv6 /64, and 256 per /48: `[bridge] max-unpaired-per-addr`), and their messages are
 read with 64 KiB outside a budget of their own (`unpairedBudget`, 256 MiB), held until each is
 handled - a pairing's first request until the device has it. A paired client's messages are read
-with 256 KiB outside `frameBudget` (`frameRules`): 32 in flight held 4 MiB each outside it. Every write to a
+with 256 KiB outside `frameBudget` (`frameRules`): 32 in flight held 4 MiB each outside it. An
+unpaired socket is closed after 30 requests answered "unreachable" or refused
+(`cUnpairedMaxRefusals`; the web's unreachable screen asks every 5 s and reconnects). A device's
+disabled flag is read through `Manager.DeviceDisabled` (`hosts.go`): remembered 5 s
+(`cDisabledTTL`; a change through this node shows at once), and looked up only for a host that can
+be a device's (`IsDeviceHost`: one label under `[otc-api] tld`; an IP, a port or a name of another
+domain never) at most 5 a second per address after a burst of 30. Every write to a
 client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
 a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
 so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and
@@ -3054,8 +3060,10 @@ and the sign-in callback's form post (Apple's) through `limits.ParseForm`
 (64 KB, 15 s to arrive - the servers bound only headers, since a whole-request `ReadTimeout`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,
 `/media`) are limited per address (`oneOffPerAddr`, 10/s, burst 60 - the forwarded address for a
-cluster hop) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
-pool; `auth_events` takes one row per address and reason a minute; relays read only an
+cluster hop; before the device's disabled flag is looked up) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
+pool; `/api/device-online` answers 1 a second per address after 10 (429 with Retry-After: it may ask
+Redis), and the cluster router asks Redis which node holds an address only when it can be a
+device's (`websocket.IsDeviceHost`); `auth_events` takes one row per address and reason a minute; relays read only an
 envelope's id (`envelopeID`, protowire) instead of unmarshalling every frame; store errors reach
 clients as `cInternalErrorMsg`; sign-ups are limited to 5 an hour per address, sign-in answers
 the same for unknown, wrong and Google/Apple-only accounts, and new bridge passwords use bcrypt

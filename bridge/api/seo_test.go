@@ -342,6 +342,7 @@ func TestDeviceHostsAreNoindex(t *testing.T) {
 	defer db.Close()
 	api := siteAPI(t)
 	api.dao = dao.NewWithDB(db)
+	api.websocket = nil // the disabled flags straight from the database
 	device := fakeStaticDevice(map[string]string{"/": "text/html; charset=utf-8"})
 	api.forwardOneOff = func(domain string, frame []byte) ([]byte, error) {
 		if domain == "gone.bridge.test" {
