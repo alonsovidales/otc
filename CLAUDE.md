@@ -4615,7 +4615,7 @@ load subject) with Try again and is asked again while shown; a refused Accept sa
 shows `app.social.friends.your_address` (Settings.domain, else the endpoint's bridge name) with
 Copy and Share (`share_text`'s `{address}` is plain text, no isolation marks, so it pastes into a
 Friends field); the add field's keyboard Send sends. Its list never reads "No friendships yet." for a
-list that didn't come (iOS `FriendshipsViewModel.body`, Alerts' rule): a spinner until the first
+list that didn't come (iOS `FriendshipsViewModel.body`, Android `friendsBody`; Alerts' rule): a spinner until the first
 answer, `app.social.friends.load_failed` with Try again when the answer was an error or none came
 (asked again at a wake), the list kept while a refresh of it fails. Files uploads go through `UploadQueue` (two
 at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
