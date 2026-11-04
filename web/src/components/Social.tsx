@@ -1040,7 +1040,8 @@ function SocialFeed({ authenticated, openPubUuid, openCommentUuid, onOpened, onR
       {authenticated && pickerOpen && (
         <Part kind="layer" onClose={() => setPickerOpen(false)}>
           <NewPostPicker
-            onCancel={() => setPickerOpen(false)}
+            // A post sent whose answer never came may be in the feed by now.
+            onCancel={(unconfirmed) => { setPickerOpen(false); if (unconfirmed) void loadFeed(); }}
             onPosted={() => { setPickerOpen(false); void loadFeed(); }}
           />
         </Part>

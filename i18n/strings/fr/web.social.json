@@ -112,9 +112,17 @@
     "text": "Déplacer {name} vers la fin",
     "en": "Move {name} later"
   },
+  "web.social.composer.not_sent": {
+    "text": "Impossible de joindre votre appareil : rien n’a été publié. Réessayez dans un instant.",
+    "en": "Your device couldn't be reached, so nothing was posted. Try again in a moment."
+  },
   "web.social.composer.order": {
     "text": "Ordre dans la publication : faites glisser, ou utilisez ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_again": {
+    "text": "Publier à nouveau",
+    "en": "Post again"
   },
   "web.social.composer.post_uploaded": {
     "text": "Publier ceux qui ont été envoyés",
@@ -171,6 +179,10 @@
   "web.social.composer.trim_load_failed": {
     "text": "Impossible de charger cette vidéo pour la découper.",
     "en": "Could not load that video to trim it."
+  },
+  "web.social.composer.unconfirmed": {
+    "text": "Votre appareil n’a pas répondu à temps : il prépare peut-être encore cette publication (une vidéo peut prendre quelques minutes). Cette fenêtre se fermera d’elle-même dès que la publication apparaîtra dans Social ; ne la republiez que si elle n’apparaît pas.",
+    "en": "Your device didn't answer in time, so it may still be preparing this post (videos can take a few minutes). This closes by itself once the post is in Social; post it again only if it doesn't appear."
   },
   "web.social.composer.upload_none": {
     "text": "Aucun des fichiers sélectionnés n’a pu être envoyé.",

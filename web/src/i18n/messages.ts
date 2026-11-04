@@ -1011,7 +1011,9 @@ export type MessageKey =
   | "web.social.composer.library"
   | "web.social.composer.move_earlier"
   | "web.social.composer.move_later"
+  | "web.social.composer.not_sent"
   | "web.social.composer.order"
+  | "web.social.composer.post_again"
   | "web.social.composer.post_uploaded"
   | "web.social.composer.publish"
   | "web.social.composer.publish_count"
@@ -1026,6 +1028,7 @@ export type MessageKey =
   | "web.social.composer.trim"
   | "web.social.composer.trim_item"
   | "web.social.composer.trim_load_failed"
+  | "web.social.composer.unconfirmed"
   | "web.social.composer.upload_none"
   | "web.social.composer.upload_partial"
   | "web.social.composer.uploading"
@@ -2209,7 +2212,9 @@ export interface MessageArgs {
   "web.social.composer.library": undefined;
   "web.social.composer.move_earlier": { name: string };
   "web.social.composer.move_later": { name: string };
+  "web.social.composer.not_sent": undefined;
   "web.social.composer.order": undefined;
+  "web.social.composer.post_again": undefined;
   "web.social.composer.post_uploaded": undefined;
   "web.social.composer.publish": undefined;
   "web.social.composer.publish_count": { count: number };
@@ -2224,6 +2229,7 @@ export interface MessageArgs {
   "web.social.composer.trim": undefined;
   "web.social.composer.trim_item": { name: string };
   "web.social.composer.trim_load_failed": undefined;
+  "web.social.composer.unconfirmed": undefined;
   "web.social.composer.upload_none": undefined;
   "web.social.composer.upload_partial": { count: number };
   "web.social.composer.uploading": { current: number; total: number };

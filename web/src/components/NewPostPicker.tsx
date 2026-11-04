@@ -22,6 +22,8 @@ import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
+import { cLookPosts, findSentPost, nextLookMs, publishOutcome, type SentPost } from "./postConfirm";
+import { subscribeDeviceStatus } from "../net/deviceStatus";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content) return "";
@@ -38,7 +40,9 @@ const fileKey = (f: MsgFile, idx?: number) =>
 const cFirstPagePhotos = 12;
 
 type Props = {
-  onCancel: () => void;
+  // Closed without a post the device confirmed: `unconfirmed` when one was
+  // sent whose answer never came (it may be in the feed by now).
+  onCancel: (unconfirmed: boolean) => void;
   onPosted: () => void;
 };
 
@@ -51,9 +55,15 @@ type Source = "server" | "local";
 
 export default function NewPostPicker({ onCancel, onPosted }: Props) {
   const t = useT();
+  // A post sent whose answer never came (postConfirm.ts): what was sent,
+  // looked for in the feed until it is there.
+  const [unconfirmed, setUnconfirmed] = useState<SentPost | null>(null);
+  const unconfirmedRef = useRef(unconfirmed);
+  unconfirmedRef.current = unconfirmed;
+  const cancel = () => onCancel(unconfirmedRef.current !== null);
   // Back closes it, as its × does (backStack.ts). Loaded when first opened
   // (Social wraps it in a layer's Part).
-  useBackLayer(true, onCancel);
+  useBackLayer(true, cancel);
   const [source, setSource] = useState<Source>("server");
 
   // -------- local files (issue #87) --------------------------------------
@@ -481,6 +491,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     setPublishing(true);
     setError(null);
     setPartial(false);
+    // Posted again: whatever this answer says is what counts now.
+    setUnconfirmed(null);
     try {
       let paths: string[];
       // Index-aligned with localFiles (null where an upload failed) - kept
@@ -544,16 +556,32 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           .map(([path, range]) => ({ path, startSecs: range.start, endSecs: range.end }));
       }
 
-      const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = {
-          $case: "reqNewSocialPublication",
-          reqNewSocialPublication: { text: caption, paths, trims },
-        };
-      });
-      if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
+      // The device makes the post before it answers (a video is cut and
+      // shrunk first): an answer that never comes leaves it made, or on
+      // its way, as often as not. It is looked for in the feed then
+      // (unconfirmed, below), not left to a guess - publishing again made
+      // every friend get it twice.
+      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now() };
+      let answer: { resp: RespEnvelope } | { error: unknown };
+      try {
+        answer = { resp: await useWS.request(e => {
+          (e as any).payload = {
+            $case: "reqNewSocialPublication",
+            reqNewSocialPublication: { text: caption, paths, trims },
+          };
+        }) };
+      } catch (err) {
+        answer = { error: err };
+      }
+      const outcome = publishOutcome(answer);
+      if (outcome === "posted") {
         onPosted();
+      } else if (outcome === "unknown") {
+        setUnconfirmed(sent);
+      } else if (outcome === "unsent") {
+        setError(() => say("web.social.composer.not_sent"));
       } else {
-        const message = resp.errorMessage;
+        const message = "resp" in answer ? answer.resp.errorMessage : "";
         setError(() => (message ? asIs(message) : say("web.social.composer.publish_failed")));
       }
     } catch (err: any) {
@@ -564,13 +592,51 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
     }
   };
 
+  // A post that may have been made: the newest posts are looked at soon,
+  // then every half minute (nextLookMs), and at once when the device
+  // answers again after its screen (deviceStatus). There, it is posted as
+  // if its answer had come: the composer closes and the feed shows it.
+  useEffect(() => {
+    if (!unconfirmed) return;
+    let live = true;
+    let looks = 0;
+    let busy = false;
+    let timer: number | undefined;
+    const look = async () => {
+      if (busy || !live) return;
+      busy = true;
+      window.clearTimeout(timer);
+      try {
+        const resp: RespEnvelope = await useWS.request((e) => {
+          e.payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: { since: undefined, total: cLookPosts, excludeUuids: [] } };
+        });
+        if (!live) return;
+        if (resp.payload?.$case === "respSocialPublications" && findSentPost(resp.payload.respSocialPublications.publications, unconfirmed)) {
+          live = false;
+          onPosted();
+          return;
+        }
+      } catch {
+        // No answer again: the next look.
+      } finally {
+        busy = false;
+      }
+      if (live) timer = window.setTimeout(() => void look(), nextLookMs(++looks));
+    };
+    timer = window.setTimeout(() => void look(), nextLookMs(looks));
+    const off = subscribeDeviceStatus((status) => { if (!status) void look(); });
+    return () => { live = false; window.clearTimeout(timer); off(); };
+    // onPosted is Social's, made once per opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unconfirmed]);
+
   // How many photos and videos the post has so far.
   const picked = source === "local" ? localFiles.length : selected.length;
 
   return (
     <div className="np-root">
       <div className="np-header">
-        <button className="np-close" onClick={onCancel} aria-label={t("common.cancel")}>✕</button>
+        <button className="np-close" onClick={cancel} aria-label={t("common.cancel")}>✕</button>
         <div className="np-title">{t("web.social.composer.title")}</div>
         <div className="np-header-spacer" />
       </div>
@@ -870,6 +936,11 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         />
       )}
 
+      {/* Sent, and no answer came: it may well be posted (postConfirm.ts). */}
+      {unconfirmed && !publishing && (
+        <div className="np-note" role="status">{t("web.social.composer.unconfirmed")}</div>
+      )}
+
       {error && (
         <div className="np-error" role="alert">
           {error(t)}
@@ -899,6 +970,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
             ? t("web.social.composer.uploading", uploading)
             : publishing
             ? t("web.social.composer.publishing")
+            : unconfirmed
+            ? t("web.social.composer.post_again")
             : picked ? t("web.social.composer.publish_count", { count: picked }) : t("web.social.composer.publish")}
         </button>
       </div>

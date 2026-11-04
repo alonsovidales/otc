@@ -201,7 +201,7 @@ export function UseWS() {
     // Issue #202: a device that agreed to shut down is left alone for a
     // while - no new socket for it (net/shutDownHold.ts); a socket still
     // open carries on, the bridge answering for the device once it is off.
-    if (reconnect && shutDownHeld()) throw new NoAnswer(t("web.settings.shutdown.done"));
+    if (reconnect && shutDownHeld()) throw new NoAnswer(t("web.settings.shutdown.done"), false);
     if (reconnect || authOwed) {
       if (reconnect) await connect();
       if (wsClient.connected && !authPromise) {
@@ -243,8 +243,19 @@ export function UseWS() {
     }
     // Whether this call is the one that just kicked off sendAuth above, or
     // one that arrived while some other caller's auth was already in
-    // flight, either way: never send the actual payload ahead of it.
-    if (authPromise) await authPromise;
+    // flight, either way: never send the actual payload ahead of it. A
+    // sign-in that failed (no answer, the bridge answering for the device,
+    // a device without its storage) sends nothing after it: this request
+    // never went, which its caller may need to know (NoAnswer.sent) - a
+    // post the device never had is not one it may have made.
+    if (authPromise) {
+      try {
+        await authPromise;
+      } catch (e) {
+        const words = e instanceof Error && e.message ? e.message : t("web.shell.connection.no_answer");
+        throw new NoAnswer(words, false);
+      }
+    }
 
     return rawRequest(req);
   });

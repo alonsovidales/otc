@@ -24,6 +24,7 @@ import { isTooBigForMemory } from "./bigFile";
 import { useBackLayer } from "./backStack";
 import { reloadAfterImagesChanged } from "./libraryStore";
 import { refuseOnDemo } from "../net/demo";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
@@ -927,6 +928,13 @@ function FilesExplorerView({
             e.payload = { $case: "reqDelFile", reqDelFile: f.hash ? { path: full, hash: f.hash } : { path: full } };
           });
         } catch {
+          stopped = true;
+          break;
+        }
+        // The bridge answering for the device (it lost it on the way, or
+        // stopped waiting for a big folder): no word on this one either -
+        // it may well be gone. Not a refusal in the bridge's words.
+        if (isBridgeAnswer(resp)) {
           stopped = true;
           break;
         }

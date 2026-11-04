@@ -27,7 +27,9 @@
   "web.social.composer.library": "Mediathek",
   "web.social.composer.move_earlier": "\u2068{name}\u2069 nach vorne verschieben",
   "web.social.composer.move_later": "\u2068{name}\u2069 nach hinten verschieben",
+  "web.social.composer.not_sent": "Dein Gerät war nicht erreichbar, daher wurde nichts gepostet. Versuche es gleich noch einmal.",
   "web.social.composer.order": "Reihenfolge im Beitrag – ziehen oder ‹ › verwenden",
+  "web.social.composer.post_again": "Erneut posten",
   "web.social.composer.post_uploaded": "Hochgeladene posten",
   "web.social.composer.publish": "Posten",
   "web.social.composer.publish_count": "Posten ({count})",
@@ -42,6 +44,7 @@
   "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "\u2068{name}\u2069 kürzen",
   "web.social.composer.trim_load_failed": "Dieses Video konnte zum Kürzen nicht geladen werden.",
+  "web.social.composer.unconfirmed": "Dein Gerät hat nicht rechtzeitig geantwortet und bereitet diesen Beitrag vielleicht noch vor (Videos können ein paar Minuten dauern). Dieses Fenster schließt sich von selbst, sobald der Beitrag in Social erscheint; poste ihn nur dann noch einmal, wenn er dort nicht auftaucht.",
   "web.social.composer.upload_none": "Keine der ausgewählten Dateien konnte hochgeladen werden.",
   "web.social.composer.upload_partial": {
     "one": "{count} Datei wurde nicht hochgeladen. Poste die hochgeladenen oder versuche es erneut.",

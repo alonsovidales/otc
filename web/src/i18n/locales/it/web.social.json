@@ -27,7 +27,9 @@
   "web.social.composer.library": "Libreria",
   "web.social.composer.move_earlier": "Sposta \u2068{name}\u2069 verso l’inizio",
   "web.social.composer.move_later": "Sposta \u2068{name}\u2069 verso la fine",
+  "web.social.composer.not_sent": "Impossibile raggiungere il tuo dispositivo, quindi non è stato pubblicato nulla. Riprova tra un momento.",
   "web.social.composer.order": "Ordine nel post: trascina, oppure usa ‹ ›",
+  "web.social.composer.post_again": "Pubblica di nuovo",
   "web.social.composer.post_uploaded": "Pubblica quelli caricati",
   "web.social.composer.publish": "Pubblica",
   "web.social.composer.publish_count": "Pubblica ({count})",
@@ -42,6 +44,7 @@
   "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "Taglia \u2068{name}\u2069",
   "web.social.composer.trim_load_failed": "Impossibile caricare quel video per tagliarlo.",
+  "web.social.composer.unconfirmed": "Il tuo dispositivo non ha risposto in tempo, quindi potrebbe stare ancora preparando questo post (i video possono richiedere qualche minuto). Questa finestra si chiuderà da sola appena il post comparirà in Social; pubblicalo di nuovo solo se non compare.",
   "web.social.composer.upload_none": "Impossibile caricare nessuno dei file selezionati.",
   "web.social.composer.upload_partial": {
     "one": "{count} file non è stato caricato. Pubblica quelli caricati o riprova.",

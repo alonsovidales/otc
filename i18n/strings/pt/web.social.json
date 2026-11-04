@@ -112,9 +112,17 @@
     "text": "Mover {name} para a posição seguinte",
     "en": "Move {name} later"
   },
+  "web.social.composer.not_sent": {
+    "text": "Não foi possível contactar o teu dispositivo, por isso nada foi publicado. Tenta novamente daqui a pouco.",
+    "en": "Your device couldn't be reached, so nothing was posted. Try again in a moment."
+  },
   "web.social.composer.order": {
     "text": "Ordem na publicação: arrasta ou usa ‹ ›",
     "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.post_again": {
+    "text": "Publicar de novo",
+    "en": "Post again"
   },
   "web.social.composer.post_uploaded": {
     "text": "Publicar os que foram carregados",
@@ -171,6 +179,10 @@
   "web.social.composer.trim_load_failed": {
     "text": "Não foi possível carregar esse vídeo para o cortar.",
     "en": "Could not load that video to trim it."
+  },
+  "web.social.composer.unconfirmed": {
+    "text": "O teu dispositivo não respondeu a tempo, por isso pode ainda estar a preparar esta publicação (os vídeos podem demorar alguns minutos). Isto fecha-se sozinho assim que a publicação aparecer em Social; publica-a de novo só se não aparecer.",
+    "en": "Your device didn't answer in time, so it may still be preparing this post (videos can take a few minutes). This closes by itself once the post is in Social; post it again only if it doesn't appear."
   },
   "web.social.composer.upload_none": {
     "text": "Não foi possível carregar nenhum dos ficheiros selecionados.",

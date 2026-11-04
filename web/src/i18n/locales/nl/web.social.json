@@ -27,7 +27,9 @@
   "web.social.composer.library": "Bibliotheek",
   "web.social.composer.move_earlier": "\u2068{name}\u2069 naar voren verplaatsen",
   "web.social.composer.move_later": "\u2068{name}\u2069 naar achteren verplaatsen",
+  "web.social.composer.not_sent": "Je apparaat was niet bereikbaar, dus er is niets gepubliceerd. Probeer het zo opnieuw.",
   "web.social.composer.order": "Volgorde in het bericht: sleep, of gebruik ‹ ›",
+  "web.social.composer.post_again": "Opnieuw publiceren",
   "web.social.composer.post_uploaded": "De geüploade bestanden plaatsen",
   "web.social.composer.publish": "Publiceren",
   "web.social.composer.publish_count": "Publiceren ({count})",
@@ -42,6 +44,7 @@
   "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "\u2068{name}\u2069 inkorten",
   "web.social.composer.trim_load_failed": "Kan die video niet laden om hem in te korten.",
+  "web.social.composer.unconfirmed": "Je apparaat heeft niet op tijd geantwoord en is dit bericht misschien nog aan het voorbereiden (video's kunnen een paar minuten duren). Dit venster sluit vanzelf zodra het bericht in Social staat; publiceer het alleen opnieuw als het niet verschijnt.",
   "web.social.composer.upload_none": "Kan geen van de geselecteerde bestanden uploaden.",
   "web.social.composer.upload_partial": {
     "one": "{count} bestand is niet geüpload. Plaats de bestanden die wel zijn geüpload of probeer het opnieuw.",

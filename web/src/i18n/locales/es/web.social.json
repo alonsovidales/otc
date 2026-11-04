@@ -27,7 +27,9 @@
   "web.social.composer.library": "Biblioteca",
   "web.social.composer.move_earlier": "Mover \u2068{name}\u2069 una posición antes",
   "web.social.composer.move_later": "Mover \u2068{name}\u2069 una posición después",
+  "web.social.composer.not_sent": "No se ha podido contactar con tu dispositivo, así que no se ha publicado nada. Vuelve a intentarlo en un momento.",
   "web.social.composer.order": "Orden en la publicación: arrastra o usa ‹ ›",
+  "web.social.composer.post_again": "Publicar de nuevo",
   "web.social.composer.post_uploaded": "Publicar los que se han subido",
   "web.social.composer.publish": "Publicar",
   "web.social.composer.publish_count": "Publicar ({count})",
@@ -42,6 +44,7 @@
   "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "Recortar \u2068{name}\u2069",
   "web.social.composer.trim_load_failed": "No se ha podido cargar ese vídeo para recortarlo.",
+  "web.social.composer.unconfirmed": "Tu dispositivo no ha respondido a tiempo, así que puede que aún esté preparando esta publicación (los vídeos pueden tardar unos minutos). Esto se cerrará solo en cuanto la publicación aparezca en Social; vuelve a publicarla solo si no aparece.",
   "web.social.composer.upload_none": "No se ha podido subir ninguno de los archivos seleccionados.",
   "web.social.composer.upload_partial": {
     "one": "No se ha podido subir {count} archivo. Publica los que sí se han subido o vuelve a intentarlo.",
