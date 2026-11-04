@@ -581,8 +581,10 @@ ssl-key=
 # <storage-path>/.lan-tls/). Defaults to port + 363 (8443) if omitted.
 lan-tls-port=8443
 # Optional: browser pages on other addresses that may open the device's
-# socket, besides the device's own page at whatever address it is reached
-# directly - a reverse proxy that passes neither the Host nor
+# socket, besides the device's own page at its addresses and names on the
+# home network (otc.local, names under .lan, .home, .home.arpa, .internal or
+# fritz.box, a name with no dot) - a name of your own that your network's DNS
+# points at the device, a reverse proxy that passes neither the Host nor
 # X-Forwarded-Host on, or a developer's own server. Origins, separated by
 # commas. Any other site's page is refused.
 # allowed-origins=https://photos.example.com

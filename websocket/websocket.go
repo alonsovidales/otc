@@ -345,15 +345,15 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			cfg.GetStr("otc", "storage-path"),
 			cfg.GetStr("otc", "unenc-storage-path"),
 		),
-		upgrader: gorilla.Upgrader{
-			// No other site's page (origin.go); Listen checks first.
-			CheckOrigin: originAllowed,
-		},
+
 		settings: st,
 		profile:  pr,
 		push:     ps,
 		social:   social.Init(dao, filesManager, st, pr, ps),
 	}
+	// No other site's page (origin.go), the device's own name on the
+	// bridge among its names; Listen checks first.
+	mg.upgrader = gorilla.Upgrader{CheckOrigin: mg.originAllowed}
 
 	// Issue #62: whenever this device's own Push instance (used for social
 	// notifications) prunes a stale subscription/token, re-sync the
@@ -1064,7 +1064,7 @@ func (mg *Manager) pushRegistrations() (regs *pb.UpdatePushRegistrations, ok boo
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	// Before the upgrader's own check, so a refusal is counted, not logged
 	// as an error each time (anonlog.go).
-	if !originAllowed(r) {
+	if !mg.originAllowed(r) {
 		log.Debug("socket refused from another site's page:", r.Header.Get("Origin"))
 		anonLog.note(cAnonOrigin)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)

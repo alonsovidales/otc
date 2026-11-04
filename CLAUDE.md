@@ -978,7 +978,8 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   alone for 5), and holds the first-password rules (`HomeAddress`, `OTC_SETUP_UNTIL` in Unix
   seconds, at most 31 minutes ahead). Callers gate on `container.Enabled()`: `websocket/container.go`
   (`containerGate` beside `demoGate`: no disks or Wi-Fi; a first password only over a direct
-  connection from a home address with no proxy headers and no other site's Origin (`indirect`) -
+  connection from a home address with no proxy headers, no other site's Origin and no page at a
+  name that isn't the device's (`indirect`: `deviceHost`, DNS rebinding) -
   the primary's within the window, an additional user's (`OTC_SUPERVISED_CHILD`) at any time or
   through the bridge - and refused when the vault can't be read; `[otc-api] trusted-proxies` for
   X-Forwarded-For; user ports from the HTTP port, checked against the host), the updater
@@ -1998,10 +1999,17 @@ start takes its file.
   `cMaxAnonDirect` (2048) in all (`anonSlots`): past that `Listen` answers 503 before the upgrade, and
   a connection stops counting once signed in. Both are counted in `anonLog`. `Listen` refuses another site's page with a 403 before
   the upgrade (`origin.go`, `originAllowed`, also the upgrader's CheckOrigin): no Origin (apps,
-  otc-sync, friends' devices), an Origin whose host is the request's Host (the web app at any of the
-  device's addresses, tunnels, Tailscale Funnel, which passes the Host on), one on
-  X-Forwarded-Host from loopback or a container's trusted proxies, or one in `[otc-api]
-  allowed-origins` (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Strangers' routine
+  otc-sync, friends' devices), an Origin whose host is the request's Host when that is a name the
+  device answers to (`deviceHost`: an address, a name with no dot, one ending in `cLocalSuffixes` -
+  .local, .lan, .home, .home.arpa, .internal, .fritz.box, .ts.net... -, its own name on the bridge
+  (`mg.originAllowed`), a host of allowed-origins, or any the request came through a proxy for, whose
+  headers no page can add to its socket: the web app at any of the device's addresses, tunnels,
+  Tailscale Funnel, which passes the Host on, the owner's reverse proxy), one on X-Forwarded-Host
+  from loopback or a container's trusted proxies, or one in `[otc-api] allowed-origins`
+  (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Host = Origin alone let in DNS rebinding:
+  a page on attacker.example whose DNS points at the device's home address opens
+  `ws://attacker.example/ws` with both headers its own; any other name of the owner's goes in
+  allowed-origins. Strangers' routine
   requests log at Debug; refused origins, plain requests to `/ws`, passwords tried while locked out
   and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`); a request
   before sign-in that panics is logged at Error with its stack once a minute and counted after that

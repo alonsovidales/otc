@@ -376,6 +376,25 @@ func TestForeignOrigin(t *testing.T) {
 	if !indirect(r) {
 		t.Error("its own page through a proxy: not indirect")
 	}
+	// DNS rebinding: a page at a name of the attacker's, pointed at the
+	// container's address, has its own Host and Origin - not the device's
+	// page, so no first password from it. The apps send no Origin, at any
+	// name.
+	r, _ = http.NewRequest(http.MethodGet, "/ws", nil)
+	r.Host = "attacker.example:8080"
+	r.Header.Set("Origin", "http://attacker.example:8080")
+	if foreignOrigin(r) || !indirect(r) {
+		t.Errorf("a rebound name: foreign %v, indirect %v", foreignOrigin(r), indirect(r))
+	}
+	r.Header.Del("Origin")
+	if indirect(r) {
+		t.Error("an app at a name of the owner's taken for a page")
+	}
+	r.Host = "otc.local:8080"
+	r.Header.Set("Origin", "http://otc.local:8080")
+	if indirect(r) {
+		t.Error("its own page at otc.local: indirect")
+	}
 }
 
 func TestPeerHost(t *testing.T) {

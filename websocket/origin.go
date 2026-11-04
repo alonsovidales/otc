@@ -34,6 +34,12 @@ import (
 //     Network.framework), otc-sync and friends' devices (gorilla): none.
 //     The apps' only web views are the Bluetooth setup's, which talk to
 //     the setup wizard, never to this socket.
+//
+// Origin = Host alone isn't the device's own page: a page on
+// attacker.example whose name the attacker's DNS points at the device's
+// home address (DNS rebinding) opens ws://attacker.example/ws, and the
+// browser sends Host and Origin attacker.example. So a page's socket is
+// taken only at a name the device answers to (deviceHost).
 
 // EnvAllowedOrigins is the container's setting for [otc-api]
 // allowed-origins.
@@ -42,7 +48,8 @@ const EnvAllowedOrigins = "OTC_ALLOWED_ORIGINS"
 // originAllowed is the upgrader's CheckOrigin: a socket is taken
 //   - with no Origin (the apps, otc-sync, friends' devices);
 //   - from a page on the host the request was made to, at any scheme (a
-//     TLS proxy in front of the plain port), as gorilla's own default;
+//     TLS proxy in front of the plain port), as gorilla's own default -
+//     when that host is a name the device answers to (deviceHost);
 //   - from a page on the host a proxy says it was asked for, when the
 //     proxy is one X-Forwarded-For is believed from (clientAddr: loopback,
 //     or a container's [otc-api] trusted-proxies);
@@ -52,6 +59,23 @@ const EnvAllowedOrigins = "OTC_ALLOWED_ORIGINS"
 // browser extension's, an app's own: no first-party client sends one) and
 // every other site's page are refused.
 func originAllowed(r *http.Request) bool {
+	return originAllowedAt(r, "")
+}
+
+// originAllowed is the package's originAllowed with this manager's own
+// name on the bridge among the device's (Listen's check and the
+// upgrader's).
+func (mg *Manager) originAllowed(r *http.Request) bool {
+	own := ""
+	if mg.settings != nil {
+		own = mg.settings.Domain()
+	}
+	return originAllowedAt(r, own)
+}
+
+// originAllowedAt is originAllowed, with own (when not "") also a name of
+// the device's.
+func originAllowedAt(r *http.Request, own string) bool {
 	o := r.Header.Get("Origin")
 	if o == "" {
 		return true
@@ -63,13 +87,67 @@ func originAllowed(r *http.Request) bool {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return false
 	}
-	if sameHost(u, r.Host) {
+	if sameHost(u, r.Host) && deviceHost(r, own) {
 		return true
 	}
 	if fwd := forwardedHost(r); fwd != "" && sameHost(u, fwd) {
 		return true
 	}
 	return allowedOrigins()[normalOrigin(u)]
+}
+
+// cLocalSuffixes are names no public DNS serves - mDNS, the names home
+// routers give their devices, special-use and reserved names, Tailscale's
+// - so no other site's page can be at one of them: a name ending in one is
+// a name of the device's on its own network.
+var cLocalSuffixes = []string{
+	".local", ".localhost", ".lan", ".home", ".home.arpa", ".internal", ".intranet",
+	".localdomain", ".corp", ".test", ".fritz.box", ".ts.net",
+}
+
+// deviceHost reports whether r was made to a name the device answers to,
+// which a page that rebound a name of its own to the device's address
+// can't be at: an address, a name with no dot (localhost, a router's short
+// name), one ending in cLocalSuffixes, own (the device's name on the
+// bridge, should a home network's DNS point it here), a host of [otc-api]
+// allowed-origins - or any name the request came through a proxy for: its
+// headers (proxyHeaders) are none a page can add to its socket, and the
+// owner's reverse proxy passes the name it was asked for. Anything else
+// needs [otc-api] allowed-origins.
+func deviceHost(r *http.Request, own string) bool {
+	name := strings.ToLower(strings.TrimSuffix(hostOnly(r.Host), "."))
+	if name == "" {
+		return false
+	}
+	if _, err := netip.ParseAddr(name); err == nil {
+		return true
+	}
+	if !strings.Contains(name, ".") {
+		return true
+	}
+	for _, suffix := range cLocalSuffixes {
+		if strings.HasSuffix(name, suffix) || name == suffix[1:] {
+			return true
+		}
+	}
+	if own != "" && name == strings.ToLower(own) {
+		return true
+	}
+	for origin := range allowedOrigins() {
+		if u, err := url.Parse(origin); err == nil && strings.EqualFold(u.Hostname(), name) {
+			return true
+		}
+	}
+	return proxyHeaders(r)
+}
+
+// hostOnly is a Host header's name or address, without its port or an
+// IPv6 address's brackets.
+func hostOnly(host string) string {
+	if name, _, err := net.SplitHostPort(host); err == nil {
+		return name
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
 }
 
 // sameHost reports whether host (a Host header: name or address, maybe a
