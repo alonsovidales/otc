@@ -2204,8 +2204,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				err = nil
 			}
 		case actDeleteLocal:
+			// To the trash, never deleted outright (trash.go).
 			if err = stillAsScanned(a.relative, localPath); err == nil {
-				err = os.Remove(localPath)
+				err = moveToTrash(localPath, f.LocalPath)
 			}
 			if err == nil {
 				emptied[filepath.Dir(localPath)] = true
@@ -2230,6 +2231,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	if n := removeEmptiedDirs(emptied, f.LocalPath); n > 0 {
 		log.Printf("%s: removed %d folder(s) left empty by deletions on the device", f.RemotePath, n)
 	}
+	pruneFolderTrash(f.LocalPath, time.Now())
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()
