@@ -3,12 +3,15 @@
 package api
 
 import (
+	"bufio"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/limits"
@@ -92,27 +95,70 @@ func (cr *clusterRouter) proxy(addr string) *httputil.ReverseProxy {
 }
 
 // deadlineWriter renews the client's write deadline before every write
-// of a forwarded response. The server has no WriteTimeout (it would cut
-// websockets), so otherwise a client that stops reading holds the
-// forwarding goroutine and its connection to the other node for good.
+// of a forwarded response - and, for a websocket, before every write to
+// the connection it hands over (Hijack). The server has no WriteTimeout
+// (it would cut websockets), so otherwise a client that stops reading
+// holds the forwarding goroutine and its connection to the other node for
+// good.
 type deadlineWriter struct {
 	http.ResponseWriter
 	rc    *http.ResponseController
 	stall time.Duration
 }
 
-// withWriteDeadline wraps w for a forwarded request, except a websocket
-// upgrade, which must stay open while idle (and needs the plain writer to
-// hijack).
+// cUpgradeWriteStall is how long a write to the client of a forwarded
+// websocket may make no progress: 60 s, as every write to a client has on
+// the node that holds the device (websocket.writeClient). An idle
+// websocket writes nothing, so it is never cut for being idle. Var so
+// tests can shrink it.
+var cUpgradeWriteStall = 60 * time.Second
+
+// withWriteDeadline wraps w for a forwarded request (a CONNECT aside):
+// every write renews the write deadline, a websocket's after its upgrade
+// too.
 func withWriteDeadline(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
-	if r.Header.Get("Upgrade") != "" || r.Method == http.MethodConnect {
+	if r.Method == http.MethodConnect {
 		return w
 	}
 	stall := limits.WriteIdleTimeout
-	if strings.HasPrefix(r.URL.Path, "/media/") {
+	switch {
+	case isUpgrade(r):
+		stall = cUpgradeWriteStall
+	case strings.HasPrefix(r.URL.Path, "/media/"):
 		stall = cMediaWriteStall
 	}
 	return &deadlineWriter{ResponseWriter: w, rc: http.NewResponseController(w), stall: stall}
+}
+
+// isUpgrade reports whether r asks to switch protocols as
+// httputil.ReverseProxy takes it: an Upgrade header and a Connection
+// header naming "upgrade". An Upgrade header alone is an ordinary request,
+// and used to be forwarded with no write deadline.
+func isUpgrade(r *http.Request) bool {
+	return r.Header.Get("Upgrade") != "" && httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
+}
+
+// Hijack hands ReverseProxy the client's connection for a websocket, its
+// writes still under the stall deadline.
+func (d *deadlineWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	conn, brw, err := d.rc.Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &stallConn{Conn: conn, stall: d.stall}, brw, nil
+}
+
+// stallConn renews its write deadline before every write: a client that
+// stops reading a forwarded websocket is cut after stall. Reads have none:
+// an idle websocket is a websocket.
+type stallConn struct {
+	net.Conn
+	stall time.Duration
+}
+
+func (c *stallConn) Write(p []byte) (int, error) {
+	_ = c.Conn.SetWriteDeadline(time.Now().Add(c.stall))
+	return c.Conn.Write(p)
 }
 
 func (d *deadlineWriter) Write(p []byte) (int, error) {

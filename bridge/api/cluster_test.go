@@ -162,15 +162,9 @@ func TestInternalListenerNeedsToken(t *testing.T) {
 }
 
 // A forwarded response is written under a write deadline - media with the
-// player-sized one - and still flushes through the wrapper; a websocket
-// upgrade is left alone.
+// player-sized one - and still flushes through the wrapper (a websocket's:
+// TestForwardedRequestsKeepTheWriteDeadline).
 func TestForwardedResponsesGetAWriteDeadline(t *testing.T) {
-	ws := httptest.NewRequest("GET", "https://cala.off-the.cloud/ws", nil)
-	ws.Header.Set("Upgrade", "websocket")
-	rec := httptest.NewRecorder()
-	if withWriteDeadline(rec, ws) != http.ResponseWriter(rec) {
-		t.Error("a websocket upgrade was wrapped")
-	}
 	for path, want := range map[string]time.Duration{"/assets/index-CaKPC84J.js": limits.WriteIdleTimeout, "/media/tok": cMediaWriteStall} {
 		rec := httptest.NewRecorder()
 		dw, ok := withWriteDeadline(rec, httptest.NewRequest("GET", "https://cala.off-the.cloud"+path, nil)).(*deadlineWriter)
@@ -214,5 +208,89 @@ func TestClusterAsksOnlyAboutDeviceAddresses(t *testing.T) {
 		if w.Body.String() != want {
 			t.Errorf("%s: %q, want %q", host, w.Body.String(), want)
 		}
+	}
+}
+
+// Every forwarded request keeps the write deadline: an Upgrade header
+// alone is an ordinary request (ReverseProxy forwards it as one), and a
+// real websocket keeps it on the connection it hands over.
+func TestForwardedRequestsKeepTheWriteDeadline(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		headers map[string]string
+		stall   time.Duration
+	}{
+		{"plain", nil, limits.WriteIdleTimeout},
+		{"a stray Upgrade header", map[string]string{"Upgrade": "x"}, limits.WriteIdleTimeout},
+		{"a websocket", map[string]string{"Upgrade": "websocket", "Connection": "keep-alive, Upgrade"}, cUpgradeWriteStall},
+	} {
+		r := httptest.NewRequest("GET", "https://cala.off-the.cloud/assets/index-CaKPC84J.js", nil)
+		for k, v := range c.headers {
+			r.Header.Set(k, v)
+		}
+		dw, ok := withWriteDeadline(httptest.NewRecorder(), r).(*deadlineWriter)
+		if !ok || dw.stall != c.stall {
+			t.Errorf("%s: wrapped %v, stall %v; want %v", c.name, ok, dw, c.stall)
+		}
+	}
+	if media, ok := withWriteDeadline(httptest.NewRecorder(), httptest.NewRequest("GET", "/media/tok", nil)).(*deadlineWriter); !ok || media.stall != cMediaWriteStall {
+		t.Error("a media range lost its own stall")
+	}
+}
+
+// A forwarded websocket whose client stops reading is cut once a write to
+// it makes no progress for cUpgradeWriteStall - before, the forwarding
+// node's copy blocked for as long as the client kept its window shut, and
+// with it the connection to the node holding the device.
+func TestAForwardedWebsocketWhoseClientStopsReadingIsCut(t *testing.T) {
+	setStall := cUpgradeWriteStall
+	cUpgradeWriteStall = 300 * time.Millisecond
+	t.Cleanup(func() { cUpgradeWriteStall = setStall })
+
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	cut := make(chan struct{})
+	upgrader := gorilla.Upgrader{}
+	backMux := http.NewServeMux()
+	backMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		chunk := make([]byte, 256<<10)
+		for i := 0; i < 4096; i++ { // up to 1 GiB, far past every buffer between
+			// Longer than the test waits: only the front can end this.
+			c.SetWriteDeadline(time.Now().Add(time.Minute))
+			if err := c.WriteMessage(gorilla.BinaryMessage, chunk); err != nil {
+				close(cut)
+				return
+			}
+		}
+	})
+	node2 := cluster.New("bridge2", "", testToken, rdb)
+	back := httptest.NewServer(internalHandler(node2, backMux))
+	t.Cleanup(back.Close)
+	node2 = cluster.New("bridge2", strings.TrimPrefix(back.URL, "http://"), testToken, rdb)
+	if err := node2.Announce(); err != nil {
+		t.Fatal(err)
+	}
+	if err := node2.Hold("cala.off-the.cloud"); err != nil {
+		t.Fatal(err)
+	}
+	local := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "served by bridge1") })
+	front := httptest.NewServer(newClusterRouter(cluster.New("bridge1", "127.0.0.1:2", testToken, rdb), fakeLocal{}, "off-the.cloud", local))
+	t.Cleanup(front.Close)
+
+	conn, _, err := (&gorilla.Dialer{ReadBufferSize: 1024}).Dial(strings.Replace(front.URL, "http", "ws", 1)+"/ws", http.Header{"Host": {"cala.off-the.cloud"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	// ... and never reads.
+	select {
+	case <-cut:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the forwarded websocket is still held by a client that stopped reading")
 	}
 }

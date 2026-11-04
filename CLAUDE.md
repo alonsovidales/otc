@@ -3090,7 +3090,9 @@ rows keep the address itself. The account sign-in's, sign-up's and email 429s ca
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`
 (deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
-reading) and the cluster router's `deadlineWriter`; no `http.Server` `WriteTimeout`, because of the
+reading) and the cluster router's `deadlineWriter` - every forwarded request (a stray `Upgrade` header
+alone is an ordinary one: `isUpgrade` is ReverseProxy's own test), and a forwarded websocket's
+hijacked connection too (`stallConn`, 60 s like `writeClient`); no `http.Server` `WriteTimeout`, because of the
 websockets. Only hashed Vite assets (`/assets/<name>-<8 chars>.<ext>`) are cached `immutable`. Only
 `dao.IsDuplicateKey` (1062) means 409 "taken"; other insert errors are a 500, which releases the
 contact/claim cooldown (`releaseCooldown`).
