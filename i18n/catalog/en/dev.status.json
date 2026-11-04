@@ -11,6 +11,7 @@
   "dev.status.bridge.claim_unavailable": {"text": "could not reserve that name right now"},
   "dev.status.bridge.config_missing": {"text": "the device's config ({path}) is missing", "args": [["path", "text"]]},
   "dev.status.bridge.config_update_failed": {"text": "could not update {path}", "args": [["path", "text"]]},
+  "dev.status.bridge.domain_limit": {"text": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud"},
   "dev.status.bridge.email_not_verified": {"text": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue.", "args": [["email", "user"]]},
   "dev.status.bridge.invalid_credentials": {"text": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"},
   "dev.status.bridge.invalid_name": {"text": "that name can't be used"},

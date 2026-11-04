@@ -11,6 +11,7 @@
   "dev.status.bridge.claim_unavailable": {"text": "dieser Name kann gerade nicht reserviert werden"},
   "dev.status.bridge.config_missing": {"text": "die Konfiguration des Geräts ({path}) fehlt"},
   "dev.status.bridge.config_update_failed": {"text": "{path} konnte nicht aktualisiert werden"},
+  "dev.status.bridge.domain_limit": {"text": "ein Konto kann bis zu 5 Domains registrieren – für weitere (2 Euro pro Jahr je Domain) schreib an info@off-the.cloud"},
   "dev.status.bridge.email_not_verified": {"text": "Bestätige zuerst deine E-Mail-Adresse: Wir haben einen Link an {email} gesendet. Öffne ihn und melde dich dann hier erneut an, um fortzufahren."},
   "dev.status.bridge.invalid_credentials": {"text": "falsche E-Mail-Adresse oder falsches Passwort – wenn du dich mit Google oder Apple registriert hast, melde dich stattdessen damit an (auf der Kontoseite, danach mit einem Einrichtungscode)"},
   "dev.status.bridge.invalid_name": {"text": "dieser Name kann nicht verwendet werden"},

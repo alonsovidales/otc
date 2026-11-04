@@ -11,6 +11,7 @@
   "dev.status.bridge.claim_unavailable": {"text": "kan die naam nu niet reserveren"},
   "dev.status.bridge.config_missing": {"text": "de configuratie van het apparaat ({path}) ontbreekt"},
   "dev.status.bridge.config_update_failed": {"text": "kan {path} niet bijwerken"},
+  "dev.status.bridge.domain_limit": {"text": "een account kan maximaal 5 domeinen registreren – voor meer (2 euro per jaar per domein) schrijf je naar info@off-the.cloud"},
   "dev.status.bridge.email_not_verified": {"text": "Bevestig eerst je e-mailadres: we hebben een link gestuurd naar {email}. Open die link en log hier daarna opnieuw in om verder te gaan."},
   "dev.status.bridge.invalid_credentials": {"text": "onjuist e-mailadres of wachtwoord – als je je met Google of Apple hebt geregistreerd, gebruik dat dan (via de accountpagina, en daarna een configuratiecode)"},
   "dev.status.bridge.invalid_name": {"text": "die naam kan niet worden gebruikt"},

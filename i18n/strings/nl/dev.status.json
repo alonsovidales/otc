@@ -47,6 +47,10 @@
     "text": "kan {path} niet bijwerken",
     "en": "could not update {path}"
   },
+  "dev.status.bridge.domain_limit": {
+    "text": "een account kan maximaal 5 domeinen registreren – voor meer (2 euro per jaar per domein) schrijf je naar info@off-the.cloud",
+    "en": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud"
+  },
   "dev.status.bridge.email_not_verified": {
     "text": "Bevestig eerst je e-mailadres: we hebben een link gestuurd naar {email}. Open die link en log hier daarna opnieuw in om verder te gaan.",
     "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."

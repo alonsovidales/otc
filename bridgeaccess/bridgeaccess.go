@@ -321,6 +321,7 @@ var (
 	// just after a sign-in (bridge/api claimName).
 	claimCodes = map[string]func(email string) (i18n.Msg, bool){
 		"claim_unavailable": fixed(i18n.DevStatusBridgeClaimUnavailable()),
+		"domain_limit":      fixed(i18n.DevStatusBridgeDomainLimit()),
 		"invalid_name":      fixed(i18n.DevStatusBridgeInvalidName()),
 		"login_required":    fixed(i18n.DevStatusBridgeLoginRequired()),
 		"move_needs_signin": fixed(i18n.DevStatusBridgeMoveNeedsSignin()),

@@ -377,4 +377,9 @@ func TestWizardBridgeTextsAreTheBridges(t *testing.T) {
 	if n == 0 {
 		t.Fatal("wiz.json has no wiz.bridge.* keys")
 	}
+	// The device's Settings > Bridge shows its own copy of this one in
+	// English (bridgeaccess claimCodes), which must be the bridge's too.
+	if got := i18n.DevStatusBridgeDomainLimit().Render("en"); got != dynamic["domain_limit"] {
+		t.Errorf("dev.status.bridge.domain_limit says %q, the bridge %q", got, dynamic["domain_limit"])
+	}
 }

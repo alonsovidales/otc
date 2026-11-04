@@ -64,6 +64,11 @@ func DevStatusBridgeConfigUpdateFailed(path string) Msg {
 	return Msg{Key: "dev.status.bridge.config_update_failed", Args: map[string]any{"path": path}}
 }
 
+// DevStatusBridgeDomainLimit is dev.status.bridge.domain_limit: "an account can register up to 5 domains - for more (2 euros a year each), write …".
+func DevStatusBridgeDomainLimit() Msg {
+	return Msg{Key: "dev.status.bridge.domain_limit"}
+}
+
 // DevStatusBridgeEmailNotVerified is dev.status.bridge.email_not_verified: "Confirm your email first: we sent a link to {email}. Open it, then sign in here …".
 func DevStatusBridgeEmailNotVerified(email string) Msg {
 	return Msg{Key: "dev.status.bridge.email_not_verified", Args: map[string]any{"email": email}}

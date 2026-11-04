@@ -55,6 +55,10 @@
     "args": [["path", "text"]],
     "note": "Error shown in Settings > Bridge when switching the bridge on or off failed: the device's configuration file could not be changed. {path} is that file's path, such as /etc/otc_prod.ini."
   },
+  "dev.status.bridge.domain_limit": {
+    "text": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud",
+    "note": "Error under the name field when switching the bridge on from Settings: the Off The Cloud account signed in already holds as many device names (domains) as it may have. The same words as the bridge's own (api.error.domain_limit) and the setup wizard's (wiz.bridge.domain_limit). Keep the numbers and the email address as they are."
+  },
   "dev.status.bridge.email_not_verified": {
     "text": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue.",
     "args": [["email", "user"]],

@@ -61,8 +61,10 @@ func TestBridgeRefusalEnglishUnchanged(t *testing.T) {
 		"name_taken":          "that name is already taken",
 		"name_held":           "that name was released recently and is held for its previous owner for 30 days",
 		"move_needs_signin":   i18n.SiteAccountErrorMoveNeedsSignin().Render("en"),
-		"domain_limit":        "an account can hold 3 names",
-		"":                    "something the bridge said",
+		// The device's own copy, which bridge/api's
+		// TestWizardBridgeTextsAreTheBridges holds to the bridge's text.
+		"domain_limit": i18n.DevStatusBridgeDomainLimit().Render("en"),
+		"":             "something the bridge said",
 	}
 	for code, english := range bridgeTexts {
 		for _, codes := range []map[string]func(string) (i18n.Msg, bool){signInCodes, claimCodes} {

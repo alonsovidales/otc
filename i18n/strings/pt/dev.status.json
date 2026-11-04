@@ -47,6 +47,10 @@
     "text": "não foi possível atualizar {path}",
     "en": "could not update {path}"
   },
+  "dev.status.bridge.domain_limit": {
+    "text": "uma conta pode registar até 5 domínios: para mais (2 euros por ano cada um), escreve para info@off-the.cloud",
+    "en": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud"
+  },
   "dev.status.bridge.email_not_verified": {
     "text": "Confirma primeiro o teu email: enviámos uma ligação para {email}. Abre-a e depois volta a iniciar sessão aqui para continuar.",
     "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."
