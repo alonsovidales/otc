@@ -3076,7 +3076,17 @@ and the sign-in callback's form post (Apple's) through `limits.ParseForm`
 would also cut the websockets the cluster router proxies); one-off device GETs (static assets,
 `/media`) are limited per address (`oneOffPerAddr`, 10/s, burst 60 - the forwarded address for a
 cluster hop; before the device's disabled flag is looked up) and per device to `cOneOffConcurrent` (3) in flight, so they can't drain a device's
-pool; `/api/device-online` answers 1 a second per address after 10 (429 with Retry-After: it may ask
+pool. A `/media` response counts once however many spans it takes, and fetches them through a
+`websocket.Session` (`session.go`, `api/media.go`): one of the device's connections for the whole
+response - a pool connection per 4 MiB span had sat idle and started each with a cold TCP window,
+the device dialling a replacement for each - with the next 2 spans asked for while one is written
+(`cMediaReadAhead`; the device answers a connection that hasn't signed in 4 requests at a time, each
+span holding twice its size of its memory). Each span still holds one of the device's 3 one-off
+slots while in flight, in turn with the static assets'; at most 4 connections per device are kept
+for sessions (`cMaxSessionConns`, past them a response goes the one-off way) and one with nothing
+asked of it for 10 s (a paused player) is given back (`cSessionIdle`). Kept: a range answered
+whole (AVFoundation), HEAD from one byte, suffix ranges, nothing more asked once the client hangs
+up; `/api/device-online` answers 1 a second per address after 10 (429 with Retry-After: it may ask
 Redis), and the cluster router asks Redis which node holds an address only when it can be a
 device's (`websocket.IsDeviceHost`); `auth_events` takes one row per address and reason a minute; relays read only an
 envelope's id (`envelopeID`, protowire) instead of unmarshalling every frame; store errors reach

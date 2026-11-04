@@ -720,6 +720,9 @@ type Manager struct {
 	bridges          map[string]*bridgePool // The domain is the key and the value the pool of connections
 	// oneOffSlots: domain -> chan struct{} of cOneOffConcurrent (issue #163).
 	oneOffSlots sync.Map
+	// sessionConns: domain -> chan struct{} of cMaxSessionConns, the
+	// connections sessions keep (session.go).
+	sessionConns sync.Map
 	// mailer and logsPerDomain: devices' "Send logs to us".
 	mailer        *mailer.Mailer
 	logsPerDomain *limits.Rate
@@ -1567,8 +1570,10 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		// One-off replies are few (cOneOffConcurrent a device) and bounded
 		// by the device: budgeted while read, not while the caller writes.
 		release()
-		if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
-			log.Error("error recording device activity:", dbErr)
+		if mg.dao != nil {
+			if dbErr := mg.dao.RecordDeviceActivity(domain, int64(len(frame)), int64(len(respFrame))); dbErr != nil {
+				log.Error("error recording device activity:", dbErr)
+			}
 		}
 		return respFrame, nil
 	}

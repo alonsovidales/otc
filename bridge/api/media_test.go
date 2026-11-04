@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"testing"
 
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -68,15 +69,19 @@ func TestParseRange(t *testing.T) {
 }
 
 // fakeMediaDevice answers ReqGetMediaRange over file like the device's
-// mediastream.Server.Range, recording each length asked for.
+// mediastream.Server.Range, recording each length asked for (spans are
+// asked for several at once).
 func fakeMediaDevice(file []byte, lengths *[]int64) func(string, []byte) ([]byte, error) {
+	var mu sync.Mutex
 	return func(_ string, frame []byte) ([]byte, error) {
 		var req pb.ReqEnvelope
 		if err := proto.Unmarshal(frame, &req); err != nil {
 			return nil, err
 		}
 		rq := req.GetReqGetMediaRange()
+		mu.Lock()
 		*lengths = append(*lengths, rq.Length)
+		mu.Unlock()
 		size := int64(len(file))
 		if rq.Offset < 0 || rq.Offset > size {
 			return proto.Marshal(&pb.RespEnvelope{Id: req.Id, Error: true})
