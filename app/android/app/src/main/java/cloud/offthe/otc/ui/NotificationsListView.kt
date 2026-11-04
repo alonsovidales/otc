@@ -76,6 +76,8 @@ import cloud.offthe.otc.i18n.appSocialAlertsTitle
 import cloud.offthe.otc.i18n.commonAccept
 import cloud.offthe.otc.proto.Notification
 import cloud.offthe.otc.proto.NotificationType
+import androidx.compose.ui.platform.LocalDensity
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.TRYING
@@ -199,7 +201,10 @@ private fun NotificationRow(n: Notification, model: NotificationsModel, now: Lon
             }
         }
         if (n.hasThumbnail()) {
-            val bmp = remember(n.uuid) { decodeBitmap(n.thumbnail.toByteArray()) }
+            // Decoded off the main thread, at the size shown (up to 50 of
+            // them as Alerts opens, each up to 4096 px).
+            val px = with(LocalDensity.current) { 44.dp.roundToPx() }
+            val bmp = rememberTileThumb("alert:${n.uuid}", px) { n.thumbnail.toByteArray() }
             if (bmp != null) {
                 Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop,
                     modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
@@ -283,7 +288,12 @@ private fun TitledRow(n: Notification, now: Long, onTap: () -> Unit, icon: @Comp
 /** Shared avatar rendering - the friends list, likers and notifications. */
 @Composable
 fun AvatarView(data: ByteArray?, size: androidx.compose.ui.unit.Dp) {
-    val bmp = remember(data?.size) { data?.let { decodeBitmap(it) } }
+    // Decoded off the main thread at the size shown, keyed by its content
+    // (two pictures of one size used to share a decode): the feed, Friends
+    // and the likers scroll through many.
+    val key = data?.takeIf { it.isNotEmpty() }?.let { "avatar:${it.size}:${it.contentHashCode()}" }
+    val px = with(LocalDensity.current) { size.roundToPx() }
+    val bmp = rememberTileThumb(key, px) { data }
     if (bmp != null) {
         Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.size(size).clip(CircleShape))
     } else {
