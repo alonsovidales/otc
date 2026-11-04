@@ -4087,6 +4087,32 @@ folder in one pass): a two-way folder restores what the device lost instead of d
 locally, and holds the device deletes of files gone from here (they stay there with their
 baselines, `desk.main.deletes_held`, until they are back here or deleted there too; content here
 under another name - a move - doesn't count; `holdMassDeviceDeletes` / `SyncPaths.heldDeviceDeletes`); a backup keeps on the device what vanished locally.
+**"Delete Them on the Device Too…"** (owner-approved, 2026-11-04; `engine/deleteheld.go`,
+`SyncPaths`' "Delete Them on the Device Too…" section): the way out of that hold from the computer.
+While the engine holds a folder's deletes it publishes how many and the set's key
+(`config.FolderStatus.DeletesHeld`/`DeletesHeldKey`, from `noteMassHeld`; the Mac's `@Published
+heldOnDevice`), and the folder offers the action: the Mac a link-style button under its row
+(`DeleteHeldButton`, then the inline `DeleteHeldConfirmation`, never an alert; it closes if the held
+set changes while it shows), the tray an item after Open in its submenu (`tray/deleteheld.go`: a
+zenity question with a warning icon, Cancel the default), and `otc-sync delete-held <id|path>
+[--yes]` (asks for a typed yes; `otc-sync status`/`folders` show "(N kept on the device - to delete
+them there too: otc-sync delete-held <id>)"). Words: `desk.main.delete_held`, `_tip`, `_title` ("Delete
+{files} files on the device too?"), `_message`, `_button`. A yes approves the set it asked about,
+never whatever is gone by the next pass: the key is the SHA-256 hex of each held path and the
+device's hash of it, one `path\0hash\n` line each, sorted by bytes (`heldDeletesKey` /
+`SyncPaths.heldDeletesKey`, byte for byte the same - both tests hold one value), recorded in
+otc-sync's config.json with the folder (`RemoteFolder.DeleteHeld`, `SetDeleteHeldRequest` /
+`ClearDeleteHeldRequest` compare-and-clear, like the requests: the tray may be another process) and
+in the Mac's memory (`deleteHeldApprovals`). A config.json that brings one runs the folder's pass at
+once (`changedApprovalsLocked` -> `passSoon`), or once the pass under way is over (`passAgain`; the
+Mac's `deleteHeldOnDevice` and `remotePassAgain`). At the guard the pass judges it
+(`judgeDeleteApproval` / `SyncPaths.heldApproval`): the key of the set held now - those deletes go,
+still subject to everything after the guard (an unconfirmed pin holds them like any delete and keeps
+the approval for the pass that lets them go); another set, or nothing held - nothing is deleted on
+the device and the hold stays, showing the new count to be asked again. Either way the approval is
+cleared and logged once (`settleDeleteApproval`); one read back from a config.json whose clear
+couldn't be written is never used twice (`approvalDone`). While an Upload only request is pending
+no device delete is planned at all, so an approval then finds nothing held and is dropped.
 What a two-way pass deletes here goes to the trash: the Mac's Trash (`trashItem`; on a volume that
 has none, an SMB or NFS share, the same `.otc-trash/<day>/` folder as otc-sync's below, pruned the
 same way: `SyncModel.trashHere`, `SyncPaths.folderTrash` / `pruneFolderTrashes`), and otc-sync's system trash

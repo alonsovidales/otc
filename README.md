@@ -73,6 +73,7 @@ otc-sync add --upload-only ~/Projects             # the same, but nothing in it 
 otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder (no options)
 otc-sync backup --keep-out-of-images ~/Scans      # backed up, but kept out of Images
 otc-sync images <id> keep-out|show                # keep a synced folder out of Images, or show it again
+otc-sync delete-held <id> [--yes]                 # delete on the device too what was deleted here at once
 otc-sync ls /                                     # browse the device
 otc-sync open                                     # the device's web app in the browser (prints its address)
 otc-sync service install                          # run as a systemd user service, from boot
@@ -107,8 +108,11 @@ computer) goes to this computer's trash rather than away for good - the desktop'
 the Recycle Bin on Windows, and on a disk without one (a network share, a USB stick on Windows, a
 drive whose Recycle Bin is turned off or too small for the file) a `.otc-trash` folder inside the
 synced folder (or at the top of a disk mounted inside it), emptied after 30 days. Many files deleted on this computer at once (more than 20, and a quarter of the
-folder) aren't deleted on the device: the folder says so, and deleting them there too finishes the
-job; the same guard keeps files the device lost from being deleted here. Each two-way folder holds a
+folder) aren't deleted on the device: the folder says so, and if you meant it, "Delete Them on the
+Device Too…" in its menu (or `otc-sync delete-held <id>`, or deleting them from the web app or a
+phone) finishes the job. It asks first, and deletes exactly the files it asked about - with their
+older versions, for good: if more were deleted here meanwhile, it asks again. The same guard keeps
+files the device lost from being deleted here. Each two-way folder holds a
 small hidden file, `.otc-sync-<id>`, by which otc-sync knows it is the folder it synced: when a disk
 or network share isn't mounted and its empty mount point is there instead - or another disk, or a
 new folder at the same place - the folder says "Not the folder that was synced" and changes nothing
@@ -120,7 +124,8 @@ over 4 GB on a FAT32 one).
 
 The Mac app follows the same rules. What is deleted on the device goes to the Trash, or on a
 network share that has none to the same `.otc-trash` folder; many files deleted on the Mac at once
-stay on the device; and each two-way folder holds the same kind of hidden `.otc-sync-<id>` file -
+stay on the device, until "Delete Them on the Device Too…" under the folder's row deletes them
+there as well; and each two-way folder holds the same kind of hidden `.otc-sync-<id>` file -
 when iCloud's Desktop & Documents is turned off and macOS leaves an empty Documents folder in place
 of the synced one, or another disk with the same name is plugged in, the folder waits instead of
 emptying the device's copy. To sync the folder that is there now, pick it again with Add Folder…,
