@@ -83,7 +83,7 @@
     <string name="android_photos_search_close">Suche schließen</string>
     <string name="android_photos_search_in_search">In der Suche</string>
     <string name="android_secrets_start_over">Von vorn beginnen</string>
-    <string name="android_secrets_start_over_text">Off The Cloud vergisst seine Anmeldung und was es von diesem Telefon schon gesichert hat, wie frisch installiert: Du meldest dich erneut mit der Adresse und dem Passwort des Geräts an, und die Fotos dieses Telefons werden noch einmal gesichert, wie die eines neuen Telefons. Auf dem Gerät wird nichts gelöscht.</string>
+    <string name="android_secrets_start_over_text">Off The Cloud vergisst seine Anmeldung und was es von diesem Telefon schon gesichert hat, wie frisch installiert: Du meldest dich erneut mit der Adresse und dem Passwort des Geräts an und wählst wie bei einem neuen Telefon noch einmal, was gesichert wird. Auf dem Gerät wird nichts gelöscht.</string>
     <string name="android_secrets_start_over_title">Auf diesem Telefon von vorn beginnen?</string>
     <string name="android_secrets_unavailable">Off The Cloud kann den sicheren Speicher dieses Telefons, in dem es deine Anmeldung aufbewahrt, nicht öffnen. Das legt sich meist nach einem Neustart oder einem Systemupdate: Versuche es gleich noch einmal. Wenn es weiter passiert, kannst du von vorn beginnen und dich erneut anmelden.</string>
     <string name="android_settings_bridge_leave_delete">Verlassen und löschen</string>

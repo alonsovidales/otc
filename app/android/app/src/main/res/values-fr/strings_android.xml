@@ -88,7 +88,7 @@
     <string name="android_photos_search_close">Fermer la recherche</string>
     <string name="android_photos_search_in_search">Dans la recherche</string>
     <string name="android_secrets_start_over">Recommencer</string>
-    <string name="android_secrets_start_over_text">Off The Cloud oublie sa connexion et ce qu’il a déjà sauvegardé de ce téléphone, comme s’il venait d’être installé : vous vous reconnectez avec l’adresse et le mot de passe de l’appareil, et les photos de ce téléphone sont sauvegardées à nouveau comme celles d’un nouveau téléphone. Rien n’est supprimé sur l’appareil.</string>
+    <string name="android_secrets_start_over_text">Off The Cloud oublie sa connexion et ce qu’il a déjà sauvegardé de ce téléphone, comme s’il venait d’être installé : vous vous reconnectez avec l’adresse et le mot de passe de l’appareil et choisissez à nouveau ce qui est sauvegardé, comme sur un nouveau téléphone. Rien n’est supprimé sur l’appareil.</string>
     <string name="android_secrets_start_over_title">Recommencer sur ce téléphone ?</string>
     <string name="android_secrets_unavailable">Off The Cloud ne parvient pas à ouvrir le stockage sécurisé de ce téléphone, où il garde votre connexion. Cela se règle généralement après un redémarrage ou une mise à jour du système : réessayez dans un instant. Si cela continue, vous pouvez recommencer et vous reconnecter.</string>
     <string name="android_settings_bridge_leave_delete">Quitter et supprimer</string>

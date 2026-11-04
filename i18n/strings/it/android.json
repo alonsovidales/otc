@@ -307,9 +307,9 @@
     "reviewed": "claude-backtranslation 2026-11-04 #849a5767"
   },
   "android.secrets_start_over_text": {
-    "text": "Off The Cloud dimentica il suo accesso e ciò che ha già salvato da questo telefono, come appena installato: accedi di nuovo con l’indirizzo e la password del dispositivo, e le foto di questo telefono vengono salvate di nuovo come quelle di un telefono nuovo. Sul dispositivo non viene eliminato nulla.",
-    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
-    "reviewed": "claude-backtranslation 2026-11-04 #21971d53"
+    "text": "Off The Cloud dimentica il suo accesso e ciò che ha già salvato da questo telefono, come appena installato: accedi di nuovo con l’indirizzo e la password del dispositivo e scegli di nuovo cosa salvare, come su un telefono nuovo. Sul dispositivo non viene eliminato nulla.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #9e6578e4"
   },
   "android.secrets_start_over_title": {
     "text": "Ricominciare da capo su questo telefono?",

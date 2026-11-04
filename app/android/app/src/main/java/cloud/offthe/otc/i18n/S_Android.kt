@@ -270,7 +270,7 @@ fun S.androidPhotosSearchInSearch(): UiText =
 fun S.androidSecretsStartOver(): UiText =
     UiText.Res(R.string.android_secrets_start_over)
 
-/** "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.": Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so after signing in again the photos go to the device as from a new phone. The device and everything on it stay as they are. */
+/** "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.": Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so the owner signs in again and is asked again what to back up (all photos or only new ones), as on a new phone. The device and everything on it stay as they are. */
 fun S.androidSecretsStartOverText(): UiText =
     UiText.Res(R.string.android_secrets_start_over_text)
 

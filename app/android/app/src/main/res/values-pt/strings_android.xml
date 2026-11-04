@@ -88,7 +88,7 @@
     <string name="android_photos_search_close">Fechar pesquisa</string>
     <string name="android_photos_search_in_search">Na pesquisa</string>
     <string name="android_secrets_start_over">Recomeçar</string>
-    <string name="android_secrets_start_over_text">O Off The Cloud esquece o seu início de sessão e o que já copiou deste telemóvel, como se tivesse acabado de ser instalado: inicias sessão outra vez com o endereço e a palavra-passe do dispositivo, e as fotos deste telemóvel são copiadas novamente como as de um telemóvel novo. Nada é apagado no dispositivo.</string>
+    <string name="android_secrets_start_over_text">O Off The Cloud esquece o seu início de sessão e o que já copiou deste telemóvel, como se tivesse acabado de ser instalado: inicias sessão outra vez com o endereço e a palavra-passe do dispositivo e escolhes de novo o que copiar, como num telemóvel novo. Nada é apagado no dispositivo.</string>
     <string name="android_secrets_start_over_title">Recomeçar neste telemóvel?</string>
     <string name="android_secrets_unavailable">O Off The Cloud não consegue abrir o armazenamento seguro deste telemóvel, onde guarda o teu início de sessão. Isto costuma resolver-se depois de um reinício ou de uma atualização do sistema: tenta novamente daqui a pouco. Se continuar a acontecer, podes recomeçar e iniciar sessão outra vez.</string>
     <string name="android_settings_bridge_leave_delete">Sair e eliminar</string>

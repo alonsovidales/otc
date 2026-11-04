@@ -307,9 +307,9 @@
     "reviewed": "claude-backtranslation 2026-11-04 #a6ac5db1"
   },
   "android.secrets_start_over_text": {
-    "text": "Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat, en de foto's van deze telefoon worden opnieuw geback-upt als die van een nieuwe telefoon. Op het apparaat wordt niets verwijderd.",
-    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
-    "reviewed": "claude-backtranslation 2026-11-04 #5b984456"
+    "text": "Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat en kiest opnieuw wat er wordt geback-upt, zoals op een nieuwe telefoon. Op het apparaat wordt niets verwijderd.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #1f976fe0"
   },
   "android.secrets_start_over_title": {
     "text": "Opnieuw beginnen op deze telefoon?",

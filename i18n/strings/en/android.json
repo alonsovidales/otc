@@ -336,10 +336,10 @@
     "reviewed": "claude-backtranslation 2026-11-04 #67f88b2e"
   },
   "android.secrets_start_over_text": {
-    "text": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
-    "note": "Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so after signing in again the photos go to the device as from a new phone. The device and everything on it stay as they are.",
+    "text": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "note": "Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so the owner signs in again and is asked again what to back up (all photos or only new ones), as on a new phone. The device and everything on it stay as they are.",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-04 #1aa5eef7"
+    "reviewed": "claude-backtranslation 2026-11-04 #ec7cc88c"
   },
   "android.secrets_start_over_title": {
     "text": "Start over on this phone?",

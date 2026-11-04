@@ -307,9 +307,9 @@
     "reviewed": "claude-backtranslation 2026-11-04 #2a32f7ec"
   },
   "android.secrets_start_over_text": {
-    "text": "O Off The Cloud esquece o seu início de sessão e o que já copiou deste telemóvel, como se tivesse acabado de ser instalado: inicias sessão outra vez com o endereço e a palavra-passe do dispositivo, e as fotos deste telemóvel são copiadas novamente como as de um telemóvel novo. Nada é apagado no dispositivo.",
-    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password, and this phone's photos are backed up again as a new phone's. Nothing on the device is deleted.",
-    "reviewed": "claude-backtranslation 2026-11-04 #bb179449"
+    "text": "O Off The Cloud esquece o seu início de sessão e o que já copiou deste telemóvel, como se tivesse acabado de ser instalado: inicias sessão outra vez com o endereço e a palavra-passe do dispositivo e escolhes de novo o que copiar, como num telemóvel novo. Nada é apagado no dispositivo.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #37482556"
   },
   "android.secrets_start_over_title": {
     "text": "Recomeçar neste telemóvel?",
