@@ -235,6 +235,20 @@ describe("postConfirm: the post sent, among the newest", () => {
     assert.equal(pc.findSentPost([pub({ uuid: "behind", dateTime: new Date(sentAt - 5 * 60_000) })], sent)?.uuid, "behind");
     assert.equal(pc.findSentPost([pub({ dateTime: new Date(sentAt - pc.cClockSlackMs - 1) })], sent), null);
   });
+  test("a post the feed showed as it went is not it, however well it matches", () => {
+    // Posted a few minutes ago with the same words (or none), then this one
+    // sent, and its answer lost.
+    const older = pub({ uuid: "older", files: [file], dateTime: new Date(sentAt - 6 * 60_000) });
+    const withBefore = { ...sent, before: ["older", "f1"] };
+    assert.equal(pc.findSentPost([older], withBefore), null);
+    assert.equal(pc.findSentPost([older], { text: "", files: 3, sentAt, before: ["older"] }), null);
+    assert.equal(pc.findSentPost([pub({ ...older, text: "" })], { text: "", files: 3, sentAt, before: ["older"] }), null);
+    // The new one, once the device made it, above it.
+    const made = pub({ uuid: "new" });
+    assert.equal(pc.findSentPost([made, older], withBefore)?.uuid, "new");
+    // Nothing known of the feed (it hadn't loaded): as before.
+    assert.equal(pc.findSentPost([older], { ...sent, before: [] })?.uuid, "older");
+  });
   test("looked for soon, then every half minute", () => {
     assert.ok(pc.nextLookMs(0) <= 5_000);
     assert.ok(pc.nextLookMs(1) >= pc.nextLookMs(0));

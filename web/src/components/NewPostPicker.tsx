@@ -46,6 +46,9 @@ type Props = {
   // sent whose answer never came (it may be in the feed by now).
   onCancel: (unconfirmed: boolean) => void;
   onPosted: () => void;
+  // The posts the feed shows (their uuids): a post sent whose answer never
+  // came is none of them (postConfirm.findSentPost).
+  knownPosts?: () => readonly string[];
 };
 
 // Issue #87: matches the iOS composer's own Phone/Synced source toggle -
@@ -55,7 +58,7 @@ type Props = {
 // photo library to browse the way iOS does).
 type Source = "server" | "local";
 
-export default function NewPostPicker({ onCancel, onPosted }: Props) {
+export default function NewPostPicker({ onCancel, onPosted, knownPosts }: Props) {
   const t = useT();
   // A post sent whose answer never came (postConfirm.ts): what was sent,
   // looked for in the feed until it is there.
@@ -578,7 +581,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       // its way, as often as not. It is looked for in the feed then
       // (unconfirmed, below), not left to a guess - publishing again made
       // every friend get it twice.
-      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now() };
+      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now(), before: knownPosts?.() ?? [] };
       let answer: { resp: RespEnvelope } | { error: unknown };
       try {
         answer = { resp: await useWS.request(e => {

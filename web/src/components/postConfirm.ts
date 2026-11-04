@@ -34,21 +34,26 @@ export function publishOutcome(answer: { resp: RespEnvelope } | { error: unknown
   return isBridgeAnswer(resp) ? "unknown" : "refused";
 }
 
-/** What was sent: the caption, how many photos and videos, and when (this
- *  browser's clock). */
-export type SentPost = { text: string; files: number; sentAt: number };
+/** What was sent: the caption, how many photos and videos, when (this
+ *  browser's clock), and the posts already there as it went (`before`:
+ *  their uuids, those the feed showed) - none of those is it. */
+export type SentPost = { text: string; files: number; sentAt: number; before?: readonly string[] };
 
 /** How far the device's clock may be from this browser's (a post is dated
  *  by the device as it is made, which is after it was sent). */
 export const cClockSlackMs = 15 * 60_000;
 
 /** The post among the newest that is the one sent: one of the owner's own,
- *  with the same caption and no more photos and videos than were sent (the
- *  feed leaves out an item whose thumbnail is missing), dated no earlier
- *  than cClockSlackMs before it was sent. */
+ *  not one that was there before it went, with the same caption and no
+ *  more photos and videos than were sent (the feed leaves out an item whose
+ *  thumbnail is missing), dated no earlier than cClockSlackMs before it was
+ *  sent. Without `before` an earlier post of the same words made in those
+ *  minutes was taken for it, and the composer closed as posted though the
+ *  device never made the new one. */
 export function findSentPost(pubs: readonly SocialPublication[], sent: SentPost): SocialPublication | null {
+  const before = new Set(sent.before ?? []);
   return pubs.find((p) =>
-    p.own && p.text === sent.text && p.files.length <= sent.files &&
+    p.own && !before.has(p.uuid) && p.text === sent.text && p.files.length <= sent.files &&
     (!p.dateTime || p.dateTime.getTime() >= sent.sentAt - cClockSlackMs)) ?? null;
 }
 
