@@ -3679,7 +3679,9 @@ prefs (`deviceChangePin`, hex; wiped at Log Out, not backed up); `SecretsStore.d
 MainView in RootView, whose view models live in a store of that session (`SessionStores`, an
 Activity view model, so a recreation keeps them); the screens' singletons reset as at Log Out
 (`DeviceChange.addressChanged`) and the feed and the Alerts poll start again; Settings' Save sends
-`UnregisterFcmToken` over the socket in use first; `PhotoSync.onePass` is skipped while
+`UnregisterFcmToken` over the socket in use first, then saves, in the connection's own scope
+(`OTCConnection.saveAnotherAddress`, `SaveAnotherAddressTest`: in the screen's, leaving Settings
+during those seconds dropped the save after the token had gone); `PhotoSync.onePass` is skipped while
 `DeviceChange.pending`; the wallpaper (`Wallpaper.addressChanged`: its generation bumped and the
 copies' fetch cancelled, nothing deleted) isn't fetched meanwhile and goes on rotating its copies,
 then `sameDeviceAt` (the stored endpoint follows, a fetch is queued) or `deviceChanged()` (stopped);

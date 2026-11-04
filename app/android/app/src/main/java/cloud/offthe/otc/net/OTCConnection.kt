@@ -35,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
@@ -670,6 +671,27 @@ object OTCConnection {
             } catch (_: Exception) {}
         }
     }
+
+    /**
+     * Settings' Save with another address (DeviceChange): the device signed
+     * in to now forgets this phone's push token ([unregisterPushBeforeLeaving],
+     * 3 s at most), then [save] runs on the main thread - the address saved
+     * and the connection invalidated. In the connection's own scope, and
+     * the save whatever happens to the unregister: in the screen's, leaving
+     * Settings during those seconds cancelled it after the token had gone
+     * and before the address was saved, which then wasn't, silently.
+     */
+    fun saveAnotherAddress(save: () -> Unit): Job = leaveThenSave(scope, Dispatchers.Main, { unregisterPushBeforeLeaving(3_000) }, save)
+
+    /** [saveAnotherAddress], with its scope, its main thread and its unregister given (tests). */
+    internal fun leaveThenSave(scope: CoroutineScope, main: kotlin.coroutines.CoroutineContext, leave: suspend () -> Unit, save: () -> Unit): Job =
+        scope.launch {
+            try {
+                leave()
+            } finally {
+                withContext(NonCancellable + main) { save() }
+            }
+        }
 
     /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
     private suspend fun signInPinned(opened: HomeNetwork.Opened, ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {

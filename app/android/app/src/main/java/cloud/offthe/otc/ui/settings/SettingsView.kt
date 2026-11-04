@@ -801,11 +801,15 @@ fun SettingsView(secrets: SecretsStore) {
                             // Another address: the device left forgets this
                             // phone's push token first (a moment at most),
                             // then the new one is dialled (DeviceChange).
+                            // Outlives this screen: leaving Settings meanwhile
+                            // never drops the save (saveAnotherAddress).
                             savingConnection = true
-                            scope.launch {
-                                OTCConnection.unregisterPushBeforeLeaving(3_000)
+                            val saving = OTCConnection.saveAnotherAddress {
                                 secrets.saveCredentials(address, typed)
                                 OTCConnection.invalidate()
+                            }
+                            scope.launch {
+                                saving.join()
                                 savingConnection = false
                             }
                         }
