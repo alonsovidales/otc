@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -170,5 +171,119 @@ func TestBusyHashingIsTryAgain(t *testing.T) {
 	hashRefused(w, errDBDown, "signin_unavailable", i18n.ApiErrorSigninUnavailable())
 	if w.Code != http.StatusInternalServerError || w.Header().Get("Retry-After") != "" {
 		t.Errorf("another failure: %d, Retry-After %q", w.Code, w.Header().Get("Retry-After"))
+	}
+}
+
+// The requests that ask the database whether what a stranger sends is real
+// - a setup code (setup-token-info), an email link (verify, reset), an
+// app's sign-in code (app-exchange), a Google or Apple sign-in coming back
+// - share one bound per address and one per network, taken before the
+// database is asked: past either, a 429 with Retry-After and no query.
+func TestLookupsAreBoundedBeforeTheDatabase(t *testing.T) {
+	a, mock := testAccounts(t)
+	newFakeIdP(t, a)
+	a.lookups = limits.NewRate(1.0/3600, 2)
+	a.lookupsPerNet = limits.NewRate(1.0/3600, 3)
+	from := func(r *http.Request, remote string) *http.Request {
+		r.RemoteAddr = remote
+		return r
+	}
+	info := func(remote string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		a.SetupTokenInfo(w, from(httptest.NewRequest("GET", "/api/account/setup-token-info?token=ABCD-EFGH", nil), remote))
+		return w
+	}
+	unknownCode := func() {
+		mock.ExpectQuery("from `account_setup_codes`").WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}))
+		mock.ExpectQuery("from `account_tokens`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	}
+	refused := func(what string, w *httptest.ResponseRecorder, json bool) {
+		t.Helper()
+		if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" || json && !strings.Contains(w.Body.String(), `"too_many_attempts"`) {
+			t.Errorf("%s: %d %s, Retry-After %q", what, w.Code, w.Body.String(), w.Header().Get("Retry-After"))
+		}
+	}
+
+	// An address's first two reach the database...
+	for i := 1; i <= 2; i++ {
+		unknownCode()
+		if w := info("203.0.113.7:1000"); w.Code != http.StatusNotFound {
+			t.Fatalf("lookup %d: %d %s", i, w.Code, w.Body.String())
+		}
+	}
+	// ... then none of them does, from any port.
+	post := func(handler func(http.ResponseWriter, *http.Request), path, body string) func(string) *httptest.ResponseRecorder {
+		return func(remote string) *httptest.ResponseRecorder {
+			w := httptest.NewRecorder()
+			handler(w, from(httptest.NewRequest("POST", path, strings.NewReader(body)), remote))
+			return w
+		}
+	}
+	for _, l := range []struct {
+		name string
+		call func(string) *httptest.ResponseRecorder
+	}{
+		{"setup-token-info", info},
+		{"verify", post(a.Verify, "/api/account/verify", `{"token":"a-link-token"}`)},
+		{"reset", post(a.Reset, "/api/account/reset", `{"token":"a-link-token","password":"a long enough password"}`)},
+		{"app-exchange", post(a.AppExchange, "/api/account/app-exchange", `{"code":"a-code","verifier":"a-verifier"}`)},
+	} {
+		refused(l.name, l.call("203.0.113.7:2000"), true)
+	}
+	// A sign-in coming back with a state of an older node's shape, which
+	// needs no cookie: the sign-in pages' 429.
+	w := httptest.NewRecorder()
+	a.OAuthCallback(w, from(callbackRequest(strings.Repeat("12", 24), "code"), "203.0.113.7:3000"))
+	refused("the sign-in callback", w, false)
+
+	// Another address of the /24 has the network's last one, then the
+	// network is spent; another network is not held up.
+	unknownCode()
+	if w := info("203.0.113.8:1000"); w.Code != http.StatusNotFound {
+		t.Fatalf("another address of the /24: %d %s", w.Code, w.Body.String())
+	}
+	refused("the /24, spent", info("203.0.113.8:1000"), true)
+	unknownCode()
+	if w := info("198.51.100.4:1000"); w.Code != http.StatusNotFound {
+		t.Errorf("another network: %d %s", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+// An account makes at most cSetupCodesPerAccount setup codes in a code's
+// lifetime: past it, asking for one is a 429 with Retry-After and nothing
+// is stored - another account is not held up.
+func TestSetupCodesAreCappedPerAccount(t *testing.T) {
+	a, mock := testAccounts(t)
+	a.codesPerAccount = limits.NewRate(cSetupCodesPerAccount/cSetupTokenTTL.Seconds(), cSetupCodesPerAccount)
+	for i := 1; i <= cSetupCodesPerAccount; i++ {
+		verifiedRow(mock, "acc1", true)
+		expectSetupCodeStored(mock, "acc1", false, nil)
+		if _, err := a.IssueSetupToken("acc1", false); err != nil {
+			t.Fatalf("code %d: %v", i, err)
+		}
+	}
+	verifiedRow(mock, "acc1", true)
+	if _, err := a.IssueSetupToken("acc1", false); !errors.Is(err, ErrTooManySetupCodes) {
+		t.Fatalf("code %d: %v", cSetupCodesPerAccount+1, err)
+	}
+	verifiedRow(mock, "acc1", true)
+	w := httptest.NewRecorder()
+	a.SetupToken(w, httptest.NewRequest("GET", "/api/account/setup-token", nil), "acc1")
+	if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), `"setup_code_unavailable"`) || w.Header().Get("Retry-After") == "" {
+		t.Errorf("the account page asking for one more: %d %s, Retry-After %q", w.Code, w.Body.String(), w.Header().Get("Retry-After"))
+	}
+	if got := w.Header().Get("Retry-After"); got != fmt.Sprint(int(cSetupTokenTTL.Seconds())/cSetupCodesPerAccount) {
+		t.Errorf("Retry-After %s, want when the next is free", got)
+	}
+	verifiedRow(mock, "acc2", true)
+	expectSetupCodeStored(mock, "acc2", false, nil)
+	if _, err := a.IssueSetupToken("acc2", false); err != nil {
+		t.Errorf("another account: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }

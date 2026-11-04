@@ -315,6 +315,11 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		signInError(w, r, cSignInExpired)
 		return
 	}
+	// A state of an older node's shape needs no cookie: that one costs a
+	// transaction on the primary for any link anyone sends.
+	if !a.lookupAllowed(w, r, func() { a.pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests) }) {
+		return
+	}
 	returnURL, found, err := a.dao.ConsumeOAuthState(state)
 	if err != nil || !found {
 		signInError(w, r, cSignInExpired)
@@ -472,6 +477,10 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 	// Only ever after a Google or Apple sign-in made in this browser and
 	// its Continue (ConfirmSetup): its owner just proved who they are.
 	tok, err := a.IssueSetupToken(accountID, true)
+	if errors.Is(err, ErrTooManySetupCodes) {
+		log.Info("no setup code after a sign-in:", err)
+		return "/account"
+	}
 	if err != nil {
 		log.Error("error issuing a setup token after sign-in:", err)
 		return "/account"

@@ -166,6 +166,14 @@ type Accounts struct {
 	// past it they wait, rather than the mail account being throttled or
 	// suspended for spam and every email stopping.
 	emailsPerNet, emailBudget *limits.Rate
+	// lookups and lookupsPerNet bound, per address and per network, the
+	// unauthenticated requests that ask the database whether something a
+	// stranger sends is real - a setup code, an email link, an app's
+	// sign-in code, a sign-in coming back - before it is asked.
+	lookups, lookupsPerNet *limits.Rate
+	// codesPerAccount bounds the setup codes an account makes: a session
+	// asking for one in a loop, a row each, would never stop otherwise.
+	codesPerAccount *limits.Rate
 	// oauthStarts limits sign-in starts per address: each one inserts an
 	// oauth_states row.
 	oauthStarts *limits.Rate
@@ -205,6 +213,9 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
 		emailsPerNet:     limits.NewRate(cEmailsPerNetPerHour/3600.0, cEmailsPerNetPerHour),
 		emailBudget:      limits.NewRate(cEmailBudgetPerHour/3600.0, cEmailBudgetBurst),
+		lookups:          limits.NewRate(cLookupsPerSecond, cLookupsBurst),
+		lookupsPerNet:    limits.NewRate(cLookupsPerNetPerSecond, cLookupsPerNetBurst),
+		codesPerAccount:  limits.NewRate(cSetupCodesPerAccount/cSetupTokenTTL.Seconds(), cSetupCodesPerAccount),
 		oauthStarts:      limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
 	}
 	a.loadProviders()
@@ -371,6 +382,9 @@ func (a *Accounts) IssueSetupToken(accountID string, ownerConfirmed bool) (strin
 	// Issue #175: and only once the terms in force are accepted.
 	if !TermsAccepted(acc) {
 		return "", ErrTermsNotAccepted
+	}
+	if a.codesPerAccount != nil && !a.codesPerAccount.Allow(accountID) {
+		return "", ErrTooManySetupCodes
 	}
 	buf := make([]byte, cSetupCodeLen)
 	if _, err := rand.Read(buf); err != nil {
@@ -661,6 +675,46 @@ func takeAll(keys ...limitKey) (bool, time.Duration) {
 // cAll is the one key of a node-wide limit.
 const cAll = "*"
 
+// cLookupsPerSecond/cLookupsBurst bound an address's unauthenticated
+// lookups (lookups), cLookupsPerNetPerSecond/cLookupsPerNetBurst a
+// network's: a person checks a code or opens a link a few times a minute.
+const (
+	cLookupsPerSecond       = 2
+	cLookupsBurst           = 20
+	cLookupsPerNetPerSecond = 10
+	cLookupsPerNetBurst     = 100
+)
+
+// cSetupCodesPerAccount is how many setup codes an account may make in a
+// code's lifetime (cSetupTokenTTL): far more than a setup asks for.
+const cSetupCodesPerAccount = 10
+
+// ErrTooManySetupCodes: the account made cSetupCodesPerAccount codes in
+// the last cSetupTokenTTL.
+var ErrTooManySetupCodes = errors.New("the account has made too many setup codes for now") // i18n-ignore: compared with errors.Is, never sent
+
+// cSetupCodesRetry is the Retry-After of a code refused for it: when the
+// next is free.
+var cSetupCodesRetry = time.Duration(float64(cSetupTokenTTL) / cSetupCodesPerAccount)
+
+// lookupAllowed applies lookups and lookupsPerNet to r; when either says
+// no, refuse answers the request (its Retry-After set) and it is false.
+func (a *Accounts) lookupAllowed(w http.ResponseWriter, r *http.Request, refuse func()) bool {
+	ok, wait := takeAll(limitKey{a.lookups, clientIP(r)}, limitKey{a.lookupsPerNet, clientaddr.NetBucketOf(r)})
+	if !ok {
+		limits.RetryAfter(w, wait)
+		refuse()
+	}
+	return ok
+}
+
+// lookupRefused is lookupAllowed's refusal for a JSON endpoint.
+func lookupRefused(w http.ResponseWriter) func() {
+	return func() {
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttempts()))
+	}
+}
+
 // pruneFailuresLocked drops the addresses whose failures are all older
 // than the window, which loginAllowed would ignore anyway. The caller
 // holds limiterMu.
@@ -768,6 +822,11 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 		tok, err := a.IssueSetupToken(acc.ID, ownerConfirmed)
 		if errors.Is(err, ErrTermsNotAccepted) {
 			writeError(w, http.StatusForbidden, "terms_not_accepted", errorText(i18n.ApiErrorTermsNotAcceptedSetup()))
+			return
+		}
+		if errors.Is(err, ErrTooManySetupCodes) {
+			limits.RetryAfter(w, cSetupCodesRetry)
+			writeError(w, http.StatusTooManyRequests, "setup_unavailable", errorText(i18n.ApiErrorSetupUnavailable()))
 			return
 		}
 		if err != nil {
@@ -1286,6 +1345,11 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 		writeError(w, http.StatusForbidden, "terms_not_accepted", errorText(i18n.ApiErrorTermsNotAcceptedSetup()))
 		return
 	}
+	if errors.Is(err, ErrTooManySetupCodes) {
+		limits.RetryAfter(w, cSetupCodesRetry)
+		writeError(w, http.StatusTooManyRequests, "setup_code_unavailable", errorText(i18n.ApiErrorSetupCodeUnavailable()))
+		return
+	}
 	if err != nil {
 		log.Error("error issuing a setup token:", err)
 		writeError(w, http.StatusInternalServerError, "setup_code_unavailable", errorText(i18n.ApiErrorSetupCodeUnavailable()))
@@ -1297,6 +1361,9 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 // SetupTokenInfo tells a wizard whose code it was handed. GET
 // /api/account/setup-token-info?token=. Public: the code is the secret.
 func (a *Accounts) SetupTokenInfo(w http.ResponseWriter, r *http.Request) {
+	if !a.lookupAllowed(w, r, lookupRefused(w)) {
+		return
+	}
 	id, ok, err := a.LookupSetupToken(r.URL.Query().Get("token"))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "setup_code_check_unavailable", errorText(i18n.ApiErrorSetupCodeCheckUnavailable()))
@@ -1601,6 +1668,9 @@ func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
+	if !a.lookupAllowed(w, r, lookupRefused(w)) {
+		return
+	}
 	// The link is spent in the same transaction that marks the email
 	// proven: a write that fails leaves it working for the retry.
 	id, ok, err := a.dao.VerifyEmailWithToken(hashEmailToken(body.Token), cPurposeVerify)
@@ -1699,6 +1769,9 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if newPasswordRefused(w, body.Password) {
+		return
+	}
+	if !a.lookupAllowed(w, r, lookupRefused(w)) {
 		return
 	}
 	h := hashEmailToken(body.Token)

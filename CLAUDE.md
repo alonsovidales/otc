@@ -3066,9 +3066,10 @@ bcrypt; and a sign-in that succeeds clears nothing (failures age out of the wind
 to one's own account between guesses at another's would reset the count (the admin panel's still
 clears: nobody can make an admin). Every per-address throttle (both sign-in limiters, sign-ups,
 emails, sign-in starts, the
-contact and claim cooldowns, one-off GETs, setup beacons, pairing) counts `clientaddr.Bucket`: an
-IPv4 address, or an IPv6 /64, which one host can rotate through; logs, `BridgeClientInfo` and stored
-rows keep the address itself. Since a /48 (free from tunnel brokers) is 65,536 such buckets, sign-ups,
+contact and claim cooldowns, lookups, one-off GETs, setup beacons, pairing) counts
+`clientaddr.Bucket`: an IPv4 address, or an IPv6 /64, which one host can rotate through; logs,
+`BridgeClientInfo` and stored rows keep the address itself. Since a /48 (free from tunnel brokers)
+is 65,536 such buckets, sign-ups,
 failed passwords, the "send me an email" requests and the contact form are also bounded per network
 (`clientaddr.NetBucket`: an IPv4 /24, an IPv6 /48 - 20 sign-ups an hour, 40 failed passwords in 10
 minutes, 30 emails an hour, 5 messages a minute) and on the whole node (120 sign-ups an hour; 120
@@ -3076,7 +3077,15 @@ emails an hour that strangers can have sent, `emailBudget`, the new-account note
 contact messages a minute); and at most half the cores hash passwords at once
 (`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
 is a 503 with Retry-After and the handler's own "could not ... right now" code, never a failed
-password. A confirmation or reset email greets the account by name only once its address is
+password. The unauthenticated requests that ask the database whether what they carry is real are
+bounded per address and per network before they ask: name-available, claims (whose setup code is
+looked up first) and setup-lookup in `bridge/api` (`allowLookup`: 5/s, burst 40 an address, 20/s,
+burst 150 a network - the wizard checks a name as it is typed and polls the hand-off every 2 s), and
+setup-token-info, verify, reset, app-exchange and the sign-in callback in `bridge/accounts`, which
+share one (`lookupAllowed`: 2/s, burst 20 an address, 10/s, burst 100 a network); past either, a 429
+with Retry-After. An account makes at most 10 setup codes in 15 minutes on a node
+(`codesPerAccount`; past it a 429 with Retry-After and the code's own "could not" text). A
+confirmation or reset email greets the account by name only once its address is
 proven (`greetingName`): whoever signs up types the name and picks the address. The contact and
 claim cooldowns, and the admin login's limiter, are swept on a timer (or as the map doubles), not
 at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,

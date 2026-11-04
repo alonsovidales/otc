@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -111,6 +112,9 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
+	if !a.lookupAllowed(w, r, lookupRefused(w)) {
+		return
+	}
 	// Single use, right or wrong.
 	accountID, challenge, created, ok, err := a.dao.ConsumeAppCode(codeHash(strings.TrimSpace(body.Code)))
 	if err != nil {
@@ -124,6 +128,11 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 	// The code comes from a Google or Apple sign-in minutes ago, handed to
 	// the app with its owner's Continue: their own proof.
 	tok, err := a.IssueSetupToken(accountID, true)
+	if errors.Is(err, ErrTooManySetupCodes) {
+		limits.RetryAfter(w, cSetupCodesRetry)
+		writeError(w, http.StatusTooManyRequests, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
 		return

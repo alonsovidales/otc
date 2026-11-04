@@ -110,6 +110,12 @@ type API struct {
 	claimMu         sync.Mutex
 	lastClaimByAddr map[string]time.Time
 	claimSweep      cooldownSweep
+	// lookupPerAddr and lookupPerNet limit the unauthenticated requests
+	// that ask the database something - a name's availability, a claim's
+	// setup code, a setup hand-off - per address and per network (an IPv4
+	// /24, an IPv6 /48), before it is asked: every node's connections to
+	// the one primary are shared with the devices dialling in.
+	lookupPerAddr, lookupPerNet *limits.Rate
 	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
 	tld string
 	// cluster is issue #144; nil on a single bridge.
@@ -181,8 +187,6 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
-		contactPerNet:     limits.NewRate(cContactPerNetPerMinute/60.0, cContactPerNetBurst),
-		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -191,6 +195,10 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		staticPath:        staticPath,
 		lastContactByAddr: map[string]time.Time{},
 		lastClaimByAddr:   map[string]time.Time{},
+		contactPerNet:     limits.NewRate(cContactPerNetPerMinute/60.0, cContactPerNetBurst),
+		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
+		lookupPerAddr:     limits.NewRate(cLookupPerSecond, cLookupBurst),
+		lookupPerNet:      limits.NewRate(cLookupPerNetPerSecond, cLookupPerNetBurst),
 		tld:               cfg.GetStr("otc-api", "tld"),
 		cluster:           clu,
 		recordVisit:       dao.RecordSiteVisit,
@@ -732,10 +740,45 @@ func (api *API) deviceDomain(name string) string {
 	return name + "." + tld
 }
 
+// cLookupPerSecond/cLookupBurst bound an address's unauthenticated
+// lookups, cLookupPerNetPerSecond/cLookupPerNetBurst a network's: the
+// setup wizard asks about a name as the person types (400 ms apart at the
+// most) and its page polls the hand-off every 2 s - well within, for a few
+// devices set up at once behind one address.
+const (
+	cLookupPerSecond       = 5
+	cLookupBurst           = 40
+	cLookupPerNetPerSecond = 20
+	cLookupPerNetBurst     = 150
+)
+
+// allowLookup applies lookupPerAddr and lookupPerNet to r, answering a 429
+// with Retry-After and code and msg when either says no.
+func (api *API) allowLookup(w http.ResponseWriter, r *http.Request, code, msg string) bool {
+	addr := requestAddr(r)
+	for _, l := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.lookupPerAddr, clientaddr.Bucket(addr)}, {api.lookupPerNet, clientaddr.NetBucket(addr)}} {
+		if l.rate == nil {
+			continue
+		}
+		if ok, wait := l.rate.Take(l.key); !ok {
+			limits.RetryAfter(w, wait)
+			writeJSONErr(w, http.StatusTooManyRequests, code, msg)
+			return false
+		}
+	}
+	return true
+}
+
 // nameAvailable (issue #38) answers {"available": bool} for ?name=. Public
 // and unauthenticated on purpose - it tells nothing a friend request to
 // that domain wouldn't, and the wizard calls it as the person types.
 func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
+	if !api.allowLookup(w, r, "too_many_claims", errorText(i18n.ApiErrorTooManyClaims())) {
+		return
+	}
 	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
 	if !cNamePattern.MatchString(name) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_name", errorText(i18n.ApiErrorInvalidName()))
@@ -814,6 +857,11 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
+		return
+	}
+	// The claim's cooldown comes after its account is looked up, which
+	// asks the database for any setup code sent: this comes before.
+	if !api.allowLookup(w, r, "too_many_claims", errorText(i18n.ApiErrorTooManyClaims())) {
 		return
 	}
 	accountID, ownerConfirmed, refusal, err := api.claimAccount(r, body.SetupToken)
@@ -1269,6 +1317,9 @@ func (api *API) setupLookup(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if len(token) < cSetupTokenMinLen || len(token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(token) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_token", "invalid token") // i18n-ignore: machine-read, the wizard's beacon and poll
+		return
+	}
+	if !api.allowLookup(w, r, "too_many_requests", "too many requests") { // i18n-ignore: machine-read, the wizard page's poll
 		return
 	}
 	addr, found, err := api.dao.GetSetupBeacon(token)
