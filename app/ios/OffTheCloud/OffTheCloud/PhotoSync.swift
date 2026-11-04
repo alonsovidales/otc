@@ -460,7 +460,9 @@ final class PhotoSync: NSObject {
         defer { room.release(taken) }
 
         let ext = (filename as NSString).pathExtension
-        let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
+        // In the copies' own folder, which the next launch empties should
+        // this one be ended before the copy is removed (TempFiles).
+        let tmpURL = TempFiles.file(.export, ext: ext.isEmpty ? "bin" : ext)
         guard let out = OutputStream(url: tmpURL, append: false) else {
             throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }

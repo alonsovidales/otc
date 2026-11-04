@@ -4304,7 +4304,12 @@ both show the can't-connect card, never `statusCode`. A request is sent again on
 its device's pin is known (Home network, above).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
-`unknown_payload` fallback. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
+`unknown_payload` fallback. iOS keeps its temporary copies in folders of their own
+(`TempFiles.swift`: `tmp/export|viewer|preview/<launch>/`): the photo sync's, the composer's and
+Free Up Space's copies of an asset, the viewer's whole-file video (removed with its player) and
+Share's picture (once the sheet closes), Files' Quick Look copies (as the preview closes); each
+launch removes earlier launches' folders and the copies older versions left at tmp's top level
+- an app suspended mid-run and then ended used to leave multi-GB videos there. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
 socket past 16 MiB queued). Android only: backup and device transfer include just
 `otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
 unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its

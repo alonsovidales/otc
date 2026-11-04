@@ -558,7 +558,27 @@ final class PhotoGalleryVM: ObservableObject {
     // than rebuilt in the view body - a player constructed inline is
     // recreated on every SwiftUI update, which tears playback down and
     // restarts it (see the same fix in the social feed, issue #107).
-    @Published var videoPlayer: AVPlayer? = nil
+    @Published var videoPlayer: AVPlayer? = nil {
+        didSet {
+            // The whole-file download a player went with goes with it: the
+            // viewer moving on, closing, or another video's player. They
+            // stayed in tmp, decrypted, until iOS purged it or Log Out.
+            guard videoPlayer !== oldValue, let file = videoFile else { return }
+            videoFile = nil
+            TempFiles.remove(file)
+        }
+    }
+    /// The file the open video plays from when the device didn't stream it
+    /// (fetchVideo), removed with its player.
+    private var videoFile: URL?
+
+    /// The open video plays `player`, from the whole download `file`, which
+    /// goes once the player does.
+    func playDownloaded(_ player: AVPlayer, file: URL) {
+        videoPlayer = player
+        // After the player: setting it removed the last one's file.
+        videoFile = file
+    }
     /// The open video's player failing (watchPlayback).
     private var playerWatch: [Any] = []
 
@@ -670,7 +690,10 @@ final class PhotoGalleryVM: ObservableObject {
     // to appear (it has to synchronously render previews from the full
     // decoded bitmap); writing it to a temp file first lets it use the
     // usual, much faster file-based path instead.
-    @Published var shareURL: URL? = nil
+    @Published var shareURL: URL? = nil {
+        // The full-size copy handed to the share sheet goes once it closes.
+        didSet { if oldValue != shareURL { TempFiles.remove(oldValue) } }
+    }
     /// Drives the selection bar's share sheet - see shareSelected().
     @Published var selectionShareURL: URL? = nil
     /// Which selection action is waiting on the device, so the bar can
@@ -2938,9 +2961,7 @@ final class PhotoGalleryVM: ObservableObject {
         }
         Task.detached(priority: .userInitiated) {
             guard let data = image.jpegData(compressionQuality: 0.9) else { return }
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("jpg")
+            let tmp = TempFiles.file(.viewer, ext: "jpg")
             do {
                 try data.write(to: tmp)
                 await MainActor.run { self.shareURL = tmp }
@@ -3279,10 +3300,10 @@ final class PhotoGalleryVM: ObservableObject {
         do {
             // In 4 MiB pieces straight to disk (FileDownload), not as one
             // message held whole in memory; named once the mime is known.
-            let raw = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let raw = TempFiles.file(.viewer, ext: "")
             let (mime, size) = try await FileDownload.download(path: it.path, mime: it.mime, to: raw)
             guard stillOpen() else {
-                try? FileManager.default.removeItem(at: raw)
+                TempFiles.remove(raw)
                 return
             }
             let ext: String
@@ -3298,11 +3319,14 @@ final class PhotoGalleryVM: ObservableObject {
             let tmp = raw.appendingPathExtension(ext)
             try FileManager.default.moveItem(at: raw, to: tmp)
             print("[video] downloaded \(it.path): \(size) bytes, \(mime), .\(ext)")
-            guard stillOpen() else { return }
+            guard stillOpen() else {
+                TempFiles.remove(tmp)
+                return
+            }
             let player = AVPlayer(url: tmp)
             Self.logFailure(of: player, what: "download")
             watchPlayback(player, path: it.path)
-            self.videoPlayer = player
+            playDownloaded(player, file: tmp)
         } catch {
             print("[video] download of \(it.path) failed: \(error)")
             // Neither streamed nor downloaded: its poster stays (the big

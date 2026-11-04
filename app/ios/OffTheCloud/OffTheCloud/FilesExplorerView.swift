@@ -138,7 +138,11 @@ final class FilesExplorerViewModel: ObservableObject {
     var toast: String? { toastText?() }
     /// Bumped by every toast: only the last one's timer takes it away.
     private var toasts = 0
-    @Published var previewURL: URL?
+    /// Quick Look's copy of a file or a version: removed as the preview
+    /// closes or another opens (it stayed in tmp, decrypted, otherwise).
+    @Published var previewURL: URL? {
+        didSet { if oldValue != previewURL { TempFiles.remove(oldValue) } }
+    }
     @Published var shareURL: URL?
     /// The files picked to upload, while they go: "Uploading N of M" over
     /// the bar, with Cancel (UploadQueue); nil: none.
@@ -913,9 +917,15 @@ final class FilesExplorerViewModel: ObservableObject {
             // Files app download. Its own toolbar already has a share
             // button, so this replaces the separate share-sheet fallback
             // for non-images too, not just adds preview alongside it.
-            // In 4 MiB pieces straight to the file, never whole in memory.
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
+            // In 4 MiB pieces straight to the file, never whole in memory;
+            // under its own name (Quick Look shows it), in a folder of its own.
+            let tmp = TempFiles.named(.preview, leafName(row.path))
+            do {
+                try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
+            } catch {
+                TempFiles.remove(tmp)
+                throw error
+            }
             previewURL = tmp
         } catch is FileDownload.Refused {
             showToast { S.appFilesOpenFailed }
@@ -1124,8 +1134,13 @@ final class FilesExplorerViewModel: ObservableObject {
     /// hash is the current one.
     func openVersion(_ row: FileRow, hash: String) async {
         do {
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
+            let tmp = TempFiles.named(.preview, leafName(row.path))
+            do {
+                try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
+            } catch {
+                TempFiles.remove(tmp)
+                throw error
+            }
             versionsOf = nil
             previewURL = tmp
         } catch is FileDownload.Refused {
