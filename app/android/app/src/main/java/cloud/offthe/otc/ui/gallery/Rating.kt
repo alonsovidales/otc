@@ -29,10 +29,12 @@ import cloud.offthe.otc.ui.settings.deviceOr
 
 // A collection's Rating (release 163; owner, 2026-11-02): with it on, each
 // photo of the collection gets 1 to 5 stars and a comment, kept on the device
-// for the photo in that collection (one set, the owner's and the shared
-// link's visitors' alike: PhotoRating.from_link); the collection can be
-// sorted and filtered by them. The same rules as iOS's (Rating.swift) and
-// the web's - change them together. Tests: RatingTest.kt.
+// for the photo in that collection. The owner sees one rating a photo, the
+// latest of anyone's (PhotoRating.from_link for one through a shared link);
+// a shared link's visitors see and change only their link's own (release
+// 169). The collection can be sorted and filtered by them. The same rules as
+// iOS's (Rating.swift) and the web's - change them together. Tests:
+// RatingTest.kt.
 
 /** The collection's Show menu: which of its photos the grid shows (SearchPhotos.rating). */
 enum class RatingShow {

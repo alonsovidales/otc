@@ -219,7 +219,7 @@ internal fun RatingStars(stars: Int, size: Dp, emptyTint: Color, onTap: (Int) ->
  * The viewer's rating in portrait (a collection with Rating on): the five
  * stars, saved at a tap, and a speech bubble that opens the comment box
  * ([onComment]; filled while the photo has a comment); under them "From the
- * shared link" while the last change came through it - its line kept empty
+ * shared link" while the latest rating came through one - its line kept empty
  * otherwise, so the photo above doesn't move from one photo to the next.
  */
 @Composable
@@ -276,8 +276,8 @@ internal fun ViewerRatingButton(rating: PhotoRating?, onClick: () -> Unit) {
  * The stars and the comment box, in a sheet over the viewer: the stars
  * save at a tap; the comment with Save (enabled while it differs from
  * the one kept) or by itself as the sheet closes ([onClose]) or the
- * viewer moves on. "From the shared link" under the stars while the last
- * change came through it.
+ * viewer moves on. "From the shared link" under the stars while the latest
+ * rating came through one.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

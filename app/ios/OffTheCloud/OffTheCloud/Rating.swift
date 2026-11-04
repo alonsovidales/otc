@@ -41,7 +41,7 @@ struct RatingMark: Hashable, Sendable {
     var stars: Int
     /// "" for none.
     var comment: String
-    /// The last change came through the collection's shared link.
+    /// The latest rating came through a shared link.
     var fromLink: Bool
 
     static let none = RatingMark()
@@ -682,8 +682,8 @@ struct RatingStars: View {
 }
 
 /// The viewer's rating panel for the open photo: its stars, "From the
-/// shared link" when a visitor rated it last, and the comment box with
-/// Save (enabled once it differs from the comment stored).
+/// shared link" when the latest rating came through one, and the comment
+/// box with Save (enabled once it differs from the comment stored).
 struct RatingPanel: View {
     @ObservedObject var vm: PhotoGalleryVM
     @ObservedObject var draft: RatingDraft

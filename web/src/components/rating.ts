@@ -91,8 +91,8 @@ export function cleanComment(s: string): string {
   return chars.length > cMaxComment ? chars.slice(0, cMaxComment).join("").trimEnd() : t;
 }
 
-/** A rating as shown: stars, comment, and whether the last change came
- *  through the shared link. */
+/** A rating as shown: stars, comment, and whether the latest rating came
+ *  through a shared link. */
 export type RatingValue = { stars: number; comment: string };
 export type ShownRating = RatingValue & { fromLink: boolean };
 

@@ -117,7 +117,7 @@ export function RatingPanel({ ratingKey, ratings, listed, fromLinkNote = false, 
   ratings: Ratings;
   /** What the listing says of it, until a change. */
   listed: ShownRating;
-  /** Say when the last change came through the shared link (the owner's
+  /** Say when the latest rating came through a shared link (the owner's
    *  viewer; a gallery's visitors never see who else rated). */
   fromLinkNote?: boolean;
   /** Laid out as a phone's sheet: the stars and Save over the box. */
