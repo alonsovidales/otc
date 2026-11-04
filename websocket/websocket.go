@@ -359,7 +359,6 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			cfg.GetStr("otc", "storage-path"),
 			cfg.GetStr("otc", "unenc-storage-path"),
 		),
-
 		settings: st,
 		profile:  pr,
 		push:     ps,
@@ -368,6 +367,12 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// No other site's page (origin.go), the device's own name on the
 	// bridge among its names; Listen checks first.
 	mg.upgrader = gorilla.Upgrader{CheckOrigin: mg.originAllowed}
+	// Each rated link's visitors see their own ratings (release 169):
+	// before anything is served, the bridge's pool included.
+	reconcileRatingSources(dao)
+	// Profile pictures within dao.MaxProfilePictureBytes (pictures.go): the
+	// owner's own made small, the friends' stored before the cap dropped.
+	go mg.fitStoredPictures()
 
 	// Issue #62: whenever this device's own Push instance (used for social
 	// notifications) prunes a stale subscription/token, re-sync the
@@ -412,12 +417,6 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			go registerUserDomainsAtStart(dao)
 		}
 	}
-
-	// Profile pictures within dao.MaxProfilePictureBytes (pictures.go): the
-	// owner's own made small, the friends' stored before the cap dropped.
-	go mg.fitStoredPictures()
-	// Each rated link's visitors see their own ratings (release 169).
-	reconcileRatingSources(dao)
 
 	// Issue #62: re-sync on every startup too, not just on the next
 	// register - the bridge's own copy of this device's push registrations
