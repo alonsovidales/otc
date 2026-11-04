@@ -142,11 +142,14 @@ CONFIG = {
 # is set up or driven. Any of those turns the lights off for good and the
 # mirror is watched, repaired and grown exactly as on a Pi - an exception
 # here used to end the script, and systemd restarted it into the same one.
-try:
-    import RPi.GPIO as GPIO
-except Exception as e:
-    GPIO = None
-    print(f"WARNING: GPIO not available ({e}). No status lights; the mirror is still watched.")
+if sys.argv[1:2] == ["--ends-blank"]:
+    GPIO = None  # ends_blank's child reads a disk, and touches no light
+else:
+    try:
+        import RPi.GPIO as GPIO
+    except Exception as e:
+        GPIO = None
+        print(f"WARNING: GPIO not available ({e}). No status lights; the mirror is still watched.")
 
 def gpio_off(why):
     global GPIO
@@ -188,9 +191,23 @@ def led_set(slot: int, red_on: bool, green_on: bool):
 # ----------------------------
 # Helpers
 # ----------------------------
-def run(cmd, check=False, capture=True, text=True):
+# How long a command that reads a disk may take before it is given up
+# (run's timeout, run_bounded): mdadm reading a member's superblock,
+# blkid and wipefs looking for signatures, dumpe2fs, a disk's two ends. A
+# disk that stays attached but stops answering used to hold the whole loop
+# - the LEDs, StorageGuard, the repair - for minutes, in exactly the case
+# StorageGuard bounds its own commands for.
+SUPERBLOCK_READ_S = 10
+DISK_READ_S = 20
+DISK_WRITE_S = 60
+
+def run(cmd, check=False, capture=True, text=True, timeout=None):
+    """The command's CompletedProcess; never raises. With a timeout it is
+    run_bounded: given up (exit 124) after that many seconds."""
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
+    if timeout is not None:
+        return run_bounded(cmd, timeout)
     try:
         res = subprocess.run(cmd, check=check, capture_output=capture, text=text)
         return res
@@ -208,8 +225,14 @@ def mdadm_detail(raid_dev):
         }
       }
     Keys in 'members' are the RAID DEVICE SLOTS (RaidDevice), not mdadm 'Number'.
+    None when mdadm is given up (it reads a member's superblock, which a
+    disk that stopped answering never returns); any other failure parses
+    to no state and no members, as it always did.
     """
-    out = run([CONFIG["paths"]["mdadm"], "--detail", raid_dev]).stdout
+    r = run([CONFIG["paths"]["mdadm"], "--detail", raid_dev], timeout=SUPERBLOCK_READ_S)
+    if r.returncode == 124:
+        return None
+    out = r.stdout or ""
     info = {"state": "", "members": {}, "other_devices": set()}
 
     m = re.search(r"State\s*:\s*(.+)", out)
@@ -271,22 +294,18 @@ def md_fingerprint(raid_name, sys_root="/sys"):
         parts.append(f"{name}:{_read(os.path.join(base, name, 'slot'))}:{_read(os.path.join(base, name, 'state'))}")
     return tuple(parts)
 
-def mdadm_examine(dev):
-    """Return metadata: Events (int), Update Time (str), Array UUID (str)."""
-    out = run([CONFIG["paths"]["mdadm"], "--examine", dev]).stdout
-    events = None
-    update_time = None
-    uuid = None
-    m = re.search(r"Events :\s*(\d+)", out)
-    if m:
-        events = int(m.group(1))
-    m = re.search(r"Update Time :\s*(.+)", out)
-    if m:
-        update_time = m.group(1).strip()
-    m = re.search(r"Array UUID :\s*([0-9a-fA-F:-]+)", out)
-    if m:
-        uuid = m.group(1).strip()
-    return {"events": events, "update_time": update_time, "uuid": uuid}
+def rebuild_source_slot(members, rebuilding_slot):
+    """During a rebuild, the slot being copied from: a member md counts in
+    sync, not the one being rebuilt, the lowest slot first; None when there
+    is none. md's own state, from mdadm --detail: each member's superblock
+    used to be read (mdadm --examine) every poll while rebuilding, to
+    compare event counts - a disk read every half second, a crash when one
+    of them couldn't be read, and the wrong LED when the counts were
+    equal."""
+    for slot in sorted(members):
+        if slot != rebuilding_slot and in_sync(members[slot]):
+            return slot
+    return None
 
 def mdstat():
     """Return /proc/mdstat text."""
@@ -459,7 +478,7 @@ def prepare_disk_for_raid(disk):
     return part
 
 def add_member(raid_dev, new_dev):
-    return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev])
+    return run([CONFIG["paths"]["mdadm"], "--add", raid_dev, new_dev], timeout=DISK_WRITE_S)
 
 # ----------------------------
 # Which disk may be added (and wiped)
@@ -505,7 +524,7 @@ def has_partitions(dev, sys_root="/sys"):
 def signatures(dev):
     """What blkid -p and wipefs find on dev: "" for nothing, else a few
     words; None when they can't read it."""
-    r = run([tool("blkid"), "-p", "-o", "export", dev])
+    r = run([tool("blkid"), "-p", "-o", "export", dev], timeout=DISK_READ_S)
     if r.returncode == 0:
         found = kv_lines(r.stdout)
         found.pop("DEVNAME", None)
@@ -519,7 +538,7 @@ def signatures(dev):
         return "several signatures"
     if r.returncode != 2:  # 2: nothing found
         return None
-    r = run([tool("wipefs"), "--no-act", "--noheadings", dev])
+    r = run([tool("wipefs"), "--no-act", "--noheadings", dev], timeout=DISK_READ_S)
     if r.returncode != 0:
         return None
     first = (r.stdout or "").strip().splitlines()
@@ -551,6 +570,30 @@ def uniform(data):
     """No data in it: all zero bytes, or all 0xFF."""
     return bool(data) and (data.count(0) == len(data) or data.count(0xFF) == len(data))
 
+def ends_blank(dev, timeout=DISK_READ_S):
+    """Whether dev's first and last MiB hold nothing (uniform), read by
+    read_ends in a child process given up after timeout seconds: a read
+    from a disk that stopped answering waits in the kernel for minutes,
+    and the loop goes on meanwhile. Raises OSError when they can't be
+    read."""
+    r = run([sys.executable, "-I", os.path.abspath(__file__), "--ends-blank", dev], timeout=timeout)
+    if r.returncode in (0, 1):
+        return r.returncode == 0
+    if r.returncode == 124:
+        raise OSError(errno.ETIMEDOUT, f"no answer in {timeout} s")
+    said = (r.stderr or "").strip().splitlines()
+    raise OSError(errno.EIO, said[-1] if said else f"exit {r.returncode}")
+
+def ends_blank_child(dev):
+    """--ends-blank's exit status: 0 blank, 1 holds data, 2 can't be read
+    (why on stderr)."""
+    try:
+        first, last = read_ends(dev)
+    except OSError as e:
+        sys.stderr.write(f"{e.strerror or e}\n")
+        return 2
+    return 0 if uniform(first) and uniform(last) else 1
+
 ARRAY_STATE = re.compile(r"^\s*Array State\s*:\s*([A-Za-z.]+)", re.M)
 
 def diverged(dev, members):
@@ -559,7 +602,7 @@ def diverged(dev, members):
     other lacks. True/False, or None when the superblock can't be read. A
     disk that only dropped out while the other went on still shows both
     slots active: it is behind, and a re-add catches it up."""
-    r = run([CONFIG["paths"]["mdadm"], "--examine", dev])
+    r = run([CONFIG["paths"]["mdadm"], "--examine", dev], timeout=SUPERBLOCK_READ_S)
     m = ARRAY_STATE.search(r.stdout or "") if r.returncode == 0 else None
     if not m:
         return None
@@ -574,8 +617,9 @@ def diverged(dev, members):
 def judge_disk(dev, array_uuid, members):
     """Whether dev may be added to the degraded mirror: ("add", why) for a
     blank disk or a former member of this mirror, ("refuse", why) for any
-    other, why being words for the storage log."""
-    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev])
+    other, why being words for the storage log. Every read of the disk is
+    given up after a while (a disk that doesn't answer is refused)."""
+    r = run([CONFIG["paths"]["mdadm"], "--examine", "--export", dev], timeout=SUPERBLOCK_READ_S)
     sb = kv_lines(r.stdout) if r.returncode == 0 else {}
     if sb.get("MD_UUID"):
         if array_uuid and sb["MD_UUID"].lower() == array_uuid.lower():
@@ -597,16 +641,16 @@ def judge_disk(dev, array_uuid, members):
     if found:
         return "refuse", f"it holds {found}"
     try:
-        first, last = read_ends(dev)
+        blank = ends_blank(dev)
     except OSError as e:
         return "refuse", f"it can't be read ({e.strerror or e})"
-    if not (uniform(first) and uniform(last)):
+    if not blank:
         return "refuse", "it holds data (no filesystem this device knows)"
     return "add", "it is blank"
 
 def array_uuid_of(raid_dev):
     """md0's UUID (mdadm --detail --export), or "" when it can't be read."""
-    r = run([CONFIG["paths"]["mdadm"], "--detail", "--export", raid_dev])
+    r = run([CONFIG["paths"]["mdadm"], "--detail", "--export", raid_dev], timeout=SUPERBLOCK_READ_S)
     return kv_lines(r.stdout).get("MD_UUID", "") if r.returncode == 0 else ""
 
 # The disks left alone, for the device (raidwatch reads it every minute
@@ -921,6 +965,8 @@ def use_disk(offer, offered, raid_dev, sys_root="/sys", proc_root="/proc"):
     if not array_in_mdstat(mdstat(), raid_name_from_dev(raid_dev)):
         raise UseRefused("not_degraded", f"{raid_dev} is not assembled")
     detail = mdadm_detail(raid_dev)
+    if detail is None:
+        raise UseRefused("failed", f"{raid_dev}'s state can't be read (mdadm --detail gave no answer)")
     members = detail.get("members", {})
     if not any(in_sync(m) for m in members.values()):
         raise UseRefused("not_degraded", f"{raid_dev} has no working disk to copy from")
@@ -960,7 +1006,7 @@ def use_disk(offer, offered, raid_dev, sys_root="/sys", proc_root="/proc"):
     # Its partitions' signatures first: once the partition table is gone
     # nothing finds them any more. wipefs opens each exclusively too.
     for part in partitions_of(name, sys_root) + [name]:
-        r = run([tool("wipefs"), "-a", "/dev/" + part])
+        r = run([tool("wipefs"), "-a", "/dev/" + part], timeout=DISK_WRITE_S)
         if r.returncode != 0:
             raise UseRefused("failed", f"wipefs -a /dev/{part} failed: {(r.stderr or r.stdout or '').strip()}")
     if disk_seq(name, sys_root) != entry["seq"]:
@@ -1073,11 +1119,11 @@ def grow_array(raid_dev):
     """mdadm --grow --size=max; an mdadm that refuses with an internal
     bitmap gets it dropped for the grow and put back."""
     mdadm = CONFIG["paths"]["mdadm"]
-    r = run([mdadm, "--grow", raid_dev, "--size=max"])
+    r = run([mdadm, "--grow", raid_dev, "--size=max"], timeout=DISK_WRITE_S)
     if r.returncode != 0 and "bitmap" in ((r.stderr or "") + (r.stdout or "")).lower():
-        run([mdadm, "--grow", raid_dev, "--bitmap=none"])
-        r = run([mdadm, "--grow", raid_dev, "--size=max"])
-        run([mdadm, "--grow", raid_dev, "--bitmap=internal"])
+        run([mdadm, "--grow", raid_dev, "--bitmap=none"], timeout=DISK_WRITE_S)
+        r = run([mdadm, "--grow", raid_dev, "--size=max"], timeout=DISK_WRITE_S)
+        run([mdadm, "--grow", raid_dev, "--bitmap=internal"], timeout=DISK_WRITE_S)
     return r
 
 def fs_needs_resize(raid_dev):
@@ -1085,10 +1131,10 @@ def fs_needs_resize(raid_dev):
     if run([CONFIG["paths"]["lsblk"], "-ndo", "FSTYPE", raid_dev]).stdout.strip() != "ext4":
         return False
     try:
-        dev_bytes = int(run([CONFIG["paths"]["blockdev"], "--getsize64", raid_dev]).stdout.strip())
+        dev_bytes = int(run([CONFIG["paths"]["blockdev"], "--getsize64", raid_dev], timeout=SUPERBLOCK_READ_S).stdout.strip())
     except ValueError:
         return False
-    out = run([CONFIG["paths"]["dumpe2fs"], "-h", raid_dev]).stdout
+    out = run([CONFIG["paths"]["dumpe2fs"], "-h", raid_dev], timeout=DISK_READ_S).stdout
     count = re.search(r"^Block count:\s*(\d+)", out, re.M)
     bsize = re.search(r"^Block size:\s*(\d+)", out, re.M)
     if not count or not bsize:
@@ -1623,7 +1669,7 @@ def kernel_disk_lines(cursor, output=None):
         cmd = ["journalctl", "-k", "-b", "-o", "short-iso", "--no-pager", "--show-cursor"]
         if cursor:
             cmd += ["--after-cursor", cursor]
-        r = run(cmd)
+        r = run(cmd, timeout=DISK_READ_S)
         if r.returncode != 0:
             return None, cursor
         output = r.stdout or ""
@@ -2462,8 +2508,9 @@ def main():
     # (disk, size, model, port, attachment) -> judge_disk's verdict, while it
     # is plugged in.
     verdicts = {}
-    # The last mdadm --detail, the sysfs it was read with, and when.
-    md_cache = {"fp": None, "at": 0.0, "detail": None}
+    # The last mdadm --detail, the sysfs it was read with, and when; after
+    # one given up (a member that doesn't answer), not before "retry_at".
+    md_cache = {"fp": None, "at": 0.0, "detail": None, "retry_at": 0.0}
     # Since when md0 has been running (active in /proc/mdstat), as this
     # loop saw it: the repair and the grow wait REPAIR_SETTLE_S after it
     # started (see running_settled).
@@ -2482,7 +2529,9 @@ def main():
 
     kernel_lines()
 
-    try:
+    # The whole poll, every poll_s, for the device's life (keep_running
+    # runs it again after anything it raises).
+    def loop():
         while True:
             key = request_key(CONFIG["setup_request_file"])
             if key is not None and not (key == setup_retry["key"] and time.monotonic() < setup_retry["next_try"]):
@@ -2505,7 +2554,7 @@ def main():
             if os.path.lexists(USE_REQUEST):
                 if handle_use_request(seen["offered"], raid_dev):
                     seen["offered"] = {}
-                    md_cache.update(fp=None, at=0.0, detail=None)
+                    md_cache.update(fp=None, at=0.0, detail=None, retry_at=0.0)
                     mdst = mdstat()
                 if _TERM["pending"]:
                     print("[raid-watch] SIGTERM received. Cleaning up GPIO.")
@@ -2513,14 +2562,25 @@ def main():
                     raise SystemExit(0)
             # The fallback is what a failed `mdadm --detail` parses to.
             # mdadm only when md's sysfs changed, or every MDADM_EVERY_S.
+            # One given up (it reads a member's superblock, which a disk that
+            # stopped answering never returns) leaves the last answer, and
+            # mdadm isn't asked again for MDADM_EVERY_S, whatever changes.
             if array_present:
                 fp, mono_md = md_fingerprint(raid_name), time.monotonic()
-                if fp is None or fp != md_cache["fp"] or md_cache["detail"] is None \
-                        or mono_md - md_cache["at"] >= MDADM_EVERY_S:
-                    md_cache.update(fp=fp, at=mono_md, detail=mdadm_detail(raid_dev))
-                detail = md_cache["detail"]
+                if (fp is None or fp != md_cache["fp"] or md_cache["detail"] is None
+                        or mono_md - md_cache["at"] >= MDADM_EVERY_S) and mono_md >= md_cache["retry_at"]:
+                    got = mdadm_detail(raid_dev)
+                    if got is None:
+                        print(f"[raid-watch] mdadm --detail {raid_dev} gave no answer in {SUPERBLOCK_READ_S} s "
+                              f"(a disk that doesn't answer?): the last answer stands, asked again in {MDADM_EVERY_S} s")
+                        got = md_cache["detail"] or {"state": "", "members": {}, "other_devices": set()}
+                        md_cache["retry_at"] = mono_md + MDADM_EVERY_S
+                    else:
+                        md_cache["retry_at"] = 0.0
+                    md_cache.update(fp=fp, at=mono_md, detail=got)
+                detail = md_cache["detail"] or {"state": "", "members": {}, "other_devices": set()}
             else:
-                md_cache.update(fp=None, at=0.0, detail=None)
+                md_cache.update(fp=None, at=0.0, detail=None, retry_at=0.0)
                 detail = {"state": "", "members": {}, "other_devices": set()}
             state = (detail.get("state") or "").lower()
             members = detail.get("members", {})
@@ -2563,23 +2623,8 @@ def main():
                     rebuilding_slot = slot
                     break
 
-            # If we want to also confirm direction: compare Events counters.
-            # Only while rebuilding - the only time it's used. `mdadm
-            # --examine` reads each drive's superblock straight off the
-            # device; doing it every poll kept both USB pen drives busy
-            # around the clock, so they never idled and ran hot.
-            events_by_slot = {}
-            if rebuilding:
-                for slot, m in members.items():
-                    # Use the underlying member device (/dev/sdXN)
-                    ex = mdadm_examine(m["device"])
-                    events_by_slot[slot] = ex.get("events", 0)
-
-
-            # Choose source as the slot with highest Events
-            source_slot = None
-            if events_by_slot:
-                source_slot = max(events_by_slot, key=lambda s: events_by_slot[s])
+            # The copy's source: a member md counts in sync (no disk read).
+            source_slot = rebuild_source_slot(members, rebuilding_slot) if rebuilding else None
 
             # LED logic
             if "degraded" in state or len(members) < 2:
@@ -2600,7 +2645,7 @@ def main():
                 if rebuilding and rebuilding_slot is not None:
                     # Target (rebuilding) -> blink red
                     led.set_mode(rebuilding_slot, "blink_red")
-                    # Source (newer events) -> blink green
+                    # Source (in sync) -> blink green
                     src = source_slot if source_slot is not None else (0 if rebuilding_slot == 1 else 1)
                     led.set_mode(src, "blink_green")
                 else:
@@ -2766,8 +2811,43 @@ def main():
 
             time.sleep(CONFIG["poll_s"])
 
+    try:
+        keep_running(loop)
     finally:
         gpio_cleanup()
+
+def keep_running(loop, sleep=time.sleep, mono=time.monotonic):
+    """Runs loop() - the watcher's poll, forever - and runs it again after
+    anything it raises: one unexpected answer used to end the process, and
+    systemd restarting it into the same one could leave the unit failed by
+    its start limit - no LEDs, no StorageGuard, no repair - until a reboot.
+    Each new failure is printed with its traceback (later ones of the same
+    kind are counted); the pause before running again doubles from 1 s to
+    30 s while failures keep coming, back to 1 s after a minute without
+    one. A stop (SystemExit, KeyboardInterrupt) ends it, as does loop()
+    returning."""
+    import traceback
+    delay, last_at, seen = 0, None, {}
+    while True:
+        try:
+            loop()
+            return
+        except Exception as e:
+            at = mono()
+            if last_at is not None and at - last_at > 60:
+                delay = 0
+            last_at = at
+            what = f"{type(e).__name__}: {e}"
+            if what not in seen and len(seen) >= 100:
+                seen.clear()
+            seen[what] = seen.get(what, 0) + 1
+            n = seen[what]
+            if n == 1:
+                print("[raid-watch] the watcher's poll failed and starts again: " + traceback.format_exc().strip())
+            elif n in (10, 100, 1000) or n % 10000 == 0:
+                print(f"[raid-watch] the watcher's poll failed again ({n} times): {what}")
+            delay = min(max(1, 2 * delay), 30)
+            sleep(delay)
 
 def selftest():
     """python3 raid_watch.py --selftest: the storage log's helpers, with no
@@ -2874,14 +2954,15 @@ def selftest():
     selftest_storage()
     selftest_storage_gone()
     selftest_assemble()
+    selftest_bounded()
     print("selftest ok")
 
 def selftest_disks():
     """Which disk may join the mirror (judge_disk, pick_candidate_disk), the
     storage setup's own checks, and the file the device's Alert reads."""
     import tempfile
-    global run, read_ends, has_partitions
-    real = (run, read_ends, has_partitions)
+    global run, ends_blank, has_partitions
+    real = (run, ends_blank, has_partitions)
     uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
     members = {0: {"device": "/dev/sda", "state": "active sync"}}
     # What each disk shows: mdadm --examine --export, --examine, blkid -p,
@@ -2919,13 +3000,13 @@ def selftest_disks():
         e = disks[dev].get("ends", (b"\0" * 64, b"\0" * 64))
         if isinstance(e, Exception):
             raise e
-        return e
+        return uniform(e[0]) and uniform(e[1])
 
-    run, read_ends, has_partitions = fake_run, fake_ends, lambda dev, sys_root="/sys": disks[dev].get("parts", False)
+    run, ends_blank, has_partitions = fake_run, fake_ends, lambda dev, sys_root="/sys": disks[dev].get("parts", False)
     try:
         got = {d: judge_disk(d, uuid, members) for d in disks}
     finally:
-        run, read_ends, has_partitions = real
+        run, ends_blank, has_partitions = real
     want = {
         "/dev/sdb": ("add", "it was a member of this mirror"),
         "/dev/sdc": ("refuse", "it was a member of this mirror but ran on its own since, so it holds changes the mirror lacks (copy what you need off it first)"),
@@ -3622,6 +3703,100 @@ def selftest_storage_gone():
         del calls[:]
         assert step(g)[0] == "ok" and calls == [], calls
 
+def selftest_bounded():
+    """The loop never waits long on a disk, nor ends on one failure: a
+    command given up, mdadm --detail given up, a disk's two ends read in a
+    child that is given up, the rebuild's source from md's own state, and
+    keep_running."""
+    import tempfile
+    import io
+    import contextlib
+    global run
+    t = time.monotonic()
+    r = run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.5)
+    assert r.returncode == 124 and "given up after 0.5 s" in r.stderr and time.monotonic() - t < 10, (r, time.monotonic() - t)
+    assert run([sys.executable, "-c", "print('ok')"], timeout=10).stdout.strip() == "ok"
+
+    real = run
+    asked = []
+    def fake(answer):
+        def fake_run(cmd, timeout=None, **_kw):
+            asked.append((os.path.basename(cmd[0]), timeout))
+            return answer
+        return fake_run
+    detail = ("/dev/md0:\n             State : clean, degraded\n    Number   Major   Minor   RaidDevice State\n"
+              "       0       8        0        0      active sync   /dev/sda\n")
+    try:
+        run = fake(subprocess.CompletedProcess([], 124, "", "(given up after 10 s)"))
+        assert mdadm_detail("/dev/md0") is None and asked == [("mdadm", SUPERBLOCK_READ_S)], asked
+        run = fake(subprocess.CompletedProcess([], 0, detail, ""))
+        got = mdadm_detail("/dev/md0")
+        assert got["state"] == "clean, degraded" and got["members"] == {0: {"device": "/dev/sda", "state": "active sync"}}, got
+        run = fake(subprocess.CompletedProcess([], 1, "", "mdadm: cannot open /dev/md0"))
+        assert mdadm_detail("/dev/md0") == {"state": "", "members": {}, "other_devices": set()}   # as it always parsed
+    finally:
+        run = real
+
+    # A disk's two ends, read in a child: blank, data, can't be read, and a
+    # read that never answers (a FIFO nobody writes: open waits) given up.
+    with tempfile.TemporaryDirectory() as tmp:
+        disk = os.path.join(tmp, "disk")
+        Path(disk).write_bytes(b"\0" * (3 << 20))
+        assert ends_blank(disk) is True
+        Path(disk).write_bytes(b"\xff" * (1 << 20) + b"data" + b"\0" * (2 << 20))
+        assert ends_blank(disk) is True                  # the middle isn't read: the ends hold nothing
+        Path(disk).write_bytes(b"\0" * ((3 << 20) - 4) + b"tail")
+        assert ends_blank(disk) is False
+        try:
+            ends_blank(os.path.join(tmp, "none"))
+            raise AssertionError("a missing disk read as blank")
+        except OSError as e:
+            assert "No such file" in str(e.strerror), e
+        fifo = os.path.join(tmp, "fifo")
+        os.mkfifo(fifo)
+        t = time.monotonic()
+        try:
+            ends_blank(fifo, timeout=1)
+            raise AssertionError("a disk that never answers read as blank")
+        except OSError as e:
+            assert e.errno == errno.ETIMEDOUT and e.strerror == "no answer in 1 s", e
+        assert time.monotonic() - t < 10
+
+    # The rebuild's source: the member in sync, never the one being copied
+    # onto - the old event comparison picked slot 0 on a tie, whichever it was.
+    rebuilding = {0: {"device": "/dev/sdb", "state": "spare rebuilding"}, 1: {"device": "/dev/sda", "state": "active sync"}}
+    assert rebuild_source_slot(rebuilding, 0) == 1
+    assert rebuild_source_slot({0: {"state": "active sync"}, 1: {"state": "spare rebuilding"}}, 1) == 0
+    assert rebuild_source_slot({0: {"state": "spare rebuilding"}, 1: {"state": "faulty"}}, 0) is None
+    assert rebuild_source_slot({}, None) is None
+
+    # keep_running: a failure is printed once with its traceback, counted
+    # after, the poll started again after 1, 2, 4... s (up to 30), back to
+    # 1 s after a minute without one; a stop ends it.
+    clock = {"t": 0.0}
+    slept = []
+    script = iter([ValueError("x"), ValueError("x"), KeyError("y"), "pause", ValueError("x"), SystemExit(0)])
+    def loop():
+        step = next(script)
+        if step == "pause":
+            clock["t"] += 120
+            step = next(script)
+        raise step
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        try:
+            keep_running(loop, sleep=slept.append, mono=lambda: clock["t"])
+            raise AssertionError("keep_running ended without the stop")
+        except SystemExit:
+            pass
+    assert slept == [1, 2, 4, 1], slept
+    said = out.getvalue()
+    assert said.count("the watcher's poll failed and starts again") == 2 and "Traceback" in said, said
+    assert "ValueError: x" in said and "KeyError: 'y'" in said, said
+    ran = []
+    keep_running(lambda: ran.append(1), sleep=slept.append)
+    assert ran == [1]
+
 def selftest_assemble():
     """A dead array's disks that were back before it was stopped (a USB
     brownout: both gone for a second, back under new names while md still
@@ -3988,5 +4163,8 @@ def selftest_use():
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         selftest()
+    elif len(sys.argv) == 3 and sys.argv[1] == "--ends-blank":
+        # ends_blank's child: a disk's two ends read here, given up from there.
+        sys.exit(ends_blank_child(sys.argv[2]))
     else:
         main()

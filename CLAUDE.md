@@ -1466,7 +1466,18 @@ start takes its file.
   root must not write in its log directory; `raidwatch.FollowLog` copies each new line into the
   device's own log as `storage: …` (Settings > Logs > Device, every app; its place kept in
   `<storage>/.storage-log-read`, by the file's first line). `python3 scripts/raid_watch.py
-  --selftest` tests the script's side. The Pi 5 has one USB controller per blue
+  --selftest` tests the script's side. Its loop never waits long on a disk: every command that reads
+  one goes through `run(..., timeout=)` (`run_bounded`: `mdadm --detail`/`--examine` 10 s, `blkid -p`,
+  `wipefs`, `dumpe2fs` and `journalctl` 20 s, `mdadm --add`/`--grow` and Settings' `wipefs -a` 60 s),
+  a disk's two ends are read in a child (`ends_blank`: the script again with `--ends-blank`, given
+  up after 20 s), a `mdadm --detail` given up leaves the last answer for 30 s, and a rebuild's source
+  is md's own in-sync member (`rebuild_source_slot`; each member's superblock used to be read every
+  half second while rebuilding). The poll runs under `keep_running`: anything it raises is logged
+  with its traceback (once per kind, then counted) and the poll starts again after 1 s doubling to
+  30 s - one unreadable superblock in a rebuild used to end the process - and `raid-watch.service`
+  restarts it 5 s after any failure with no start limit (`RestartSec=5`, `StartLimitIntervalSec=0`:
+  install.sh, Makefile.pi, and release 169's script for the units installed before;
+  `updater/raid_watch_unit_test.go`). The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
   the startup log names each disk's port. The root `raid_watch.py` still drives the LEDs and re-adds a
   replacement - since release 143 only a blank one (no partition table, no `blkid -p`/`wipefs`

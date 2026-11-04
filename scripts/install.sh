@@ -1614,13 +1614,19 @@ elif [ -f "$SRC_DIR/scripts/raid_watch.py" ]; then
     install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
 
     # Not after multi-user.target: it tells the apps when the storage is
-    # missing a minute after boot (otc_storage_units below).
+    # missing a minute after boot (otc_storage_units below). Started again
+    # 5 s after any failure, with no start limit: it drives the LEDs, brings
+    # the storage back and repairs the mirror, and systemd's default (five
+    # starts in ten seconds) left it off until a reboot after a few quick
+    # failures. updates/169.sh adds the same two lines to older units.
     cat > /etc/systemd/system/raid-watch.service <<'EOF'
 [Unit]
+StartLimitIntervalSec=0
 Description=RAID1 watcher + LED driver
 After=mdadm.service
 
 [Service]
+RestartSec=5
 Type=simple
 ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
 Restart=on-failure

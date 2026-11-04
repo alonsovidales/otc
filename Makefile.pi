@@ -257,10 +257,12 @@ raid-watch: raid ## Install the RAID status-LED watcher service (scripts/raid_wa
 	$(SSH) 'sudo mv /tmp/raid_watch.py /usr/local/bin/raid_watch.py && sudo chmod +x /usr/local/bin/raid_watch.py' < /dev/null
 	$(SSH) 'sudo tee /etc/systemd/system/raid-watch.service >/dev/null' <<-'EOF'
 	[Unit]
+	StartLimitIntervalSec=0
 	Description=RAID1 watcher + LED driver
 	After=mdadm.service
 	
 	[Service]
+	RestartSec=5
 	Type=simple
 	ExecStart=/usr/bin/python3 /usr/local/bin/raid_watch.py
 	Restart=on-failure
