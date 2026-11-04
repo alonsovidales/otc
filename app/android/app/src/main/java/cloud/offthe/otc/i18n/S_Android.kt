@@ -150,6 +150,10 @@ fun S.androidFilesInsideKeptOutInfo(folder: String): UiText =
 fun S.androidFilesKeptOutSaid(name: String): UiText =
     UiText.Res(R.string.android_files_kept_out_said, listOf(name))
 
+/** "{count} older versions" (one: "{count} older version"): Screen-reader name of the badge with a clock and a number on a file in Files (the list and the grid of tiles): how many older versions the device keeps of it. A tap lists them. */
+fun S.androidFilesOlderVersions(count: Int): UiText =
+    UiText.Plural(R.plurals.android_files_older_versions, count, listOf(count))
+
 /** "Show “{name}” in Images": Button of the banner at the top of Files (android.files.inside_kept_out_banner): asks whether to show the folder that keeps this one out of Images there again. {name} is that folder's name. Images is the photo section (app.shell.section_images). Write the quotes in your language's style. */
 fun S.androidFilesShowNamed(name: String): UiText =
     UiText.Res(R.string.android_files_show_named, listOf(name))

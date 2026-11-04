@@ -47,6 +47,10 @@
     <string name="android_files_inside_kept_out_banner">In de map \u2068%1$s\u2069, die buiten Afbeeldingen wordt gehouden: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.</string>
     <string name="android_files_inside_kept_out_info">In de map \u2068%1$s\u2069, die buiten Afbeeldingen wordt gehouden. Foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel.</string>
     <string name="android_files_kept_out_said">De map \u2068%1$s\u2069 wordt nu buiten Afbeeldingen gehouden</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s oudere versie</item>
+        <item quantity="other">%1$s oudere versies</item>
+    </plurals>
     <string name="android_files_show_named">De map “\u2068%1$s\u2069” in Afbeeldingen tonen</string>
     <string name="android_files_shown_said">De map \u2068%1$s\u2069 wordt weer getoond in Afbeeldingen</string>
     <string name="android_files_wait_download_link">Wacht tot de downloadlink klaar is</string>

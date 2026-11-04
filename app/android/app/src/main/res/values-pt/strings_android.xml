@@ -50,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dentro de \u2068%1$s\u2069, que está fora de Imagens: as fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens.</string>
     <string name="android_files_inside_kept_out_info">Dentro de \u2068%1$s\u2069, que está fora de Imagens. As fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Ficheiros continua a mostrá-los.</string>
     <string name="android_files_kept_out_said">A pasta \u2068%1$s\u2069 ficou fora de Imagens</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s versão anterior</item>
+        <item quantity="many">%1$s versões anteriores</item>
+        <item quantity="other">%1$s versões anteriores</item>
+    </plurals>
     <string name="android_files_show_named">Mostrar a pasta «\u2068%1$s\u2069» em Imagens</string>
     <string name="android_files_shown_said">A pasta \u2068%1$s\u2069 voltou a aparecer em Imagens</string>
     <string name="android_files_wait_download_link">Espera até a ligação de transferência estar pronta</string>

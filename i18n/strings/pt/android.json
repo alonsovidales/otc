@@ -163,6 +163,16 @@
     "text": "A pasta {name} ficou fora de Imagens",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} versão anterior",
+      "other": "{count} versões anteriores"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "Mostrar a pasta «{name}» em Imagens",
     "en": "Show “{name}” in Images"

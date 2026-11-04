@@ -173,6 +173,14 @@
     "args": [["name", "user"]],
     "note": "Said by the screen reader (not shown) once a folder has been kept out of Images. {name} is the folder's name. Images is the photo section (app.shell.section_images)."
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the badge with a clock and a number on a file in Files (the list and the grid of tiles): how many older versions the device keeps of it. A tap lists them."
+  },
   "android.files.show_named": {
     "text": "Show “{name}” in Images",
     "args": [["name", "user"]],

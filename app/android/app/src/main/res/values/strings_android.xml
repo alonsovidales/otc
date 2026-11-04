@@ -46,6 +46,10 @@
     <string name="android_files_inside_kept_out_banner">Inside \u2068%1$s\u2069, which is kept out of Images - photos and videos here aren\'t tagged, searched for faces or shown in Images.</string>
     <string name="android_files_inside_kept_out_info">Inside \u2068%1$s\u2069, which is kept out of Images. Photos and videos here aren\'t tagged, searched for faces or shown in Images. Files still shows them.</string>
     <string name="android_files_kept_out_said">\u2068%1$s\u2069 kept out of Images</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s older version</item>
+        <item quantity="other">%1$s older versions</item>
+    </plurals>
     <string name="android_files_show_named">Show “\u2068%1$s\u2069” in Images</string>
     <string name="android_files_shown_said">\u2068%1$s\u2069 shown in Images</string>
     <string name="android_files_wait_download_link">Wait for the download link to be ready</string>

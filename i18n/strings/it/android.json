@@ -163,6 +163,16 @@
     "text": "La cartella {name} è ora fuori da Immagini",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} versione precedente",
+      "other": "{count} versioni precedenti"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "Mostra la cartella “{name}” in Immagini",
     "en": "Show “{name}” in Images"

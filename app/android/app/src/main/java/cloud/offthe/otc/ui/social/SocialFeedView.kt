@@ -102,6 +102,7 @@ import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
+import androidx.compose.ui.semantics.contentDescription
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appSocialPostDeleteCommentLabel
@@ -535,8 +536,12 @@ private fun PostCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text((if (c.publisher.isEmpty()) S.appSocialPostCommentUnnamed(c.comment) else S.appSocialPostComment(c.publisher, c.comment)).resolve(commentTags), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
+                // TalkBack: "3 likes", not a bare "3" (a tap lists who liked it).
+                if (c.likes > 0) {
+                    val likes = S.appSocialPostLikes(c.likes).resolve()
+                    Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.semantics { contentDescription = likes }.padding(4.dp))
+                }
                 IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp).semantics { selected = c.liked }) {
                     Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.appSocialPostUnlikeComment() else S.appSocialPostLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }

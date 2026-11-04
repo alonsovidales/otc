@@ -50,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dentro \u2068%1$s\u2069, che è fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.</string>
     <string name="android_files_inside_kept_out_info">Dentro \u2068%1$s\u2069, che è fuori da Immagini. Le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. File continua a mostrarli.</string>
     <string name="android_files_kept_out_said">La cartella \u2068%1$s\u2069 è ora fuori da Immagini</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s versione precedente</item>
+        <item quantity="many">%1$s versioni precedenti</item>
+        <item quantity="other">%1$s versioni precedenti</item>
+    </plurals>
     <string name="android_files_show_named">Mostra la cartella “\u2068%1$s\u2069” in Immagini</string>
     <string name="android_files_shown_said">La cartella \u2068%1$s\u2069 è di nuovo in Immagini</string>
     <string name="android_files_wait_download_link">Attendi che il link di download sia pronto</string>

@@ -163,6 +163,16 @@
     "text": "{name} in „Bilder“ ausgeblendet",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} ältere Version",
+      "other": "{count} ältere Versionen"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "Ordner „{name}“ in „Bilder“ anzeigen",
     "en": "Show “{name}” in Images"

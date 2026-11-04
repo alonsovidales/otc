@@ -50,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dans \u2068%1$s\u2069, qui est hors d’Images : les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images.</string>
     <string name="android_files_inside_kept_out_info">Dans \u2068%1$s\u2069, qui est hors d’Images. Les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images. Fichiers les affiche toujours.</string>
     <string name="android_files_kept_out_said">Le dossier \u2068%1$s\u2069 est maintenant hors d’Images</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s ancienne version</item>
+        <item quantity="many">%1$s anciennes versions</item>
+        <item quantity="other">%1$s anciennes versions</item>
+    </plurals>
     <string name="android_files_show_named">Afficher « \u2068%1$s\u2069 » dans Images</string>
     <string name="android_files_shown_said">Le dossier \u2068%1$s\u2069 est de nouveau affiché dans Images</string>
     <string name="android_files_wait_download_link">Attendez que le lien de téléchargement soit prêt</string>

@@ -163,6 +163,16 @@
     "text": "Le dossier {name} est maintenant hors d’Images",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} ancienne version",
+      "other": "{count} anciennes versions"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "Afficher « {name} » dans Images",
     "en": "Show “{name}” in Images"

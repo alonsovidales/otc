@@ -163,6 +163,16 @@
     "text": "De map {name} wordt nu buiten Afbeeldingen gehouden",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} oudere versie",
+      "other": "{count} oudere versies"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "De map “{name}” in Afbeeldingen tonen",
     "en": "Show “{name}” in Images"

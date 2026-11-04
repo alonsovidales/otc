@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appFilesPathLabel
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.UiText
@@ -140,6 +141,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import cloud.offthe.otc.i18n.androidFilesOlderVersions
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -1573,7 +1581,7 @@ fun FilesExplorerView(initialPath: String) {
                     Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             OTCTextField(
-                                value = pathField, onValueChange = { pathField = it }, singleLine = true, label = { Text("/path/") },
+                                value = pathField, onValueChange = { pathField = it }, singleLine = true, label = { Text(S.appFilesPathLabel().resolve()) },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Go),
                                 keyboardActions = KeyboardActions(onGo = { vm.navigate(pathField) }),
                                 modifier = Modifier.weight(1f),
@@ -1717,7 +1725,12 @@ fun FilesExplorerView(initialPath: String) {
                                             // the lock on a folder toggles upload only, on a
                                             // file it just says it is inside one.
                                             if (!row.isDir && row.versions > 0) {
-                                                TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                                                // TalkBack: "3 older versions", not a bare "3".
+                                                val versionsLabel = S.androidFilesOlderVersions(row.versions).resolve()
+                                                TextButton(
+                                                    onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                                    modifier = Modifier.clearAndSetSemantics { contentDescription = versionsLabel; role = Role.Button; onClick { scope.launch { vm.openVersions(row) }; true } },
+                                                ) {
                                                     Icon(Icons.Default.History, null, Modifier.size(16.dp))
                                                     Spacer(Modifier.width(4.dp))
                                                     Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
@@ -1976,7 +1989,31 @@ private fun FileGridCell(
     selecting: Boolean = false,
 ) {
     val picks = selecting && row.path != ".."
-    Column(Modifier.fillMaxWidth()) {
+    // One element for TalkBack (as iOS's GridTileAccess): named by the file
+    // ("Video" after a video's), its selected state while picking, a tap
+    // that opens it (or picks it), and its badges as actions - the tile
+    // read as an unlabelled button with its name a separate element.
+    val pick = (if (selected) S.commonDeselect() else S.commonSelect()).resolve()
+    val video = !row.isDir && isVideo(row.raw)
+    val videoWord = S.appFilesVideo().resolve()
+    val versionsLabel = if (!row.isDir && row.versions > 0) S.androidFilesOlderVersions(row.versions).resolve() else null
+    val lockLabel = if (row.isDir && row.uploadOnly) S.appFilesUploadOnly().resolve() else null
+    val outLabel = if (row.isDir && outOfImages) OutOfImagesText.STATE.resolve() else null
+    Column(
+        Modifier.fillMaxWidth().clearAndSetSemantics {
+            contentDescription = row.name
+            if (video) stateDescription = videoWord
+            if (picks) this.selected = selected
+            role = Role.Button
+            onClick(label = if (picks) pick else null) { onOpen(); true }
+            customActions = buildList {
+                if (row.path != ".." && !picks) add(CustomAccessibilityAction(pick) { onToggle(); true })
+                versionsLabel?.let { add(CustomAccessibilityAction(it) { onVersions(); true }) }
+                lockLabel?.let { add(CustomAccessibilityAction(it) { onLock(); true }) }
+                outLabel?.let { add(CustomAccessibilityAction(it) { onOutOfImages(); true }) }
+            }
+        },
+    ) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)

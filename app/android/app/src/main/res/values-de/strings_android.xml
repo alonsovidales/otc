@@ -47,6 +47,10 @@
     <string name="android_files_inside_kept_out_banner">Im Ordner \u2068%1$s\u2069, der in „Bilder“ ausgeblendet ist – Fotos und Videos hier erhalten keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt.</string>
     <string name="android_files_inside_kept_out_info">Im Ordner \u2068%1$s\u2069, der in „Bilder“ ausgeblendet ist. Fotos und Videos hier erhalten keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt. In Dateien sind sie weiterhin sichtbar.</string>
     <string name="android_files_kept_out_said">\u2068%1$s\u2069 in „Bilder“ ausgeblendet</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s ältere Version</item>
+        <item quantity="other">%1$s ältere Versionen</item>
+    </plurals>
     <string name="android_files_show_named">Ordner „\u2068%1$s\u2069“ in „Bilder“ anzeigen</string>
     <string name="android_files_shown_said">\u2068%1$s\u2069 wird wieder in „Bilder“ angezeigt</string>
     <string name="android_files_wait_download_link">Warte, bis der Download-Link bereit ist</string>
