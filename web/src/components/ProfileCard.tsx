@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { isBridgeAnswer } from "../net/deviceStatus";
 import type { ReqEnvelope, RespEnvelope, Profile as PbProfile } from "../proto/messages";
 import DevicePhotoPicker from "./DevicePhotoPicker";
 import PhotoCropDialog from "./PhotoCropDialog";
@@ -42,53 +43,68 @@ export default function ProfileCard({ authenticated }: Props) {
 
   // UI state
   const [loading, setLoading] = useState(true);
+  // Whether the profile came: until it has, nothing can be edited or saved
+  // - Save sends the name, the text and the picture together, so a form
+  // saved over a load that failed erased the bio and the picture friends
+  // see, and typing before the load finished was overwritten by it.
+  const [loaded, setLoaded] = useState(false);
+  // Why it didn't come, with Try again.
+  const [loadError, setLoadError] = useState<UiText | null>(null);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<UiText | null>(null);
   const [success, setSuccess] = useState<UiText | null>(null);
 
-  // Load profile on mount
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqGetProfile", reqGetProfile: {} };
-        }); // toggle if your profile is public
-
-        if (!cancelled) {
-          if (resp.payload?.$case === "respProfile") {
-            const p: PbProfile = resp.payload.respProfile;
-            setName(p.name ?? "");
-            setText(p.text ?? "");
-
-            const bytes = (p.image as unknown as Uint8Array) || undefined;
-            setImgBytes(bytes ?? null);
-
-            if (imgUrl) URL.revokeObjectURL(imgUrl);
-            const url = bytesToObjectURL(bytes, "image/*");
-            setImgUrl(url);
-          } else if (resp.payload?.$case === "respAck") {
-            const message = resp.payload.respAck.errorMsg;
-            setError(() => (message ? asIs(message) : say("web.social.profile.load_failed")));
-          } else {
-            setError(() => say("web.social.profile.unexpected"));
-          }
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(() => errorText(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (imgUrl) URL.revokeObjectURL(imgUrl);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // The picture's blob URL, released when another takes its place and when
+  // the card goes (the unmount used to see the first one only, null).
+  const imgUrlRef = useRef<string | null>(null);
+  const showImage = useCallback((url: string | null) => {
+    if (imgUrlRef.current && imgUrlRef.current !== url) URL.revokeObjectURL(imgUrlRef.current);
+    imgUrlRef.current = url;
+    setImgUrl(url);
   }, []);
+  useEffect(() => () => { if (imgUrlRef.current) URL.revokeObjectURL(imgUrlRef.current); }, []);
+
+  const loadSeq = useRef(0);
+  const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    setLoading(true);
+    setLoadError(null);
+    setError(null);
+    setSuccess(null);
+    let failure: UiText;
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetProfile", reqGetProfile: {} };
+      }); // toggle if your profile is public
+      if (seq !== loadSeq.current) return;
+      if (resp.payload?.$case === "respProfile") {
+        const p: PbProfile = resp.payload.respProfile;
+        setName(p.name ?? "");
+        setText(p.text ?? "");
+        const bytes = (p.image as unknown as Uint8Array) || undefined;
+        setImgBytes(bytes ?? null);
+        showImage(bytesToObjectURL(bytes, "image/jpeg"));
+        setLoaded(true);
+        setLoading(false);
+        return;
+      }
+      const message = isBridgeAnswer(resp) ? "" : resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : resp.errorMessage;
+      failure = message ? asIs(message) : say("web.social.profile.load_failed");
+    } catch (e: unknown) {
+      if (seq !== loadSeq.current) return;
+      failure = errorText(e) ?? say("web.social.profile.load_failed");
+    }
+    setLoadError(() => failure);
+    setLoading(false);
+  }, [showImage]);
+
+  // Load profile on mount; an answer that comes after the card went is
+  // dropped.
+  useEffect(() => {
+    void load();
+    const seq = loadSeq;
+    return () => { seq.current++; };
+  }, [load]);
 
   const onPickImage = (file?: File | null) => {
 
@@ -101,16 +117,15 @@ export default function ProfileCard({ authenticated }: Props) {
   const onCropped = (jpeg: Uint8Array, url: string) => {
     setCropping(null);
     setImgBytes(jpeg);
-    if (imgUrl) URL.revokeObjectURL(imgUrl);
-    setImgUrl(url);
+    showImage(url);
   };
 
   const canSave = useMemo(() => {
     if (!authenticated) return false;
-    if (saving) return false;
+    if (saving || !loaded) return false;
     // Minimal validation: name can be empty if you want; enforce what you need:
     return true;
-  }, [authenticated, saving]);
+  }, [authenticated, saving, loaded]);
 
   const saveProfile = async () => {
 
@@ -175,7 +190,7 @@ export default function ProfileCard({ authenticated }: Props) {
             <>
               <h3 className="pc-name">{name || t("web.social.profile.unnamed")}</h3>
               <p className="pc-text">{text || t("web.social.profile.no_bio")}</p>
-              {error && <div className="pc-status error">{error(t)}</div>}
+              {loadError && <div className="pc-status error">{loadError(t)}</div>}
             </>
           )}
         </div>
@@ -193,16 +208,17 @@ export default function ProfileCard({ authenticated }: Props) {
           <div className="pc-avatar pc-placeholder">👤</div>
         )}
         {/* Issue #178: from this computer, or from the photos on the device. */}
-        <label className="pc-btn">
+        <label className={`pc-btn${loaded ? "" : " is-disabled"}`} aria-disabled={!loaded || undefined}>
           {t("web.social.profile.from_computer")}
           <input
             type="file"
             accept="image/*"
             hidden
+            disabled={!loaded}
             onChange={(e) => { onPickImage(e.target.files?.[0] ?? null); e.target.value = ""; }}
           />
         </label>
-        <button className="pc-btn pc-link" onClick={() => setPickingFromDevice(true)}>{t("web.social.profile.from_device")}</button>
+        <button className="pc-btn pc-link" onClick={() => setPickingFromDevice(true)} disabled={!loaded}>{t("web.social.profile.from_device")}</button>
         {pickingFromDevice && (
           <DevicePhotoPicker
             onCancel={() => setPickingFromDevice(false)}
@@ -217,6 +233,7 @@ export default function ProfileCard({ authenticated }: Props) {
           <input
             className="pc-input"
             value={name}
+            disabled={!loaded}
             onChange={(e) => { setName(e.target.value); setSuccess(null); setError(null); }}
             placeholder={t("web.social.profile.name")}
           />
@@ -225,6 +242,7 @@ export default function ProfileCard({ authenticated }: Props) {
           <textarea
             className="pc-textarea"
             value={text}
+            disabled={!loaded}
             onChange={(e) => { setText(e.target.value); setSuccess(null); setError(null); }}
             placeholder={t("web.social.profile.bio")}
             rows={4}
@@ -237,6 +255,14 @@ export default function ProfileCard({ authenticated }: Props) {
           </button>
         </div>
 
+        {/* The profile that didn't come: why, and Try again; nothing can
+            be saved over it meanwhile. */}
+        {loadError && (
+          <div className="pc-status error pc-load-error" role="alert">
+            <span>{loadError(t)}</span>
+            <button type="button" className="pc-btn pc-retry" onClick={() => void load()} disabled={loading}>{t("common.try_again")}</button>
+          </div>
+        )}
         {error && <div className="pc-status error">{error(t)}</div>}
         {success && <div className="pc-status success">{success(t)}</div>}
       </div>

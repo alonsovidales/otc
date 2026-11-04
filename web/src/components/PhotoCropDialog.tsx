@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useT } from "../i18n";
 import { say, type UiText } from "./uiText";
-import { useBackLayer } from "./backStack";
+import { Modal } from "./ConfirmDialog";
 import "./PhotoCropDialog.css";
 
 // The profile picture's circle crop (issue #178) - the same one the setup
@@ -11,7 +11,9 @@ import "./PhotoCropDialog.css";
 // slider (or the wheel), and what's inside the square is saved as a small
 // JPEG, never the photo as picked (several MB, or HEIC). A person's face
 // picked from this computer (Images, PhotoGallery.tsx's PersonFace) goes
-// through it too, with its own title and hint.
+// through it too, with its own title and hint. A dialog (ConfirmDialog's
+// Modal): the focus goes into it and back, Tab stays in it, and Escape and
+// Back are its Cancel - Escape used to clear Images' selection behind it.
 
 const VIEW = 280;
 const OUT = 320;
@@ -31,8 +33,7 @@ type Props = {
 
 export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, label }: Props) {
   const t = useT();
-  // Back is Cancel (backStack.ts).
-  useBackLayer(true, onCancel);
+  const titleId = useId();
   const canvas = useRef<HTMLCanvasElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [error, setError] = useState<UiText | null>(null);
@@ -89,6 +90,23 @@ export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, l
     setZoom(next);
     setPan((p) => clamp(p, next));
   };
+  // The wheel zooms the photo, and scrolls nothing behind the dialog: a
+  // listener that may cancel (React's wheel is passive).
+  const wheelZoom = useRef(setZoomClamped);
+  wheelZoom.current = setZoomClamped;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const hasImg = !!img;
+  useEffect(() => {
+    const el = canvas.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      wheelZoom.current(zoomRef.current * (e.deltaY < 0 ? 1.08 : 1 / 1.08));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [hasImg, error]);
 
   const save = async () => {
     if (!img) return;
@@ -112,9 +130,8 @@ export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, l
   const cssK = () => VIEW / (canvas.current?.getBoundingClientRect().width || VIEW);
 
   return (
-    <div className="pcd-backdrop" role="dialog" aria-modal="true" aria-label={label ?? t("web.images.crop.label")}>
-      <div className="pcd-dialog">
-        <h3>{title ?? t("web.images.crop.title")}</h3>
+    <Modal labelledBy={titleId} label={label ?? t("web.images.crop.label")} onClose={onCancel} className="pcd-dialog">
+        <h3 id={titleId}>{title ?? t("web.images.crop.title")}</h3>
         {error ? (
           <p className="pcd-error">{error(t)}</p>
         ) : (
@@ -136,11 +153,10 @@ export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, l
               }}
               onPointerUp={() => { drag.current = null; }}
               onPointerCancel={() => { drag.current = null; }}
-              onWheel={(e) => setZoomClamped(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08))}
             />
             <label className="pcd-zoom">
               {t("web.images.crop.zoom")}
-              <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoomClamped(Number(e.target.value))} />
+              <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoomClamped(Number(e.target.value))} data-autofocus />
             </label>
             <p className="pcd-hint">{hint ?? t("web.images.crop.hint")}</p>
           </>
@@ -149,7 +165,6 @@ export default function PhotoCropDialog({ file, onCancel, onDone, title, hint, l
           <button className="pcd-btn" onClick={onCancel}>{t("common.cancel")}</button>
           <button className="pcd-btn pcd-primary" onClick={() => void save()} disabled={!img}>{t("web.images.crop.use")}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

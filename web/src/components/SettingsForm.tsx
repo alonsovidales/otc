@@ -771,22 +771,28 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
         )}
       </section>
 
+      {/* A dialog (ConfirmDialog): the focus in it and back, Escape and
+          Back its Cancel - starting over deletes every tag and person. */}
       {reprocessConfirming && (
-        <div className="sf-modal" onClick={() => setReprocessConfirming(null)}>
-          <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
-            <p>
-              {reprocessConfirming === "resume"
-                ? t("web.settings.reprocess.confirm_resume")
-                : t("web.settings.reprocess.confirm_restart")}
-            </p>
-            <div className="sf-modal-actions">
-              <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>{t("common.cancel")}</button>
-              <button className="sf-btn small sf-danger" onClick={() => void startReprocess(reprocessConfirming === "restart")}>
-                {reprocessConfirming === "resume" ? t("web.settings.reprocess.resume") : t("web.settings.reprocess.confirm")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t("web.settings.reprocess.title")}
+          text={reprocessConfirming === "resume"
+            ? t("web.settings.reprocess.confirm_resume")
+            : t("web.settings.reprocess.confirm_restart")}
+          confirm={reprocessConfirming === "resume" ? t("web.settings.reprocess.resume") : t("web.settings.reprocess.confirm")}
+          tone={reprocessConfirming === "resume" ? "primary" : "danger"}
+          busyText={t("web.settings.general.starting")}
+          onConfirm={async () => {
+            // The dialog closes as it starts (on a demo device too, which
+            // refuses it with a note of its own); what comes of it is
+            // Settings' own note.
+            const restart = reprocessConfirming === "restart";
+            setReprocessConfirming(null);
+            void startReprocess(restart);
+            return null;
+          }}
+          onCancel={() => setReprocessConfirming(null)}
+        />
       )}
 
       <section className="sf-section">

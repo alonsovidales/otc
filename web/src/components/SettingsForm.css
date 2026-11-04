@@ -68,10 +68,6 @@
 .sf-progress-row .sf-hint { margin: 0; }
 .sf-progress-fill { height: 100%; background: var(--ember); border-radius: 999px; transition: width 0.3s ease; }
 
-.sf-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 50; }
-.sf-modal-inner { background: var(--ink-2); border: 1px solid var(--line); border-radius: 8px; padding: 16px; max-width: 360px; }
-.sf-modal-inner p { color: var(--mist); margin: 0 0 12px; }
-.sf-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .sf-danger { background: var(--danger-bg); color: var(--danger); }
 
 /* Issue #84: ProfileCard's own .pc-card styles itself as a standalone card

@@ -787,9 +787,11 @@ export type MessageKey =
   | "web.settings.users.enable"
   | "web.settings.users.hint"
   | "web.settings.users.inactive"
+  | "web.settings.users.load_failed"
   | "web.settings.users.load_usage"
   | "web.settings.users.local_hint"
   | "web.settings.users.need_memory"
+  | "web.settings.users.no_answer"
   | "web.settings.users.none"
   | "web.settings.users.password"
   | "web.settings.users.password_confirm"
@@ -806,6 +808,7 @@ export type MessageKey =
   | "web.settings.users.title"
   | "web.settings.users.update_failed"
   | "web.settings.users.usage"
+  | "web.settings.users.usage_failed"
   | "web.settings.users.username"
   | "web.settings.wifi.change"
   | "web.settings.wifi.confirm"
@@ -1985,9 +1988,11 @@ export interface MessageArgs {
   "web.settings.users.enable": undefined;
   "web.settings.users.hint": undefined;
   "web.settings.users.inactive": undefined;
+  "web.settings.users.load_failed": undefined;
   "web.settings.users.load_usage": undefined;
   "web.settings.users.local_hint": undefined;
   "web.settings.users.need_memory": undefined;
+  "web.settings.users.no_answer": undefined;
   "web.settings.users.none": undefined;
   "web.settings.users.password": undefined;
   "web.settings.users.password_confirm": undefined;
@@ -2004,6 +2009,7 @@ export interface MessageArgs {
   "web.settings.users.title": undefined;
   "web.settings.users.update_failed": undefined;
   "web.settings.users.usage": { size: string; percent: string; count: number };
+  "web.settings.users.usage_failed": undefined;
   "web.settings.users.username": undefined;
   "web.settings.wifi.change": undefined;
   "web.settings.wifi.confirm": { ssid: string };
