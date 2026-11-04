@@ -586,6 +586,21 @@ struct SyncPathsTests {
         #expect(SyncPaths.roomProblem(size: gb, free: gb + SyncPaths.spaceReserve, maxFile: .max) == nil)
         // A volume that doesn't say how big it is refuses nothing.
         #expect(SyncPaths.roomProblem(size: 20 * gb, free: nil, maxFile: .max) == nil)
+        // The size is the device's word: one near Int64.max overflowed the
+        // sum, which stopped the app at every pass that downloads.
+        let huge = Int64.max - 807
+        #expect(SyncPaths.roomProblem(size: huge, free: 10 * gb, maxFile: .max) == .noSpace(freeMB: 10 * 1024, neededMB: Int64.max >> 20))
+        #expect(SyncPaths.roomProblem(size: .max, free: .max, maxFile: .max) == .noSpace(freeMB: Int64.max >> 20, neededMB: Int64.max >> 20))
+        #expect(SyncPaths.roomProblem(size: huge, free: nil, maxFile: .max) == nil)
+        #expect(SyncPaths.roomProblem(size: huge, free: .max, maxFile: SyncPaths.fatMaxFile) == .tooLarge)
+        #expect(SyncPaths.roomProblem(size: 0, free: SyncPaths.spaceReserve - 1, maxFile: .max) == .noSpace(freeMB: 255, neededMB: 256))
+        #expect(SyncPaths.roomProblem(size: gb, free: -1, maxFile: .max) == .noSpace(freeMB: 0, neededMB: 1024 + 256))
+        #expect(SyncPaths.roomProblem(size: .max - SyncPaths.spaceReserve, free: .max, maxFile: .max) == nil)
+        // statfs's counts, which a file system may report huge.
+        #expect(SyncPaths.blockBytes(UInt64(10), of: UInt32(4096)) == 40960)
+        #expect(SyncPaths.blockBytes(UInt64.max, of: UInt32(4096)) == .max)
+        #expect(SyncPaths.blockBytes(UInt64(1) << 62, of: UInt32(4)) == .max)
+        #expect(SyncPaths.blockBytes(UInt64(0), of: UInt32(4096)) == 0)
         let dir = try scratchDirectory()
         defer { try? FileManager.default.removeItem(at: dir) }
         let limits = try #require(SyncPaths.volumeLimits(dir))

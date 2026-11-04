@@ -973,12 +973,24 @@ enum SyncPaths {
 
     /// Why a file of `size` bytes can't be written where `free` bytes are
     /// free (nil: unknown, no limit) and files are at most `maxFile`; nil
-    /// when it can.
+    /// when it can. `size` is the device's word: no sum here may overflow,
+    /// which would stop the app at every pass that downloads.
     static func roomProblem(size: Int64, free: Int64?, maxFile: Int64) -> RoomProblem? {
         guard size >= 0 else { return nil }
         if size > maxFile { return .tooLarge }
-        if let free, size + spaceReserve > free { return .noSpace(freeMB: free >> 20, neededMB: (size + spaceReserve) >> 20) }
+        if let free, free < spaceReserve || size > free - spaceReserve {
+            let (needed, over) = size.addingReportingOverflow(spaceReserve)
+            return .noSpace(freeMB: max(free, 0) >> 20, neededMB: (over ? Int64.max : needed) >> 20)
+        }
         return nil
+    }
+
+    /// `blocks` of `blockSize` bytes, as statfs counts them: at most
+    /// Int64.max, where the product would overflow (a file system may
+    /// report its "unlimited" as a huge count).
+    static func blockBytes<B: BinaryInteger, S: BinaryInteger>(_ blocks: B, of blockSize: S) -> Int64 {
+        let (bytes, over) = Int64(clamping: blocks).multipliedReportingOverflow(by: Int64(clamping: blockSize))
+        return over ? .max : max(bytes, 0)
     }
 
     /// The free space of `dir`'s volume (nil when it reports no size, as
@@ -1000,9 +1012,9 @@ enum SyncPaths {
         }
         if (stated && fs.f_blocks == 0) || values?.volumeTotalCapacity == 0 { return (nil, maxFile) }
         var free: Int64?
-        if stated { free = Int64(fs.f_bavail) * Int64(fs.f_bsize) }
+        if stated { free = blockBytes(fs.f_bavail, of: fs.f_bsize) }
         if let important = values?.volumeAvailableCapacityForImportantUsage { free = max(free ?? 0, important) }
-        if let available = values?.volumeAvailableCapacity { free = max(free ?? 0, Int64(available)) }
+        if let available = values?.volumeAvailableCapacity { free = max(free ?? 0, Int64(clamping: available)) }
         return (free, maxFile)
     }
 

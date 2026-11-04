@@ -2532,15 +2532,17 @@ final class SyncModel: ObservableObject {
                 // side counts, and what already agrees is done - "610 of
                 // 6,398" and a bar by bytes, not "4 of" this pass's actions.
                 // Sizes from the check above, not every file looked at again
-                // on the main actor.
-                func bytes(_ relative: String) -> Int64 {
-                    localSizes[relative] ?? remoteByRelative[relative]?.fileSize ?? 0
+                // on the main actor. Counted as Double: a size is the
+                // device's word, and an Int64 sum of a wrong one overflowed
+                // and stopped the app.
+                func bytes(_ relative: String) -> Double {
+                    Double(max(localSizes[relative] ?? remoteByRelative[relative]?.fileSize ?? 0, 0))
                 }
                 let folderPaths = Set(localByRelative.keys).union(remoteByRelative.keys)
                 let folderCount = max(folderPaths.count, actions.count)
                 let alreadyAgree = folderCount - actions.count
-                let totalBytes = max(folderPaths.reduce(Int64(0)) { $0 + bytes($1) }, 1)
-                var bytesDone = totalBytes - actions.reduce(Int64(0)) { $0 + bytes($1.relative) }
+                let totalBytes = max(folderPaths.reduce(0) { $0 + bytes($1) }, 1)
+                var bytesDone = totalBytes - actions.reduce(0) { $0 + bytes($1.relative) }
                 for (i, action) in actions.enumerated() {
                     guard remoteFolders.contains(where: { $0.id == folder.id }), settings?.domain == domainAtStart else {
                         syncLog.info("two-way \(folder.remotePath, privacy: .public): folder removed or device changed - pass stopped")
@@ -2561,7 +2563,7 @@ final class SyncModel: ObservableObject {
                         saveHashCache(folder.id)
                         return
                     }
-                    updateRemoteState(folder.id, .scanning(progress: Double(max(bytesDone, 0)) / Double(totalBytes), file: FileProgress(checking: false, index: alreadyAgree + i + 1, total: folderCount, name: (action.relative as NSString).lastPathComponent)))
+                    updateRemoteState(folder.id, .scanning(progress: max(bytesDone, 0) / totalBytes, file: FileProgress(checking: false, index: alreadyAgree + i + 1, total: folderCount, name: (action.relative as NSString).lastPathComponent)))
                     saveHashCacheEvery(folder.id)
                     defer { bytesDone += bytes(action.relative) }
                     // Where it is each side: the file here now, or for one
