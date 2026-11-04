@@ -26,9 +26,9 @@ func UserHome(uuid string) string {
 // these are big, shared, read-only model files, not per-user) and
 // overriding only what must be unique per user: API port, MySQL
 // database/credentials, and storage paths. A Go port of the same ini
-// template scripts/install.sh and Makefile.pi's `config` target already
-// render by hand for the very first device - kept in sync manually since
-// there's no single shared source for either today.
+// template scripts/install.sh already renders by hand for the very first
+// device - kept in sync manually since there's no single shared source
+// for both today.
 // bridgeAddrFor is the primary's own bridge address for a user that asked
 // for bridge access, and empty for a local-only one (issue #103) - an
 // empty value is what websocket.Init reads as "this instance has no

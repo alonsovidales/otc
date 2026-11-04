@@ -18,8 +18,8 @@ var fullFile string
 // database/create database/GRANT/use otc lines meant for the very first,
 // hand-run bootstrap) - just the CREATE TABLE statements, safe to execute
 // against any already-created, already-selected empty database. Mirrors
-// the `tail -n +10 db/db.sql` convention scripts/install.sh and
-// Makefile.pi's db-schema target already use for the exact same reason.
+// the `tail -n +10 db/db.sql` convention scripts/install.sh and the
+// container's entrypoint already use for the exact same reason.
 var Schema = func() string {
 	lines := strings.SplitN(fullFile, "\n", 10)
 	if len(lines) < 10 {

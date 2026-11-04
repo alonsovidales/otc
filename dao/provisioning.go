@@ -33,8 +33,8 @@ func adminDSN() string {
 // MySQL user scoped to just that database, loads the full schema
 // (db/schema.go's embedded copy of db.sql, sans its own hand-run-only
 // header) into it, and seeds its `settings` row (device_uuid/subdomain/
-// bridge_secret) - the same steps install.sh/Makefile.pi's db-schema step
-// already does by hand for the very first device, just parameterized per
+// bridge_secret) - the same steps install.sh's schema step already does
+// by hand for the very first device, just parameterized per
 // user and run from Go at runtime instead. Uses the freshly created
 // per-user credentials (not the primary's own admin connection) for the
 // settings insert, since the primary's own [mysql] user is deliberately

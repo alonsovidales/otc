@@ -28,8 +28,7 @@
 #
 # Disaster recovery ("the Pi died, I swapped it and kept the two data
 # disks"): this script builds a RAID1 array on OTC_DISK1/OTC_DISK2 (default
-# /dev/sda + /dev/sdb) the exact same way Makefile.pi's `raid`/`mariadb`
-# targets do, including pointing MariaDB's datadir onto it — so re-running
+# /dev/sda + /dev/sdb) and points MariaDB's datadir onto it — so re-running
 # this script against a freshly re-imaged machine with the SAME two data
 # disks re-attached reassembles the existing array (via `mdadm --assemble
 # --scan`, tried before ever considering a wipe) and picks the recovered
@@ -1748,13 +1747,12 @@ sync "$INI_TMP" 2>/dev/null || sync
 mv -Tf "$INI_TMP" "$INI_FILE"
 
 # Issue #97 follow-up: the RAID status LEDs (scripts/raid_watch.py, driven
-# over GPIO) are installed by Makefile.pi's `raid-watch` target and baked
-# into the prebuilt image by build_image.sh - but this installer, the path
-# most devices are actually set up through, never installed them at all.
-# A device brought up with `curl | bash` had a perfectly healthy array and
-# two dark LEDs, with nothing on the device even hinting why (no service,
-# no script, no log). Same unit the other two paths install, so all three
-# agree.
+# over GPIO) are baked into the prebuilt image by build_image.sh - but this
+# installer, the path most devices are actually set up through (Makefile.pi
+# runs it too), never installed them at all. A device brought up with
+# `curl | bash` had a perfectly healthy array and two dark LEDs, with
+# nothing on the device even hinting why (no service, no script, no log).
+# Same unit the image installs, so both agree.
 log "Status LEDs (raid-watch.service)"
 # The GPIO binding is genuinely optional: raid_watch.py degrades to a
 # dry-run when it can't import one (see its RPi.GPIO import), which is the
