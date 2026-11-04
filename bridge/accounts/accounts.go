@@ -704,8 +704,16 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		TermsVersion: TermsVersion, TermsAcceptedAt: now, Lang: lang,
 	}
 	if err := a.dao.CreateAccount(&acc); err != nil {
+		// Only the email's unique key (another sign-up with it, just
+		// now) means it is taken. Anything else is the database failing:
+		// "sign in instead" would send the person to an account that
+		// doesn't exist, and "forgot password" would send them nothing.
+		if dao.IsDuplicateKey(err) {
+			writeError(w, http.StatusConflict, "email_taken", errorText(i18n.ApiErrorEmailTaken()))
+			return
+		}
 		log.Error("error creating an account:", err)
-		writeError(w, http.StatusConflict, "email_taken", errorText(i18n.ApiErrorEmailTaken()))
+		writeError(w, http.StatusInternalServerError, "signup_unavailable", errorText(i18n.ApiErrorSignupUnavailable()))
 		return
 	}
 	// The account's id, never its email or the address it came from
