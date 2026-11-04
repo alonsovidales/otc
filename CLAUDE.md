@@ -2103,7 +2103,8 @@ start takes its file.
   within the cap, depending on whose it is: the owner's own in any format the device shows, turned as
   its metadata says (`SetProfile`, and at each start the one stored before the cap:
   `fitStoredPictures`); an accepted friend's (the sync's `refreshProfile`) or that of a device the
-  owner asks to befriend only as a JPEG or PNG, by Go's decoders within the decode budget, once per
+  owner asks to befriend only as a JPEG or PNG of at most 50 MP (`cMaxFriendPicturePixels`), by Go's
+  decoders within the decode budget, once per
   picture and process (`Social.friendPicture`, keyed by the sent picture's SHA-256: the sync asks
   every pass); a stranger's friend request's never decoded - over the cap it is stored without it,
   and the sync fetches it once accepted. What isn't a picture is never kept: SetProfile then answers

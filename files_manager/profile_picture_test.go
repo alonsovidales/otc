@@ -103,6 +103,14 @@ func TestFitProfilePicture(t *testing.T) {
 	if FitProfilePicture(bigGIF, PictureFromFriend) != nil {
 		t.Error("a friend's large GIF was decoded")
 	}
+	// A friend's picture of more pixels than a phone's photo: not decoded
+	// (the bound lowered under the test's 1600 x 1200).
+	saved := cMaxFriendPicturePixels
+	cMaxFriendPicturePixels = 1600*1200 - 1
+	if FitProfilePicture(bigJPEG, PictureFromFriend) != nil {
+		t.Error("a friend's picture over the pixel bound was decoded")
+	}
+	cMaxFriendPicturePixels = saved
 	// The owner's own, any format, turned as its metadata says.
 	madeSmall("owner's JPEG", FitProfilePicture(bigJPEG, PictureFromOwner), 512, 384)
 	madeSmall("owner's GIF", FitProfilePicture(bigGIF, PictureFromOwner), 512, 512)
