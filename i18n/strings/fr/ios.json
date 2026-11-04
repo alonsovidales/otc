@@ -321,9 +321,9 @@
     "en": "Crop photo"
   },
   "ios.settings.free_up_footer": {
-    "text": "Les photos et vidéos plus anciennes sont supprimées de ce téléphone, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Les photos modifiées et les rafales restent : l’appareil n’a que leur original. iOS demande avant de supprimer, et elles restent 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, elles disparaissent aussi d’iCloud et de vos autres appareils. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.",
-    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
-    "reviewed": "claude-backtranslation 2026-10-21 #f5be115e"
+    "text": "Les photos et vidéos plus anciennes sont supprimées de ce téléphone, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Les photos modifiées, les rafales et les paires RAW+JPEG restent : l’appareil n’a qu’une seule de leurs images. iOS demande avant de supprimer, et elles restent 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, elles disparaissent aussi d’iCloud et de vos autres appareils. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.",
+    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos, bursts and RAW+JPEG pairs stay: the device has only one of their pictures. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-11-04 #3b7321c0"
   },
   "ios.settings.free_up_live_photos": {
     "text": "Inclure les Live Photos",

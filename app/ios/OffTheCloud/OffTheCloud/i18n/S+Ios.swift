@@ -366,9 +366,9 @@ extension S {
     /// Title of the screen that crops the new profile photo to a circle.
     static var iosSettingsCropTitle: String { L("ios.settings.crop_title", table: "Ios") }
 
-    /// Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.
+    /// Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos, bursts and RAW+JPEG pairs stay: the device has only one of their pictures. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.
     ///
-    /// Under the Free Up Space section on iPhone (Settings, and the Sync Your Photos sheet): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). Recently Deleted and iCloud Photos are Apple's names: use the ones iOS shows in your language.
+    /// Under the Free Up Space section on iPhone (Settings, and the Sync Your Photos sheet): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). Recently Deleted and iCloud Photos are Apple's names: use the ones iOS shows in your language. A RAW+JPEG pair is one photo taken as both a RAW file and a JPEG: keep RAW+JPEG as it is.
     static var iosSettingsFreeUpFooter: String { L("ios.settings.free_up_footer", table: "Ios") }
 
     /// Include Live Photos
