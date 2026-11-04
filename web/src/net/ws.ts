@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { noteResponse } from "./deviceStatus";
+import { noteResponse, withoutBridgeWords } from "./deviceStatus";
 import { demoRequestReply, noteDemoReply } from "./demo";
 import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
 import { t } from "../i18n/runtime";
@@ -195,7 +195,9 @@ export class WSClient {
         this.lastFrameAt = Date.now();
         this.frames++;
         try {
-          const env = RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer));
+          // The bridge's words for the device go before anything reads
+          // them: English only, and no refusal (deviceStatus).
+          const env = withoutBridgeWords(RespEnvelope.decode(new Uint8Array(ev.data as ArrayBuffer)));
           // Issue #56: every response passes through here, which makes
           // this the one place that sees the bridge's "I couldn't reach
           // the device" verdict no matter which part of the app asked -

@@ -24,7 +24,8 @@ export type DeviceStatusCode = "device_unreachable" | "account_disabled" | "stor
 
 export interface DeviceStatus {
   code: DeviceStatusCode;
-  /** The device/bridge's own wording, meant to be shown as-is. */
+  /** The device's own wording (storage_unavailable), meant to be shown
+   *  as-is; empty for the bridge's codes (withoutBridgeWords). */
   message: string;
 }
 
@@ -82,6 +83,20 @@ export function coverAfterMs(code: DeviceStatusCode): number {
  *  have been done, as when the socket closes before the answer. */
 export function isBridgeAnswer(resp: RespEnvelope): boolean {
   return resp.payload?.$case === "respAck" && isDeviceStatusCode(resp.payload.respAck.code);
+}
+
+/** The bridge's answer for the device with its words taken out (the
+ *  envelope's error_message and the Ack's error_msg), anything else as it
+ *  came. They are the bridge's relay texts, English whatever the page's
+ *  language, and they read as a refusal; its code stays, so
+ *  isBridgeAnswer still tells it. ws.ts runs every answer through this as
+ *  it arrives, so no part of the app can show them: each says what failed
+ *  in its own words, or "The device did not answer". */
+export function withoutBridgeWords(resp: RespEnvelope): RespEnvelope {
+  if (!isBridgeAnswer(resp)) return resp;
+  resp.errorMessage = "";
+  if (resp.payload?.$case === "respAck") resp.payload.respAck.errorMsg = "";
+  return resp;
 }
 
 let current: DeviceStatus | null = null;

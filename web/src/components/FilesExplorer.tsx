@@ -719,12 +719,15 @@ function FilesExplorerView({
             coverIs(above.length ? above.reduce((a, b) => (b.length < a.length ? b : a)) : null);
           }, () => coverIs(null));
         }
+      } else if (isBridgeAnswer(resp)) {
+        // The bridge answering for the device (an error, its words gone:
+        // deviceStatus) is no answer from it.
+        listFailed(p, say("web.shell.connection.no_answer"));
       } else if (resp.error) {
         const message = resp.errorMessage;
         listFailed(p, message ? asIs(message) : say("web.files.list.list_failed"));
       } else {
-        // The bridge answering for the device is no answer from it.
-        listFailed(p, say(isBridgeAnswer(resp) ? "web.shell.connection.no_answer" : "web.files.list.unexpected"));
+        listFailed(p, say("web.files.list.unexpected"));
       }
     } catch (e: any) {
       if (seq !== listSeq.current) return;

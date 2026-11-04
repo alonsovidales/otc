@@ -2775,7 +2775,9 @@ the page loaded on), when Back goes through it and leaves the site as it would w
 switched-off account's has none (that lasts until the owner acts): Back works as usual. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
 those two codes in English only. `deviceStatus.isBridgeAnswer` tells the bridge's answer for the
 device from the device's own - every request that follows treats it as no answer, never as a refusal
-in the bridge's words. Nothing mounts again as the screen lifts, so a load that runs once and failed
+in the bridge's words. ws.ts takes those words out of it as it arrives (`withoutBridgeWords`, its
+code kept), so no part of the app can show them: each says what failed in its own (Files' listing
+"The device did not answer.", a sign-in the same or "This account has been disabled"). Nothing mounts again as the screen lifts, so a load that runs once and failed
 runs again when the device answers again or the browser is back online (`useDeviceBack`, on
 `deviceStatus.whenDeviceBack`, which counts a device back before anything listened too): Files'
 listing, Settings and its reprocess status, Users, the profile and the account button's, Alerts,

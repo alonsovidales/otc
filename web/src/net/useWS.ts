@@ -67,7 +67,8 @@ function bridgeAnswer(resp: RespEnvelope): Error | null {
     return new StorageUnavailable(ack?.errorMsg || resp.errorMessage || t("web.shell.unreachable.storage_text"));
   }
   if (!ack || !isDeviceStatusCode(ack.code)) return null;
-  return new Error(ack.errorMsg || resp.errorMessage || t("web.shell.connection.no_answer"));
+  // In the page's language: the bridge's own words never reach here (ws.ts).
+  return new Error(ack.code === "account_disabled" ? t("web.shell.unreachable.disabled") : t("web.shell.connection.no_answer"));
 }
 
 // How often the stored session token is replaced while signed in (it

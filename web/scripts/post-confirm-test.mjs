@@ -101,6 +101,20 @@ describe("deviceStatus: the bridge's answer, and when its screen comes", () => {
     assert.equal(status.isBridgeAnswer(wire({ payload: { $case: "respNewSocial", respNewSocial: { uuid: "u1" } } })), false);
   });
 
+  test("the bridge's answer goes on without its words, which are English only; the device's own stay", () => {
+    const bridged = status.withoutBridgeWords(wire({ ...bridgeAck("account_disabled"), error: true, errorMessage: "This account is disabled." }));
+    assert.equal(bridged.errorMessage, "");
+    assert.equal(bridged.payload.respAck.errorMsg, "");
+    assert.equal(bridged.error, true);
+    assert.equal(status.isBridgeAnswer(bridged), true, "still told apart by its code");
+    // The device's own refusals and its storage's words are what it said.
+    assert.equal(status.withoutBridgeWords(wire({ error: true, errorMessage: "No such folder" })).errorMessage, "No such folder");
+    const storage = wire({ error: true, errorCode: "storage_unavailable", errorMessage: "The disks are unplugged." });
+    assert.equal(status.withoutBridgeWords(storage).errorMessage, "The disks are unplugged.");
+    const own = wire({ payload: { $case: "respAck", respAck: { ok: false, code: "upload_only", errorMsg: "Upload only." } } });
+    assert.equal(status.withoutBridgeWords(own).payload.respAck.errorMsg, "Upload only.");
+  });
+
   test("a load that failed runs again each time the device answers again, even before anything listened", () => {
     status.clearDeviceStatus();
     // A load failed while the device was away: its count, noted then.
@@ -147,6 +161,23 @@ describe("deviceStatus: the bridge's answer, and when its screen comes", () => {
   });
 });
 
+describe("ws.ts: the bridge's answer for the device", () => {
+  test("reaches the page without the bridge's words, its code kept", async () => {
+    const client = new ws.WSClient();
+    await client.connect("wss://test.invalid/ws");
+    const s = socket;
+    const p = client.request((e) => { e.payload = { $case: "reqGetStatus", reqGetStatus: {} }; });
+    answer(s, { ...bridgeAck("device_unreachable", decoded(s, 0).id), error: true, errorMessage: "This device isn't reachable right now." });
+    const resp = await p;
+    assert.equal(resp.error, true);
+    assert.equal(resp.errorMessage, "");
+    assert.equal(resp.payload.respAck.errorMsg, "");
+    assert.equal(resp.payload.respAck.code, "device_unreachable");
+    assert.equal(status.getDeviceStatus()?.code, "device_unreachable", "its screen comes all the same");
+    status.clearDeviceStatus();
+  });
+});
+
 describe("ws.ts: whether a request with no answer had gone", () => {
   test("no socket: it never went", async () => {
     const client = new ws.WSClient();
@@ -173,7 +204,8 @@ describe("useWS: a request behind a sign-in that failed never goes", () => {
     const first = useWSMod.useWS.sendAuth("pw");
     await until(() => socket && socket.sent.length > 0, "the first GetPubKey");
     answer(socket, bridgeAck("device_unreachable", decoded(socket, 0).id));
-    await assert.rejects(first);
+    // In the page's language, not the bridge's English.
+    await assert.rejects(first, (err) => err.message === "The device did not answer.");
     status.clearDeviceStatus();
     // The bridge hung up after its answer: the next request reconnects and
     // signs in again first.
