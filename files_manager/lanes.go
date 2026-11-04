@@ -4,13 +4,13 @@ package filesmanager
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 
-	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/i18n"
@@ -254,7 +254,9 @@ func (mg *Manager) jobFile(hash string) (*pb.File, bool) {
 }
 
 // processStoredStages runs stages of processing on a file already on
-// disk. A video isn't read whole: ffmpeg streams what it needs.
+// disk. A video isn't read whole: ffmpeg streams what it needs. Anything
+// else is, within the content budget (readForProcessing): content too
+// large to hold is alerted and not processed, as one too large to decode.
 func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, target string, stages mediaStages) bool {
 	// Issue #192: decided before the file is read - an analysis job for
 	// content kept out of Images has nothing to do, and nothing failed.
@@ -264,11 +266,16 @@ func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, targ
 	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
 		return mg.processMedia(ses, file, target, nil, stages)
 	}
-	content, err := blobstore.ReadAll(target, ses)
+	content, release, err := mg.readForProcessing(ses, target)
+	if errors.Is(err, errTooLargeToProcess) {
+		mg.stillFailed(i18n.DevAlertFileNotProcessed, file, nil, err)
+		return false
+	}
 	if err != nil {
 		mg.alert(i18n.DevAlertFileNotReadBack, file.Path, err)
 		return false
 	}
+	defer release()
 	return mg.processMedia(ses, file, target, content, stages)
 }
 

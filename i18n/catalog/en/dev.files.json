@@ -76,6 +76,7 @@
   "dev.files.storage_full": {"text": "not enough space on the device: this needs {need}, and only {left} is left", "args": [["need", "bytes"], ["left", "bytes"]]},
   "dev.files.stream_failed": {"text": "could not prepare the stream"},
   "dev.files.too_large_to_open": {"text": "this file is too large to open here ({size}): download it instead", "args": [["size", "bytes"]]},
+  "dev.files.too_large_to_process": {"text": "the file is {size}, more than this device can process at once (at most {limit})", "args": [["size", "bytes"], ["limit", "bytes"]]},
   "dev.files.upload_bad_hash": {"text": "the upload's content doesn't match its hash"},
   "dev.files.upload_failed": {"text": "error trying to upload file: {detail}", "args": [["detail", "text"]]},
   "dev.files.upload_finish_failed": {"text": "error finishing the upload: {detail}", "args": [["detail", "text"]]},

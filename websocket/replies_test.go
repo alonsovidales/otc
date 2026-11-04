@@ -162,6 +162,8 @@ var headEnglish = []struct {
 	{"dev.files.storage_full", i18n.DevFilesStorageFull(3_400_000_000, 1_200_000_000), "not enough space on the device: this needs 3.4 GB, and only 1.2 GB is left"},
 	{"dev.files.stream_failed", i18n.DevFilesStreamFailed(), "could not prepare the stream"},
 	{"dev.files.too_large_to_open", i18n.DevFilesTooLargeToOpen(1_500_000_000), "this file is too large to open here (1.5 GB): download it instead"},
+	// Processing within the content budget (2026-11): new.
+	{"dev.files.too_large_to_process", i18n.DevFilesTooLargeToProcess(2_100_000_000, 760_000_000), "the file is 2.1 GB, more than this device can process at once (at most 760 MB)"},
 	{"dev.files.upload_bad_hash", i18n.DevFilesUploadBadHash(), "the upload's content doesn't match its hash"},
 	{"dev.files.upload_failed", i18n.DevFilesUploadFailed("boom"), fmt.Sprintf("error trying to upload file: %s", "boom")},
 	{"dev.files.upload_finish_failed", i18n.DevFilesUploadFinishFailed("boom"), fmt.Sprintf("error finishing the upload: %s", "boom")},

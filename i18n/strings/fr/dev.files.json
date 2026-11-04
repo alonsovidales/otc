@@ -309,6 +309,10 @@
     "text": "ce fichier est trop volumineux pour être ouvert ici ({size}) : téléchargez-le plutôt",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "le fichier fait {size}, plus que ce que cet appareil peut traiter en une fois (au plus {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "le contenu envoyé ne correspond pas à son empreinte",
     "en": "the upload's content doesn't match its hash"

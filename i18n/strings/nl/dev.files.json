@@ -309,6 +309,10 @@
     "text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "het bestand is {size}, meer dan dit apparaat in één keer kan verwerken (hoogstens {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "de inhoud van de upload komt niet overeen met de hash",
     "en": "the upload's content doesn't match its hash"

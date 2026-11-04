@@ -349,6 +349,11 @@
     "args": [["size", "bytes"]],
     "note": "Error shown after \"error trying to retrieve file: \" when the app asks the device for a whole photo or file to show it and it is too large for the device to send in one piece (the apps download large files in parts). {size} is the file's size, such as 1.2 GB."
   },
+  "dev.files.too_large_to_process": {
+    "text": "the file is {size}, more than this device can process at once (at most {limit})",
+    "args": [["size", "bytes"], ["limit", "bytes"]],
+    "note": "Error shown after \"{name} could not be processed\" in Alerts, or logged, when a photo or image file is too large for the device to read into memory to make its thumbnail and find what is in it: it is not processed and has no thumbnail. {size} is the file's size and {limit} the largest the device processes, both sizes such as 1.2 GB."
+  },
   "dev.files.upload_bad_hash": {
     "text": "the upload's content doesn't match its hash",
     "note": "Error shown after \"error finishing the upload: \" when the uploaded file arrived damaged: its fingerprint (hash) isn't the one the app computed. The app sends it again."

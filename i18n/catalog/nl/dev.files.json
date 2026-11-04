@@ -76,6 +76,7 @@
   "dev.files.storage_full": {"text": "niet genoeg ruimte op het apparaat: dit heeft {need} nodig en er is nog maar {left} over"},
   "dev.files.stream_failed": {"text": "kan de stream niet voorbereiden"},
   "dev.files.too_large_to_open": {"text": "dit bestand is te groot om hier te openen ({size}): download het in plaats daarvan"},
+  "dev.files.too_large_to_process": {"text": "het bestand is {size}, meer dan dit apparaat in één keer kan verwerken (hoogstens {limit})"},
   "dev.files.upload_bad_hash": {"text": "de inhoud van de upload komt niet overeen met de hash"},
   "dev.files.upload_failed": {"text": "fout bij het uploaden van het bestand: {detail}"},
   "dev.files.upload_finish_failed": {"text": "fout bij het afronden van de upload: {detail}"},

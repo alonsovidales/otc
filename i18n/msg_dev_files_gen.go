@@ -389,6 +389,11 @@ func DevFilesTooLargeToOpen(size int64) Msg {
 	return Msg{Key: "dev.files.too_large_to_open", Args: map[string]any{"size": size}}
 }
 
+// DevFilesTooLargeToProcess is dev.files.too_large_to_process: "the file is {size}, more than this device can process at once (at most {limit})".
+func DevFilesTooLargeToProcess(size int64, limit int64) Msg {
+	return Msg{Key: "dev.files.too_large_to_process", Args: map[string]any{"size": size, "limit": limit}}
+}
+
 // DevFilesUploadBadHash is dev.files.upload_bad_hash: "the upload's content doesn't match its hash".
 func DevFilesUploadBadHash() Msg {
 	return Msg{Key: "dev.files.upload_bad_hash"}

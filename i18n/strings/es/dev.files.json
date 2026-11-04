@@ -309,6 +309,10 @@
     "text": "este archivo es demasiado grande para abrirlo aquí ({size}): descárgalo",
     "en": "this file is too large to open here ({size}): download it instead"
   },
+  "dev.files.too_large_to_process": {
+    "text": "el archivo ocupa {size}, más de lo que este dispositivo puede procesar de una vez (como máximo {limit})",
+    "en": "the file is {size}, more than this device can process at once (at most {limit})"
+  },
   "dev.files.upload_bad_hash": {
     "text": "el contenido subido no coincide con su hash",
     "en": "the upload's content doesn't match its hash"

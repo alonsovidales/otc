@@ -4,8 +4,8 @@ package filesmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/alonsovidales/otc/blobstore"
 	"strings"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -236,10 +236,15 @@ func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storage
 		mg.processMediaContent(ses, file, targetPath, nil) // streamed, not loaded
 		return
 	}
-	content, err := blobstore.ReadAll(targetPath, ses)
+	content, release, err := mg.readForProcessing(ses, targetPath)
+	if errors.Is(err, errTooLargeToProcess) {
+		mg.stillFailed(i18n.DevAlertFileNotProcessed, file, nil, err)
+		return
+	}
 	if err != nil {
 		log.Error("reprocess: error reading", file.Hash, ":", err)
 		return
 	}
+	defer release()
 	mg.processMediaContent(ses, file, targetPath, content)
 }

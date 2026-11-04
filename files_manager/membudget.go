@@ -5,6 +5,7 @@ package filesmanager
 import (
 	"bufio"
 	"errors"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
@@ -19,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/session"
 )
 
 // A download holds its whole file in memory several times over - the
@@ -187,6 +190,54 @@ func (mg *Manager) overShownWhole(f *pb.File) bool {
 		return false
 	}
 	return mg.budgetSize(f) > mg.shownWholeLimit()
+}
+
+// What processing reads whole: an image's decoders take all of it at once
+// (a video is streamed to ffmpeg instead). It used to be read with no limit
+// and held from no budget: a 2-3 GB TIFF scan or Photoshop file synced from
+// a computer took a 4 GB device down - again at every start, until it was
+// set aside. Processing (the lanes, Reprocess and the thumbnail backfill)
+// now holds what it reads from the content budget while it works on it,
+// and reads nothing larger than a decode may hold (processedWholeLimit):
+// such a picture never fits its decode anyway - only a camera raw's
+// preview would, and its raw that large is beyond any camera's. The
+// ffmpeg fallback still gets its own copy, a temporary file.
+
+// errTooLargeToProcess is readForProcessing's refusal, for errors.Is.
+var errTooLargeToProcess = errors.New("too large to process") // i18n-ignore: a sentinel for errors.Is; the alert says tooLargeToProcess's text
+
+// tooLargeToProcess is the refusal of content of size bytes, over limit.
+func tooLargeToProcess(size, limit int64) error {
+	m := i18n.DevFilesTooLargeToProcess(size, limit)
+	return &englishErr{english: devtext.New(m).Error(), msg: m, cause: errTooLargeToProcess}
+}
+
+// processedWholeLimit is the largest content processing reads whole: the
+// decode budget's size (limits.go: a fifth of the memory, ~760 MB on a
+// 4 GB Raspberry Pi, 1.6 GB on an 8 GB one). A variable for the tests.
+var processedWholeLimit = func() int64 { return stillDecodes().max }
+
+// readForProcessing is the content of the blob at target, read whole for
+// processing and held from the content budget until release (never nil) -
+// or tooLargeToProcess, before anything is read, when it is over
+// processedWholeLimit.
+func (mg *Manager) readForProcessing(ses *session.Session, target string) (content []byte, release func(), err error) {
+	b, err := blobstore.Open(target, ses)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	defer b.Close()
+	size := b.Size()
+	if limit := processedWholeLimit(); size > limit {
+		return nil, func() {}, tooLargeToProcess(size, limit)
+	}
+	release = mg.ReserveBytes(size)
+	content = make([]byte, size)
+	if _, err := b.ReadAt(content, 0); err != nil && !errors.Is(err, io.EOF) {
+		release()
+		return nil, func() {}, err
+	}
+	return content, release, nil
 }
 
 // ReserveBytes holds n bytes of the content budget, waiting for room.

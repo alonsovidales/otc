@@ -1421,7 +1421,15 @@ start takes its file.
   photo's EXIF through the blob's ReaderAt (`exifFrom`, by its first bytes: a JPEG up to its EXIF
   segment, a HEIC its boxes, a TIFF at its directories wherever they are - exifinfo's `compactTIFF`;
   the byte-by-byte search for an EXIF segment goes no further than `shownWholeLimit`), and
-  `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). A post's video is
+  `exifinfo.FromVideoSource`'s ffprobe has a deadline (`ProbeTimeout`, a minute). Processing reads an
+  image whole only within the content budget (2026-11; it read any size, held from nothing, and a 2-3
+  GB scan or Photoshop file took a 4 GB device down at every start until it was set aside): the lanes,
+  Reprocess and the thumbnail backfill hold its size while they work (`readForProcessing`) and read
+  nothing over the decode budget's size (`processedWholeLimit` - such a picture never fits its decode),
+  which is alerted as not processed, "the file is 2.1 GB, more than this device can process at once
+  (at most 760 MB)" (`dev.files.too_large_to_process`); a shared gallery's preview, read whole as
+  GetFile reads a photo, stops at `shownWholeLimit` (the item keeps its original and thumbnail).
+  ffmpeg's fallback for stills still gets its own temporary copy. A post's video is
   never loaded: `ExportVideoForPost` re-encodes it from the loopback
   stream straight into the posts' directory (named by hash) or decrypts the original there a
   segment at a time, one transcode at a time (`transcodeSlots`, taken before the stream token).

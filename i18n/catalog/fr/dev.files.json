@@ -76,6 +76,7 @@
   "dev.files.storage_full": {"text": "pas assez d’espace sur l’appareil : il faut {need}, et il ne reste que {left}"},
   "dev.files.stream_failed": {"text": "impossible de préparer la diffusion"},
   "dev.files.too_large_to_open": {"text": "ce fichier est trop volumineux pour être ouvert ici ({size}) : téléchargez-le plutôt"},
+  "dev.files.too_large_to_process": {"text": "le fichier fait {size}, plus que ce que cet appareil peut traiter en une fois (au plus {limit})"},
   "dev.files.upload_bad_hash": {"text": "le contenu envoyé ne correspond pas à son empreinte"},
   "dev.files.upload_failed": {"text": "erreur lors de l’envoi du fichier : {detail}"},
   "dev.files.upload_finish_failed": {"text": "erreur lors de la finalisation de l’envoi : {detail}"},

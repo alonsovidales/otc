@@ -76,6 +76,7 @@
   "dev.files.storage_full": {"text": "não há espaço suficiente no dispositivo: isto precisa de {need} e só restam {left}"},
   "dev.files.stream_failed": {"text": "não foi possível preparar a reprodução"},
   "dev.files.too_large_to_open": {"text": "este ficheiro é demasiado grande para abrir aqui ({size}): transfere-o em vez disso"},
+  "dev.files.too_large_to_process": {"text": "o ficheiro tem {size}, mais do que este dispositivo consegue processar de uma vez (no máximo {limit})"},
   "dev.files.upload_bad_hash": {"text": "o conteúdo do carregamento não corresponde ao seu hash"},
   "dev.files.upload_failed": {"text": "erro ao tentar carregar o ficheiro: {detail}"},
   "dev.files.upload_finish_failed": {"text": "erro ao concluir o carregamento: {detail}"},
