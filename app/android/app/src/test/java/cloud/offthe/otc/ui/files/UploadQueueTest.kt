@@ -49,7 +49,7 @@ class UploadQueueTest {
             started += name
             most.accumulateAndGet(now.incrementAndGet(), ::maxOf)
             try {
-                gates.getOrPut(name) { CompletableDeferred() }.await()
+                gates.computeIfAbsent(name) { CompletableDeferred() }.await()
                 finished += name
             } catch (e: CancellationException) {
                 cancelled += name
@@ -60,7 +60,7 @@ class UploadQueueTest {
                 now.decrementAndGet()
             }
         }
-        fun go(name: String) { gates.getOrPut(name) { CompletableDeferred() }.complete(Unit) }
+        fun go(name: String) { gates.computeIfAbsent(name) { CompletableDeferred() }.complete(Unit) }
     }
 
     @Test fun twoAtATimeCountedAsTheyGo() {

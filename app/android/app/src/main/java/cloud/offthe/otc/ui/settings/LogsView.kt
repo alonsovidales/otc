@@ -259,7 +259,7 @@ private fun shareLog(context: Context, source: String, text: String) {
     if (text.length <= 100_000) { Share.link(context, text); return }
     // With the other copies handed to another app (TempFiles), one at a time.
     TempFiles.clear(context.cacheDir, TempFiles.Kind.SHARE)
-    val f = TempFiles.named(context.cacheDir, TempFiles.Kind.SHARE, "otc-${if (source == "update") "updates" else "device"}.log")
+    val f = TempFiles.named(context.cacheDir, TempFiles.Kind.SHARE, "otc-${if (source == "update") "updates" else "device"}.log") // i18n-ignore: the shared file's name
     f.writeText(text)
     Share.file(context, f, "text/plain")
 }
