@@ -340,6 +340,8 @@ final class WallpaperModel: ObservableObject {
         // Copies an earlier version stored went into the phone's backups.
         if let widgetRoot, FileManager.default.fileExists(atPath: widgetRoot.path) {
             Self.keepOutOfBackups(widgetRoot)
+            // What a Stop moved aside and an ended launch never deleted.
+            Self.sweepStopped(widgetRoot)
         }
         if let album { albumPhase = .ready(count: album.copies.count) }
         if let widget { widgetPhase = .ready(count: widget.files.count) }
@@ -534,6 +536,38 @@ final class WallpaperModel: ObservableObject {
     /// Group's container is backed up like the app's own, Library/Caches
     /// aside - so a backup never uploads them and a restore never brings
     /// them back. Set on the folder, it covers all it holds.
+    /// The name a Stop's folder of copies is moved aside to (discard).
+    nonisolated static let stoppedPrefix = ".stopped-"
+
+    /// A collection's copies, gone from where the widget looks at once (a
+    /// rename) and deleted off the main actor: up to 100 JPEGs, which the
+    /// box's Stop, a deleted collection, another one started or Log Out
+    /// used to delete on it. A collection started again right after gets a
+    /// folder of its own. Android's Wallpaper.stopNow does the same.
+    nonisolated static func discard(_ dir: URL, under root: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: dir.path) else { return }
+        let aside = root.appendingPathComponent(stoppedPrefix + UUID().uuidString, isDirectory: true)
+        do {
+            try fm.moveItem(at: dir, to: aside)
+        } catch {
+            try? fm.removeItem(at: dir)
+            return
+        }
+        Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: aside) }
+    }
+
+    /// Folders a Stop moved aside whose delete an ended launch cut short:
+    /// deleted off the main actor.
+    nonisolated static func sweepStopped(_ root: URL) {
+        Task.detached(priority: .utility) {
+            let fm = FileManager.default
+            for name in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] where name.hasPrefix(stoppedPrefix) {
+                try? fm.removeItem(at: root.appendingPathComponent(name, isDirectory: true))
+            }
+        }
+    }
+
     nonisolated static func keepOutOfBackups(_ root: URL) {
         var url = root
         var values = URLResourceValues()
@@ -595,7 +629,7 @@ final class WallpaperModel: ObservableObject {
     /// again.
     func stopWidget() {
         guard let root = widgetRoot, let c = widget else { return }
-        try? FileManager.default.removeItem(at: root.appendingPathComponent(c.folder, isDirectory: true))
+        Self.discard(root.appendingPathComponent(c.folder, isDirectory: true), under: root)
         groupDefaults?.removeObject(forKey: WallpaperShuffle.key(c.id))
         saveWidget(nil, root: root)
         widgetPhase = .stopped

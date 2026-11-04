@@ -385,7 +385,35 @@ struct WallpaperModelTests {
         // copies are gone.
         #expect(WidgetNames.all(defaults) == ["g1": "Trip"])
         #expect(WidgetCatalog.load(root: root).collections.isEmpty)
+        // Gone from where the widget looks at once; deleted off the main
+        // actor, which used to delete the 100 copies itself.
         #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent(c.folder).path))
+        let end = Date() + 3
+        while stoppedFolders(root) > 0, Date() < end { try? await Task.sleep(for: .milliseconds(20)) }
+        #expect(stoppedFolders(root) == 0)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).filter { $0 != WidgetCatalog.fileName }.isEmpty)
+    }
+
+    private func stoppedFolders(_ root: URL) -> Int {
+        ((try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []).filter { $0.hasPrefix(WallpaperModel.stoppedPrefix) }.count
+    }
+
+    /// A Stop's folder whose delete an ended launch cut short goes at the
+    /// next launch.
+    @Test func aStoppedFolderLeftBehindGoesAtTheNextLaunch() async throws {
+        let device = FakeWallpaperDevice()
+        let (_, root, defaults, suite) = try model(device)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        let left = root.appendingPathComponent(WallpaperModel.stoppedPrefix + "x", isDirectory: true)
+        try FileManager.default.createDirectory(at: left, withIntermediateDirectories: true)
+        try Data([1, 2, 3]).write(to: left.appendingPathComponent("a.jpg"))
+        let kept = root.appendingPathComponent("g2", isDirectory: true)
+        try FileManager.default.createDirectory(at: kept, withIntermediateDirectories: true)
+        _ = WallpaperModel(device: device.device, albumStore: FakeAlbumStore(), stateStore: WallpaperStateStore(defaults: defaults), widgetRoot: root)
+        let end = Date() + 3
+        while stoppedFolders(root) > 0, Date() < end { try? await Task.sleep(for: .milliseconds(20)) }
+        #expect(stoppedFolders(root) == 0)
+        #expect(FileManager.default.fileExists(atPath: kept.path))
     }
 
     @Test func theWidgetFollowsTheCollection() async throws {
