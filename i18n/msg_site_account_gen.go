@@ -144,6 +144,11 @@ func SiteAccountErrorConfirmRequired(body string) Msg {
 	return Msg{Key: "site.account.error.confirm_required", Args: map[string]any{"body": body}}
 }
 
+// SiteAccountErrorPasswordTooLong is site.account.error.password_too_long: "the password can be at most {max_chars} characters long, fewer with accented let…".
+func SiteAccountErrorPasswordTooLong(maxChars int) Msg {
+	return Msg{Key: "site.account.error.password_too_long", Args: map[string]any{"max_chars": int64(maxChars)}}
+}
+
 // SiteAccountErrorRecentSigninRequired is site.account.error.recent_signin_required: "sign in again (with Google or Apple), then try again within 15 minutes".
 func SiteAccountErrorRecentSigninRequired() Msg {
 	return Msg{Key: "site.account.error.recent_signin_required"}

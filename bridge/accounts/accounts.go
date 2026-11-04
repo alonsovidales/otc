@@ -57,8 +57,13 @@ const (
 	cSetupTokenTTL = 15 * time.Minute
 	cPurposeSetup  = "setup"
 	cMinPassword   = 8
-	cNameMax       = 150
-	cEmailMax      = 255
+	// cMaxPasswordBytes is the longest new password: bcrypt keeps 72
+	// bytes, and x/crypto refuses to hash more (ErrPasswordTooLong) - a
+	// sign-up or reset with a longer one used to fail as "try again", for
+	// good. Bytes, not characters: an accented letter is two, an emoji four.
+	cMaxPasswordBytes = 72
+	cNameMax          = 150
+	cEmailMax         = 255
 
 	// MaxDomains is the terms' limit per account; more is by arrangement
 	// (ContactEmail).
@@ -641,6 +646,21 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 	writeJSON(w, status, out)
 }
 
+// newPasswordRefused answers a new password the bridge can't take - under
+// cMinPassword, or over the cMaxPasswordBytes bcrypt keeps - and says so;
+// false lets the caller go on with it.
+func newPasswordRefused(w http.ResponseWriter, password string) bool {
+	if len(password) < cMinPassword {
+		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
+		return true
+	}
+	if len(password) > cMaxPasswordBytes {
+		writeError(w, http.StatusBadRequest, "password_too_long", errorText(i18n.SiteAccountErrorPasswordTooLong(cMaxPasswordBytes)))
+		return true
+	}
+	return false
+}
+
 // Signup creates an email+password account. POST /api/account/signup
 // {email, password, name, surname, country, accept_terms, lang}: lang,
 // optional, is the language of the page signing up (requestLanguage).
@@ -666,8 +686,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_email", errorText(i18n.ApiErrorInvalidEmail()))
 		return
 	}
-	if len(body.Password) < cMinPassword {
-		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
+	if newPasswordRefused(w, body.Password) {
 		return
 	}
 	name, ok1 := validName(body.Name)
@@ -954,8 +973,11 @@ func acceptLanguage(header string) string {
 // gets a new cookie and carries on.
 func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID string) {
 	var body struct{ Password, Current string }
-	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || len(body.Password) < cMinPassword {
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
+		return
+	}
+	if newPasswordRefused(w, body.Password) {
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
@@ -1352,17 +1374,16 @@ func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
-	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeVerify)
+	// The link is spent in the same transaction that marks the email
+	// proven: a write that fails leaves it working for the retry.
+	id, ok, err := a.dao.VerifyEmailWithToken(hashEmailToken(body.Token), cPurposeVerify)
 	if err != nil {
+		log.Error("error confirming an email:", err)
 		writeError(w, http.StatusInternalServerError, "verify_unavailable", errorText(i18n.ApiErrorVerifyUnavailable()))
 		return
 	}
 	if !ok {
 		writeError(w, http.StatusBadRequest, "verify_link_invalid", errorText(i18n.ApiErrorVerifyLinkInvalid()))
-		return
-	}
-	if err := a.dao.SetEmailVerified(id); err != nil {
-		writeError(w, http.StatusInternalServerError, "verify_unavailable", errorText(i18n.ApiErrorVerifyUnavailable()))
 		return
 	}
 	log.Info("email verified for account", id)
@@ -1437,16 +1458,17 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
-	if len(body.Password) < cMinPassword {
-		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
+	if newPasswordRefused(w, body.Password) {
 		return
 	}
-	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeReset)
-	if err != nil {
+	h := hashEmailToken(body.Token)
+	// The link is looked at first, without using it: one that doesn't
+	// work costs no bcrypt.
+	if _, ok, err := a.dao.EmailTokenAccount(h, cPurposeReset); err != nil {
+		log.Error("error checking a reset link:", err)
 		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
-	}
-	if !ok {
+	} else if !ok {
 		writeError(w, http.StatusBadRequest, "reset_link_invalid", errorText(i18n.ApiErrorResetLinkInvalid()))
 		return
 	}
@@ -1455,15 +1477,20 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
 	}
-	// One statement: a reset (often for a stolen session) never leaves
-	// the old sessions on.
-	epoch, err := a.dao.SetAccountPasswordEndingSessions(id, string(hash))
+	// One transaction: the link is spent only with the new password
+	// stored, the email proven and every other session ended (a reset is
+	// often for a stolen session). A failure leaves the link working.
+	id, epoch, ok, err := a.dao.ResetPasswordWithToken(h, cPurposeReset, string(hash))
 	if err != nil {
 		log.Error("error resetting a password:", err)
 		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
 	}
-	_ = a.dao.SetEmailVerified(id)
+	if !ok {
+		// Used meanwhile (the same link twice at once), or its account gone.
+		writeError(w, http.StatusBadRequest, "reset_link_invalid", errorText(i18n.ApiErrorResetLinkInvalid()))
+		return
+	}
 	a.setSessionAt(w, id, epoch)
 	log.Info("password reset for account", id)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

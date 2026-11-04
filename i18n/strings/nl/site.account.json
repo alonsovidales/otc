@@ -121,6 +121,10 @@
     "en": "confirm with {body}",
     "reviewed": "claude-backtranslation 2026-10-11 #fbe7a5e7"
   },
+  "site.account.error.password_too_long": {
+    "text": "het wachtwoord mag hoogstens {max_chars} tekens lang zijn, minder met letters met accenten, uit andere alfabetten of emoji’s",
+    "en": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji"
+  },
   "site.account.error.recent_signin_required": {
     "text": "log opnieuw in (met Google of Apple) en probeer het daarna binnen 15 minuten opnieuw",
     "en": "sign in again (with Google or Apple), then try again within 15 minutes",

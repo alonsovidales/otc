@@ -3031,7 +3031,12 @@ before migration 007 were kept verified. `?for=setup` sign-in/sign-up of an unve
 answers `verify_email: true` (and resends the link on a sign-in); the setup wizard shows "Confirm
 your email" and signs in again. Password reset: `/api/account/forgot` (same answer for any
 email) mails a one-hour `#reset=` link; `/api/account/reset` sets the password, verifies the
-email and ends every other session. A new link is sent before older ones are dropped
+email and ends every other session. A link is spent only in the transaction that stores what it
+is for (`ResetPasswordWithToken`, which takes the account's other reset links with it, and
+`VerifyEmailWithToken`): a write that fails leaves it working for the retry, and a reset looks
+at its link before the bcrypt. New passwords are 8 to 72 bytes (`cMaxPasswordBytes`, all bcrypt
+keeps - x/crypto refuses to hash more): longer is `password_too_long`, at sign-up, on a change
+and on a reset; a sign-in still takes any length. A new link is sent before older ones are dropped
 (`KeepNewestEmailToken`), and a QUIT error after an accepted DATA counts as sent.
 
 Issue #163 (request limits, `bridge/limits`): every JSON body goes through `limits.DecodeJSON`,

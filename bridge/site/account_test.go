@@ -284,8 +284,10 @@ const headErrorTable = `{
 // The error table reads as before in English: the same text for every
 // code, the placeholders named as the API's keys name them (the script
 // fills them in from the same figures), and the deletion's confirmation
-// body passed in rather than written in the text. invalid_language is new
-// (PUT /api/account/language), with the API's own words.
+// body passed in rather than written in the text. The codes added since
+// have their own words: invalid_language (PUT /api/account/language) the
+// API's, password_too_long (a new password over the 72 bytes bcrypt
+// keeps) the text the bridge answers with, its figure left to the script.
 func TestAccountErrorTableUnchanged(t *testing.T) {
 	out, err := Render(Account, English(), testOptions)
 	if err != nil {
@@ -301,10 +303,15 @@ func TestAccountErrorTableUnchanged(t *testing.T) {
 	if err := json.Unmarshal([]byte(headErrorTable), &want); err != nil {
 		t.Fatal(err)
 	}
-	if got.API["invalid_language"] != i18n.ApiErrorInvalidLanguage().Render("en") {
-		t.Errorf("invalid_language: %q", got.API["invalid_language"])
+	for code, text := range map[string]string{
+		"invalid_language":  i18n.ApiErrorInvalidLanguage().Render("en"),
+		"password_too_long": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji",
+	} {
+		if got.API[code] != text {
+			t.Errorf("%s: %q, want %q", code, got.API[code], text)
+		}
+		delete(got.API, code)
 	}
-	delete(got.API, "invalid_language")
 	old := strings.NewReplacer("{min_chars}", "{min_password}", "{price_eur}", "{extra_domain_eur}", "{body}", `{"confirm": "delete"}`)
 	for code, text := range got.API {
 		if old.Replace(text) != want.API[code] {

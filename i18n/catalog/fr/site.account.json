@@ -27,6 +27,7 @@
   "site.account.domains.since": {"text": "depuis le {date}"},
   "site.account.domains.title": {"text": "Vos domaines"},
   "site.account.error.confirm_required": {"text": "confirmez avec {body}"},
+  "site.account.error.password_too_long": {"text": "le mot de passe peut contenir au maximum {max_chars} caractères, moins avec des lettres accentuées, d’autres alphabets ou des emojis"},
   "site.account.error.recent_signin_required": {"text": "reconnectez-vous (avec Google ou Apple), puis réessayez dans les 15 minutes"},
   "site.account.field.country": {"text": "Pays de résidence"},
   "site.account.field.country_choose": {"text": "Choisissez…"},

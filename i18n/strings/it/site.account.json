@@ -121,6 +121,10 @@
     "en": "confirm with {body}",
     "reviewed": "claude-backtranslation 2026-10-11 #84d1b650"
   },
+  "site.account.error.password_too_long": {
+    "text": "la password può avere al massimo {max_chars} caratteri, meno con lettere accentate, di altri alfabeti o emoji",
+    "en": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji"
+  },
   "site.account.error.recent_signin_required": {
     "text": "accedi di nuovo (con Google o Apple), poi riprova entro 15 minuti",
     "en": "sign in again (with Google or Apple), then try again within 15 minutes",

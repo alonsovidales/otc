@@ -164,6 +164,11 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #5a9ab9b3"
   },
+  "site.account.error.password_too_long": {
+    "text": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji",
+    "args": [["max_chars", "int"]],
+    "note": "Account page and the bridge's answer to a sign-up, a password change or a password reset (the setup wizard shows it too): error (lower case, like the bridge's) when the new password is longer than the bridge can keep. {max_chars} is 72: the limit is 72 bytes, so a letter with an accent, of another alphabet or an emoji counts as two to four."
+  },
   "site.account.error.recent_signin_required": {
     "text": "sign in again (with Google or Apple), then try again within 15 minutes",
     "note": "Account page: error (lower case, like the bridge's) when adding a password or deleting the account needs a sign-in with Google or Apple from the last 15 minutes.",

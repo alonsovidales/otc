@@ -27,6 +27,7 @@
   "site.account.domains.since": {"text": "sinds {date}"},
   "site.account.domains.title": {"text": "Je domeinen"},
   "site.account.error.confirm_required": {"text": "bevestig met {body}"},
+  "site.account.error.password_too_long": {"text": "het wachtwoord mag hoogstens {max_chars} tekens lang zijn, minder met letters met accenten, uit andere alfabetten of emoji’s"},
   "site.account.error.recent_signin_required": {"text": "log opnieuw in (met Google of Apple) en probeer het daarna binnen 15 minuten opnieuw"},
   "site.account.field.country": {"text": "Woonland"},
   "site.account.field.country_choose": {"text": "Kies…"},

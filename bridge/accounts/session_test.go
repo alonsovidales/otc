@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -158,28 +159,46 @@ func TestSetupTokenNeedsTheTerms(t *testing.T) {
 	}
 }
 
-// A verification link works once.
+// A verification link works once, and is spent only with the email
+// marked proven: the write failing leaves it for the retry.
 func TestVerifyLinkIsSingleUse(t *testing.T) {
 	a, mock := testAccounts(t)
 	h := hashEmailToken("tok")
-	mock.ExpectBegin()
-	mock.ExpectQuery("from `account_email_tokens`").WithArgs(h, cPurposeVerify, sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
-	mock.ExpectExec("delete from `account_email_tokens`").WithArgs(h).WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
+	verify := func() *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		a.Verify(w, httptest.NewRequest("POST", "/api/account/verify", strings.NewReader(`{"token":"tok"}`)))
+		return w
+	}
+	locked := func() {
+		mock.ExpectBegin()
+		mock.ExpectQuery("from `account_email_tokens` where `token_hash` = \\? and `purpose` = \\? and `expires` > \\? for update").WithArgs(h, cPurposeVerify, sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+		mock.ExpectQuery("select 1 from `accounts` where `id` = \\?").WithArgs("acc1").WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+	}
+
+	// The confirmation can't be stored: nothing is spent.
+	locked()
+	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnError(errDBDown)
+	mock.ExpectRollback()
+	if w := verify(); w.Code != http.StatusInternalServerError {
+		t.Fatalf("a failed write: %d %s", w.Code, w.Body)
+	}
+
+	locked()
 	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
-	w := httptest.NewRecorder()
-	a.Verify(w, httptest.NewRequest("POST", "/api/account/verify", strings.NewReader(`{"token":"tok"}`)))
-	if w.Code != http.StatusOK {
+	mock.ExpectExec("delete from `account_email_tokens` where `account_id` = \\? and `purpose` = \\?").WithArgs("acc1", cPurposeVerify).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+	if w := verify(); w.Code != http.StatusOK {
 		t.Fatalf("a valid link: %d %s", w.Code, w.Body)
 	}
 	mock.ExpectBegin()
 	mock.ExpectQuery("from `account_email_tokens`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectRollback()
-	w = httptest.NewRecorder()
-	a.Verify(w, httptest.NewRequest("POST", "/api/account/verify", strings.NewReader(`{"token":"tok"}`)))
-	if w.Code != http.StatusBadRequest {
+	if w := verify(); w.Code != http.StatusBadRequest {
 		t.Fatalf("a used link: %d", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -235,15 +254,19 @@ func TestChangingThePasswordNeedsTheCurrentOne(t *testing.T) {
 const cSetPasswordEndingSessions = "update `accounts` set `password_hash` = \\?, `session_epoch` = LAST_INSERT_ID\\(`session_epoch` \\+ 1\\)"
 
 // A reset sets the password, proves the email and ends every other
-// session; this browser's new cookie carries the new epoch. When the write
-// fails it says so, instead of an ok that leaves the old sessions alive.
+// session, and spends its link (the account's other reset links with it),
+// all in one transaction; this browser's new cookie carries the new epoch.
+// When the write fails it says so, instead of an ok that leaves the old
+// sessions alive - and the link still works for the retry. A link that
+// doesn't work is refused before any bcrypt.
 func TestResetEndsTheOtherSessions(t *testing.T) {
-	expectToken := func(mock sqlmock.Sqlmock) {
+	h := hashEmailToken("tok")
+	checked := func(mock sqlmock.Sqlmock) {
+		mock.ExpectQuery("select `account_id` from `account_email_tokens` where `token_hash` = \\? and `purpose` = \\? and `expires` > \\?$").
+			WithArgs(h, cPurposeReset, sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
 		mock.ExpectBegin()
-		mock.ExpectQuery("from `account_email_tokens`").WithArgs(hashEmailToken("tok"), cPurposeReset, sqlmock.AnyArg()).
-			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
-		mock.ExpectExec("delete from `account_email_tokens`").WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
+		mock.ExpectQuery("from `account_email_tokens` where `token_hash` = \\? and `purpose` = \\? and `expires` > \\? for update").
+			WithArgs(h, cPurposeReset, sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
 	}
 	reset := func(a *Accounts) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -252,22 +275,70 @@ func TestResetEndsTheOtherSessions(t *testing.T) {
 	}
 
 	a, mock := testAccounts(t)
-	expectToken(mock)
-	mock.ExpectExec(cSetPasswordEndingSessions).WithArgs(sqlmock.AnyArg(), "acc1").WillReturnResult(sqlmock.NewResult(5, 1))
-	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	checked(mock)
+	mock.ExpectExec(cResetPassword).WithArgs(sqlmock.AnyArg(), "acc1").WillReturnResult(sqlmock.NewResult(5, 1))
+	mock.ExpectExec("delete from `account_email_tokens` where `account_id` = \\? and `purpose` = \\?").WithArgs("acc1", cPurposeReset).WillReturnResult(sqlmock.NewResult(0, 2))
+	mock.ExpectCommit()
 	w := reset(a)
 	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Set-Cookie"), cSessionCookie+"=acc1|5|") {
 		t.Errorf("reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
 	}
 
-	expectToken(mock)
-	mock.ExpectExec(cSetPasswordEndingSessions).WillReturnError(errDBDown)
+	// The write fails: rolled back, the link not deleted.
+	checked(mock)
+	mock.ExpectExec(cResetPassword).WillReturnError(errDBDown)
+	mock.ExpectRollback()
 	w = reset(a)
 	if w.Code != http.StatusInternalServerError || w.Header().Get("Set-Cookie") != "" {
 		t.Errorf("a failed reset: %d, cookie %q", w.Code, w.Header().Get("Set-Cookie"))
 	}
+
+	// A dead link: refused before the password is hashed.
+	mock.ExpectQuery("select `account_id` from `account_email_tokens`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	start := time.Now()
+	w = reset(a)
+	if refused := w.Code == http.StatusBadRequest && strings.Contains(w.Body.String(), `"reset_link_invalid"`); !refused || time.Since(start) > 100*time.Millisecond {
+		t.Errorf("a dead link: %d %s in %s", w.Code, w.Body, time.Since(start))
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+const cResetPassword = "update `accounts` set `password_hash` = \\?, `email_verified` = 1, `session_epoch` = LAST_INSERT_ID\\(`session_epoch` \\+ 1\\) where `id` = \\?"
+
+// A new password over the 72 bytes bcrypt keeps is refused as such, before
+// anything is looked up or hashed - at sign-up, on a change and on a
+// reset - where it used to fail as "try again", every time. 72 bytes is
+// fine; 25 CJK characters are 75.
+func TestNewPasswordsOverSeventyTwoBytes(t *testing.T) {
+	want := `{"code":"password_too_long","error":"the password can be at most 72 characters long, fewer with accented letters, other alphabets or emoji"}` + "\n"
+	for _, pw := range []string{strings.Repeat("a", 73), strings.Repeat("密", 25)} {
+		body, _ := json.Marshal(map[string]any{"email": "a@b.c", "password": pw, "name": "A", "surname": "B", "country": "ES", "accept_terms": true, "token": "tok", "current": "old-password"})
+		for name, call := range map[string]func(a *Accounts, w http.ResponseWriter){
+			"sign-up": func(a *Accounts, w http.ResponseWriter) {
+				a.Signup(w, httptest.NewRequest("POST", "/api/account/signup", strings.NewReader(string(body))))
+			},
+			"change": func(a *Accounts, w http.ResponseWriter) {
+				a.SetPassword(w, httptest.NewRequest("PUT", "/api/account/password", strings.NewReader(string(body))), "acc1")
+			},
+			"reset": func(a *Accounts, w http.ResponseWriter) {
+				a.Reset(w, httptest.NewRequest("POST", "/api/account/reset", strings.NewReader(string(body))))
+			},
+		} {
+			a, mock := testAccounts(t)
+			w := httptest.NewRecorder()
+			call(a, w)
+			if w.Code != http.StatusBadRequest || w.Body.String() != want {
+				t.Errorf("%s with %d bytes: %d %s", name, len(pw), w.Code, w.Body)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+	}
+	if newPasswordRefused(httptest.NewRecorder(), strings.Repeat("a", 72)) {
+		t.Error("a 72-byte password was refused")
 	}
 }
 

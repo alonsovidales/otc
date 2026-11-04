@@ -27,6 +27,7 @@
   "site.account.domains.since": {"text": "seit {date}"},
   "site.account.domains.title": {"text": "Deine Domains"},
   "site.account.error.confirm_required": {"text": "bestätige mit {body}"},
+  "site.account.error.password_too_long": {"text": "das Passwort darf höchstens {max_chars} Zeichen lang sein, weniger mit Buchstaben mit Akzent, aus anderen Alphabeten oder Emojis"},
   "site.account.error.recent_signin_required": {"text": "melde dich erneut an (mit Google oder Apple) und versuche es dann innerhalb von 15 Minuten erneut"},
   "site.account.field.country": {"text": "Wohnsitzland"},
   "site.account.field.country_choose": {"text": "Auswählen…"},

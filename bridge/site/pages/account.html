@@ -251,6 +251,7 @@
     "too_many_signups" "api.error.too_many_signups"
     "invalid_email" "api.error.invalid_email"
     "password_too_short" (jsform "api.error.password_too_short" "min_chars" "int")
+    "password_too_long" (jsform "site.account.error.password_too_long" "max_chars" "int")
     "profile_incomplete" "api.error.profile_incomplete"
     "terms_required" "api.error.terms_required_profile"
     "signup_unavailable" "api.error.signup_unavailable"
@@ -334,6 +335,9 @@
   // confirming a deletion carries "delete". The word typed to confirm is
   // the page's language's (site.account.delete.word); "delete" works too.
   const MIN_PASSWORD = 8;
+  // The longest password the bridge keeps (accounts.go's
+  // cMaxPasswordBytes): bytes, which the bridge counts itself.
+  const MAX_PASSWORD = 72;
   // The longest name or surname the bridge takes (accounts.go's cNameMax).
   const NAME_MAX = 150;
   const CONFIRM_WORD = 'delete';
@@ -397,7 +401,7 @@
   // fillIn puts the terms' figures into a message; one it can't fill
   // (the terms not loaded) gives '' so the server's text is shown instead.
   function fillIn(text) {
-    const vars = { min_chars: MIN_PASSWORD, max_domains: terms.max_domains, price_eur: terms.extra_domain_eur, contact: terms.contact, body: CONFIRM_BODY };
+    const vars = { min_chars: MIN_PASSWORD, max_chars: MAX_PASSWORD, max_domains: terms.max_domains, price_eur: terms.extra_domain_eur, contact: terms.contact, body: CONFIRM_BODY };
     const state = { missing: false };
     const out = fill(text, vars, state);
     return state.missing ? '' : out;
@@ -416,7 +420,7 @@
   const errText = (r, fallback) => waitText(r) || fillIn(lookUp(errorTable.api, r.code)) || r.error || fallback;
   // Which field each code that isn't profile_incomplete's is about, by the
   // end of the field's id (su-email, c-terms...).
-  const FIELD_OF = { invalid_email: 'email', email_taken: 'email', password_too_short: 'pass', terms_required: 'terms' };
+  const FIELD_OF = { invalid_email: 'email', email_taken: 'email', password_too_short: 'pass', password_too_long: 'pass', terms_required: 'terms' };
   // unmark takes the marks of markFields off the fields whose ids start
   // with prefix.
   function unmark(prefix) {
