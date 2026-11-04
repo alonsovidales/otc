@@ -1615,7 +1615,7 @@ func (a *Accounts) notifyNewIdentity(accountID, domain string, send func(to, sub
 		log.Error("could not tell account", accountID, "about a new identity:", err)
 		return
 	}
-	subject, body := a.identityEmail(acc.Lang, a.greetingName(acc), domain)
+	subject, body := a.identityEmail(acc.Lang, greetingName(acc.Name, acc.EmailVerified), domain)
 	if err := send(acc.Email, subject, body); err != nil {
 		log.Error("could not tell account", accountID, "about a new identity:", err)
 	}
@@ -1752,7 +1752,9 @@ func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc 
 func (a *Accounts) sendVerification(acc *dao.Account, lang string) error {
 	return a.emailLink(acc, cPurposeVerify, cVerifyTTL,
 		func(string) string { return verificationSubject(lang) },
-		func(link string) string { return a.verificationBody(lang, a.greetingName(acc), link) })
+		func(link string) string {
+			return a.verificationBody(lang, greetingName(acc.Name, acc.EmailVerified), link)
+		})
 }
 
 // sendReset mails acc a password-reset link, in the account's language -
@@ -1760,7 +1762,9 @@ func (a *Accounts) sendVerification(acc *dao.Account, lang string) error {
 func (a *Accounts) sendReset(acc *dao.Account) error {
 	return a.emailLink(acc, cPurposeReset, cResetTTL,
 		func(string) string { return resetSubject(acc.Lang) },
-		func(link string) string { return a.resetBody(acc.Lang, a.greetingName(acc), link) })
+		func(link string) string {
+			return a.resetBody(acc.Lang, greetingName(acc.Name, acc.EmailVerified), link)
+		})
 }
 
 // Verify confirms an email with the link's token. POST /api/account/verify

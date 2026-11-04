@@ -12,7 +12,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/i18n"
 )
 
@@ -122,18 +121,26 @@ func TestLongDateInEnglishIsUnchanged(t *testing.T) {
 
 // The daily inactivity pass sends the warning as it always did: to the
 // account's address, with the same subject and text, the account's
-// language ("" here) picking English.
+// language ("" here) picking English. An account that never confirmed its
+// address is greeted by no name: whoever signed up with it typed that.
 func TestInactivityPassSendsTheSameWarning(t *testing.T) {
-	for _, c := range []struct{ name, lang string }{{"Ann", ""}, {"", "en"}, {"محمد", "zz"}} {
+	for _, c := range []struct {
+		name, lang string
+		verified   bool
+		greets     string
+	}{
+		{"Ann", "", true, "Ann"}, {"", "en", true, ""}, {"محمد", "zz", true, "محمد"},
+		{"Buy now at example.com", "", false, ""}, {"Ann", "en", false, ""},
+	} {
 		a, mock := testAccounts(t)
 		a.tld = "off-the.cloud"
 		mock.ExpectExec("update `accounts` a set a.`inactivity_warned_at` = null").WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", c.name, nil, c.lang))
+		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", c.name, c.verified, nil, c.lang))
 		mock.ExpectExec("update `accounts` set `inactivity_warned_at` = \\? where `id` = \\? and `inactivity_warned_at` is null").
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}))
+		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}))
 
 		now := time.Date(2026, 12, 3, 10, 0, 0, 0, time.UTC)
 		var to, subject, body string
@@ -141,7 +148,7 @@ func TestInactivityPassSendsTheSameWarning(t *testing.T) {
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal(err)
 		}
-		ws, wb := legacyInactivity(c.name, "a@b.c", a.tld, now)
+		ws, wb := legacyInactivity(c.greets, "a@b.c", a.tld, now)
 		if to != "a@b.c" || subject != ws || body != wb {
 			t.Errorf("%+v: sent %q %q %q, want %q %q", c, to, subject, body, ws, wb)
 		}
@@ -296,9 +303,11 @@ func TestNewIdentityEmail(t *testing.T) {
 		}
 	}
 	// Unverified: no name in the greeting (whoever signed up typed it).
-	a := &Accounts{tld: "off-the.cloud"}
-	if name := a.greetingName(&dao.Account{Name: "Buy now at example.com", EmailVerified: false}); name != "" {
+	if name := greetingName("Buy now at example.com", false); name != "" {
 		t.Errorf("an unverified account is greeted as %q", name)
+	}
+	if name := greetingName("Ann", true); name != "Ann" {
+		t.Errorf("a verified account is greeted as %q", name)
 	}
 }
 

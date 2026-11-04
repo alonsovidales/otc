@@ -19,6 +19,10 @@ import (
 // InactiveAccount is an account nothing has used since some date.
 type InactiveAccount struct {
 	ID, Email, Name string
+	// EmailVerified: the owner proved the email (Account.EmailVerified).
+	// Until then Name is whatever whoever signed up typed, and the warning
+	// greets nobody by it (accounts.greetingName).
+	EmailVerified bool
 	// WarnedAt is when it was told it will be removed; nil if not yet.
 	WarnedAt *time.Time
 	// Lang is the account's language for emails (Account.Lang).
@@ -66,9 +70,10 @@ func (dao *Dao) inactiveAccountsLang(where string, args ...any) (out []InactiveA
 }
 
 // inactiveAccounts is the accounts matching where, reading the columns
-// plus extra (", a.`lang`" or nothing).
+// plus extra (", a.`lang`" or nothing). email_verified is older than the
+// inactivity columns (migration 007), so it is always there.
 func (dao *Dao) inactiveAccounts(extra, where string, args ...any) ([]InactiveAccount, error) {
-	rows, err := dao.db.Query("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`"+extra+" from `accounts` a where "+where, args...)
+	rows, err := dao.db.Query("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`"+extra+" from `accounts` a where "+where, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +82,7 @@ func (dao *Dao) inactiveAccounts(extra, where string, args ...any) ([]InactiveAc
 	for rows.Next() {
 		var a InactiveAccount
 		var warned sql.NullTime
-		dest := []any{&a.ID, &a.Email, &a.Name, &warned}
+		dest := []any{&a.ID, &a.Email, &a.Name, &a.EmailVerified, &warned}
 		if extra != "" {
 			dest = append(dest, &a.Lang)
 		}

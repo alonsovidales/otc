@@ -269,7 +269,8 @@ func TestPushLanguageForDomain(t *testing.T) {
 }
 
 // The inactivity pass (whose emails will be in the account's language)
-// goes on without the column too.
+// goes on without the column too. Either way each account says whether
+// its email is proven, which decides whether the warning names it.
 func TestInactiveAccountsLang(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -278,15 +279,15 @@ func TestInactiveAccountsLang(t *testing.T) {
 	defer db.Close()
 	d := NewWithDB(db)
 
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", nil, "en"))
-	if out, err := d.InactiveAccounts(time.Now()); err != nil || len(out) != 1 || out[0].Lang != "en" {
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", true, nil, "en"))
+	if out, err := d.InactiveAccounts(time.Now()); err != nil || len(out) != 1 || out[0].Lang != "en" || !out[0].EmailVerified {
 		t.Fatalf("with the column: %+v %v", out, err)
 	}
 	mock.ExpectQuery("a.`lang` from `accounts` a").WillReturnError(unknownColumn("a.lang"))
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at` from `accounts` a").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at"}).AddRow("acc1", "a@b.c", "A", nil))
-	if out, err := d.InactiveAccounts(time.Now()); err != nil || len(out) != 1 || out[0].ID != "acc1" || out[0].Lang != "" {
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at` from `accounts` a").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at"}).AddRow("acc1", "a@b.c", "A", false, nil))
+	if out, err := d.InactiveAccounts(time.Now()); err != nil || len(out) != 1 || out[0].ID != "acc1" || out[0].Lang != "" || out[0].EmailVerified {
 		t.Fatalf("without the column: %+v %v", out, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

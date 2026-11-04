@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/site"
 	"github.com/alonsovidales/otc/i18n"
 )
@@ -81,15 +80,17 @@ func (a *Accounts) resetBody(lang, name, link string) string {
 	return emailGreeting(lang, name) + "\n\n" + i18n.MailResetBody(a.pageLink(lang, link)).Render(lang) + "\n\n" + a.signature()
 }
 
-// greetingName is the name an email to acc greets: the one it signed up
-// with once its email is proven, and none before - whoever signs up can
-// type anything as a name, and an email to an address nobody has proven
-// is the one a stranger can have sent to anyone.
-func (a *Accounts) greetingName(acc *dao.Account) string {
-	if acc == nil || !acc.EmailVerified {
+// greetingName is the name an account email greets: name, the one the
+// account signed up with, once its email is proven (verified), and none
+// before - whoever signs up can type anything as a name, and an email to
+// an address nobody has proven is the one a stranger can have sent to
+// anyone. Every account email that greets by name goes through it: the
+// confirmation, the reset, the new identity and the inactivity warning.
+func greetingName(name string, verified bool) string {
+	if !verified {
 		return ""
 	}
-	return acc.Name
+	return name
 }
 
 // identityEmail is the note that the account's domain was given a new

@@ -3638,9 +3638,10 @@ burst 150 a network - the wizard checks a name as it is typed and polls the hand
 setup-token-info, verify, reset, app-exchange and the sign-in callback in `bridge/accounts`, which
 share one (`lookupAllowed`: 2/s, burst 20 an address, 10/s, burst 100 a network); past either, a 429
 with Retry-After. An account makes at most 10 setup codes in 15 minutes on a node
-(`codesPerAccount`; past it a 429 with Retry-After and the code's own "could not" text). A
-confirmation or reset email greets the account by name only once its address is
-proven (`greetingName`): whoever signs up types the name and picks the address. The contact and
+(`codesPerAccount`; past it a 429 with Retry-After and the code's own "could not" text). An
+account email (confirmation, reset, new identity, inactivity warning) greets the account by name
+only once its address is proven (`greetingName`; the warning reads `dao.InactiveAccount.EmailVerified`):
+whoever signs up types the name and picks the address. The contact and
 claim cooldowns, and the admin login's limiter, are swept on a timer (or as the map doubles), not
 at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`

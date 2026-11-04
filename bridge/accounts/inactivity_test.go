@@ -18,14 +18,14 @@ import (
 func TestInactivityWarningReleasedWhenTheEmailFails(t *testing.T) {
 	a, mock := testAccounts(t)
 	mock.ExpectExec("update `accounts` a set a.`inactivity_warned_at` = null").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", nil, ""))
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", true, nil, ""))
 	mock.ExpectExec("update `accounts` set `inactivity_warned_at` = \\? where `id` = \\? and `inactivity_warned_at` is null").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `accounts` set `inactivity_warned_at` = null where `id` = \\?").WithArgs("acc1").
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}))
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}))
 
 	a.inactivityPass(time.Now(), func(to, subject, body string) error { return errDBDown }, nil)
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -57,12 +57,12 @@ func TestInactivityWarningStandsWhenTheAddressIsRefused(t *testing.T) {
 		// rather than fail unseen as an unexpected statement.
 		mock.MatchExpectationsInOrder(false)
 		mock.ExpectExec("update `accounts` a set a.`inactivity_warned_at` = null").WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", nil, ""))
+		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}).AddRow("acc1", "a@b.c", "A", true, nil, ""))
 		mock.ExpectExec("update `accounts` set `inactivity_warned_at` = \\? where `id` = \\? and `inactivity_warned_at` is null").
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "inactivity_warned_at", "lang"}))
+		mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}))
 		mock.ExpectExec("update `accounts` set `inactivity_warned_at` = null where `id` = \\?").WithArgs("acc1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -92,7 +92,7 @@ func TestInactivityLeavesAccountsWithADeviceOnline(t *testing.T) {
 	}
 	now := time.Now()
 	old := now.Add(-40 * 24 * time.Hour)
-	cols := []string{"id", "email", "name", "inactivity_warned_at", "lang"}
+	cols := []string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}
 	domains := func(names ...string) *sqlmock.Rows {
 		rows := sqlmock.NewRows([]string{"domain", "created", "disabled"})
 		for _, n := range names {
@@ -104,12 +104,12 @@ func TestInactivityLeavesAccountsWithADeviceOnline(t *testing.T) {
 	const unmark = "update `accounts` set `inactivity_warned_at` = null where `id` = \\?"
 
 	mock.ExpectExec("update `accounts` a set a.`inactivity_warned_at` = null").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
 		WillReturnRows(sqlmock.NewRows(cols).
-			AddRow("online", "online@b.c", "A", nil, "").
-			AddRow("warned-online", "warned-online@b.c", "A", old, "").
-			AddRow("unknown", "unknown@b.c", "A", nil, "").
-			AddRow("offline", "offline@b.c", "A", nil, ""))
+			AddRow("online", "online@b.c", "A", true, nil, "").
+			AddRow("warned-online", "warned-online@b.c", "A", true, old, "").
+			AddRow("unknown", "unknown@b.c", "A", true, nil, "").
+			AddRow("offline", "offline@b.c", "A", true, nil, ""))
 	mock.ExpectQuery(listDomains).WithArgs("online").WillReturnRows(domains("away.otc", "home.otc"))
 	mock.ExpectQuery(listDomains).WithArgs("warned-online").WillReturnRows(domains("home.otc"))
 	mock.ExpectExec(unmark).WithArgs("warned-online").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -118,8 +118,8 @@ func TestInactivityLeavesAccountsWithADeviceOnline(t *testing.T) {
 	mock.ExpectExec("update `accounts` set `inactivity_warned_at` = \\? where `id` = \\? and `inactivity_warned_at` is null").
 		WithArgs(sqlmock.AnyArg(), "offline").WillReturnResult(sqlmock.NewResult(0, 1))
 	// Due for removal, warned a month ago, its device back on today.
-	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
-		WillReturnRows(sqlmock.NewRows(cols).AddRow("due-online", "due-online@b.c", "A", old, ""))
+	mock.ExpectQuery("select a.`id`, a.`email`, a.`name`, a.`email_verified`, a.`inactivity_warned_at`, a.`lang` from `accounts` a").
+		WillReturnRows(sqlmock.NewRows(cols).AddRow("due-online", "due-online@b.c", "A", true, old, ""))
 	mock.ExpectQuery(listDomains).WithArgs("due-online").WillReturnRows(domains("home.otc"))
 	mock.ExpectExec(unmark).WithArgs("due-online").WillReturnResult(sqlmock.NewResult(0, 1))
 
