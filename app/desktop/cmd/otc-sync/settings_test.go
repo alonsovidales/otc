@@ -76,3 +76,12 @@ func TestSettingsForgetTheOldDevicesPassword(t *testing.T) {
 		t.Fatalf("device %q, password %q", cfg.Domain, pw)
 	}
 }
+
+// Standard input that isn't a terminal is read as a line (a terminal's,
+// Windows' console included, has its echo turned off by golang.org/x/term).
+func TestPasswordPromptFromAPipe(t *testing.T) {
+	withStdin(t, "s3cret\r\n")
+	if pw, err := readPasswordPrompt(); err != nil || pw != "s3cret" {
+		t.Fatalf("%q %v", pw, err)
+	}
+}

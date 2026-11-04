@@ -37,7 +37,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -48,6 +47,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gofrs/flock"
+	"golang.org/x/term"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/autostart"
 	"github.com/alonsovidales/otc/app/desktop/internal/browser"
@@ -1060,19 +1060,20 @@ func checkNewDevice(cfg *config.Config, domain string, insecure bool) error {
 	return nil
 }
 
+// readPasswordPrompt asks for the password on the terminal without showing
+// it as it is typed - a Windows console included (golang.org/x/term), where
+// the stty this used to go through doesn't exist, and the password stayed
+// on the screen and in the console's scrollback. Standard input that isn't
+// a terminal (a pipe) is read as a line.
 func readPasswordPrompt() (string, error) {
 	fmt.Fprint(os.Stderr, "Password: ")
-	// Without a terminal package: turn echo off through stty where there is one.
-	restore := func() {}
-	if runtime.GOOS != "windows" {
-		if err := exec.Command("stty", "-F", "/dev/tty", "-echo").Run(); err == nil {
-			restore = func() { _ = exec.Command("stty", "-F", "/dev/tty", "echo").Run() }
-		} else if err := exec.Command("sh", "-c", "stty -echo < /dev/tty").Run(); err == nil {
-			restore = func() { _ = exec.Command("sh", "-c", "stty echo < /dev/tty").Run() }
-		}
+	if fd := int(os.Stdin.Fd()); term.IsTerminal(fd) {
+		b, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+
+		return string(b), err
 	}
 	raw, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	restore()
 	fmt.Fprintln(os.Stderr)
 	if err != nil && raw == "" {
 		return "", err
