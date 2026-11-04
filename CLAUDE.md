@@ -3089,7 +3089,10 @@ pool. A `/media` response counts once however many spans it takes, and fetches t
 response - a pool connection per 4 MiB span had sat idle and started each with a cold TCP window,
 the device dialling a replacement for each - with the next 2 spans asked for while one is written
 (`cMediaReadAhead`; the device answers a connection that hasn't signed in 4 requests at a time, each
-span holding twice its size of its memory). Each span still holds one of the device's 3 one-off
+span holding twice its size of its memory). Spans asked ahead are held, until written or dropped,
+under the node's `mediaAhead` budget (512 MiB, 32 MiB per address - an IPv6 /64), asked only while
+it has room: a response always has one span of its own outside it, as before it asked ahead, so a
+client that stops reading pins one span plus what fits, not three. Each span still holds one of the device's 3 one-off
 slots while in flight, in turn with the static assets'; at most 4 connections per device are kept
 for sessions (`cMaxSessionConns`, past them a response goes the one-off way) and one with nothing
 asked of it for 10 s (a paused player) is given back (`cSessionIdle`). Kept: a range answered

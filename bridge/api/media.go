@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/alonsovidales/otc/bridge/clientaddr"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -36,6 +38,70 @@ const cMediaWriteStall = 5 * time.Minute
 // gives a connection that hasn't signed in (4 requests at once, each span
 // holding twice its size of the device's memory while it is answered).
 const cMediaReadAhead = 2
+
+// The spans asked for ahead are held under a budget of the node's
+// (cMediaAheadBudget), of which one address (an IPv6 /64) may hold
+// cMediaAheadPerAddr: from when they are asked for until they are written
+// or dropped. A response asks ahead only while there is room, and always
+// has one span of its own outside it - the one it writes, or waits for
+// with nothing else held - as before it asked ahead. A player that stopped
+// reading (paused, or a client stalling on purpose) held three spans for
+// the 5 min of cMediaWriteStall, and nothing bounded how many players.
+const (
+	cMediaAheadBudget  = 512 << 20
+	cMediaAheadPerAddr = 32 << 20
+)
+
+// mediaAhead is the node's budget for spans asked ahead.
+var mediaAhead = newAheadBudget(cMediaAheadBudget, cMediaAheadPerAddr)
+
+// aheadBudget bounds bytes held in all and per address, never waiting: a
+// span that doesn't fit is asked for once it is the response's own.
+type aheadBudget struct {
+	mu           sync.Mutex
+	used         int64
+	byAddr       map[string]int64
+	max, perAddr int64
+}
+
+func newAheadBudget(max, perAddr int64) *aheadBudget {
+	return &aheadBudget{byAddr: map[string]int64{}, max: max, perAddr: perAddr}
+}
+
+// take reserves n bytes for addr, if they fit. A nil budget has room for
+// everything (tests of the response alone).
+func (b *aheadBudget) take(addr string, n int64) bool {
+	if b == nil {
+		return true
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.used+n > b.max || b.byAddr[addr]+n > b.perAddr {
+		return false
+	}
+	b.used += n
+	b.byAddr[addr] += n
+	return true
+}
+
+func (b *aheadBudget) give(addr string, n int64) {
+	if b == nil || n == 0 {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.used -= n
+	if b.byAddr[addr] -= n; b.byAddr[addr] <= 0 {
+		delete(b.byAddr, addr)
+	}
+}
+
+// held is what the budget holds in all, and for addr (tests).
+func (b *aheadBudget) held(addr string) (all, ofAddr int64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.used, b.byAddr[addr]
+}
 
 // spanSource is where one media response's spans come from: a session with
 // the device (websocket.Session: one of its connections for the whole
@@ -93,7 +159,7 @@ func (api *API) proxyMedia(w http.ResponseWriter, r *http.Request) {
 	if !api.allowOneOff(w, r) {
 		return
 	}
-	m := &mediaFetch{src: api.openSpans(r.Host), token: token, host: r.Host}
+	m := &mediaFetch{src: api.openSpans(r.Host), token: token, host: r.Host, ahead: mediaAhead, addr: clientaddr.Bucket(requestAddr(r))}
 	defer m.src.Close()
 	// A client that hangs up ends the session at once, its first span, a
 	// HEAD's byte and a suffix's probe included: each request holds one
@@ -195,6 +261,9 @@ type mediaFetch struct {
 	token  string
 	host   string
 	nextID atomic.Int32 // the envelopes' ids: distinct within the session
+	// ahead holds the spans asked for ahead, as the client's addr's.
+	ahead *aheadBudget
+	addr  string
 }
 
 // spanResult is one span asked for ahead.
@@ -206,9 +275,10 @@ type spanResult struct {
 // writeSpan writes first (the bytes from offset on) and then the rest up to
 // last, inclusive, fetched from the device a span at a time and flushed as
 // each arrives - up to cMediaReadAhead spans asked for ahead of the one
-// being written, so the device is sending the next while this goes out.
-// Best effort: a client that goes away (nothing more is asked for it), or
-// a device that stops answering, ends it.
+// being written, while m.ahead has room for them, so the device is sending
+// the next while this goes out. Best effort: a client that goes away
+// (nothing more is asked for it), or a device that stops answering, ends
+// it.
 func (m *mediaFetch) writeSpan(w http.ResponseWriter, r *http.Request, offset int64, first []byte, last int64) {
 	ctx := r.Context()
 	flusher, _ := w.(http.Flusher)
@@ -216,12 +286,33 @@ func (m *mediaFetch) writeSpan(w http.ResponseWriter, r *http.Request, offset in
 	next := pos                       // the next byte to ask for
 	type span struct {
 		n    int64
+		held int64 // of m.ahead, given back once written or dropped
 		done chan spanResult
 	}
 	var ahead []span
-	askAhead := func() {
+	// drop gives a span's share back once its fetch is over: what it
+	// fetched is no longer anyone's.
+	drop := func(sp span) {
+		if sp.held > 0 {
+			go func() { <-sp.done; m.ahead.give(m.addr, sp.held) }()
+		}
+	}
+	defer func() {
+		for _, sp := range ahead {
+			drop(sp)
+		}
+	}()
+	// writing: the response holds a span it is about to write. Every span
+	// asked beside one it holds needs room in m.ahead.
+	askAhead := func(writing bool) {
 		for len(ahead) < cMediaReadAhead && next <= last && ctx.Err() == nil {
 			sp := span{n: min(maxProxiedRange, last-next+1), done: make(chan spanResult, 1)}
+			if writing || len(ahead) > 0 {
+				if !m.ahead.take(m.addr, sp.n) {
+					return // asked for once it is the response's own
+				}
+				sp.held = sp.n
+			}
 			go func(at, n int64, done chan<- spanResult) {
 				content, _, _, ok := m.fetch(nil, at, n)
 				done <- spanResult{content, ok}
@@ -231,7 +322,7 @@ func (m *mediaFetch) writeSpan(w http.ResponseWriter, r *http.Request, offset in
 		}
 	}
 
-	askAhead() // on its way while the first goes out
+	askAhead(true) // on its way while the first goes out
 	if err := limits.WriteAll(w, first, cMediaWriteStall); err != nil {
 		return
 	}
@@ -239,7 +330,7 @@ func (m *mediaFetch) writeSpan(w http.ResponseWriter, r *http.Request, offset in
 		flusher.Flush()
 	}
 	for pos <= last {
-		askAhead()
+		askAhead(false)
 		if len(ahead) == 0 {
 			return // the client is gone: nothing more is asked for it
 		}
@@ -249,31 +340,36 @@ func (m *mediaFetch) writeSpan(w http.ResponseWriter, r *http.Request, offset in
 		case <-ctx.Done():
 			return
 		}
-		asked := ahead[0].n
+		cur := ahead[0]
 		ahead = ahead[1:]
-		if !res.ok || len(res.content) == 0 {
-			return
-		}
 		content := res.content
-		// Never more than was asked (the spans asked after it start
-		// there) nor than the range.
-		if int64(len(content)) > asked {
-			content = content[:asked]
+		written := res.ok && len(content) > 0
+		if written {
+			// Never more than was asked (the spans asked after it start
+			// there) nor than the range.
+			if int64(len(content)) > cur.n {
+				content = content[:cur.n]
+			}
+			if int64(len(content)) > last-pos+1 {
+				content = content[:last-pos+1]
+			}
+			written = limits.WriteAll(w, content, cMediaWriteStall) == nil
 		}
-		if int64(len(content)) > last-pos+1 {
-			content = content[:last-pos+1]
-		}
-		if err := limits.WriteAll(w, content, cMediaWriteStall); err != nil {
+		m.ahead.give(m.addr, cur.held)
+		if !written {
 			return
 		}
 		if flusher != nil {
 			flusher.Flush()
 		}
 		pos += int64(len(content))
-		if int64(len(content)) < asked {
+		if int64(len(content)) < cur.n {
 			// Shorter than asked: no device answers so before the end of
 			// the file, but if one did, the spans asked after it don't
 			// start where this one ended - asked again from there.
+			for _, sp := range ahead {
+				drop(sp)
+			}
 			ahead, next = nil, pos
 		}
 	}

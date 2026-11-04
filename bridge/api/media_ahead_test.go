@@ -131,3 +131,88 @@ func (h *hangUpAfter) Write(p []byte) (int, error) {
 	}
 	return n, err
 }
+
+// stalledClient is a client that reads nothing until open is closed.
+type stalledClient struct {
+	*httptest.ResponseRecorder
+	open chan struct{}
+}
+
+func (s *stalledClient) Write(p []byte) (int, error) {
+	<-s.open
+	return s.ResponseRecorder.Write(p)
+}
+
+// The spans asked for ahead are held under the node's budget, and an
+// address's share of it: a client that reads nothing holds the one span
+// it was sent plus what fits, where it held three spans whatever the
+// budget; and it all comes back once the response is over.
+func TestMediaReadAheadIsHeldUnderABudget(t *testing.T) {
+	for _, c := range []struct {
+		name         string
+		max, perAddr int64
+		ahead        int // spans asked ahead while the client reads nothing
+	}{
+		{"room for both", 64 << 20, 32 << 20, cMediaReadAhead},
+		{"the node's budget full but one", maxProxiedRange, 32 << 20, 1},
+		{"the address's share full", 64 << 20, 0, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			file := mediaFile(16)
+			var lengths []int64
+			src := &slowSpans{device: fakeMediaDevice(file, &lengths)}
+			budget := newAheadBudget(c.max, c.perAddr)
+			m := &mediaFetch{src: src, token: "tok", host: "pit.otc", ahead: budget, addr: "198.51.100.7"}
+			first, _, _, _ := m.fetch(nil, 0, maxProxiedRange)
+			w := &stalledClient{ResponseRecorder: httptest.NewRecorder(), open: make(chan struct{})}
+			req := httptest.NewRequest(http.MethodGet, "/media/tok", nil)
+			done := make(chan struct{})
+			go func() { defer close(done); m.writeSpan(w, req, 0, first, int64(len(file))-1) }()
+
+			time.Sleep(100 * time.Millisecond) // what it asks for arrives
+			src.mu.Lock()
+			asked := src.all - 1 // the first was asked before
+			src.mu.Unlock()
+			if asked != c.ahead {
+				t.Errorf("%d spans asked ahead for a client reading nothing, want %d", asked, c.ahead)
+			}
+			if all, ofAddr := budget.held("198.51.100.7"); all != int64(c.ahead)*maxProxiedRange || ofAddr != all {
+				t.Errorf("the budget holds %d bytes, %d of the address's, want %d", all, ofAddr, int64(c.ahead)*maxProxiedRange)
+			}
+
+			close(w.open)
+			<-done
+			if !bytes.Equal(w.Body.Bytes(), file) {
+				t.Fatalf("the response is %d bytes and not the file", w.Body.Len())
+			}
+			deadline := time.Now().Add(time.Second)
+			for all, _ := budget.held("198.51.100.7"); all != 0; all, _ = budget.held("198.51.100.7") {
+				if time.Now().After(deadline) {
+					t.Fatalf("the budget still holds %d bytes after the response", all)
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		})
+	}
+}
+
+// A client that hangs up gives back what its response held asked ahead.
+func TestMediaReadAheadIsGivenBackWhenTheClientHangsUp(t *testing.T) {
+	file := mediaFile(16)
+	var lengths []int64
+	src := &slowSpans{device: fakeMediaDevice(file, &lengths), latency: 20 * time.Millisecond}
+	budget := newAheadBudget(64<<20, 32<<20)
+	m := &mediaFetch{src: src, token: "tok", host: "pit.otc", ahead: budget, addr: "198.51.100.7"}
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, "/media/tok", nil).WithContext(ctx)
+	w := &hangUpAfter{ResponseRecorder: httptest.NewRecorder(), limit: int(2 * maxProxiedRange), cancel: cancel}
+	first, _, _, _ := m.fetch(nil, 0, maxProxiedRange)
+	m.writeSpan(w, req, 0, first, int64(len(file))-1)
+	deadline := time.Now().Add(time.Second)
+	for all, _ := budget.held("198.51.100.7"); all != 0; all, _ = budget.held("198.51.100.7") {
+		if time.Now().After(deadline) {
+			t.Fatalf("the budget still holds %d bytes for a client gone", all)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
