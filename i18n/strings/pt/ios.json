@@ -474,6 +474,10 @@
     "text": "Para criar o álbum, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições.",
     "en": "To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings."
   },
+  "ios.wallpaper_full_access_stop": {
+    "text": "Para apagar o álbum e as cópias, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições. Até lá, ficam na app Fotografias.",
+    "en": "To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app."
+  },
   "ios.wallpaper_lock_button": {
     "text": "Guardar cópias num álbum",
     "en": "Store copies in an album"

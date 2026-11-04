@@ -5685,6 +5685,53 @@
         }
       }
     },
+    "ios.wallpaper_full_access_stop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um das Album und seine Kopien zu löschen, braucht Off The Cloud Zugriff auf alle deine Fotos. Du kannst ihn in den Einstellungen erlauben. Bis dahin bleiben sie in der Fotos-App."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para borrar el álbum y sus copias, Off The Cloud necesita acceso a todas tus fotos. Puedes permitirlo en Ajustes. Hasta entonces, se quedan en la app Fotos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour supprimer l’album et ses copies, Off The Cloud a besoin d’accéder à toutes vos photos. Vous pouvez l’autoriser dans Réglages. D’ici là, elles restent dans l’app Photos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per eliminare l’album e le sue copie, Off The Cloud ha bisogno di accedere a tutte le tue foto. Puoi consentirlo in Impostazioni. Fino ad allora restano nell’app Foto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Om het album en de kopieën ervan te verwijderen, heeft Off The Cloud toegang tot al je foto’s nodig. Je kunt dat toestaan in Instellingen. Tot dan blijven ze in de Foto’s-app."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para apagar o álbum e as cópias, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições. Até lá, ficam na app Fotografias."
+          }
+        }
+      }
+    },
     "ios.wallpaper_lock_button" : {
       "extractionState" : "manual",
       "localizations" : {

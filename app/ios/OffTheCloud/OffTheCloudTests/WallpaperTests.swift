@@ -240,6 +240,9 @@ final class FakeAlbumStore: WallpaperAlbumStoring {
     var declineDelete = false
     var deletes = 0
     var made = 0
+    /// Waited for inside each add, as a change of the Photos library takes
+    /// a moment (tests hold it there).
+    var duringAdd: (() async -> Void)?
 
     func access() -> WallpaperAccess { accessNow }
     func requestAccess() async -> WallpaperAccess {
@@ -248,6 +251,7 @@ final class FakeAlbumStore: WallpaperAlbumStoring {
         return accessNow
     }
     func add(_ images: [WallpaperImage], album: String?, title: String) async throws -> (album: String, assets: [String]) {
+        await duringAdd?()
         let id = album.flatMap { albums[$0] != nil ? $0 : nil } ?? "ALB/\(albums.count)"
         if albums[id] == nil { albums[id] = []; titles[id] = title }
         let ids = images.map { _ -> String in made += 1; return "A/\(made)" }
@@ -267,6 +271,27 @@ final class FakeAlbumStore: WallpaperAlbumStoring {
         return true
     }
     func albumExists(_ album: String) -> Bool { albums[album] != nil }
+    func existing(_ assets: [String]) -> [String] { assets.filter { library.contains($0) } }
+}
+
+/// Holds whoever waits until opened.
+@MainActor
+final class WallpaperGate {
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var open = false
+    var waiting: Bool { !waiters.isEmpty }
+
+    func wait() async {
+        guard !open else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        open = true
+        let w = waiters
+        waiters = []
+        w.forEach { $0.resume() }
+    }
 }
 
 /// The device: collections and their photos, and each photo's file (a small
@@ -451,6 +476,146 @@ struct WallpaperModelTests {
         mobile = false
         await run.value
         #expect(m.widgetPhase == .ready(count: 2))
+    }
+
+    @Test func theWidgetsCopiesStayOutOfBackups() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 2)
+        let (m, root, defaults, suite) = try model(device)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        await m.startWidget(collection: "g1", name: "Trip", photos: try await m.photos(of: "g1"))
+        #expect(m.widgetPhase == .ready(count: 2))
+        let values = try URL(fileURLWithPath: root.path).resourceValues(forKeys: [.isExcludedFromBackupKey])
+        #expect(values.isExcludedFromBackup == true, "the widget's copies never go into a backup")
+        // A folder an earlier version filled: kept out at the next launch.
+        var plain = URLResourceValues()
+        plain.isExcludedFromBackup = false
+        var url = root
+        try url.setResourceValues(plain)
+        _ = WallpaperModel(device: device.device, albumStore: FakeAlbumStore(), stateStore: WallpaperStateStore(defaults: defaults), widgetRoot: root)
+        #expect(try URL(fileURLWithPath: root.path).resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+    }
+
+    @Test func logOutWhileTheWidgetsCopiesComeWritesNothingMore() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 3)
+        let (m, root, defaults, suite) = try model(device)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        let gate = WallpaperGate()
+        let fake = device.device
+        m.device = WallpaperDevice(groups: fake.groups, photos: fake.photos, fetch: { p, dest in
+            await gate.wait()
+            try await fake.fetch(p, dest)
+        })
+        let photos = try await m.photos(of: "g1")
+        let run = Task { await m.startWidget(collection: "g1", name: "Trip", photos: photos) }
+        while !gate.waiting { try await Task.sleep(nanoseconds: 5_000_000) }
+        await m.signedOut()
+        gate.release()
+        await run.value
+        #expect(m.widget == nil)
+        #expect(WidgetCatalog.load(root: root).collections.isEmpty, "the last device's catalog isn't written again")
+        #expect(WidgetNames.all(defaults).isEmpty)
+    }
+
+    @Test func logOutWhileTheFirstCopiesComeMakesNoAlbum() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 3)
+        let album = FakeAlbumStore()
+        let (m, root, defaults, suite) = try model(device, album: album)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        let gate = WallpaperGate()
+        let fake = device.device
+        m.device = WallpaperDevice(groups: fake.groups, photos: fake.photos, fetch: { p, dest in
+            await gate.wait()
+            try await fake.fetch(p, dest)
+        })
+        let photos = try await m.photos(of: "g1")
+        let run = Task { await m.startAlbum(collection: "g1", name: "Trip", photos: photos) }
+        while !gate.waiting { try await Task.sleep(nanoseconds: 5_000_000) }
+        await m.signedOut()
+        gate.release()
+        await run.value
+        // No album nobody could stop, no copies in Photos.
+        #expect(album.albums.isEmpty)
+        #expect(album.library.isEmpty)
+        #expect(m.album == nil)
+        #expect(WallpaperStateStore(defaults: defaults).album() == nil)
+    }
+
+    @Test func aChangeUnderWayAsLogOutStartsIsDeletedWithTheRest() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 2)
+        let album = FakeAlbumStore()
+        let (m, root, defaults, suite) = try model(device, album: album)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        let gate = WallpaperGate()
+        var adds = 0
+        album.duringAdd = { adds += 1; await gate.wait() }
+        let photos = try await m.photos(of: "g1")
+        let run = Task { await m.startAlbum(collection: "g1", name: "Trip", photos: photos) }
+        while !gate.waiting { try await Task.sleep(nanoseconds: 5_000_000) }
+        let out = Task { await m.signedOut() }
+        try await Task.sleep(nanoseconds: 50_000_000)
+        gate.release()
+        await out.value
+        await run.value
+        #expect(adds == 1)
+        // The copies that change made were deleted by Log Out's Stop.
+        #expect(album.library.isEmpty)
+        #expect(album.deletes == 1)
+        #expect(m.album == nil)
+    }
+
+    @Test func withoutAccessToPhotosTheAlbumIsKeptNotForgotten() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 3)
+        let album = FakeAlbumStore()
+        let (m, root, defaults, suite) = try model(device, album: album)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        await m.startAlbum(collection: "g1", name: "Trip", photos: try await m.photos(of: "g1"))
+        let state = try #require(m.album)
+        // Access to Photos set to none (or limited): the album can't be seen.
+        album.accessNow = .notFull
+        await m.keepInStep(force: true)
+        #expect(m.album == state, "kept until access is back")
+        // Stop can't delete anything: it says so, and nothing is forgotten.
+        #expect(await m.stopAlbumNow() == .noAccess)
+        #expect(m.needsFullAccess)
+        #expect(m.album == state)
+        #expect(album.deletes == 0)
+        // Log Out keeps it too, for a Stop once access is back.
+        await m.signedOut()
+        #expect(WallpaperStateStore(defaults: defaults).album() == state)
+        album.accessNow = .full
+        let back = WallpaperModel(device: device.device, albumStore: album, stateStore: WallpaperStateStore(defaults: defaults), widgetRoot: root)
+        #expect(await back.stopAlbumNow() == .stopped)
+        #expect(album.library.isEmpty)
+    }
+
+    @Test func anAlbumDeletedInPhotosLeavesItsCopiesToStop() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("g1", "Trip", photos: 3)
+        let album = FakeAlbumStore()
+        let (m, root, defaults, suite) = try model(device, album: album)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        await m.startAlbum(collection: "g1", name: "Trip", photos: try await m.photos(of: "g1"))
+        let state = try #require(m.album)
+        // The album alone deleted in Photos: its photos stay in the library.
+        album.albums[state.albumID] = nil
+        await m.keepInStep(force: true)
+        let kept = try #require(m.album, "its copies are still the app's to delete")
+        #expect(Set(kept.assets) == Set(state.assets))
+        #expect(album.made == 3, "and no album is made again")
+        #expect(await m.stopAlbumNow() == .stopped)
+        #expect(album.library.isEmpty)
+        // With none left, there is nothing to keep.
+        await m.startAlbum(collection: "g1", name: "Trip", photos: try await m.photos(of: "g1"))
+        let second = try #require(m.album)
+        album.albums[second.albumID] = nil
+        album.library.subtract(second.assets)
+        await m.keepInStep(force: true)
+        #expect(m.album == nil)
     }
 
     @Test func theAlbumIsMadeAndStopDeletesItsAssetsIfThePersonAgrees() async throws {

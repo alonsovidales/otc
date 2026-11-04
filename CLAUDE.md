@@ -3778,9 +3778,13 @@ lock/home/both with WallpaperManager; Stop, deleting the collection, Log Out and
 the copies and leave the last photo up. iOS can't set wallpapers (`WallpaperView.swift`): the lock screen gets a
 Photos album "Off The Cloud · <name>" for Photo Shuffle (full Photos access; every asset made is in
 `SavedToPhone`, so `PhotoSync.leftOut` keeps it out of the sync and Free Up Space; Stop deletes them in one
-change, iOS asks), and the home screen the `OffTheCloudWidgetExtension` target (`cloud.off-the.OffTheCloud.Widget`,
+change, iOS asks - only with full access to Photos: without it nothing can be seen or deleted, so the
+album is kept, not forgotten, and the screen says what Stop needs; an album deleted in Photos keeps its
+copies the app's to delete; Log Out waits for an album change under way and makes nothing after it),
+and the home screen the `OffTheCloudWidgetExtension` target (`cloud.off-the.OffTheCloud.Widget`,
 App Group `group.cloud.off-the.OffTheCloud`, both registered 2026-10-28; copies <= 1200 px in the group
-container, `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
+container, its `Widget` folder kept out of iCloud and computer backups (`keepOutOfBackups`: the group's
+container is backed up like the app's own), `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
 24-entry one is refused as too large -, its texts from the app's language through the group).
 **Settings sections the device decides** (2026-10-29: Users, Device version, Wi-Fi, Tailscale Funnel,
 Bridge and Account, Troubleshooting): until the device has answered for one - its role and, for the

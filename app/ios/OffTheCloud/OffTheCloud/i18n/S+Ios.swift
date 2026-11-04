@@ -563,6 +563,11 @@ extension S {
     /// When the app has limited or no access to the iPhone's photos: making the album needs full access, given in the iPhone's Settings app (use its name in your language: Ajustes, Réglages, Einstellungen, Impostazioni, Definições, Instellingen). A button that opens Settings follows.
     static var iosWallpaperFullAccess: String { L("ios.wallpaper_full_access", table: "Ios") }
 
+    /// To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app.
+    ///
+    /// On the wallpaper screen, under the lock screen album's Stop button (ios.wallpaper_stop_album), after Stop was tapped while the app may not see all the photos (access to Photos set to limited or none in iOS's Settings): nothing could be deleted. An Open Settings button follows.
+    static var iosWallpaperFullAccessStop: String { L("ios.wallpaper_full_access_stop", table: "Ios") }
+
     /// Store copies in an album
     ///
     /// Button under ios.wallpaper_lock_text: stores the copies in the Photos app album. Says they are stored, on purpose.

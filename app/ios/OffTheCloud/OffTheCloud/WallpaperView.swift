@@ -156,6 +156,17 @@ struct WallpaperView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    // A Stop without full access to Photos: nothing could be
+                    // deleted, and the app keeps what it knows of the copies.
+                    if model.needsFullAccess {
+                        Text(S.iosWallpaperFullAccessStop)
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(S.iosOpenSettings) {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
             } else {
                 if model.needsFullAccess {
