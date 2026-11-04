@@ -289,3 +289,44 @@ func TestGzipCacheBudget(t *testing.T) {
 		t.Error("a body over the entry limit was kept")
 	}
 }
+
+// The bridge's own static pages are never shown in a frame - a device's
+// page is the same site, and the admin cookie would ride along - and load
+// nothing from elsewhere: the admin panel its own policy (its inline
+// script and the bridge's API), privacy and terms one that runs nothing.
+// Gzipped or not, and on a 304 too; pictures and other files as before.
+func TestStaticPagesCannotBeFramed(t *testing.T) {
+	static, err := filepath.Abs(filepath.Join("..", "static"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := &API{muxHTTPServer: http.NewServeMux(), staticPath: static + "/", tld: "bridge.test"}
+	for target, policy := range map[string]string{
+		"/admin":      cAdminPagePolicy,
+		"/admin.html": cAdminPagePolicy,
+		"/privacy":    cStaticPagePolicy,
+		"/terms":      cStaticPagePolicy,
+	} {
+		for _, header := range []map[string]string{{"Accept-Encoding": "gzip"}, nil} {
+			rec := siteGet(api, http.MethodGet, target, header)
+			h := rec.Header()
+			if rec.Code != http.StatusOK || h.Get("Content-Security-Policy") != policy || h.Get("X-Frame-Options") != "DENY" || h.Get("X-Content-Type-Options") != "nosniff" {
+				t.Errorf("%s (%v): %d, policy %q, X-Frame-Options %q", target, header, rec.Code, h.Get("Content-Security-Policy"), h.Get("X-Frame-Options"))
+			}
+			since := siteGet(api, http.MethodGet, target, map[string]string{"If-Modified-Since": h.Get("Last-Modified")})
+			if since.Code != http.StatusNotModified || since.Header().Get("X-Frame-Options") != "DENY" {
+				t.Errorf("%s since its Last-Modified: %d, X-Frame-Options %q", target, since.Code, since.Header().Get("X-Frame-Options"))
+			}
+		}
+	}
+	for _, p := range []string{cAdminPagePolicy, cStaticPagePolicy} {
+		if !strings.Contains(p, "frame-ancestors 'none'") || !strings.Contains(p, "default-src 'none'") || strings.Contains(p, "*") || strings.Contains(p, "http") {
+			t.Errorf("policy %q", p)
+		}
+	}
+	for _, target := range []string{"/img/device.jpg", "/fonts/fonts.css", "/favicon.ico"} {
+		if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusOK || rec.Header().Get("Content-Security-Policy") != "" {
+			t.Errorf("%s: %d, policy %q", target, rec.Code, rec.Header().Get("Content-Security-Policy"))
+		}
+	}
+}

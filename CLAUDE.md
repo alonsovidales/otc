@@ -2608,7 +2608,11 @@ Pages and those files are gzipped, and so are the static directory's text files 
 bridge's host are 404 (never the old web app's `index.html` left in `/var/www`); `www.` is a 301
 to the bare domain; every answer for a device's address says `X-Robots-Tag: noindex`
 (`noindexDevices`). Static files: content-named fonts cached for good, a picture asked for with
-its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`. A device's web app
+its `?v=` 30 days, other pictures and `fonts.css` a day, HTML `no-cache`; the static pages
+(admin, privacy, terms) are never framed and load nothing from elsewhere (`setStaticPagePolicy`:
+`X-Frame-Options: DENY` and a policy with `frame-ancestors 'none'` - a device's page is the same
+site, so the admin panel's Strict cookie would ride along into a frame there; the panel's allows
+its inline script and the bridge's API, the others run nothing). A device's web app
 files, relayed by `proxyStaticAsset`, go out with `X-Content-Type-Options: nosniff` and
 `Content-Security-Policy: frame-ancestors 'none'` only (a fuller policy would have to fit every
 web app build a device may still run; the device types each file by its extension), and text

@@ -406,11 +406,42 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
+	setStaticPagePolicy(w.Header(), path)
 	w.Header().Set("Cache-Control", staticCacheControl(r.URL.Path, path, r.URL.Query().Has("v")))
 	if serveStaticGzipped(w, r, path) {
 		return
 	}
 	http.ServeFile(w, r, path)
+}
+
+// The policies of the bridge's own static pages (staticPath): the admin
+// panel, privacy and terms. None is ever shown in a frame. A device's page
+// is a subdomain - the same site - so the admin panel's SameSite=Strict
+// cookie rides along into a frame there, and its buttons could be lined
+// up under a visitor's clicks (the operator opening a link sent through
+// the contact form). And none loads anything from elsewhere: the panel
+// runs its own inline script and talks to the bridge alone, the others
+// run nothing.
+const (
+	cAdminPagePolicy  = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+	cStaticPagePolicy = "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+)
+
+// setStaticPagePolicy gives a page of staticPath (file, as resolved) its
+// Content-Security-Policy, X-Frame-Options for browsers without
+// frame-ancestors, and nosniff. Files that aren't pages are left as they
+// were.
+func setStaticPagePolicy(h http.Header, file string) {
+	if !strings.HasSuffix(file, ".html") {
+		return
+	}
+	policy := cStaticPagePolicy
+	if filepath.Base(file) == "admin.html" {
+		policy = cAdminPagePolicy
+	}
+	h.Set("Content-Security-Policy", policy)
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("X-Content-Type-Options", "nosniff")
 }
 
 // cFontPath is a font named by its content (fonts/fonts.css): its name ends
