@@ -117,7 +117,7 @@ import cloud.offthe.otc.ui.gallery.rememberSearchOptions
 import cloud.offthe.otc.ui.settings.SettingsView
 import cloud.offthe.otc.ui.settings.StatusViewModel
 import cloud.offthe.otc.ui.social.SocialFeedView
-import cloud.offthe.otc.ui.theme.Ember
+import cloud.offthe.otc.ui.theme.AlertRed
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -605,8 +605,10 @@ private fun WideTopBar(
             Box(Modifier.weight(1f)) { search() }
             if (newPost != null) {
                 OutlinedButton(
-                    onClick = newPost, border = BorderStroke(1.dp, Ember), shape = CircleShape,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ember),
+                    // The theme's ember: deepened on a light bar, where ember
+                    // itself is too faint to read.
+                    onClick = newPost, border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary), shape = CircleShape,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                     contentPadding = PaddingValues(horizontal = if (iconOnlyAction) 12.dp else 16.dp),
                     modifier = Modifier.height(if (iconOnlyAction) 40.dp else 38.dp).semantics { contentDescription = newPostLabel }.tourTarget(TourTarget.NEW_POST),
                 ) {
@@ -623,7 +625,7 @@ private fun WideTopBar(
 @Composable
 private fun CriticalUpdateBanner(alert: UpdateAlert, onUpdate: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().background(Color(0xFFE53935)).statusBarsPadding().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().background(AlertRed).statusBarsPadding().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Default.Warning, null, tint = Color.White)

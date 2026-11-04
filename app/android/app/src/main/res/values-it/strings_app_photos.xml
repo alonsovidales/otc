@@ -81,6 +81,7 @@
         <item quantity="many">%1$s elementi</item>
         <item quantity="other">%1$s elementi</item>
     </plurals>
+    <string name="app_photos_grid_scrubber">Vai a una data</string>
     <string name="app_photos_grid_tile_photo">Foto</string>
     <string name="app_photos_grid_tile_photo_on">Foto, %1$s</string>
     <string name="app_photos_grid_tile_video">Video</string>

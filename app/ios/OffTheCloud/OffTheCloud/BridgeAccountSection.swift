@@ -81,7 +81,10 @@ final class BridgeAccountViewModel: ObservableObject {
                 return false
             }
             apply(a)
-            secrets.saveCredentials(endpoint: localEndpoint(localAddress), password: secrets.password)
+            // The same device at its home address: it keeps what the app
+            // learned of it (its pin), so it is never signed in to in the
+            // clear and no change of device is asked about (DeviceChange).
+            secrets.saveCredentials(endpoint: localEndpoint(localAddress), password: secrets.password, sameDevice: true)
             OTCConnection.shared.invalidate()
             let address = localAddress.isEmpty ? "otc.local" : localAddress
             note = .say { S.appSettingsBridgeLeft(address: address) }

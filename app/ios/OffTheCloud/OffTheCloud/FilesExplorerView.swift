@@ -138,7 +138,11 @@ final class FilesExplorerViewModel: ObservableObject {
     var toast: String? { toastText?() }
     /// Bumped by every toast: only the last one's timer takes it away.
     private var toasts = 0
-    @Published var previewURL: URL?
+    /// Quick Look's copy of a file or a version: removed as the preview
+    /// closes or another opens (it stayed in tmp, decrypted, otherwise).
+    @Published var previewURL: URL? {
+        didSet { if oldValue != previewURL { TempFiles.remove(oldValue) } }
+    }
     @Published var shareURL: URL?
     /// The files picked to upload, while they go: "Uploading N of M" over
     /// the bar, with Cancel (UploadQueue); nil: none.
@@ -913,9 +917,15 @@ final class FilesExplorerViewModel: ObservableObject {
             // Files app download. Its own toolbar already has a share
             // button, so this replaces the separate share-sheet fallback
             // for non-images too, not just adds preview alongside it.
-            // In 4 MiB pieces straight to the file, never whole in memory.
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
+            // In 4 MiB pieces straight to the file, never whole in memory;
+            // under its own name (Quick Look shows it), in a folder of its own.
+            let tmp = TempFiles.named(.preview, leafName(row.path))
+            do {
+                try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
+            } catch {
+                TempFiles.remove(tmp)
+                throw error
+            }
             previewURL = tmp
         } catch is FileDownload.Refused {
             showToast { S.appFilesOpenFailed }
@@ -999,9 +1009,16 @@ final class FilesExplorerViewModel: ObservableObject {
     }
 
     func deleteSelected() async {
+        guard preparing == nil else { return }
+        // The bar waits, its Delete a spinner, until every one is done.
+        preparing = .delete
+        defer { preparing = nil }
         // The photos and videos among the files the device deleted, as
         // their rows showed them (no copies counted in Files).
         var deleted: [DeletedOnDevice] = []
+        // Those still there, and why: said once all are done, as Images
+        // says them (a delete that failed used to say nothing at all).
+        var kept: [DeleteCopies.Kept] = []
         for p in selected {
             // Issue #201: with the content the row was listed with, so the
             // device deletes nothing that changed since ("changed").
@@ -1009,17 +1026,23 @@ final class FilesExplorerViewModel: ObservableObject {
             let req = DeleteCopies.request(path: p.contains("/") ? p : joinPath(path, p),
                                            hash: row.map { $0.isDir ? "" : $0.raw.hash } ?? "",
                                            copies: nil, everyCopy: false)
-            guard let resp = try? await request(.reqDelFile(req)) else { continue }
+            let resp: Msg_RespEnvelope
+            do {
+                resp = try await request(.reqDelFile(req))
+            } catch {
+                kept.append(.failed(error))
+                continue
+            }
             if resp.error && resp.errorCode == "upload_only" {
                 let name = leafName(req.path)
                 showToast { S.appFilesDeleteRefused(name: name) }
                 break
             }
-            // It changed on the device since it was listed: the device's
-            // words; the listing is read again below.
-            if resp.error && resp.errorCode == "changed" {
-                let words = resp.errorMessage
-                showToast { words }
+            // Refused - changed on the device since it was listed (the
+            // listing is read again below), or anything else: the device's
+            // words.
+            if case .refused(let words, let reason) = DeleteCopies.outcome(resp) {
+                kept.append(.refused(words, reason))
                 continue
             }
             // A deleted photo's thumbnail doesn't stay on the phone either.
@@ -1031,6 +1054,7 @@ final class FilesExplorerViewModel: ObservableObject {
             }
         }
         if !deleted.isEmpty { deletedOnDevice(deleted) }
+        if let text = DeleteCopies.keptText(kept) { showToast { text } }
         await load()
     }
 
@@ -1124,8 +1148,13 @@ final class FilesExplorerViewModel: ObservableObject {
     /// hash is the current one.
     func openVersion(_ row: FileRow, hash: String) async {
         do {
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(leafName(row.path))
-            try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
+            let tmp = TempFiles.named(.preview, leafName(row.path))
+            do {
+                try await FileDownload.download(path: fullPath(for: row), hash: hash, mime: row.raw.mime, to: tmp)
+            } catch {
+                TempFiles.remove(tmp)
+                throw error
+            }
             versionsOf = nil
             previewURL = tmp
         } catch is FileDownload.Refused {
@@ -1388,9 +1417,10 @@ struct FilesExplorerView: View {
                         resultsView(results)
                     } else {
                         HStack {
-                            TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
+                            TextField(S.appFilesPathLabel, text: $pathField, onCommit: { vm.navigate(to: pathField) })
                                 .textFieldStyle(.roundedBorder)
                                 .autocapitalization(.none)
+                                .accessibilityLabel(S.appFilesPathLabel)
                             if vm.loading || vm.sorting { ProgressView() }
                             viewOptions
                                 .tourTarget(.viewOptions)
@@ -2271,6 +2301,13 @@ struct FilesExplorerView: View {
                     // Issue #200: a long press selects the tile, and a drag
                     // on from it the tiles up to the finger.
                     .modifier(DragSelectRow(path: row.path, frames: gridFrames, space: Self.gridSpace))
+                    .modifier(GridTileAccess(row: row, selected: vm.selected.contains(row.path),
+                                             video: vm.isVideo(row), outOfImagesShown: vm.outOfImagesSupported,
+                                             open: { tap(row) },
+                                             toggle: { vm.toggleSelected(row.path) },
+                                             versions: { Task { await vm.openVersions(row) } },
+                                             lock: { lockPrompt = row },
+                                             outOfImages: { outOfImagesInfo = vm.outOfImagesAsk(row) }))
                     // Lazily: only tiles that scroll into view ask the
                     // device for their thumbnail.
                     .onAppear { vm.wantThumbnail(for: row) }
@@ -2399,6 +2436,46 @@ struct FilesExplorerView: View {
                     .buttonStyle(.plain)
                     .padding(5)
                     .accessibilityLabel(S.iosFilesOlderVersions(count: Int(row.versions)))
+                }
+            }
+    }
+}
+
+/// A grid tile for VoiceOver: one element named by its file - its Select
+/// read "Select" on every tile, its name another element - selected or not,
+/// a video said, a tap as a tap does it, and the badges (Select, versions,
+/// the lock, kept out of Images) as its actions, as Images' tiles have them.
+private struct GridTileAccess: ViewModifier {
+    let row: FileRow
+    let selected: Bool
+    let video: Bool
+    let outOfImagesShown: Bool
+    let open: () -> Void
+    let toggle: () -> Void
+    let versions: () -> Void
+    let lock: () -> Void
+    let outOfImages: () -> Void
+
+    func body(content: Content) -> some View {
+        let item = row.path != ".."
+        content
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(row.name)
+            .accessibilityValue(video ? S.appFilesVideo : "")
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
+            .accessibilityAction { open() }
+            .accessibilityActions {
+                if item {
+                    Button(selected ? S.commonDeselect : S.commonSelect, action: toggle)
+                }
+                if !row.isDir && row.versions > 0 {
+                    Button(S.iosFilesOlderVersions(count: Int(row.versions)), action: versions)
+                }
+                if item && row.isDir && row.uploadOnly {
+                    Button(S.appFilesUploadOnly, action: lock)
+                }
+                if item && row.isDir && row.outOfImages && outOfImagesShown {
+                    Button(OutOfImagesText.state, action: outOfImages)
                 }
             }
     }

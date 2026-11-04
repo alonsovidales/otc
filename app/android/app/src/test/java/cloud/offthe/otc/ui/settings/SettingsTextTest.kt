@@ -6,6 +6,8 @@ import cloud.offthe.otc.i18n.RichText
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.UiTextFormat
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowText
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowTitle
 import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.i18n.androidSettingsBridgeLeaveDelete
 import cloud.offthe.otc.i18n.androidSettingsCropHint
@@ -240,6 +242,15 @@ import java.util.Locale
 // screens use, rendered with sample values (a file name gets the isolation
 // marks every user-typed value gets). As SettingsTextTests.swift.
 class SettingsTextTest {
+    /** Sync From Now asks first, as the iPhone's: it gives up on everything not sent yet. */
+    @Test fun syncFromNowAsksFirst() {
+        assertEquals("Sync only from now on?", S.appSettingsSyncFromNowTitle().english())
+        assertEquals(
+            "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library.",
+            S.appSettingsSyncFromNowText().english(),
+        )
+    }
+
     @Test fun everyTextReadsAsBefore() {
         assertEquals("Leave and Delete", S.androidSettingsBridgeLeaveDelete().english())
         assertEquals("Drag the photo to centre your face", S.androidSettingsCropHint().english())

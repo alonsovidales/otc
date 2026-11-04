@@ -8988,6 +8988,100 @@
         }
       }
     },
+    "app.settings.sync.from_now_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos und Videos ohne Backup bekommen keines mehr, auch nicht die, die noch einmal versucht werden sollten. Nur was du ab jetzt aufnimmst oder speicherst, wird gesendet. „Alles synchronisieren“ geht die ganze Mediathek noch einmal durch."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las fotos y los vídeos que aún no tengan copia de seguridad ya no la tendrán, incluidos los que esperan a reintentarse. Solo se envía lo que hagas o guardes a partir de ahora. “Sincronizar todo” vuelve a recorrer toda la biblioteca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les photos et vidéos pas encore sauvegardées ne le seront pas, y compris celles qui attendent un nouvel essai. Seul ce que vous prenez ou enregistrez à partir de maintenant est envoyé. « Tout synchroniser » parcourt de nouveau toute la bibliothèque."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le foto e i video senza ancora un backup non lo avranno, compresi quelli in attesa di un nuovo tentativo. Viene inviato solo ciò che scatti o salvi da adesso in poi. “Sincronizza tutto” ripercorre l’intera libreria."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto’s en video’s zonder reservekopie krijgen er geen meer, ook niet die op een nieuwe poging wachten. Alleen wat je vanaf nu maakt of bewaart, wordt verstuurd. “Alles synchroniseren” gaat opnieuw door de hele bibliotheek."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As fotos e os vídeos ainda sem cópia de segurança já não a vão ter, incluindo os que esperam nova tentativa. Só é enviado o que tirares ou guardares a partir de agora. «Sincronizar tudo» volta a percorrer a biblioteca inteira."
+          }
+        }
+      }
+    },
+    "app.settings.sync.from_now_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur noch ab jetzt synchronisieren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync only from now on?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Sincronizar solo a partir de ahora?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchroniser seulement à partir de maintenant ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizzare solo da adesso in poi?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen vanaf nu synchroniseren?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar só a partir de agora?"
+          }
+        }
+      }
+    },
     "app.settings.sync.title" : {
       "extractionState" : "manual",
       "localizations" : {

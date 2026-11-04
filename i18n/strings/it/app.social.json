@@ -73,6 +73,14 @@
     "text": "Filtra per etichetta…",
     "en": "Filter by tag…"
   },
+  "app.social.compose.move_left": {
+    "text": "Sposta a sinistra",
+    "en": "Move left"
+  },
+  "app.social.compose.move_right": {
+    "text": "Sposta a destra",
+    "en": "Move right"
+  },
   "app.social.compose.order": {
     "text": "Ordine nel post",
     "en": "Order in post"
@@ -80,6 +88,10 @@
   "app.social.compose.photos_access": {
     "text": "Serve l’accesso alle foto per scegliere dal telefono.",
     "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.position": {
+    "text": "Numero {position} nel post",
+    "en": "Number {position} in the post"
   },
   "app.social.compose.publish": {
     "text": "Pubblica",
@@ -120,6 +132,10 @@
   "app.social.compose.trim_load_failed": {
     "text": "Impossibile caricare quel video per tagliarlo: {detail}",
     "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.unpick": {
+    "text": "Rimuovi dal post",
+    "en": "Remove from the post"
   },
   "app.social.compose.uploading": {
     "text": "Caricamento {done} di {total}…",

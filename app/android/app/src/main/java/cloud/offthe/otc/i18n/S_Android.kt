@@ -54,14 +54,6 @@ fun S.androidBluetoothTurnOn(): UiText =
 fun S.androidCacheBytes(count: Int): UiText =
     UiText.Plural(R.plurals.android_cache_bytes, count, listOf(count))
 
-/** "Move left": Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post. */
-fun S.androidComposeMoveLeft(): UiText =
-    UiText.Res(R.string.android_compose_move_left)
-
-/** "Move right": Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post. */
-fun S.androidComposeMoveRight(): UiText =
-    UiText.Res(R.string.android_compose_move_right)
-
 /** "Record a video": Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post. */
 fun S.androidComposeRecordVideo(): UiText =
     UiText.Res(R.string.android_compose_record_video)
@@ -158,6 +150,10 @@ fun S.androidFilesInsideKeptOutInfo(folder: String): UiText =
 fun S.androidFilesKeptOutSaid(name: String): UiText =
     UiText.Res(R.string.android_files_kept_out_said, listOf(name))
 
+/** "{count} older versions" (one: "{count} older version"): Screen-reader name of the badge with a clock and a number on a file in Files (the list and the grid of tiles): how many older versions the device keeps of it. A tap lists them. */
+fun S.androidFilesOlderVersions(count: Int): UiText =
+    UiText.Plural(R.plurals.android_files_older_versions, count, listOf(count))
+
 /** "Show “{name}” in Images": Button of the banner at the top of Files (android.files.inside_kept_out_banner): asks whether to show the folder that keeps this one out of Images there again. {name} is that folder's name. Images is the photo section (app.shell.section_images). Write the quotes in your language's style. */
 fun S.androidFilesShowNamed(name: String): UiText =
     UiText.Res(R.string.android_files_show_named, listOf(name))
@@ -222,6 +218,10 @@ fun S.androidLocationOffHint(): UiText =
 fun S.androidMenuSections(): UiText =
     UiText.Res(R.string.android_menu_sections)
 
+/** "No app on this phone can open this link.": Short message (a toast at the bottom of the screen) when a link was tapped - a web page, or a photo's place in a maps app - and no app on the phone can open it (a phone without a browser or maps app). */
+fun S.androidNoAppForLink(): UiText =
+    UiText.Res(R.string.android_no_app_for_link)
+
 /** "Friends and posts": Name of the notification channel for pushes, shown in Android's notification settings for the app. */
 fun S.androidNotificationChannel(): UiText =
     UiText.Res(R.string.android_notification_channel)
@@ -265,6 +265,22 @@ fun S.androidPhotosSearchClose(): UiText =
 /** "In the search": Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search. */
 fun S.androidPhotosSearchInSearch(): UiText =
     UiText.Res(R.string.android_photos_search_in_search)
+
+/** "Start over": Button under that text (android.secrets_unavailable), beside Try again, and the confirm button of its question (android.secrets_start_over_title): forget the sign-in kept on this phone and start as a fresh install. */
+fun S.androidSecretsStartOver(): UiText =
+    UiText.Res(R.string.android_secrets_start_over)
+
+/** "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.": Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so the owner signs in again and is asked again what to back up (all photos or only new ones), as on a new phone. The device and everything on it stay as they are. */
+fun S.androidSecretsStartOverText(): UiText =
+    UiText.Res(R.string.android_secrets_start_over_text)
+
+/** "Start over on this phone?": Title of the question asked after Start over (android.secrets_start_over) on the screen that says the phone's secure storage can't be opened. Buttons: Cancel and Start over. */
+fun S.androidSecretsStartOverTitle(): UiText =
+    UiText.Res(R.string.android_secrets_start_over_title)
+
+/** "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again.": Shown alone on the screen at launch, above Try again (common.try_again) and Start over (android.secrets_start_over), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened - for instance right after a system update. Nothing is deleted unless Start over is chosen; trying again usually works. */
+fun S.androidSecretsUnavailable(): UiText =
+    UiText.Res(R.string.android_secrets_unavailable)
 
 /** "Leave and Delete": Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account. */
 fun S.androidSettingsBridgeLeaveDelete(): UiText =
@@ -462,9 +478,17 @@ fun S.androidStorageUsed(percent: String): UiText =
 fun S.androidTrimCant(reason: String): UiText =
     UiText.Res(R.string.android_trim_cant, listOf(reason))
 
+/** "End of the cut": Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5). */
+fun S.androidTrimEndHandle(): UiText =
+    UiText.Res(R.string.android_trim_end_handle)
+
 /** "▶ Play cut": Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol. */
 fun S.androidTrimPlayCut(): UiText =
     UiText.Res(R.string.android_trim_play_cut)
+
+/** "Start of the cut": Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0). */
+fun S.androidTrimStartHandle(): UiText =
+    UiText.Res(R.string.android_trim_start_handle)
 
 /** "Both": Choice under Show on (android.wallpaper_show_on): the lock screen and the home screen (agree with screen if your language needs it). */
 fun S.androidWallpaperBoth(): UiText =

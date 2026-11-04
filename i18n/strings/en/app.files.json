@@ -267,6 +267,11 @@
     "text": "Could not fetch file",
     "note": "Short message (toast) at the top of Files when a file was tapped to open it and the device refused to send it."
   },
+  "app.files.path_label": {
+    "text": "Folder path",
+    "note": "The name of the field at the top of Files that shows the folder being browsed, as a path (/Photos/2026/), and takes a path typed to go there: its screen-reader name, and the grey text in it while it is empty.",
+    "max": 30
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} result",

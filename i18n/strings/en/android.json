@@ -53,14 +53,6 @@
     "args": [["count", "count"]],
     "note": "Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB."
   },
-  "android.compose_move_left": {
-    "text": "Move left",
-    "note": "Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post."
-  },
-  "android.compose_move_right": {
-    "text": "Move right",
-    "note": "Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post."
-  },
   "android.compose_record_video": {
     "text": "Record a video",
     "note": "Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post.",
@@ -181,6 +173,14 @@
     "args": [["name", "user"]],
     "note": "Said by the screen reader (not shown) once a folder has been kept out of Images. {name} is the folder's name. Images is the photo section (app.shell.section_images)."
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the badge with a clock and a number on a file in Files (the list and the grid of tiles): how many older versions the device keeps of it. A tap lists them."
+  },
   "android.files.show_named": {
     "text": "Show “{name}” in Images",
     "args": [["name", "user"]],
@@ -270,6 +270,10 @@
     "text": "Sections",
     "note": "Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown."
   },
+  "android.no_app_for_link": {
+    "text": "No app on this phone can open this link.",
+    "note": "Short message (a toast at the bottom of the screen) when a link was tapped - a web page, or a photo's place in a maps app - and no app on the phone can open it (a phone without a browser or maps app)."
+  },
   "android.notification_channel": {
     "text": "Friends and posts",
     "note": "Name of the notification channel for pushes, shown in Android's notification settings for the app.",
@@ -323,6 +327,30 @@
   "android.photos_search_in_search": {
     "text": "In the search",
     "note": "Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search."
+  },
+  "android.secrets_start_over": {
+    "text": "Start over",
+    "note": "Button under that text (android.secrets_unavailable), beside Try again, and the confirm button of its question (android.secrets_start_over_title): forget the sign-in kept on this phone and start as a fresh install.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #67f88b2e"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "note": "Text of that question (android.secrets_start_over_title). The app's secure storage is reset: the device's address and password, this phone's id and the record of which photos were already sent are lost, so the owner signs in again and is asked again what to back up (all photos or only new ones), as on a new phone. The device and everything on it stay as they are.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #ec7cc88c"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Start over on this phone?",
+    "note": "Title of the question asked after Start over (android.secrets_start_over) on the screen that says the phone's secure storage can't be opened. Buttons: Cancel and Start over.",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #73dc4239"
+  },
+  "android.secrets_unavailable": {
+    "text": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again.",
+    "note": "Shown alone on the screen at launch, above Try again (common.try_again) and Start over (android.secrets_start_over), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened - for instance right after a system update. Nothing is deleted unless Start over is chosen; trying again usually works."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Leave and Delete",
@@ -561,10 +589,18 @@
     "args": [["reason", "text"]],
     "note": "In the Trim video screen of the New Post composer when the video can't be opened. {reason} says why (app.social.trim.cant_open or app.social.trim.no_length)."
   },
+  "android.trim_end_handle": {
+    "text": "End of the cut",
+    "note": "Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5)."
+  },
   "android.trim_play_cut": {
     "text": "▶ Play cut",
     "note": "Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol.",
     "max": 20
+  },
+  "android.trim_start_handle": {
+    "text": "Start of the cut",
+    "note": "Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0)."
   },
   "android.wallpaper_both": {
     "text": "Both",

@@ -233,6 +233,10 @@
     "text": "Impossibile recuperare il file",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Percorso della cartella",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} risultato",

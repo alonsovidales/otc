@@ -52,6 +52,12 @@ enum PhotoSources {
     /// to sync from. Photos never came near that size.
     static let large = "large"
 
+    /// The one-off pass over the videos since the point the owner chose to
+    /// sync from, queued when "Include videos" is turned back on
+    /// (PhotoSync.videosTurnedOn): those taken while it was off are behind
+    /// the watermark.
+    static let videos = "videos"
+
     /// The size over which earlier versions gave an asset up.
     static let oldCeiling: Int64 = 1 << 30
 
@@ -172,6 +178,9 @@ enum PhotoSources {
         /// The videos added after the date (nil: the whole library) that
         /// may have been given up on for their size (`large`).
         case large(Date?)
+        /// Every video added after the date (nil: the whole library):
+        /// "Include videos" turned back on (`videos`).
+        case videos(Date?)
     }
 
     /// The passes to make of those queued. The catch-up needs the floor:
@@ -179,10 +188,14 @@ enum PhotoSources {
     /// Date.distantPast, "everything", is the whole library.
     static func oneOffs(_ taken: [String], floor: Date?) -> [OneOff] {
         taken.compactMap { entry in
-            guard entry == catchUp || entry == large else { return .album(entry) }
+            guard entry == catchUp || entry == large || entry == videos else { return .album(entry) }
             guard let floor else { return nil }
             let since = floor == .distantPast ? nil : floor
-            return entry == large ? .large(since) : .since(since)
+            switch entry {
+            case large: return .large(since)
+            case videos: return .videos(since)
+            default: return .since(since)
+            }
         }
     }
 

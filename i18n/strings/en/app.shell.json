@@ -186,6 +186,13 @@
     "text": "Device name",
     "note": "Placeholder of the field for the device's name on the Off The Cloud bridge (first screen and the connection card); .off-the.cloud follows it."
   },
+  "app.shell.home_port_unreachable": {
+    "text": "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.",
+    "args": [["port", "text"]],
+    "note": "Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), and this phone has signed in to the device before over the device's encrypted connection on the home network, on its own port ({port}, a number such as 8443). Now the address answers but that port doesn't, so the app refused to send the password unencrypted. A container is a Docker container; publishing a port is Docker's word for letting the network reach it.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #de469a24"
+  },
   "app.shell.host_not_found": {
     "text": "That address can't be found. Check the device name or address.",
     "note": "Why the app can't connect, on the card shown over the app: the device's name or address doesn't exist on the internet."
@@ -307,6 +314,13 @@
   "app.shell.not_connected": {
     "text": "Not connected",
     "note": "Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start)."
+  },
+  "app.shell.not_known_device": {
+    "text": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "args": [["button", "text"]],
+    "note": "Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), this phone has signed in to the device there before and knows its security certificate, and now something else answers at that address (another network that uses the same addresses, or the device set up again from scratch), so the app refused to send the password. {button} is the card's button app.shell.leave_button, quoted.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #bf9d7f42"
   },
   "app.shell.not_otc": {
     "text": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.",
@@ -645,6 +659,20 @@
     "text": "Open my device",
     "note": "Set up a new device (over Bluetooth): button once the device is installed, which signs the app in to it.",
     "max": 30
+  },
+  "app.shell.setup_other_domain_text": {
+    "text": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+    "args": [["domain", "user"]],
+    "note": "Text of that question (app.shell.setup_other_domain_title). {domain} is the address the device reported, such as photos.example.net. A bridge of one's own is a self-hosted relay server instead of Off The Cloud's; something nearby could pretend to be the device during the setup over Bluetooth. Keep off-the.cloud as it is.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #98ecaccb"
+  },
+  "app.shell.setup_other_domain_title": {
+    "text": "Open this address?",
+    "note": "Set up a new device (over Bluetooth): title of the question asked when the device reported an address that isn't a name under off-the.cloud - after Open my device (app.shell.setup_open_device), and after Save & Continue (app.shell.save_continue) when the connection form was filled from that setup. Buttons: Cancel and Open my device.",
+    "max": 60,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #14c7450f"
   },
   "app.shell.setup_power_on": {
     "text": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.",

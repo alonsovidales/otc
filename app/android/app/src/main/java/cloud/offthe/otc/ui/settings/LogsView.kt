@@ -49,6 +49,7 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.GetLogs
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SendLogs
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.OTCTextField
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.TextIOException
@@ -84,6 +85,10 @@ import cloud.offthe.otc.i18n.commonPause
 import cloud.offthe.otc.i18n.commonResume
 import cloud.offthe.otc.i18n.commonSend
 import cloud.offthe.otc.i18n.commonShare
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 
 /*
  * Settings > Logs (primary instance only), the same screen as the web's and
@@ -121,6 +126,11 @@ class LogsViewModel : ViewModel() {
         if (job?.isActive == true) return
         state.update { it.copy(paused = false) }
         loop()
+    }
+
+    /** Back in front ([LogsView]): the poll goes on where it was, unless the reader paused it. */
+    fun resume() {
+        if (!state.value.paused) start()
     }
 
     fun stop() = synchronized(lock) {
@@ -247,7 +257,9 @@ class LogsViewModel : ViewModel() {
 // A share intent's extras go through a ~1 MB binder buffer: a longer log goes as a file.
 private fun shareLog(context: Context, source: String, text: String) {
     if (text.length <= 100_000) { Share.link(context, text); return }
-    val f = File(context.cacheDir, "otc-${if (source == "update") "updates" else "device"}.log")
+    // With the other copies handed to another app (TempFiles), one at a time.
+    TempFiles.clear(context.cacheDir, TempFiles.Kind.SHARE)
+    val f = TempFiles.named(context.cacheDir, TempFiles.Kind.SHARE, "otc-${if (source == "update") "updates" else "device"}.log") // i18n-ignore: the shared file's name
     f.writeText(text)
     Share.file(context, f, "text/plain")
 }
@@ -264,9 +276,15 @@ fun LogsView(onClose: () -> Unit) {
     var showSend by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
 
-    DisposableEffect(Unit) {
-        vm.start()
-        onDispose { vm.close() }
+    DisposableEffect(Unit) { onDispose { vm.close() } }
+    // Only while the app is in front: the 25 s long poll went on asking in
+    // the background with Logs open. It picks up where it was on return.
+    val lifecycle = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycle) {
+        lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            vm.resume()
+            try { awaitCancellation() } finally { vm.stop() }
+        }
     }
     LaunchedEffect(list) {
         snapshotFlow { list.isScrollInProgress }.collect { scrolling -> if (!scrolling) follow = !list.canScrollForward }

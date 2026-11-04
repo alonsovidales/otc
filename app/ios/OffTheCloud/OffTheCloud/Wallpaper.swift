@@ -142,6 +142,11 @@ struct WallpaperAlbumState: Codable, Equatable {
     /// Copies taken out of the album (their photo left the collection):
     /// still in the library until Stop, as iOS asks before any delete.
     var outOfAlbum: [String] = []
+    /// Let go of (Log Out, another device, its collection gone) while the
+    /// app couldn't reach Photos: its copies only wait to be deleted, once
+    /// access is back - never kept in step, nor added to again. nil (states
+    /// kept before) is false.
+    var leftOver: Bool? = nil
 
     /// Every asset the app made: what Stop deletes.
     var assets: [String] { copies.values.sorted() + outOfAlbum }
@@ -199,6 +204,8 @@ protocol WallpaperAlbumStoring {
     /// first: false when the person said no.
     func delete(assets: [String], album: String) async throws -> Bool
     func albumExists(_ album: String) -> Bool
+    /// Those of `assets` still in the library.
+    func existing(_ assets: [String]) -> [String]
 }
 
 /// The device, as the wallpaper needs it (tests answer in its place).
@@ -306,13 +313,19 @@ final class WallpaperModel: ObservableObject {
     }()
     /// How long "Wi-Fi only" is waited for between checks.
     var wifiPoll: TimeInterval = 2
+    /// A device check waits (DeviceChange.pending); tests decide.
+    var isDeviceCheckPending: () -> Bool = { DeviceChange.pending }
     var rng = WallpaperRandom()
     /// When the collections were last kept in step, and how often at most.
     private var lastStep: Date?
     var stepEvery: TimeInterval = 15 * 60
-    /// Bumped by Log Out: work started before it stops writing.
+    /// Bumped by Log Out and by another address saved: work started before
+    /// it stops writing.
     private var generation = 0
     private var busy = false
+    /// Album changes under way (albumStore.add): Log Out waits for them, so
+    /// the copies they make are among those its Stop deletes.
+    private var adding = 0
 
     init(device: WallpaperDevice = .live,
          albumStore: WallpaperAlbumStoring = PhotosAlbumStore(),
@@ -324,6 +337,12 @@ final class WallpaperModel: ObservableObject {
         self.widgetRoot = widgetRoot
         album = stateStore.album()
         widget = widgetRoot.flatMap { WidgetCatalog.load(root: $0).collections.first }
+        // Copies an earlier version stored went into the phone's backups.
+        if let widgetRoot, FileManager.default.fileExists(atPath: widgetRoot.path) {
+            Self.keepOutOfBackups(widgetRoot)
+            // What a Stop moved aside and an ended launch never deleted.
+            Self.sweepStopped(widgetRoot)
+        }
         if let album { albumPhase = .ready(count: album.copies.count) }
         if let widget { widgetPhase = .ready(count: widget.files.count) }
     }
@@ -331,7 +350,13 @@ final class WallpaperModel: ObservableObject {
     /// The collection is shown one way or the other: its menu item says
     /// "Wallpaper settings…".
     func inUse(_ collection: String) -> Bool {
-        album?.collectionID == collection || widget?.collectionID == collection
+        (album?.collectionID == collection && album?.leftOver != true) || widget?.collectionID == collection
+    }
+
+    /// The album is this collection's and in use (not one only waiting to
+    /// be deleted).
+    func albumIsFor(_ collection: String) -> Bool {
+        album?.collectionID == collection && album?.leftOver != true
     }
 
     /// A way is at work: nothing else starts meanwhile.
@@ -368,7 +393,7 @@ final class WallpaperModel: ObservableObject {
     func startAlbum(collection: String, name: String, photos: [WallpaperPhoto]) async {
         guard !busy, !photos.isEmpty else { return }
         guard await checkAccess() else { return }
-        if let current = album, current.collectionID != collection {
+        if let current = album, current.collectionID != collection || current.leftOver == true {
             guard await stopAlbum() else { return }
         }
         busy = true
@@ -399,16 +424,25 @@ final class WallpaperModel: ObservableObject {
         var batch: [WallpaperImage] = []
         func flush() async -> Bool {
             guard !batch.isEmpty else { return true }
+            // Log Out (or another device) began meanwhile: no album is made
+            // or added to any more - one made now would be nobody's to stop.
+            guard gen == generation else {
+                batch = []
+                return false
+            }
+            adding += 1
+            defer { adding -= 1 }
             do {
                 let made = try await albumStore.add(batch, album: state.albumID.isEmpty ? nil : state.albumID,
                                                     title: WallpaperRules.albumTitle(state.collectionName))
-                guard gen == generation else { return false }
+                // Kept even when Log Out began during the change: its Stop,
+                // which waits for this (signedOut), deletes them too.
                 state.albumID = made.album
                 for (img, id) in zip(batch, made.assets) { state.copies[img.hash] = id }
                 album = state
                 stateStore.setAlbum(state)
                 batch = []
-                return true
+                return gen == generation
             } catch {
                 batch = []
                 return false
@@ -430,16 +464,41 @@ final class WallpaperModel: ObservableObject {
         return allOK && !state.copies.isEmpty
     }
 
+    /// What a Stop of the album came to.
+    enum AlbumStop: Equatable {
+        /// The album and its copies are deleted (or none was left).
+        case stopped
+        /// iOS asked, and the person said no: nothing changed.
+        case declined
+        /// Without full access to Photos nothing of it can be seen or
+        /// deleted, though the copies may well be there: what the app knows
+        /// of them stays, and the screen says what it needs
+        /// (needsFullAccess).
+        case noAccess
+    }
+
     /// Stop: the album and every copy the app made for it, in one change iOS
     /// asks about first. If the person says no, nothing changes (false).
     @discardableResult
     func stopAlbum() async -> Bool {
-        guard let state = album else { return true }
-        guard let deleted = try? await albumStore.delete(assets: state.assets, album: state.albumID), deleted else { return false }
+        await stopAlbumNow() == .stopped
+    }
+
+    func stopAlbumNow() async -> AlbumStop {
+        guard let state = album else { return .stopped }
+        // Without full access PhotoKit finds none of them, which read as
+        // nothing left to delete: "Stopped... deleted", while the copies
+        // stayed in Photos (and iCloud Photos) with no Stop left.
+        guard albumStore.access() == .full else {
+            needsFullAccess = true
+            return .noAccess
+        }
+        guard let deleted = try? await albumStore.delete(assets: state.assets, album: state.albumID), deleted else { return .declined }
         album = nil
         stateStore.setAlbum(nil)
         albumPhase = .stopped
-        return true
+        needsFullAccess = false
+        return .stopped
     }
 
     // MARK: The home screen widget
@@ -472,12 +531,58 @@ final class WallpaperModel: ObservableObject {
         widgetPhase = ok ? .ready(count: c.files.count) : .failed
     }
 
+    /// The widget's copies are this phone's alone (ios.wallpaper_widget_text):
+    /// its folder is kept out of iCloud and computer backups - the App
+    /// Group's container is backed up like the app's own, Library/Caches
+    /// aside - so a backup never uploads them and a restore never brings
+    /// them back. Set on the folder, it covers all it holds.
+    /// The name a Stop's folder of copies is moved aside to (discard).
+    nonisolated static let stoppedPrefix = ".stopped-"
+
+    /// A collection's copies, gone from where the widget looks at once (a
+    /// rename) and deleted off the main actor: up to 100 JPEGs, which the
+    /// box's Stop, a deleted collection, another one started or Log Out
+    /// used to delete on it. A collection started again right after gets a
+    /// folder of its own. Android's Wallpaper.stopNow does the same.
+    nonisolated static func discard(_ dir: URL, under root: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: dir.path) else { return }
+        let aside = root.appendingPathComponent(stoppedPrefix + UUID().uuidString, isDirectory: true)
+        do {
+            try fm.moveItem(at: dir, to: aside)
+        } catch {
+            try? fm.removeItem(at: dir)
+            return
+        }
+        Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: aside) }
+    }
+
+    /// Folders a Stop moved aside whose delete an ended launch cut short:
+    /// deleted off the main actor.
+    nonisolated static func sweepStopped(_ root: URL) {
+        Task.detached(priority: .utility) {
+            let fm = FileManager.default
+            for name in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] where name.hasPrefix(stoppedPrefix) {
+                try? fm.removeItem(at: root.appendingPathComponent(name, isDirectory: true))
+            }
+        }
+    }
+
+    nonisolated static func keepOutOfBackups(_ root: URL) {
+        var url = root
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? url.setResourceValues(values)
+    }
+
     private func addToWidget(_ photos: [WallpaperPhoto], collection c: inout WidgetCatalog.Collection, root: URL, gen: Int) async -> Bool {
         let dir = root.appendingPathComponent(c.folder, isDirectory: true)
         var allOK = true
         var done = 0
         widgetPhase = .storing(done: 0, total: photos.count, waitingForWifi: false)
         do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            Self.keepOutOfBackups(root)
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         } catch {
             return false
@@ -485,7 +590,11 @@ final class WallpaperModel: ObservableObject {
         for p in photos {
             guard gen == generation else { return false }
             guard await waitForWifi(way: .widget, done: done, total: photos.count, gen: gen) else { return false }
-            if let data = await copy(p, side: WallpaperRules.widgetSide) {
+            let data = await copy(p, side: WallpaperRules.widgetSide)
+            // Log Out meanwhile (signedOut) has stopped the widget: nothing
+            // of that device's is written again.
+            guard gen == generation else { return false }
+            if let data {
                 let name = WidgetCatalog.folderName(for: p.hash) + ".jpg"
                 do {
                     try data.write(to: dir.appendingPathComponent(name), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
@@ -520,7 +629,7 @@ final class WallpaperModel: ObservableObject {
     /// again.
     func stopWidget() {
         guard let root = widgetRoot, let c = widget else { return }
-        try? FileManager.default.removeItem(at: root.appendingPathComponent(c.folder, isDirectory: true))
+        Self.discard(root.appendingPathComponent(c.folder, isDirectory: true), under: root)
         groupDefaults?.removeObject(forKey: WallpaperShuffle.key(c.id))
         saveWidget(nil, root: root)
         widgetPhase = .stopped
@@ -534,6 +643,11 @@ final class WallpaperModel: ObservableObject {
     /// name.
     func keepInStep(force: Bool = false) async {
         guard !busy, album != nil || widget != nil else { return }
+        // Another address saved and its device not known yet: its
+        // collections may be another library's (every device's Favourites
+        // has the same id), so nothing is copied from it until it is
+        // (DeviceChange; another device stops both ways).
+        guard !isDeviceCheckPending() else { return }
         if !force, let lastStep, Date().timeIntervalSince(lastStep) < stepEvery { return }
         // The first time after a launch the widget is drawn again (a new
         // version of the app draws it differently).
@@ -543,11 +657,28 @@ final class WallpaperModel: ObservableObject {
         busy = true
         defer { busy = false }
         let gen = generation
-        if var state = album {
-            if !albumStore.albumExists(state.albumID) {
-                // The album was deleted in Photos: nothing left to show.
-                album = nil
-                stateStore.setAlbum(nil)
+        if let state = album, state.leftOver == true {
+            // Only waiting to be deleted: now, if Photos can be reached.
+            if albumStore.access() == .full { await letGoOfAlbum() }
+        } else if var state = album {
+            if albumStore.access() != .full {
+                // Without full access nothing of the album can be seen: it is
+                // kept as it is until access is back (its Stop deletes what the
+                // app made then).
+            } else if !albumStore.albumExists(state.albumID) {
+                // The album was deleted in Photos. Its copies may be in the
+                // library still: they stay the app's to delete (Stop), and
+                // nothing is added any more. None left: nothing to keep.
+                let left = Set(albumStore.existing(state.assets))
+                if left.isEmpty {
+                    album = nil
+                    stateStore.setAlbum(nil)
+                } else {
+                    state.copies = state.copies.filter { left.contains($0.value) }
+                    state.outOfAlbum = state.outOfAlbum.filter { left.contains($0) }
+                    album = state
+                    stateStore.setAlbum(state)
+                }
                 albumPhase = .idle
             } else if let g = groups.first(where: { $0.id == state.collectionID }) {
                 if g.name != state.collectionName {
@@ -562,7 +693,7 @@ final class WallpaperModel: ObservableObject {
             } else {
                 // The collection was deleted: so is its album, if the
                 // person agrees; either way the app lets go of it.
-                if !(await stopAlbum()) { forgetAlbum() }
+                await letGoOfAlbum()
             }
         }
         guard gen == generation else { return }
@@ -624,9 +755,31 @@ final class WallpaperModel: ObservableObject {
         if album?.collectionID == id {
             // Said no to deleting them: the album stays in Photos, no
             // longer the app's to keep in step (its assets stay out of the
-            // sync: SavedToPhone).
-            if !(await stopAlbum()) { forgetAlbum() }
+            // sync: SavedToPhone). Without access, kept to delete later.
+            await letGoOfAlbum()
         }
+    }
+
+    /// Another device at the address saved (DeviceChange): as Log Out,
+    /// both stop - their photos were the last device's.
+    func deviceChanged() async {
+        await signedOut()
+    }
+
+    /// Another address saved (DeviceChange.addressChanged), its device not
+    /// known yet: work under way stops writing - its next requests go to the
+    /// new address, whose collections may be another library's (every
+    /// device's Favourites has the same id), and a keepInStep that started
+    /// before the Save would copy them into this one's album and widget.
+    /// Nothing stops and nothing is deleted: what is stored stays, and is
+    /// kept in step again once the device has said it is the same one
+    /// (another device stops both: deviceChanged).
+    func addressChanged() {
+        generation += 1
+        lastStep = nil
+        // Work cut short leaves no progress on screen: what is stored shows.
+        if case .storing = albumPhase { albumPhase = album.map { .ready(count: $0.copies.count) } ?? .idle }
+        if case .storing = widgetPhase { widgetPhase = widget.map { .ready(count: $0.files.count) } ?? .idle }
     }
 
     /// Log Out (and so a change of device): both stop - their photos are
@@ -635,13 +788,40 @@ final class WallpaperModel: ObservableObject {
     func signedOut() async {
         generation += 1
         lastStep = nil
+        // An album change under way finishes first: the copies it makes are
+        // then among those deleted below (a change of the Photos library,
+        // seconds at most). The copies still downloading stop at their next
+        // step (`generation`).
+        let waitUntil = Date() + 10
+        while adding > 0, Date() < waitUntil { try? await Task.sleep(for: .milliseconds(50)) }
         stopWidget()
         // The names of that device's collections go too.
         WidgetNames.forget(in: groupDefaults)
-        if album != nil, !(await stopAlbum()) { forgetAlbum() }
+        // Said no: the app lets go of the album. Without access to Photos it
+        // is kept only to be deleted once access is back.
+        if album != nil { await letGoOfAlbum() }
         albumPhase = .idle
         widgetPhase = .idle
         needsFullAccess = false
+    }
+
+    /// The album is no longer the app's to show: deleted with its copies if
+    /// the person agrees (iOS asks); said no, the app lets go of it; without
+    /// access to Photos, it is kept only to be deleted once access is back
+    /// (leftOver) - not forgotten with its copies in Photos, nor followed
+    /// on with another device's collection of the same id.
+    private func letGoOfAlbum() async {
+        switch await stopAlbumNow() {
+        case .declined:
+            forgetAlbum()
+        case .noAccess:
+            guard var state = album else { return }
+            state.leftOver = true
+            album = state
+            stateStore.setAlbum(state)
+        case .stopped:
+            break
+        }
     }
 
     private func forgetAlbum() {
@@ -779,6 +959,13 @@ struct PhotosAlbumStore: WallpaperAlbumStoring {
 
     func albumExists(_ album: String) -> Bool {
         !album.isEmpty && PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [album], options: nil).count > 0
+    }
+
+    func existing(_ assets: [String]) -> [String] {
+        guard !assets.isEmpty else { return [] }
+        var out: [String] = []
+        PHAsset.fetchAssets(withLocalIdentifiers: assets, options: nil).enumerateObjects { a, _, _ in out.append(a.localIdentifier) }
+        return out
     }
 }
 

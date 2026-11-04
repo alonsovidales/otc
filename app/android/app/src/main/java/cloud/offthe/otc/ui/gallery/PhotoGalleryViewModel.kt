@@ -57,6 +57,7 @@ import cloud.offthe.otc.proto.SetImageGroupRating
 import cloud.offthe.otc.i18n.appPhotosRatingNeedsUpdate
 import cloud.offthe.otc.i18n.appPhotosRatingTurnedOn
 import cloud.offthe.otc.proto.ShareFilesLink
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
 import cloud.offthe.otc.ui.common.deviceNeedsUpdate
@@ -309,6 +310,9 @@ class PhotoGalleryViewModel(
         // title (placeholderMonth), so the photos land where they were.
         val placeholderCount: Int? = null,
         val placeholderMonth: String? = null,
+        // The month the last jump went to (TalkBack's scrubber names it);
+        // null after a search of its own.
+        val jumpMonth: String? = null,
         // Counts the jumps whose photos have landed: the grid goes to its top
         // then, the month's title.
         val jumpsLanded: Int = 0,
@@ -914,8 +918,21 @@ class PhotoGalleryViewModel(
         // Not a month (the device's "No date" bucket has its own cutoff): no
         // jump, the photos as they were - never grey tiles left standing.
         val before = jumpCutoffMs(month, ZoneId.systemDefault()) ?: run { previewMonth(null); return }
+        _state.update { it.copy(jumpMonth = month) }
         searchJob?.cancel()
         searchJob = scope.launch { performJump(before) }
+    }
+
+    /**
+     * TalkBack's swipe up ([newer]) or down on the scrubber: the next
+     * month's photos at once, as a scrub let go there. It had nothing for
+     * TalkBack at all: a big library was a page at a time.
+     */
+    fun scrubStep(newer: Boolean) {
+        val st = _state.value
+        val target = scrubStepBucket(st.freshBuckets, scrubberMonth(st.freshBuckets, st.jumpMonth), newer) ?: return
+        previewMonth(target)
+        jumpToDate(target.month)
     }
 
     // A fresh search like a filter change, anchored at `before` (the last
@@ -1560,7 +1577,7 @@ class PhotoGalleryViewModel(
         _state.update {
             it.copy(
                 loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
-                scrubFrac = null, placeholderCount = null, placeholderMonth = null, searchesStarted = it.searchesStarted + 1,
+                scrubFrac = null, placeholderCount = null, placeholderMonth = null, jumpMonth = null, searchesStarted = it.searchesStarted + 1,
                 upOn = false, upLoading = false, upProblem = null,
             )
         }
@@ -2061,7 +2078,8 @@ class PhotoGalleryViewModel(
         // Rating: a comment written for another photo and not saved is saved now.
         _state.value.ratingDraft?.path?.let { d -> if (d != _state.value.items[index].path) leaveRatingDraft(d) }
         photoFacesAsk++
-        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null, ratingNote = null) }
+        dropVideoCopy()
+        _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoLoading = false, infoData = null, infoFaces = null, ratingNote = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
         askFavourites(index)
@@ -2106,6 +2124,7 @@ class PhotoGalleryViewModel(
         favouritesSaid.keys.retainAll(favouriteWanted.keys)
         favouriteTaps.keys.retainAll(favouriteWanted.keys)
         favouriteSends.values.removeAll { !it.isActive }
+        dropVideoCopy()
         _state.update {
             it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null, ratingNote = null)
         }
@@ -2219,6 +2238,7 @@ class PhotoGalleryViewModel(
     /** The open video ([path]) couldn't be fetched or played: its poster stays, saying so. */
     fun videoFailed(path: String) {
         if (openPath() != path) return
+        dropVideoCopy()
         _state.update { it.copy(unplayable = it.unplayable + path, videoUrl = null) }
         thumbnailStays(path)
     }
@@ -2415,22 +2435,32 @@ class PhotoGalleryViewModel(
         val idx = _state.value.openIndex ?: return
         val item = _state.value.items.getOrNull(idx) ?: return
         val path = item.path
+        // Only this opening's answer counts: one for the photo before (Info
+        // opened on A, the viewer moved to B, Info opened again) used to
+        // show A's camera, date and map under B, and its end cleared B's
+        // spinner early.
+        val ask = ++infoAsk
+        fun current() = ask == infoAsk && _state.value.infoOpen && openPath() == path
         _state.update { it.copy(infoOpen = true, infoLoading = true, infoData = null, infoFaces = null) }
         scope.launch {
             try {
                 val resp = call { it.setReqGetFileInfo(GetFileInfo.newBuilder().setPath(path)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_INFO) _state.update { it.copy(infoData = resp.respFileInfo) }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE_INFO && current()) _state.update { it.copy(infoData = resp.respFileInfo) }
             } catch (_: Exception) {
             } finally {
-                _state.update { it.copy(infoLoading = false) }
+                if (current()) _state.update { it.copy(infoLoading = false) }
             }
         }
         askPhotoFaces(item)
     }
 
+    // Info's details: the latest GetFileInfo (openInfo).
+    private var infoAsk = 0
+
     fun closeInfo() {
         photoFacesAsk++
-        _state.update { it.copy(infoOpen = false, infoData = null, infoFaces = null) }
+        infoAsk++
+        _state.update { it.copy(infoOpen = false, infoLoading = false, infoData = null, infoFaces = null) }
     }
 
     // Info's People: the latest GetPhotoFaces (an answer to an older one,
@@ -2587,6 +2617,22 @@ class PhotoGalleryViewModel(
         return true
     }
 
+    // The viewer's whole-file copy of the video playing (no stream URL), if
+    // any: deleted as the viewer moves on or closes. Main thread only.
+    private var videoCopy: File? = null
+
+    private fun dropVideoCopy() {
+        val f = videoCopy ?: return
+        videoCopy = null
+        scope.launch(Dispatchers.IO) { TempFiles.delete(f) }
+    }
+
+    override fun onCleared() {
+        // Its scope is gone with it: the copy is deleted on a thread of its own.
+        videoCopy?.let { f -> Thread { TempFiles.delete(f) }.start() }
+        videoCopy = null
+    }
+
     /** Issue #110: streamed when the device offers a URL, downloaded otherwise. */
     private suspend fun fetchVideo(it: Item) {
         // Still on this video? Stepping on before a slow stream URL or
@@ -2597,8 +2643,7 @@ class PhotoGalleryViewModel(
         try {
             // In pieces (a video can be far bigger than the heap), stopped as
             // soon as the viewer moves on; named once its mime is known.
-            val uuid = UUID.randomUUID().toString()
-            val raw = File(OTCApp.instance.cacheDir, uuid)
+            val raw = TempFiles.file(OTCApp.instance.cacheDir, TempFiles.Kind.VIEWER, "part")
             val meta = ChunkedDownload.download(it.path, "", raw, keepGoing = { stillOpen() })
             if (meta.size == 0L) { raw.delete(); return }
             val ext = when (meta.mime.lowercase()) {
@@ -2608,9 +2653,13 @@ class PhotoGalleryViewModel(
                 "video/3gpp" -> "3gp"
                 else -> it.path.substringAfterLast('.', "mp4").lowercase()
             }
-            val tmp = File(OTCApp.instance.cacheDir, "$uuid.$ext")
+            val tmp = File(raw.parentFile, raw.name.removeSuffix(".part") + ".$ext")
             if (!stillOpen() || !raw.renameTo(tmp)) { raw.delete(); return }
             got = true
+            // The one before (the last video played this way) goes: one copy
+            // at most, deleted as the viewer moves on or closes.
+            dropVideoCopy()
+            videoCopy = tmp
             _state.update { s -> s.copy(videoUrl = tmp.toURI().toString()) }
         } catch (e: CancellationException) {
             throw e
@@ -2641,8 +2690,12 @@ class PhotoGalleryViewModel(
     suspend fun shareCurrentPhoto(context: Context) {
         val img = currentImage() ?: run { alert(S.appPhotosNoticeNotLoaded()); return }
         try {
-            val tmp = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
-            withContext(Dispatchers.IO) { tmp.outputStream().use { img.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+            // One at a time: the last share's picture goes (the share sheet
+            // has handed it over by now); what's left goes at the next start.
+            val tmp = withContext(Dispatchers.IO) {
+                TempFiles.clear(context.cacheDir, TempFiles.Kind.SHARE)
+                TempFiles.file(context.cacheDir, TempFiles.Kind.SHARE, "jpg").also { f -> f.outputStream().use { img.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+            }
             Share.file(context, tmp, "image/jpeg")
         } catch (e: Exception) { alert(S.appPhotosNoticeShareFailed("${e.message}")) }
     }
@@ -2666,7 +2719,7 @@ class PhotoGalleryViewModel(
         val app = context.applicationContext
         _state.update { it.copy(saving = true) }
         scope.launch {
-            val tmp = File(app.cacheDir, "save-${UUID.randomUUID()}")
+            val tmp = TempFiles.file(app.cacheDir, TempFiles.Kind.VIEWER, "save")
             try {
                 val meta = ChunkedDownload.download(item.path, "", tmp)
                 val mime = meta.mime.ifEmpty { item.mime }
@@ -2895,10 +2948,20 @@ class PhotoGalleryViewModel(
      * photos asked for again - at the jump after one - with the months and
      * the open collection's count; else what was deleted updates them.
      */
-    fun deleteSelected(everyCopy: Boolean = false) = scope.launch {
+    fun deleteSelected(everyCopy: Boolean = false): Job? {
         val st = _state.value
         val paths = st.selected.toList()
-        if (paths.isEmpty()) return@launch
+        // One at a time: a second Delete while one runs sent the same paths
+        // again, and the refusals for those already gone read as failures.
+        if (paths.isEmpty() || st.preparing != null) return null
+        // The bar waits, its Delete a spinner, until every one is done.
+        _state.update { it.copy(preparing = SelectionActionTask.DELETE) }
+        return scope.launch {
+            try { deleteEach(st, paths, everyCopy) } finally { _state.update { it.copy(preparing = null) } }
+        }
+    }
+
+    private suspend fun deleteEach(st: State, paths: List<String>, everyCopy: Boolean) {
         // A pick no longer on the grid (a jump or a reload since): as it was last shown.
         val shown = pickedByPath(st.items, pickedAway, st.selected)
         val deleted = mutableSetOf<String>()
@@ -2914,7 +2977,7 @@ class PhotoGalleryViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) { refusals += DeleteRefusal("", "${e.message}"); continue }
+            } catch (e: Exception) { refusals += deleteFailed(e, online()); continue }
             deleted += p
         }
         // Also on this phone? Asked about what the device deleted.
@@ -3110,10 +3173,22 @@ internal const val DELETE_COPY_UPLOAD_ONLY = "copy_upload_only"
 
 /**
  * Issue #201: a photo of the selection's Delete that wasn't deleted: the
- * device's error_code ("" when no answer came) and its words (or the
- * phone's, when none came).
+ * device's error_code ("" when no answer came) and its words - or, when no
+ * answer came, why in the app's words ([why], [deleteFailed]).
  */
-data class DeleteRefusal(val code: String, val said: String)
+data class DeleteRefusal(val code: String, val said: String, val why: UiText? = null) {
+    /** What the note says of it: "Delete failed: " and the device's words, or why no answer came. */
+    internal fun note(): UiText = if (why != null) UiText.Res(R.string.app_photos_notice_delete_failed, listOf(why)) else S.appPhotosNoticeDeleteFailed(said)
+}
+
+/**
+ * A delete that got no answer ([e] thrown: no connection, none in time),
+ * Images' and Files': why, in the app's words and language
+ * (OTCConnection.describe; [online]: the phone has a network) - the
+ * network stack's own English ("Failed to connect to /192.168.1.20:8080",
+ * a bare EOFException) used to reach the note, in every language.
+ */
+internal fun deleteFailed(e: Throwable, online: Boolean): DeleteRefusal = DeleteRefusal("", "", OTCConnection.describe(e, online))
 
 /**
  * Issue #201: what the selection's Delete says about the photos it
@@ -3127,14 +3202,14 @@ data class DeleteRefusal(val code: String, val said: String)
  */
 fun deleteRefusalNotes(refusals: List<DeleteRefusal>): List<UiText> {
     if (refusals.isEmpty()) return emptyList()
-    if (refusals.size == 1) return listOf(S.appPhotosNoticeDeleteFailed(refusals[0].said))
+    if (refusals.size == 1) return listOf(refusals[0].note())
     val changed = refusals.count { it.code == DELETE_CHANGED }
     val copies = refusals.count { it.code == DELETE_COPY_UPLOAD_ONLY }
-    val others = refusals.filter { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }.map { it.said }.distinct()
+    val others = refusals.filter { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }.map { it.note() }.distinct()
     return buildList {
         if (changed > 0) add(S.appPhotosNoticeDeleteChanged(changed))
         if (copies > 0) add(S.appPhotosNoticeDeleteCopyUploadOnly(copies))
-        for (said in others) add(S.appPhotosNoticeDeleteFailed(said))
+        addAll(others)
     }
 }
 

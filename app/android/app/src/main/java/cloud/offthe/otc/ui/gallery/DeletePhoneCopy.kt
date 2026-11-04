@@ -13,13 +13,13 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.Color
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.R
 import cloud.offthe.otc.data.SecretsStore
@@ -373,7 +373,7 @@ fun DeletePhoneCopyDialog() {
             title = { Text(a.title().resolve()) },
             text = { Text(a.text().resolve()) },
             confirmButton = {
-                TextButton(onClick = DeletePhoneCopyModel::delete) { Text(S.appPhotosDeletePhoneDelete().resolve(), color = Color(0xFFE53935)) }
+                TextButton(onClick = DeletePhoneCopyModel::delete) { Text(S.appPhotosDeletePhoneDelete().resolve(), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = DeletePhoneCopyModel::keep) { Text(S.appPhotosDeletePhoneKeep().resolve()) } },
         )

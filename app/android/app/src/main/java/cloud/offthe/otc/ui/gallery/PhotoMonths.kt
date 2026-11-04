@@ -111,6 +111,35 @@ fun monthTitle(key: String): UiText =
 fun monthShort(key: String): UiText = monthParts(key)?.let(::shortTitle) ?: UiText.Raw(key)
 
 /**
+ * A month as TalkBack says it on the scrubber: "March 2024", or "No date"
+ * for the device's bucket of photos without one (iOS's PhotoMonths.spoken).
+ */
+fun monthSpoken(month: String): UiText {
+    val m = month.drop(5).take(2).toIntOrNull()
+    val y = month.take(4).toIntOrNull()
+    return if (m != null && m in 1..12 && y != null && y > 0) monthTitle(month) else S.appPhotosMonthsNoDate()
+}
+
+/**
+ * TalkBack's scrubber (the web's slider, iOS's scrubberMonth): the month it
+ * names - the one the last jump went to, while the buckets still have it,
+ * else the newest.
+ */
+fun scrubberMonth(buckets: List<PhotoGalleryViewModel.DateBucket>, jumpMonth: String?): String? =
+    jumpMonth?.takeIf { m -> buckets.any { it.month == m } } ?: buckets.firstOrNull()?.month
+
+/**
+ * A step of TalkBack's scrubber from [current]: the next [newer] or older
+ * month's bucket (the buckets go newest first), null at either end.
+ */
+fun scrubStepBucket(buckets: List<PhotoGalleryViewModel.DateBucket>, current: String?, newer: Boolean): PhotoGalleryViewModel.DateBucket? {
+    if (buckets.isEmpty()) return null
+    val at = buckets.indexOfFirst { it.month == current }.takeIf { it >= 0 } ?: 0
+    val next = (at + if (newer) -1 else 1).coerceIn(0, buckets.size - 1)
+    return if (next == at) null else buckets[next]
+}
+
+/**
  * The scrubber's bubble: "Mar 2024", or "No date" for the device's bucket
  * of photos without one (a zero month) - the web's DateScrubber monthLabel.
  */

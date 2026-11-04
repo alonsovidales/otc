@@ -53,14 +53,6 @@
       "other": "{count} bytes"
     }
   },
-  "android.compose_move_left": {
-    "text": "Nach links verschieben",
-    "en": "Move left"
-  },
-  "android.compose_move_right": {
-    "text": "Nach rechts verschieben",
-    "en": "Move right"
-  },
   "android.compose_record_video": {
     "text": "Video aufnehmen",
     "en": "Record a video"
@@ -171,6 +163,16 @@
     "text": "{name} in „Bilder“ ausgeblendet",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} ältere Version",
+      "other": "{count} ältere Versionen"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "Ordner „{name}“ in „Bilder“ anzeigen",
     "en": "Show “{name}” in Images"
@@ -244,6 +246,10 @@
     "text": "Bereiche",
     "en": "Sections"
   },
+  "android.no_app_for_link": {
+    "text": "Keine App auf diesem Telefon kann diesen Link öffnen.",
+    "en": "No app on this phone can open this link."
+  },
   "android.notification_channel": {
     "text": "Freunde und Beiträge",
     "en": "Friends and posts"
@@ -294,6 +300,25 @@
   "android.photos_search_in_search": {
     "text": "In der Suche",
     "en": "In the search"
+  },
+  "android.secrets_start_over": {
+    "text": "Von vorn beginnen",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #a9eb3286"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud vergisst seine Anmeldung und was es von diesem Telefon schon gesichert hat, wie frisch installiert: Du meldest dich erneut mit der Adresse und dem Passwort des Geräts an und wählst wie bei einem neuen Telefon noch einmal, was gesichert wird. Auf dem Gerät wird nichts gelöscht.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #8e55507f"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Auf diesem Telefon von vorn beginnen?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #c880032d"
+  },
+  "android.secrets_unavailable": {
+    "text": "Off The Cloud kann den sicheren Speicher dieses Telefons, in dem es deine Anmeldung aufbewahrt, nicht öffnen. Das legt sich meist nach einem Neustart oder einem Systemupdate: Versuche es gleich noch einmal. Wenn es weiter passiert, kannst du von vorn beginnen und dich erneut anmelden.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Verlassen und löschen",
@@ -507,9 +532,17 @@
     "text": "Dieses Video kann nicht gekürzt werden: {reason}",
     "en": "Can't trim this video: {reason}"
   },
+  "android.trim_end_handle": {
+    "text": "Ende des Ausschnitts",
+    "en": "End of the cut"
+  },
   "android.trim_play_cut": {
     "text": "▶ Schnitt abspielen",
     "en": "▶ Play cut"
+  },
+  "android.trim_start_handle": {
+    "text": "Anfang des Ausschnitts",
+    "en": "Start of the cut"
   },
   "android.wallpaper_both": {
     "text": "Beide",

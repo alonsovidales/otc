@@ -712,6 +712,16 @@
     "text": "Sincronizar desde ahora",
     "en": "Sync From Now"
   },
+  "app.settings.sync.from_now_text": {
+    "text": "Las fotos y los vídeos que aún no tengan copia de seguridad ya no la tendrán, incluidos los que esperan a reintentarse. Solo se envía lo que hagas o guardes a partir de ahora. “Sincronizar todo” vuelve a recorrer toda la biblioteca.",
+    "en": "Photos and videos not backed up yet won't be, those waiting to be tried again included. Only what you take or save from now on is sent. Sync All goes back over the whole library.",
+    "reviewed": "claude-backtranslation 2026-11-04 #3d069d22"
+  },
+  "app.settings.sync.from_now_title": {
+    "text": "¿Sincronizar solo a partir de ahora?",
+    "en": "Sync only from now on?",
+    "reviewed": "claude-backtranslation 2026-11-04 #a71f34c8"
+  },
   "app.settings.sync.title": {
     "text": "Opciones de sincronización",
     "en": "Sync Options"

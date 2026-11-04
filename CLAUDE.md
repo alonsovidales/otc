@@ -232,7 +232,19 @@ into `<head>` swaps `fetch()` for a call into the app (`WKScriptMessageHandlerWi
 `@JavascriptInterface`), because neither web view hands POST bodies to an interceptor
 reliably. The view watches `/api/state` for `install.phase == "online"` and then offers "Use
 this device", which fills the onboarding form's endpoint (bridge name → wss, no bridge →
-`ws://otc.local:8080/ws`). `python3 scripts/setup_ble.py --selftest` checks the framing and
+`ws://otc.local:8080/ws`). Any other domain the wizard reports - a bridge of one's own, or a
+look-alike (`name.off-the.cloud.example.net`) from something nearby passing for the device - is
+opened only after a question that shows it (`domainNeedsConfirm` in both apps,
+`app.shell.setup_other_domain_title`/`_text`): the photos would go there. The pending setup
+(below) is saved before any question, so Onboarding's Save & Continue asks the same before it
+signs in to it (`setupAddressToConfirm`; not for an address typed over it). What that leaves
+open: the setup has no pairing secret, and a lone advertiser is connected to at once, so
+anything nearby advertising the setup service while the owner's device still boots is taken for
+it - and when it reports an off-the.cloud name of its own (any device registered on the bridge,
+the Docker image's too), "Open my device" signs in there unasked with the password its page
+handed over, and the library goes there after the sync question. The domain question only stops
+look-alikes; the checks against that are the address named on the "Open my device" step
+(`app.shell.setup_ready_as`) and the page's "Blink its light". `python3 scripts/setup_ble.py --selftest` checks the framing and
 forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a CoreBluetooth
 peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
 in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. The
@@ -1074,6 +1086,50 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     transfer runs (`TransferActivity` / `OTCConnection.transfer {}` / `folderBusy`). A check put
     off is recorded and runs after. Settings shows "Connected over your home network" or
     "Connected through off-the.cloud".
+  - A ws:// address on the phones (a device set up without the bridge, or left it): a private
+    address or a `.local` name is the home network only while the phone is at home, and on another network
+    with the same range whoever held it got the sign-in in the clear, the key the password is
+    sealed with included. Its connects race the pinned link with the address's own host added at
+    the pinned port (`OTCConnection.raceTargets`, `LocalEndpoint.including`: a `.local` name or a
+    Tailscale address where the listed ones don't answer, a container's own addresses). Once this
+    phone has signed in over that link (`LocalEndpoint.reached`, set at a home sign-in - the
+    route check's move home included - kept while the pin is the same, `keepingReach`, and by
+    Leave the Bridge, `LocalEndpoint.move`) the address goes only the pinned way
+    (`OTCConnection.pinnedOnly`). Until then a missed race goes on to the address as before, so a
+    device whose encrypted port the phone can't reach (a firewall letting only 8080 through, a
+    container publishing only 8080) keeps working; a stored endpoint from before has no
+    `reached` and counts as not reached. Pinned only, a missed race asks whatever answers at the
+    address for GetPubKey alone (`probeInTheClear`, nothing of the phone's in it) and never
+    sends it the password: nothing answers - the usual "isn't answering"; `storage_unavailable` -
+    issue #207's state in the app's own words (a device without its storage serves no listener,
+    and nothing proves it is the device); anything else - the network is up, so the link is
+    raced once more with a longer budget (`HomeNetwork.secondRaceBudget`, 10 s: a Wi-Fi just
+    waking, a busy device) and signed in over if it answers. Still nothing: a certificate other
+    than the pin seen at one of its addresses (`PinnedSession.contest`'s `otherCertificate`) is
+    `app.shell.not_known_device` (something else holds the address; a device set up again from
+    scratch is reached again through "Set up or connect a different device"), only timeouts and
+    refusals are `app.shell.home_port_unreachable` with the port (error 9, no pointer to that
+    button: whoever answers can't be told from the device). http:// media goes only while the
+    session itself is in the clear (`signedInInClear`: a first sign-in, a device without a pin
+    or not reached). Every sign-in over the home link asks GetLocalEndpoint again there
+    (`updateOverHome`: new addresses only, the pin never dropped). Saving the same address
+    spelled otherwise (a host's case) keeps its pin (`saveCredentials`: `move`), never a sign-in
+    in the clear. Tests: `PinnedAddressTests.swift`, `HomeNetworkTests.swift` (the race's
+    outcome). Android has the same rules and names (`net/PinnedAddress.kt`: `pinnedOnly`,
+    `raceTargets`, `probe`, `find`, `homeAfterSave`; `HomeEndpoint.reached`, stored as a fourth
+    part `|reached` of `home_endpoint` - an older three-part value reads as not reached -,
+    `including`, `keepingReach`, `signedInOver`; `HomeNetwork.contest`, whose pinned trust manager
+    throws `OtherCertificate` for a certificate that isn't the pin; `OTCConnection.connectPinned`,
+    `markReached`, `refreshHomeEndpoint(overHome =)`, `signedInInClear` for `MediaStream`). The
+    pinned way installs no socket until it has signed in, so its failed connect schedules the
+    backoff retry itself (`scheduleRetry`, `PinnedAddress.retriesAfter`: not after a password
+    turned down, the storage answer or new settings), as a failed connect through the endpoint
+    does by its socket's drop (on iOS the probe dials the connection's own socket, so a probe
+    nothing answers comes back that way). Its
+    route check leaving home (`switchRoute`) never dials a pinned address: the home socket stays
+    until it drops, and that reconnect goes by the rules above. A name raced on a bound network
+    (the home Wi-Fi with mobile data the default) is looked up on that network. Tests:
+    `PinnedAddressTest.kt`, `HomeNetworkTest.kt`.
   - Video: `/media/<token>` is relative, so the base follows the route. Android plays through
     ExoPlayer on the pinned OkHttp client; iOS streams local media through an
     `AVAssetResourceLoader` on a custom scheme over the pinned URLSession, and bridge media plays as
@@ -2547,11 +2603,14 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   English is the only shipping language. Parity: iOS `LanguageSettings.swift` <-> Android
   `i18n/LanguageSettings.kt` (rules in `LanguageSync`); macOS `LanguageSettings.swift` <-> otc-sync
   `engine/language.go` + `internal/oslang`; `otc-sync language [auto|<code>]` (English output).
-  Android recreates the Activity on a change, except on the Bluetooth setup (the manifest's
-  `locale|layoutDirection` plus `LanguageSettings.holdInPlace()`, so its link and page survive):
-  state that must survive uses `rememberSaveable` or a view model (the connection forms'
-  `ConnectionFormModel`; never a password in saved state), and launch-time prompts ask only on a
-  fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
+  Android recreates the Activity on a change, except on the Bluetooth setup (the manifest handles
+  `locale|layoutDirection|uiMode|density|fontScale`, and `MainActivity.onConfigurationChanged`
+  recreates for a new locale, dark mode, display or text size unless `LanguageSettings.holdInPlace()`
+  is held, so the setup's link and page survive a language pick and a dark-mode or text-size
+  switch alike - Compose follows in place; Onboarding's `setupOpen` is saveable, so a recreation
+  that does happen comes back to the setup): state that must survive uses `rememberSaveable` or a
+  view model (the connection forms' `ConnectionFormModel`; never a password in saved state), and
+  launch-time prompts ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
 - New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
   `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state
   (keep a key or a `UiText`). A `UiText` is a function, so never hand one bare to React:
@@ -4170,6 +4229,35 @@ Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) 
 returns at once - background runs included. No run asks for access: Photos/media are asked from Start
 Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
 once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
+**Another address in Settings** (iOS `DeviceChange.swift` <-> Android `data/DeviceChange.kt`): Settings ›
+Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
+one respelled, nor a first sign-in) may be another device or the same one reached another way. The
+screens are made afresh at once (`addressChanged`: the session models Log Out resets, and RootView
+makes MainView again, `SecretsStore.deviceSession`; the wallpaper's work under way stops writing,
+`WallpaperModel.addressChanged`, as its next requests go to the new address), Settings' Save first
+has the device left forget this phone's push token (`unregisterPushBeforeLeaving`, 3 s at most), and
+until the new address's device says who it is (`DeviceChange.pending`: the last device's pin kept in
+UserDefaults) no photo sync runs (`onePass` returns skipped) and the wallpaper isn't kept in step.
+Its GetLocalEndpoint answer decides (`refreshLocalEndpoint`; asked again 5 times, 30 s apart, when
+it says nothing): the same pin - nothing changes and the sync goes on; another pin,
+`unknown_payload`/`local_unavailable`, or no pin known for the last one - another device: the run
+stops, SyncChoice is asked as at a sign-in, and the wallpaper stops as at Log Out (`apply`). Until
+then the last device's watermark carried over, so the new one never got the photos taken before it.
+Leave the Bridge is the same device (`saveCredentials(sameDevice:)`): no check, and its pin moves to
+the new address. Tests: `DeviceChangeTests.swift`, `WallpaperTests`'
+`anotherAddressSavedStopsAKeepInStepUnderWay`. Android: the check's pin is kept in the `otc_sync`
+prefs (`deviceChangePin`, hex; wiped at Log Out, not backed up); `SecretsStore.deviceSession` keys
+MainView in RootView, whose view models live in a store of that session (`SessionStores`, an
+Activity view model, so a recreation keeps them); the screens' singletons reset as at Log Out
+(`DeviceChange.addressChanged`) and the feed and the Alerts poll start again; Settings' Save sends
+`UnregisterFcmToken` over the socket in use first, then saves, in the connection's own scope
+(`OTCConnection.saveAnotherAddress`, `SaveAnotherAddressTest`: in the screen's, leaving Settings
+during those seconds dropped the save after the token had gone); `PhotoSync.onePass` is skipped while
+`DeviceChange.pending`; the wallpaper (`Wallpaper.addressChanged`: its generation bumped and the
+copies' fetch cancelled, nothing deleted) isn't fetched meanwhile and goes on rotating its copies,
+then `sameDeviceAt` (the stored endpoint follows, a fetch is queued) or `deviceChanged()` (stopped);
+Leave the Bridge and the same address respelled keep it (`sameDeviceAt`). Tests:
+`DeviceChangeTest.kt`, `PinnedAddressTest.theSameDeviceAtAnotherAddressKeepsItsPin`.
 **Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
 iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
 missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and
@@ -4182,7 +4270,12 @@ photos, iOS `.limited`) shows a warning with Select More Photos / Allow Access t
 later and what was hidden before full access are backed up from the owner's chosen starting point. iOS
 also reads the library's persistent change history (`PhotoHistory.swift`) so a photo added late with an
 older creation date (AirDrop, Files) isn't behind the creationDate watermark; a missing token keeps the
-old behaviour. Android's DATE_ADDED filter never had that gap.
+old behaviour. Android's DATE_ADDED filter never had that gap. Include videos turned back on queues a
+one-off pass over the videos since the owner's chosen starting point (iOS `PhotoSources.videos`,
+Android `PhotoSync.VIDEOS` in the `otc_sync` one-off list; both `PhotoSync.videosTurnedOn`, from
+the switch while signed in): the runs while it was off moved the watermark past the videos taken
+then, which were never sent; none without a floor, as the catch-up. Tests:
+`PhotoSourcesTests.theVideosPassFollowsTheFloor` <-> `PhotoSyncPlanTest.theVideosPassFollowsTheFloor`.
 **Free up space** (iOS `FreeUpSpace.swift` <-> Android `sync/FreeUpSpace.kt`; owner's request
 2026-10-21): off unless turned on (Settings > Free Up Space, and the same section on the sign-in
 sheet), it deletes from the phone the photos and videos taken more than N days ago (1-365, 7 by
@@ -4199,8 +4292,9 @@ reads each original right before deleting it, only when it is on the phone (neve
 those stay), as a recorded hash may come from the device's cloud-id map rather than the bytes -
 AssetSyncCache's hash only spares reading what the device doesn't hold - and never deletes edited
 assets (the sync sends the original),
-bursts, Live Photos unless `freeUpLivePhotos` (the sync sends only the still), or videos while
-Include videos is off; `PHAssetChangeRequest.deleteAssets` asks every time and keeps them 30 days
+bursts, RAW+JPEG pairs (an `.alternatePhoto` or a second photo resource: the sync sends one of the two,
+and deleting the asset deletes both), Live Photos unless `freeUpLivePhotos` (the sync sends only the
+still), or videos while Include videos is off; `PHAssetChangeRequest.deleteAssets` asks every time and keeps them 30 days
 in Recently Deleted (with iCloud Photos they leave iCloud too). Android re-reads a file whose
 `GENERATION_MODIFIED` or `SIZE` changed since it was hashed (its own `free_up_hashes.json`;
 AssetSyncCache's hashes don't say which version), needs Android 11 (`createTrashRequest`, launched
@@ -4310,9 +4404,13 @@ lock/home/both with WallpaperManager; Stop, deleting the collection, Log Out and
 the copies and leave the last photo up. iOS can't set wallpapers (`WallpaperView.swift`): the lock screen gets a
 Photos album "Off The Cloud · <name>" for Photo Shuffle (full Photos access; every asset made is in
 `SavedToPhone`, so `PhotoSync.leftOut` keeps it out of the sync and Free Up Space; Stop deletes them in one
-change, iOS asks), and the home screen the `OffTheCloudWidgetExtension` target (`cloud.off-the.OffTheCloud.Widget`,
+change, iOS asks - only with full access to Photos: without it nothing can be seen or deleted, so the
+album is kept, not forgotten, and the screen says what Stop needs; an album deleted in Photos keeps its
+copies the app's to delete; Log Out waits for an album change under way and makes nothing after it),
+and the home screen the `OffTheCloudWidgetExtension` target (`cloud.off-the.OffTheCloud.Widget`,
 App Group `group.cloud.off-the.OffTheCloud`, both registered 2026-10-28; copies <= 1200 px in the group
-container, `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
+container, its `Widget` folder kept out of iCloud and computer backups (`keepOutOfBackups`: the group's
+container is backed up like the app's own), `AppIntentConfiguration` over the collections with copies, 6 hourly entries per timeline - a
 24-entry one is refused as too large -, its texts from the app's language through the group).
 **Settings sections the device decides** (2026-10-29: Users, Device version, Wi-Fi, Tailscale Funnel,
 Bridge and Account, Troubleshooting): until the device has answered for one - its role and, for the
@@ -4780,7 +4878,8 @@ under Info.plist's `cloud.off-the.OffTheCloud.backup.*`, registered when first a
 `.fail`). The system shows its progress (the title and "N of M" as assets are done, `progress` set
 every second); the run's end completes it (`LongSync.runEnded`, from `runPasses`), and its
 expiration (the owner stopping it, or the system) stops the run (`stopRun`). While it holds the run
-the app's own background time running out doesn't stop it. Below iOS 26, and for any other run, as
+neither the app's own background time running out nor the end of a BG processing task that joined
+the run stops it (`SyncScheduler.stopsRunAtExpiry`). Below iOS 26, and for any other run, as
 before.
 
 **Copies of what the iPhone sends** (issue #210; `ExportRoom.swift`, `PhotoSync.exportAsset`; tests
@@ -4816,10 +4915,13 @@ device folder (`listForLarge`), so videos synced before are matched by path or c
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
 off so that date is fetched again. Failed assets go on a retry list, not the watermark (iOS
-`asset_sync_pending.log`, Android `asset_sync_pending.txt`); a run sends new, then retried, then
+`asset_sync_pending.log`, Android `asset_sync_pending.txt`); on iOS one PhotoKit can't read with Sync
+from iCloud off waits on its iCloud side until that is on, but never one whose copy was stopped (a run
+cancelled mid-copy) or whose own file failed (`PhotoSync.waitsForICloud`); a run sends new, then retried, then
 one-off assets, and goes once more for a trigger that came meanwhile (`rerunWanted`). Its writes are
 gated by generations bumped by `cancel()` (Log Out, which cancels again right before the wipe) and
-by Sync All and Sync From Now. "Wi-Fi only" holds a run before it and between chunks ("Waiting for
+by Sync All and Sync From Now. Settings' Sync From Now asks first (`app.settings.sync.from_now_title`,
+`_text`): it gives up on everything not sent yet, the retry list included, and sits next to Sync All. "Wi-Fi only" holds a run before it and between chunks ("Waiting for
 Wi-Fi", Android UNMETERED jobs), `storage_full` stops it ("Your device is full", 30 min), a small run
 (< 100 assets) skips the folder's listing, and between chunks the transfer hold lets a put-off route
 check run. What the viewer's Save wrote stays out of the sync and Free Up Space (iOS `SavedToPhone`,
@@ -4830,14 +4932,36 @@ Auth (an empty `Ack.code`, or `too_many_attempts`) `OTCConnection` fails the sam
 without dialling for 5 s doubling to 300 s; success, `invalidate()` or new credentials lift it;
 both show the can't-connect card, never `statusCode`. A request is sent again only if it never left
 (`retriesAfter`; else `WSClient.SentNoAnswer`), and ws:// goes only to the home network
-(`CleartextRule`, before dialling and for media URLs).
+(`CleartextRule`, before dialling and for media URLs) - and only over the pinned home link once
+this phone has reached its device there (Home network, above).
 Files open, versions, trimming and the gallery's video fallback read 4 MiB `ReadFile` pieces
 (`FileDownload.swift` / `ChunkedDownload.kt`); `GetFile` stays for HEIC and as the
-`unknown_payload` fallback. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
+`unknown_payload` fallback. iOS keeps its temporary copies in folders of their own
+(`TempFiles.swift`: `tmp/export|viewer|preview/<launch>/`): the photo sync's, the composer's and
+Free Up Space's copies of an asset, the viewer's whole-file video (removed with its player) and
+Share's picture (once the sheet closes), Files' Quick Look copies (as the preview closes); each
+launch removes earlier launches' folders and the copies older versions left at tmp's top level
+- an app suspended mid-run and then ended used to leave multi-GB videos there. Android's are in
+`cacheDir/tmp/<kind>/` (`ui/common/TempFiles.kt`, `TempFilesTest.kt`): the viewer's whole-file
+video (no stream URL; deleted as the viewer moves on or closes), Files' opened files and versions
+(under their own name, one at a time) and Share's picture and logs (one at a time), the composer's
+trims and the feed's fallback videos; each process start moves the folder aside and deletes it,
+with the plain files older versions left at the cache's top level (all but
+`social_feed_cache.pb`), and the FileProvider grants only `cacheDir/tmp/` (`file_paths.xml`). Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
 socket past 16 MiB queued). Android only: backup and device transfer include just
 `otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
 unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its
-Keystore key by resetting to a fresh install; `PhotoSync.hasPermission()` must match
+Keystore key by resetting to a fresh install - only when its keyset can never be read
+(`keysetUnusable`: a bad tag, a key that isn't there, a corrupt file); any other Keystore error is
+tried again (0.2, 0.5, 1 s), then fails that use (`SecretsStore.Unavailable`) with the file kept:
+RootView says `android.secrets_unavailable` with Try again and Start over (asked first,
+`SecretsStore.startOver`), a background run is retried, and a read that failed once never
+replaces the device id. Such an error can be for good too (a key whose blob the Keystore no
+longer takes after an OS or firmware update): how long it has lasted is kept in the plain,
+not-backed-up `otc_secrets_health` prefs (`SecretsFailures`: the first failure and the launches
+since, forgotten at the next open that works), and once it has failed on 3 launches over a day at
+least, the store starts over as for a restored file, the master key made again if need be (tests:
+`SecretsRecoveryTest`); `PhotoSync.hasPermission()` must match
 `mediaPermissions()`. Both: connection forms edit drafts and write `SecretsStore` only on Save
 (`saveCredentials`; options `persistOptions`), since every reconnect dials the stored values. iOS
 unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with `-only-testing:OffTheCloudTests`.
@@ -4886,6 +5010,28 @@ finger is over another (`range` is null). A pick that goes mid-drag (People's `k
 Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
 bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
 
+**VoiceOver where only a gesture reached** (iOS): Images' date scrubber is an adjustable element
+(`app.photos.grid.scrubber`, the web's slider: its value the month, `PhotoMonths.spoken`; a swipe up
+or down jumps a month newer or older at once, `PhotoGalleryVM.scrubStep`); the viewer's photo says
+what its tile says, a three-finger swipe or the Next/Previous photo actions page through it and say
+where (`ViewerPaging`), the neighbours waiting off screen hidden; the trimmer's handles step a
+hundredth of the clip a swipe (`DualRangeSlider.step`); a Files grid tile is one element named by
+its file with Select, versions, the lock and kept out of Images as its actions (`GridTileAccess`); a
+comment's like count says "N likes"; Files' path field is named (`app.files.path_label`). Tests:
+`VoiceOverTests.swift`. Android does the same for TalkBack: the scrubber's grab strip is a slider
+(`progressBarRangeInfo` oldest to newest, one month a step, `setProgress` ->
+`PhotoGalleryViewModel.scrubStep`; `scrubberMonth`, `scrubStepBucket`, `monthSpoken` in
+`PhotoMonths.kt`; `State.jumpMonth`); the viewer's page is named as its tile, has Next/Previous photo
+actions, announces the page a swipe settled on, and the neighbours are hidden; the trimmer's
+handles are two named elements over the slider stepped by `trimStep`
+(`android.trim_start_handle`/`_end_handle`); a Files grid tile is one element with its badges as
+actions and the versions badge reads `android.files.older_versions`; Settings' section titles are
+headings. Tests: `PhotoMonthsTest.theScrubbersMonthAndSteps`, `ComposerTest`.
+**Text size in the wide layout on iOS** (`AppMenu.swift`): the menu, the rail, the top bar's field
+and chips and the Collections page keep their design sizes (11-16 pt) at the default text size and
+follow the reader's text size from there (`scaledFont`, a `@ScaledMetric` relative to a text style),
+names cut short shrinking first; the rail, a column of fixed width, grows up to xxxLarge and shows an
+item large while pressed (`accessibilityShowsLargeContentViewer`), as a tab bar does.
 **Leaving selection mode on iOS** (`SelectionActionBar.swift`, Images and Files): the count pill
 reads [× N selected]; the × (`onClear`, named `app.shell.clear_selection`) runs the view model's
 `clearSelection()` - everything unpicked, a drag under way ended (its next moves pick nothing),
@@ -4988,7 +5134,7 @@ sends the tile's `hash` on every delete (Files' rows too, files only) and `every
 where copies is above 1. A refusal keeps the tile and shows the device's words in
 `app.photos.notice.delete_failed`; `changed` closes the viewer and runs the search again from
 where it began (`reloadSearch`: a jump at its month), the Files viewer lists its folder again
-(`onDeleted`), Files' own delete toasts the words; Files now shows its viewer's alerts too
+(`onDeleted`), Files' own delete toasts the words (in `delete_failed`, as Images says them); Files now shows its viewer's alerts too
 (`ViewerNotice`). Save downloads the original (`FileDownload.download(original:)`, ReadFile
 even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` resource,
 `creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
@@ -5046,7 +5192,13 @@ The composer is a new view model per opening (Android `ComposerStore`, a `ViewMo
 as the dialog closes; iOS's `@StateObject` per sheet), and Android publishes in an app scope, so
 closing it doesn't stop a post. Picks are `ComposerPicks` (ids in post order with their items),
 kept across a source or tag change and published from there; a capture switches to Phone and
-waits for its page first; `captionNeeded` says "Add a caption to publish". Android keeps Synced
+waits for its page first; `captionNeeded` says "Add a caption to publish". For VoiceOver and
+TalkBack each of its tiles is one element (`PickTile`: the photo or video and its date - Images'
+tile label, a Synced item's from its File's `created` -, `app.social.compose.position` once picked,
+as Android's state description, and selected), its strip's × and arrows are named 44 pt / 48 dp
+targets (`app.social.compose.unpick`, `move_left`, `move_right`; the place in the post a badge on
+the thumbnail), and a tag chip's × is named as Images' (`app.shell.search_remove`) - a bare "×"
+read "multiplication sign". Android keeps Synced
 tiles' late thumbnails in `State.thumbKeys`: an `Item` equals another by id, so a copy with a new
 key was an equal State the flow dropped. The feed's requests go through `socialRequest` (iOS) and
 Android's `FeedSend` helpers (`commentRefusal`, `deleteRefusal`, `fetchPost`): a comment the
@@ -5065,12 +5217,29 @@ in front) and else every 45 s; a list that failed says why (`AlertsBody` / `body
 load subject) with Try again and is asked again while shown; a refused Accept says why. Friends
 shows `app.social.friends.your_address` (Settings.domain, else the endpoint's bridge name) with
 Copy and Share (`share_text`'s `{address}` is plain text, no isolation marks, so it pastes into a
-Friends field); the add field's keyboard Send sends. Files uploads go through `UploadQueue` (two
+Friends field); the add field's keyboard Send sends. Its list never reads "No friendships yet." for a
+list that didn't come (iOS `FriendshipsViewModel.body`, Android `friendsBody`; Alerts' rule): a spinner until the first
+answer, `app.social.friends.load_failed` with Try again when the answer was an error or none came
+(asked again at a wake), the list kept while a refresh of it fails. Files uploads go through `UploadQueue` (two
 at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
 iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
-multi-delete runs in the view model's scope. Android only: the "isn't available"/"can't connect"
+multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold the selection bar,
+its Delete a spinner, until every delete is done (`SelectionActionTask.delete` / `DELETE`): through
+the bridge a few hundred take minutes, and a second Delete sent the same paths again; Files says
+what wasn't deleted as Images does (iOS `DeleteCopies.keptText`, Android `deleteKeptToast` over
+`deleteRefusalNotes`: the device's words, or why no answer came - on Android in the app's words,
+`deleteFailed` over `OTCConnection.describe`, never the network stack's English) - it said nothing at all. Android only: the "isn't available"/"can't connect"
 cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
-through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. The
+through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. Its
+colours read at 4.5:1 (`ui/theme/Theme.kt`, `ThemeContrastTest.kt`): light mode's accent is ember
+deepened (`EmberDeep`, #B5371C) with white on it - ember itself is 2.7:1 on white -, dark mode's
+is ember with ember-ink (#26100A) on it, what removes or signs out takes the theme's `error`
+(#B3261E light, #FF8A75 dark; a filled red button `error` with `onError`), a caption that warns
+the theme's `warning` (#FF9800 dark, `WarningDeep` #8F4E00 light: the orange is 2:1 on light
+surfaces), and the critical update's banner `AlertRed`. No screen hard-codes the old red #E53935
+or that orange for text or a button's content (`ThemeContrastTest.noScreenHardCodesTheOldRedOrOrange`
+scans the sources; the tour's drawings and the storage bar's fill aren't text). iOS doesn't
+follow yet (issue #211: white on ember, ember text in light mode, the system red and orange). The
 Bluetooth setup's Back steps back in the wizard (its `#back`) or leaves, asking first while the
 device installs (`setupLeaveAsks` / `leaveAsks`); `app.shell.setup_not_found` after 30 s of
 looking; Open Settings when access is needed (`ios.open_settings` / `android.open_settings`);

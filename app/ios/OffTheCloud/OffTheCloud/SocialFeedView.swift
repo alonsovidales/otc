@@ -1597,6 +1597,8 @@ private struct PostCard: View {
                                 } label: {
                                     Text("\(c.likes)").foregroundColor(.secondary)
                                 }
+                                // Its count alone read "3, button".
+                                .accessibilityLabel(S.appSocialPostLikes(count: Int(c.likes)))
                             }
                             Button {
                                 onLikeComment(c.commentUuid)

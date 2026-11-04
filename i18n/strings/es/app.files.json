@@ -233,6 +233,10 @@
     "text": "No se ha podido obtener el archivo",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Ruta de la carpeta",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} resultado",

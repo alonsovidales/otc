@@ -162,6 +162,10 @@ fun S.appPhotosGridPeopleTwo(first: String, second: String): UiText =
 fun S.appPhotosGridPersonItems(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_grid_person_items, count, listOf(count))
 
+/** "Jump to a date": Screen-reader name of the date scrubber beside Images (a strip at the screen's edge to jump through the photos by month). A swipe up or down goes to the next newer or older month; its value is the month. */
+fun S.appPhotosGridScrubber(): UiText =
+    UiText.Res(R.string.app_photos_grid_scrubber)
+
 /** "Photo": Screen-reader name of a photo's tile in Images when the photo has no date. */
 fun S.appPhotosGridTilePhoto(): UiText =
     UiText.Res(R.string.app_photos_grid_tile_photo)

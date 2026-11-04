@@ -583,6 +583,8 @@ ssl-key=
 # Issue #190: the apps reach the device at home over TLS on this port, with
 # a self-signed certificate they pin (made on the first start and kept in
 # <storage-path>/.lan-tls/). Defaults to port + 363 (8443) if omitted.
+# Keep it reachable from the home network: once the iPhone or Android app
+# has signed in over it, it signs in to a ws:// address only through it.
 lan-tls-port=8443
 # Optional: browser pages on other addresses that may open the device's
 # socket, besides the device's own page at its addresses and names on the

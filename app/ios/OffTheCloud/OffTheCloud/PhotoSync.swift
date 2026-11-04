@@ -460,7 +460,9 @@ final class PhotoSync: NSObject {
         defer { room.release(taken) }
 
         let ext = (filename as NSString).pathExtension
-        let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "bin" : ext)
+        // In the copies' own folder, which the next launch empties should
+        // this one be ended before the copy is removed (TempFiles).
+        let tmpURL = TempFiles.file(.export, ext: ext.isEmpty ? "bin" : ext)
         guard let out = OutputStream(url: tmpURL, append: false) else {
             throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
@@ -541,6 +543,16 @@ final class PhotoSync: NSObject {
                 }
             }
             return out
+        case .videos(let date):
+            guard includeVideos else { return [] }
+            let opts = PHFetchOptions()
+            var preds = [NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)]
+            if let date { preds.append(NSPredicate(format: "creationDate > %@", date as NSDate)) }
+            opts.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: preds)
+            opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+            var out: [PHAsset] = []
+            PHAsset.fetchAssets(with: opts).enumerateObjects { a, _, _ in out.append(a) }
+            return out
         case .album(let id):
             // Gone since it was turned on: nothing to send.
             guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject else { return [] }
@@ -553,6 +565,19 @@ final class PhotoSync: NSObject {
             PHAsset.fetchAssets(in: album, options: opts).enumerateObjects { a, _, _ in out.append(a) }
             return out
         }
+    }
+
+    /// "Include videos" turned back on. The videos taken while it was
+    /// off are behind the watermark - the runs that went meanwhile moved it
+    /// past them - so a one-off pass sends them, from the point the owner
+    /// chose to sync from (PhotoSources.videos); what the device has is
+    /// found and not sent again. Not while signed out (Log Out puts the
+    /// switch back on).
+    func videosTurnedOn() {
+        syncLock.lock()
+        state.queueBackfill(PhotoSources.videos)
+        syncLock.unlock()
+        Task { try? await runForeground() }
     }
 
     /// The retry list's assets that still exist, whatever their type: a
@@ -589,6 +614,28 @@ final class PhotoSync: NSObject {
     /// device.
     private struct ReadFailure: Error {
         let underlying: Error
+    }
+
+    /// Pure: whether a copy that failed with `cause` while "Sync from iCloud"
+    /// is off waits for it to be on (the retry list's iCloud side, read only
+    /// then). Not a run that was stopped - the app's background time over,
+    /// a BG task's end, Log Out: the copy was cancelled - nor the copy's own
+    /// file failing (the export's own errors, the disk): those are tried
+    /// again by the next run, as any other failure. They used to wait for
+    /// the switch for good, and a photo on the phone was never backed up.
+    /// What PhotoKit itself says - that the photo is in iCloud only, or
+    /// anything else it can't read without the network - still waits.
+    static func waitsForICloud(_ cause: Error) -> Bool {
+        if cause is CancellationError { return false }
+        let ns = cause as NSError
+        switch ns.domain {
+        case "PhotoExport", NSPOSIXErrorDomain, NSCocoaErrorDomain:
+            return false
+        case PHPhotosErrorDomain:
+            return ns.code != PHPhotosError.Code.userCancelled.rawValue
+        default:
+            return true
+        }
     }
 
     /// Remote paths taken during one run, with the content each was taken
@@ -709,6 +756,13 @@ final class PhotoSync: NSObject {
         // background task's runs included, until the sheet is answered.
         guard !SyncChoice.pending else {
             print("Sync waits for the sync choice")
+            return .skipped
+        }
+        // Another address saved, and its device hasn't said yet whether it
+        // is the last one (DeviceChange): its watermark may not be this
+        // device's to go on from.
+        guard !DeviceChange.pending else {
+            print("Sync waits: is the device at the new address the same one?")
             return .skipped
         }
         // Never asked here: the sync choice's Start Sync asks for access, and
@@ -1309,7 +1363,7 @@ final class PhotoSync: NSObject {
                             if ErrorCodes.isStorageFull(code: ErrorCodes.code(of: cause)) {
                                 return .full(id, cause.localizedDescription)
                             }
-                            if error is ReadFailure && !allowICloudDownloads {
+                            if error is ReadFailure && !allowICloudDownloads && Self.waitsForICloud(cause) {
                                 // The likely cause when "Sync from iCloud"
                                 // is off and this asset isn't cached
                                 // locally: PHAssetResourceManager can't

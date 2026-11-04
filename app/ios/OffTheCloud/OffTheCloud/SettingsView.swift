@@ -514,6 +514,8 @@ struct SettingsView: View {
     @ObservedObject private var smartSearch = SmartSearchSupport.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var confirmLogout = false
+    /// Sync From Now asks first: it gives up on every photo not sent yet.
+    @State private var confirmSyncFromNow = false
     // Whether the app may read the photo library (full or limited): the
     // Authorize Photos Access button shows only while it can't.
     @State private var photosAuthorized = SettingsView.photosAuthorizedNow()
@@ -650,7 +652,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     Button(S.appSettingsSyncFromNow) {
-                        PhotoSync.shared.syncFromNow()
+                        confirmSyncFromNow = true
                     }
                     .buttonStyle(.bordered)
                 }
@@ -877,6 +879,14 @@ struct SettingsView: View {
             guard !Task.isCancelled else { return }
             albumIDs = existing
         }
+        // Next to Sync All, and what it does can't be undone (only Sync All
+        // goes back over the library): it asks first.
+        .alert(S.appSettingsSyncFromNowTitle, isPresented: $confirmSyncFromNow) {
+            Button(S.appSettingsSyncFromNow, role: .destructive) { PhotoSync.shared.syncFromNow() }
+            Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            Text(S.appSettingsSyncFromNowText)
+        }
         .alert(S.appSettingsConnectionLogOutTitle, isPresented: $confirmLogout) {
             Button(S.appSettingsConnectionLogOutConfirm, role: .destructive) { logOut() }
             Button(S.commonCancel, role: .cancel) {}
@@ -1052,6 +1062,8 @@ private struct ConnectionSettingsSection: View {
     /// Bumped when the saved address changes: the fields are made again
     /// from the new draft, their name and mode with it.
     @State private var fieldsID = 0
+    /// Another address is being saved (save()).
+    @State private var saving = false
     @FocusState private var passwordFocused: Bool
 
     init(secrets: SecretsStore, onLogOut: @escaping () -> Void) {
@@ -1078,7 +1090,7 @@ private struct ConnectionSettingsSection: View {
                 .foregroundColor(.secondary)
             Button(S.appSettingsConnectionSave, action: save)
                 .buttonStyle(.bordered)
-                .disabled(!canSave)
+                .disabled(!canSave || saving)
             Button(S.appSettingsConnectionLogOut, role: .destructive, action: onLogOut)
                 .buttonStyle(.bordered)
         }
@@ -1096,9 +1108,23 @@ private struct ConnectionSettingsSection: View {
     private var canSave: Bool { !trimmed.isEmpty && !password.isEmpty }
 
     private func save() {
-        guard canSave else { return }
-        secrets.saveCredentials(endpoint: trimmed, password: password)
-        OTCConnection.shared.invalidate()
+        guard canSave, !saving else { return }
+        let address = trimmed
+        let typed = password
+        // Another address: the device left forgets this phone's push token
+        // first (a moment at most), then the new one is dialled.
+        guard !SecretsStore.sameAddress(address, secrets.endpoint) else {
+            secrets.saveCredentials(endpoint: address, password: typed)
+            OTCConnection.shared.invalidate()
+            return
+        }
+        saving = true
+        Task {
+            await OTCConnection.shared.unregisterPushBeforeLeaving(within: 3)
+            secrets.saveCredentials(endpoint: address, password: typed)
+            OTCConnection.shared.invalidate()
+            saving = false
+        }
     }
 }
 

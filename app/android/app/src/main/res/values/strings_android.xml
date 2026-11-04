@@ -16,8 +16,6 @@
         <item quantity="one">%1$s byte</item>
         <item quantity="other">%1$s bytes</item>
     </plurals>
-    <string name="android_compose_move_left">Move left</string>
-    <string name="android_compose_move_right">Move right</string>
     <string name="android_compose_record_video">Record a video</string>
     <string name="android_compose_take_photo">Take a photo</string>
     <string name="android_download_changed">the file changed on the device while downloading</string>
@@ -48,6 +46,10 @@
     <string name="android_files_inside_kept_out_banner">Inside \u2068%1$s\u2069, which is kept out of Images - photos and videos here aren\'t tagged, searched for faces or shown in Images.</string>
     <string name="android_files_inside_kept_out_info">Inside \u2068%1$s\u2069, which is kept out of Images. Photos and videos here aren\'t tagged, searched for faces or shown in Images. Files still shows them.</string>
     <string name="android_files_kept_out_said">\u2068%1$s\u2069 kept out of Images</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s older version</item>
+        <item quantity="other">%1$s older versions</item>
+    </plurals>
     <string name="android_files_show_named">Show “\u2068%1$s\u2069” in Images</string>
     <string name="android_files_shown_said">\u2068%1$s\u2069 shown in Images</string>
     <string name="android_files_wait_download_link">Wait for the download link to be ready</string>
@@ -64,6 +66,7 @@
     <string name="android_friends_remove_title_unnamed">Remove this friend?</string>
     <string name="android_location_off_hint">Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on.</string>
     <string name="android_menu_sections">Sections</string>
+    <string name="android_no_app_for_link">No app on this phone can open this link.</string>
     <string name="android_notification_channel">Friends and posts</string>
     <string name="android_notification_channel_description">Friend requests, new posts, likes and comments</string>
     <string name="android_open_settings">Open Settings</string>
@@ -78,6 +81,10 @@
     <string name="android_photos_people_merge_dimmed">Merge (select 2 or more to merge)</string>
     <string name="android_photos_search_close">Close search</string>
     <string name="android_photos_search_in_search">In the search</string>
+    <string name="android_secrets_start_over">Start over</string>
+    <string name="android_secrets_start_over_text">Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device\'s address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.</string>
+    <string name="android_secrets_start_over_title">Start over on this phone?</string>
+    <string name="android_secrets_unavailable">Off The Cloud can\'t open this phone\'s secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again.</string>
     <string name="android_settings_bridge_leave_delete">Leave and Delete</string>
     <string name="android_settings_crop_hint">Drag the photo to centre your face</string>
     <string name="android_settings_crop_zoom">Zoom</string>
@@ -133,7 +140,9 @@
     <string name="android_storage_show_details_attention">Storage, needs attention, show details</string>
     <string name="android_storage_used">Storage used, %1$s%%</string>
     <string name="android_trim_cant">Can\'t trim this video: %1$s</string>
+    <string name="android_trim_end_handle">End of the cut</string>
     <string name="android_trim_play_cut">▶ Play cut</string>
+    <string name="android_trim_start_handle">Start of the cut</string>
     <string name="android_wallpaper_both">Both</string>
     <string name="android_wallpaper_change">Change the photo</string>
     <string name="android_wallpaper_every_15">Every 15 minutes</string>

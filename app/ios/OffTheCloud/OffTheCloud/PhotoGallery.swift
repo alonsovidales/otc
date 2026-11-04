@@ -558,7 +558,27 @@ final class PhotoGalleryVM: ObservableObject {
     // than rebuilt in the view body - a player constructed inline is
     // recreated on every SwiftUI update, which tears playback down and
     // restarts it (see the same fix in the social feed, issue #107).
-    @Published var videoPlayer: AVPlayer? = nil
+    @Published var videoPlayer: AVPlayer? = nil {
+        didSet {
+            // The whole-file download a player went with goes with it: the
+            // viewer moving on, closing, or another video's player. They
+            // stayed in tmp, decrypted, until iOS purged it or Log Out.
+            guard videoPlayer !== oldValue, let file = videoFile else { return }
+            videoFile = nil
+            TempFiles.remove(file)
+        }
+    }
+    /// The file the open video plays from when the device didn't stream it
+    /// (fetchVideo), removed with its player.
+    private var videoFile: URL?
+
+    /// The open video plays `player`, from the whole download `file`, which
+    /// goes once the player does.
+    func playDownloaded(_ player: AVPlayer, file: URL) {
+        videoPlayer = player
+        // After the player: setting it removed the last one's file.
+        videoFile = file
+    }
     /// The open video's player failing (watchPlayback).
     private var playerWatch: [Any] = []
 
@@ -670,7 +690,10 @@ final class PhotoGalleryVM: ObservableObject {
     // to appear (it has to synchronously render previews from the full
     // decoded bitmap); writing it to a temp file first lets it use the
     // usual, much faster file-based path instead.
-    @Published var shareURL: URL? = nil
+    @Published var shareURL: URL? = nil {
+        // The full-size copy handed to the share sheet goes once it closes.
+        didSet { if oldValue != shareURL { TempFiles.remove(oldValue) } }
+    }
     /// Drives the selection bar's share sheet - see shareSelected().
     @Published var selectionShareURL: URL? = nil
     /// Which selection action is waiting on the device, so the bar can
@@ -700,6 +723,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// Bumped by each ask for the faces: an answer to an earlier one is
     /// dropped.
     private var facesAsk = 0
+    /// Info's details: the latest GetFileInfo (openInfo).
+    private var infoAsk = 0
 
     /// `thumbCache`: where the tiles' thumbnails are kept (tests use their own).
     init(deviceID: String, localPhotosFolder: URL?, thumbCache: ThumbDiskCache = .shared) {
@@ -1148,8 +1173,35 @@ final class PhotoGalleryVM: ObservableObject {
             }
             return
         }
+        jumpMonth = month
         searchTask?.cancel()
         searchTask = Task { await performJump(before) }
+    }
+
+    /// The month the last jump went to; nil without one (a new search).
+    @Published private(set) var jumpMonth: String?
+
+    /// VoiceOver's scrubber (an adjustable element, the web's slider): the
+    /// month it names - the one jumped to, else the newest.
+    var scrubberMonth: String? {
+        let buckets = freshBuckets
+        if let m = jumpMonth, buckets.contains(where: { $0.month == m }) { return m }
+        return buckets.first?.month
+    }
+
+    /// VoiceOver's swipe up (newer) or down (older) on the scrubber: the
+    /// next month's photos at once, as a scrub let go there. It had nothing
+    /// for VoiceOver at all: a big library was a page at a time.
+    func scrubStep(newer: Bool) {
+        let buckets = freshBuckets
+        guard !buckets.isEmpty else { return }
+        let at = scrubberMonth.flatMap { m in buckets.firstIndex { $0.month == m } } ?? 0
+        let next = min(max(0, at + (newer ? -1 : 1)), buckets.count - 1)
+        guard next != at else { return }
+        let target = buckets[next]
+        placeholderMonth = target.month
+        placeholderCount = min(target.count, Self.maxPlaceholders)
+        jumpToDate(target.month)
     }
 
     /// A fresh search like a filter change, anchored at `before` (the last
@@ -1206,6 +1258,8 @@ final class PhotoGalleryVM: ObservableObject {
         upPendingAt = nil
         upArmed = false
         upBreaks = []
+        // A search of its own, not a jump: the scrubber names the newest.
+        if jump == nil { jumpMonth = nil }
         items = []
         // The new grid's ratings come from the device.
         ratingHeld = [:]
@@ -2623,7 +2677,9 @@ final class PhotoGalleryVM: ObservableObject {
         videoPlayer = nil
         playerWatch = []
         infoOpen = false
+        infoLoading = false
         infoData = nil
+        infoAsk &+= 1
         clearInfoFaces()
         // The open photo first, alone; its neighbours once it is on screen.
         let path = items[index].path
@@ -2910,20 +2966,31 @@ final class PhotoGalleryVM: ObservableObject {
         infoLoading = true
         infoData = nil
         let path = items[idx].path
+        // Only this opening's answer counts: one for the photo before (Info
+        // opened on A, the viewer moved to B, Info opened again) used to
+        // show A's camera, date and map under B, and its end cleared B's
+        // spinner early. Android's openInfo does the same.
+        infoAsk &+= 1
+        let ask = infoAsk
         Task {
-            defer { infoLoading = false }
             var gi = Msg_GetFileInfo()
             gi.path = path
-            do {
-                let resp = try await photoRequest(.reqGetFileInfo(gi), nil)
-                if case .respFileInfo(let info) = resp.payload {
-                    infoData = info
-                }
-            } catch { /* leave infoData nil, shows "no metadata" */ }
+            let resp = try? await photoRequest(.reqGetFileInfo(gi), nil)
+            guard ask == infoAsk, infoOpen, openPath == path else { return }
+            // No answer leaves infoData nil, which shows "no metadata".
+            if case .respFileInfo(let info)? = resp?.payload {
+                infoData = info
+            }
+            infoLoading = false
         }
         Task { await loadInfoFaces() }
     }
-    func closeInfo() { infoOpen = false; infoData = nil }
+    func closeInfo() {
+        infoAsk &+= 1
+        infoOpen = false
+        infoLoading = false
+        infoData = nil
+    }
     func prev() { if let i = openIndex, i > 0 { open(index: i-1) } }
     func next() { if let i = openIndex, i < items.count - 1 { open(index: i+1) } }
 
@@ -2938,9 +3005,7 @@ final class PhotoGalleryVM: ObservableObject {
         }
         Task.detached(priority: .userInitiated) {
             guard let data = image.jpegData(compressionQuality: 0.9) else { return }
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("jpg")
+            let tmp = TempFiles.file(.viewer, ext: "jpg")
             do {
                 try data.write(to: tmp)
                 await MainActor.run { self.shareURL = tmp }
@@ -3279,10 +3344,10 @@ final class PhotoGalleryVM: ObservableObject {
         do {
             // In 4 MiB pieces straight to disk (FileDownload), not as one
             // message held whole in memory; named once the mime is known.
-            let raw = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let raw = TempFiles.file(.viewer, ext: "")
             let (mime, size) = try await FileDownload.download(path: it.path, mime: it.mime, to: raw)
             guard stillOpen() else {
-                try? FileManager.default.removeItem(at: raw)
+                TempFiles.remove(raw)
                 return
             }
             let ext: String
@@ -3298,11 +3363,14 @@ final class PhotoGalleryVM: ObservableObject {
             let tmp = raw.appendingPathExtension(ext)
             try FileManager.default.moveItem(at: raw, to: tmp)
             print("[video] downloaded \(it.path): \(size) bytes, \(mime), .\(ext)")
-            guard stillOpen() else { return }
+            guard stillOpen() else {
+                TempFiles.remove(tmp)
+                return
+            }
             let player = AVPlayer(url: tmp)
             Self.logFailure(of: player, what: "download")
             watchPlayback(player, path: it.path)
-            self.videoPlayer = player
+            playDownloaded(player, file: tmp)
         } catch {
             print("[video] download of \(it.path) failed: \(error)")
             // Neither streamed nor downloaded: its poster stays (the big
@@ -3477,9 +3545,14 @@ final class PhotoGalleryVM: ObservableObject {
     // picked photos that have other copies; the rest as before.
     func deleteSelected(everyCopy: Bool = false) {
         let paths = Array(selected)
-        guard !paths.isEmpty else { return }
+        guard !paths.isEmpty, preparing == nil else { return }
         let picked = pickedItems()
+        // The bar waits, its Delete a spinner, until every one is done: a
+        // second Delete sent the same paths again, and the refusals for
+        // those already gone were reported as failures.
+        preparing = .delete
         Task {
+            defer { preparing = nil }
             // Collect the successes and apply them as one batch at the end,
             // rather than mutating `items` (and so re-rendering the grid)
             // once per successful delete inside the loop. With several
@@ -5562,6 +5635,7 @@ struct ImageModal: View {
                     // Issue #106: plays in the viewer, filling it the same
                     // way a photo does, starting on its own.
                     VideoPlayer(player: player)
+                        .modifier(ViewerPaging(vm: vm))
                         .onAppear {
                             // The app starts in .ambient (for the muted
                             // feed), which the ringer switch silences - a
@@ -5583,6 +5657,11 @@ struct ImageModal: View {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFit()
+                        // VoiceOver: said as its tile is, and paged through
+                        // as a swipe does it (ViewerPaging).
+                        .accessibilityLabel(PhotoMonths.tileLabel(video: item.mime.hasPrefix("video/"), date: item.created))
+                        .accessibilityAddTraits(.isImage)
+                        .modifier(ViewerPaging(vm: vm))
                         // On the photo's own frame, so it sits in the
                         // picture's corner rather than the black margin,
                         // and before the pinch so zooming doesn't grow it.
@@ -5612,6 +5691,9 @@ struct ImageModal: View {
                 VideoUnplayable { vm.retryVideo() }
             }
         }
+        // The neighbours wait off screen for the drag: only the open one is
+        // VoiceOver's.
+        .accessibilityHidden(i != vm.openIndex)
     }
 
     /// The open video couldn't be fetched or played: its poster stays,
@@ -5635,6 +5717,34 @@ struct ImageModal: View {
         // not the item: PhotoGalleryVM.open has it decoded again if it was
         // let go).
         return GridThumbCache.cached(id: item.id, maxPt: PhotoGridMetrics.decodeSide) ?? item.thumbImage
+    }
+}
+
+/// The open photo or video for VoiceOver: a three-finger swipe goes to the
+/// next or previous one (the drag doesn't reach VoiceOver), as do the
+/// actions, and where it went is said, as the page it slides in.
+private struct ViewerPaging: ViewModifier {
+    @ObservedObject var vm: PhotoGalleryVM
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityScrollAction { edge in
+                switch edge {
+                case .trailing: go(1)
+                case .leading: go(-1)
+                default: break
+                }
+            }
+            .accessibilityAction(named: S.appPhotosMemoriesNextPhoto) { go(1) }
+            .accessibilityAction(named: S.appPhotosMemoriesPreviousPhoto) { go(-1) }
+    }
+
+    private func go(_ step: Int) {
+        guard let i = vm.openIndex, vm.items.indices.contains(i + step) else { return }
+        if step > 0 { vm.next() } else { vm.prev() }
+        let it = vm.items[i + step]
+        UIAccessibility.post(notification: .pageScrolled,
+                             argument: PhotoMonths.tileLabel(video: it.mime.hasPrefix("video/"), date: it.created))
     }
 }
 
@@ -6052,6 +6162,12 @@ private struct PhotoDateScrubber: View {
                     .frame(width: cScrubberTouchWidth)
                     .tourTarget(.scrubber)
                     .contentShape(Rectangle())
+                    // VoiceOver: a control of its own (it had none), a month
+                    // a swipe up or down, jumped to at once.
+                    .accessibilityElement()
+                    .accessibilityLabel(S.appPhotosGridScrubber)
+                    .accessibilityValue(vm.scrubberMonth.map(PhotoMonths.spoken) ?? "")
+                    .accessibilityAdjustableAction { vm.scrubStep(newer: $0 == .increment) }
                     .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in

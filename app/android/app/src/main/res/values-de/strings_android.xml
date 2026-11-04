@@ -17,8 +17,6 @@
         <item quantity="one">%1$s Byte</item>
         <item quantity="other">%1$s Byte</item>
     </plurals>
-    <string name="android_compose_move_left">Nach links verschieben</string>
-    <string name="android_compose_move_right">Nach rechts verschieben</string>
     <string name="android_compose_record_video">Video aufnehmen</string>
     <string name="android_compose_take_photo">Foto aufnehmen</string>
     <string name="android_download_changed">die Datei wurde während des Downloads auf dem Gerät geändert</string>
@@ -49,6 +47,10 @@
     <string name="android_files_inside_kept_out_banner">Im Ordner \u2068%1$s\u2069, der in „Bilder“ ausgeblendet ist – Fotos und Videos hier erhalten keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt.</string>
     <string name="android_files_inside_kept_out_info">Im Ordner \u2068%1$s\u2069, der in „Bilder“ ausgeblendet ist. Fotos und Videos hier erhalten keine Tags, werden nicht nach Gesichtern durchsucht und nicht in „Bilder“ angezeigt. In Dateien sind sie weiterhin sichtbar.</string>
     <string name="android_files_kept_out_said">\u2068%1$s\u2069 in „Bilder“ ausgeblendet</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s ältere Version</item>
+        <item quantity="other">%1$s ältere Versionen</item>
+    </plurals>
     <string name="android_files_show_named">Ordner „\u2068%1$s\u2069“ in „Bilder“ anzeigen</string>
     <string name="android_files_shown_said">\u2068%1$s\u2069 wird wieder in „Bilder“ angezeigt</string>
     <string name="android_files_wait_download_link">Warte, bis der Download-Link bereit ist</string>
@@ -65,6 +67,7 @@
     <string name="android_friends_remove_title_unnamed">Diese Person entfernen?</string>
     <string name="android_location_off_hint">Der Standort ist deaktiviert. Unter dieser Android-Version findet das Handy Bluetooth-Geräte nur mit aktiviertem Standort.</string>
     <string name="android_menu_sections">Bereiche</string>
+    <string name="android_no_app_for_link">Keine App auf diesem Telefon kann diesen Link öffnen.</string>
     <string name="android_notification_channel">Freunde und Beiträge</string>
     <string name="android_notification_channel_description">Freundschaftsanfragen, neue Beiträge, Likes und Kommentare</string>
     <string name="android_open_settings">Einstellungen öffnen</string>
@@ -79,6 +82,10 @@
     <string name="android_photos_people_merge_dimmed">Zusammenführen (wähle mindestens 2 aus, um sie zusammenzuführen)</string>
     <string name="android_photos_search_close">Suche schließen</string>
     <string name="android_photos_search_in_search">In der Suche</string>
+    <string name="android_secrets_start_over">Von vorn beginnen</string>
+    <string name="android_secrets_start_over_text">Off The Cloud vergisst seine Anmeldung und was es von diesem Telefon schon gesichert hat, wie frisch installiert: Du meldest dich erneut mit der Adresse und dem Passwort des Geräts an und wählst wie bei einem neuen Telefon noch einmal, was gesichert wird. Auf dem Gerät wird nichts gelöscht.</string>
+    <string name="android_secrets_start_over_title">Auf diesem Telefon von vorn beginnen?</string>
+    <string name="android_secrets_unavailable">Off The Cloud kann den sicheren Speicher dieses Telefons, in dem es deine Anmeldung aufbewahrt, nicht öffnen. Das legt sich meist nach einem Neustart oder einem Systemupdate: Versuche es gleich noch einmal. Wenn es weiter passiert, kannst du von vorn beginnen und dich erneut anmelden.</string>
     <string name="android_settings_bridge_leave_delete">Verlassen und löschen</string>
     <string name="android_settings_crop_hint">Ziehe das Foto, um dein Gesicht zu zentrieren</string>
     <string name="android_settings_crop_zoom">Zoom</string>
@@ -134,7 +141,9 @@
     <string name="android_storage_show_details_attention">Speicher, erfordert Aufmerksamkeit, Details anzeigen</string>
     <string name="android_storage_used">Belegter Speicher, %1$s %%</string>
     <string name="android_trim_cant">Dieses Video kann nicht gekürzt werden: %1$s</string>
+    <string name="android_trim_end_handle">Ende des Ausschnitts</string>
     <string name="android_trim_play_cut">▶ Schnitt abspielen</string>
+    <string name="android_trim_start_handle">Anfang des Ausschnitts</string>
     <string name="android_wallpaper_both">Beide</string>
     <string name="android_wallpaper_change">Foto wechseln</string>
     <string name="android_wallpaper_every_15">Alle 15 Minuten</string>

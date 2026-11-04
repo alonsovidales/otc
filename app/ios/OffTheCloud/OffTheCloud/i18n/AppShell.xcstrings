@@ -2296,6 +2296,53 @@
         }
       }
     },
+    "app.shell.home_port_unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Handy meldet sich bei deinem Gerät über dessen verschlüsselten Port im Heimnetz (%1$@) an, und dieser Port antwortet nicht, deshalb wurde dein Passwort nicht an die unverschlüsselte Adresse gesendet. Prüfe, ob das Gerät eingeschaltet ist und ob nichts den Port %1$@ blockiert, etwa eine Firewall oder ein Container, der ihn nicht veröffentlicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone signs in to your device through its encrypted home-network port (%1$@), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port %1$@, such as a firewall or a container that doesn't publish it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este teléfono inicia sesión en tu dispositivo a través de su puerto cifrado de la red doméstica (%1$@), y ese puerto no responde, así que tu contraseña no se envió a la dirección sin cifrar. Comprueba que el dispositivo está encendido y que nada bloquea el puerto %1$@, como un cortafuegos o un contenedor que no lo publica."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce téléphone se connecte à votre appareil par son port chiffré du réseau domestique (%1$@), et ce port ne répond pas : votre mot de passe n’a donc pas été envoyé à l’adresse non chiffrée. Vérifiez que l’appareil est allumé et que rien ne bloque le port %1$@, comme un pare-feu ou un conteneur qui ne le publie pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo telefono accede al tuo dispositivo tramite la sua porta cifrata della rete domestica (%1$@), e quella porta non risponde, quindi la tua password non è stata inviata all’indirizzo non cifrato. Controlla che il dispositivo sia acceso e che niente blocchi la porta %1$@, come un firewall o un container che non la pubblica."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze telefoon logt in op je apparaat via zijn versleutelde poort op het thuisnetwerk (%1$@), en die poort antwoordt niet, dus je wachtwoord is niet naar het onversleutelde adres verstuurd. Controleer of het apparaat aanstaat en of niets poort %1$@ blokkeert, zoals een firewall of een container die hem niet publiceert."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este telemóvel inicia sessão no teu dispositivo através da sua porta encriptada da rede doméstica (%1$@), e essa porta não responde, por isso a tua palavra-passe não foi enviada para o endereço não encriptado. Verifica se o dispositivo está ligado e se nada bloqueia a porta %1$@, como uma firewall ou um contentor que não a publica."
+          }
+        }
+      }
+    },
     "app.shell.host_not_found" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3420,6 +3467,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sem ligação"
+          }
+        }
+      }
+    },
+    "app.shell.not_known_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter dieser Adresse hat etwas geantwortet, aber nicht das Gerät, das dieses Telefon kennt, deshalb wurde dein Passwort nicht gesendet. Wenn du dein Gerät neu eingerichtet hast, wähle „%1$@“ und melde dich erneut an."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “%1$@” and sign in again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algo respondió en esta dirección, pero no el dispositivo que conoce este teléfono, así que no se envió tu contraseña. Si has vuelto a configurar tu dispositivo, elige “%1$@” e inicia sesión de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelque chose a répondu à cette adresse, mais pas l’appareil que ce téléphone connaît : votre mot de passe n’a donc pas été envoyé. Si vous avez configuré à nouveau votre appareil, choisissez « %1$@ » et reconnectez-vous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualcosa ha risposto a questo indirizzo, ma non il dispositivo che questo telefono conosce, quindi la tua password non è stata inviata. Se hai configurato di nuovo il dispositivo, scegli “%1$@” e accedi di nuovo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er antwoordde iets op dit adres, maar niet het apparaat dat deze telefoon kent, dus je wachtwoord is niet verstuurd. Als je je apparaat opnieuw hebt ingesteld, kies dan “%1$@” en meld je opnieuw aan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algo respondeu neste endereço, mas não o dispositivo que este telemóvel conhece, por isso a tua palavra-passe não foi enviada. Se voltaste a configurar o dispositivo, escolhe «%1$@» e inicia sessão outra vez."
           }
         }
       }
@@ -7112,6 +7206,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir o meu dispositivo"
+          }
+        }
+      }
+    },
+    "app.shell.setup_other_domain_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät gibt %1$@ als seine Adresse an, keine off-the.cloud-Adresse. Öffne sie nur, wenn du das Gerät mit einer eigenen Bridge eingerichtet hast: Sonst ist es vielleicht nicht dein Gerät, und deine Fotos würden dorthin gehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device says its address is %1$@, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo dice que su dirección es %1$@, que no es una dirección de off-the.cloud. Ábrela solo si configuraste el dispositivo con un puente propio: si no, puede que no sea tu dispositivo, y tus fotos irían allí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil indique que son adresse est %1$@, qui n’est pas une adresse off-the.cloud. Ne l’ouvrez que si vous avez configuré l’appareil avec votre propre passerelle : sinon, ce n’est peut-être pas votre appareil, et vos photos iraient là-bas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo dice che il suo indirizzo è %1$@, che non è un indirizzo off-the.cloud. Aprilo solo se hai configurato il dispositivo con un tuo bridge: altrimenti potrebbe non essere il tuo dispositivo, e le tue foto andrebbero lì."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit apparaat zegt dat zijn adres %1$@ is, en dat is geen off-the.cloud-adres. Open het alleen als je het apparaat met een eigen bridge hebt ingesteld: anders is het misschien niet jouw apparaat, en gaan je foto's daarheen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo diz que o seu endereço é %1$@, que não é um endereço off-the.cloud. Abre-o só se configuraste o dispositivo com uma ponte própria: caso contrário, pode não ser o teu dispositivo, e as tuas fotos iriam para lá."
+          }
+        }
+      }
+    },
+    "app.shell.setup_other_domain_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Adresse öffnen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open this address?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Abrir esta dirección?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir cette adresse ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aprire questo indirizzo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit adres openen?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir este endereço?"
           }
         }
       }

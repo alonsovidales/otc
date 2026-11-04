@@ -90,6 +90,13 @@ enum PhotoMonths {
         return S.appPhotosMonthsShortTitle(month: shortNames[p.month - 1], year: String(p.year))
     }
 
+    /// A month as VoiceOver says it: "March 2024", or "No date" for the
+    /// device's bucket of photos without one.
+    static func spoken(_ key: String) -> String {
+        guard let p = parts(key), p.year > 0 else { return S.appPhotosMonthsNoDate }
+        return S.appPhotosMonthsTitle(month: monthNames[p.month - 1], year: String(p.year))
+    }
+
     /// The year and month (1-12) a key names.
     private static func parts(_ key: String) -> (year: Int, month: Int)? {
         let p = key.split(separator: "-")

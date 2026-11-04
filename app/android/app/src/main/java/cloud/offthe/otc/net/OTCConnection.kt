@@ -3,16 +3,21 @@ package cloud.offthe.otc.net
 
 import android.os.SystemClock
 import android.util.Log
+import cloud.offthe.otc.R
+import cloud.offthe.otc.data.DeviceChange
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appShellAddressInvalid
 import cloud.offthe.otc.i18n.appShellAuthFailed
 import cloud.offthe.otc.i18n.appShellCleartextRefused
+import cloud.offthe.otc.i18n.appShellHomePortUnreachable
 import cloud.offthe.otc.i18n.appShellHostNotFound
 import cloud.offthe.otc.i18n.appShellInsecure
+import cloud.offthe.otc.i18n.appShellLeaveButton
 import cloud.offthe.otc.i18n.appShellNoAnswerAddress
 import cloud.offthe.otc.i18n.appShellNoPublicKey
+import cloud.offthe.otc.i18n.appShellNoStorage
 import cloud.offthe.otc.i18n.appShellNotOtc
 import cloud.offthe.otc.i18n.appShellOffline
 import cloud.offthe.otc.proto.Ack
@@ -21,6 +26,7 @@ import cloud.offthe.otc.proto.GetLocalEndpoint
 import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.proto.UnregisterFcmToken
 import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.now
 import com.google.protobuf.ByteString
@@ -29,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
@@ -438,10 +445,18 @@ object OTCConnection {
             if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.text.now())
         }
         val gen = synchronized(connectLock) { configGen }
+        // A ws:// address whose device this phone has reached over its
+        // pinned link goes only that way (PinnedAddress): never the password
+        // in the clear to whoever holds the address on the network the phone
+        // is on now.
+        val stored = secrets.homeEndpoint(url)
+        val pinnedOnly = PinnedAddress.pinnedOnly(url, stored)
 
         // A socket still open (a request on it timed out): signed in again
-        // where it is, as before.
+        // where it is, as before - unless it is a pinned address's own, which
+        // goes the pinned way.
         val open = ws
+        if (open.connected && pinnedOnly && _route.value != Route.HOME) open.close()
         if (open.connected) {
             signInOrFail(open, password, deviceId, credKey)
             currentCoroutineContext().ensureActive()
@@ -450,7 +465,24 @@ object OTCConnection {
             return
         }
 
-        secrets.homeEndpoint(url)?.let { ep -> if (signInAtHome(ep, url, password, deviceId, credKey)) return }
+        if (stored != null) {
+            // A ws:// address's own host is raced too, at the pinned port.
+            val targets = PinnedAddress.raceTargets(url, stored)
+            if (pinnedOnly) {
+                val refusedBefore = authRejection
+                try {
+                    connectPinned(targets, url, password, deviceId, credKey, gen)
+                } catch (e: Exception) {
+                    // Tried again with the backoff, as a failed connect
+                    // through the endpoint is (PinnedAddress.retriesAfter).
+                    val refused = authRejection.let { it != null && it !== refusedBefore }
+                    if (PinnedAddress.retriesAfter(e, passwordRefused = refused, storageHeld = storage.active)) scheduleRetry(gen)
+                    throw e
+                }
+                return
+            }
+            if (signInAtHome(targets, url, password, deviceId, credKey, gen)) return
+        }
 
         // Through the configured endpoint, as always. The socket is the
         // current one from the start, so a connect that fails schedules the
@@ -509,7 +541,7 @@ object OTCConnection {
      * when the device itself turned the password down - the bridge would
      * say the same, and count one more failure.
      */
-    private suspend fun signInAtHome(ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String): Boolean {
+    private suspend fun signInAtHome(ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int): Boolean {
         val vias = NetworkWatch.homeRoutes()
         if (vias.isEmpty()) return false
         val opened = try {
@@ -561,11 +593,169 @@ object OTCConnection {
             kept = true
             signedIn(url)
             Log.i(TAG, "signed in over the home network")
+            // The device the pin names, which is who it is (DeviceChange).
+            DeviceChange.resolve(ep.certSha256)
+            // This phone reaches the device's pinned link: from now on a
+            // ws:// address goes only that way. Where it is now (a new DHCP
+            // lease) is asked there.
+            markReached(url, ep.certSha256, gen)
+            refreshHomeEndpoint(c, url, gen, overHome = true)
             return true
         } finally {
             if (!kept) c.close()
         }
     }
+
+    /**
+     * A pinned ws:// address (PinnedAddress.pinnedOnly): its pinned link,
+     * looked for twice when the address answers, or the card says why not -
+     * the address itself is never signed in to.
+     */
+    private suspend fun connectPinned(targets: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
+        val find = PinnedAddress.find(
+            targets.port,
+            race = { ms -> HomeNetwork.contest(targets, NetworkWatch.homeRoutes(), ms) },
+            probe = { PinnedAddress.probe(url, minOf(SIGN_IN_TIMEOUT_MS, PinnedAddress.PROBE_TIMEOUT_MS)) },
+        )
+        if (find is PinnedAddress.Find.Found) {
+            signInPinned(find.opened, targets, url, password, deviceId, credKey, gen)
+            return
+        }
+        // Dropped by invalidate(): leave the card alone.
+        currentCoroutineContext().ensureActive()
+        when (find) {
+            is PinnedAddress.Find.Found -> {}
+            is PinnedAddress.Find.Unreachable -> {
+                // The usual words: the phone isn't where the device is.
+                _lastError.value = describe(find.error)
+                _connectionFailed.value = true
+                throw find.error
+            }
+            PinnedAddress.Find.Storage -> {
+                // Issue #207's state in our words: nothing proves it is the device.
+                val text = S.appShellNoStorage()
+                enterStorage(text)
+                throw RequestError(text.now(), ErrorCodes.STORAGE_UNAVAILABLE)
+            }
+            PinnedAddress.Find.NotKnownDevice -> {
+                Log.i(TAG, "another certificate answers for the address: nothing sent")
+                notThePinnedDevice(UiText.Res(R.string.app_shell_not_known_device, listOf(S.appShellLeaveButton())))
+            }
+            is PinnedAddress.Find.HomePortUnreachable -> {
+                Log.i(TAG, "the device's encrypted port isn't answering: nothing sent")
+                notThePinnedDevice(S.appShellHomePortUnreachable(find.port.toString()))
+            }
+        }
+    }
+
+    /**
+     * DeviceChange: how often, and how far apart, a device that says
+     * nothing about its home network is asked before it counts as one that
+     * can't say.
+     */
+    private const val DEVICE_CHECK_TRIES = 5
+    private const val DEVICE_CHECK_PAUSE_MS = 30_000L
+
+    /**
+     * Another address saved in Settings: the device signed in to now forgets
+     * this phone's push token first, as at Log Out - it went on pushing to a
+     * phone that had moved to another device otherwise (the same device at
+     * its new address registers it again at the sign-in). Over this
+     * connection only, never one made for it, [withinMs] at most.
+     */
+    suspend fun unregisterPushBeforeLeaving(withinMs: Long) {
+        if (!_authenticated.value) return
+        val token = cloud.offthe.otc.push.FCMPush.knownToken(cloud.offthe.otc.OTCApp.instance) ?: return
+        val c = ws
+        if (!c.connected) return
+        withTimeoutOrNull(withinMs) {
+            try {
+                c.request(withinMs) { it.setReqUnregisterFcmToken(UnregisterFcmToken.newBuilder().setToken(token)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Settings' Save with another address (DeviceChange): the device signed
+     * in to now forgets this phone's push token ([unregisterPushBeforeLeaving],
+     * 3 s at most), then [save] runs on the main thread - the address saved
+     * and the connection invalidated. In the connection's own scope, and
+     * the save whatever happens to the unregister: in the screen's, leaving
+     * Settings during those seconds cancelled it after the token had gone
+     * and before the address was saved, which then wasn't, silently.
+     */
+    fun saveAnotherAddress(save: () -> Unit): Job = leaveThenSave(scope, Dispatchers.Main, { unregisterPushBeforeLeaving(3_000) }, save)
+
+    /** [saveAnotherAddress], with its scope, its main thread and its unregister given (tests). */
+    internal fun leaveThenSave(scope: CoroutineScope, main: kotlin.coroutines.CoroutineContext, leave: suspend () -> Unit, save: () -> Unit): Job =
+        scope.launch {
+            try {
+                leave()
+            } finally {
+                withContext(NonCancellable + main) { save() }
+            }
+        }
+
+    /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
+    private suspend fun signInPinned(opened: HomeNetwork.Opened, ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
+        val c = opened.socket
+        var kept = false
+        try {
+            signInOrFail(c, password, deviceId, credKey)
+            currentCoroutineContext().ensureActive()
+            if (!c.connected) {
+                val e = IOException("connection closed")
+                _lastError.value = describe(e)
+                _connectionFailed.value = true
+                throw e
+            }
+            install(c, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
+            kept = true
+            signedIn(url)
+            Log.i(TAG, "signed in over the home network (pinned address)")
+            DeviceChange.resolve(ep.certSha256)
+            refreshHomeEndpoint(c, url, gen, overHome = true)
+        } finally {
+            if (!kept) c.close()
+        }
+    }
+
+    /**
+     * A pinned ws:// address answers, and its pinned link was looked for
+     * twice without a match: nothing is sent, and the card says which it
+     * was ([text]). Never the "isn't available" card: no verdict on the
+     * device, which may be fine.
+     */
+    private fun notThePinnedDevice(text: UiText): Nothing {
+        storage.leave()
+        _statusCode.value = null
+        _lastError.value = text
+        _connectionFailed.value = true
+        throw RequestError(text.now())
+    }
+
+    /** A sign-in over the pinned link to the device with [pin]: the endpoint's home record says this phone has reached it. */
+    private fun markReached(url: String, pin: ByteArray, gen: Int) = synchronized(connectLock) {
+        if (gen != configGen) return@synchronized
+        val secrets = SecretsStore.loadOrCreate()
+        val s = secrets.homeEndpoint(url) ?: return@synchronized
+        val now = s.signedInOver(pin)
+        if (now !== s) secrets.saveHomeEndpoint(url, now)
+    }
+
+    /**
+     * Signed in, over the saved endpoint's ws:// itself: the session is in
+     * the clear anyway (a first sign-in there, a device without a pin, one
+     * not reached), so http:// media may go the same way (MediaStream).
+     * Never for a pinned address, whose sessions are all over the home link.
+     */
+    val signedInInClear: Boolean
+        get() = _authenticated.value && home == null && PinnedAddress.isCleartext(signedInEndpoint)
+
+    // The endpoint the session in use signed in for (signedIn).
+    @Volatile private var signedInEndpoint = ""
 
     // What answered instead of signing us in: GetPubKey's or Auth's reply -
     // the device's (or the bridge's) own words when it gave some.
@@ -678,6 +868,7 @@ object OTCConnection {
 
     /** Signed in through the configured endpoint [url] (or at home for it). */
     private fun signedIn(url: String) {
+        signedInEndpoint = url
         storage.leave()
         _lastError.value = null
         _statusCode.value = null
@@ -712,30 +903,61 @@ object OTCConnection {
     }
 
     /**
-     * Issue #190: after a sign-in through the configured endpoint, where
-     * does the device answer at home? Stored with the endpoint; a device
-     * from before #190 ("unknown_payload") or with no way in at home
-     * ("local_unavailable") clears it, and no answer keeps it.
+     * Issue #190: after a sign-in, where does the device answer at home?
+     * Stored with the endpoint; a device from before #190
+     * ("unknown_payload") or with no way in at home ("local_unavailable")
+     * clears it, and no answer keeps it. [overHome]: signed in over the
+     * pinned home link, where only new addresses count - whoever answers
+     * there holds the pinned certificate, and the pin is never dropped for
+     * what it says (a ws:// endpoint would go back to signing in in the
+     * clear) - and there is no route to move to.
      */
-    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int) {
+    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int, overHome: Boolean = false, attempt: Int = 0) {
         scope.launch {
             val resp = try {
-                c.request { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
+                c.request(LIST_TIMEOUT_MS) { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
             } catch (e: Exception) {
+                // A network error: what is stored stays, and a device check
+                // waits for the next sign-in.
                 return@launch
             }
-            val answer = HomeNetwork.answer(resp)
+            val answer = HomeNetwork.answer(resp).let { if (overHome && it !is HomeNetwork.Answer.Store) HomeNetwork.Answer.Keep else it }
             val learnt = synchronized(connectLock) {
                 if (gen != configGen) return@launch
                 val secrets = SecretsStore.loadOrCreate()
                 when (answer) {
                     is HomeNetwork.Answer.Store -> {
-                        val before = secrets.homeEndpoint(url)
-                        secrets.saveHomeEndpoint(url, answer.endpoint)
-                        before?.encode() != answer.endpoint.encode()
+                        // What is stored now (a home sign-in may have marked
+                        // it reached since the connect read it): the pinned
+                        // link stays reached while the pin is the same.
+                        val current = secrets.homeEndpoint(url)
+                        val ep = answer.endpoint.keepingReach(current)
+                        if (ep.sameAs(current)) false
+                        else {
+                            secrets.saveHomeEndpoint(url, ep)
+                            !overHome
+                        }
                     }
                     HomeNetwork.Answer.Forget -> { secrets.clearHomeEndpoint(); false }
                     HomeNetwork.Answer.Keep -> false
+                }
+            }
+            // The answer also says which device this is (DeviceChange: its
+            // pin), when another address was saved. One that says nothing
+            // about it (no code: not known yet at the device's start) is
+            // asked again a few times while that waits; a device that never
+            // says is taken for another one.
+            if (!overHome) when (answer) {
+                is HomeNetwork.Answer.Store -> DeviceChange.resolve(answer.endpoint.certSha256)
+                HomeNetwork.Answer.Forget -> DeviceChange.resolve(null)
+                HomeNetwork.Answer.Keep -> if (DeviceChange.pending) {
+                    if (attempt + 1 >= DEVICE_CHECK_TRIES) DeviceChange.resolve(null)
+                    else scope.launch {
+                        delay(DEVICE_CHECK_PAUSE_MS)
+                        if (synchronized(connectLock) { gen == configGen } && _authenticated.value && ws === c) {
+                            refreshHomeEndpoint(c, url, gen, attempt = attempt + 1)
+                        }
+                    }
                 }
             }
             // A new or changed endpoint is tried now, as on the Mac and in
@@ -789,7 +1011,11 @@ object OTCConnection {
         val h = home
         val from = _route.value ?: return
         // Nothing stored: the configured endpoint is the only way.
-        val ep = secrets.homeEndpoint(url) ?: return
+        val stored = secrets.homeEndpoint(url) ?: return
+        // A pinned ws:// address never signs in at the address itself
+        // (PinnedAddress), and its own host is raced too.
+        val pinnedOnly = PinnedAddress.pinnedOnly(url, stored)
+        val ep = PinnedAddress.raceTargets(url, stored)
         val vias = NetworkWatch.homeRoutes()
         // Home on a live socket over a network the phone is still on: stay,
         // as macOS does on a wake. A probe that missed its budget on a busy
@@ -803,6 +1029,10 @@ object OTCConnection {
                 opened.socket.close()
                 return
             }
+            // No other way for a pinned address: the socket in use stays
+            // until it drops, and its reconnect looks for the pinned link
+            // (connectAndAuth) or says why not.
+            if (pinnedOnly) return
             val c = WSClient()
             var kept = false
             try {
@@ -835,7 +1065,11 @@ object OTCConnection {
             } finally {
                 if (!kept) c.close()
             }
-            if (kept) Log.i(TAG, "at home: over the home network")
+            if (kept) {
+                Log.i(TAG, "at home: over the home network")
+                markReached(url, ep.certSha256, gen)
+                refreshHomeEndpoint(c, url, gen, overHome = true)
+            }
         }
     }
 
@@ -870,9 +1104,21 @@ object OTCConnection {
      * Plain words for the errors the network stack hands back, decided now
      * (the phone may be back online by the time the card shows them).
      */
-    private fun describe(e: Throwable): UiText = when {
+    private fun describe(e: Throwable): UiText = describe(e, NetworkWatch.online()).also { t ->
+        if (t == S.appShellNoAnswerAddress() && e !is ConnectException && e !is SocketTimeoutException) Log.i(TAG, "can't connect: ${e.javaClass.simpleName}")
+    }
+
+    /**
+     * [describe], pure ([online]: the phone has a network). Whatever the
+     * network stack threw that isn't one of those - "Host unreachable", a
+     * proxy's "unexpected end of stream", a socket closed while signing in,
+     * a bare EOFException - is the device not answering, in the app's
+     * language: its own English words (and a class name) used to reach the
+     * card. A device's or the app's own words stay as they are.
+     */
+    internal fun describe(e: Throwable, online: Boolean): UiText = when {
         // No network at all: not the address's fault, whatever failed.
-        !NetworkWatch.online() -> OFFLINE_MESSAGE
+        !online -> OFFLINE_MESSAGE
         e is UnknownHostException -> S.appShellHostNotFound()
         e is ConnectException || e is SocketTimeoutException -> S.appShellNoAnswerAddress()
         e is SSLException -> S.appShellInsecure()
@@ -880,18 +1126,32 @@ object OTCConnection {
         // Ours: worded where shown, in the language shown then.
         e is TextIOException -> e.text
         e is WSClient.RequestTimeout -> e.text
-        else -> UiText.Raw(e.message ?: e.javaClass.simpleName)
+        e is WSClient.SentNoAnswer -> e.text
+        // The device's (or the app's) words, already in the app's language.
+        e is RequestError -> UiText.Raw(e.message ?: "")
+        else -> S.appShellNoAnswerAddress()
     }
 
     private fun handleDisconnect() {
         if (!_authenticated.value && connectJob == null) return
         _authenticated.value = false
+        scheduleRetry()
+    }
+
+    /**
+     * A connect again after the backoff (1 s doubling to 30 s, reset by a
+     * sign-in): after a drop or a failed connect through the endpoint
+     * (handleDisconnect), and after a pinned address's failed connect.
+     * [gen]: dropped if the settings change meanwhile.
+     */
+    private fun scheduleRetry(gen: Int? = null) {
         // A device shut down from Settings: tried again only once the moment
         // it is left alone is over (DeviceShutdown).
         val delayMs = maxOf(backoffMs, DeviceShutdown.quietLeftMs())
         backoffMs = minOf(backoffMs * 2, maxBackoffMs)
         scope.launch {
             delay(delayMs)
+            if (gen != null && synchronized(connectLock) { gen != configGen }) return@launch
             try { ensureConnected() } catch (_: Exception) {}
         }
     }

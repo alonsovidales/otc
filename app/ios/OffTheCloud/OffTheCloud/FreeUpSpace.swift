@@ -24,8 +24,9 @@ import UIKit
 ///   device answers HasFile, one hash at a time. Nothing it doesn't confirm
 ///   is deleted.
 /// - Never deleted: edited assets (the sync sends the original, so the edit
-///   is only here), bursts (the sync sends one picture of the set), Live
-///   Photos unless their switch is on (the sync sends only the still),
+///   is only here), bursts (the sync sends one picture of the set), RAW+JPEG
+///   pairs (the sync sends one of the two), Live Photos unless their switch
+///   is on (the sync sends only the still),
 ///   videos while Include videos is off, hidden assets and anything outside
 ///   the user's own library - as the sync, which skips those too - and the
 ///   photos in albums turned off in Settings > Sync Options > Albums, even
@@ -84,6 +85,10 @@ final class FreeUpSpace: @unchecked Sendable {
         var live = false
         /// In an album turned off (Settings > Sync Options > Albums).
         var skipped = false
+        /// Two pictures in one asset - a RAW and a JPEG, from a camera's
+        /// import or an app that saves both: the sync sends one of them
+        /// (PhotoSync.sentResource), and deleting the asset deletes both.
+        var pair = false
     }
 
     static func traits(of asset: PHAsset) -> Traits {
@@ -96,11 +101,28 @@ final class FreeUpSpace: @unchecked Sendable {
         )
     }
 
+    /// Whether `asset` may go: its traits, then - only for one they let
+    /// through, as PhotoKit lists its resources for it - whether it is a
+    /// pair.
+    static func eligible(_ asset: PHAsset, skipped: Bool, cutoff: Date, includeVideos: Bool, livePhotos: Bool) -> Bool {
+        var t = traits(of: asset)
+        t.skipped = skipped
+        guard eligible(t, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) else { return false }
+        t.pair = isPair(PHAssetResource.assetResources(for: asset).map(\.type))
+        return eligible(t, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos)
+    }
+
+    /// Pure: resources of these types hold a picture the sync doesn't send:
+    /// an alternate photo (the other half of RAW+JPEG), or a second photo.
+    static func isPair(_ types: [PHAssetResourceType]) -> Bool {
+        types.contains(.alternatePhoto) || types.filter { $0 == .photo }.count > 1
+    }
+
     static func eligible(_ t: Traits, cutoff: Date, includeVideos: Bool, livePhotos: Bool) -> Bool {
         guard let created = t.created, created < cutoff else { return false }
         if t.skipped { return false }
         if t.isVideo && !includeVideos { return false }
-        if t.edited || t.burst { return false }
+        if t.edited || t.burst || t.pair { return false }
         if t.live && !livePhotos { return false }
         return true
     }
@@ -193,9 +215,8 @@ final class FreeUpSpace: @unchecked Sendable {
         let skippedNow = PhotoSources.skippedAssetIDs(skippedAlbums).union(SavedToPhone.shared.ids())
         var toDelete: [PHAsset] = []
         PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
-            var traits = Self.traits(of: asset)
-            traits.skipped = skippedNow.contains(asset.localIdentifier)
-            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            if Self.eligible(asset, skipped: skippedNow.contains(asset.localIdentifier), cutoff: cutoff,
+                             includeVideos: includeVideos, livePhotos: livePhotos) {
                 toDelete.append(asset)
             }
         }
@@ -229,9 +250,8 @@ final class FreeUpSpace: @unchecked Sendable {
         ])
         var out: [PHAsset] = []
         PHAsset.fetchAssets(with: opts).enumerateObjects { asset, _, _ in
-            var traits = Self.traits(of: asset)
-            traits.skipped = skipped.contains(asset.localIdentifier)
-            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            if Self.eligible(asset, skipped: skipped.contains(asset.localIdentifier), cutoff: cutoff,
+                             includeVideos: includeVideos, livePhotos: livePhotos) {
                 out.append(asset)
             }
         }

@@ -21,15 +21,19 @@ import cloud.offthe.otc.ui.theme.OTCTheme
 // AppCompatActivity for AppCompat's per-app language (docs/i18n.md, spike
 // S2): a change of language recreates it, so state that must survive one
 // is kept with rememberSaveable or in a view model. The manifest declares
-// locale changes handled only so that the one screen that can't be
-// recreated keeps them in place (onConfigurationChanged).
+// locale, dark mode and text and display size changes handled only so that
+// the one screen that can't be recreated keeps them in place
+// (onConfigurationChanged).
 class MainActivity : AppCompatActivity() {
     // The languages the screen was drawn in.
     private var shownLocales: LocaleListCompat? = null
+    // And its dark mode, density and text size.
+    private var shownLook: ConfigLook? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         shownLocales = ConfigurationCompat.getLocales(resources.configuration)
+        shownLook = ConfigLook.of(resources.configuration)
         enableEdgeToEdge()
         // Issue #125: notifications are no longer asked for here, at launch
         // and over the welcome screen (UX 1): RootView asks once, after the
@@ -60,16 +64,33 @@ class MainActivity : AppCompatActivity() {
     // tear down. There Compose re-reads the resources, which Android (and
     // below API 33 AppCompat) has already updated; below 33 the views are
     // told here, as only the resources changed.
+    //
+    // Dark mode switching (on a schedule, from the quick settings, Battery
+    // Saver turning it on) and the text or display size go the same way:
+    // the Activity is recreated as before - the window's theme and the
+    // system bars follow - except on the Bluetooth setup, which a
+    // recreation dropped mid-install back on the Welcome form, its link and
+    // page lost. There Compose follows the new configuration in place.
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         val locales = ConfigurationCompat.getLocales(newConfig)
-        if (locales == shownLocales) return
+        val look = ConfigLook.of(newConfig)
+        if (locales == shownLocales && look == shownLook) return
         if (!LanguageSettings.followsInPlace) {
             recreate()
             return
         }
+        val newLocales = locales != shownLocales
         shownLocales = locales
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) window.decorView.dispatchConfigurationChanged(newConfig)
+        shownLook = look
+        if (newLocales && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) window.decorView.dispatchConfigurationChanged(newConfig)
+    }
+
+    /** What else the Activity is recreated for: dark mode, density, text size. */
+    private data class ConfigLook(val night: Int, val densityDpi: Int, val fontScale: Float) {
+        companion object {
+            fun of(c: Configuration) = ConfigLook(c.uiMode and Configuration.UI_MODE_NIGHT_MASK, c.densityDpi, c.fontScale)
+        }
     }
 
     // Issue #152: opening the app is reading what arrived.

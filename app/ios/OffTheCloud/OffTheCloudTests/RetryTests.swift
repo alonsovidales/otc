@@ -337,7 +337,7 @@ struct SocketLivenessTests {
 
 /// A WebSocket server on this machine's loopback, answering as a device
 /// would - or late, or not at all.
-private final class DeviceStandIn: @unchecked Sendable {
+final class DeviceStandIn: @unchecked Sendable {
     /// What to do with a request: answer after `delay` seconds, or never (nil).
     typealias Plan = @Sendable (Msg_ReqEnvelope) -> TimeInterval?
     /// The answer to a request, its id set by the stand-in; nil for the
@@ -617,7 +617,7 @@ private final class SilentTCP: @unchecked Sendable {
     }
 }
 
-private final class OnceFlag: @unchecked Sendable {
+final class OnceFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
     func first() -> Bool { lock.withLock { defer { done = true }; return !done } }
@@ -2049,7 +2049,7 @@ struct StalledSignInTests {
 /// The stand-in device's disks: gone (every request answered
 /// storage_unavailable) or back (it signs in), and the Auths it was sent
 /// while they were gone.
-private final class StandInDisks: @unchecked Sendable {
+final class StandInDisks: @unchecked Sendable {
     private let lock = NSLock()
     private var _back = false
     private var _authsWhileGone = 0

@@ -182,6 +182,8 @@
     <string name="app_settings_sync_authorize">Zugriff auf Fotos erlauben</string>
     <string name="app_settings_sync_footer">„Alles synchronisieren“ geht die gesamte Mediathek noch einmal durch. „Ab jetzt synchronisieren“ überspringt alles, was schon darin ist: Nur Fotos und Videos, die ab jetzt aufgenommen werden, werden hochgeladen.</string>
     <string name="app_settings_sync_from_now">Ab jetzt synchronisieren</string>
+    <string name="app_settings_sync_from_now_text">Fotos und Videos ohne Backup bekommen keines mehr, auch nicht die, die noch einmal versucht werden sollten. Nur was du ab jetzt aufnimmst oder speicherst, wird gesendet. „Alles synchronisieren“ geht die ganze Mediathek noch einmal durch.</string>
+    <string name="app_settings_sync_from_now_title">Nur noch ab jetzt synchronisieren?</string>
     <string name="app_settings_sync_title">Synchronisierungsoptionen</string>
     <string name="app_settings_sync_videos">Videos einbeziehen</string>
     <string name="app_settings_sync_wifi_only">Nur über WLAN</string>

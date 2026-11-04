@@ -110,7 +110,7 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
             onDismissRequest = { confirmLeave = false },
             title = { Text(S.appShellLeaveTitle().resolve()) },
             text = { Text(S.appShellLeaveMessageStart().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave(endpoint, password) }) { Text(S.appShellLeave().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave(endpoint, password) }) { Text(S.appShellLeave().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -177,7 +177,7 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
             onDismissRequest = { confirmClose = false },
             title = { Text(S.appShellLeaveTitle().resolve()) },
             text = { Text(S.appShellLeaveMessageConnection().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmClose = false; onClose() }) { Text(S.appShellLeave().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmClose = false; onClose() }) { Text(S.appShellLeave().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmClose = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -189,7 +189,10 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                     Icon(Icons.Default.Close, contentDescription = S.appShellCloseAndLeave().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            // Scrolls: held sideways or at a large text size, Still trying
+            // and the language menu - the only way to change the language
+            // while this card covers the app - were cut off.
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val icon = when {
                     disabled -> Icons.Default.Block
                     noStorage -> Icons.Default.DiscFull

@@ -45,13 +45,15 @@
         tools:targetApi="33"
         android:theme="@style/Theme.OffTheCloud"
         android:localeConfig="@xml/locales_config">
-        <!-- locale|layoutDirection: a change of language still recreates the
-             Activity (MainActivity.onConfigurationChanged), except on the
-             Bluetooth setup, which keeps its link and page through it. -->
+        <!-- locale|layoutDirection|uiMode|density|fontScale: a change of
+             language, of dark mode (a schedule, Battery Saver), of the text
+             or display size still recreates the Activity
+             (MainActivity.onConfigurationChanged), except on the Bluetooth
+             setup, which keeps its link and page through it. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|locale|layoutDirection"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|locale|layoutDirection|uiMode|density|fontScale"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

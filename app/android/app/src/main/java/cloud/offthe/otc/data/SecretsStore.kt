@@ -8,6 +8,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.HomeEndpoint
+import cloud.offthe.otc.net.PinnedAddress
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.PhotoFolders
@@ -62,13 +63,28 @@ class SecretsStore private constructor(
         Wallpaper.wifiOnlyChanged()
         if (!v) PhotoSync.wifiOnlyOff()
     }
-    fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persistOptions() }
+    fun setIncludeVideos(v: Boolean) {
+        val was = _includeVideos.value
+        _includeVideos.value = v
+        persistOptions()
+        // Back on: the videos taken while it was off are sent too
+        // (PhotoSync.videosTurnedOn). Log Out puts it back on signed out.
+        if (v && !was && isConfigured) PhotoSync.videosTurnedOn()
+    }
     fun setFolderSkipped(id: String, skipped: Boolean) {
         _skippedFolders.value = if (skipped) _skippedFolders.value + id else _skippedFolders.value - id
         persistOptions()
     }
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
+
+    /**
+     * Bumped when the saved address changes to another one (not Leave the
+     * Bridge): RootView makes MainView afresh, its view models with it, so
+     * no screen keeps the last device's lists (DeviceChange).
+     */
+    private val _deviceSession = MutableStateFlow(0)
+    val deviceSession: StateFlow<Int> = _deviceSession
 
     // Issue #190: where the device answers on the home network, with the
     // endpoint it was learnt through - only ever used for that endpoint.
@@ -86,6 +102,7 @@ class SecretsStore private constructor(
         home = null
         secure().edit().remove("home_for").remove("home_endpoint").apply()
     }
+
 
     /**
      * Log Out (SettingsView, as on iOS): forget the connection and wipe
@@ -117,21 +134,50 @@ class SecretsStore private constructor(
      * this device": the address and password they were given become the
      * ones every connection dials. Nothing else writes them: the forms edit
      * drafts until then (IOS-03 on iOS; ConnectionFormModel here). As iOS's
-     * saveCredentials.
+     * saveCredentials. [sameDevice] (Leave the Bridge: the device itself
+     * gave its new address) keeps what was learnt about its home network.
      */
-    fun saveCredentials(endpoint: String, password: String) {
+    fun saveCredentials(endpoint: String, password: String, sameDevice: Boolean = false) {
+        val before = normalizedEndpoint(secure().getString("endpoint", "") ?: "")
+        // Another address than the one signed in to before is a change of
+        // device until its device says otherwise (DeviceChange): its
+        // screens are made afresh and the photo sync waits for the answer.
+        val changed = DeviceChange.isChange(before, normalizedEndpoint(endpoint), sameDevice)
+        // Read before the old address's home endpoint goes below.
+        val pinBefore = if (changed) homeEndpoint(before)?.certSha256 else null
         _endpoint.value = endpoint
         _password.value = password
         if (isConfigured) {
             clearPendingSetup()
             clearLastDevice()
         }
-        // Another device, or another way to it: the home endpoint learnt
-        // through the old one isn't this one's, and a collection shown as
-        // wallpaper stops (its copies were the other one's photos).
-        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) {
-            clearHomeEndpoint()
-            Wallpaper.deviceChanged(endpointURLString)
+        if (before != endpointURLString) {
+            // Issue #190: the home-network endpoint belongs to the endpoint
+            // it was learnt on; another device or address starts without
+            // one - except the same device at its new address, which keeps
+            // its pin (its first sign-in there is never in the clear), and
+            // the same address spelled otherwise (a host's case), which is
+            // no change: dropping its pin would send the next sign-in in the
+            // clear.
+            val h = home
+            when (val kept = PinnedAddress.homeAfterSave(h, before, endpointURLString, sameDevice)) {
+                null -> clearHomeEndpoint()
+                h -> {}
+                else -> saveHomeEndpoint(kept.first, kept.second)
+            }
+            when {
+                changed -> {
+                    DeviceChange.begin(pinBefore)
+                    DeviceChange.addressChanged()
+                    _deviceSession.value += 1
+                }
+                // The same device at its new address (Leave the Bridge), or
+                // the same address spelled otherwise: the wallpaper goes on.
+                before.isNotEmpty() && endpointURLString.isNotEmpty() -> Wallpaper.sameDeviceAt(endpointURLString)
+                // A first sign-in: a collection left from another endpoint
+                // stops (its copies were that one's photos).
+                else -> Wallpaper.deviceChanged(endpointURLString)
+            }
         }
         secure().edit()
             .putString("endpoint", _endpoint.value)
@@ -202,10 +248,14 @@ class SecretsStore private constructor(
         }
 
         /** One instance per process, loaded on first use (the process's one
-         *  Keystore round trip: RootView makes it, before the first frame). */
+         *  Keystore round trip: RootView makes it, before the first frame).
+         *  Throws [Unavailable] while the secure store can't be opened. */
         fun loadOrCreate(): SecretsStore = shared ?: synchronized(this) {
             shared ?: load().also { shared = it }
         }
+
+        /** [loadOrCreate], or null while the secure store can't be opened (RootView says so). */
+        fun openOrNull(): SecretsStore? = try { loadOrCreate() } catch (e: Unavailable) { null }
 
         private fun load(): SecretsStore {
             val s = secure()
@@ -242,30 +292,120 @@ class SecretsStore private constructor(
         }
 
         /**
+         * The secure store couldn't be opened, and nothing says its keyset is
+         * unusable (a Keystore busy or not ready - after an OS update, at
+         * boot): the file is kept, and the next use tries again. RootView
+         * says so with Try again; a background run is retried later.
+         */
+        class Unavailable(cause: Throwable) : IllegalStateException("secure storage unavailable", cause) // i18n-ignore: logged, never shown
+
+        /**
+         * Pure: whether [e] (opening the store failed) means its keyset can
+         * never be read again - the Keystore key it is wrapped in isn't this
+         * one (a file restored or moved from another phone), or the file is
+         * corrupt - rather than a Keystore error that passes.
+         */
+        internal fun keysetUnusable(e: Throwable): Boolean {
+            var c: Throwable? = e
+            var depth = 0
+            while (c != null && depth++ < 16) {
+                if (c is javax.crypto.BadPaddingException || c is java.security.UnrecoverableKeyException ||
+                    c is android.security.keystore.KeyPermanentlyInvalidatedException ||
+                    c.javaClass.simpleName == "InvalidProtocolBufferException"
+                ) return true
+                c = c.cause.takeIf { it !== c }
+            }
+            return false
+        }
+
+        // A Keystore error that may pass is tried again after these.
+        private val retryPauses = longArrayOf(200, 500, 1_000)
+
+        /**
          * otc_secrets restored from a backup or moved from another phone
          * (releases before the backup rules) arrives without the Keystore
-         * key its keyset is wrapped in, and create() throws on every launch.
-         * Retried once first, so a passing Keystore error on the phone that
-         * wrote it wipes nothing; after that the file is dropped and the app
-         * starts as a fresh install, as iOS does (its Keychain items are
-         * ThisDeviceOnly).
+         * key its keyset is wrapped in, and create() throws on every launch:
+         * then the file is dropped and the app starts as a fresh install, as
+         * iOS does (its Keychain items are ThisDeviceOnly). Only then
+         * ([keysetUnusable]): any other error - a Keystore busy, or not ready
+         * after an OS update - is tried again a few times, then fails this
+         * use ([Unavailable]) and keeps the file. It used to wipe the
+         * sign-in, the device id (a second folder on the device at the next
+         * sign-in) and the sync's watermark after two quick tries.
+         *
+         * An error of the second kind can be for good too - a key whose blob
+         * the Keystore no longer takes after an OS or firmware update
+         * ("Invalid key blob"), one that loads as null - so how long it has
+         * lasted is kept ([SecretsFailures]): once it has failed on
+         * [SecretsFailures.STUCK_LAUNCHES] launches over a day at least, it
+         * counts as unusable and the store starts over; the owner can also
+         * start over from RootView's screen ([startOver]).
          */
         private fun openSecure(): SharedPreferences {
             val ctx = OTCApp.instance
-            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets unreadable, retrying: $e") }
-            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets still unreadable, starting over: $e") }
+            var last: Exception? = null
+            for (pause in longArrayOf(0) + retryPauses) {
+                if (pause > 0) Thread.sleep(pause)
+                try {
+                    return createSecure(ctx).also { failures(ctx).opened() }
+                } catch (e: Exception) {
+                    last = e
+                    if (keysetUnusable(e)) break
+                    Log.w(TAG, "secrets unreadable, trying again: ${e.javaClass.simpleName}")
+                }
+            }
+            if (last != null && !keysetUnusable(last)) {
+                if (!failures(ctx).failed(System.currentTimeMillis())) throw Unavailable(last)
+                Log.w(TAG, "secrets unreadable on every launch for a day, starting over: ${last.javaClass.simpleName}")
+            } else {
+                Log.w(TAG, "secrets can't be read on this phone, starting over: ${last?.javaClass?.simpleName}")
+            }
+            return startAfresh(ctx)
+        }
+
+        /**
+         * The secure store as on a fresh install: the file and what came
+         * with it gone, the master key made again if it is itself broken.
+         * Throws [Unavailable] when even that can't be opened.
+         */
+        private fun startAfresh(ctx: Context): SharedPreferences {
             ctx.deleteSharedPreferences("otc_secrets") // the keyset lives in the same file
             forgetRestoredState(ctx)
+            failures(ctx).opened()
             return try {
                 createSecure(ctx)
             } catch (e: Exception) {
                 // The master key itself is broken. Only otc_secrets uses it,
                 // and that is already gone.
-                Log.w(TAG, "secrets: recreating the master key: $e")
-                KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-                createSecure(ctx)
+                Log.w(TAG, "secrets: recreating the master key: ${e.javaClass.simpleName}")
+                try {
+                    KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                    createSecure(ctx)
+                } catch (e2: Exception) {
+                    throw Unavailable(e2)
+                }
             }
         }
+
+        /**
+         * RootView's Start over, asked first, while the secure store can't
+         * be opened: this phone's sign-in, device id and sync history go, as
+         * on a fresh install, and the store is opened anew. Nothing on the
+         * device is touched. Throws [Unavailable] when even that can't be
+         * opened.
+         */
+        fun startOver() {
+            synchronized(this) {
+                if (securePrefs != null) return
+                Log.w(TAG, "secrets: starting over, as asked")
+                securePrefs = startAfresh(OTCApp.instance)
+            }
+        }
+
+        private fun failures(ctx: Context) = SecretsFailures(SecretsFailures.prefsStore(ctx), launch)
+
+        // This process: a launch, as SecretsFailures counts them.
+        private val launch = UUID.randomUUID().toString()
 
         // What came back from the old phone with the secrets: its sync
         // watermark (would hide every photo here taken before it), its
@@ -299,6 +439,9 @@ class SecretsStore private constructor(
                 s
             }
         }
+
+        /** Whether two saved addresses are the same, as dialled (normalized; a host's case doesn't count). */
+        fun sameAddress(a: String, b: String): Boolean = normalizedEndpoint(a).lowercase() == normalizedEndpoint(b).lowercase()
 
         /** Issue #121: a device name -> its bridge address. */
         fun bridgeEndpoint(forName: String): String =

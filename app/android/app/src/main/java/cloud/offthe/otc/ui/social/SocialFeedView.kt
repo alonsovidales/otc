@@ -52,6 +52,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import cloud.offthe.otc.ui.common.TempFiles
+import cloud.offthe.otc.ui.common.PauseWhenStopped
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
@@ -100,6 +102,7 @@ import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
+import androidx.compose.ui.semantics.contentDescription
 import cloud.offthe.otc.ui.TourTarget
 import cloud.offthe.otc.ui.tourTarget
 import cloud.offthe.otc.i18n.appSocialPostDeleteCommentLabel
@@ -156,6 +159,7 @@ import cloud.offthe.otc.ui.common.relativeTime
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.compose.NewPostPickerView
 import cloud.offthe.otc.ui.theme.Ember
+import cloud.offthe.otc.ui.theme.EmberInk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -302,7 +306,7 @@ private fun Feed(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
                 IconButton(onClick = onFriends, Modifier.tourTarget(TourTarget.FRIENDS_BUTTON)) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
-                IconButton(onClick = onNewPost, Modifier.tourTarget(TourTarget.NEW_POST)) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
+                IconButton(onClick = onNewPost, Modifier.tourTarget(TourTarget.NEW_POST)) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = MaterialTheme.colorScheme.primary) }
             },
         )
     }) { pad ->
@@ -416,7 +420,8 @@ private fun EmptyFeed(onNewPost: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = Color.White, modifier = Modifier.size(48.dp))
+            // Ember-ink on ember, as the web's: white on it is too faint.
+            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = EmberInk, modifier = Modifier.size(48.dp))
         }
     }
 }
@@ -498,7 +503,7 @@ private fun PostCard(
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, S.appSocialPostMoreOptions().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) }, onClick = { menu = false; confirmDeletePost = true })
+                            DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; confirmDeletePost = true })
                         }
                     }
                 }
@@ -531,8 +536,12 @@ private fun PostCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text((if (c.publisher.isEmpty()) S.appSocialPostCommentUnnamed(c.comment) else S.appSocialPostComment(c.publisher, c.comment)).resolve(commentTags), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
+                // TalkBack: "3 likes", not a bare "3" (a tap lists who liked it).
+                if (c.likes > 0) {
+                    val likes = S.appSocialPostLikes(c.likes).resolve()
+                    Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.semantics { contentDescription = likes }.padding(4.dp))
+                }
                 IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp).semantics { selected = c.liked }) {
                     Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.appSocialPostUnlikeComment() else S.appSocialPostLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
@@ -558,13 +567,13 @@ private fun PostCard(
     }
     if (confirmDeletePost) AlertDialog(
         onDismissRequest = { confirmDeletePost = false }, title = { Text(S.appSocialPostDeletePostTitle().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text(S.appSocialPostDeletePost().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmDeletePost = false }) { Text(S.commonCancel().resolve()) } },
     )
     commentPendingDelete?.let { uuid ->
         AlertDialog(
             onDismissRequest = { commentPendingDelete = null }, title = { Text(S.appSocialPostDeleteCommentTitle().resolve()) },
-            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text(S.appSocialPostDeleteComment().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text(S.appSocialPostDeleteComment().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { commentPendingDelete = null }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -696,7 +705,7 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                         val resp = OTCConnection.request { it.setReqGetPublicationMedia(GetPublicationMedia.newBuilder().setPubUuid(post.uuid).setHash(file.hash)) }
                         if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return@withContext null
                         val ext = when (resp.respFile.mime.lowercase()) { "video/quicktime" -> "mov"; "video/x-matroska" -> "mkv"; "video/3gpp" -> "3gp"; else -> "mp4" }
-                        val tmp = File(context.cacheDir, "${UUID.randomUUID()}.$ext")
+                        val tmp = TempFiles.file(context.cacheDir, TempFiles.Kind.FEED, ext)
                         // Straight from the message, not through a copy of it.
                         tmp.outputStream().use { resp.respFile.content.writeTo(it) }
                         // The post left the screen meanwhile: nothing will play it.
@@ -706,7 +715,9 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                         tmp.toURI().toString()
                     }
                 } ?: return@launch
-                val p = MediaStream.player(context, url).apply {
+                // The audio focus only once its sound is on: a muted video
+                // playing by itself leaves the phone's music alone.
+                val p = MediaStream.player(context, url, audioFocus = !muted).apply {
                     setMediaItem(MediaItem.fromUri(url)); volume = if (muted) 0f else 1f; prepare(); playWhenReady = true
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(state: Int) { if (state == Player.STATE_ENDED) ended = true }
@@ -727,7 +738,12 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
     }
 
     LaunchedEffect(playing) { if (playing) { if (player == null) load() else player?.play() } else player?.pause() }
-    LaunchedEffect(muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(muted) {
+        player?.volume = if (muted) 0f else 1f
+        player?.setAudioAttributes(MediaStream.movieAudio, !muted)
+    }
+    // Paused when the app leaves the screen, as the viewer's.
+    PauseWhenStopped(player)
     DisposableEffect(file.hash) {
         onDispose {
             player?.release(); player = null

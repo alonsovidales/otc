@@ -233,7 +233,7 @@ struct VideoTrimmerView: View {
 /// draggable handles that can't cross each other - the bindings' own
 /// setters (changeStart/changeEnd) clamp every value to the clip and keep
 /// the two a minimum apart. Matches the web trimmer's single-line control.
-private struct DualRangeSlider: View {
+struct DualRangeSlider: View {
     let duration: Double
     @Binding var start: Double
     @Binding var end: Double
@@ -256,21 +256,39 @@ private struct DualRangeSlider: View {
                     .frame(width: max(2, endX - startX), height: 6)
                     .offset(x: startX + handleSize / 2)
 
+                // VoiceOver adjusts each handle a step at a time (a swipe up
+                // or down): the drag alone left a video untrimmable by ear.
                 handle
                     .offset(x: startX)
                     .gesture(drag(usable: usable) { start = $0 })
+                    .accessibilityElement()
                     .accessibilityLabel(S.iosTrimStartHandle)
                     .accessibilityValue(formatTimecode(start))
+                    .accessibilityAdjustableAction { start = Self.stepped(start, $0 == .increment, duration: duration) }
                 handle
                     .offset(x: endX)
                     .gesture(drag(usable: usable) { end = $0 })
+                    .accessibilityElement()
                     .accessibilityLabel(S.iosTrimEndHandle)
                     .accessibilityValue(formatTimecode(end))
+                    .accessibilityAdjustableAction { end = Self.stepped(end, $0 == .increment, duration: duration) }
             }
             .frame(height: handleSize)
             .frame(maxHeight: .infinity)
         }
         .frame(height: 28)
+    }
+
+    /// VoiceOver's step for a handle: a hundredth of the clip, in tenths of
+    /// a second, at least one (a minute's clip moves 0.6 s a swipe).
+    nonisolated static func step(for duration: Double) -> Double {
+        max(0.1, (duration / 10).rounded() / 10)
+    }
+
+    /// A handle at `value` one step up or down; the bindings' setters keep it
+    /// in the clip and the two a minimum apart.
+    nonisolated static func stepped(_ value: Double, _ up: Bool, duration: Double) -> Double {
+        value + (up ? 1 : -1) * step(for: duration)
     }
 
     private var handle: some View {

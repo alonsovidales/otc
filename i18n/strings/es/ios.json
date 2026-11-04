@@ -321,9 +321,9 @@
     "en": "Crop photo"
   },
   "ios.settings.free_up_footer": {
-    "text": "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas y las ráfagas se quedan: el dispositivo solo tiene su original. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día.",
-    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
-    "reviewed": "claude-backtranslation 2026-10-21 #6b47e376"
+    "text": "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas, las ráfagas y los pares RAW+JPEG se quedan: el dispositivo solo tiene una de sus imágenes. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día.",
+    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos, bursts and RAW+JPEG pairs stay: the device has only one of their pictures. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-11-04 #60e6de7a"
   },
   "ios.settings.free_up_live_photos": {
     "text": "Incluir Live Photos",
@@ -473,6 +473,10 @@
   "ios.wallpaper_full_access": {
     "text": "Para crear el álbum, Off The Cloud necesita acceso a todas tus fotos. Puedes permitirlo en Ajustes.",
     "en": "To make the album, Off The Cloud needs access to all your photos. You can allow it in Settings."
+  },
+  "ios.wallpaper_full_access_stop": {
+    "text": "Para borrar el álbum y sus copias, Off The Cloud necesita acceso a todas tus fotos. Puedes permitirlo en Ajustes. Hasta entonces, se quedan en la app Fotos.",
+    "en": "To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app."
   },
   "ios.wallpaper_lock_button": {
     "text": "Guardar copias en un álbum",

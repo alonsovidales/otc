@@ -18,8 +18,6 @@
         <item quantity="many">%1$s octets</item>
         <item quantity="other">%1$s octets</item>
     </plurals>
-    <string name="android_compose_move_left">Déplacer vers la gauche</string>
-    <string name="android_compose_move_right">Déplacer vers la droite</string>
     <string name="android_compose_record_video">Enregistrer une vidéo</string>
     <string name="android_compose_take_photo">Prendre une photo</string>
     <string name="android_download_changed">le fichier a changé sur l’appareil pendant le téléchargement</string>
@@ -52,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dans \u2068%1$s\u2069, qui est hors d’Images : les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images.</string>
     <string name="android_files_inside_kept_out_info">Dans \u2068%1$s\u2069, qui est hors d’Images. Les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images. Fichiers les affiche toujours.</string>
     <string name="android_files_kept_out_said">Le dossier \u2068%1$s\u2069 est maintenant hors d’Images</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s ancienne version</item>
+        <item quantity="many">%1$s anciennes versions</item>
+        <item quantity="other">%1$s anciennes versions</item>
+    </plurals>
     <string name="android_files_show_named">Afficher « \u2068%1$s\u2069 » dans Images</string>
     <string name="android_files_shown_said">Le dossier \u2068%1$s\u2069 est de nouveau affiché dans Images</string>
     <string name="android_files_wait_download_link">Attendez que le lien de téléchargement soit prêt</string>
@@ -68,6 +71,7 @@
     <string name="android_friends_remove_title_unnamed">Retirer cette personne de vos amis ?</string>
     <string name="android_location_off_hint">La localisation est désactivée. Sur cette version d’Android, le téléphone ne trouve les appareils Bluetooth qu’avec la localisation activée.</string>
     <string name="android_menu_sections">Sections</string>
+    <string name="android_no_app_for_link">Aucune app de ce téléphone ne peut ouvrir ce lien.</string>
     <string name="android_notification_channel">Amis et publications</string>
     <string name="android_notification_channel_description">Demandes d’ami, nouvelles publications, J’aime et commentaires</string>
     <string name="android_open_settings">Ouvrir les Paramètres</string>
@@ -83,6 +87,10 @@
     <string name="android_photos_people_merge_dimmed">Fusionner (sélectionnez-en au moins 2 pour les fusionner)</string>
     <string name="android_photos_search_close">Fermer la recherche</string>
     <string name="android_photos_search_in_search">Dans la recherche</string>
+    <string name="android_secrets_start_over">Recommencer</string>
+    <string name="android_secrets_start_over_text">Off The Cloud oublie sa connexion et ce qu’il a déjà sauvegardé de ce téléphone, comme s’il venait d’être installé : vous vous reconnectez avec l’adresse et le mot de passe de l’appareil et choisissez à nouveau ce qui est sauvegardé, comme sur un nouveau téléphone. Rien n’est supprimé sur l’appareil.</string>
+    <string name="android_secrets_start_over_title">Recommencer sur ce téléphone ?</string>
+    <string name="android_secrets_unavailable">Off The Cloud ne parvient pas à ouvrir le stockage sécurisé de ce téléphone, où il garde votre connexion. Cela se règle généralement après un redémarrage ou une mise à jour du système : réessayez dans un instant. Si cela continue, vous pouvez recommencer et vous reconnecter.</string>
     <string name="android_settings_bridge_leave_delete">Quitter et supprimer</string>
     <string name="android_settings_crop_hint">Faites glisser la photo pour centrer votre visage</string>
     <string name="android_settings_crop_zoom">Zoom</string>
@@ -140,7 +148,9 @@
     <string name="android_storage_show_details_attention">Stockage, attention requise, afficher les détails</string>
     <string name="android_storage_used">Stockage utilisé, %1$s %%</string>
     <string name="android_trim_cant">Impossible de découper cette vidéo : %1$s</string>
+    <string name="android_trim_end_handle">Fin de l’extrait</string>
     <string name="android_trim_play_cut">▶ Lire l’extrait</string>
+    <string name="android_trim_start_handle">Début de l’extrait</string>
     <string name="android_wallpaper_both">Les deux</string>
     <string name="android_wallpaper_change">Changer de photo</string>
     <string name="android_wallpaper_every_15">Toutes les 15 minutes</string>

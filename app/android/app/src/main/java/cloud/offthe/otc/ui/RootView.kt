@@ -7,12 +7,42 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSecretsStartOver
+import cloud.offthe.otc.i18n.androidSecretsStartOverText
+import cloud.offthe.otc.i18n.androidSecretsStartOverTitle
+import cloud.offthe.otc.i18n.androidSecretsUnavailable
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonTryAgain
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,6 +52,11 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
@@ -33,12 +68,95 @@ import cloud.offthe.otc.ui.compose.mediaPermissions
 import cloud.offthe.otc.ui.gallery.DeletePhoneCopyDialog
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
 
+/**
+ * The view models of one device session (SecretsStore.deviceSession): a
+ * new store for each, the last one cleared - iOS's `.id(deviceSession)` on
+ * MainView. An Activity-scoped view model itself, so it outlives a
+ * recreation.
+ */
+class SessionStores : ViewModel() {
+    private var session = -1
+    private var store = ViewModelStore()
+
+    fun owner(session: Int): ViewModelStoreOwner {
+        if (session != this.session) {
+            if (this.session >= 0) store.clear()
+            store = ViewModelStore()
+            this.session = session
+        }
+        val s = store
+        return object : ViewModelStoreOwner { override val viewModelStore = s }
+    }
+
+    override fun onCleared() = store.clear()
+}
+
 // Port of RootView.swift: onboarding until the connection is configured,
 // then the tabs; foreground/background transitions drive the photo sync
 // the way scenePhase does on iOS (issue #70).
 @Composable
 fun RootView() {
-    val secrets = remember { SecretsStore.loadOrCreate() }
+    // The secure store, opened once; while the Keystore can't open it (busy,
+    // not ready after an OS update), a screen that says so and tries again -
+    // nothing is wiped (SecretsStore.Unavailable) unless the owner starts
+    // over from it, or it has failed on every launch for a day.
+    var attempt by remember { mutableStateOf(0) }
+    val secrets = remember(attempt) { SecretsStore.openOrNull() }
+    if (secrets == null) {
+        SecretsUnavailableView(onRetry = { attempt++ }, onStartedOver = { attempt++ })
+        return
+    }
+    RootContent(secrets)
+}
+
+/**
+ * The secure store couldn't be opened: said, with Try again, and Start over
+ * (asked first) for a key the Keystore will never take again - it used to
+ * be the only way out but clearing the app's data in system settings.
+ */
+@Composable
+private fun SecretsUnavailableView(onRetry: () -> Unit, onStartedOver: () -> Unit) {
+    var confirm by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Column(
+            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(28.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(S.androidSecretsUnavailable().resolve(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onRetry, enabled = !working) { Text(S.commonTryAgain().resolve()) }
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = { confirm = true }, enabled = !working) {
+                Text(S.androidSecretsStartOver().resolve(), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(S.androidSecretsStartOverTitle().resolve()) },
+            text = { Text(S.androidSecretsStartOverText().resolve()) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    working = true
+                    scope.launch {
+                        // Off the main thread: a Keystore key made again.
+                        withContext(Dispatchers.IO) { runCatching { SecretsStore.startOver() } }
+                        working = false
+                        onStartedOver()
+                    }
+                }) { Text(S.androidSecretsStartOver().resolve(), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(S.commonCancel().resolve()) } },
+        )
+    }
+}
+
+@Composable
+private fun RootContent(secrets: SecretsStore) {
     val endpoint by secrets.endpoint.collectAsState()
     val password by secrets.password.collectAsState()
     var configured by remember { mutableStateOf(secrets.isConfigured) }
@@ -114,8 +232,19 @@ fun RootView() {
     LaunchedEffect(configured, choicePending) { if (configured && !choicePending && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
 
     // Issue #133: a no-op on first launch (the model's init already started
-    // it), the restart after Log Out + sign in.
-    LaunchedEffect(configured) { if (configured) SocialFeedViewModel.startAutoLoad() }
+    // it), the restart after Log Out + sign in - and after another address
+    // was saved (DeviceChange reset the feed and the Alerts poll).
+    val deviceSession by secrets.deviceSession.collectAsState()
+    LaunchedEffect(configured, deviceSession) {
+        if (!configured) return@LaunchedEffect
+        SocialFeedViewModel.startAutoLoad()
+        if (deviceSession > 0 && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) NotificationsModel.startPolling()
+    }
+    // The view models MainView's screens make, one store per device
+    // session: another address saved makes every screen afresh, none keeping
+    // the last device's lists. Kept by the Activity's own view model, so a
+    // recreation (a change of language) keeps them as before.
+    val sessions: SessionStores = viewModel()
 
     // The first-run tour (Tour.kt): opens by itself once signed in, with
     // MainView up and no card over it, after the sync question.
@@ -132,7 +261,12 @@ fun RootView() {
         Box(Modifier.fillMaxSize()) {
             // Out of TalkBack's reach while the tour lies over it.
             Box(Modifier.fillMaxSize().then(if (tourShown) Modifier.clearAndSetSemantics {} else Modifier)) {
-                MainView(secrets = secrets)
+                key(deviceSession) {
+                    val owner = remember { sessions.owner(deviceSession) }
+                    CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+                        MainView(secrets = secrets)
+                    }
+                }
             }
             if (tourShown) TourView()
         }

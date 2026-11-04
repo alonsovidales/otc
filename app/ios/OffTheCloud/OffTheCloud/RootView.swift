@@ -64,6 +64,11 @@ struct RootView: View {
                         }
                         .environmentObject(secrets)
                     }
+                    // Another address saved (Settings, the "can't connect"
+                    // card): every screen is made afresh, so none keeps the
+                    // last device's lists, and what starts on appearing
+                    // starts again (DeviceChange).
+                    .id(secrets.deviceSession)
             } else {
                 OnboardingView()
                     .environmentObject(secrets)

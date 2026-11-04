@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui
 
+import cloud.offthe.otc.ui.theme.warning
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,6 +77,8 @@ import cloud.offthe.otc.i18n.appSocialAlertsTitle
 import cloud.offthe.otc.i18n.commonAccept
 import cloud.offthe.otc.proto.Notification
 import cloud.offthe.otc.proto.NotificationType
+import androidx.compose.ui.platform.LocalDensity
+import cloud.offthe.otc.ui.common.rememberTileThumb
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.TRYING
@@ -199,7 +202,10 @@ private fun NotificationRow(n: Notification, model: NotificationsModel, now: Lon
             }
         }
         if (n.hasThumbnail()) {
-            val bmp = remember(n.uuid) { decodeBitmap(n.thumbnail.toByteArray()) }
+            // Decoded off the main thread, at the size shown (up to 50 of
+            // them as Alerts opens, each up to 4096 px).
+            val px = with(LocalDensity.current) { 44.dp.roundToPx() }
+            val bmp = rememberTileThumb("alert:${n.uuid}", px) { n.thumbnail.toByteArray() }
             if (bmp != null) {
                 Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop,
                     modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)))
@@ -220,13 +226,13 @@ private fun ErrorRow(n: Notification, now: Long) {
         verticalAlignment = Alignment.Top,
     ) {
         Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF9800), modifier = Modifier.size(26.dp))
+            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.warning, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             // The title is the device's, already in the app's language.
             if (n.occurrences > 1) Text(
-                S.appSocialAlertsErrorMore(n.title, n.occurrences - 1).resolve(mapOf("b" to boldTag, "dim" to RichTag(style = SpanStyle(color = Color.Gray)))),
+                S.appSocialAlertsErrorMore(n.title, n.occurrences - 1).resolve(mapOf("b" to boldTag, "dim" to RichTag(style = SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)))),
                 style = MaterialTheme.typography.bodyMedium,
             )
             else Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
@@ -283,7 +289,12 @@ private fun TitledRow(n: Notification, now: Long, onTap: () -> Unit, icon: @Comp
 /** Shared avatar rendering - the friends list, likers and notifications. */
 @Composable
 fun AvatarView(data: ByteArray?, size: androidx.compose.ui.unit.Dp) {
-    val bmp = remember(data?.size) { data?.let { decodeBitmap(it) } }
+    // Decoded off the main thread at the size shown, keyed by its content
+    // (two pictures of one size used to share a decode): the feed, Friends
+    // and the likers scroll through many.
+    val key = data?.takeIf { it.isNotEmpty() }?.let { "avatar:${it.size}:${it.contentHashCode()}" }
+    val px = with(LocalDensity.current) { size.roundToPx() }
+    val bmp = rememberTileThumb(key, px) { data }
     if (bmp != null) {
         Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.size(size).clip(CircleShape))
     } else {

@@ -166,6 +166,19 @@ struct PhotoSourcesTests {
         #expect(PhotoSources.oneOffs(["a", "large"], floor: nil) == [.album("a")])
     }
 
+    // "Include videos" turned back on: the videos taken while it was off,
+    // behind the watermark, from the floor - never before it, and not
+    // without one, as the catch-up.
+    @Test func theVideosPassFollowsTheFloor() {
+        let floor = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(PhotoSources.oneOffs([PhotoSources.videos], floor: floor) == [.videos(floor)])
+        #expect(PhotoSources.oneOffs(["a", PhotoSources.videos], floor: .distantPast) == [.album("a"), .videos(nil)])
+        #expect(PhotoSources.oneOffs([PhotoSources.videos], floor: nil).isEmpty)
+        // A pass that went through is done; one queued meanwhile stays.
+        #expect(PhotoSources.afterPass(stored: [PhotoSources.videos, "b"], taken: [PhotoSources.videos], skippedInRun: [], finished: true) == ["b"])
+        #expect(PhotoSources.afterPass(stored: [PhotoSources.videos], taken: [PhotoSources.videos], skippedInRun: [], finished: false) == [PhotoSources.videos])
+    }
+
     @Test func theLargePassTakesOnlyWhatMayHaveBeenGivenUp() {
         let gib: Int64 = 1 << 30
         // Sent before: its hash is recorded.

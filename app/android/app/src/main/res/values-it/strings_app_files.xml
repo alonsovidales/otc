@@ -68,6 +68,7 @@
     <string name="app_files_make_upload_only_title">Impostare la cartella “\u2068%1$s\u2069” in solo caricamento?</string>
     <string name="app_files_no_results">Nessun file corrisponde a “\u2068%1$s\u2069”.</string>
     <string name="app_files_open_failed">Impossibile recuperare il file</string>
+    <string name="app_files_path_label">Percorso della cartella</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s risultato</item>
         <item quantity="many">%1$s risultati</item>

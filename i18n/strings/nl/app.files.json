@@ -233,6 +233,10 @@
     "text": "Kan het bestand niet ophalen",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Mappad",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} resultaat",

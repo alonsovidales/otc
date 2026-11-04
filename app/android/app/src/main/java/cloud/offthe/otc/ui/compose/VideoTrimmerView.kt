@@ -53,12 +53,25 @@ import cloud.offthe.otc.i18n.appSocialTrimTitle
 import cloud.offthe.otc.i18n.commonApply
 import cloud.offthe.otc.i18n.commonCancel
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
+import cloud.offthe.otc.i18n.androidTrimEndHandle
+import cloud.offthe.otc.i18n.androidTrimStartHandle
 
 // Port of VideoTrimmerView.swift (issue #108): pick the start/end of the
 // clip that goes into a post; the cut itself happens on the device.
 data class TrimRange(val start: Double, val end: Double) { val length get() = maxOf(0.0, end - start) }
 
 private const val minTrimSecs = 0.5
+
+/** TalkBack's step for a trimmer handle: a hundredth of the clip, in tenths of a second, at least one (a minute's clip moves 0.6 s a swipe) - iOS's DualRangeSlider.step. */
+fun trimStep(duration: Double): Double = maxOf(0.1, Math.round(duration / 10).toDouble() / 10)
 
 fun formatTimecode(secs: Double): String {
     val s = if (secs.isFinite() && secs > 0) secs else 0.0
@@ -69,7 +82,9 @@ fun formatTimecode(secs: Double): String {
 @Composable
 fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
-    val player = remember { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare() } }
+    val player = remember { cloud.offthe.otc.net.MediaStream.playerBuilder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare() } }
+    // Paused when the app leaves the screen.
+    cloud.offthe.otc.ui.common.PauseWhenStopped(player)
     var duration by remember { mutableStateOf<Double?>(null) }
     var start by remember { mutableStateOf(existing?.start ?: 0.0) }
     var end by remember { mutableStateOf(existing?.end ?: 0.0) }
@@ -117,16 +132,41 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
                     d != null -> {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Text(formatTimecode(start), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(52.dp))
-                            RangeSlider(
-                                value = start.toFloat()..effectiveEnd.toFloat(), valueRange = 0f..d.toFloat(),
-                                onValueChange = { r ->
-                                    val ns = r.start.toDouble().coerceIn(0.0, maxOf(0.0, effectiveEnd - minTrimSecs))
-                                    val ne = r.endInclusive.toDouble().coerceIn(start + minTrimSecs, d)
-                                    if (ns != start) { start = ns; playingCut = false; player.pause(); player.seekTo((ns * 1000).toLong()) }
-                                    if (ne != end) { end = ne; playingCut = false; player.pause(); player.seekTo((ne * 1000).toLong()) }
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
+                            val setRange = { r: ClosedFloatingPointRange<Float> ->
+                                val ns = r.start.toDouble().coerceIn(0.0, maxOf(0.0, effectiveEnd - minTrimSecs))
+                                val ne = r.endInclusive.toDouble().coerceIn(start + minTrimSecs, d)
+                                if (ns != start) { start = ns; playingCut = false; player.pause(); player.seekTo((ns * 1000).toLong()) }
+                                if (ne != end) { end = ne; playingCut = false; player.pause(); player.seekTo((ne * 1000).toLong()) }
+                            }
+                            Box(Modifier.weight(1f)) {
+                                // The drag is the slider's; TalkBack gets each handle
+                                // as one element of its own, named, read as a time,
+                                // and stepped a hundredth of the clip (trimStep) -
+                                // the slider's own thumbs said only a percentage.
+                                RangeSlider(
+                                    value = start.toFloat()..effectiveEnd.toFloat(), valueRange = 0f..d.toFloat(),
+                                    onValueChange = setRange,
+                                    modifier = Modifier.fillMaxWidth().clearAndSetSemantics {},
+                                )
+                                val step = trimStep(d)
+                                val stepCount = maxOf(0, Math.round(d / step).toInt() - 1)
+                                val startName = S.androidTrimStartHandle().resolve()
+                                val endName = S.androidTrimEndHandle().resolve()
+                                Row(Modifier.matchParentSize()) {
+                                    Box(Modifier.weight(1f).fillMaxHeight().semantics {
+                                        contentDescription = startName
+                                        stateDescription = formatTimecode(start)
+                                        progressBarRangeInfo = ProgressBarRangeInfo(start.toFloat(), 0f..d.toFloat(), stepCount)
+                                        setProgress { v -> setRange(v..effectiveEnd.toFloat()); true }
+                                    })
+                                    Box(Modifier.weight(1f).fillMaxHeight().semantics {
+                                        contentDescription = endName
+                                        stateDescription = formatTimecode(effectiveEnd)
+                                        progressBarRangeInfo = ProgressBarRangeInfo(effectiveEnd.toFloat(), 0f..d.toFloat(), stepCount)
+                                        setProgress { v -> setRange(start.toFloat()..v); true }
+                                    })
+                                }
+                            }
                             Text(formatTimecode(effectiveEnd), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(52.dp))
                         }
                         Text(S.appSocialTrimKeeping(formatTimecode(cutLength), formatTimecode(d)).resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

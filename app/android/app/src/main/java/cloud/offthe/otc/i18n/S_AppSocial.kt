@@ -74,6 +74,14 @@ fun S.appSocialComposeEmptyResponse(): UiText =
 fun S.appSocialComposeFilterPlaceholder(): UiText =
     UiText.Res(R.string.app_social_compose_filter_placeholder)
 
+/** "Move left": Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post. */
+fun S.appSocialComposeMoveLeft(): UiText =
+    UiText.Res(R.string.app_social_compose_move_left)
+
+/** "Move right": Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post. */
+fun S.appSocialComposeMoveRight(): UiText =
+    UiText.Res(R.string.app_social_compose_move_right)
+
 /** "Order in post": Small heading of the strip of the photos picked for a new post, in the New Post composer: the order they will appear in the post (arrows under each move it). */
 fun S.appSocialComposeOrder(): UiText =
     UiText.Res(R.string.app_social_compose_order)
@@ -81,6 +89,10 @@ fun S.appSocialComposeOrder(): UiText =
 /** "Photos access is needed to pick from your phone.": Alert in the New Post composer when the app isn't allowed to read the phone's photos, so the Phone source (the phone's own photos) can't show them. */
 fun S.appSocialComposePhotosAccess(): UiText =
     UiText.Res(R.string.app_social_compose_photos_access)
+
+/** "Number {position} in the post": What a screen reader says after a photo's name in the New Post composer, once it is picked: its place in the post's order (1 is first). Read as the tile's value, after e.g. "Photo, 5 October 2026". */
+fun S.appSocialComposePosition(position: Int): UiText =
+    UiText.Res(R.string.app_social_compose_position, listOf(position))
 
 /** "Publish": Button at the right of the caption box in the New Post composer, while no photo is picked yet (it is disabled then): publishes the post to your friends. */
 fun S.appSocialComposePublish(): UiText =
@@ -121,6 +133,10 @@ fun S.appSocialComposeTrimBadge(): UiText =
 /** "Could not load that video to trim it: {detail}": Alert in the New Post composer when a picked video couldn't be opened for trimming. {detail} says why (the phone's reason, or app.social.compose.empty_response). */
 fun S.appSocialComposeTrimLoadFailed(detail: String): UiText =
     UiText.Res(R.string.app_social_compose_trim_load_failed, listOf(detail))
+
+/** "Remove from the post": Screen-reader name of the × at the corner of a picked photo in the New Post composer's strip of picked photos: takes it out of the post (nothing is deleted). */
+fun S.appSocialComposeUnpick(): UiText =
+    UiText.Res(R.string.app_social_compose_unpick)
 
 /** "Uploading {done} of {total}…": Status line above the caption box in the New Post composer while the photos picked from the phone are uploaded to the device before the post is made: {done} is the one being uploaded (1, 2…), {total} how many there are. */
 fun S.appSocialComposeUploading(done: Int, total: Int): UiText =

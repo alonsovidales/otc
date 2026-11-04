@@ -162,6 +162,10 @@ fun S.appShellEndpointCustomNote(): UiText =
 fun S.appShellEndpointDeviceName(): UiText =
     UiText.Res(R.string.app_shell_endpoint_device_name)
 
+/** "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.": Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), and this phone has signed in to the device before over the device's encrypted connection on the home network, on its own port ({port}, a number such as 8443). Now the address answers but that port doesn't, so the app refused to send the password unencrypted. A container is a Docker container; publishing a port is Docker's word for letting the network reach it. */
+fun S.appShellHomePortUnreachable(port: String): UiText =
+    UiText.Res(R.string.app_shell_home_port_unreachable, listOf(port))
+
 /** "That address can't be found. Check the device name or address.": Why the app can't connect, on the card shown over the app: the device's name or address doesn't exist on the internet. */
 fun S.appShellHostNotFound(): UiText =
     UiText.Res(R.string.app_shell_host_not_found)
@@ -257,6 +261,10 @@ fun S.appShellNoStorageTitle(): UiText =
 /** "Not connected": Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start). */
 fun S.appShellNotConnected(): UiText =
     UiText.Res(R.string.app_shell_not_connected)
+
+/** "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.": Why the app can't connect, on the card shown over the app: the address starts with ws:// (no encryption, used only on the home network), this phone has signed in to the device there before and knows its security certificate, and now something else answers at that address (another network that uses the same addresses, or the device set up again from scratch), so the app refused to send the password. {button} is the card's button app.shell.leave_button, quoted. */
+fun S.appShellNotKnownDevice(button: String): UiText =
+    UiText.Res(R.string.app_shell_not_known_device, listOf(button))
 
 /** "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.": Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is. */
 fun S.appShellNotOtc(): UiText =
@@ -545,6 +553,14 @@ fun S.appShellSetupNotFound(): UiText =
 /** "Open my device": Set up a new device (over Bluetooth): button once the device is installed, which signs the app in to it. */
 fun S.appShellSetupOpenDevice(): UiText =
     UiText.Res(R.string.app_shell_setup_open_device)
+
+/** "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.": Text of that question (app.shell.setup_other_domain_title). {domain} is the address the device reported, such as photos.example.net. A bridge of one's own is a self-hosted relay server instead of Off The Cloud's; something nearby could pretend to be the device during the setup over Bluetooth. Keep off-the.cloud as it is. */
+fun S.appShellSetupOtherDomainText(domain: String): UiText =
+    UiText.Res(R.string.app_shell_setup_other_domain_text, listOf(domain))
+
+/** "Open this address?": Set up a new device (over Bluetooth): title of the question asked when the device reported an address that isn't a name under off-the.cloud - after Open my device (app.shell.setup_open_device), and after Save & Continue (app.shell.save_continue) when the connection form was filled from that setup. Buttons: Cancel and Open my device. */
+fun S.appShellSetupOtherDomainTitle(): UiText =
+    UiText.Res(R.string.app_shell_setup_other_domain_title)
 
 /** "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.": Set up a new device (over Bluetooth): under the heading Looking for a device to set up…. */
 fun S.appShellSetupPowerOn(): UiText =

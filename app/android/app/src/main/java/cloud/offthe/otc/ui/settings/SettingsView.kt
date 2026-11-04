@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import cloud.offthe.otc.ui.common.SwitchRow
 import cloud.offthe.otc.ui.common.THUMB_CACHE_CHOICES
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.formatCacheBytes
@@ -68,7 +69,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.ui.common.OTCTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,6 +79,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -101,6 +102,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.ui.theme.AlertRed
+import cloud.offthe.otc.ui.theme.EmberInk
+import cloud.offthe.otc.ui.theme.warning
+import cloud.offthe.otc.ui.theme.WarningOrange
 import cloud.offthe.otc.data.SmartSearchAnnouncement
 import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
@@ -235,6 +240,8 @@ import cloud.offthe.otc.i18n.appSettingsSyncAll
 import cloud.offthe.otc.i18n.appSettingsSyncAuthorize
 import cloud.offthe.otc.i18n.appSettingsSyncFooter
 import cloud.offthe.otc.i18n.appSettingsSyncFromNow
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowTitle
+import cloud.offthe.otc.i18n.appSettingsSyncFromNowText
 import cloud.offthe.otc.i18n.appSettingsSyncTitle
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
@@ -379,7 +386,13 @@ import cloud.offthe.otc.ui.common.FitText
 @Composable
 internal fun Section(title: String, footer: String? = null, below: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
+        // A heading for TalkBack, so its headings navigation goes from one
+        // section to the next of this long screen, read as written rather
+        // than in capitals.
+        Text(
+            title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp).semantics { heading(); contentDescription = title },
+        )
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp)) { content() }
         footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) }
         below?.invoke()
@@ -514,6 +527,8 @@ fun SettingsView(secrets: SecretsStore) {
             catch (e: CancellationException) { throw e } catch (e: Exception) { null }
     }
     var confirmLogout by remember { mutableStateOf(false) }
+    // Sync From Now asks first: it gives up on every photo not sent yet.
+    var confirmSyncFromNow by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
     var showSharedLinks by remember { mutableStateOf(false) }
     // Settings > Logs (LogsView.kt), primary instance only like Tailscale and Users.
@@ -542,6 +557,14 @@ fun SettingsView(secrets: SecretsStore) {
         }
     }
     DisposableEffect(Unit) { onDispose { status.stop(); device.stopPollingReprocessStatus() } }
+    // A reprocess's progress only while the app is in front, as the status
+    // poll: every 1.5 s, it went on asking in the background.
+    LaunchedEffect(lifecycle) {
+        lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            if (device.state.value.reprocessStatus == "running") device.pollReprocessStatusWhileRunning()
+            try { awaitCancellation() } finally { device.stopPollingReprocessStatus() }
+        }
+    }
     // Smart search's model on its way (release 152): asked again every 3 s
     // while the switch is on and Settings is in front - not once it is
     // there, with the switch off, Settings left or the app in the background.
@@ -681,7 +704,15 @@ fun SettingsView(secrets: SecretsStore) {
                 // A run going goes through once more from the new starting
                 // point (setWatermark), as on iOS.
                 RowButton(S.appSettingsSyncAll().resolve()) { PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
-                RowButton(S.appSettingsSyncFromNow().resolve()) { PhotoSync.setWatermark(System.currentTimeMillis()) }
+                // It gives up on every photo not sent yet: it asks first.
+                RowButton(S.appSettingsSyncFromNow().resolve()) { confirmSyncFromNow = true }
+            }
+            if (confirmSyncFromNow) {
+                cloud.offthe.otc.ui.gallery.ConfirmDialog(
+                    S.appSettingsSyncFromNowTitle().resolve(), S.appSettingsSyncFromNowText().resolve(), S.appSettingsSyncFromNow().resolve(),
+                    onConfirm = { confirmSyncFromNow = false; PhotoSync.setWatermark(System.currentTimeMillis()) },
+                    onDismiss = { confirmSyncFromNow = false },
+                )
             }
 
             // Android 11 and later: MediaStore's trash request.
@@ -692,20 +723,20 @@ fun SettingsView(secrets: SecretsStore) {
             // Off and disabled on a device with too little memory for it (the
             // footer says how much it needs).
             Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
-                    Switch(checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled, enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
-                }
+                SwitchRow(
+                    S.appSettingsTaggingTitle().resolve(), checked = dst.imageTaggingAvailable && dst.imageTaggingEnabled,
+                    enabled = dst.imageTaggingAvailable && !dst.savingImageTagging, onChange = { v -> scope.launch { device.toggleImageTagging(v) } },
+                )
                 // Issue #209: on a 4 GB device it is the user's choice, and
                 // this says what it costs there.
                 if (dst.imageTaggingHeavy) Caption(S.appSettingsTaggingHeavy().resolve())
             }
 
             Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(S.appSettingsFacesToggle().resolve(), Modifier.weight(1f))
-                    Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
-                }
+                SwitchRow(
+                    S.appSettingsFacesToggle().resolve(), checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition,
+                    onChange = { v -> scope.launch { device.toggleFaceRecognition(v) } },
+                )
             }
 
             // Places, the map in Images: only on a device that has it, off
@@ -713,10 +744,7 @@ fun SettingsView(secrets: SecretsStore) {
             // unencrypted, and that turning it off deletes them).
             dst.placesEnabled?.let { on ->
                 Section(S.appSettingsPlacesTitle().resolve(), S.appSettingsPlacesFooter().resolve()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(S.appSettingsPlacesTitle().resolve(), Modifier.weight(1f))
-                        Switch(checked = on, enabled = !dst.savingPlaces, onCheckedChange = { v -> scope.launch { device.togglePlaces(v) } })
-                    }
+                    SwitchRow(S.appSettingsPlacesTitle().resolve(), checked = on, enabled = !dst.savingPlaces, onChange = { v -> scope.launch { device.togglePlaces(v) } })
                 }
             }
 
@@ -725,10 +753,7 @@ fun SettingsView(secrets: SecretsStore) {
             // again while something is hidden.
             dst.memoriesEnabled?.let { on ->
                 Section(S.appSettingsMemoriesTitle().resolve(), S.appSettingsMemoriesFooter().resolve()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(S.appSettingsMemoriesToggle().resolve(), Modifier.weight(1f))
-                        Switch(checked = on, enabled = !dst.savingMemories, onCheckedChange = { v -> scope.launch { device.toggleMemories(v) } })
-                    }
+                    SwitchRow(S.appSettingsMemoriesToggle().resolve(), checked = on, enabled = !dst.savingMemories, onChange = { v -> scope.launch { device.toggleMemories(v) } })
                     if (on && dst.memoriesHidden > 0) {
                         TextButton(onClick = { scope.launch { device.showHiddenMemories() } }, enabled = !dst.showingHidden) {
                             Text(S.appSettingsMemoriesShowHidden(dst.memoriesHidden).resolve())
@@ -763,10 +788,31 @@ fun SettingsView(secrets: SecretsStore) {
                 // Never an empty address or password: that would be Log Out
                 // without the wipe.
                 val canSave = editEntry.endpoint.trim().isNotEmpty() && editPassword.isNotEmpty()
+                // Another address is being saved (below).
+                var savingConnection by remember { mutableStateOf(false) }
                 val save = {
-                    if (canSave) {
-                        secrets.saveCredentials(editEntry.endpoint.trim(), editPassword)
-                        OTCConnection.invalidate()
+                    if (canSave && !savingConnection) {
+                        val address = editEntry.endpoint.trim()
+                        val typed = editPassword
+                        if (SecretsStore.sameAddress(address, secrets.endpoint.value)) {
+                            secrets.saveCredentials(address, typed)
+                            OTCConnection.invalidate()
+                        } else {
+                            // Another address: the device left forgets this
+                            // phone's push token first (a moment at most),
+                            // then the new one is dialled (DeviceChange).
+                            // Outlives this screen: leaving Settings meanwhile
+                            // never drops the save (saveAnotherAddress).
+                            savingConnection = true
+                            val saving = OTCConnection.saveAnotherAddress {
+                                secrets.saveCredentials(address, typed)
+                                OTCConnection.invalidate()
+                            }
+                            scope.launch {
+                                saving.join()
+                                savingConnection = false
+                            }
+                        }
                     }
                 }
                 ConnectionEndpointFields(editEntry, onNext = { passwordFocus.requestFocus() })
@@ -776,7 +822,7 @@ fun SettingsView(secrets: SecretsStore) {
                 )
                 routeLine(signedIn, route, endpoint)?.let { Caption(it.resolve()) }
                 Caption(S.appSettingsConnectionDeviceId(deviceId).resolve())
-                RowButton(S.appSettingsConnectionSave().resolve(), enabled = canSave) { save() }
+                RowButton(S.appSettingsConnectionSave().resolve(), enabled = canSave && !savingConnection) { save() }
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
 
@@ -813,7 +859,7 @@ fun SettingsView(secrets: SecretsStore) {
                     else -> {
                         RowButton((if (dst.startingReprocess) S.appSettingsReprocessStarting() else S.appSettingsReprocessAll()).resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
                         if (dst.reprocessStatus == "completed") Caption(S.appSettingsReprocessCompleted(dst.reprocessProcessed).resolve())
-                        else if (dst.reprocessStatus == "failed") Caption(S.appSettingsReprocessFailed(dst.reprocessProcessed).resolve(), Color(0xFFE53935))
+                        else if (dst.reprocessStatus == "failed") Caption(S.appSettingsReprocessFailed(dst.reprocessProcessed).resolve(), MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -833,7 +879,7 @@ fun SettingsView(secrets: SecretsStore) {
             onDismissRequest = { confirmLogout = false },
             title = { Text(S.appSettingsConnectionLogOutTitle().resolve()) },
             text = { Text(S.appSettingsConnectionLogOutMessage().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text(S.appSettingsConnectionLogOutConfirm().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text(S.appSettingsConnectionLogOutConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -842,7 +888,7 @@ fun SettingsView(secrets: SecretsStore) {
         AlertDialog(
             onDismissRequest = { device.setReprocessConfirm(null) },
             text = { Text((if (resume) S.appSettingsReprocessConfirmResume() else S.appSettingsReprocessConfirmRestart()).resolve()) },
-            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text((if (resume) S.appSettingsReprocessResumeButton() else S.appSettingsReprocessRestartButton()).resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text((if (resume) S.appSettingsReprocessResumeButton() else S.appSettingsReprocessRestartButton()).resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { device.setReprocessConfirm(null) }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -921,12 +967,8 @@ private fun ThumbnailCacheSection() {
 }
 
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) =
+    SwitchRow(label, checked, onChange, modifier)
 
 /**
  * Log Out (the same as SettingsView.swift's logOut): stop everything that
@@ -1009,9 +1051,9 @@ private fun StatusSectionContent(vm: StatusViewModel) {
             val state = raidStateLabel(s).resolve()
             Caption((if (s.raidLevel.isEmpty()) S.appSettingsStatusRaid(state, s.disks) else S.appSettingsStatusRaidLevel(s.raidLevel, state, s.disks)).resolve())
             // The device's own words (in the request's language) after a sign.
-            s.errorsList.forEach { Caption("⚠️ ${it.message}", Color(0xFFE53935)) } // i18n-ignore: a sign before the device's own words
+            s.errorsList.forEach { Caption("⚠️ ${it.message}", MaterialTheme.colorScheme.error) } // i18n-ignore: a sign before the device's own words
         }
-        st.errorText != null -> Caption(st.errorText!!.resolve(), Color(0xFFE53935))
+        st.errorText != null -> Caption(st.errorText!!.resolve(), MaterialTheme.colorScheme.error)
         else -> CircularProgressIndicator()
     }
 }
@@ -1053,20 +1095,20 @@ private fun UpdateSection() {
         }
         val message = st.statusMessage.resolve()
         if (st.running) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(message.ifEmpty { S.commonUpdating().resolve() }) }
-        if (st.state == "failed") Caption((if (st.lastUpdated.isEmpty()) S.appSettingsUpdateFailed(message) else S.appSettingsUpdateFailedOn(st.lastUpdated, message)).resolve(), Color(0xFFE53935))
+        if (st.state == "failed") Caption((if (st.lastUpdated.isEmpty()) S.appSettingsUpdateFailed(message) else S.appSettingsUpdateFailedOn(st.lastUpdated, message)).resolve(), MaterialTheme.colorScheme.error)
         if (st.checkError.isNotEmpty()) Caption(S.appSettingsUpdateCheckError().resolve())
         RowButton((if (st.checking) S.appSettingsUpdateChecking() else S.appSettingsUpdateCheckAgain()).resolve(), enabled = !st.checking && !st.running) { scope.launch { vm.check() } }
         if (st.hasUpdate) RowButton((if (st.starting) S.appSettingsUpdateStarting() else st.updateToText).resolve(), enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
         if (st.hasUpdate || st.running) Caption(S.appSettingsUpdateRestartNote().resolve())
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
         // Settings > Restart device: the whole machine, owner of the primary only.
         RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmRestart = true }
         when (st.restartPhase) {
             "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(S.appSettingsUpdateRestartingNote().resolve()) }
             "back" -> Caption(S.appSettingsUpdateBack().resolve())
-            "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), Color(0xFFFF9800))
+            "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), MaterialTheme.colorScheme.warning)
         }
-        st.restartError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.restartError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
         // Settings > Shut down device (issue #202): turned off cleanly, so it
         // can be unplugged; owner of the primary only, as Restart.
         RowButton(S.appSettingsUpdateShutDown().resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmShutDown = true }
@@ -1075,13 +1117,13 @@ private fun UpdateSection() {
             Spacer(Modifier.width(6.dp))
             Caption(S.appSettingsUpdateShuttingDownNote().resolve())
         }
-        st.shutDownError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.shutDownError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (confirmRestart) AlertDialog(
         onDismissRequest = { confirmRestart = false },
         title = { Text(S.appSettingsUpdateRestartTitle().resolve()) },
         text = { Text(S.appSettingsUpdateRestartMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text(S.commonCancel().resolve()) } },
     )
     // Cancel is the default; Shut Down is the red button.
@@ -1089,7 +1131,7 @@ private fun UpdateSection() {
         onDismissRequest = { confirmShutDown = false },
         title = { Text(S.appSettingsUpdateShutDownTitle().resolve()) },
         text = { Text(S.appSettingsUpdateShutDownMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmShutDown = false; vm.viewModelScope.launch { vm.shutDown() } }) { Text(S.appSettingsUpdateShutDownConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmShutDown = false; vm.viewModelScope.launch { vm.shutDown() } }) { Text(S.appSettingsUpdateShutDownConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmShutDown = false }) { Text(S.commonCancel().resolve()) } },
     )
     // A device too old to be shut down from here: its update, as elsewhere.
@@ -1100,11 +1142,12 @@ private fun UpdateSection() {
 @Composable
 private fun KindBadge(kind: String) {
     val (label, color) = when (kind) {
-        "major" -> S.appSettingsUpdateMajor().resolve() to Color(0xFFFF9800)
-        "critical" -> S.appSettingsUpdateCritical().resolve() to Color(0xFFE53935)
+        "major" -> S.appSettingsUpdateMajor().resolve() to WarningOrange
+        "critical" -> S.appSettingsUpdateCritical().resolve() to AlertRed
         else -> return
     }
-    Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+    // Dark text on the orange (white was 2.2:1), white on the red (5.6:1).
+    Text(label, color = if (kind == "major") EmberInk else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 6.dp).background(color, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
 }
 
@@ -1147,7 +1190,7 @@ private fun TailscaleSection() {
             Caption(S.appSettingsTailscaleNotInstalled().resolve())
         }
         st.note?.let { Caption(it.resolve()) }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
 }
 
@@ -1207,10 +1250,10 @@ private fun WifiSection() {
                 Spacer(Modifier.width(8.dp))
                 Caption(((if (st.phase == WifiViewModel.Phase.SENDING) null else st.note) ?: S.commonConnecting()).resolve())
             }
-            WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), Color(0xFFFF9800))
+            WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), MaterialTheme.colorScheme.warning)
             WifiViewModel.Phase.IDLE -> st.note?.let { Caption(it.resolve()) }
         }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (st.confirming) AlertDialog(
         onDismissRequest = { vm.cancelConfirm() },
@@ -1366,26 +1409,26 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
             RowButton(S.appSettingsBridgeLeave().resolve(), enabled = !st.busy, destructive = true) { confirmLeave = true }
             RowButton(S.appSettingsBridgeDeleteAccount().resolve(), enabled = !st.busy, destructive = true) { confirmDelete = true }
         } else {
-            if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), Color(0xFFFF9800))
+            if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), MaterialTheme.colorScheme.warning)
             Caption(S.appSettingsBridgeLocalOnly().resolve())
             RowLink(S.appSettingsBridgeAccountPage().resolve()) { open("account") }
         }
         RowLink(S.appShellPrivacy().resolve()) { open("privacy") }
         st.note?.let { Caption(it.resolve()) }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (confirmLeave) AlertDialog(
         onDismissRequest = { confirmLeave = false },
         title = { Text(S.appSettingsBridgeLeaveTitle().resolve()) },
         text = { Text(S.appSettingsBridgeLeaveMessage(st.domain).resolve()) },
-        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text(S.appSettingsBridgeLeaveConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text(S.appSettingsBridgeLeaveConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
     )
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
         title = { Text(S.appSettingsBridgeDeleteTitle().resolve()) },
         text = { Text(S.appSettingsBridgeDeleteMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text(S.androidSettingsBridgeLeaveDelete().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text(S.androidSettingsBridgeLeaveDelete().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(S.commonCancel().resolve()) } },
     )
 }
@@ -1542,12 +1585,11 @@ internal fun SmartSearchSection(
 ) {
     val title = S.appSettingsSmartSearchTitle().resolve()
     Section(title, S.appSettingsSmartSearchFooter().resolve(), below = { SmartSearchModelLines(on, model) }) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        SwitchRow(on, onToggle, enabled = !saving) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f, fill = false))
                 BetaBadge(S.appSettingsSmartSearchBeta().resolve())
             }
-            Switch(checked = on, enabled = !saving, onCheckedChange = onToggle)
         }
     }
     if (confirmOff) {

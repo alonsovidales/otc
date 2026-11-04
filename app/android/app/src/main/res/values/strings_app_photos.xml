@@ -70,6 +70,7 @@
         <item quantity="one">%1$s item</item>
         <item quantity="other">%1$s items</item>
     </plurals>
+    <string name="app_photos_grid_scrubber">Jump to a date</string>
     <string name="app_photos_grid_tile_photo">Photo</string>
     <string name="app_photos_grid_tile_photo_on">Photo, %1$s</string>
     <string name="app_photos_grid_tile_video">Video</string>

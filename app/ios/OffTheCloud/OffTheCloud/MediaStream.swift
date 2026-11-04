@@ -113,6 +113,12 @@ enum MediaStream {
         // http:// only to the home network, as the socket's ws:// (A6,
         // CleartextRule): none otherwise, and the file comes over the socket.
         guard let url = components.url, CleartextRule.allows(url) else { return nil }
+        // And only while the connection itself goes in the clear that way:
+        // a ws:// address whose device is pinned signs in over the home
+        // link alone, and its media never leaves it (a socket that dropped
+        // a moment ago has no route to follow: the file comes over the next
+        // one).
+        if url.scheme?.lowercased() == "http", !OTCConnection.shared.signedInInClear { return nil }
         return url
     }
 

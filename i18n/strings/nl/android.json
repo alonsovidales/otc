@@ -53,14 +53,6 @@
       "other": "{count} bytes"
     }
   },
-  "android.compose_move_left": {
-    "text": "Naar links verplaatsen",
-    "en": "Move left"
-  },
-  "android.compose_move_right": {
-    "text": "Naar rechts verplaatsen",
-    "en": "Move right"
-  },
   "android.compose_record_video": {
     "text": "Video opnemen",
     "en": "Record a video"
@@ -171,6 +163,16 @@
     "text": "De map {name} wordt nu buiten Afbeeldingen gehouden",
     "en": "{name} kept out of Images"
   },
+  "android.files.older_versions": {
+    "text": {
+      "one": "{count} oudere versie",
+      "other": "{count} oudere versies"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
   "android.files.show_named": {
     "text": "De map “{name}” in Afbeeldingen tonen",
     "en": "Show “{name}” in Images"
@@ -244,6 +246,10 @@
     "text": "Onderdelen",
     "en": "Sections"
   },
+  "android.no_app_for_link": {
+    "text": "Geen app op deze telefoon kan deze link openen.",
+    "en": "No app on this phone can open this link."
+  },
   "android.notification_channel": {
     "text": "Vrienden en berichten",
     "en": "Friends and posts"
@@ -294,6 +300,25 @@
   "android.photos_search_in_search": {
     "text": "In de zoekopdracht",
     "en": "In the search"
+  },
+  "android.secrets_start_over": {
+    "text": "Opnieuw beginnen",
+    "en": "Start over",
+    "reviewed": "claude-backtranslation 2026-11-04 #a6ac5db1"
+  },
+  "android.secrets_start_over_text": {
+    "text": "Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat en kiest opnieuw wat er wordt geback-upt, zoals op een nieuwe telefoon. Op het apparaat wordt niets verwijderd.",
+    "en": "Off The Cloud forgets its sign-in and what it has backed up from this phone, as if just installed: you sign in again with the device's address and password and choose again what to back up, as on a new phone. Nothing on the device is deleted.",
+    "reviewed": "claude-backtranslation 2026-11-04 #1f976fe0"
+  },
+  "android.secrets_start_over_title": {
+    "text": "Opnieuw beginnen op deze telefoon?",
+    "en": "Start over on this phone?",
+    "reviewed": "claude-backtranslation 2026-11-04 #3f64088e"
+  },
+  "android.secrets_unavailable": {
+    "text": "Off The Cloud kan de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, niet openen. Dit gaat meestal over na een herstart of een systeemupdate: probeer het zo opnieuw. Blijft het gebeuren, dan kun je opnieuw beginnen en je weer aanmelden.",
+    "en": "Off The Cloud can't open this phone's secure storage, where it keeps your sign-in. This usually clears up after a restart or a system update: try again in a moment. If it keeps happening, you can start over and sign in again."
   },
   "android.settings.bridge_leave_delete": {
     "text": "Verlaten en verwijderen",
@@ -507,9 +532,17 @@
     "text": "Kan deze video niet inkorten: {reason}",
     "en": "Can't trim this video: {reason}"
   },
+  "android.trim_end_handle": {
+    "text": "Einde van het fragment",
+    "en": "End of the cut"
+  },
   "android.trim_play_cut": {
     "text": "▶ Fragment afspelen",
     "en": "▶ Play cut"
+  },
+  "android.trim_start_handle": {
+    "text": "Begin van het fragment",
+    "en": "Start of the cut"
   },
   "android.wallpaper_both": {
     "text": "Allebei",

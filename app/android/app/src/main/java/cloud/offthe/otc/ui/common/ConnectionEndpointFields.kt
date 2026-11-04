@@ -14,7 +14,6 @@ import cloud.offthe.otc.i18n.appShellEndpointCustom
 import cloud.offthe.otc.i18n.appShellEndpointCustomNote
 import cloud.offthe.otc.i18n.appShellEndpointDeviceName
 import cloud.offthe.otc.ui.common.OTCTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
@@ -69,10 +68,7 @@ fun ConnectionEndpointFields(entry: EndpointEntry, onNext: () -> Unit = {}) {
                 Text(".${SecretsStore.bridgeDomain}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp))
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Text(S.appShellEndpointCustom().resolve(), modifier = Modifier.weight(1f))
-            Switch(checked = entry.customAddress, onCheckedChange = { entry.useCustomAddress(it) })
-        }
+        SwitchRow(S.appShellEndpointCustom().resolve(), entry.customAddress, { entry.useCustomAddress(it) }, Modifier.padding(top = 8.dp))
         if (entry.customAddress) {
             Text(
                 S.appShellEndpointCustomNote().resolve(),

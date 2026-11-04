@@ -53,6 +53,7 @@
     <string name="app_shell_endpoint_custom">Adresse personnalisée</string>
     <string name="app_shell_endpoint_custom_note">Pour un appareil qui n’est pas sur la passerelle Off The Cloud : votre propre passerelle, Tailscale Funnel ou le réseau local (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Nom de l’appareil</string>
+    <string name="app_shell_home_port_unreachable">Ce téléphone se connecte à votre appareil par son port chiffré du réseau domestique (%1$s), et ce port ne répond pas : votre mot de passe n’a donc pas été envoyé à l’adresse non chiffrée. Vérifiez que l’appareil est allumé et que rien ne bloque le port %1$s, comme un pare-feu ou un conteneur qui ne le publie pas.</string>
     <string name="app_shell_host_not_found">Cette adresse est introuvable. Vérifiez le nom ou l’adresse de l’appareil.</string>
     <string name="app_shell_insecure">Impossible d’établir une connexion sécurisée avec cette adresse.</string>
     <string name="app_shell_keep_out_of_images">Exclure d’Images</string>
@@ -77,6 +78,7 @@
     <string name="app_shell_no_storage">Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.</string>
     <string name="app_shell_no_storage_title">Le stockage de votre appareil n’est pas disponible</string>
     <string name="app_shell_not_connected">Non connecté</string>
+    <string name="app_shell_not_known_device">Quelque chose a répondu à cette adresse, mais pas l’appareil que ce téléphone connaît : votre mot de passe n’a donc pas été envoyé. Si vous avez configuré à nouveau votre appareil, choisissez « %1$s » et reconnectez-vous.</string>
     <string name="app_shell_not_otc">L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.</string>
     <string name="app_shell_not_this_person">Pas cette personne</string>
     <string name="app_shell_notifications_continue">Continuer</string>
@@ -157,6 +159,8 @@
     <string name="app_shell_setup_new_device">Configurer un nouvel appareil</string>
     <string name="app_shell_setup_not_found">Aucun appareil trouvé pour l’instant. Vérifiez qu’il est allumé, avec ses disques branchés, et gardez le téléphone près de lui.</string>
     <string name="app_shell_setup_open_device">Ouvrir mon appareil</string>
+    <string name="app_shell_setup_other_domain_text">Cet appareil indique que son adresse est \u2068%1$s\u2069, qui n’est pas une adresse off-the.cloud. Ne l’ouvrez que si vous avez configuré l’appareil avec votre propre passerelle : sinon, ce n’est peut-être pas votre appareil, et vos photos iraient là-bas.</string>
+    <string name="app_shell_setup_other_domain_title">Ouvrir cette adresse ?</string>
     <string name="app_shell_setup_power_on">Allumez l’appareil avec ses disques branchés. Tant qu’il n’est pas configuré, il se signale par Bluetooth ; gardez le téléphone près de lui.</string>
     <string name="app_shell_setup_ready_as">L’appareil est prêt à l’adresse %1$s.</string>
     <string name="app_shell_setup_ready_home">L’appareil est prêt sur votre réseau domestique.</string>

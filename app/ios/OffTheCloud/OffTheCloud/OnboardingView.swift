@@ -17,6 +17,11 @@ struct OnboardingView: View {
     /// Set when the form was filled from a device set up from this phone.
     @State private var pendingNote = false
     @State private var lastNote = false
+    /// The address of the device set up from this phone that filled the
+    /// form (a pending setup), and the one Save & Continue asks about first
+    /// (setupAddressToConfirm), while it does.
+    @State private var pendingEndpoint: String?
+    @State private var confirmAddress: String?
     @FocusState private var passwordFocused: Bool
 
     var body: some View {
@@ -69,12 +74,33 @@ struct OnboardingView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { LanguageMenu() }
             }
+            .alert(S.appShellSetupOtherDomainTitle, isPresented: Binding(
+                get: { confirmAddress != nil }, set: { if !$0 { confirmAddress = nil } })) {
+                Button(S.commonCancel, role: .cancel) {}
+                Button(S.appShellSetupOpenDevice) { save() }
+            } message: {
+                Text(S.appShellSetupOtherDomainText(domain: confirmAddress ?? ""))
+            }
         }
         .onAppear(perform: fill)
     }
 
-    /// Save & Continue, and Go on the password's keyboard.
+    /// Save & Continue, and Go on the password's keyboard. The device set
+    /// up from this phone, at an address "Open my device" asks about first,
+    /// is asked about here too: the pending setup was saved from what the
+    /// wizard's page said, before any question. Not an address typed over it.
     private func saveAndContinue() {
+        let address = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty, !password.isEmpty else { return }
+        if let p = pendingEndpoint, SecretsStore.sameAddress(address, p),
+           let asked = BluetoothSetupView.setupAddressToConfirm(p) {
+            confirmAddress = asked
+            return
+        }
+        save()
+    }
+
+    private func save() {
         let address = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.isEmpty, !password.isEmpty else { return }
         // Asked first, so no sync starts before it (SyncChoice).
@@ -94,6 +120,7 @@ struct OnboardingView: View {
         if endpoint.isEmpty, password.isEmpty, let p = SecretsStore.pendingSetup() {
             endpoint = p.endpoint
             password = p.password
+            pendingEndpoint = p.endpoint
             pendingNote = true
         } else if endpoint.isEmpty, password.isEmpty, let l = SecretsStore.lastDevice() {
             endpoint = l.endpoint

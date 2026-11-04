@@ -177,6 +177,11 @@
     "text": "Nome do dispositivo",
     "en": "Device name"
   },
+  "app.shell.home_port_unreachable": {
+    "text": "Este telemóvel inicia sessão no teu dispositivo através da sua porta encriptada da rede doméstica ({port}), e essa porta não responde, por isso a tua palavra-passe não foi enviada para o endereço não encriptado. Verifica se o dispositivo está ligado e se nada bloqueia a porta {port}, como uma firewall ou um contentor que não a publica.",
+    "en": "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.",
+    "reviewed": "claude-backtranslation 2026-11-04 #3eac8b2f"
+  },
   "app.shell.host_not_found": {
     "text": "Não é possível encontrar esse endereço. Verifica o nome ou o endereço do dispositivo.",
     "en": "That address can't be found. Check the device name or address."
@@ -279,6 +284,11 @@
   "app.shell.not_connected": {
     "text": "Sem ligação",
     "en": "Not connected"
+  },
+  "app.shell.not_known_device": {
+    "text": "Algo respondeu neste endereço, mas não o dispositivo que este telemóvel conhece, por isso a tua palavra-passe não foi enviada. Se voltaste a configurar o dispositivo, escolhe «{button}» e inicia sessão outra vez.",
+    "en": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "reviewed": "claude-backtranslation 2026-11-04 #0a513d38"
   },
   "app.shell.not_otc": {
     "text": "O endereço respondeu, mas não como um dispositivo Off The Cloud. Verifica se termina em /ws e se aponta para o teu dispositivo ou para o nome dele na ponte.",
@@ -584,6 +594,16 @@
   "app.shell.setup_open_device": {
     "text": "Abrir o meu dispositivo",
     "en": "Open my device"
+  },
+  "app.shell.setup_other_domain_text": {
+    "text": "Este dispositivo diz que o seu endereço é {domain}, que não é um endereço off-the.cloud. Abre-o só se configuraste o dispositivo com uma ponte própria: caso contrário, pode não ser o teu dispositivo, e as tuas fotos iriam para lá.",
+    "en": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+    "reviewed": "claude-backtranslation 2026-11-04 #b62fb170"
+  },
+  "app.shell.setup_other_domain_title": {
+    "text": "Abrir este endereço?",
+    "en": "Open this address?",
+    "reviewed": "claude-backtranslation 2026-11-04 #0aa9b1c1"
   },
   "app.shell.setup_power_on": {
     "text": "Liga o dispositivo com os discos instalados. Até estar configurado, anuncia-se por Bluetooth; mantém o telemóvel perto dele.",

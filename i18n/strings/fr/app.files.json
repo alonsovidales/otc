@@ -233,6 +233,10 @@
     "text": "Impossible de récupérer le fichier",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Chemin du dossier",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} résultat",

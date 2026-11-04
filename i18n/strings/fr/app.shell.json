@@ -177,6 +177,11 @@
     "text": "Nom de l’appareil",
     "en": "Device name"
   },
+  "app.shell.home_port_unreachable": {
+    "text": "Ce téléphone se connecte à votre appareil par son port chiffré du réseau domestique ({port}), et ce port ne répond pas : votre mot de passe n’a donc pas été envoyé à l’adresse non chiffrée. Vérifiez que l’appareil est allumé et que rien ne bloque le port {port}, comme un pare-feu ou un conteneur qui ne le publie pas.",
+    "en": "This phone signs in to your device through its encrypted home-network port ({port}), and that port isn't answering, so your password wasn't sent to the unencrypted address. Check that the device is on and that nothing blocks port {port}, such as a firewall or a container that doesn't publish it.",
+    "reviewed": "claude-backtranslation 2026-11-04 #0776033e"
+  },
   "app.shell.host_not_found": {
     "text": "Cette adresse est introuvable. Vérifiez le nom ou l’adresse de l’appareil.",
     "en": "That address can't be found. Check the device name or address."
@@ -279,6 +284,11 @@
   "app.shell.not_connected": {
     "text": "Non connecté",
     "en": "Not connected"
+  },
+  "app.shell.not_known_device": {
+    "text": "Quelque chose a répondu à cette adresse, mais pas l’appareil que ce téléphone connaît : votre mot de passe n’a donc pas été envoyé. Si vous avez configuré à nouveau votre appareil, choisissez « {button} » et reconnectez-vous.",
+    "en": "Something answered at this address, but not the device this phone knows, so your password wasn't sent. If you set your device up again, choose “{button}” and sign in again.",
+    "reviewed": "claude-backtranslation 2026-11-04 #11a75728"
   },
   "app.shell.not_otc": {
     "text": "L’adresse a répondu, mais pas comme un appareil Off The Cloud. Vérifiez qu’elle se termine par /ws et qu’elle pointe vers votre appareil ou son nom sur la passerelle.",
@@ -584,6 +594,16 @@
   "app.shell.setup_open_device": {
     "text": "Ouvrir mon appareil",
     "en": "Open my device"
+  },
+  "app.shell.setup_other_domain_text": {
+    "text": "Cet appareil indique que son adresse est {domain}, qui n’est pas une adresse off-the.cloud. Ne l’ouvrez que si vous avez configuré l’appareil avec votre propre passerelle : sinon, ce n’est peut-être pas votre appareil, et vos photos iraient là-bas.",
+    "en": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+    "reviewed": "claude-backtranslation 2026-11-04 #a0e2cca8"
+  },
+  "app.shell.setup_other_domain_title": {
+    "text": "Ouvrir cette adresse ?",
+    "en": "Open this address?",
+    "reviewed": "claude-backtranslation 2026-11-04 #bb0a85b9"
   },
   "app.shell.setup_power_on": {
     "text": "Allumez l’appareil avec ses disques branchés. Tant qu’il n’est pas configuré, il se signale par Bluetooth ; gardez le téléphone près de lui.",

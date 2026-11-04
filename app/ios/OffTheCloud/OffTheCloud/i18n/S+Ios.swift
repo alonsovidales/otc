@@ -366,9 +366,9 @@ extension S {
     /// Title of the screen that crops the new profile photo to a circle.
     static var iosSettingsCropTitle: String { L("ios.settings.crop_title", table: "Ios") }
 
-    /// Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.
+    /// Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos, bursts and RAW+JPEG pairs stay: the device has only one of their pictures. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.
     ///
-    /// Under the Free Up Space section on iPhone (Settings, and the Sync Your Photos sheet): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). Recently Deleted and iCloud Photos are Apple's names: use the ones iOS shows in your language.
+    /// Under the Free Up Space section on iPhone (Settings, and the Sync Your Photos sheet): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). Recently Deleted and iCloud Photos are Apple's names: use the ones iOS shows in your language. A RAW+JPEG pair is one photo taken as both a RAW file and a JPEG: keep RAW+JPEG as it is.
     static var iosSettingsFreeUpFooter: String { L("ios.settings.free_up_footer", table: "Ios") }
 
     /// Include Live Photos
@@ -562,6 +562,11 @@ extension S {
     ///
     /// When the app has limited or no access to the iPhone's photos: making the album needs full access, given in the iPhone's Settings app (use its name in your language: Ajustes, Réglages, Einstellungen, Impostazioni, Definições, Instellingen). A button that opens Settings follows.
     static var iosWallpaperFullAccess: String { L("ios.wallpaper_full_access", table: "Ios") }
+
+    /// To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app.
+    ///
+    /// On the wallpaper screen, under the lock screen album's Stop button (ios.wallpaper_stop_album), after Stop was tapped while the app may not see all the photos (access to Photos set to limited or none in iOS's Settings): nothing could be deleted. An Open Settings button follows.
+    static var iosWallpaperFullAccessStop: String { L("ios.wallpaper_full_access_stop", table: "Ios") }
 
     /// Store copies in an album
     ///

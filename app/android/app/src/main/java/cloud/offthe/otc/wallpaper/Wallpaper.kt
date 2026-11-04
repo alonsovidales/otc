@@ -231,6 +231,49 @@ object Wallpaper {
         if (s.endpoint != endpoint) stopNow(s)
     }
 
+    /** The device at a new address saved in Settings is another one (DeviceChange): stopped, as at Log Out. */
+    fun deviceChanged() {
+        val s = active.value ?: return
+        stopNow(s)
+    }
+
+    /** Whether the device at a new address has yet to say who it is (DeviceChange.pending); tests put their own. */
+    @Volatile var isDeviceCheckPending: () -> Boolean = { cloud.offthe.otc.data.DeviceChange.pending }
+
+    /**
+     * Another address saved (DeviceChange.addressChanged), its device not
+     * known yet: work under way stops writing - its next requests go to the
+     * new address, whose collections may be another library's (every
+     * device's Favourites has the same id) - and the copies aren't kept in
+     * step until the device has said (fetch). Nothing stops and nothing is
+     * deleted: the copies stay, and the rotation goes on with them.
+     */
+    fun addressChanged() {
+        if (active.value == null) return
+        synchronized(lock) { generation++ }
+        try { WorkManager.getInstance(ctx()).cancelUniqueWork(FETCH) } catch (e: Exception) { Log.w(TAG, "fetch not stopped: ${e.javaClass.simpleName}") }
+        // Work cut short leaves no progress on screen.
+        _progress.value = null
+    }
+
+    /**
+     * The same device at [endpoint] (Leave the Bridge, the same address
+     * spelled otherwise, or DeviceChange's verdict): the collection goes on
+     * there, and its copies are kept in step again.
+     */
+    fun sameDeviceAt(endpoint: String) {
+        val s = active.value ?: return
+        synchronized(lock) {
+            if (_active.value?.groupId != s.groupId) return
+            if (s.endpoint != endpoint) {
+                val next = s.copy(endpoint = endpoint)
+                prefs().edit(commit = true) { for ((k, v) in next.toMap()) putString(k, v) }
+                _active.value = next
+            }
+        }
+        scheduleFetch(ExistingWorkPolicy.KEEP)
+    }
+
     /** "Wi-Fi only" changed: a fetch waiting for its network takes the new rule. */
     fun wifiOnlyChanged() = scope.launch {
         if (active.value == null) return@launch
@@ -247,15 +290,39 @@ object Wallpaper {
         cancelWork()
         synchronized(lock) {
             generation++
-            prefs().edit(commit = true) { clear() }
+            // apply(), not commit(): this runs on the main thread from the
+            // box's Stop, and the memory copy changes at once all the same.
+            prefs().edit { clear() }
             if (_active.value?.groupId == s.groupId) _active.value = null
-            dir(s.groupId).deleteRecursively()
-            // Anything left by an earlier collection, too.
-            File(ctx().filesDir, "wallpaper").listFiles()?.forEach { if (_active.value?.groupId != it.name) it.deleteRecursively() }
+            // Moved aside at once (a rename, under the lock no copy is
+            // written without), deleted off the main thread: up to 100
+            // JPEGs. A collection started again right after gets a folder
+            // of its own.
+            val d = dir(s.groupId)
+            if (d.exists()) d.renameTo(File(d.parentFile, TRASH + System.nanoTime()))
         }
         _progress.value = null
+        scope.launch { sweepCopies() }
         Log.i(TAG, "stopped; copies deleted")
     }
+
+    // What stops left aside, and anything left by an earlier collection:
+    // moved aside under the lock (fast), deleted outside it, so neither the
+    // main thread nor a fetch waits for the deletes.
+    private fun sweepCopies() {
+        val doomed = synchronized(lock) {
+            File(ctx().filesDir, "wallpaper").listFiles()?.mapNotNull { f ->
+                when {
+                    f.name.startsWith(TRASH) -> f
+                    _active.value?.groupId != f.name -> File(f.parentFile, TRASH + System.nanoTime()).takeIf { f.renameTo(it) }
+                    else -> null
+                }
+            } ?: emptyList()
+        }
+        doomed.forEach { it.deleteRecursively() }
+    }
+
+    private const val TRASH = ".stopped-"
 
     private fun cancelWork() {
         val wm = WorkManager.getInstance(ctx())
@@ -285,6 +352,10 @@ object Wallpaper {
     /** FetchWorker's run: the copies in step with the collection. */
     internal suspend fun fetch(): Boolean {
         val s = active.value ?: return true
+        // Another address saved, its device not known yet: nothing kept in
+        // step (its collections may be another library's); the verdict
+        // queues the fetch again (sameDeviceAt) or stops it.
+        if (isDeviceCheckPending()) return true
         val secrets = SecretsStore.loadOrCreate()
         if (!secrets.isConfigured || s.endpoint != secrets.endpointURLString) { stopNow(s); return true }
         // "Wi-Fi only" turned on since it was queued: queued again for Wi-Fi.
@@ -332,6 +403,9 @@ object Wallpaper {
     internal fun rotate() {
         val s = active.value ?: return
         val secrets = SecretsStore.loadOrCreate()
+        // The device at a new address hasn't said yet: the copies here go on
+        // showing, and nothing is fetched until it has.
+        if (isDeviceCheckPending()) { if (!showNext(s)) Log.w(TAG, "no photo set"); return }
         if (!secrets.isConfigured || s.endpoint != secrets.endpointURLString) { stopNow(s); return }
         if (!showNext(s)) Log.w(TAG, "no photo set")
         if (System.currentTimeMillis() - prefs().getLong(KEY_LAST_FETCH, 0) >= REFRESH_MS) scheduleFetch(ExistingWorkPolicy.KEEP)

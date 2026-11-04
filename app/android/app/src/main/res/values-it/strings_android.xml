@@ -18,8 +18,6 @@
         <item quantity="many">%1$s byte</item>
         <item quantity="other">%1$s byte</item>
     </plurals>
-    <string name="android_compose_move_left">Sposta a sinistra</string>
-    <string name="android_compose_move_right">Sposta a destra</string>
     <string name="android_compose_record_video">Registra un video</string>
     <string name="android_compose_take_photo">Scatta una foto</string>
     <string name="android_download_changed">il file è cambiato sul dispositivo durante il download</string>
@@ -52,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dentro \u2068%1$s\u2069, che è fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.</string>
     <string name="android_files_inside_kept_out_info">Dentro \u2068%1$s\u2069, che è fuori da Immagini. Le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. File continua a mostrarli.</string>
     <string name="android_files_kept_out_said">La cartella \u2068%1$s\u2069 è ora fuori da Immagini</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s versione precedente</item>
+        <item quantity="many">%1$s versioni precedenti</item>
+        <item quantity="other">%1$s versioni precedenti</item>
+    </plurals>
     <string name="android_files_show_named">Mostra la cartella “\u2068%1$s\u2069” in Immagini</string>
     <string name="android_files_shown_said">La cartella \u2068%1$s\u2069 è di nuovo in Immagini</string>
     <string name="android_files_wait_download_link">Attendi che il link di download sia pronto</string>
@@ -68,6 +71,7 @@
     <string name="android_friends_remove_title_unnamed">Rimuovere questa persona dagli amici?</string>
     <string name="android_location_off_hint">La posizione è disattivata. Con questa versione di Android, il telefono trova i dispositivi Bluetooth solo con la posizione attiva.</string>
     <string name="android_menu_sections">Sezioni</string>
+    <string name="android_no_app_for_link">Nessuna app su questo telefono può aprire questo link.</string>
     <string name="android_notification_channel">Amici e post</string>
     <string name="android_notification_channel_description">Richieste di amicizia, nuovi post, Mi piace e commenti</string>
     <string name="android_open_settings">Apri Impostazioni</string>
@@ -83,6 +87,10 @@
     <string name="android_photos_people_merge_dimmed">Unisci (seleziona 2 o più volti da unire)</string>
     <string name="android_photos_search_close">Chiudi ricerca</string>
     <string name="android_photos_search_in_search">Nella ricerca</string>
+    <string name="android_secrets_start_over">Ricomincia da capo</string>
+    <string name="android_secrets_start_over_text">Off The Cloud dimentica il suo accesso e ciò che ha già salvato da questo telefono, come appena installato: accedi di nuovo con l’indirizzo e la password del dispositivo e scegli di nuovo cosa salvare, come su un telefono nuovo. Sul dispositivo non viene eliminato nulla.</string>
+    <string name="android_secrets_start_over_title">Ricominciare da capo su questo telefono?</string>
+    <string name="android_secrets_unavailable">Off The Cloud non riesce ad aprire l’archivio sicuro di questo telefono, dove conserva il tuo accesso. Di solito si risolve dopo un riavvio o un aggiornamento di sistema: riprova tra un attimo. Se continua a succedere, puoi ricominciare da capo e accedere di nuovo.</string>
     <string name="android_settings_bridge_leave_delete">Lascia ed elimina</string>
     <string name="android_settings_crop_hint">Trascina la foto per centrare il tuo viso</string>
     <string name="android_settings_crop_zoom">Zoom</string>
@@ -140,7 +148,9 @@
     <string name="android_storage_show_details_attention">Archiviazione, richiede attenzione, mostra dettagli</string>
     <string name="android_storage_used">Spazio utilizzato, %1$s%%</string>
     <string name="android_trim_cant">Impossibile tagliare questo video: %1$s</string>
+    <string name="android_trim_end_handle">Fine del taglio</string>
     <string name="android_trim_play_cut">▶ Riproduci taglio</string>
+    <string name="android_trim_start_handle">Inizio del taglio</string>
     <string name="android_wallpaper_both">Entrambe</string>
     <string name="android_wallpaper_change">Cambia foto</string>
     <string name="android_wallpaper_every_15">Ogni 15 minuti</string>

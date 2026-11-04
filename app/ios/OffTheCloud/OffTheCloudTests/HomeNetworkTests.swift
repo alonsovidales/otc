@@ -224,14 +224,46 @@ DgMCGgUABBR+1dGhR5jekE6FFuZrpwXE0PpSMgQQRxHu9Z2J2jjcmw37u5wv0wICCAA=
         try await Task.sleep(for: .milliseconds(300))
         #expect(server.connections > 0)
         #expect(server.receivedBytes == 0)
+        // Said: another certificate holds that address.
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep)
+        #expect(r.winner == nil)
+        #expect(r.otherCertificate)
     }
 
     @Test func nothingAnsweringEndsAtTheBudget() async {
         let ep = LocalEndpoint(endpoint: "e", addresses: ["192.0.2.1"], port: 8443, pin: Self.goodPin)
         let started = Date()
-        let won = await PinnedSession.forPin(Self.goodPin).race(ep, budget: 0.5)
-        #expect(won == nil)
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep, budget: 0.5)
+        #expect(r.winner == nil)
+        // Nothing seen: no certificate to blame.
+        #expect(!r.otherCertificate)
         #expect(Date().timeIntervalSince(started) < 2)
+    }
+
+    @Test func aRefusedPortIsNoOtherCertificate() async throws {
+        // A port nothing listens on (a server that was there and stopped).
+        let server = try await TestServer.start(Self.goodP12, mode: .raw)
+        let port = server.port
+        server.stop()
+        try await Task.sleep(for: .milliseconds(100))
+        let ep = LocalEndpoint(endpoint: "e", addresses: ["127.0.0.1"], port: port, pin: Self.goodPin)
+        let started = Date()
+        let r = await PinnedSession.forPin(Self.goodPin).contest(ep, budget: 5)
+        #expect(r.winner == nil)
+        #expect(!r.otherCertificate)
+        // Refused at once, not waited out.
+        #expect(Date().timeIntervalSince(started) < 4)
+    }
+
+    @Test func theRightCertificateAfterAnotherIsNoOtherCertificate() async throws {
+        // A certificate seen before a race began isn't counted in it.
+        let bad = try await TestServer.start(Self.badP12, mode: .raw)
+        let badEP = LocalEndpoint(endpoint: "e", addresses: ["127.0.0.1"], port: bad.port, pin: Self.goodPin)
+        #expect(await PinnedSession.forPin(Self.goodPin).contest(badEP).otherCertificate)
+        bad.stop()
+        try await Task.sleep(for: .milliseconds(100))
+        let r = await PinnedSession.forPin(Self.goodPin).contest(badEP, budget: 2)
+        #expect(!r.otherCertificate)
     }
 
     static func trust(_ der: Data) throws -> SecTrust {
@@ -249,6 +281,9 @@ DgMCGgUABBR+1dGhR5jekE6FFuZrpwXE0PpSMgQQRxHu9Z2J2jjcmw37u5wv0wICCAA=
 final class TestServer: @unchecked Sendable {
     enum Mode {
         case webSocketEcho
+        /// A device on the home network: each request answered as `reply`
+        /// makes it (its id set here); nil answers nothing.
+        case webSocketDevice(@Sendable (Msg_ReqEnvelope) -> Msg_RespEnvelope?)
         case http(Data, mime: String)
         case raw
     }
@@ -295,10 +330,13 @@ final class TestServer: @unchecked Sendable {
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_local_identity(tls.securityProtocolOptions, try #require(sec_identity_create(try identity(p12))))
         let params = NWParameters(tls: tls)
-        if case .webSocketEcho = mode {
+        switch mode {
+        case .webSocketEcho, .webSocketDevice:
             let ws = NWProtocolWebSocket.Options()
             ws.autoReplyPing = true
             params.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
+        default:
+            break
         }
         let server = TestServer(listener: try NWListener(using: params, on: .any), mode: mode)
         try await server.run()
@@ -338,8 +376,27 @@ final class TestServer: @unchecked Sendable {
         conn.start(queue: queue)
         switch mode {
         case .webSocketEcho: echo(conn)
+        case .webSocketDevice(let reply): answer(conn, reply)
         case .http(let body, let mime): serve(conn, body: body, mime: mime, buffer: Data())
         case .raw: sink(conn)
+        }
+    }
+
+    private func answer(_ conn: NWConnection, _ reply: @escaping @Sendable (Msg_ReqEnvelope) -> Msg_RespEnvelope?) {
+        conn.receiveMessage { [weak self] content, _, _, error in
+            guard let self, error == nil else { conn.cancel(); return }
+            if let content, let req = try? Msg_ReqEnvelope(serializedBytes: content) {
+                self.lock.withLock { self._received += content.count }
+                if var resp = reply(req) {
+                    resp.id = req.id
+                    if let data = try? resp.serializedData() {
+                        let meta = NWProtocolWebSocket.Metadata(opcode: .binary)
+                        let ctx = NWConnection.ContentContext(identifier: "answer", metadata: [meta])
+                        conn.send(content: data, contentContext: ctx, isComplete: true, completion: .idempotent)
+                    }
+                }
+            }
+            self.answer(conn, reply)
         }
     }
 

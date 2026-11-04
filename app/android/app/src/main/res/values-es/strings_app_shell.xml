@@ -53,6 +53,7 @@
     <string name="app_shell_endpoint_custom">Dirección personalizada</string>
     <string name="app_shell_endpoint_custom_note">Para un dispositivo que no está en el puente de Off The Cloud: tu propio puente, Tailscale Funnel o la red local (ws://192.168.…:8080/ws).</string>
     <string name="app_shell_endpoint_device_name">Nombre del dispositivo</string>
+    <string name="app_shell_home_port_unreachable">Este teléfono inicia sesión en tu dispositivo a través de su puerto cifrado de la red doméstica (%1$s), y ese puerto no responde, así que tu contraseña no se envió a la dirección sin cifrar. Comprueba que el dispositivo está encendido y que nada bloquea el puerto %1$s, como un cortafuegos o un contenedor que no lo publica.</string>
     <string name="app_shell_host_not_found">No se encuentra esa dirección. Comprueba el nombre o la dirección del dispositivo.</string>
     <string name="app_shell_insecure">No se ha podido establecer una conexión segura con esa dirección.</string>
     <string name="app_shell_keep_out_of_images">Excluir de Imágenes</string>
@@ -77,6 +78,7 @@
     <string name="app_shell_no_storage">Tu dispositivo no puede acceder a sus discos de almacenamiento. Comprueba que estén conectados y encendidos; volverá a ponerse en marcha solo en cuanto estén de vuelta.</string>
     <string name="app_shell_no_storage_title">El almacenamiento de tu dispositivo no está disponible</string>
     <string name="app_shell_not_connected">No hay conexión</string>
+    <string name="app_shell_not_known_device">Algo respondió en esta dirección, pero no el dispositivo que conoce este teléfono, así que no se envió tu contraseña. Si has vuelto a configurar tu dispositivo, elige “%1$s” e inicia sesión de nuevo.</string>
     <string name="app_shell_not_otc">La dirección ha respondido, pero no como un dispositivo Off The Cloud. Comprueba que termina en /ws y que apunta a tu dispositivo o a su nombre en el puente.</string>
     <string name="app_shell_not_this_person">No es esta persona</string>
     <string name="app_shell_notifications_continue">Continuar</string>
@@ -157,6 +159,8 @@
     <string name="app_shell_setup_new_device">Configurar dispositivo nuevo</string>
     <string name="app_shell_setup_not_found">Aún no se ha encontrado ningún dispositivo. Comprueba que está encendido, con sus discos conectados, y mantén el teléfono a su lado.</string>
     <string name="app_shell_setup_open_device">Abrir mi dispositivo</string>
+    <string name="app_shell_setup_other_domain_text">Este dispositivo dice que su dirección es \u2068%1$s\u2069, que no es una dirección de off-the.cloud. Ábrela solo si configuraste el dispositivo con un puente propio: si no, puede que no sea tu dispositivo, y tus fotos irían allí.</string>
+    <string name="app_shell_setup_other_domain_title">¿Abrir esta dirección?</string>
     <string name="app_shell_setup_power_on">Enciende el dispositivo con sus discos conectados. Hasta que esté configurado, se anuncia por Bluetooth; mantén el teléfono a su lado.</string>
     <string name="app_shell_setup_ready_as">El dispositivo está listo como %1$s.</string>
     <string name="app_shell_setup_ready_home">El dispositivo está listo en tu red doméstica.</string>

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.social
 
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -64,6 +64,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -152,6 +153,19 @@ import cloud.offthe.otc.proto.FriendshipsList
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.AvatarView
 import cloud.offthe.otc.ui.common.Toast
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import cloud.offthe.otc.i18n.commonLoading
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.drop
+import cloud.offthe.otc.proto.ReqEnvelope
+import cloud.offthe.otc.ui.common.TRY_AGAIN
+import cloud.offthe.otc.ui.common.TRYING
+import cloud.offthe.otc.ui.common.loadProblem
+import cloud.offthe.otc.ui.common.LoadProblem
+import cloud.offthe.otc.net.NetworkWatch
+import cloud.offthe.otc.net.Wake
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -161,12 +175,45 @@ import kotlinx.coroutines.launch
 // Port of FriendshipsView.swift: send a friend request by domain and manage
 // incoming/outgoing friendships (issue #25: either side can remove a
 // pending request).
-class FriendshipsViewModel : ViewModel() {
+/** What Friends' list shows in place of its friends (FriendshipsViewModel.body on iOS). */
+enum class FriendsBody { LOADING, PROBLEM, EMPTY, LIST }
+
+/**
+ * Pure, Alerts' rule: the list when it has friends; why it didn't come
+ * when the last load failed; a spinner while the first answer is on its way
+ * (or nothing was asked yet); else that there are none - never "No
+ * friendships yet." for a list that didn't come. A list shown stays while a
+ * refresh of it fails.
+ */
+fun friendsBody(listEmpty: Boolean, loading: Boolean, problem: LoadProblem?): FriendsBody = when {
+    !listEmpty -> FriendsBody.LIST
+    problem != null -> FriendsBody.PROBLEM
+    loading -> FriendsBody.LOADING
+    else -> FriendsBody.EMPTY
+}
+
+/**
+ * [request] asks the device (tests answer in its place); [problemOf] says
+ * why an answer that isn't the list, or an error, isn't one.
+ */
+class FriendshipsViewModel(
+    private val request: suspend (build: (ReqEnvelope.Builder) -> Unit) -> RespEnvelope = { b -> OTCConnection.request(build = b) },
+    private val problemOf: (RespEnvelope?, Throwable?) -> LoadProblem = { resp, error ->
+        loadProblem(resp, error, NetworkWatch.online(), OTCConnection.statusCode.value)
+    },
+    scope: kotlinx.coroutines.CoroutineScope? = null,
+) : ViewModel() {
+    private val scope = scope ?: viewModelScope
+
     data class State(
         val targetDomain: String = "",
         val sendingRequest: Boolean = false,
         val friendships: List<Friendship> = emptyList(),
         val loading: Boolean = false,
+        /** The list was asked for at least once: until then it is loading. */
+        val asked: Boolean = false,
+        /** Why the last list didn't come (null: it did, or nothing was asked yet). */
+        val loadProblem: LoadProblem? = null,
         /** A short message at the top, worded when it shows. */
         val toast: UiText? = null,
         /** This device's own address (pit.off-the.cloud), shown at the top to hand to friends; null: not known. */
@@ -174,6 +221,20 @@ class FriendshipsViewModel : ViewModel() {
     )
     private val _state = MutableStateFlow(State())
     val state = _state
+
+    /** What the list shows in place of its friends ([friendsBody]). */
+    val body: FriendsBody get() = _state.value.let { friendsBody(it.friendships.isEmpty(), it.loading || !it.asked, it.loadProblem) }
+
+    init {
+        // A list that didn't come is asked for again at a wake (signed in
+        // again, a network up, back in front), as Alerts' is.
+        this.scope.launch {
+            Wake.count.drop(1).collect {
+                val st = _state.value
+                if (st.loadProblem != null && !st.loading) reload()
+            }
+        }
+    }
 
     fun setTarget(v: String) = _state.update { it.copy(targetDomain = v) }
 
@@ -205,14 +266,27 @@ class FriendshipsViewModel : ViewModel() {
     }
 
     suspend fun reload() {
-        _state.update { it.copy(loading = true) }
+        _state.update { it.copy(loading = true, asked = true) }
         try {
-            val resp = OTCConnection.request { it.setReqFriendshipsList(FriendshipsList.getDefaultInstance()) }
+            val resp = request { it.setReqFriendshipsList(FriendshipsList.getDefaultInstance()) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FRIENDSHIPS) {
-                _state.update { it.copy(friendships = resp.respFriendships.friendshipsList) }
+                _state.update { it.copy(friendships = resp.respFriendships.friendshipsList, loadProblem = null) }
+            } else {
+                // Any other answer (the bridge's "device unreachable", a
+                // refusal) is no list: it used to read as no friends.
+                failed(problemOf(resp, null))
             }
-        } catch (e: Exception) { toast(S.appSocialFriendsLoadFailed()) }
-        finally { _state.update { it.copy(loading = false) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failed(problemOf(null, e))
+        } finally { _state.update { it.copy(loading = false) } }
+    }
+
+    /** The list didn't come: said in its place while none shows, with Try again; a list already shown stays, and a note says it wasn't refreshed. */
+    private fun failed(problem: LoadProblem) {
+        _state.update { it.copy(loadProblem = problem) }
+        if (_state.value.friendships.isNotEmpty()) toast(S.appSocialFriendsLoadFailed())
     }
 
     suspend fun sendRequest() {
@@ -364,8 +438,23 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                         else TextButton(onClick = { scope.launch { vm.reload() } }) { Text(S.commonRefresh().resolve()) }
                     }
                 }
-                if (st.friendships.isEmpty()) {
-                    item { Text(S.appSocialFriendsEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
+                // Never "No friendships yet." for a list that didn't come.
+                when (friendsBody(st.friendships.isEmpty(), st.loading || !st.asked, st.loadProblem)) {
+                    FriendsBody.LOADING -> item {
+                        Row(Modifier.padding(16.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(S.commonLoading().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    FriendsBody.PROBLEM -> item {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(S.appSocialFriendsLoadFailed().resolve(), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            TextButton(onClick = { scope.launch { vm.reload() } }, enabled = !st.loading) { Text((if (st.loading) TRYING else TRY_AGAIN).resolve()) }
+                        }
+                    }
+                    FriendsBody.EMPTY -> item { Text(S.appSocialFriendsEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
+                    FriendsBody.LIST -> {}
                 }
                 items(st.friendships.filter { it.leaving || !(it.status == FriendShipStatus.Pending && !it.sent) }, key = { it.originProfile.domain }) { f ->
                     FriendRow(
@@ -507,7 +596,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
     }
     // Issue #179: every action is a button on the row, as on the web and iOS.
     // Removing is a trash icon: the row ran to a second line of buttons.
-    val danger = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+    val danger = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
     val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
     val labels = if (f.leaving) listOf(S.appSocialFriendsRemoveNow().resolve()) else
         options.map { it.first.resolve() } + listOfNotNull(if (canDelete) (if (f.sent) S.appSocialFriendsCancelRequestButton() else S.commonDecline()).resolve() else null)
@@ -522,7 +611,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text(labels.last()) }
             if (canRemove) OutlinedIconButton(
                 onClick = { confirmingRemove = true },
-                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = Color(0xFFE53935)),
+                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 border = ButtonDefaults.outlinedButtonBorder(),
             ) { Icon(Icons.Outlined.Delete, S.appSocialFriendsRemoveButton().resolve()) }
         }
@@ -562,7 +651,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             onDismissRequest = { confirmingRemoveNow = false },
             title = { Text((if (name != null) S.appSocialFriendsRemoveNowTitle(name) else S.androidFriendsRemoveNowTitleUnnamed()).resolve()) },
             text = { Text(S.appSocialFriendsRemoveNowText().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text(S.androidFriendsRemoveNow().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text(S.androidFriendsRemoveNow().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmingRemoveNow = false }) { Text(S.androidFriendsKeepWaiting().resolve()) } },
         )
     }
@@ -571,7 +660,7 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             onDismissRequest = { confirmingDelete = false },
             title = { Text((if (f.sent) S.appSocialFriendsCancelConfirmTitle() else S.appSocialFriendsDeleteConfirmTitle()).resolve()) },
             text = { Text((if (f.sent) S.appSocialFriendsCancelConfirmText() else S.appSocialFriendsDeleteConfirmText()).resolve()) },
-            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel.resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel.resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -603,8 +692,9 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
 
 @Composable
 private fun RemoveOption(checked: Boolean, onChange: (Boolean) -> Unit, title: String, detail: String) {
-    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
-        Checkbox(checked = checked, onCheckedChange = onChange)
+    // One control: the row checks, TalkBack reads its words with the state.
+    Row(Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange).padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
+        Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(12.dp))
         Column(Modifier.weight(1f).padding(top = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium)
             Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

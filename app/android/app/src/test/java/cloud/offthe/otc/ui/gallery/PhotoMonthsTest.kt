@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import cloud.offthe.otc.i18n.appPhotosGridScrubber
 import cloud.offthe.otc.i18n.english
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +15,27 @@ import java.time.ZoneId
 // Images by month (PhotoMonths.kt), as the web's PhotoGallery.tsx groups
 // and lays them out.
 class PhotoMonthsTest {
+    /** TalkBack's scrubber (as iOS's VoiceOverControlTests): its month and its steps, a month at a time, clamped. */
+    @Test fun theScrubbersMonthAndSteps() {
+        fun b(m: String, start: Int) = PhotoGalleryViewModel.DateBucket(m, 10, start, start + 10)
+        val buckets = listOf(b("2026-03", 0), b("2026-01", 10), b("2025-12", 20), b("0000-00", 30))
+        // No jump: the newest; a jump: its month, while the buckets have it.
+        assertEquals("2026-03", scrubberMonth(buckets, null))
+        assertEquals("2025-12", scrubberMonth(buckets, "2025-12"))
+        assertEquals("2026-03", scrubberMonth(buckets, "2019-05"))
+        assertNull(scrubberMonth(emptyList(), "2025-12"))
+        // Older goes down the list, newer up; nothing past either end.
+        assertEquals("2026-01", scrubStepBucket(buckets, "2026-03", newer = false)?.month)
+        assertEquals("2026-01", scrubStepBucket(buckets, "2025-12", newer = true)?.month)
+        assertNull(scrubStepBucket(buckets, "2026-03", newer = true))
+        assertNull(scrubStepBucket(buckets, "0000-00", newer = false))
+        assertNull(scrubStepBucket(emptyList(), null, newer = false))
+        // Said as a whole title; the device's bucket without a date as such.
+        assertEquals("March 2026", monthSpoken("2026-03").english())
+        assertEquals("No date", monthSpoken("0000-00").english())
+        assertEquals("Jump to a date", cloud.offthe.otc.i18n.S.appPhotosGridScrubber().english())
+    }
+
     private val utc = ZoneId.of("UTC")
     private val madrid = ZoneId.of("Europe/Madrid")
     private val newYork = ZoneId.of("America/New_York")

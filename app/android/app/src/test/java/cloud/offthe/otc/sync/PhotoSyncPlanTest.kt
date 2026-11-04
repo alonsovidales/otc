@@ -77,7 +77,7 @@ class PhotoSyncPlanTest {
     }
 
     private fun oneOff(lib: Library, taken: Set<String>, floor: Long? = null, picked: Set<Long> = emptySet(), fresh: Set<Long> = emptySet()) =
-        PhotoSync.oneOffList(taken, floor, picked, fresh, Row::id, lib::fetch).map { it.id }
+        PhotoSync.oneOffList(taken, floor, picked, fresh, Row::id, fetch = lib::fetch).map { it.id }
 
     private val library = listOf(
         Row(1, "7", 100), Row(2, "7", 5_000), Row(3, "9", 200), Row(4, "9", 6_000),
@@ -108,6 +108,26 @@ class PhotoSyncPlanTest {
         assertEquals(listOf(1_000L to null), known.calls)
         // Sync All's floor: everything.
         assertEquals(library.map { it.id }, oneOff(Library(library), setOf(PhotoSync.CATCH_UP), floor = 0))
+    }
+
+    /**
+     * Include videos turned back on: every video since the owner's starting
+     * point, as the catch-up - the whole library after Sync All, from the
+     * moment of Sync From Now, nothing with no floor known (as iOS's
+     * theVideosPassFollowsTheFloor).
+     */
+    @Test fun theVideosPassFollowsTheFloor() {
+        val lib = Library(library)
+        val videoCalls = mutableListOf<Long>()
+        fun videos(floor: Long?) = PhotoSync.oneOffList(setOf(PhotoSync.VIDEOS), floor, emptySet(), emptySet(), Row::id,
+            videos = { since -> videoCalls += since; library.filter { it.video && it.added > since } }, fetch = lib::fetch).map { it.id }
+        assertEquals(listOf(6L, 7L), videos(0))
+        assertEquals(listOf(7L), videos(1_000))
+        assertTrue(videos(null).isEmpty())
+        assertEquals(listOf(0L, 1_000L), videoCalls)
+        // Never a folder's query, and the pass is done like the others.
+        assertTrue(lib.calls.isEmpty())
+        assertEquals(setOf("7"), PhotoSync.afterPass(setOf("7", PhotoSync.VIDEOS), setOf(PhotoSync.VIDEOS), finished = true))
     }
 
     /** A pick goes only as the sync's query returns it: not a video while Include videos is off, nothing from a folder turned off. */

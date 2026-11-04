@@ -73,6 +73,14 @@
     "text": "Filtrer par étiquette…",
     "en": "Filter by tag…"
   },
+  "app.social.compose.move_left": {
+    "text": "Déplacer vers la gauche",
+    "en": "Move left"
+  },
+  "app.social.compose.move_right": {
+    "text": "Déplacer vers la droite",
+    "en": "Move right"
+  },
   "app.social.compose.order": {
     "text": "Ordre dans la publication",
     "en": "Order in post"
@@ -80,6 +88,10 @@
   "app.social.compose.photos_access": {
     "text": "L’accès aux photos est nécessaire pour choisir parmi celles de votre téléphone.",
     "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.position": {
+    "text": "Numéro {position} dans la publication",
+    "en": "Number {position} in the post"
   },
   "app.social.compose.publish": {
     "text": "Publier",
@@ -120,6 +132,10 @@
   "app.social.compose.trim_load_failed": {
     "text": "Impossible de charger cette vidéo pour la découper : {detail}",
     "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.unpick": {
+    "text": "Retirer de la publication",
+    "en": "Remove from the post"
   },
   "app.social.compose.uploading": {
     "text": "Envoi {done} sur {total}…",

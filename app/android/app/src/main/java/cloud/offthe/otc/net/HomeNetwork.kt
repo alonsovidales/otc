@@ -9,6 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import java.security.MessageDigest
@@ -28,16 +29,65 @@ import javax.net.ssl.X509TrustManager
  * listener's certificate (DER), as GetLocalEndpoint gave them through the
  * signed-in bridge session.
  */
-class HomeEndpoint(val addresses: List<String>, val port: Int, val certSha256: ByteArray) {
+class HomeEndpoint(
+    val addresses: List<String>,
+    val port: Int,
+    val certSha256: ByteArray,
+    /**
+     * This phone has signed in over the pinned link to the device with this
+     * pin (OTCConnection: a home sign-in, the route check's move home). Only
+     * then does a ws:// endpoint go the pinned way alone (PinnedAddress): a
+     * device whose encrypted port this phone can't reach (a firewall letting
+     * only 8080 through, a container publishing only 8080) keeps signing in
+     * at its ws:// address as before. Kept while the pin stays the same
+     * ([keepingReach]); false in what an older version stored.
+     */
+    val reached: Boolean = false,
+) {
     /** One line for the secure store; [decode] reads it back. */
-    fun encode(): String = "$port|${hex(certSha256)}|${addresses.joinToString(",")}"
+    fun encode(): String = "$port|${hex(certSha256)}|${addresses.joinToString(",")}" + if (reached) "|$REACHED" else ""
+
+    /** The same endpoint, the same device: [encode] says it all. */
+    fun sameAs(other: HomeEndpoint?): Boolean = other != null && encode() == other.encode()
+
+    /** The same, signed in to over the pinned link from this phone. */
+    fun reachedHere(): HomeEndpoint = HomeEndpoint(addresses, port, certSha256, reached = true)
+
+    /** After a sign-in over a pinned link to the device with [pin]: reached when that is this one's. */
+    fun signedInOver(pin: ByteArray): HomeEndpoint = if (!reached && certSha256.contentEquals(pin)) reachedHere() else this
+
+    /**
+     * A new answer from the device, keeping what [known] (stored before it,
+     * for the same endpoint) says of the pinned link: reached stays while
+     * the pin is the same; a new certificate must be reached again.
+     */
+    fun keepingReach(known: HomeEndpoint?): HomeEndpoint =
+        if (!reached && known != null && known.reached && known.certSha256.contentEquals(certSha256)) reachedHere() else this
+
+    /**
+     * The addresses to race for a ws:// endpoint whose device this is: the
+     * endpoint's own [host] too, at the pinned port - a .local name, or a
+     * Tailscale address, reaches the device where the addresses it listed
+     * don't (a new DHCP lease, away from home over Tailscale). Only the pin
+     * decides, so a host is as safe to try as a listed address.
+     */
+    fun including(host: String?): HomeEndpoint {
+        var h = host?.trim() ?: ""
+        if (h.startsWith("[") && h.endsWith("]")) h = h.substring(1, h.length - 1)
+        if (h.isEmpty() || addresses.any { it.equals(h, ignoreCase = true) }) return this
+        return HomeEndpoint(addresses + h, port, certSha256, reached)
+    }
 
     companion object {
+        private const val REACHED = "reached"
+
         fun decode(s: String?): HomeEndpoint? {
             val parts = s?.split("|") ?: return null
-            if (parts.size != 3) return null
+            // A fourth part: reached (an older version wrote three).
+            if (parts.size != 3 && !(parts.size == 4 && parts[3] == REACHED)) return null
             val pin = unhex(parts[1]) ?: return null
-            return valid(parts[2].split(","), parts[0].toIntOrNull() ?: return null, pin)
+            val ep = valid(parts[2].split(","), parts[0].toIntOrNull() ?: return null, pin) ?: return null
+            return if (parts.size == 4) ep.reachedHere() else ep
         }
 
         /** Only usable answers: IP literals (no name to look up), a real port, a 32-byte pin. */
@@ -70,6 +120,14 @@ object HomeNetwork {
     /** The whole home-network attempt, every address at once, as in the other apps. */
     const val BUDGET_MS = 2_500L
 
+    /**
+     * A pinned ws:// address whose first race found nothing while the
+     * address itself answers (PinnedAddress.find): the network is up, so the
+     * device is looked for once more, given longer - a phone whose Wi-Fi was
+     * just waking, a busy device.
+     */
+    const val SECOND_BUDGET_MS = 10_000L
+
     /** An IPv6 address needs brackets in a URL. */
     fun host(address: String) = if (address.contains(':')) "[$address]" else address
 
@@ -92,13 +150,31 @@ object HomeNetwork {
     class PinnedTrustManager(private val pin: ByteArray) : X509TrustManager {
         override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
             val leaf = chain?.firstOrNull() ?: throw CertificateException("no certificate")
-            if (!matches(leaf, pin)) throw CertificateException("not this device's certificate") // i18n-ignore: TLS internals; OTCConnection words a failed handshake
+            if (!matches(leaf, pin)) throw OtherCertificate()
         }
 
         override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) =
             throw CertificateException("no client certificates here") // i18n-ignore: TLS internals, never shown
 
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+    }
+
+    /**
+     * What answered showed a certificate, and it isn't the device's: something
+     * else holds the address (another network using the same range, the
+     * device set up again from scratch) - not merely nothing answering.
+     */
+    class OtherCertificate : CertificateException("not this device's certificate") // i18n-ignore: TLS internals; OTCConnection words a failed handshake
+
+    /** Whether [e] (a connect that failed) came from a certificate other than the pin ([OtherCertificate] anywhere in its causes). */
+    fun isOtherCertificate(e: Throwable): Boolean {
+        var c: Throwable? = e
+        var depth = 0
+        while (c != null && depth++ < 16) {
+            if (c is OtherCertificate) return true
+            c = c.cause.takeIf { it !== c }
+        }
+        return false
     }
 
     /**
@@ -144,6 +220,10 @@ object HomeNetwork {
             val tls = SSLContext.getInstance("TLS").apply { init(null, arrayOf(tm), null) }
             WSClient.defaultClient.newBuilder()
                 .apply { via.socketFactory?.let { socketFactory(it) } }
+                // A name (a ws:// endpoint's own host, PinnedAddress) is
+                // looked up on the network the socket is bound to: with the
+                // home internet down the default one is mobile data.
+                .apply { via.network?.let { n -> dns(object : Dns { override fun lookup(hostname: String) = n.getAllByName(hostname).toList() }) } }
                 .sslSocketFactory(tls.socketFactory, tm)
                 .hostnameVerifier(PinnedHostnameVerifier(pin.copyOf()))
                 .connectTimeout(BUDGET_MS, TimeUnit.MILLISECONDS)
@@ -168,19 +248,33 @@ object HomeNetwork {
      * when none did within [budgetMs] - the caller goes through the bridge,
      * as before.
      */
-    suspend fun open(ep: HomeEndpoint, vias: List<Via>, budgetMs: Long = BUDGET_MS): Opened? {
+    suspend fun open(ep: HomeEndpoint, vias: List<Via>, budgetMs: Long = BUDGET_MS): Opened? = contest(ep, vias, budgetMs).opened
+
+    /**
+     * What a race came to: the socket that won, if any, and - none having
+     * won - whether one of its addresses showed a certificate other than
+     * the pin (something else holds that address) rather than only timing
+     * out or refusing (the port blocked, the phone away from home).
+     */
+    class Contest(val opened: Opened?, val otherCertificate: Boolean)
+
+    /** [open], saying why nothing won ([Contest]). */
+    suspend fun contest(ep: HomeEndpoint, vias: List<Via>, budgetMs: Long = BUDGET_MS): Contest {
         val candidates = vias.flatMap { v -> ep.addresses.map { a -> v to a } }
-        if (candidates.isEmpty()) return null
-        return race(candidates, budgetMs, close = { it.socket.close() }) { (via, address) ->
+        if (candidates.isEmpty()) return Contest(null, false)
+        val other = java.util.concurrent.atomic.AtomicBoolean(false)
+        val opened = race(candidates, budgetMs, close = { it.socket.close() }) { (via, address) ->
             val ws = WSClient(socketClient(ep.certSha256, via))
             try {
                 ws.connect(socketURL(address, ep.port))
             } catch (e: Exception) {
                 ws.close()
+                if (isOtherCertificate(e)) other.set(true)
                 throw e
             }
             Opened(ws, address, via)
         }
+        return Contest(opened, opened == null && other.get())
     }
 
     /**

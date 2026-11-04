@@ -24,6 +24,10 @@ class OTCApp : Application() {
         LongSync.createChannel(this)
         // Issue #190: a network change may change the way to the device.
         NetworkWatch.start(this)
+        // The temporary copies a process ended before removing (the
+        // viewer's whole-file videos, Files' opened files): none of this
+        // process's yet.
+        cloud.offthe.otc.ui.common.TempFiles.sweepAtStart(cacheDir) { work -> Thread(work, "otc-temp-sweep").apply { isDaemon = true }.start() }
     }
 
     // A new system language (in Automatic) or per-app language: the

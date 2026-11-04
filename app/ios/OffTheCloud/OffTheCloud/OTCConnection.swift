@@ -492,11 +492,41 @@ final class OTCConnection: ObservableObject {
             raced.task.cancel()
             home = nil
         }
-        if home == nil, let stored, !NetworkWatch.shared.onlyCellular {
-            home = await PinnedSession.forPin(stored.pin).race(stored)
+        // A ws:// address whose device this phone has reached over its
+        // pinned link goes only that way: a private address or a .local
+        // name is the home network only while the phone is at home, and on
+        // another network with the same range whoever holds that address
+        // would get the sign-in in the clear - the key the password is
+        // sealed with included. A ws:// address's own host is raced too, at
+        // the pinned port.
+        let pinnedOnly = Self.pinnedOnly(url, stored: stored)
+        let targets = stored.map { Self.raceTargets(url, $0) }
+        var sawOtherCertificate = false
+        if home == nil, let targets, !NetworkWatch.shared.onlyCellular {
+            let r = await PinnedSession.forPin(targets.pin).contest(targets, budget: raceBudget)
+            home = r.winner
+            sawOtherCertificate = r.otherCertificate
             guard gen == generation else {
                 home?.task.cancel()
                 throw Self.superseded
+            }
+        }
+        if home == nil, pinnedOnly, let targets {
+            // Nothing of the pinned way: what answers at the address says
+            // whether it is worth looking again (probeInTheClear throws
+            // otherwise). It answers: the network is up, so the device is
+            // looked for once more, given longer - the first race may have
+            // run while the Wi-Fi was waking, or the device was busy.
+            try await probeInTheClear(url, gen: gen)
+            let r = await PinnedSession.forPin(targets.pin).contest(targets, budget: secondRaceBudget)
+            guard gen == generation else {
+                r.winner?.task.cancel()
+                throw Self.superseded
+            }
+            if let w = r.winner {
+                home = w
+            } else {
+                try notThePinnedDevice(otherCertificate: sawOtherCertificate || r.otherCertificate, port: targets.port, at: url)
             }
         }
         if let home {
@@ -524,6 +554,17 @@ final class OTCConnection: ObservableObject {
                 guard gen == generation else { throw Self.superseded }
                 print("[home] signed in over the home network at \(home.link.address)")
                 connected(home: home.link, endpoint: secrets.endpointURLString)
+                // The device the pin names, which is who it is
+                // (DeviceChange), and where it is now (a new DHCP lease).
+                DeviceChange.resolve(pin: home.link.endpoint.pin)
+                // This phone reaches the device's pinned link: from now on
+                // a ws:// address goes only that way (pinnedOnly).
+                var known = stored
+                if let s = stored, !s.reached, s.pin == home.link.endpoint.pin {
+                    known = s.reachedHere()
+                    known?.save()
+                }
+                refreshLocalEndpoint(for: secrets.endpointURLString, stored: known, gen: gen, overHome: true)
                 return
             } catch {
                 await ws.close()
@@ -536,9 +577,20 @@ final class OTCConnection: ObservableObject {
                     connectionFailed = true
                     throw error
                 }
+                // A pinned ws:// address has no other way.
+                if pinnedOnly {
+                    if !(error is ConnectionError) { lastProblem = Self.describe(error) }
+                    connectionFailed = true
+                    throw error
+                }
                 print("[home] the sign-in at \(home.link.address) failed, going through the endpoint: \(error)")
                 (lastProblem, statusCode) = before
             }
+        }
+        // A pinned address signed in the pinned way or failed above: never
+        // the password in the clear to it.
+        if pinnedOnly, let targets {
+            try notThePinnedDevice(otherCertificate: sawOtherCertificate, port: targets.port, at: url)
         }
 
         do {
@@ -569,6 +621,119 @@ final class OTCConnection: ObservableObject {
         connected(home: nil, endpoint: secrets.endpointURLString)
         refreshLocalEndpoint(for: secrets.endpointURLString, stored: stored, gen: gen)
         scheduleHomeRetry(first: true)
+    }
+
+    /// Whether `url` goes only the pinned way: ws:// (no encryption), its
+    /// device's certificate known (learned at a sign-in there, or carried
+    /// over from the bridge by Leave the Bridge) and its pinned link
+    /// reached from this phone once (LocalEndpoint.reached). Until then -
+    /// the first sign-in, a device without the home-network listener, one
+    /// whose encrypted port this phone can't reach - ws:// goes as before:
+    /// the pinned link first, then the address, on the home network only
+    /// (CleartextRule).
+    nonisolated static func pinnedOnly(_ url: URL, stored: LocalEndpoint?) -> Bool {
+        url.scheme?.lowercased() == "ws" && stored?.reached == true
+    }
+
+    /// What a connect to `url` races: what the device listed, and for a
+    /// ws:// address its own host too, at the pinned port - a .local name,
+    /// or a Tailscale address, reaches the device where the addresses it
+    /// listed don't (a new DHCP lease, a container's own addresses). Only
+    /// the pin decides, so a host is as safe to try as a listed address.
+    nonisolated static func raceTargets(_ url: URL, _ stored: LocalEndpoint) -> LocalEndpoint {
+        url.scheme?.lowercased() == "ws" ? stored.including(host: url.host) : stored
+    }
+
+    /// How long a connect's first race gets, and the second for a pinned
+    /// address that answers (tests shorten them).
+    var raceBudget: TimeInterval = HomeNetwork.raceBudget
+    var secondRaceBudget: TimeInterval = HomeNetwork.secondRaceBudget
+
+    /// Signed in, and over the saved endpoint's ws:// itself: the session is
+    /// in the clear anyway (a first sign-in there, a device without a pin),
+    /// so http:// media may go the same way (MediaStream). Never for a
+    /// pinned address, whose sessions are all over the home link.
+    var signedInInClear: Bool {
+        authenticated && homeLink == nil && connectedEndpoint.lowercased().hasPrefix("ws://")
+    }
+
+    /// How long whatever answers a pinned ws:// address is given to answer
+    /// its GetPubKey (probeInTheClear): there is no bridge in between.
+    static let probeTimeout: TimeInterval = 15
+
+    /// A pinned ws:// address (pinnedOnly) whose pinned way found nothing:
+    /// whatever answers at the address itself is asked for its key only -
+    /// GetPubKey carries nothing of this phone's - and never sent the
+    /// password. Throws what to tell the owner when nothing answers (the
+    /// phone isn't at home: the same words as ever) or a device answers
+    /// that it can't reach its storage (issue #207, which serves no
+    /// home-network listener without it; in our words, as nothing proves it
+    /// is the device). Returns when anything else answers: the network is
+    /// up, and the caller looks for the pinned link again.
+    private func probeInTheClear(_ url: URL, gen: Int) async throws {
+        do {
+            try await ws.connect(url: url)
+        } catch {
+            guard gen == generation else { throw Self.superseded }
+            lastProblem = Self.describe(error)
+            connectionFailed = true
+            throw error
+        }
+        let resp: Msg_RespEnvelope
+        do {
+            resp = try await ws.request(timeout: min(signInTimeout, Self.probeTimeout)) {
+                $0.payload = .reqGetPubKey(Msg_GetPubKey())
+            }
+        } catch {
+            await ws.close()
+            guard gen == generation else { throw Self.superseded }
+            lastProblem = Self.describe(error)
+            connectionFailed = true
+            throw error
+        }
+        await ws.close()
+        guard gen == generation else { throw Self.superseded }
+        if ErrorCodes.isStorageUnavailable(resp) {
+            let problem = ConnectionProblem.noStorage("")
+            enterStorage(problem)
+            throw ConnectionError(errorCode: 7, problem: problem)
+        }
+    }
+
+    /// A pinned ws:// address answers, and its pinned link was looked for
+    /// twice without a match: nothing is sent, and the owner is told which
+    /// it was. A certificate other than the device's shown at one of its
+    /// addresses: something else holds the address (another network using
+    /// the same range) or the device was set up again from scratch -
+    /// `notKnownDevice`, which points to setting it up again. Only timeouts
+    /// and refusals: the device's encrypted port can't be reached from here
+    /// (a firewall, a container not publishing it, its listener stopped) -
+    /// `homePortUnreachable`, which names the port and points nowhere
+    /// else: whoever answers at the address can't be told from the device.
+    private func notThePinnedDevice(otherCertificate: Bool, port: Int, at url: URL) throws -> Never {
+        let problem: ConnectionProblem = otherCertificate ? .notKnownDevice : .homePortUnreachable(port)
+        print(otherCertificate
+              ? "[home] another certificate answers for \(url.host ?? "the address"): nothing sent"
+              : "[home] the device's encrypted port \(port) isn't answering at \(url.host ?? "the address"): nothing sent")
+        leaveStorage()
+        statusCode = nil
+        lastProblem = problem
+        connectionFailed = true
+        throw ConnectionError(errorCode: otherCertificate ? 8 : 9, problem: problem)
+    }
+
+    /// Another address saved in Settings: the device signed in to now forgets
+    /// this phone's push token first, as at Log Out - it went on pushing to
+    /// a phone that had moved to another device otherwise (the same device
+    /// at its new address registers it again at the sign-in). Over this
+    /// connection only, never one made for it, `seconds` at most.
+    func unregisterPushBeforeLeaving(within seconds: TimeInterval) async {
+        guard authenticated, let token = UserDefaults.standard.string(forKey: "apnsToken"), !token.isEmpty else { return }
+        _ = try? await ws.request(timeout: seconds) { req in
+            var un = Msg_UnregisterApnsToken()
+            un.token = token
+            req.payload = .reqUnregisterApnsToken(un)
+        }
     }
 
     /// Issue #190: on the bridge with a home endpoint stored and Wi-Fi or a
@@ -771,24 +936,41 @@ final class OTCConnection: ObservableObject {
         wake()
     }
 
-    /// Issue #190: after every sign-in through the endpoint, asks the
-    /// device where it is on the home network, for the next connect. Over
-    /// this socket only, never a reconnect of its own. `gen`: the
-    /// connect's own, so an answer for settings changed since it began is
-    /// dropped.
-    private func refreshLocalEndpoint(for endpoint: String, stored: LocalEndpoint?, gen: Int) {
+    /// Issue #190: after every sign-in, asks the device where it is on the
+    /// home network, for the next connect. Over this socket only, never a
+    /// reconnect of its own. `gen`: the connect's own, so an answer for
+    /// settings changed since it began is dropped. `overHome`: signed in
+    /// over the pinned home link, where only new addresses count
+    /// (LocalEndpoint.updateOverHome) and there is no route to move to.
+    ///
+    /// The answer also says which device this is (DeviceChange: its pin),
+    /// when another address was saved. One that says nothing about it (no
+    /// code: not known yet at the device's start) is asked again a few
+    /// times while that waits; a device that never says is taken for
+    /// another one.
+    private func refreshLocalEndpoint(for endpoint: String, stored: LocalEndpoint?, gen: Int, overHome: Bool = false, attempt: Int = 0) {
         Task {
             let resp: Msg_RespEnvelope
             do {
-                resp = try await ws.request { $0.payload = .reqGetLocalEndpoint(Msg_GetLocalEndpoint()) }
+                resp = try await ws.request(timeout: OTCConnection.listTimeout) { $0.payload = .reqGetLocalEndpoint(Msg_GetLocalEndpoint()) }
             } catch {
-                return // a network error: what is stored stays
+                // A network error: what is stored stays, and a device check
+                // waits for the next sign-in.
+                return
             }
             // On the main actor with no await in between, so this can't
             // land after Log Out's wipe or a new endpoint's save.
             guard gen == generation else { return }
-            switch LocalEndpoint.update(for: resp, endpoint: endpoint) {
-            case .store(let ep) where ep != stored:
+            let update = overHome ? LocalEndpoint.updateOverHome(for: resp, endpoint: endpoint) : LocalEndpoint.update(for: resp, endpoint: endpoint)
+            switch update {
+            case .store(let answer):
+                if !overHome { DeviceChange.resolve(pin: answer.pin) }
+                // What is stored now (a home sign-in may have marked it
+                // reached since `stored` was read): the pinned link stays
+                // reached while the pin is the same.
+                let current = LocalEndpoint.stored(for: endpoint)
+                let ep = answer.keepingReach(of: current ?? stored)
+                guard ep != current else { break }
                 print("[home] the device is at \(ep.addresses) port \(ep.port) on the home network")
                 ep.save()
                 // Tried now, as on the Mac and in otc-sync: otherwise a
@@ -796,15 +978,36 @@ final class OTCConnection: ObservableObject {
                 // moved home only at its next foreground or network
                 // change. reconsiderRoute waits for a connect or a
                 // transfer still running.
-                Task { await self.reconsiderRoute() }
-            case .clear where stored != nil:
-                print("[home] the device can't be reached on the home network any more: \(resp.errorCode)")
-                LocalEndpoint.clear()
-            default:
-                break
+                if !overHome { Task { await self.reconsiderRoute() } }
+            case .clear:
+                // Never over home (updateOverHome): the device can't say.
+                DeviceChange.resolve(pin: nil)
+                if stored != nil {
+                    print("[home] the device can't be reached on the home network any more: \(resp.errorCode)")
+                    LocalEndpoint.clear()
+                }
+            case .keep:
+                // Nothing said about the device: asked again in a while
+                // while a device check waits, then taken as can't say.
+                guard !overHome, DeviceChange.pending else { break }
+                if attempt + 1 >= Self.deviceCheckTries {
+                    DeviceChange.resolve(pin: nil)
+                    break
+                }
+                Task {
+                    try? await Task.sleep(for: .seconds(self.deviceCheckPause))
+                    guard gen == self.generation, self.authenticated else { return }
+                    self.refreshLocalEndpoint(for: endpoint, stored: stored, gen: gen, attempt: attempt + 1)
+                }
             }
         }
     }
+
+    /// DeviceChange: how often, and how far apart, a device that says
+    /// nothing about its home network is asked before it counts as one that
+    /// can't say.
+    static let deviceCheckTries = 5
+    var deviceCheckPause: TimeInterval = 30
 
     // MARK: Issue #190: switching route
 
@@ -911,7 +1114,8 @@ final class OTCConnection: ObservableObject {
             print("[home] \(homeLink?.address ?? "the home network") stopped answering; reconnecting")
             await reconnect(over: nil)
         case .tryHome:
-            guard let stored, let won = await PinnedSession.forPin(stored.pin).race(stored) else { return }
+            guard let stored, let url = URL(string: endpoint),
+                  let won = await PinnedSession.forPin(stored.pin).race(Self.raceTargets(url, stored)) else { return }
             guard stillIdle() else {
                 won.task.cancel()
                 return
@@ -1188,6 +1392,14 @@ enum ConnectionProblem {
     case insecure
     /// A ws:// address off the home network (CleartextRule).
     case cleartext
+    /// A ws:// address whose device's certificate is known, where something
+    /// else answered and another certificate was shown at the device's
+    /// encrypted port (OTCConnection.notThePinnedDevice): nothing was sent.
+    case notKnownDevice
+    /// A ws:// address whose device's certificate is known and was reached
+    /// over its encrypted port before: the address answers, the port (the
+    /// value) doesn't. Nothing was sent.
+    case homePortUnreachable(Int)
     /// New connection settings (or a Log Out) overtook the attempt.
     case superseded
     /// Issue #207: the device can't reach its storage disks - its own
@@ -1210,6 +1422,8 @@ enum ConnectionProblem {
         case .hostNotFound: return S.appShellHostNotFound
         case .insecure: return S.appShellInsecure
         case .cleartext: return S.appShellCleartextRefused
+        case .notKnownDevice: return S.appShellNotKnownDevice(button: S.appShellLeaveButton)
+        case .homePortUnreachable(let port): return S.appShellHomePortUnreachable(port: String(port))
         case .superseded: return S.iosConnectionSuperseded
         case .failure(let error): return error.localizedDescription
         }
@@ -1220,7 +1434,9 @@ enum ConnectionProblem {
 /// code 1 a bad address, 2 no public key, 3 the device's verdict on the
 /// password, 4 superseded, 5 a sign-in nobody answered, 6 a ws:// address
 /// off the home network, 7 a device that can't reach its storage (issue
-/// #207). Its description is worded when read.
+/// #207), 8 something other than the pinned device at a ws:// address, 9
+/// a ws:// address whose pinned device's encrypted port isn't answering.
+/// Its description is worded when read.
 struct ConnectionError: LocalizedError, CustomNSError {
     static var errorDomain: String { "OTCConnection" }
     let errorCode: Int

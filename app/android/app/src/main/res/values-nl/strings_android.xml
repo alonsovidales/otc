@@ -17,8 +17,6 @@
         <item quantity="one">%1$s byte</item>
         <item quantity="other">%1$s bytes</item>
     </plurals>
-    <string name="android_compose_move_left">Naar links verplaatsen</string>
-    <string name="android_compose_move_right">Naar rechts verplaatsen</string>
     <string name="android_compose_record_video">Video opnemen</string>
     <string name="android_compose_take_photo">Foto maken</string>
     <string name="android_download_changed">het bestand is op het apparaat gewijzigd tijdens het downloaden</string>
@@ -49,6 +47,10 @@
     <string name="android_files_inside_kept_out_banner">In de map \u2068%1$s\u2069, die buiten Afbeeldingen wordt gehouden: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.</string>
     <string name="android_files_inside_kept_out_info">In de map \u2068%1$s\u2069, die buiten Afbeeldingen wordt gehouden. Foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel.</string>
     <string name="android_files_kept_out_said">De map \u2068%1$s\u2069 wordt nu buiten Afbeeldingen gehouden</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s oudere versie</item>
+        <item quantity="other">%1$s oudere versies</item>
+    </plurals>
     <string name="android_files_show_named">De map “\u2068%1$s\u2069” in Afbeeldingen tonen</string>
     <string name="android_files_shown_said">De map \u2068%1$s\u2069 wordt weer getoond in Afbeeldingen</string>
     <string name="android_files_wait_download_link">Wacht tot de downloadlink klaar is</string>
@@ -65,6 +67,7 @@
     <string name="android_friends_remove_title_unnamed">Deze vriend verwijderen?</string>
     <string name="android_location_off_hint">Locatie staat uit. Op deze versie van Android vindt de telefoon Bluetooth-apparaten alleen als Locatie aanstaat.</string>
     <string name="android_menu_sections">Onderdelen</string>
+    <string name="android_no_app_for_link">Geen app op deze telefoon kan deze link openen.</string>
     <string name="android_notification_channel">Vrienden en berichten</string>
     <string name="android_notification_channel_description">Vriendschapsverzoeken, nieuwe berichten, likes en reacties</string>
     <string name="android_open_settings">Instellingen openen</string>
@@ -79,6 +82,10 @@
     <string name="android_photos_people_merge_dimmed">Samenvoegen (selecteer er 2 of meer om samen te voegen)</string>
     <string name="android_photos_search_close">Zoeken sluiten</string>
     <string name="android_photos_search_in_search">In de zoekopdracht</string>
+    <string name="android_secrets_start_over">Opnieuw beginnen</string>
+    <string name="android_secrets_start_over_text">Off The Cloud vergeet zijn aanmelding en wat het al van deze telefoon heeft geback-upt, alsof het net is geïnstalleerd: je meldt je opnieuw aan met het adres en het wachtwoord van het apparaat en kiest opnieuw wat er wordt geback-upt, zoals op een nieuwe telefoon. Op het apparaat wordt niets verwijderd.</string>
+    <string name="android_secrets_start_over_title">Opnieuw beginnen op deze telefoon?</string>
+    <string name="android_secrets_unavailable">Off The Cloud kan de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, niet openen. Dit gaat meestal over na een herstart of een systeemupdate: probeer het zo opnieuw. Blijft het gebeuren, dan kun je opnieuw beginnen en je weer aanmelden.</string>
     <string name="android_settings_bridge_leave_delete">Verlaten en verwijderen</string>
     <string name="android_settings_crop_hint">Sleep de foto om je gezicht in het midden te zetten</string>
     <string name="android_settings_crop_zoom">Zoomen</string>
@@ -134,7 +141,9 @@
     <string name="android_storage_show_details_attention">Opslag, vereist aandacht, details tonen</string>
     <string name="android_storage_used">Gebruikte opslag, %1$s%%</string>
     <string name="android_trim_cant">Kan deze video niet inkorten: %1$s</string>
+    <string name="android_trim_end_handle">Einde van het fragment</string>
     <string name="android_trim_play_cut">▶ Fragment afspelen</string>
+    <string name="android_trim_start_handle">Begin van het fragment</string>
     <string name="android_wallpaper_both">Allebei</string>
     <string name="android_wallpaper_change">Foto wisselen</string>
     <string name="android_wallpaper_every_15">Elke 15 minuten</string>

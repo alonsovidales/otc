@@ -152,6 +152,12 @@ it to the page's address, `http://nas.example.com:8080`. Without it the page ope
 connect: the device only lets pages at its own names connect, so that no other website can reach it
 through your browser.
 
+After the first sign-in the apps also find the device's encrypted port (8443) at home on their own.
+Once the iPhone or Android app has signed in over that port, it signs in to a `ws://` address only through it,
+so it never sends your password unencrypted to whatever holds that address on another network.
+Keep 8443 reachable from your home network as well as 8080 (see [Firewall](#firewall)): if it
+stops answering, the app says so and doesn't sign in.
+
 ### From anywhere, with friends: the bridge
 
 In the web app, open Settings › Bridge access. Sign in with your Off The Cloud account, or paste a

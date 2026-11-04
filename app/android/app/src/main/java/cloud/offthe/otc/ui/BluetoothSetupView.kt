@@ -31,6 +31,8 @@ import cloud.offthe.otc.i18n.appShellSetupLeave
 import cloud.offthe.otc.i18n.appShellSetupLeaveText
 import cloud.offthe.otc.i18n.appShellSetupLeaveTitle
 import cloud.offthe.otc.i18n.appShellSetupNotFound
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainText
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainTitle
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonTryAgain
 import androidx.compose.foundation.layout.Spacer
@@ -140,7 +142,8 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     val chosenPassword by transport.chosenPassword.collectAsState()
     val setupDomain by transport.setupDomain.collectAsState()
     // Kept until the app is signed in to the device: Onboarding fills its
-    // form from it (the Bluetooth link doesn't survive the install).
+    // form from it (the Bluetooth link doesn't survive the install), and
+    // asks about a domain as "Open my device" does (setupAddressToConfirm).
     LaunchedEffect(chosenPassword, setupDomain) {
         val d = setupDomain
         if (chosenPassword.isNotEmpty() && d != null) {
@@ -260,7 +263,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
             onDismissRequest = { confirmLeave = false },
             title = { Text(S.appShellSetupLeaveTitle().resolve()) },
             text = { Text(S.appShellSetupLeaveText().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onClose() }) { Text(S.appShellSetupLeave().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onClose() }) { Text(S.appShellSetupLeave().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -311,11 +314,16 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                 }
                 // The install takes about 20 minutes: keepScreenOn stops a
                 // locked phone from dropping the Bluetooth link.
-                AndroidView(factory = { makeWebView(it, transport, page, scope) { cb ->
-                    pendingFile[0]?.onReceiveValue(null)
-                    pendingFile[0] = cb
-                    pickImage.launch("image/*")
-                }.apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
+                AndroidView(
+                    factory = { makeWebView(it, transport, page, scope) { cb ->
+                        pendingFile[0]?.onReceiveValue(null)
+                        pendingFile[0] = cb
+                        pickImage.launch("image/*")
+                    }.apply { keepScreenOn = true } },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    // Let go with the setup: a WebView left behind per opening.
+                    onRelease = { (it as? android.webkit.WebView)?.apply { stopLoading(); destroy() } },
+                )
             } else {
                 Waiting(phase, transport, locationOn, actions, Modifier.weight(1f))
             }
@@ -349,8 +357,23 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         }
                         val valid = chosenPassword.isNotEmpty() || password.isNotEmpty()
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
+                        // An address that isn't an off-the.cloud name (a bridge
+                        // of one's own - or something nearby passing for the
+                        // device) is opened only once the owner has seen it:
+                        // the photos would go there.
+                        var confirmDomain by remember(domain) { mutableStateOf(false) }
+                        val open = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }
+                        Button(onClick = { if (domainNeedsConfirm(domain)) confirmDomain = true else open() }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
                             Text(S.appShellSetupOpenDevice().resolve())
+                        }
+                        if (confirmDomain) {
+                            AlertDialog(
+                                onDismissRequest = { confirmDomain = false },
+                                title = { Text(S.appShellSetupOtherDomainTitle().resolve()) },
+                                text = { Text(S.appShellSetupOtherDomainText(domain).resolve()) },
+                                confirmButton = { TextButton(onClick = { confirmDomain = false; open() }) { Text(S.appShellSetupOpenDevice().resolve()) } },
+                                dismissButton = { TextButton(onClick = { confirmDomain = false }) { Text(S.commonCancel().resolve()) } },
+                            )
                         }
                     }
                 }
@@ -468,10 +491,42 @@ private fun signal(rssi: Int): UiText = when {
     else -> S.androidSignalWeak()
 }
 
+/**
+ * Whether the wizard's [domain] is an off-the.cloud device name
+ * ("name.off-the.cloud"), which the app opens at once; empty (no bridge) too.
+ * Anything else - a bridge of one's own, or a look-alike such as
+ * "name.off-the.cloud.example.net" from something nearby passing for the
+ * device - is opened only after the owner has seen it.
+ */
+fun domainNeedsConfirm(domain: String): Boolean {
+    if (domain.isEmpty()) return false
+    val suffix = "." + SecretsStore.bridgeDomain
+    if (!domain.lowercase().endsWith(suffix)) return true
+    val name = domain.dropLast(suffix.length)
+    return !Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", RegexOption.IGNORE_CASE).matches(name)
+}
+
+/**
+ * The pending setup's [endpoint] (SecretsStore.pendingSetup, saved from the
+ * domain the wizard reported, before any question): the address to name in
+ * the same question before Onboarding's Save & Continue signs in there, or
+ * null for one that opens at once - an off-the.cloud device name, or
+ * otc.local without the bridge. A phone locked through the install never
+ * sees "Open my device", and this is how it signs in.
+ */
+fun setupAddressToConfirm(endpoint: String): String? {
+    if (endpoint == endpointForDomain("")) return null
+    val u = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)) } catch (e: Exception) { null }
+    val host = u?.host
+    if (host.isNullOrEmpty()) return endpoint
+    val bridge = u.scheme.equals("wss", ignoreCase = true) && u.port == -1 && u.path == "/ws" && u.query == null
+    return if (bridge && !domainNeedsConfirm(host)) null else host
+}
+
 /** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */
 fun endpointForDomain(domain: String): String = when {
     domain.isEmpty() -> "ws://otc.local:8080/ws"
-    domain.endsWith("." + SecretsStore.bridgeDomain) -> SecretsStore.bridgeEndpoint(domain.dropLast(SecretsStore.bridgeDomain.length + 1))
+    domain.lowercase().endsWith("." + SecretsStore.bridgeDomain) -> SecretsStore.bridgeEndpoint(domain.dropLast(SecretsStore.bridgeDomain.length + 1))
     else -> "wss://$domain/ws"
 }
 

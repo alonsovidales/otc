@@ -91,6 +91,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // The thumbnail cache reads and writes nothing while the phone's
         // protected data is unavailable (a background launch while locked).
         ProtectedDataWatch.start()
+        // The temporary copies an earlier launch was ended before removing
+        // (a photo sync's multi-GB videos, the viewer's): none of this
+        // launch's - their folders are its own, and this is its start.
+        let launchedAt = TempFiles.launchedAt
+        Task.detached(priority: .utility) { TempFiles.sweep(before: launchedAt) }
         // The viewer's full-size photos are kept for a session only: made
         // now, the cache empties what the last launch kept (on its own
         // queue), rather than when the viewer first opens.

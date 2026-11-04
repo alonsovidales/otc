@@ -30,7 +30,12 @@ final class SecretsStore: ObservableObject {
         }
     }
     @Published var includeVideos: Bool {
-        didSet { persistOptions() }
+        didSet {
+            persistOptions()
+            // Back on: the videos taken while it was off are sent too
+            // (PhotoSync.videosTurnedOn). Log Out turns it on signed out.
+            if includeVideos && !oldValue && isConfigured { PhotoSync.shared.videosTurnedOn() }
+        }
     }
     @Published var downloadFromiCloud: Bool {
         didSet { persistOptions() }
@@ -249,12 +254,36 @@ final class SecretsStore: ObservableObject {
         Keychain.delete(key: "last_password")
     }
 
+    /// Bumped when the saved address changes to another one (not Leave the
+    /// Bridge): RootView makes MainView afresh, so no screen keeps the last
+    /// device's lists (DeviceChange).
+    @Published private(set) var deviceSession = 0
+
+    /// Whether two saved addresses are the same, as dialled (normalized; a
+    /// host's case doesn't count).
+    static func sameAddress(_ a: String, _ b: String) -> Bool {
+        normalizedEndpoint(a).lowercased() == normalizedEndpoint(b).lowercased()
+    }
+
     /// Save, Save & Retry, Save & Continue and the Bluetooth setup's "Use
     /// this device": the address and password they were given become the
     /// ones every connection dials, in the Keychain. Nothing else writes
     /// them (IOS-03): the forms edit drafts until then. As Android's
     /// SecretsStore.saveCredentials.
-    func saveCredentials(endpoint: String, password: String) {
+    ///
+    /// Another address than the one signed in to before is a change of
+    /// device until its device says otherwise (DeviceChange): its screens
+    /// are made afresh and the photo sync waits for the answer. `sameDevice`
+    /// (Leave the Bridge: the device itself gave its new address) is none,
+    /// and keeps what was learned about its home network.
+    @MainActor
+    func saveCredentials(endpoint: String, password: String, sameDevice: Bool = false) {
+        let before = endpointURLString
+        // From one device's address to another's: not a first sign-in (from
+        // none), nor the address cleared.
+        let changed = !before.isEmpty && !Self.normalizedEndpoint(endpoint).isEmpty && !Self.sameAddress(before, endpoint)
+        // Read before the old address's home endpoint goes below.
+        let pinBefore = changed && !sameDevice ? LocalEndpoint.pin(for: before) : nil
         self.endpoint = endpoint
         self.password = password
         if isConfigured {
@@ -264,8 +293,21 @@ final class SecretsStore: ObservableObject {
         Keychain.saveString(key: "endpoint", value: endpoint)
         Keychain.saveString(key: "password", value: password)
         // Issue #190: the home-network endpoint belongs to the endpoint it
-        // was learned on; another device or address starts without one.
-        LocalEndpoint.clear(unlessFor: endpointURLString)
+        // was learned on; another device or address starts without one -
+        // except the same device at its new address, which keeps its pin
+        // (its first sign-in there is never in the clear), and the same
+        // address spelled otherwise (a host's case), which is no change:
+        // dropping its pin would send the next sign-in in the clear.
+        if sameDevice || (!before.isEmpty && Self.sameAddress(before, endpoint)) {
+            LocalEndpoint.move(from: before, to: endpointURLString)
+        } else {
+            LocalEndpoint.clear(unlessFor: endpointURLString)
+        }
+        if changed && !sameDevice {
+            DeviceChange.begin(before: pinBefore)
+            DeviceChange.onAddressChange()
+            deviceSession &+= 1
+        }
         // Not device_id: only loadOrCreate and logOut set it, and both save
         // it. A store built while the Keychain was locked holds a
         // throwaway id that must not replace the real one here.

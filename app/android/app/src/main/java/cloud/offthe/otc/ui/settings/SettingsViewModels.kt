@@ -1237,7 +1237,10 @@ class BridgeAccountViewModel : ViewModel() {
                 return false
             }
             apply(resp.respBridgeAccess)
-            secrets.saveCredentials(localEndpoint(state.value.localAddress), secrets.password.value)
+            // The same device at its home address: it keeps what the app
+            // learnt of it (its pin), so it is never signed in to in the
+            // clear and no change of device is asked about.
+            secrets.saveCredentials(localEndpoint(state.value.localAddress), secrets.password.value, sameDevice = true)
             OTCConnection.invalidate()
             state.update { it.copy(note = S.appSettingsBridgeLeft(it.localAddress.ifEmpty { "otc.local" })) }
             return true

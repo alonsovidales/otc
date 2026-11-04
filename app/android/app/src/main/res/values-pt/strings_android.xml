@@ -18,8 +18,6 @@
         <item quantity="many">%1$s bytes</item>
         <item quantity="other">%1$s bytes</item>
     </plurals>
-    <string name="android_compose_move_left">Mover para a esquerda</string>
-    <string name="android_compose_move_right">Mover para a direita</string>
     <string name="android_compose_record_video">Gravar um vídeo</string>
     <string name="android_compose_take_photo">Tirar uma foto</string>
     <string name="android_download_changed">o ficheiro mudou no dispositivo durante a transferência</string>
@@ -52,6 +50,11 @@
     <string name="android_files_inside_kept_out_banner">Dentro de \u2068%1$s\u2069, que está fora de Imagens: as fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens.</string>
     <string name="android_files_inside_kept_out_info">Dentro de \u2068%1$s\u2069, que está fora de Imagens. As fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Ficheiros continua a mostrá-los.</string>
     <string name="android_files_kept_out_said">A pasta \u2068%1$s\u2069 ficou fora de Imagens</string>
+    <plurals name="android_files_older_versions">
+        <item quantity="one">%1$s versão anterior</item>
+        <item quantity="many">%1$s versões anteriores</item>
+        <item quantity="other">%1$s versões anteriores</item>
+    </plurals>
     <string name="android_files_show_named">Mostrar a pasta «\u2068%1$s\u2069» em Imagens</string>
     <string name="android_files_shown_said">A pasta \u2068%1$s\u2069 voltou a aparecer em Imagens</string>
     <string name="android_files_wait_download_link">Espera até a ligação de transferência estar pronta</string>
@@ -68,6 +71,7 @@
     <string name="android_friends_remove_title_unnamed">Remover esta amizade?</string>
     <string name="android_location_off_hint">A localização está desativada. Nesta versão do Android, o telemóvel só encontra dispositivos Bluetooth com a localização ativada.</string>
     <string name="android_menu_sections">Secções</string>
+    <string name="android_no_app_for_link">Nenhuma app deste telemóvel consegue abrir esta ligação.</string>
     <string name="android_notification_channel">Amigos e publicações</string>
     <string name="android_notification_channel_description">Pedidos de amizade, novas publicações, gostos e comentários</string>
     <string name="android_open_settings">Abrir Definições</string>
@@ -83,6 +87,10 @@
     <string name="android_photos_people_merge_dimmed">Juntar (seleciona 2 ou mais para juntar)</string>
     <string name="android_photos_search_close">Fechar pesquisa</string>
     <string name="android_photos_search_in_search">Na pesquisa</string>
+    <string name="android_secrets_start_over">Recomeçar</string>
+    <string name="android_secrets_start_over_text">O Off The Cloud esquece o seu início de sessão e o que já copiou deste telemóvel, como se tivesse acabado de ser instalado: inicias sessão outra vez com o endereço e a palavra-passe do dispositivo e escolhes de novo o que copiar, como num telemóvel novo. Nada é apagado no dispositivo.</string>
+    <string name="android_secrets_start_over_title">Recomeçar neste telemóvel?</string>
+    <string name="android_secrets_unavailable">O Off The Cloud não consegue abrir o armazenamento seguro deste telemóvel, onde guarda o teu início de sessão. Isto costuma resolver-se depois de um reinício ou de uma atualização do sistema: tenta novamente daqui a pouco. Se continuar a acontecer, podes recomeçar e iniciar sessão outra vez.</string>
     <string name="android_settings_bridge_leave_delete">Sair e eliminar</string>
     <string name="android_settings_crop_hint">Arrasta a foto para centrares o teu rosto</string>
     <string name="android_settings_crop_zoom">Zoom</string>
@@ -140,7 +148,9 @@
     <string name="android_storage_show_details_attention">Armazenamento, requer atenção, mostrar detalhes</string>
     <string name="android_storage_used">Armazenamento usado, %1$s%%</string>
     <string name="android_trim_cant">Não é possível cortar este vídeo: %1$s</string>
+    <string name="android_trim_end_handle">Fim do corte</string>
     <string name="android_trim_play_cut">▶ Reproduzir corte</string>
+    <string name="android_trim_start_handle">Início do corte</string>
     <string name="android_wallpaper_both">Ambos</string>
     <string name="android_wallpaper_change">Mudar de foto</string>
     <string name="android_wallpaper_every_15">A cada 15 minutos</string>

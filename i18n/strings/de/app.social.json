@@ -73,6 +73,14 @@
     "text": "Nach Tag filtern…",
     "en": "Filter by tag…"
   },
+  "app.social.compose.move_left": {
+    "text": "Nach links verschieben",
+    "en": "Move left"
+  },
+  "app.social.compose.move_right": {
+    "text": "Nach rechts verschieben",
+    "en": "Move right"
+  },
   "app.social.compose.order": {
     "text": "Reihenfolge im Beitrag",
     "en": "Order in post"
@@ -80,6 +88,10 @@
   "app.social.compose.photos_access": {
     "text": "Zum Auswählen von deinem Handy ist Zugriff auf deine Fotos nötig.",
     "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.position": {
+    "text": "Nummer {position} im Beitrag",
+    "en": "Number {position} in the post"
   },
   "app.social.compose.publish": {
     "text": "Veröffentlichen",
@@ -120,6 +132,10 @@
   "app.social.compose.trim_load_failed": {
     "text": "Dieses Video konnte zum Kürzen nicht geladen werden: {detail}",
     "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.unpick": {
+    "text": "Aus dem Beitrag entfernen",
+    "en": "Remove from the post"
   },
   "app.social.compose.uploading": {
     "text": "Wird hochgeladen ({done} von {total})…",

@@ -3845,43 +3845,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ältere Fotos und Videos werden von diesem Handy gelöscht, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Bearbeitete Fotos und Serienaufnahmen bleiben: Das Gerät hat nur ihr Original. iOS fragt vor dem Löschen, und sie bleiben 30 Tage in „Zuletzt gelöscht“. Ist iCloud-Fotos aktiviert, verschwinden sie auch aus iCloud und von deinen anderen Geräten. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag."
+            "value" : "Ältere Fotos und Videos werden von diesem Handy gelöscht, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Bearbeitete Fotos, Serienaufnahmen und RAW+JPEG-Paare bleiben: Das Gerät hat nur eines ihrer Bilder. iOS fragt vor dem Löschen, und sie bleiben 30 Tage in „Zuletzt gelöscht“. Ist iCloud-Fotos aktiviert, verschwinden sie auch aus iCloud und von deinen anderen Geräten. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day."
+            "value" : "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos, bursts and RAW+JPEG pairs stay: the device has only one of their pictures. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas y las ráfagas se quedan: el dispositivo solo tiene su original. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día."
+            "value" : "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas, las ráfagas y los pares RAW+JPEG se quedan: el dispositivo solo tiene una de sus imágenes. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les photos et vidéos plus anciennes sont supprimées de ce téléphone, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Les photos modifiées et les rafales restent : l’appareil n’a que leur original. iOS demande avant de supprimer, et elles restent 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, elles disparaissent aussi d’iCloud et de vos autres appareils. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus."
+            "value" : "Les photos et vidéos plus anciennes sont supprimées de ce téléphone, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Les photos modifiées, les rafales et les paires RAW+JPEG restent : l’appareil n’a qu’une seule de leurs images. iOS demande avant de supprimer, et elles restent 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, elles disparaissent aussi d’iCloud et de vos autres appareils. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le foto e i video più vecchi vengono eliminati da questo telefono, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Le foto modificate e le raffiche restano: il dispositivo ha solo l’originale. iOS chiede prima di eliminare, e restano in “Eliminati di recente” per 30 giorni. Con Foto di iCloud attivo, spariscono anche da iCloud e dagli altri tuoi dispositivi. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno."
+            "value" : "Le foto e i video più vecchi vengono eliminati da questo telefono, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Le foto modificate, le raffiche e le coppie RAW+JPEG restano: il dispositivo ha solo una delle loro immagini. iOS chiede prima di eliminare, e restano in “Eliminati di recente” per 30 giorni. Con Foto di iCloud attivo, spariscono anche da iCloud e dagli altri tuoi dispositivi. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oudere foto’s en video’s worden van deze telefoon verwijderd, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Bewerkte foto’s en reeksen blijven: het apparaat heeft alleen het origineel. iOS vraagt het eerst, en ze blijven 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan verdwijnen ze ook uit iCloud en van je andere apparaten. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag."
+            "value" : "Oudere foto’s en video’s worden van deze telefoon verwijderd, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Bewerkte foto’s, reeksen en RAW+JPEG-paren blijven: het apparaat heeft maar één van hun afbeeldingen. iOS vraagt het eerst, en ze blijven 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan verdwijnen ze ook uit iCloud en van je andere apparaten. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As fotos e vídeos mais antigos são eliminados deste telemóvel, cada um só depois de o dispositivo confirmar que tem uma cópia exata. As fotos editadas e as sequências ficam: o dispositivo só tem o original. O iOS pergunta antes de eliminar, e ficam em «Apagados recentemente» durante 30 dias. Com Fotografias em iCloud ativado, também saem do iCloud e dos teus outros dispositivos. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia."
+            "value" : "As fotos e vídeos mais antigos são eliminados deste telemóvel, cada um só depois de o dispositivo confirmar que tem uma cópia exata. As fotos editadas, as sequências e os pares RAW+JPEG ficam: o dispositivo só tem uma das suas imagens. O iOS pergunta antes de eliminar, e ficam em «Apagados recentemente» durante 30 dias. Com Fotografias em iCloud ativado, também saem do iCloud e dos teus outros dispositivos. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia."
           }
         }
       }
@@ -5681,6 +5681,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Para criar o álbum, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições."
+          }
+        }
+      }
+    },
+    "ios.wallpaper_full_access_stop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um das Album und seine Kopien zu löschen, braucht Off The Cloud Zugriff auf alle deine Fotos. Du kannst ihn in den Einstellungen erlauben. Bis dahin bleiben sie in der Fotos-App."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To delete the album and its copies, Off The Cloud needs access to all your photos. You can allow it in Settings. Until then they stay in the Photos app."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para borrar el álbum y sus copias, Off The Cloud necesita acceso a todas tus fotos. Puedes permitirlo en Ajustes. Hasta entonces, se quedan en la app Fotos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour supprimer l’album et ses copies, Off The Cloud a besoin d’accéder à toutes vos photos. Vous pouvez l’autoriser dans Réglages. D’ici là, elles restent dans l’app Photos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per eliminare l’album e le sue copie, Off The Cloud ha bisogno di accedere a tutte le tue foto. Puoi consentirlo in Impostazioni. Fino ad allora restano nell’app Foto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Om het album en de kopieën ervan te verwijderen, heeft Off The Cloud toegang tot al je foto’s nodig. Je kunt dat toestaan in Instellingen. Tot dan blijven ze in de Foto’s-app."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para apagar o álbum e as cópias, o Off The Cloud precisa de acesso a todas as tuas fotos. Podes permiti-lo nas Definições. Até lá, ficam na app Fotografias."
           }
         }
       }

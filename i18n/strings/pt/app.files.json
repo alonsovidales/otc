@@ -233,6 +233,10 @@
     "text": "Não foi possível obter o ficheiro",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Caminho da pasta",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} resultado",

@@ -138,6 +138,8 @@ final class CopiesDevice {
     var bucketAsks = 0
     /// The photos: (copies; nil = not counted, as before #201).
     var copies: [Int?] = [3, nil, 1, 2]
+    /// Waited for before each delete is answered (tests hold it there).
+    var duringDelete: (@MainActor () async -> Void)?
 
     func file(_ i: Int) -> Msg_File {
         var f = Msg_File()
@@ -167,6 +169,7 @@ final class CopiesDevice {
                 r.payload = .respPhotoDateBuckets(Msg_RespPhotoDateBuckets())
             case .reqDelFile(let d):
                 self.deletes.append(d)
+                await self.duringDelete?()
                 if let no = self.refuse[d.path] {
                     r.error = true
                     r.errorCode = no.code
@@ -335,6 +338,71 @@ struct DeleteCopiesGalleryTests {
         #expect(relisted == ["/Docs/a.jpg"])
         // The item stays: nothing was deleted.
         #expect(viewer.items.count == 1)
+    }
+
+    @Test func aDeleteUnderWayHoldsTheBarAndGoesOnce() async {
+        let (vm, device) = await model()
+        let gate = WallpaperGate()
+        device.duringDelete = { await gate.wait() }
+        vm.selected = ["/photos/1.jpg", "/photos/2.jpg"]
+        vm.deleteSelected()
+        // The bar waits, its Delete a spinner, from the first tap.
+        #expect(vm.preparing == .delete)
+        await waitUntil { gate.waiting }
+        // A second Delete meanwhile sends nothing more.
+        vm.deleteSelected()
+        gate.release()
+        await waitUntil { vm.preparing == nil }
+        #expect(vm.preparing == nil)
+        #expect(device.deletes.count == 2)
+        #expect(!vm.showAlert, "nothing refused: the second tap sent nothing to be refused")
+        #expect(vm.items.map(\.path) == ["/photos/0.jpg", "/photos/3.jpg"])
+    }
+
+    @Test func filesSaysWhyADeleteFailed() async {
+        let vm = FilesExplorerViewModel(initialPath: "/Docs/", defaults: UserDefaults(suiteName: "dc-\(UUID().uuidString)")!)
+        vm.thumbDisk = testThumbCache()
+        func file(_ name: String) -> Msg_File {
+            var f = Msg_File()
+            f.path = "/Docs/" + name
+            f.mime = "application/pdf"
+            f.hash = "h" + name
+            return f
+        }
+        var asked: [String] = []
+        vm.request = { payload in
+            var r = Msg_RespEnvelope()
+            switch payload {
+            case .reqListFiles:
+                var lof = Msg_ListOfFiles()
+                lof.files = [file("a.pdf"), file("b.pdf")]
+                r.payload = .respListOfFiles(lof)
+            case .reqDelFile(let d):
+                asked.append(d.path)
+                // The demo device's refusal, and one that never came.
+                if d.path == "/Docs/a.pdf" {
+                    r.error = true
+                    r.errorCode = "demo"
+                    r.errorMessage = "This is a demo device: nothing can be changed."
+                } else {
+                    throw WSClient.TimedOut()
+                }
+            default:
+                throw CancellationError()
+            }
+            return r
+        }
+        await vm.load()
+        vm.selected = ["/Docs/a.pdf"]
+        await vm.deleteSelected()
+        #expect(vm.toast == S.appPhotosNoticeDeleteFailed(detail: "This is a demo device: nothing can be changed."))
+        #expect(vm.preparing == nil)
+        vm.selected = ["/Docs/a.pdf", "/Docs/b.pdf"]
+        await vm.deleteSelected()
+        // Both still there: each said once.
+        #expect(vm.toast?.contains("This is a demo device: nothing can be changed.") == true)
+        #expect(vm.toast?.split(separator: "\n").count == 2)
+        #expect(asked.count == 3)
     }
 
     @Test func oneSelectedAsksAsTheViewerDoesAndNoneWithCopiesAsBefore() async {
