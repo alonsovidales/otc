@@ -16,6 +16,7 @@
   "dev.status.bridge.invalid_name": {"text": "that name can't be used"},
   "dev.status.bridge.invalid_setup_code": {"text": "that setup code is not valid or has expired"},
   "dev.status.bridge.login_required": {"text": "sign in to register a name"},
+  "dev.status.bridge.move_needs_signin": {"text": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page"},
   "dev.status.bridge.name_held": {"text": "that name was released recently and is held for its previous owner for 30 days"},
   "dev.status.bridge.name_rule": {"text": "lower-case letters, digits and hyphens only"},
   "dev.status.bridge.name_taken": {"text": "that name is already taken"},

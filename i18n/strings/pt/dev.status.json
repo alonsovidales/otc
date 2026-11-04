@@ -67,6 +67,11 @@
     "text": "inicia sessão para registar um nome",
     "en": "sign in to register a name"
   },
+  "dev.status.bridge.move_needs_signin": {
+    "text": "esse nome é teu e foi usado noutro dispositivo: para o passares para este, volta a iniciar sessão ou usa um código de configuração obtido nos 15 minutos seguintes a iniciares sessão na página da tua conta",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #93575d0d"
+  },
   "dev.status.bridge.name_held": {
     "text": "esse nome foi libertado recentemente e fica reservado para o anterior proprietário durante 30 dias",
     "en": "that name was released recently and is held for its previous owner for 30 days"

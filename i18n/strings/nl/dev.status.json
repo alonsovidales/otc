@@ -67,6 +67,11 @@
     "text": "log in om een naam te registreren",
     "en": "sign in to register a name"
   },
+  "dev.status.bridge.move_needs_signin": {
+    "text": "die naam is van jou en werd gebruikt op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #dceff577"
+  },
   "dev.status.bridge.name_held": {
     "text": "die naam is onlangs vrijgegeven en blijft 30 dagen gereserveerd voor de vorige eigenaar",
     "en": "that name was released recently and is held for its previous owner for 30 days"

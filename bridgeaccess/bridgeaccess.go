@@ -303,7 +303,8 @@ func call(method, path string, body any, out any) (int, error) {
 // knows who reads them, so it always writes English: the device shows
 // that English as it always did, and its own text for the code in any
 // other language. Per endpoint, since one code can have other words
-// elsewhere; only the codes this device's requests can get.
+// elsewhere; only the codes this device's requests can get (it signs in
+// and claims, never signs up or sets a password: no password_too_long).
 var (
 	signInCodes = map[string]func(email string) (i18n.Msg, bool){
 		"email_not_verified": func(email string) (i18n.Msg, bool) {
@@ -315,10 +316,14 @@ var (
 		"terms_not_accepted":  fixed(i18n.DevStatusBridgeTermsNotAccepted()),
 		"too_many_attempts":   fixed(i18n.DevStatusBridgeTooManyAttempts()),
 	}
+	// move_needs_signin: a name the account uses on another device, or
+	// gave up less than 30 days ago, claimed with a setup code not made
+	// just after a sign-in (bridge/api claimName).
 	claimCodes = map[string]func(email string) (i18n.Msg, bool){
 		"claim_unavailable": fixed(i18n.DevStatusBridgeClaimUnavailable()),
 		"invalid_name":      fixed(i18n.DevStatusBridgeInvalidName()),
 		"login_required":    fixed(i18n.DevStatusBridgeLoginRequired()),
+		"move_needs_signin": fixed(i18n.DevStatusBridgeMoveNeedsSignin()),
 		"name_held":         fixed(i18n.DevStatusBridgeNameHeld()),
 		"name_taken":        fixed(i18n.DevStatusBridgeNameTaken()),
 		"too_many_claims":   fixed(i18n.DevStatusBridgeTooManyClaims()),

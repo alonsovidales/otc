@@ -76,6 +76,12 @@
     "text": "sign in to register a name",
     "note": "Error under the name field when switching the bridge on from Settings: the account sign-in behind the request was not accepted (it may have expired), so the name can't be registered."
   },
+  "dev.status.bridge.move_needs_signin": {
+    "text": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "note": "Error under the name field when switching the bridge on from Settings: the name is one the account uses on another device, or gave up less than 30 days ago, and moving it to this device needs a sign-in just made: sign in again in Settings > Bridge, or type a setup code made within 15 minutes of signing in on the account page (off-the.cloud/account). Security: the name's visitors are sent to this device from then on.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #9b936f2a"
+  },
   "dev.status.bridge.name_held": {
     "text": "that name was released recently and is held for its previous owner for 30 days",
     "note": "Error under the name field when switching the bridge on from Settings: someone gave this name up recently, and it stays reserved for them for 30 days."

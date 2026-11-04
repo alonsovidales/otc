@@ -16,6 +16,7 @@
   "dev.status.bridge.invalid_name": {"text": "die naam kan niet worden gebruikt"},
   "dev.status.bridge.invalid_setup_code": {"text": "die configuratiecode is ongeldig of verlopen"},
   "dev.status.bridge.login_required": {"text": "log in om een naam te registreren"},
+  "dev.status.bridge.move_needs_signin": {"text": "die naam is van jou en werd gebruikt op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen"},
   "dev.status.bridge.name_held": {"text": "die naam is onlangs vrijgegeven en blijft 30 dagen gereserveerd voor de vorige eigenaar"},
   "dev.status.bridge.name_rule": {"text": "alleen kleine letters, cijfers en koppeltekens"},
   "dev.status.bridge.name_taken": {"text": "die naam is al in gebruik"},

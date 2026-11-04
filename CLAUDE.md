@@ -3662,7 +3662,8 @@ admin panel's `RequireAuth` 401s only an admin that is gone), `LookupSetupToken`
 code" from an error (claims with a setup code, and
 name-available's `yours`/`online`), and `accountAddDomain` reads the account once. The setup
 wizard passes the bridge's own error answers through (`bridge_answer`; `bridge_error` keeps their
-`error`, `code` and `args`, and the page words known codes as `wiz.bridge.<code>`), and a typed
+`error`, `code` and `args`, and the page words known codes as `wiz.bridge.<code>`, each key's
+English the bridge's own: `TestWizardBridgeTextsAreTheBridges`), and a typed
 code is only
 "not valid or has expired" when the bridge said so (a 5xx is a 502 "try again").
 

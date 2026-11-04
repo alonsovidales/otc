@@ -60,6 +60,7 @@ func TestBridgeRefusalEnglishUnchanged(t *testing.T) {
 		"too_many_claims":     "please wait a moment before trying another name",
 		"name_taken":          "that name is already taken",
 		"name_held":           "that name was released recently and is held for its previous owner for 30 days",
+		"move_needs_signin":   i18n.SiteAccountErrorMoveNeedsSignin().Render("en"),
 		"domain_limit":        "an account can hold 3 names",
 		"":                    "something the bridge said",
 	}
@@ -86,6 +87,12 @@ func TestBridgeRefusalEnglishUnchanged(t *testing.T) {
 				t.Errorf("%s: the device's text %q is not the bridge's %q", code, got, english)
 			}
 		}
+	}
+	// In a language the build carries, a mapped code is the device's own
+	// text: a name moved without a sign-in just made, in Spanish.
+	move := bridgeRefusal(claimCodes, "move_needs_signin", bridgeTexts["move_needs_signin"], "", i18n.DevStatusBridgeClaimFailed())
+	if got, want := devtext.Text("es", move), i18n.DevStatusBridgeMoveNeedsSignin().Render("es"); got != want || got == bridgeTexts["move_needs_signin"] {
+		t.Errorf("move_needs_signin in Spanish: %q, want %q", got, want)
 	}
 	if got := bridgeRefusal(signInCodes, "", "", "", i18n.DevStatusBridgeSigninFailed()).Error(); got != "could not sign in" {
 		t.Errorf("sign-in fallback: %q", got)

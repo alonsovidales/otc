@@ -89,6 +89,11 @@ func DevStatusBridgeLoginRequired() Msg {
 	return Msg{Key: "dev.status.bridge.login_required"}
 }
 
+// DevStatusBridgeMoveNeedsSignin is dev.status.bridge.move_needs_signin: "that name is yours and has been in use on another device: to move it to this one…".
+func DevStatusBridgeMoveNeedsSignin() Msg {
+	return Msg{Key: "dev.status.bridge.move_needs_signin"}
+}
+
 // DevStatusBridgeNameHeld is dev.status.bridge.name_held: "that name was released recently and is held for its previous owner for 30 days".
 func DevStatusBridgeNameHeld() Msg {
 	return Msg{Key: "dev.status.bridge.name_held"}

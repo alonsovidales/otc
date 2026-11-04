@@ -16,6 +16,7 @@
   "dev.status.bridge.invalid_name": {"text": "ese nombre no se puede usar"},
   "dev.status.bridge.invalid_setup_code": {"text": "ese código de configuración no es válido o ha caducado"},
   "dev.status.bridge.login_required": {"text": "inicia sesión para registrar un nombre"},
+  "dev.status.bridge.move_needs_signin": {"text": "ese nombre es tuyo y se ha usado en otro dispositivo: para pasarlo a este, inicia sesión de nuevo o usa un código de configuración obtenido en los 15 minutos siguientes a iniciar sesión en la página de tu cuenta"},
   "dev.status.bridge.name_held": {"text": "ese nombre se liberó hace poco y está reservado para su anterior propietario durante 30 días"},
   "dev.status.bridge.name_rule": {"text": "solo letras minúsculas, números y guiones"},
   "dev.status.bridge.name_taken": {"text": "ese nombre ya está en uso"},

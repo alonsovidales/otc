@@ -189,6 +189,11 @@
     "text": "connectez-vous pour enregistrer un nom",
     "en": "sign in to register a name"
   },
+  "wiz.bridge.move_needs_signin": {
+    "text": "ce nom est à vous et a été utilisé par un autre appareil : pour le transférer sur celui-ci, reconnectez-vous, ou utilisez un code de configuration obtenu dans les 15 minutes qui suivent une connexion à la page de votre compte",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #1c7f6d7c"
+  },
   "wiz.bridge.name_check_unavailable": {
     "text": "impossible de vérifier ce nom pour le moment",
     "en": "could not check that name right now"
@@ -200,6 +205,10 @@
   "wiz.bridge.name_taken": {
     "text": "ce nom est déjà pris",
     "en": "that name is already taken"
+  },
+  "wiz.bridge.password_too_long": {
+    "text": "le mot de passe peut contenir au maximum 72 caractères, moins avec des lettres accentuées, d’autres alphabets ou des emojis",
+    "en": "the password can be at most 72 characters long, fewer with accented letters, other alphabets or emoji"
   },
   "wiz.bridge.password_too_short": {
     "text": "le mot de passe doit comporter au moins 8 caractères",

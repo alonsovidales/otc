@@ -189,6 +189,11 @@
     "text": "log in om een naam te registreren",
     "en": "sign in to register a name"
   },
+  "wiz.bridge.move_needs_signin": {
+    "text": "die naam is van jou en werd gebruikt op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #dceff577"
+  },
   "wiz.bridge.name_check_unavailable": {
     "text": "kan die naam nu niet controleren",
     "en": "could not check that name right now"
@@ -200,6 +205,10 @@
   "wiz.bridge.name_taken": {
     "text": "die naam is al in gebruik",
     "en": "that name is already taken"
+  },
+  "wiz.bridge.password_too_long": {
+    "text": "het wachtwoord mag hoogstens 72 tekens lang zijn, minder met letters met accenten, uit andere alfabetten of emoji’s",
+    "en": "the password can be at most 72 characters long, fewer with accented letters, other alphabets or emoji"
   },
   "wiz.bridge.password_too_short": {
     "text": "het wachtwoord moet minstens 8 tekens hebben",

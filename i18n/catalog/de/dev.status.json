@@ -16,6 +16,7 @@
   "dev.status.bridge.invalid_name": {"text": "dieser Name kann nicht verwendet werden"},
   "dev.status.bridge.invalid_setup_code": {"text": "dieser Einrichtungscode ist ungültig oder abgelaufen"},
   "dev.status.bridge.login_required": {"text": "melde dich an, um einen Namen zu registrieren"},
+  "dev.status.bridge.move_needs_signin": {"text": "dieser Name gehört dir und wurde auf einem anderen Gerät genutzt: Um ihn auf dieses zu übertragen, melde dich erneut an oder nutze einen Einrichtungscode, den du innerhalb von 15 Minuten nach einer Anmeldung auf deiner Kontoseite bekommen hast"},
   "dev.status.bridge.name_held": {"text": "dieser Name wurde vor Kurzem freigegeben und bleibt 30 Tage lang für den bisherigen Besitzer reserviert"},
   "dev.status.bridge.name_rule": {"text": "nur Kleinbuchstaben, Ziffern und Bindestriche"},
   "dev.status.bridge.name_taken": {"text": "dieser Name ist bereits vergeben"},

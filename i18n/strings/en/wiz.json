@@ -228,6 +228,12 @@
     "text": "sign in to register a name",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The sign-in has expired (setup codes last 15 minutes)."
   },
+  "wiz.bridge.move_needs_signin": {
+    "text": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The name chosen is one the account uses on another device, or gave up less than 30 days ago: moving it to this device needs a sign-in just made, so sign in again on the account step, or type a setup code made within 15 minutes of signing in on the account page (off-the.cloud/account). Security: the name's visitors are sent to this device from then on.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #9b936f2a"
+  },
   "wiz.bridge.name_check_unavailable": {
     "text": "could not check that name right now",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
@@ -239,6 +245,10 @@
   "wiz.bridge.name_taken": {
     "text": "that name is already taken",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.password_too_long": {
+    "text": "the password can be at most 72 characters long, fewer with accented letters, other alphabets or emoji",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). Create account was pressed with a password longer than the bridge can keep: the limit is 72 bytes, so a letter with an accent, of another alphabet or an emoji counts as two to four. Keep the number as it is."
   },
   "wiz.bridge.password_too_short": {
     "text": "the password needs at least 8 characters",

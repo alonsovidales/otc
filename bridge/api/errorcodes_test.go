@@ -318,3 +318,63 @@ func TestAccountPageErrorTable(t *testing.T) {
 		}
 	}
 }
+
+// The setup wizard's page words a refusal the bridge passed on by its code
+// (wiz.bridge.<code>) only when that key's English is the bridge's text
+// word for word (setup_wizard.py's known()), else it shows the English:
+// each such key names a code the bridge sends, in words it sends for it.
+func TestWizardBridgeTextsAreTheBridges(t *testing.T) {
+	codes := goErrors(t)
+	b, err := os.ReadFile("../../i18n/strings/en/wiz.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entries map[string]struct {
+		Text json.RawMessage `json:"text"`
+	}
+	if err := json.Unmarshal(b, &entries); err != nil {
+		t.Fatal(err)
+	}
+	// The texts made at run time, as the bridge makes them.
+	dynamic := map[string]string{
+		"domain_limit": func() string {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			mock.ExpectQuery("select count").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(accounts.MaxDomains))
+			_, e := (&API{dao: dao.NewWithDB(db)}).domainLimitReached("acc1")
+			return e.msg
+		}(),
+		"password_too_short": signupRefusal(t, "short", "password_too_short"),
+		"password_too_long":  signupRefusal(t, strings.Repeat("x", 73), "password_too_long"),
+	}
+	n := 0
+	for key, e := range entries {
+		code, ok := strings.CutPrefix(key, "wiz.bridge.")
+		if !ok {
+			continue
+		}
+		n++
+		var english string
+		if err := json.Unmarshal(e.Text, &english); err != nil {
+			t.Errorf("%s: not a plain text: %v", key, err)
+			continue
+		}
+		texts, ok := codes[code]
+		if !ok {
+			t.Errorf("%s: the bridge never sends %q", key, code)
+			continue
+		}
+		if s, ok := dynamic[code]; ok {
+			texts = append(texts, s)
+		}
+		if !slices.Contains(texts, english) {
+			t.Errorf("%s says %q, the bridge %q", key, english, texts)
+		}
+	}
+	if n == 0 {
+		t.Fatal("wiz.json has no wiz.bridge.* keys")
+	}
+}

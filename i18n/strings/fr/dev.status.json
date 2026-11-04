@@ -67,6 +67,11 @@
     "text": "connectez-vous pour enregistrer un nom",
     "en": "sign in to register a name"
   },
+  "dev.status.bridge.move_needs_signin": {
+    "text": "ce nom est à vous et a été utilisé par un autre appareil : pour le transférer sur celui-ci, reconnectez-vous, ou utilisez un code de configuration obtenu dans les 15 minutes qui suivent une connexion à la page de votre compte",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #1c7f6d7c"
+  },
   "dev.status.bridge.name_held": {
     "text": "ce nom a été libéré récemment et reste réservé à son ancien propriétaire pendant 30 jours",
     "en": "that name was released recently and is held for its previous owner for 30 days"
