@@ -291,6 +291,10 @@
     "text": "Na pesquisa",
     "en": "In the search"
   },
+  "android.secrets_unavailable": {
+    "text": "O Off The Cloud não conseguiu abrir agora o armazenamento seguro deste telemóvel, onde guarda o teu início de sessão. Não se perdeu nada: tenta novamente daqui a pouco.",
+    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+  },
   "android.settings.bridge_leave_delete": {
     "text": "Sair e eliminar",
     "en": "Leave and Delete",

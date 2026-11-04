@@ -291,8 +291,9 @@ class ThumbStoreCore(
     private fun ensureLaunchBound() {
         synchronized(lock) {
             if (launchBound) return
+            // The secure store not open yet (SecretsStore.Unavailable): bound at a later use.
+            val ep = try { savedEndpoint() } catch (e: IllegalStateException) { return }
             launchBound = true
-            val ep = savedEndpoint()
             if (ep.isNotEmpty()) bindLocked(scopeIdOf(ep))
         }
     }

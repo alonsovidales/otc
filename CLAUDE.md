@@ -4356,7 +4356,11 @@ launch removes earlier launches' folders and the copies older versions left at t
 socket past 16 MiB queued). Android only: backup and device transfer include just
 `otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
 unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its
-Keystore key by resetting to a fresh install; `PhotoSync.hasPermission()` must match
+Keystore key by resetting to a fresh install - only when its keyset can never be read
+(`keysetUnusable`: a bad tag, a key that isn't there, a corrupt file); any other Keystore error is
+tried again (0.2, 0.5, 1 s), then fails that use (`SecretsStore.Unavailable`) with the file kept:
+RootView says `android.secrets_unavailable` with Try again, a background run is retried, and the
+device id is never replaced because it couldn't be read; `PhotoSync.hasPermission()` must match
 `mediaPermissions()`. Both: connection forms edit drafts and write `SecretsStore` only on Save
 (`saveCredentials`; options `persistOptions`), since every reconnect dials the stored values. iOS
 unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with `-only-testing:OffTheCloudTests`.

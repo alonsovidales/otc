@@ -77,6 +77,7 @@
     <string name="android_photos_people_merge_dimmed">Merge (select 2 or more to merge)</string>
     <string name="android_photos_search_close">Close search</string>
     <string name="android_photos_search_in_search">In the search</string>
+    <string name="android_secrets_unavailable">Off The Cloud couldn\'t open this phone\'s secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment.</string>
     <string name="android_settings_bridge_leave_delete">Leave and Delete</string>
     <string name="android_settings_crop_hint">Drag the photo to centre your face</string>
     <string name="android_settings_crop_zoom">Zoom</string>

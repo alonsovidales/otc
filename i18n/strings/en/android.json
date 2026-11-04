@@ -320,6 +320,10 @@
     "text": "In the search",
     "note": "Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search."
   },
+  "android.secrets_unavailable": {
+    "text": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment.",
+    "note": "Shown alone on the screen at launch, above a Try again button (common.try_again), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened for a moment - for instance right after a system update. Nothing is deleted; trying again usually works."
+  },
   "android.settings.bridge_leave_delete": {
     "text": "Leave and Delete",
     "note": "Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account.",

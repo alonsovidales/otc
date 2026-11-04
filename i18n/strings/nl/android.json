@@ -291,6 +291,10 @@
     "text": "In de zoekopdracht",
     "en": "In the search"
   },
+  "android.secrets_unavailable": {
+    "text": "Off The Cloud kon de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, nu niet openen. Er is niets verloren gegaan: probeer het zo opnieuw.",
+    "en": "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment."
+  },
   "android.settings.bridge_leave_delete": {
     "text": "Verlaten en verwijderen",
     "en": "Leave and Delete",

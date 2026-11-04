@@ -78,6 +78,7 @@
     <string name="android_photos_people_merge_dimmed">Zusammenführen (wähle mindestens 2 aus, um sie zusammenzuführen)</string>
     <string name="android_photos_search_close">Suche schließen</string>
     <string name="android_photos_search_in_search">In der Suche</string>
+    <string name="android_secrets_unavailable">Off The Cloud konnte den sicheren Speicher dieses Telefons, in dem es deine Anmeldung aufbewahrt, gerade nicht öffnen. Es ist nichts verloren gegangen: Versuche es gleich noch einmal.</string>
     <string name="android_settings_bridge_leave_delete">Verlassen und löschen</string>
     <string name="android_settings_crop_hint">Ziehe das Foto, um dein Gesicht zu zentrieren</string>
     <string name="android_settings_crop_zoom">Zoom</string>

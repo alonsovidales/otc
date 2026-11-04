@@ -82,6 +82,7 @@
     <string name="android_photos_people_merge_dimmed">Juntar (seleciona 2 ou mais para juntar)</string>
     <string name="android_photos_search_close">Fechar pesquisa</string>
     <string name="android_photos_search_in_search">Na pesquisa</string>
+    <string name="android_secrets_unavailable">O Off The Cloud não conseguiu abrir agora o armazenamento seguro deste telemóvel, onde guarda o teu início de sessão. Não se perdeu nada: tenta novamente daqui a pouco.</string>
     <string name="android_settings_bridge_leave_delete">Sair e eliminar</string>
     <string name="android_settings_crop_hint">Arrasta a foto para centrares o teu rosto</string>
     <string name="android_settings_crop_zoom">Zoom</string>

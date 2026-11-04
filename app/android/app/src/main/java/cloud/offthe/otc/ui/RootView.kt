@@ -7,6 +7,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSecretsUnavailable
+import cloud.offthe.otc.i18n.commonTryAgain
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -68,7 +86,35 @@ class SessionStores : ViewModel() {
 // the way scenePhase does on iOS (issue #70).
 @Composable
 fun RootView() {
-    val secrets = remember { SecretsStore.loadOrCreate() }
+    // The secure store, opened once; while the Keystore can't open it (busy,
+    // not ready after an OS update), a screen that says so and tries again -
+    // nothing is wiped (SecretsStore.Unavailable).
+    var attempt by remember { mutableStateOf(0) }
+    val secrets = remember(attempt) { SecretsStore.openOrNull() }
+    if (secrets == null) {
+        SecretsUnavailableView { attempt++ }
+        return
+    }
+    RootContent(secrets)
+}
+
+/** The secure store couldn't be opened just now: said, with Try again. */
+@Composable
+private fun SecretsUnavailableView(onRetry: () -> Unit) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Column(
+            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(28.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(S.androidSecretsUnavailable().resolve(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onRetry) { Text(S.commonTryAgain().resolve()) }
+        }
+    }
+}
+
+@Composable
+private fun RootContent(secrets: SecretsStore) {
     val endpoint by secrets.endpoint.collectAsState()
     val password by secrets.password.collectAsState()
     var configured by remember { mutableStateOf(secrets.isConfigured) }

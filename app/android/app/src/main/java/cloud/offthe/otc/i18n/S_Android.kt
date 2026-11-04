@@ -262,6 +262,10 @@ fun S.androidPhotosSearchClose(): UiText =
 fun S.androidPhotosSearchInSearch(): UiText =
     UiText.Res(R.string.android_photos_search_in_search)
 
+/** "Off The Cloud couldn't open this phone's secure storage, where it keeps your sign-in, just now. Nothing has been lost: try again in a moment.": Shown alone on the screen at launch, above a Try again button (common.try_again), when Android's secure storage (the Keystore, where the app keeps the device's address and password) can't be opened for a moment - for instance right after a system update. Nothing is deleted; trying again usually works. */
+fun S.androidSecretsUnavailable(): UiText =
+    UiText.Res(R.string.android_secrets_unavailable)
+
 /** "Leave and Delete": Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account. */
 fun S.androidSettingsBridgeLeaveDelete(): UiText =
     UiText.Res(R.string.android_settings_bridge_leave_delete)

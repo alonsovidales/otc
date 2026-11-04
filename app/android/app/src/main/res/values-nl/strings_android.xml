@@ -78,6 +78,7 @@
     <string name="android_photos_people_merge_dimmed">Samenvoegen (selecteer er 2 of meer om samen te voegen)</string>
     <string name="android_photos_search_close">Zoeken sluiten</string>
     <string name="android_photos_search_in_search">In de zoekopdracht</string>
+    <string name="android_secrets_unavailable">Off The Cloud kon de beveiligde opslag van deze telefoon, waarin het je aanmelding bewaart, nu niet openen. Er is niets verloren gegaan: probeer het zo opnieuw.</string>
     <string name="android_settings_bridge_leave_delete">Verlaten en verwijderen</string>
     <string name="android_settings_crop_hint">Sleep de foto om je gezicht in het midden te zetten</string>
     <string name="android_settings_crop_zoom">Zoomen</string>

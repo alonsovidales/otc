@@ -241,10 +241,14 @@ class SecretsStore private constructor(
         }
 
         /** One instance per process, loaded on first use (the process's one
-         *  Keystore round trip: RootView makes it, before the first frame). */
+         *  Keystore round trip: RootView makes it, before the first frame).
+         *  Throws [Unavailable] while the secure store can't be opened. */
         fun loadOrCreate(): SecretsStore = shared ?: synchronized(this) {
             shared ?: load().also { shared = it }
         }
+
+        /** [loadOrCreate], or null while the secure store can't be opened (RootView says so). */
+        fun openOrNull(): SecretsStore? = try { loadOrCreate() } catch (e: Unavailable) { null }
 
         private fun load(): SecretsStore {
             val s = secure()
@@ -281,18 +285,60 @@ class SecretsStore private constructor(
         }
 
         /**
+         * The secure store couldn't be opened, and nothing says its keyset is
+         * unusable (a Keystore busy or not ready - after an OS update, at
+         * boot): the file is kept, and the next use tries again. RootView
+         * says so with Try again; a background run is retried later.
+         */
+        class Unavailable(cause: Throwable) : IllegalStateException("secure storage unavailable", cause) // i18n-ignore: logged, never shown
+
+        /**
+         * Pure: whether [e] (opening the store failed) means its keyset can
+         * never be read again - the Keystore key it is wrapped in isn't this
+         * one (a file restored or moved from another phone), or the file is
+         * corrupt - rather than a Keystore error that passes.
+         */
+        internal fun keysetUnusable(e: Throwable): Boolean {
+            var c: Throwable? = e
+            var depth = 0
+            while (c != null && depth++ < 16) {
+                if (c is javax.crypto.BadPaddingException || c is java.security.UnrecoverableKeyException ||
+                    c is android.security.keystore.KeyPermanentlyInvalidatedException ||
+                    c.javaClass.simpleName == "InvalidProtocolBufferException"
+                ) return true
+                c = c.cause.takeIf { it !== c }
+            }
+            return false
+        }
+
+        // A Keystore error that may pass is tried again after these.
+        private val retryPauses = longArrayOf(200, 500, 1_000)
+
+        /**
          * otc_secrets restored from a backup or moved from another phone
          * (releases before the backup rules) arrives without the Keystore
-         * key its keyset is wrapped in, and create() throws on every launch.
-         * Retried once first, so a passing Keystore error on the phone that
-         * wrote it wipes nothing; after that the file is dropped and the app
-         * starts as a fresh install, as iOS does (its Keychain items are
-         * ThisDeviceOnly).
+         * key its keyset is wrapped in, and create() throws on every launch:
+         * then the file is dropped and the app starts as a fresh install, as
+         * iOS does (its Keychain items are ThisDeviceOnly). Only then
+         * ([keysetUnusable]): any other error - a Keystore busy, or not ready
+         * after an OS update - is tried again a few times, then fails this
+         * use ([Unavailable]) and keeps the file. It used to wipe the
+         * sign-in, the device id (a second folder on the device at the next
+         * sign-in) and the sync's watermark after two quick tries.
          */
         private fun openSecure(): SharedPreferences {
             val ctx = OTCApp.instance
-            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets unreadable, retrying: $e") }
-            try { return createSecure(ctx) } catch (e: Exception) { Log.w(TAG, "secrets still unreadable, starting over: $e") }
+            var last: Exception? = null
+            for (pause in longArrayOf(0) + retryPauses) {
+                if (pause > 0) Thread.sleep(pause)
+                try { return createSecure(ctx) } catch (e: Exception) {
+                    last = e
+                    if (keysetUnusable(e)) break
+                    Log.w(TAG, "secrets unreadable, trying again: ${e.javaClass.simpleName}")
+                }
+            }
+            if (last != null && !keysetUnusable(last)) throw Unavailable(last)
+            Log.w(TAG, "secrets can't be read on this phone, starting over: ${last?.javaClass?.simpleName}")
             ctx.deleteSharedPreferences("otc_secrets") // the keyset lives in the same file
             forgetRestoredState(ctx)
             return try {
