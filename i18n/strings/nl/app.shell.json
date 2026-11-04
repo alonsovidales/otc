@@ -595,6 +595,16 @@
     "text": "Mijn apparaat openen",
     "en": "Open my device"
   },
+  "app.shell.setup_other_domain_text": {
+    "text": "Dit apparaat zegt dat zijn adres {domain} is, en dat is geen off-the.cloud-adres. Open het alleen als je het apparaat met een eigen bridge hebt ingesteld: anders is het misschien niet jouw apparaat, en gaan je foto's daarheen.",
+    "en": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+    "reviewed": "claude-backtranslation 2026-11-04 #f4f8ac46"
+  },
+  "app.shell.setup_other_domain_title": {
+    "text": "Dit adres openen?",
+    "en": "Open this address?",
+    "reviewed": "claude-backtranslation 2026-11-04 #0660a015"
+  },
   "app.shell.setup_power_on": {
     "text": "Zet het apparaat aan met de schijven aangesloten. Zolang het niet is ingesteld, maakt het zich via Bluetooth bekend; houd de telefoon er vlakbij.",
     "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."

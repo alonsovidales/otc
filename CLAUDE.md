@@ -186,10 +186,19 @@ into `<head>` swaps `fetch()` for a call into the app (`WKScriptMessageHandlerWi
 `@JavascriptInterface`), because neither web view hands POST bodies to an interceptor
 reliably. The view watches `/api/state` for `install.phase == "online"` and then offers "Use
 this device", which fills the onboarding form's endpoint (bridge name → wss, no bridge →
-`ws://otc.local:8080/ws`). On Android any other domain the wizard reports - a bridge of one's own,
-or a look-alike (`name.off-the.cloud.example.net`) from something nearby passing for the device -
-is opened only after a question that shows it (`domainNeedsConfirm`,
-`android.setup_other_domain_title`/`_text`): the photos would go there. `python3 scripts/setup_ble.py --selftest` checks the framing and
+`ws://otc.local:8080/ws`). Any other domain the wizard reports - a bridge of one's own, or a
+look-alike (`name.off-the.cloud.example.net`) from something nearby passing for the device - is
+opened only after a question that shows it (`domainNeedsConfirm` in both apps,
+`app.shell.setup_other_domain_title`/`_text`): the photos would go there. The pending setup
+(below) is saved before any question, so Onboarding's Save & Continue asks the same before it
+signs in to it (`setupAddressToConfirm`; not for an address typed over it). What that leaves
+open: the setup has no pairing secret, and a lone advertiser is connected to at once, so
+anything nearby advertising the setup service while the owner's device still boots is taken for
+it - and when it reports an off-the.cloud name of its own (any device registered on the bridge,
+the Docker image's too), "Open my device" signs in there unasked with the password its page
+handed over, and the library goes there after the sync question. The domain question only stops
+look-alikes; the checks against that are the address named on the "Open my device" step
+(`app.shell.setup_ready_as`) and the page's "Blink its light". `python3 scripts/setup_ble.py --selftest` checks the framing and
 forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a CoreBluetooth
 peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
 in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. The

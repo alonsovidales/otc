@@ -31,8 +31,8 @@ import cloud.offthe.otc.i18n.appShellSetupLeave
 import cloud.offthe.otc.i18n.appShellSetupLeaveText
 import cloud.offthe.otc.i18n.appShellSetupLeaveTitle
 import cloud.offthe.otc.i18n.appShellSetupNotFound
-import cloud.offthe.otc.i18n.androidSetupOtherDomainText
-import cloud.offthe.otc.i18n.androidSetupOtherDomainTitle
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainText
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainTitle
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonTryAgain
 import androidx.compose.foundation.layout.Spacer
@@ -142,7 +142,8 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     val chosenPassword by transport.chosenPassword.collectAsState()
     val setupDomain by transport.setupDomain.collectAsState()
     // Kept until the app is signed in to the device: Onboarding fills its
-    // form from it (the Bluetooth link doesn't survive the install).
+    // form from it (the Bluetooth link doesn't survive the install), and
+    // asks about a domain as "Open my device" does (setupAddressToConfirm).
     LaunchedEffect(chosenPassword, setupDomain) {
         val d = setupDomain
         if (chosenPassword.isNotEmpty() && d != null) {
@@ -368,8 +369,8 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         if (confirmDomain) {
                             AlertDialog(
                                 onDismissRequest = { confirmDomain = false },
-                                title = { Text(S.androidSetupOtherDomainTitle().resolve()) },
-                                text = { Text(S.androidSetupOtherDomainText(domain).resolve()) },
+                                title = { Text(S.appShellSetupOtherDomainTitle().resolve()) },
+                                text = { Text(S.appShellSetupOtherDomainText(domain).resolve()) },
                                 confirmButton = { TextButton(onClick = { confirmDomain = false; open() }) { Text(S.appShellSetupOpenDevice().resolve()) } },
                                 dismissButton = { TextButton(onClick = { confirmDomain = false }) { Text(S.commonCancel().resolve()) } },
                             )
@@ -505,10 +506,27 @@ fun domainNeedsConfirm(domain: String): Boolean {
     return !Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", RegexOption.IGNORE_CASE).matches(name)
 }
 
+/**
+ * The pending setup's [endpoint] (SecretsStore.pendingSetup, saved from the
+ * domain the wizard reported, before any question): the address to name in
+ * the same question before Onboarding's Save & Continue signs in there, or
+ * null for one that opens at once - an off-the.cloud device name, or
+ * otc.local without the bridge. A phone locked through the install never
+ * sees "Open my device", and this is how it signs in.
+ */
+fun setupAddressToConfirm(endpoint: String): String? {
+    if (endpoint == endpointForDomain("")) return null
+    val u = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)) } catch (e: Exception) { null }
+    val host = u?.host
+    if (host.isNullOrEmpty()) return endpoint
+    val bridge = u.scheme.equals("wss", ignoreCase = true) && u.port == -1 && u.path == "/ws" && u.query == null
+    return if (bridge && !domainNeedsConfirm(host)) null else host
+}
+
 /** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */
 fun endpointForDomain(domain: String): String = when {
     domain.isEmpty() -> "ws://otc.local:8080/ws"
-    domain.endsWith("." + SecretsStore.bridgeDomain) -> SecretsStore.bridgeEndpoint(domain.dropLast(SecretsStore.bridgeDomain.length + 1))
+    domain.lowercase().endsWith("." + SecretsStore.bridgeDomain) -> SecretsStore.bridgeEndpoint(domain.dropLast(SecretsStore.bridgeDomain.length + 1))
     else -> "wss://$domain/ws"
 }
 

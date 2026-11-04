@@ -480,16 +480,6 @@
     "text": "La page de configuration s’affichera en {language} dès le début de l’installation.",
     "en": "The setup page will switch to {language} once the installation starts."
   },
-  "android.setup_other_domain_text": {
-    "text": "Cet appareil indique que son adresse est {domain}, qui n’est pas une adresse off-the.cloud. Ne l’ouvrez que si vous avez configuré l’appareil avec votre propre passerelle : sinon, ce n’est peut-être pas votre appareil, et vos photos iraient là-bas.",
-    "en": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
-    "reviewed": "claude-backtranslation 2026-11-04 #a0e2cca8"
-  },
-  "android.setup_other_domain_title": {
-    "text": "Ouvrir cette adresse ?",
-    "en": "Open this address?",
-    "reviewed": "claude-backtranslation 2026-11-04 #bb0a85b9"
-  },
   "android.signal_good": {
     "text": "Bon signal",
     "en": "Good signal"

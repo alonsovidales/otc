@@ -159,6 +159,8 @@
     <string name="app_shell_setup_new_device">Configura un nuovo dispositivo</string>
     <string name="app_shell_setup_not_found">Ancora nessun dispositivo trovato. Controlla che sia acceso, con i dischi collegati, e tieni il telefono vicino al dispositivo.</string>
     <string name="app_shell_setup_open_device">Apri il mio dispositivo</string>
+    <string name="app_shell_setup_other_domain_text">Questo dispositivo dice che il suo indirizzo è \u2068%1$s\u2069, che non è un indirizzo off-the.cloud. Aprilo solo se hai configurato il dispositivo con un tuo bridge: altrimenti potrebbe non essere il tuo dispositivo, e le tue foto andrebbero lì.</string>
+    <string name="app_shell_setup_other_domain_title">Aprire questo indirizzo?</string>
     <string name="app_shell_setup_power_on">Accendi il dispositivo con i dischi collegati. Finché non è configurato si annuncia tramite Bluetooth: tieni il telefono vicino al dispositivo.</string>
     <string name="app_shell_setup_ready_as">Il dispositivo è pronto all’indirizzo %1$s.</string>
     <string name="app_shell_setup_ready_home">Il dispositivo è pronto sulla tua rete domestica.</string>

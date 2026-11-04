@@ -23,6 +23,12 @@ import cloud.offthe.otc.i18n.appShellSaveContinue
 import cloud.offthe.otc.i18n.appShellSetupNewDevice
 import cloud.offthe.otc.i18n.appShellWelcome
 import cloud.offthe.otc.i18n.commonPassword
+import cloud.offthe.otc.i18n.appShellSetupOpenDevice
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainText
+import cloud.offthe.otc.i18n.appShellSetupOtherDomainTitle
+import cloud.offthe.otc.i18n.commonCancel
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import cloud.offthe.otc.ui.common.PasswordField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -85,9 +91,12 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     }
 
     val passwordFocus = remember { FocusRequester() }
-    // Save & Continue, and Go on the password's keyboard.
-    fun saveAndContinue() {
-        if (endpoint.isEmpty() || password.isEmpty()) return
+    // The address of the device set up from this phone, when it is one that
+    // "Open my device" asks about first (setupAddressToConfirm): asked here
+    // too - the pending setup was saved from what the wizard's page said,
+    // before any question. Not for an address typed over it.
+    var confirmAddress by remember { mutableStateOf<String?>(null) }
+    fun save() {
         // Asked first, so no sync starts before it (SyncChoice).
         SyncChoice.ask()
         secrets.saveCredentials(endpoint.trim(), password)
@@ -95,6 +104,21 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
         // (a request retried during Log Out) must not carry over.
         OTCConnection.invalidate()
         onSaved()
+    }
+    // Save & Continue, and Go on the password's keyboard.
+    fun saveAndContinue() {
+        if (endpoint.isEmpty() || password.isEmpty()) return
+        val asked = pending?.takeIf { SecretsStore.sameAddress(endpoint.trim(), it.first) }?.let { setupAddressToConfirm(it.first) }
+        if (asked != null) confirmAddress = asked else save()
+    }
+    confirmAddress?.let { address ->
+        AlertDialog(
+            onDismissRequest = { confirmAddress = null },
+            title = { Text(S.appShellSetupOtherDomainTitle().resolve()) },
+            text = { Text(S.appShellSetupOtherDomainText(address).resolve()) },
+            confirmButton = { TextButton(onClick = { confirmAddress = null; save() }) { Text(S.appShellSetupOpenDevice().resolve()) } },
+            dismissButton = { TextButton(onClick = { confirmAddress = null }) { Text(S.commonCancel().resolve()) } },
+        )
     }
 
     Scaffold(topBar = {

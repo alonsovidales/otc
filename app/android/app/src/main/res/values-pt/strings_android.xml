@@ -135,8 +135,6 @@
     <string name="android_settings_upload_waiting">À espera</string>
     <string name="android_settings_uploading">A carregar \u2068%1$s\u2069</string>
     <string name="android_setup_language_later">A página de configuração passa a aparecer em %1$s quando a instalação começar.</string>
-    <string name="android_setup_other_domain_text">Este dispositivo diz que o seu endereço é \u2068%1$s\u2069, que não é um endereço off-the.cloud. Abre-o só se configuraste o dispositivo com uma ponte própria: caso contrário, pode não ser o teu dispositivo, e as tuas fotos iriam para lá.</string>
-    <string name="android_setup_other_domain_title">Abrir este endereço?</string>
     <string name="android_signal_good">Sinal bom</string>
     <string name="android_signal_strong">Sinal forte</string>
     <string name="android_signal_weak">Sinal fraco</string>

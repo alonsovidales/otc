@@ -7210,6 +7210,100 @@
         }
       }
     },
+    "app.shell.setup_other_domain_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät gibt %1$@ als seine Adresse an, keine off-the.cloud-Adresse. Öffne sie nur, wenn du das Gerät mit einer eigenen Bridge eingerichtet hast: Sonst ist es vielleicht nicht dein Gerät, und deine Fotos würden dorthin gehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device says its address is %1$@, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo dice que su dirección es %1$@, que no es una dirección de off-the.cloud. Ábrela solo si configuraste el dispositivo con un puente propio: si no, puede que no sea tu dispositivo, y tus fotos irían allí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil indique que son adresse est %1$@, qui n’est pas une adresse off-the.cloud. Ne l’ouvrez que si vous avez configuré l’appareil avec votre propre passerelle : sinon, ce n’est peut-être pas votre appareil, et vos photos iraient là-bas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo dice che il suo indirizzo è %1$@, che non è un indirizzo off-the.cloud. Aprilo solo se hai configurato il dispositivo con un tuo bridge: altrimenti potrebbe non essere il tuo dispositivo, e le tue foto andrebbero lì."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit apparaat zegt dat zijn adres %1$@ is, en dat is geen off-the.cloud-adres. Open het alleen als je het apparaat met een eigen bridge hebt ingesteld: anders is het misschien niet jouw apparaat, en gaan je foto's daarheen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo diz que o seu endereço é %1$@, que não é um endereço off-the.cloud. Abre-o só se configuraste o dispositivo com uma ponte própria: caso contrário, pode não ser o teu dispositivo, e as tuas fotos iriam para lá."
+          }
+        }
+      }
+    },
+    "app.shell.setup_other_domain_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Adresse öffnen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open this address?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Abrir esta dirección?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir cette adresse ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aprire questo indirizzo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit adres openen?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir este endereço?"
+          }
+        }
+      }
+    },
     "app.shell.setup_power_on" : {
       "extractionState" : "manual",
       "localizations" : {

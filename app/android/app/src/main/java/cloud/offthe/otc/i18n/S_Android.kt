@@ -426,14 +426,6 @@ fun S.androidSettingsUploading(name: String): UiText =
 fun S.androidSetupLanguageLater(language: String): UiText =
     UiText.Res(R.string.android_setup_language_later, listOf(language))
 
-/** "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.": Text of that question (android.setup_other_domain_title). {domain} is the address the device reported, such as photos.example.net. A bridge of one's own is a self-hosted relay server instead of Off The Cloud's; something nearby could pretend to be the device during the setup over Bluetooth. Keep off-the.cloud as it is. */
-fun S.androidSetupOtherDomainText(domain: String): UiText =
-    UiText.Res(R.string.android_setup_other_domain_text, listOf(domain))
-
-/** "Open this address?": Set up a new device (over Bluetooth): title of the question asked after Open my device when the device reported an address that isn't a name under off-the.cloud. Buttons: Cancel and Open my device (app.shell.setup_open_device). */
-fun S.androidSetupOtherDomainTitle(): UiText =
-    UiText.Res(R.string.android_setup_other_domain_title)
-
 /** "Good signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is good. */
 fun S.androidSignalGood(): UiText =
     UiText.Res(R.string.android_signal_good)

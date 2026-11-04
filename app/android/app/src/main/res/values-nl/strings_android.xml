@@ -128,8 +128,6 @@
     <string name="android_settings_upload_waiting">Wachten</string>
     <string name="android_settings_uploading">\u2068%1$s\u2069 wordt geüpload</string>
     <string name="android_setup_language_later">De configuratiepagina schakelt over naar %1$s zodra de installatie begint.</string>
-    <string name="android_setup_other_domain_text">Dit apparaat zegt dat zijn adres \u2068%1$s\u2069 is, en dat is geen off-the.cloud-adres. Open het alleen als je het apparaat met een eigen bridge hebt ingesteld: anders is het misschien niet jouw apparaat, en gaan je foto\'s daarheen.</string>
-    <string name="android_setup_other_domain_title">Dit adres openen?</string>
     <string name="android_signal_good">Goed signaal</string>
     <string name="android_signal_strong">Sterk signaal</string>
     <string name="android_signal_weak">Zwak signaal</string>

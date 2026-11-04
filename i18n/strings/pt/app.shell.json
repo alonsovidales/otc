@@ -595,6 +595,16 @@
     "text": "Abrir o meu dispositivo",
     "en": "Open my device"
   },
+  "app.shell.setup_other_domain_text": {
+    "text": "Este dispositivo diz que o seu endereço é {domain}, que não é um endereço off-the.cloud. Abre-o só se configuraste o dispositivo com uma ponte própria: caso contrário, pode não ser o teu dispositivo, e as tuas fotos iriam para lá.",
+    "en": "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.",
+    "reviewed": "claude-backtranslation 2026-11-04 #b62fb170"
+  },
+  "app.shell.setup_other_domain_title": {
+    "text": "Abrir este endereço?",
+    "en": "Open this address?",
+    "reviewed": "claude-backtranslation 2026-11-04 #0aa9b1c1"
+  },
   "app.shell.setup_power_on": {
     "text": "Liga o dispositivo com os discos instalados. Até estar configurado, anuncia-se por Bluetooth; mantém o telemóvel perto dele.",
     "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."

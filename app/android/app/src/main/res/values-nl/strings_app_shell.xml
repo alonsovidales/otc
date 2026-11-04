@@ -154,6 +154,8 @@
     <string name="app_shell_setup_new_device">Nieuw apparaat instellen</string>
     <string name="app_shell_setup_not_found">Nog geen apparaat gevonden. Controleer of het aanstaat met de schijven aangesloten, en houd de telefoon er vlakbij.</string>
     <string name="app_shell_setup_open_device">Mijn apparaat openen</string>
+    <string name="app_shell_setup_other_domain_text">Dit apparaat zegt dat zijn adres \u2068%1$s\u2069 is, en dat is geen off-the.cloud-adres. Open het alleen als je het apparaat met een eigen bridge hebt ingesteld: anders is het misschien niet jouw apparaat, en gaan je foto\'s daarheen.</string>
+    <string name="app_shell_setup_other_domain_title">Dit adres openen?</string>
     <string name="app_shell_setup_power_on">Zet het apparaat aan met de schijven aangesloten. Zolang het niet is ingesteld, maakt het zich via Bluetooth bekend; houd de telefoon er vlakbij.</string>
     <string name="app_shell_setup_ready_as">Het apparaat is klaar als %1$s.</string>
     <string name="app_shell_setup_ready_home">Het apparaat is klaar op je thuisnetwerk.</string>

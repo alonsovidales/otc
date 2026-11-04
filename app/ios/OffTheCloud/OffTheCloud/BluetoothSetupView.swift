@@ -650,6 +650,9 @@ struct BluetoothSetupView: View {
     @State private var confirmLeave = false
     /// Half a minute of looking with nothing found says what to check.
     @State private var notFound = false
+    /// "Open my device" with an address that isn't an off-the.cloud name:
+    /// asked first (domainNeedsConfirm).
+    @State private var confirmDomain = false
 
     /// How long the phone looks without finding a device before the waiting
     /// screen says what to check (Android's SETUP_NOT_FOUND_MS).
@@ -720,14 +723,31 @@ struct BluetoothSetupView: View {
                         Text(S.appShellSetupSigningIn)
                             .font(.footnote).foregroundStyle(.secondary)
                     }
+                    // An address that isn't an off-the.cloud name (a bridge
+                    // of one's own - or something nearby passing for the
+                    // device) is opened only once the owner has seen it:
+                    // the photos would go there.
                     Button {
-                        onUseDevice(endpoint, known.isEmpty ? password : known)
-                        dismiss()
+                        if Self.domainNeedsConfirm(domain) {
+                            confirmDomain = true
+                        } else {
+                            onUseDevice(endpoint, known.isEmpty ? password : known)
+                            dismiss()
+                        }
                     } label: {
                         Text(S.appShellSetupOpenDevice).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(!valid)
+                    .alert(S.appShellSetupOtherDomainTitle, isPresented: $confirmDomain) {
+                        Button(S.commonCancel, role: .cancel) {}
+                        Button(S.appShellSetupOpenDevice) {
+                            onUseDevice(endpoint, known.isEmpty ? password : known)
+                            dismiss()
+                        }
+                    } message: {
+                        Text(S.appShellSetupOtherDomainText(domain: domain))
+                    }
                 }
                 .padding()
                 .background(.bar)
@@ -840,21 +860,54 @@ struct BluetoothSetupView: View {
         }
     }
 
-    /// A bridge domain becomes the usual wss endpoint; a device set up
-    /// without the bridge answers on the home network as otc.local.
     /// The new device and its password, kept until the app is signed in
-    /// to it (Onboarding fills its form from them).
+    /// to it (Onboarding fills its form from them, and asks about a domain
+    /// as "Open my device" does: setupAddressToConfirm).
     private func savePending() {
         guard !transport.chosenPassword.isEmpty, let domain = transport.setupDomain else { return }
         SecretsStore.savePendingSetup(endpoint: Self.endpoint(forDomain: domain), password: transport.chosenPassword)
     }
 
-    static func endpoint(forDomain domain: String) -> String {
+    /// A bridge domain becomes the usual wss endpoint; a device set up
+    /// without the bridge answers on the home network as otc.local.
+    nonisolated static func endpoint(forDomain domain: String) -> String {
         if domain.isEmpty { return "ws://otc.local:8080/ws" }
-        if domain.hasSuffix("." + SecretsStore.bridgeDomain) {
+        if domain.lowercased().hasSuffix("." + SecretsStore.bridgeDomain) {
             return SecretsStore.bridgeEndpoint(forName: String(domain.dropLast(SecretsStore.bridgeDomain.count + 1)))
         }
         return "wss://" + domain + "/ws"
+    }
+
+    /// Whether the wizard's `domain` is anything but an off-the.cloud device
+    /// name ("name.off-the.cloud", one label) or empty (no bridge): a bridge
+    /// of one's own, or a look-alike such as "name.off-the.cloud.example.net"
+    /// from something nearby passing for the device, is opened only after
+    /// the owner has seen it. Android's domainNeedsConfirm.
+    nonisolated static func domainNeedsConfirm(_ domain: String) -> Bool {
+        if domain.isEmpty { return false }
+        let suffix = "." + SecretsStore.bridgeDomain
+        let lower = domain.lowercased()
+        guard lower.hasSuffix(suffix) else { return true }
+        let name = lower.dropLast(suffix.count)
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
+        guard (1...63).contains(name.count), name.allSatisfy({ allowed.contains($0) }),
+              name.first != "-", name.last != "-" else { return true }
+        return false
+    }
+
+    /// The pending setup's `endpoint` (SecretsStore.pendingSetup, saved from
+    /// the domain the wizard reported, before any question): the address to
+    /// name in the same question before Onboarding's Save & Continue signs
+    /// in there, or nil for one that opens at once - an off-the.cloud device
+    /// name, or otc.local without the bridge. A phone locked through the
+    /// install never sees "Open my device", and this is how it signs in.
+    /// Android's setupAddressToConfirm.
+    nonisolated static func setupAddressToConfirm(_ endpoint: String) -> String? {
+        if endpoint == Self.endpoint(forDomain: "") { return nil }
+        guard let u = URLComponents(string: SecretsStore.normalizedEndpoint(endpoint)),
+              let host = u.host, !host.isEmpty else { return endpoint }
+        let bridge = u.scheme?.lowercased() == "wss" && u.port == nil && u.path == "/ws" && u.query == nil
+        return bridge && !domainNeedsConfirm(host) ? nil : host
     }
 }
 

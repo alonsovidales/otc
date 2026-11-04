@@ -154,6 +154,8 @@
     <string name="app_shell_setup_new_device">Neues Gerät einrichten</string>
     <string name="app_shell_setup_not_found">Noch kein Gerät gefunden. Prüfe, ob es eingeschaltet ist und seine Laufwerke angeschlossen sind, und halte das Handy in seiner Nähe.</string>
     <string name="app_shell_setup_open_device">Mein Gerät öffnen</string>
+    <string name="app_shell_setup_other_domain_text">Dieses Gerät gibt \u2068%1$s\u2069 als seine Adresse an, keine off-the.cloud-Adresse. Öffne sie nur, wenn du das Gerät mit einer eigenen Bridge eingerichtet hast: Sonst ist es vielleicht nicht dein Gerät, und deine Fotos würden dorthin gehen.</string>
+    <string name="app_shell_setup_other_domain_title">Diese Adresse öffnen?</string>
     <string name="app_shell_setup_power_on">Schalte das Gerät mit angeschlossenen Laufwerken ein. Bis es eingerichtet ist, ist es über Bluetooth sichtbar; halte das Handy in seiner Nähe.</string>
     <string name="app_shell_setup_ready_as">Das Gerät ist unter %1$s bereit.</string>
     <string name="app_shell_setup_ready_home">Das Gerät ist in deinem Heimnetz bereit.</string>

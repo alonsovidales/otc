@@ -554,6 +554,14 @@ fun S.appShellSetupNotFound(): UiText =
 fun S.appShellSetupOpenDevice(): UiText =
     UiText.Res(R.string.app_shell_setup_open_device)
 
+/** "This device says its address is {domain}, which isn't an off-the.cloud address. Open it only if you set the device up with a bridge of your own: if not, it may not be your device, and your photos would go there.": Text of that question (app.shell.setup_other_domain_title). {domain} is the address the device reported, such as photos.example.net. A bridge of one's own is a self-hosted relay server instead of Off The Cloud's; something nearby could pretend to be the device during the setup over Bluetooth. Keep off-the.cloud as it is. */
+fun S.appShellSetupOtherDomainText(domain: String): UiText =
+    UiText.Res(R.string.app_shell_setup_other_domain_text, listOf(domain))
+
+/** "Open this address?": Set up a new device (over Bluetooth): title of the question asked when the device reported an address that isn't a name under off-the.cloud - after Open my device (app.shell.setup_open_device), and after Save & Continue (app.shell.save_continue) when the connection form was filled from that setup. Buttons: Cancel and Open my device. */
+fun S.appShellSetupOtherDomainTitle(): UiText =
+    UiText.Res(R.string.app_shell_setup_other_domain_title)
+
 /** "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.": Set up a new device (over Bluetooth): under the heading Looking for a device to set up…. */
 fun S.appShellSetupPowerOn(): UiText =
     UiText.Res(R.string.app_shell_setup_power_on)
