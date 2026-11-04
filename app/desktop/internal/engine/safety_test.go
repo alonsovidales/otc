@@ -51,11 +51,13 @@ func writeFiles(t *testing.T, dir string, files map[string]string) {
 	}
 }
 
+// countFiles counts the files under dir that a sync would see: not the
+// hidden ones (the folder's marker, rootid.go).
 func countFiles(t *testing.T, dir string) int {
 	t.Helper()
 	n := 0
 	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
+		if err == nil && !d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
 			n++
 		}
 
@@ -92,7 +94,7 @@ func TestRecordOfAnotherDeviceDeletesNothing(t *testing.T) {
 	}
 	f := config.RemoteFolder{ID: "r1", RemotePath: "/linux/pc/home/u/Docs", LocalPath: local}
 	e := twoWayEngine(t, d, "b.off-the.cloud", f)
-	e.saveSyncedFor(f.ID, recordDevice{Domain: "a.off-the.cloud"}, rec) // device A's
+	e.saveSyncedFor(f.ID, recordDevice{Domain: "a.off-the.cloud"}, folderMeta{}, rec) // device A's
 
 	e.reconcileRemoteFolder(f)
 	files, deletes, _ := d.snapshot()
@@ -113,12 +115,13 @@ func TestRecordOfAnotherDeviceDeletesNothing(t *testing.T) {
 // it always was: deletes made here still go.
 func TestOlderRecordIsTheConfiguredDevices(t *testing.T) {
 	withConfigDir(t)
-	d := storedDevice(map[string][]byte{"/pc/folder/a.txt": []byte("a")})
+	d := storedDevice(map[string][]byte{"/pc/folder/a.txt": []byte("a"), "/pc/folder/b.txt": []byte("b")})
 	local := t.TempDir()
+	writeFiles(t, local, map[string]string{"b.txt": "b"}) // a.txt deleted here
 	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/folder", LocalPath: local}
 	e := twoWayEngine(t, d, "cala.off-the.cloud", f)
 	p, _ := syncedPath(f.ID)
-	if err := os.WriteFile(p, []byte(`{"a.txt": "`+sha([]byte("a"))+`"}`), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte(`{"a.txt": "`+sha([]byte("a"))+`", "b.txt": "`+sha([]byte("b"))+`"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	e.reconcileRemoteFolder(f)
@@ -151,7 +154,7 @@ func TestRecordGoesByTheDevicePin(t *testing.T) {
 			f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/folder", LocalPath: local}
 			e := twoWayEngine(t, d, "ws://192.168.1.20:8080/ws", f)
 			e.ws.SetLocalEndpoint(wsclient.NewLocalEndpoint([]string{"192.168.1.20"}, 8443, pin))
-			e.saveSyncedFor(f.ID, recordDevice{Domain: "cala.off-the.cloud", Pin: hex.EncodeToString(tc.recordPin)},
+			e.saveSyncedFor(f.ID, recordDevice{Domain: "cala.off-the.cloud", Pin: hex.EncodeToString(tc.recordPin)}, markedMeta(t, f),
 				map[string]string{"a.txt": sha([]byte("a"))})
 			e.reconcileRemoteFolder(f)
 			_, deletes, _ := d.snapshot()

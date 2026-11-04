@@ -1458,6 +1458,53 @@
         }
       }
     },
+    "desk.main.deletes_held" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld hier auf einmal gelöschte Dateien bleiben auf dem Gerät – wenn das so gewollt war, lösche sie dort ebenfalls"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld files deleted here at once are kept on the device - if that was meant, delete them there too"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld archivos eliminados aquí de una vez se conservan en el dispositivo: si era lo que querías, elimínalos también allí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld fichiers supprimés ici d’un coup sont conservés sur l’appareil : si c’était voulu, supprimez-les aussi là-bas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file eliminati qui tutti insieme restano sul dispositivo: se era voluto, eliminali anche lì"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld bestanden die hier in één keer zijn verwijderd, blijven op het apparaat staan – als dat de bedoeling was, verwijder ze daar dan ook"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ficheiros eliminados aqui de uma só vez continuam no dispositivo: se era isso que querias, elimina-os também lá"
+          }
+        }
+      }
+    },
     "desk.main.disconnect_menu" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1975,6 +2022,53 @@
         }
       }
     },
+    "desk.main.files_not_synced_here" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien, die hier Links oder versteckt sind (auf dem Gerät unverändert gelassen): %1$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) are links or hidden here - left as they are on the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos que aquí son enlaces o están ocultos (se dejan como están en el dispositivo): %1$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichiers qui sont ici des liens ou cachés (laissés tels quels sur l’appareil) : %1$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file qui sono collegamenti o nascosti: restano come sono sul dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden die hier koppelingen of verborgen zijn (blijven ongewijzigd op het apparaat): %1$lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ficheiros que aqui são ligações ou estão ocultos (ficam como estão no dispositivo): %1$lld"
+          }
+        }
+      }
+    },
     "desk.main.files_unreadable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2394,6 +2488,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uma pasta só pode ser sincronizada uma vez: se estivesse dentro de outra pasta sincronizada, ou se contivesse uma, os seus ficheiros seriam sincronizados duas vezes e cada sincronização desfaria as alterações da outra."
+          }
+        }
+      }
+    },
+    "desk.main.folder_replaced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht der synchronisierte Ordner – Laufwerk neu verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not the folder that was synced - reconnect its drive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es la carpeta que se sincronizaba: reconecta su disco"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n’est pas le dossier synchronisé : reconnectez son disque"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è la cartella sincronizzata: ricollega il suo disco"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet de gesynchroniseerde map – sluit de schijf weer aan"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é a pasta que era sincronizada: volta a ligar o disco"
           }
         }
       }

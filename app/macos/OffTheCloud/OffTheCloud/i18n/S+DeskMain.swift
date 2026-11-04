@@ -195,6 +195,13 @@ extension S {
         L("desk.main.cpu_line", table: "DeskMain", percent)
     }
 
+    /// {files} files deleted here at once are kept on the device - if that was meant, delete them there too
+    ///
+    /// Both apps: a two-way folder's state after many of its files vanished from this computer in one go (always more than 20, and more than a quarter of the folder). The app did not delete them on the device, where they stay; if the person meant to delete them, they delete them on the device too (from the web app or a phone). {files} is how many.
+    static func deskMainDeletesHeld(files: Int) -> String {
+        L("desk.main.deletes_held", table: "DeskMain", files)
+    }
+
     /// Disconnect from {device}…
     ///
     /// otc-sync: tray menu item shown once a device is set; asks before forgetting the device. {device} is the device's address (for example cala.off-the.cloud).
@@ -259,6 +266,13 @@ extension S {
     /// otc-sync: fourth paragraph of the What Do These Do? dialog: a heading line (the Upload only option), a line break, then what it means. "Files" is the app's file browser section. Keep the line break.
     static var deskMainExplainUploadOnly: String { L("desk.main.explain_upload_only", table: "DeskMain") }
 
+    /// {files} file(s) are links or hidden here - left as they are on the device
+    ///
+    /// otc-sync: a two-way folder's state when files it synced before are now symbolic links on this computer, inside a linked folder, or hidden (Windows' Hidden attribute). The app doesn't sync those, and leaves the device's copies as they are instead of deleting them. {files} is how many.
+    static func deskMainFilesNotSyncedHere(files: Int) -> String {
+        L("desk.main.files_not_synced_here", table: "DeskMain", files)
+    }
+
     /// {files} file(s) could not be read
     ///
     /// otc-sync: a two-way folder's state in the tray menu when some files in it couldn't be read on this computer. {files} is how many.
@@ -313,6 +327,11 @@ extension S {
     ///
     /// Both apps: the explanation after desk.main.folder_overlap_same, _inside or _holds, when a folder being added is refused.
     static var deskMainFolderOverlapWhy: String { L("desk.main.folder_overlap_why", table: "DeskMain") }
+
+    /// Not the folder that was synced - reconnect its drive
+    ///
+    /// Both apps: a two-way folder's state when its place on this computer holds a folder that isn't the one that was synced - the empty folder a disk or network share leaves when it isn't connected, another disk with the same name or drive letter, a folder made afresh. The app waits, changes nothing on either side, and carries on by itself once the synced folder is back. Shown after a warning sign.
+    static var deskMainFolderReplaced: String { L("desk.main.folder_replaced", table: "DeskMain") }
 
     /// Synced
     ///

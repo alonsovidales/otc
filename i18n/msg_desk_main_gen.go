@@ -159,6 +159,11 @@ func DeskMainCpuLine(percent int) Msg {
 	return Msg{Key: "desk.main.cpu_line", Args: map[string]any{"percent": int64(percent)}}
 }
 
+// DeskMainDeletesHeld is desk.main.deletes_held: "{files} files deleted here at once are kept on the device - if that was meant, d…".
+func DeskMainDeletesHeld(files int) Msg {
+	return Msg{Key: "desk.main.deletes_held", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainDisconnectMenu is desk.main.disconnect_menu: "Disconnect from {device}…".
 func DeskMainDisconnectMenu(device string) Msg {
 	return Msg{Key: "desk.main.disconnect_menu", Args: map[string]any{"device": device}}
@@ -214,6 +219,11 @@ func DeskMainExplainUploadOnly() Msg {
 	return Msg{Key: "desk.main.explain_upload_only"}
 }
 
+// DeskMainFilesNotSyncedHere is desk.main.files_not_synced_here: "{files} file(s) are links or hidden here - left as they are on the device".
+func DeskMainFilesNotSyncedHere(files int) Msg {
+	return Msg{Key: "desk.main.files_not_synced_here", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainFilesUnreadable is desk.main.files_unreadable: "{files} file(s) could not be read".
 func DeskMainFilesUnreadable(files int) Msg {
 	return Msg{Key: "desk.main.files_unreadable", Args: map[string]any{"files": int64(files)}}
@@ -257,6 +267,11 @@ func DeskMainFolderOverlapSame(name string) Msg {
 // DeskMainFolderOverlapWhy is desk.main.folder_overlap_why: "A folder can be synced only once: inside another synced folder, or holding one, …".
 func DeskMainFolderOverlapWhy() Msg {
 	return Msg{Key: "desk.main.folder_overlap_why"}
+}
+
+// DeskMainFolderReplaced is desk.main.folder_replaced: "Not the folder that was synced - reconnect its drive".
+func DeskMainFolderReplaced() Msg {
+	return Msg{Key: "desk.main.folder_replaced"}
 }
 
 // DeskMainFolderSynced is desk.main.folder_synced: "Synced".
