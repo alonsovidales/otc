@@ -132,7 +132,14 @@ stuck on a dead disk so the loop and the LEDs go on), and, once nothing is mount
 `mdadm --stop`s the dead array (10 s doubling to 5 min while a detached filesystem still holds
 it), so the disks plugged in again are assembled afresh by udev's `mdadm --incremental` from their
 own superblocks: the newer disk wins, one that dropped out first is kicked as non-fresh and re-added
-as a former member, copied from the newer. A dead array is never mounted (`source_present`) nor
+as a former member, copied from the newer. Disks already back when it is stopped send no further
+event (a USB brownout drops both for a second; they come back while md still holds the broken array,
+and their incremental add fails against it), so while fstab's array is not in `/proc/mdstat` at all
+the disks nothing holds that carry its superblock (its UUID from mdadm.conf, read with a bounded
+`mdadm --examine --export`) are handed to udev again (`_assemble_again`: `udevadm trigger
+--action=change`, the same incremental assembly and last-resort start as a plug-in) - at once after
+the guard's own stop, otherwise once it has been apart 30 s (udev's own assembly at boot or a plug-in
+is far quicker), then 30 s doubling to 10 min. A dead array is never mounted (`source_present`) nor
 added to (`guard.dead_array` gates the repair), and the companion starts as soon as the storage is
 unmounted (grace 0; the outage, and the Alert's minutes, begin at the detection), as it does when a
 storage seen mounted goes with its device (the single disk, which systemd unmounts itself,
@@ -1538,8 +1545,9 @@ start takes its file.
   app's files (`StaticHandler`), `/ws`, 503 for `/check_healty` (so update.sh's start check never
   counts it), `/media/` and the metrics; a port still held is tried every 5 s. Tests: nostorage's,
   websocket's `unavailable_test.go` (a fake bridge in a child process), api's
-  `TestServeUnavailable`, raid_watch's `selftest_storage` and `selftest_storage_gone` (a fake sysfs:
-  members pulled, offline, faulty, a broken array, ext4 errors, the takedown on a fake clock), updater's
+  `TestServeUnavailable`, raid_watch's `selftest_storage`, `selftest_storage_gone` (a fake sysfs:
+  members pulled, offline, faulty, a broken array, ext4 errors, btrfs/NFS/FUSE never judged, the
+  takedown on a fake clock) and `selftest_assemble` (disks back before the stop handed to udev), updater's
   `TestStorageUnitsAreTheSameInInstallAndRelease166`.
 - `wifiwatch` — the Wi-Fi watchdog (release 115). Pit (Pi 5, brcmfmac over SDIO) after ~27 h up
   kept receiving at 6.6 MB/s but sent at 0.15 MB/s, 7.7% of TCP segments retransmitted
