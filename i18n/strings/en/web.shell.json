@@ -22,7 +22,7 @@
   "web.shell.big_file.open": {
     "text": "This is {size}; your browser will hold it all in memory before showing it. Continue?",
     "args": [["size", "text"]],
-    "note": "Under A large file (web.shell.big_file.title), before a big file from Files opens in a tab of its own (a PDF, say). {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Open."
+    "note": "Under A large file (web.shell.big_file.title), before a big file from Files opens in a tab of its own (a PDF, say), or a video opens in the new post's trimmer on a device too old to stream it. {size} is the file's size, such as 1.2 GB. The buttons are Cancel and Open."
   },
   "web.shell.big_file.save": {
     "text": "This is {size}; your browser will hold it all in memory before saving. Continue?",

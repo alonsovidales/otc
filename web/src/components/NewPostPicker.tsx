@@ -14,8 +14,10 @@ import { fileSize } from "../net/fileSize";
 import type { RespEnvelope, File as MsgFile, TagsList } from "../proto/messages";
 import VideoTrimmer from "./VideoTrimmer";
 import { formatTimecode, type TrimRange } from "./videoTrim";
-import { requestStreamURL } from "../net/media";
+import { askStreamURL } from "../net/media";
 import { readFileInPieces } from "./mediaDownload";
+import BigFileDialog from "./BigFileDialog";
+import { isTooBigForMemory } from "./bigFile";
 import { useBackLayer } from "./backStack";
 import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
@@ -388,19 +390,34 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // Trimming needs the real video, not the thumbnail the strip shows. A
   // library pick streams from the device, as the viewer plays it
   // (GetMediaURL): a long clip is never read whole into this page, and the
-  // device needn't hand over a whole video in one GetFile. A clip it
-  // doesn't stream (a short one) is read in 4 MB ReadFile pieces. That can
-  // be a few seconds - hence the per-item spinner rather than a button that
-  // looks inert.
-  const openServerTrimmer = async (path: string) => {
+  // device never hands over a whole video in one GetFile - it refuses a big
+  // one. A clip it doesn't stream (a short one) is read in 4 MB ReadFile
+  // pieces, and so is any video on a device too old to stream, asked first
+  // above bigFile.ts' limit (it is held whole in this page). A stream the
+  // device failed to give is said so: falling back to reading it whole
+  // could put gigabytes in the tab. That can be a few seconds - hence the
+  // per-item spinner rather than a button that looks inert.
+  const [bigTrim, setBigTrim] = useState<{ path: string; bytes: number } | null>(null);
+  const openServerTrimmer = async (path: string, bigOk = false) => {
     const cached = trimUrlsRef.current.get(path);
     if (cached) { setTrimming({ kind: "server", path, url: cached }); return; }
     setTrimLoading(path);
     setError(null);
     try {
-      const stream = await requestStreamURL({ path });
-      if (stream) {
-        setTrimming({ kind: "server", path, url: stream });
+      const stream = await askStreamURL({ path });
+      if ("url" in stream) {
+        setTrimming({ kind: "server", path, url: stream.url });
+        return;
+      }
+      if ("failed" in stream) {
+        const words = stream.failed;
+        setError(() => (words ? asIs(words) : say("web.social.composer.trim_load_failed")));
+        return;
+      }
+      const picked = selectedFilesRef.current.get(path);
+      const bytes = picked ? fileSize(picked) : 0;
+      if ("old" in stream && !bigOk && isTooBigForMemory(bytes)) {
+        setBigTrim({ path, bytes });
         return;
       }
       const parts = await readFileInPieces(path, () => {});
@@ -921,6 +938,15 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                 ))}
           </div>
         </div>
+      )}
+
+      {bigTrim && (
+        <BigFileDialog
+          bytes={bigTrim.bytes}
+          kind="open"
+          onGo={() => { const p = bigTrim.path; setBigTrim(null); void openServerTrimmer(p, true); }}
+          onCancel={() => setBigTrim(null)}
+        />
       )}
 
       {trimming && (
