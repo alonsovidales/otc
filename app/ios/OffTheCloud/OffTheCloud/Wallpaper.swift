@@ -319,7 +319,8 @@ final class WallpaperModel: ObservableObject {
     /// When the collections were last kept in step, and how often at most.
     private var lastStep: Date?
     var stepEvery: TimeInterval = 15 * 60
-    /// Bumped by Log Out: work started before it stops writing.
+    /// Bumped by Log Out and by another address saved: work started before
+    /// it stops writing.
     private var generation = 0
     private var busy = false
     /// Album changes under way (albumStore.add): Log Out waits for them, so
@@ -729,6 +730,22 @@ final class WallpaperModel: ObservableObject {
     /// both stop - their photos were the last device's.
     func deviceChanged() async {
         await signedOut()
+    }
+
+    /// Another address saved (DeviceChange.addressChanged), its device not
+    /// known yet: work under way stops writing - its next requests go to the
+    /// new address, whose collections may be another library's (every
+    /// device's Favourites has the same id), and a keepInStep that started
+    /// before the Save would copy them into this one's album and widget.
+    /// Nothing stops and nothing is deleted: what is stored stays, and is
+    /// kept in step again once the device has said it is the same one
+    /// (another device stops both: deviceChanged).
+    func addressChanged() {
+        generation += 1
+        lastStep = nil
+        // Work cut short leaves no progress on screen: what is stored shows.
+        if case .storing = albumPhase { albumPhase = album.map { .ready(count: $0.copies.count) } ?? .idle }
+        if case .storing = widgetPhase { widgetPhase = widget.map { .ready(count: $0.files.count) } ?? .idle }
     }
 
     /// Log Out (and so a change of device): both stop - their photos are

@@ -3631,21 +3631,24 @@ Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) 
 returns at once - background runs included. No run asks for access: Photos/media are asked from Start
 Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
 once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
-**Another address in Settings** (iOS `DeviceChange.swift`; Android follows the same rules): Settings
-› Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
+**Another address in Settings** (iOS `DeviceChange.swift`; not in Android yet, which stops the
+wallpaper at every address saved and whose photo sync goes on from the last watermark): Settings ›
+Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
 one respelled, nor a first sign-in) may be another device or the same one reached another way. The
 screens are made afresh at once (`addressChanged`: the session models Log Out resets, and RootView
-makes MainView again, `SecretsStore.deviceSession`), Settings' Save first has the device left forget
-this phone's push token (`unregisterPushBeforeLeaving`, 3 s at most), and until the new address's
-device says who it is (`DeviceChange.pending`: the last device's pin kept in UserDefaults) no photo
-sync runs (`onePass` returns skipped) and the wallpaper isn't kept in step. Its GetLocalEndpoint
-answer decides (`refreshLocalEndpoint`; asked again 5 times, 30 s apart, when it says nothing): the
-same pin - nothing changes and the sync goes on; another pin, `unknown_payload`/`local_unavailable`,
-or no pin known for the last one - another device: the run stops, SyncChoice is asked as at a
-sign-in, and the wallpaper stops as at Log Out (`apply`). Until then the last device's watermark
-carried over, so the new one never got the photos taken before it. Leave the Bridge is the same
-device (`saveCredentials(sameDevice:)`): no check, and its pin moves to the new address. Tests:
-`DeviceChangeTests.swift`.
+makes MainView again, `SecretsStore.deviceSession`; the wallpaper's work under way stops writing,
+`WallpaperModel.addressChanged`, as its next requests go to the new address), Settings' Save first
+has the device left forget this phone's push token (`unregisterPushBeforeLeaving`, 3 s at most), and
+until the new address's device says who it is (`DeviceChange.pending`: the last device's pin kept in
+UserDefaults) no photo sync runs (`onePass` returns skipped) and the wallpaper isn't kept in step.
+Its GetLocalEndpoint answer decides (`refreshLocalEndpoint`; asked again 5 times, 30 s apart, when
+it says nothing): the same pin - nothing changes and the sync goes on; another pin,
+`unknown_payload`/`local_unavailable`, or no pin known for the last one - another device: the run
+stops, SyncChoice is asked as at a sign-in, and the wallpaper stops as at Log Out (`apply`). Until
+then the last device's watermark carried over, so the new one never got the photos taken before it.
+Leave the Bridge is the same device (`saveCredentials(sameDevice:)`): no check, and its pin moves to
+the new address. Tests: `DeviceChangeTests.swift`, `WallpaperTests`'
+`anotherAddressSavedStopsAKeepInStepUnderWay`.
 **Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
 iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
 missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and

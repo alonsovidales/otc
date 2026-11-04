@@ -24,7 +24,8 @@
 //  device - the question every sign-in to a device asks (SyncChoice) is
 //  asked again, and the wallpaper stops (`apply`). Leave the Bridge is the
 //  same device by definition, and no change (SecretsStore.saveCredentials'
-//  sameDevice). Android's DeviceChange.kt is the same.
+//  sameDevice). Android doesn't do this yet: it stops the wallpaper at every
+//  address saved, and its photo sync goes on from the last watermark.
 //
 
 import Foundation
@@ -104,12 +105,15 @@ enum DeviceChange {
     @MainActor static var onAddressChange: () -> Void = { addressChanged() }
 
     /// Save with another address, at once: the run going stops (it read the
-    /// last device's watermark), and what the screens' models hold for the
-    /// last device goes, as at Log Out - asked again from the new one as
-    /// MainView appears again (RootView makes it afresh: deviceSession).
+    /// last device's watermark), the wallpaper's work under way stops
+    /// writing (its next requests go to the new address), and what the
+    /// screens' models hold for the last device goes, as at Log Out - asked
+    /// again from the new one as MainView appears again (RootView makes it
+    /// afresh: deviceSession).
     @MainActor
     static func addressChanged() {
         PhotoSync.shared.cancel()
+        WallpaperModel.shared.addressChanged()
         NotificationsModel.shared.reset()
         UpdateAlertModel.shared.reset()
         UploadModel.shared.reset()

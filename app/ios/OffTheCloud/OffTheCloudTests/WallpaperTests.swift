@@ -302,6 +302,9 @@ final class FakeWallpaperDevice {
     var members: [String: [WallpaperPhoto]] = [:]
     var fetched: [String] = []
     var failing: Set<String> = []
+    /// When set, a collection's listing waits for it to open (tests hold
+    /// it there).
+    var photosGate: WallpaperGate?
     static let jpeg: Data = {
         let f = UIGraphicsImageRendererFormat()
         f.scale = 1
@@ -323,7 +326,10 @@ final class FakeWallpaperDevice {
     var device: WallpaperDevice {
         WallpaperDevice(
             groups: { [unowned self] in self.groups },
-            photos: { [unowned self] id in self.members[id] ?? [] },
+            photos: { [unowned self] id in
+                await self.photosGate?.wait()
+                return self.members[id] ?? []
+            },
             fetch: { [unowned self] p, dest in
                 self.fetched.append(p.hash)
                 if self.failing.contains(p.hash) { throw WallpaperError.noAnswer }
@@ -426,6 +432,39 @@ struct WallpaperModelTests {
         await m.deviceChanged()
         #expect(m.widget == nil)
         #expect(WidgetCatalog.load(root: root).collections.isEmpty)
+    }
+
+    @Test func anotherAddressSavedStopsAKeepInStepUnderWay() async throws {
+        let device = FakeWallpaperDevice()
+        device.set("favourites", "Favourites", photos: 3)
+        let (m, root, defaults, suite) = try model(device)
+        defer { try? FileManager.default.removeItem(at: root); defaults.removePersistentDomain(forName: suite) }
+        await m.startWidget(collection: "favourites", name: "Favourites", photos: try await m.photos(of: "favourites"))
+        let fetched = device.fetched.count
+        // The app comes to the front: keeping in step starts, and lists the
+        // collection (held here)...
+        let gate = WallpaperGate()
+        device.photosGate = gate
+        let run = Task { await m.keepInStep(force: true) }
+        let end = Date() + 2
+        while !gate.waiting, Date() < end { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(gate.waiting)
+        // ...when another address is saved. Its device's Favourites (the
+        // same id) is what the listing now brings.
+        device.set("favourites", "Favourites", photos: 5, from: 10)
+        m.addressChanged()
+        gate.release()
+        await run.value
+        // Nothing of the new address's went into this device's widget.
+        #expect(device.fetched.count == fetched)
+        #expect(Set(try #require(m.widget).files.keys) == Set(hashes(3)))
+        #expect(Set(try #require(WidgetCatalog.load(root: root).collections.first).files.keys) == Set(hashes(3)))
+        #expect(m.widgetPhase == .ready(count: 3))
+        // The same device after all: kept in step again from then on.
+        device.photosGate = nil
+        device.set("favourites", "Favourites", photos: 4)
+        await m.keepInStep()
+        #expect(Set(try #require(m.widget).files.keys) == Set(hashes(4)))
     }
 
     @Test func oneCollectionAtATimeForTheWidget() async throws {
