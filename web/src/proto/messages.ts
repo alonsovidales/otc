@@ -1468,9 +1468,11 @@ export interface CreateSharedGallery {
   lowRes: boolean;
   /**
    * Rating (release 163): anyone with the link can rate its photos
-   * (RateSharedGalleryItem), and their ratings are the collection's own
-   * (PhotoRating.from_link). Only with source.group_id; it turns that
-   * collection's Rating on. Devices before it ignore it.
+   * (RateSharedGalleryItem). The link's ratings are its own (release
+   * 169): its visitors see and change only theirs, never the owner's nor
+   * another link's, and the owner sees each photo's latest rating of
+   * anyone's (PhotoRating.from_link). Only with source.group_id; it turns
+   * that collection's Rating on. Devices before it ignore it.
    */
   rating: boolean;
 }
@@ -1513,8 +1515,9 @@ export interface SharedGalleryItem {
   /** a browser-ready JPEG exists (HEIC, RAW...) */
   hasPreview: boolean;
   /**
-   * Rating: the photo's rating in the collection now, while
-   * SharedGallery.rating is on.
+   * Rating: the photo's rating through this link now, while
+   * SharedGallery.rating is on - the link's own (release 169), never the
+   * owner's nor another link's; before it, the collection's one rating.
    */
   stars: number;
   comment: string;
@@ -1538,7 +1541,11 @@ export interface SharedGallery {
 /**
  * Public, Rating (release 163): anyone with a link whose
  * SharedGallery.rating is on rates one of its photos, stars and comment
- * both, as SetPhotoRating does. Answers with the generic Ack; error_code
+ * both, replacing the link's rating of it (0 stars and "" take it back).
+ * Each link has its own (release 169): only its visitors see and change
+ * it, and the owner sees it as the photo's latest rating while no newer
+ * one comes (PhotoRating.from_link); the owner's own and other links'
+ * stay as they are. Answers with the generic Ack; error_code
  * "rating_off" when the link doesn't take ratings (any more),
  * "not_in_collection" when the photo has left the collection, and the
  * shared gallery's usual answer for a link that doesn't open.
@@ -2624,26 +2631,31 @@ export interface SetImageGroupRating {
 }
 
 /**
- * One photo's rating in a collection whose Rating is on. One per photo
- * and collection, the same for the collection's owner and anyone rating
- * through its shared link (CreateSharedGallery.rating). The stars are
- * readable by the device's database, as the tags are (it filters and
- * sorts by them); the comment is encrypted, readable only once the owner
- * has signed in.
+ * One photo's rating in a collection whose Rating is on, as its owner
+ * sees it: the latest of anyone's - the owner's own (SetPhotoRating) or
+ * one through a shared link (CreateSharedGallery.rating, from_link). Each
+ * one who rates keeps their own (release 169): a link's visitors see and
+ * change only their link's (SharedGalleryItem), and the owner's own stays
+ * the owner's; before it, one rating per photo and collection was shared
+ * by the owner and every link. The stars are readable by the device's
+ * database, as the tags are (it filters and sorts by them); the comment
+ * is encrypted, readable only once the owner has signed in.
  */
 export interface PhotoRating {
   /** 1-5; 0: none */
   stars: number;
   /** "" for none; at most 2000 characters */
   comment: string;
-  /** The last change came through a shared link, not from the owner. */
+  /** The latest rating came through a shared link, not from the owner. */
   fromLink: boolean;
   updated?: Date | undefined;
 }
 
 /**
- * Rating: one photo's stars and comment in a collection whose Rating is
- * on, both at once, replacing what it had (0 stars and "" clear it).
+ * Rating: the owner's own stars and comment for one photo in a
+ * collection whose Rating is on, both at once, replacing what it had (0
+ * stars and "" clear it, and hide the older ratings from the owner); no
+ * link's visitors see them.
  * Answers with PhotoRating as stored; error_code "rating_off" when the
  * collection's Rating is off, "not_in_collection" when the photo isn't
  * in it. Devices before it answer "unknown_payload".
@@ -3508,7 +3520,11 @@ export interface ReqCreateUser {
    * Auth.key, under this connection's GetPubKey key. The device stores it
    * before the account's instance starts, so nobody can sign in first and
    * claim the account; its person changes it later in Settings > Change
-   * Password. Empty: the account's first sign-in sets it, as before.
+   * Password. At least 8 characters. Required with request_bridge_access
+   * (release 169): without it such a user is refused before anything is
+   * looked up or registered (dev.users.password_needed), since whoever
+   * signed in first at <username>.<bridge> would have set it. Empty, for
+   * a user of the home network only: the account's first sign-in sets it.
    */
   password: Uint8Array;
 }
