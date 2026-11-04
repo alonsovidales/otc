@@ -49,6 +49,22 @@ class PinnedAddressTest {
         assertFalse(PinnedAddress.pinnedOnly("wss://name.off-the.cloud/ws", ep(reached = true)))
     }
 
+    /**
+     * A pinned address's failed connect is tried again with the backoff, as
+     * the endpoint's is: nothing tried again after a device restarted for an
+     * update until a request, a wake or Save & Retry. Not a password turned
+     * down, the device's storage, or an attempt dropped by new settings.
+     */
+    @Test fun aFailedPinnedConnectIsTriedAgain() {
+        val unreachable = IOException("connection refused")
+        assertTrue(PinnedAddress.retriesAfter(unreachable, passwordRefused = false, storageHeld = false))
+        // NotKnownDevice and HomePortUnreachable: the card's words, tried again.
+        assertTrue(PinnedAddress.retriesAfter(OTCConnection.RequestError("another device"), passwordRefused = false, storageHeld = false))
+        assertFalse(PinnedAddress.retriesAfter(OTCConnection.RequestError("Wrong password"), passwordRefused = true, storageHeld = false))
+        assertFalse(PinnedAddress.retriesAfter(OTCConnection.RequestError("no storage"), passwordRefused = false, storageHeld = true))
+        assertFalse(PinnedAddress.retriesAfter(kotlinx.coroutines.CancellationException("new settings"), passwordRefused = false, storageHeld = false))
+    }
+
     @Test fun aWsAddressRacesItsOwnHostAtThePinnedPort() {
         val stored = ep(reached = true)
         assertEquals(listOf("192.168.1.20", "otc.local"), PinnedAddress.raceTargets("ws://otc.local:8080/ws", stored).addresses)

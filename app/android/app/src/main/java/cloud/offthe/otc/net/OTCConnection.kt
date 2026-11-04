@@ -463,7 +463,16 @@ object OTCConnection {
             // A ws:// address's own host is raced too, at the pinned port.
             val targets = PinnedAddress.raceTargets(url, stored)
             if (pinnedOnly) {
-                connectPinned(targets, url, password, deviceId, credKey, gen)
+                val refusedBefore = authRejection
+                try {
+                    connectPinned(targets, url, password, deviceId, credKey, gen)
+                } catch (e: Exception) {
+                    // Tried again with the backoff, as a failed connect
+                    // through the endpoint is (PinnedAddress.retriesAfter).
+                    val refused = authRejection.let { it != null && it !== refusedBefore }
+                    if (PinnedAddress.retriesAfter(e, passwordRefused = refused, storageHeld = storage.active)) scheduleRetry(gen)
+                    throw e
+                }
                 return
             }
             if (signInAtHome(targets, url, password, deviceId, credKey, gen)) return
@@ -633,7 +642,6 @@ object OTCConnection {
         }
     }
 
-    /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
     /**
      * DeviceChange: how often, and how far apart, a device that says
      * nothing about its home network is asked before it counts as one that
@@ -663,6 +671,7 @@ object OTCConnection {
         }
     }
 
+    /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
     private suspend fun signInPinned(opened: HomeNetwork.Opened, ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
         val c = opened.socket
         var kept = false
@@ -1099,12 +1108,23 @@ object OTCConnection {
     private fun handleDisconnect() {
         if (!_authenticated.value && connectJob == null) return
         _authenticated.value = false
+        scheduleRetry()
+    }
+
+    /**
+     * A connect again after the backoff (1 s doubling to 30 s, reset by a
+     * sign-in): after a drop or a failed connect through the endpoint
+     * (handleDisconnect), and after a pinned address's failed connect.
+     * [gen]: dropped if the settings change meanwhile.
+     */
+    private fun scheduleRetry(gen: Int? = null) {
         // A device shut down from Settings: tried again only once the moment
         // it is left alone is over (DeviceShutdown).
         val delayMs = maxOf(backoffMs, DeviceShutdown.quietLeftMs())
         backoffMs = minOf(backoffMs * 2, maxBackoffMs)
         scope.launch {
             delay(delayMs)
+            if (gen != null && synchronized(connectLock) { gen != configGen }) return@launch
             try { ensureConnected() } catch (_: Exception) {}
         }
     }

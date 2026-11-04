@@ -1003,7 +1003,12 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
     part `|reached` of `home_endpoint` - an older three-part value reads as not reached -,
     `including`, `keepingReach`, `signedInOver`; `HomeNetwork.contest`, whose pinned trust manager
     throws `OtherCertificate` for a certificate that isn't the pin; `OTCConnection.connectPinned`,
-    `markReached`, `refreshHomeEndpoint(overHome =)`, `signedInInClear` for `MediaStream`). Its
+    `markReached`, `refreshHomeEndpoint(overHome =)`, `signedInInClear` for `MediaStream`). The
+    pinned way installs no socket until it has signed in, so its failed connect schedules the
+    backoff retry itself (`scheduleRetry`, `PinnedAddress.retriesAfter`: not after a password
+    turned down, the storage answer or new settings), as a failed connect through the endpoint
+    does by its socket's drop (on iOS the probe dials the connection's own socket, so a probe
+    nothing answers comes back that way). Its
     route check leaving home (`switchRoute`) never dials a pinned address: the home socket stays
     until it drops, and that reconnect goes by the rules above. A name raced on a bound network
     (the home Wi-Fi with mobile data the default) is looked up on that network. Tests:

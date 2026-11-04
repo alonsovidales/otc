@@ -45,6 +45,20 @@ object PinnedAddress {
         if (isCleartext(url)) stored.including(host(url)) else stored
 
     /**
+     * A pinned address's connect failed with [e]: whether it is tried again
+     * with the backoff, as the configured endpoint's is (its socket is the
+     * current one before it dials, so a failed connect comes back through
+     * handleDisconnect). The pinned way installs nothing until signed in,
+     * so a device restarting for an update was left until a request, a
+     * wake or the card's Save & Retry. Not when [passwordRefused] (the
+     * device's verdict: its own gate and backoff), the device can't reach
+     * its storage ([storageHeld]: asked again every 30 s), or the attempt
+     * was dropped (new settings, Log Out).
+     */
+    fun retriesAfter(e: Throwable, passwordRefused: Boolean, storageHeld: Boolean): Boolean =
+        e !is CancellationException && !passwordRefused && !storageHeld
+
+    /**
      * What saving [after] over [before] leaves of the home record [home]
      * (the endpoint it was learnt on, and what was learnt): the same device
      * at its new address ([sameDevice]: Leave the Bridge) or the same
