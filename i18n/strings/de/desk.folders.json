@@ -291,7 +291,8 @@
   },
   "desk.folders.setup_large_disk": {
     "text": "{disk} ist viel größer als eine SD-Karte. Ist das wirklich die Karte für das Gerät? Alles darauf wird gelöscht, endgültig.",
-    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "reviewed": "claude-backtranslation 2026-11-04 #5186dce7"
   },
   "desk.folders.setup_not_written": {
     "text": "Die Karte wurde nicht beschrieben: Zum Beschreiben einer SD-Karte sind Administratorrechte nötig. Wähle {item} erneut, wenn du so weit bist (der Download bleibt erhalten).",

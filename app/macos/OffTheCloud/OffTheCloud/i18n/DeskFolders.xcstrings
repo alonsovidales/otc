@@ -3296,7 +3296,7 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ ist viel größer als eine SD-Karte. Ist das wirklich die Karte für das Gerät? Alles darauf wird gelöscht, endgültig."
           }
         },
@@ -3308,31 +3308,31 @@
         },
         "es" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ es mucho más grande que una tarjeta SD. ¿Seguro que es la tarjeta para el dispositivo? Se borrará todo lo que contiene, para siempre."
           }
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ est bien plus grand qu’une carte SD. Est-ce vraiment la carte de l’appareil ? Tout ce qu’il contient sera effacé, définitivement."
           }
         },
         "it" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ è molto più grande di una scheda SD. È davvero la scheda per il dispositivo? Tutto ciò che contiene verrà cancellato, per sempre."
           }
         },
         "nl" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ is veel groter dan een SD-kaart. Is het echt de kaart voor het apparaat? Alles erop wordt gewist, voorgoed."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "%1$@ é muito maior do que um cartão SD. É mesmo o cartão para o dispositivo? Tudo o que contém será apagado, para sempre."
           }
         }

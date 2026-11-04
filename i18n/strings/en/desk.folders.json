@@ -357,7 +357,8 @@
     "text": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
     "args": [["disk", "text"]],
     "note": "otc-sync: Set Up a New Device… - a second question, after the first one to erase the disk, when the disk chosen is larger than 128 GB: more likely a USB backup drive than the SD card. Its buttons are Erase and Cancel. {disk} describes the disk (its name, size and short name).",
-    "review": "required"
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #5a431054"
   },
   "desk.folders.setup_not_written": {
     "text": "The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept).",

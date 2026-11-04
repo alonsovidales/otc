@@ -291,7 +291,8 @@
   },
   "desk.folders.setup_large_disk": {
     "text": "{disk} è molto più grande di una scheda SD. È davvero la scheda per il dispositivo? Tutto ciò che contiene verrà cancellato, per sempre.",
-    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "reviewed": "claude-backtranslation 2026-11-04 #6c31e2b6"
   },
   "desk.folders.setup_not_written": {
     "text": "La scheda non è stata scritta: per scrivere una scheda SD servono i permessi di amministratore. Scegli di nuovo {item} quando vuoi (il download viene conservato).",

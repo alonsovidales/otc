@@ -291,7 +291,8 @@
   },
   "desk.folders.setup_large_disk": {
     "text": "{disk} is veel groter dan een SD-kaart. Is het echt de kaart voor het apparaat? Alles erop wordt gewist, voorgoed.",
-    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "reviewed": "claude-backtranslation 2026-11-04 #4dced2d4"
   },
   "desk.folders.setup_not_written": {
     "text": "De kaart is niet beschreven: voor het beschrijven van een SD-kaart zijn beheerdersrechten nodig. Kies opnieuw {item} wanneer je klaar bent (de download blijft bewaard).",

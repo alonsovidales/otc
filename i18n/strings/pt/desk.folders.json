@@ -291,7 +291,8 @@
   },
   "desk.folders.setup_large_disk": {
     "text": "{disk} é muito maior do que um cartão SD. É mesmo o cartão para o dispositivo? Tudo o que contém será apagado, para sempre.",
-    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good."
+    "en": "{disk} is much larger than an SD card. Is it really the card for the device? Everything on it will be erased, for good.",
+    "reviewed": "claude-backtranslation 2026-11-04 #cf6cc9b7"
   },
   "desk.folders.setup_not_written": {
     "text": "O cartão não foi escrito: escrever num cartão SD requer permissão de administrador. Escolhe {item} novamente quando quiseres (a transferência é mantida).",
