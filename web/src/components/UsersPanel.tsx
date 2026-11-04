@@ -18,6 +18,7 @@ import "./UsersPanel.css";
 import { refuseOnDemo } from "../net/demo";
 import { canAddAfter } from "./settings/memoryTiers";
 import { Modal } from "./ConfirmDialog";
+import { useDeviceBack } from "./useDeviceBack";
 
 type Metrics = { storageMb: number; storagePct: number; activeConnections: number };
 
@@ -118,6 +119,8 @@ export default function UsersPanel() {
     return () => { live = false; window.clearTimeout(timer); };
   }, []);
 
+  // A list that didn't come is asked again once the device answers again.
+  const usersBack = useDeviceBack(() => void loadUsersRef.current());
   const loadUsers = useCallback(async () => {
     setUsersError(null);
     try {
@@ -125,6 +128,7 @@ export default function UsersPanel() {
         (e as any).payload = { $case: "reqListUsers", reqListUsers: {} };
       });
       if (resp.payload?.$case === "respUsers") {
+        usersBack.ok();
         setUsers(resp.payload.respUsers.users);
         setCanAdd((prev) => canAddAfter(prev, resp));
         return;
@@ -134,7 +138,10 @@ export default function UsersPanel() {
     } catch {
       setUsersError(() => say("web.settings.users.load_failed"));
     }
-  }, []);
+    usersBack.failed();
+  }, [usersBack]);
+  const loadUsersRef = useRef(loadUsers);
+  loadUsersRef.current = loadUsers;
 
   useEffect(() => {
     if (isPrimary) void loadUsers();

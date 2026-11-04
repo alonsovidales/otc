@@ -7,8 +7,10 @@
 // this browser) - and which of the newest posts is the one sent. With them
 // the pieces they rest on: NoAnswer.sent (src/net/ws.ts, src/net/useWS.ts:
 // a request after a sign-in that failed never goes) and the bridge's answer
-// for the device (src/net/deviceStatus.ts), and when the unreachable screen
-// comes over the app (coverAfterMs). Through Vite's SSR loader in Node with
+// for the device (src/net/deviceStatus.ts), when the unreachable screen
+// comes over the app (coverAfterMs), and a load that failed meanwhile
+// running again as the device answers again (whenDeviceBack, behind
+// src/components/useDeviceBack.ts). Through Vite's SSR loader in Node with
 // a fake WebSocket, as net-test.mjs:
 //
 //   node web/scripts/post-confirm-test.mjs        (needs web/node_modules)
@@ -97,6 +99,43 @@ describe("deviceStatus: the bridge's answer, and when its screen comes", () => {
     assert.equal(status.isBridgeAnswer(wire({ error: true, errorCode: "storage_unavailable" })), false);
     assert.equal(status.isBridgeAnswer(wire({ payload: { $case: "respAck", respAck: { ok: true } } })), false);
     assert.equal(status.isBridgeAnswer(wire({ payload: { $case: "respNewSocial", respNewSocial: { uuid: "u1" } } })), false);
+  });
+
+  test("a load that failed runs again each time the device answers again, even before anything listened", () => {
+    status.clearDeviceStatus();
+    // A load failed while the device was away: its count, noted then.
+    status.noteResponse("device_unreachable", "This device isn't reachable right now.", true);
+    const since = status.deviceBackCount();
+    let runs = 0;
+    const off = status.whenDeviceBack(since, () => runs++);
+    assert.equal(runs, 0, "not while the device is still away");
+    // Every request that fails meanwhile reports the same: no run.
+    status.noteResponse("device_unreachable", "This device isn't reachable right now.", true);
+    status.noteResponse(undefined, undefined, true);
+    assert.equal(runs, 0, "the device's own error while away is no answer again");
+    status.noteResponse(undefined, undefined, false);
+    assert.equal(runs, 1, "the device answered: once");
+    status.noteResponse(undefined, undefined, false);
+    assert.equal(runs, 1, "answers after it change nothing");
+    // Its screen again, and the device back again: again.
+    status.noteResponse("storage_unavailable", "The disks are unplugged.", true);
+    status.noteResponse(undefined, undefined, true);
+    assert.equal(runs, 2, "a device that could reach its storage again answers with anything");
+    off();
+    status.noteResponse("device_unreachable", "", true);
+    status.clearDeviceStatus();
+    assert.equal(runs, 2, "stopped");
+    // The device came back between the failure and the listening.
+    status.noteResponse("device_unreachable", "", true);
+    const before = status.deviceBackCount();
+    status.clearDeviceStatus();
+    let late = 0;
+    const off2 = status.whenDeviceBack(before, () => late++);
+    assert.equal(late, 1, "run at once");
+    off2();
+    let none = 0;
+    status.whenDeviceBack(status.deviceBackCount(), () => none++)();
+    assert.equal(none, 0, "nothing to run when it never went away since");
   });
 
   test("a device the bridge couldn't reach gets a few seconds before its screen covers the app; the rest at once", () => {

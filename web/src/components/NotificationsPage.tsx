@@ -22,6 +22,7 @@ import { openGroup } from "./photoFilter";
 import { StarGlyph } from "./RatingPanel";
 import { alertsLimit, cAlertsFirst } from "./alertsRead";
 import { isBridgeAnswer } from "../net/deviceStatus";
+import { useDeviceBack } from "./useDeviceBack";
 
 const POLL_MS = 5000;
 
@@ -157,6 +158,9 @@ function Alerts({
   // them all, so the newest 50 alone hid the rest, and those that came in
   // meanwhile, as read). A list that didn't come says so, with Try again
   // (it used to say "Loading…" for good), and marks nothing read.
+  // A list that didn't come is asked again once the device answers again
+  // (its screen lies over the page, which stays as it was).
+  const listBack = useDeviceBack(() => setLoadTry((n) => n + 1));
   useEffect(() => {
     let cancelled = false;
     const listAlerts = (limit: number) => useWS.request((e: Partial<ReqEnvelope>) => {
@@ -168,15 +172,20 @@ function Alerts({
       try {
         resp = await listAlerts(cAlertsFirst);
       } catch {
-        if (!cancelled) setLoadError(() => say("web.social.alerts.load_failed"));
+        if (!cancelled) {
+          setLoadError(() => say("web.social.alerts.load_failed"));
+          listBack.failed();
+        }
         return;
       }
       if (cancelled) return;
       if (resp.payload?.$case !== "respNotifications") {
         const words = isBridgeAnswer(resp) ? "" : resp.errorMessage;
         setLoadError(() => (words ? asIs(words) : say("web.social.alerts.load_failed")));
+        listBack.failed();
         return;
       }
+      listBack.ok();
       let list = resp.payload.respNotifications.notifications;
       setNotifications(list);
       onAcknowledged();

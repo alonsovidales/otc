@@ -13,6 +13,7 @@ import { signOut } from "../net/signOut";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { SettingsIcon } from "./NavIcons";
 import Spinner from "./Spinner";
+import { useDeviceBack } from "./useDeviceBack";
 import { useT } from "../i18n";
 import "./AccountMenu.css";
 
@@ -63,6 +64,10 @@ const sameBytes = (a: Uint8Array | null, b: Uint8Array | null) =>
 function useProfile(refreshKey: unknown): Profile {
   const [profile, setProfile] = useState<Profile>(null);
   const shown = useRef<{ bytes: Uint8Array | null; url: string | null }>({ bytes: null, url: null });
+  // One that didn't come is asked again once the device answers again (its
+  // screen lies over the top bar, which stays as it was).
+  const [again, setAgain] = useState(0);
+  const back = useDeviceBack(() => setAgain((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;
@@ -75,8 +80,10 @@ function useProfile(refreshKey: unknown): Profile {
         if (resp.payload?.$case !== "respProfile") {
           // No profile to show: the glyph, and whatever was shown stays.
           setProfile((p) => p ?? { name: "", url: null });
+          back.failed();
           return;
         }
+        back.ok();
         const p = resp.payload.respProfile;
         const bytes = p.image && p.image.length > 0 ? p.image : null;
         const cur = shown.current;
@@ -86,11 +93,14 @@ function useProfile(refreshKey: unknown): Profile {
         }
         setProfile({ name: (p.name ?? "").trim(), url: shown.current.url });
       } catch {
-        if (!cancelled) setProfile((p) => p ?? { name: "", url: null });
+        if (!cancelled) {
+          setProfile((p) => p ?? { name: "", url: null });
+          back.failed();
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, again, back]);
 
   useEffect(() => () => {
     if (shown.current.url) URL.revokeObjectURL(shown.current.url);

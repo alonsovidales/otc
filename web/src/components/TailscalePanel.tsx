@@ -12,7 +12,7 @@
 // Primary-only, like the update and users panels. Funnel publishes the
 // whole machine, which is not an additional user's to turn on, and is
 // also why it can only ever serve one user: one machine, one public name.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { encryptForConnection } from "../net/pwCrypto";
 import type { RespEnvelope } from "../proto/messages";
@@ -20,6 +20,8 @@ import { Trans, useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 import { refuseOnDemo } from "../net/demo";
+import { useDeviceBack } from "./useDeviceBack";
+import { useInstanceRole } from "./useInstanceRole";
 
 type TailscaleState = {
   installed: boolean;
@@ -32,26 +34,13 @@ type TailscaleState = {
 
 export default function TailscalePanel() {
   const t = useT();
-  const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
+  const isPrimary = useInstanceRole();
   const [state, setState] = useState<TailscaleState | null>(null);
   const [authKey, setAuthKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<UiText | null>(null);
   const [error, setError] = useState<UiText | null>(null);
   const [popupBlocked, setPopupBlocked] = useState(false);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const resp: RespEnvelope = await useWS.request(e => {
-          (e as any).payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
-        });
-        setIsPrimary(resp.payload?.$case === "respInstanceRole" && resp.payload.respInstanceRole.isPrimary);
-      } catch {
-        setIsPrimary(false);
-      }
-    })();
-  }, []);
 
   const read = (resp: RespEnvelope): TailscaleState | null => {
     if (resp.payload?.$case !== "respTailscaleStatus") return null;
@@ -66,16 +55,24 @@ export default function TailscalePanel() {
     };
   };
 
+  // A status that didn't come is asked again once the device answers again.
+  const statusBack = useDeviceBack(() => void refreshRef.current());
   const refresh = useCallback(async () => {
     try {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = { $case: "reqGetTailscaleStatus", reqGetTailscaleStatus: {} };
       });
-      setState(read(resp));
+      const next = read(resp);
+      setState(next);
+      if (next) statusBack.ok();
+      else statusBack.failed();
     } catch (e: any) {
       setError(() => asIs(e?.message ?? String(e)));
+      statusBack.failed();
     }
-  }, []);
+  }, [statusBack]);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     if (isPrimary) void refresh();

@@ -16,6 +16,7 @@ import { asIs, say, type UiText } from "./uiText";
 import { refuseOnDemo } from "../net/demo";
 import { ErrorBoundary } from "./ErrorBoundary";
 import Spinner from "./Spinner";
+import { useDeviceBack } from "./useDeviceBack";
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -234,6 +235,9 @@ function Friendships() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A list that didn't come is asked again once the device answers again
+  // (its screen lies over the page, which stays as it was).
+  const listBack = useDeviceBack(() => void reloadRef.current());
   const reloadFriendships = async () => {
     setLoadingFriends(true);
     try {
@@ -243,16 +247,21 @@ function Friendships() {
       if (resp.payload?.$case === "respFriendships") {
         setFriends(resp.payload.respFriendships);
         setLoadError(null);
+        listBack.ok();
       } else {
         setLoadError(() => orSay(resp.errorMessage, "web.social.friends.load_failed"));
+        listBack.failed();
       }
     } catch (err) {
       console.error("Friendships load error:", err);
       setLoadError(() => say("web.social.friends.load_failed"));
+      listBack.failed();
     } finally {
       setLoadingFriends(false);
     }
   };
+  const reloadRef = useRef(reloadFriendships);
+  reloadRef.current = reloadFriendships;
 
   const sendFriendRequest = async () => {
     if (refuseOnDemo()) return; // a demo device (net/demo.ts)

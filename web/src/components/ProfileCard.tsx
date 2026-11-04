@@ -10,6 +10,7 @@ import "./ProfileCard.css";
 import { useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { refuseOnDemo } from "../net/demo";
+import { useDeviceBack } from "./useDeviceBack";
 
 type Props = {
   authenticated: boolean;
@@ -65,6 +66,9 @@ export default function ProfileCard({ authenticated }: Props) {
   useEffect(() => () => { if (imgUrlRef.current) URL.revokeObjectURL(imgUrlRef.current); }, []);
 
   const loadSeq = useRef(0);
+  // A profile that didn't come is asked again once the device answers
+  // again (its screen lies over the card, which stays as it was).
+  const loadBack = useDeviceBack(() => void loadRef.current());
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
     setLoading(true);
@@ -86,6 +90,7 @@ export default function ProfileCard({ authenticated }: Props) {
         showImage(bytesToObjectURL(bytes, "image/jpeg"));
         setLoaded(true);
         setLoading(false);
+        loadBack.ok();
         return;
       }
       const message = isBridgeAnswer(resp) ? "" : resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : resp.errorMessage;
@@ -96,7 +101,10 @@ export default function ProfileCard({ authenticated }: Props) {
     }
     setLoadError(() => failure);
     setLoading(false);
-  }, [showImage]);
+    loadBack.failed();
+  }, [showImage, loadBack]);
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   // Load profile on mount; an answer that comes after the card went is
   // dropped.

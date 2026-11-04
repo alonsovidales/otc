@@ -36,6 +36,8 @@ import { MemoryPeriod } from "../proto/messages";
 import { useDemo } from "./useDemo";
 import "./SettingsForm.css";
 import { refuseOnDemo } from "../net/demo";
+import { isBridgeAnswer } from "../net/deviceStatus";
+import { useDeviceBack } from "./useDeviceBack";
 
 // Rounded, clamped to [0, 100] - total can be 0 right when a run has just
 // started and the very first status poll hasn't landed yet.
@@ -294,14 +296,26 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   const [reprocessBusy, setReprocessBusy] = useState(false);
   const [reprocessCancelling, setReprocessCancelling] = useState(false);
 
+  // A status that didn't come is asked again once the device answers again
+  // (useDeviceBack: its screen lies over Settings, which stays as it was).
+  const reprocessBack = useDeviceBack(() => void loadReprocessRef.current());
   const loadReprocessStatus = useCallback(async () => {
-    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      (e as any).payload = { $case: "reqGetReprocessStatus", reqGetReprocessStatus: {} };
-    });
-    if (resp.payload?.$case === "respReprocessStatus") {
-      setReprocessStatus(resp.payload.respReprocessStatus);
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetReprocessStatus", reqGetReprocessStatus: {} };
+      });
+      if (resp.payload?.$case === "respReprocessStatus") {
+        setReprocessStatus(resp.payload.respReprocessStatus);
+        reprocessBack.ok();
+        return;
+      }
+    } catch {
+      // No answer: as below.
     }
-  }, []);
+    reprocessBack.failed();
+  }, [reprocessBack]);
+  const loadReprocessRef = useRef(loadReprocessStatus);
+  loadReprocessRef.current = loadReprocessStatus;
 
   useEffect(() => {
     loadReprocessStatus();
@@ -396,42 +410,58 @@ export default function SettingsForm({ onShowTour }: { onShowTour?: () => void }
   };
 
   // ---------- Load settings once ----------
-  useEffect(() => {
-    (async () => {
-      try {
-        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-          (e as any).payload = { $case: "reqGetSettings", reqGetSettings: {} };
-        });
+  // Again once the device answers again when they didn't come (its screen
+  // lies over Settings, which stays as it was): the switches would show
+  // what they start as, not what the device has. Their error goes then.
+  const settingsBack = useDeviceBack(() => void loadSettingsRef.current());
+  const settingsFailure = useRef<{ kind: "error"; text: UiText } | null>(null);
+  const loadSettings = useCallback(async () => {
+    let failure: UiText;
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetSettings", reqGetSettings: {} };
+      });
 
-        if (resp.payload?.$case === "respSettings") {
-          const s: PbSettings = resp.payload.respSettings;
-          setFaceRecognition(!!s.faceRecognitionEnabled);
-          // Unavailable (a device under 3 GB): off and disabled; heavy
-          // (under 6 GB): a note under it; absent (an older device):
-          // available, as before.
-          setTagging(taggingSwitch(s));
-          // Absent: a device before Places, with no switch.
-          setPlacesKnown(s.placesEnabled !== undefined);
-          if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
-          // Absent: a device before On this day.
-          setMemoriesOnHere(s.memoriesEnabled ?? null);
-          // Absent: a device before Smart search, with no switch (and
-          // its model: a device before release 152, which had it).
-          setSmartKnown(s.smartSearchEnabled !== undefined);
-          if (s.smartSearchEnabled !== undefined) applySmartSearchSettings(s);
-          if (s.memoriesEnabled) void countHiddenMemories();
-          const limitMb = s.socialStorageLimitMb || 5120;
-          setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
-          setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
-        } else if (resp.payload?.$case === "respAck") {
-          const msg = resp.payload.respAck.errorMsg;
-          setStatus({ kind: "error", text: msg ? asIs(msg) : say("web.settings.general.load_failed") });
-        }
-      } catch (err: any) {
-        setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
+      if (resp.payload?.$case === "respSettings") {
+        const s: PbSettings = resp.payload.respSettings;
+        setFaceRecognition(!!s.faceRecognitionEnabled);
+        // Unavailable (a device under 3 GB): off and disabled; heavy
+        // (under 6 GB): a note under it; absent (an older device):
+        // available, as before.
+        setTagging(taggingSwitch(s));
+        // Absent: a device before Places, with no switch.
+        setPlacesKnown(s.placesEnabled !== undefined);
+        if (s.placesEnabled !== undefined) setPlacesOn(s.placesEnabled);
+        // Absent: a device before On this day.
+        setMemoriesOnHere(s.memoriesEnabled ?? null);
+        // Absent: a device before Smart search, with no switch (and
+        // its model: a device before release 152, which had it).
+        setSmartKnown(s.smartSearchEnabled !== undefined);
+        if (s.smartSearchEnabled !== undefined) applySmartSearchSettings(s);
+        if (s.memoriesEnabled) void countHiddenMemories();
+        const limitMb = s.socialStorageLimitMb || 5120;
+        setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
+        setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
+        settingsBack.ok();
+        const was = settingsFailure.current;
+        settingsFailure.current = null;
+        if (was) setStatus((cur) => (cur === was ? null : cur));
+        return;
       }
-    })();
-  }, [countHiddenMemories]);
+      // The bridge answering for the device: ours, not its English words.
+      const msg = isBridgeAnswer(resp) ? "" : resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : resp.errorMessage;
+      failure = msg ? asIs(msg) : say("web.settings.general.load_failed");
+    } catch (err: any) {
+      failure = asIs(err?.message ?? String(err));
+    }
+    const shown = { kind: "error" as const, text: failure };
+    settingsFailure.current = shown;
+    setStatus(shown);
+    settingsBack.failed();
+  }, [countHiddenMemories, settingsBack]);
+  const loadSettingsRef = useRef(loadSettings);
+  loadSettingsRef.current = loadSettings;
+  useEffect(() => { void loadSettings(); }, [loadSettings]);
 
   // ---------- Validation ----------
 

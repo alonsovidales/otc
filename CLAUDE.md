@@ -2770,7 +2770,13 @@ closes it (a second one the browser takes as closing it brings it back) and its 
 page. Its words are the web's own (`web.shell.unreachable.text`, `.disabled_text`): the bridge writes
 those two codes in English only. `deviceStatus.isBridgeAnswer` tells the bridge's answer for the
 device from the device's own - every request that follows treats it as no answer, never as a refusal
-in the bridge's words. A post whose answer never came (`postConfirm.ts`, `node
+in the bridge's words. Nothing mounts again as the screen lifts, so a load that runs once and failed
+runs again when the device answers again or the browser is back online (`useDeviceBack`, on
+`deviceStatus.whenDeviceBack`, which counts a device back before anything listened too): Files'
+listing, Settings and its reprocess status, Users, the profile and the account button's, Alerts,
+Friends, Shared Links, Bridge, Wi-Fi's first look, Update's check, Tailscale's status and the role
+that shows Tailscale, Update and Logs (`useInstanceRole`; the bridge's answer used to hide them).
+Grids that page have `usePageRetry`; the library's lists ask again while they show. A post whose answer never came (`postConfirm.ts`, `node
 web/scripts/post-confirm-test.mjs`): unsent (`NoAnswer.sent` false) says nothing was posted; went and
 unanswered keeps the composer with a note, "Post again" on its button, and looks for the post among
 the newest four (the owner's own, the same caption, no more items than were sent, made no earlier

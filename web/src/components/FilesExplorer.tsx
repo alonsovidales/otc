@@ -40,6 +40,7 @@ import { SelectField } from "./SortBy";
 import { canOpenInline, safeToOpen } from "./inlineTypes";
 import { readPieces, type PiecesResult } from "./mediaDownload";
 import { filesUploads, useUploadRows } from "./filesUploads";
+import { useDeviceBack } from "./useDeviceBack";
 import { useToasts } from "./useToasts";
 import ToastView from "./ToastView";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -660,14 +661,18 @@ function FilesExplorerView({
   // A folder that couldn't be listed shows none of the folder before it:
   // its rows under the new path resolved a click, "..", a drop or a
   // delete against the wrong folder. Only the way up stays (and Refresh).
+  // A listing that failed is asked again once the device answers again
+  // (useDeviceBack): its screen lies over Files, which stays as it was.
+  const listBack = useDeviceBack(() => void loadListRef.current(pathRef.current));
   const listFailed = useCallback((p: string, error: UiText | null) => {
+    listBack.failed();
     setError(error ? () => error : null);
     setListing(p === "/" ? [] : [cUpEntry]);
     setSel({});
     anchorRef.current = null;
     setNoImg({ path: p, supported: false, folderOut: false });
     setListed({ path: p });
-  }, []);
+  }, [listBack]);
   const loadList = useCallback(async (p: string) => {
     const seq = ++listSeq.current;
     listingNow.current = p;
@@ -689,6 +694,7 @@ function FilesExplorerView({
         // inject ".." entry as directory to go up (4); not at the root
         const files = p === "/" ? lof.files : [cUpEntry, ...lof.files];
 
+        listBack.ok();
         setListing(files);
         setListed({ path: p });
         const folderOut = !!lof.outOfImagesSupported && !!lof.folderOutOfImages;
@@ -717,7 +723,8 @@ function FilesExplorerView({
         const message = resp.errorMessage;
         listFailed(p, message ? asIs(message) : say("web.files.list.list_failed"));
       } else {
-        listFailed(p, say("web.files.list.unexpected"));
+        // The bridge answering for the device is no answer from it.
+        listFailed(p, say(isBridgeAnswer(resp) ? "web.shell.connection.no_answer" : "web.files.list.unexpected"));
       }
     } catch (e: any) {
       if (seq !== listSeq.current) return;
@@ -730,7 +737,9 @@ function FilesExplorerView({
         setLoading(false);
       }
     }
-  }, [loadUsage, listFailed]);
+  }, [loadUsage, listFailed, listBack]);
+  const loadListRef = useRef(loadList);
+  loadListRef.current = loadList;
 
   useEffect(() => { void loadList(path); }, [path, loadList]);
   useEffect(() => { saveFilesPath(path); }, [path]);

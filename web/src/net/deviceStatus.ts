@@ -86,6 +86,9 @@ export function isBridgeAnswer(resp: RespEnvelope): boolean {
 
 let current: DeviceStatus | null = null;
 const listeners = new Set<(s: DeviceStatus | null) => void>();
+// How many times the device has answered again after a status: see
+// deviceBackCount.
+let backs = 0;
 
 export function getDeviceStatus(): DeviceStatus | null {
   return current;
@@ -101,8 +104,27 @@ function publish(next: DeviceStatus | null) {
   // is down reports the same thing) and re-rendering the whole app for
   // each one is pure waste.
   if (current?.code === next?.code && current?.message === next?.message) return;
+  if (current && !next) backs++;
   current = next;
   listeners.forEach(fn => fn(current));
+}
+
+/** How many times the device has answered again (a status cleared) since
+ *  the page loaded. A load that failed notes it, so a device back before
+ *  anything listened still counts (whenDeviceBack). */
+export function deviceBackCount(): number {
+  return backs;
+}
+
+/** fn runs each time the device answers again after `since` (a
+ *  deviceBackCount taken as a load failed) - at once when it already has.
+ *  The unreachable screen lies over a page that stays mounted (App.tsx),
+ *  so a load that failed while the device was away runs again through
+ *  this (useDeviceBack). Returns the stop. */
+export function whenDeviceBack(since: number, fn: () => void): () => void {
+  const off = subscribeDeviceStatus((s) => { if (s === null) fn(); });
+  if (backs !== since) fn();
+  return off;
 }
 
 /**
