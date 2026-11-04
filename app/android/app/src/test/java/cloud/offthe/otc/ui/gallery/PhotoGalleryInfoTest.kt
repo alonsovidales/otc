@@ -53,6 +53,9 @@ class PhotoGalleryInfoTest {
     // GetFileInfo answers each path with its own camera, once its gate opens; [failing] paths get no answer.
     private val gates = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
     private val failing = ConcurrentHashMap.newKeySet<String>()
+    // DelFile: each one sent, answered once [deleteGate] opens.
+    private val deletes = java.util.concurrent.CopyOnWriteArrayList<String>()
+    @Volatile private var deleteGate: CompletableDeferred<Unit>? = null
 
     private val send: GalleryRequest = { _, _, build ->
         val req = ReqEnvelope.newBuilder().also(build).build()
@@ -65,6 +68,11 @@ class PhotoGalleryInfoTest {
                 gates[path]?.await()
                 if (path in failing) throw IOException("no answer")
                 RespEnvelope.newBuilder().setRespFileInfo(FileExifInfo.newBuilder().setCameraMake("camera of $path")).build()
+            }
+            ReqEnvelope.PayloadCase.REQ_DEL_FILE -> {
+                deletes += req.reqDelFile.path
+                deleteGate?.await()
+                RespEnvelope.newBuilder().setRespAck(cloud.offthe.otc.proto.Ack.newBuilder().setOk(true)).build()
             }
             else -> throw IOException("not answered")
         }
@@ -90,6 +98,21 @@ class PhotoGalleryInfoTest {
         on { vm.resetAndLoadFirstPage() }
         await("the photos") { vm.state.value.items.map { it.path } == listOf("a", "b") && !vm.state.value.loading }
         return vm
+    }
+
+    /** A bulk Delete holds the bar, its Delete a spinner, and a second one meanwhile sends nothing (as iOS's aDeleteUnderWayHoldsTheBarAndGoesOnce). */
+    @Test fun aDeleteUnderWayHoldsTheBarAndGoesOnce() {
+        val vm = library()
+        val gate = CompletableDeferred<Unit>().also { deleteGate = it }
+        on { vm.toggleSelect("a"); vm.toggleSelect("b") }
+        on { vm.deleteSelected() }
+        assertEquals(cloud.offthe.otc.ui.common.SelectionActionTask.DELETE, vm.state.value.preparing)
+        await("the first delete") { deletes.size == 1 }
+        // Tapped again while it runs: nothing more is sent.
+        assertNull(on { vm.deleteSelected() })
+        gate.complete(Unit)
+        await("the deletes") { vm.state.value.preparing == null }
+        assertEquals(listOf("a", "b"), deletes.toList())
     }
 
     @Test fun aLateAnswerForThePhotoBeforeIsDropped() {

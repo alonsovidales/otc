@@ -120,6 +120,9 @@ import cloud.offthe.otc.i18n.commonDone
 import cloud.offthe.otc.i18n.commonOk
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonTryAgain
+import cloud.offthe.otc.ui.gallery.DeleteRefusal
+import cloud.offthe.otc.ui.gallery.deleteRefusalNotes
+import cloud.offthe.otc.ui.settings.shownText
 import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
@@ -338,7 +341,7 @@ internal fun outOfImagesWait(task: SelectionActionTask): UiText = when (task) {
     SelectionActionTask.SHARE -> S.androidFilesWaitShareLink()
     SelectionActionTask.DOWNLOAD -> S.androidFilesWaitDownloadLink()
     // UNCOLLECT, NOT_PERSON, MOVE_PERSON and PERSON_COVER are Images' alone, never under way in Files.
-    SelectionActionTask.OUT_OF_IMAGES, SelectionActionTask.UNCOLLECT,
+    SelectionActionTask.OUT_OF_IMAGES, SelectionActionTask.UNCOLLECT, SelectionActionTask.DELETE,
     SelectionActionTask.NOT_PERSON, SelectionActionTask.MOVE_PERSON, SelectionActionTask.PERSON_COVER -> S.androidFilesWaitFolder()
 }
 
@@ -348,6 +351,21 @@ internal fun outOfImagesWait(task: SelectionActionTask): UiText = when (task) {
  * edited) is refused as "changed" rather than deleted unseen. A folder's
  * path goes alone, as before.
  */
+/**
+ * What Files says once a delete of the selection is done about the files
+ * still there ([kept]): Images' words (deleteRefusalNotes) - one in
+ * "Delete failed: …", several summed up - one per line; null when every
+ * one went.
+ */
+internal fun deleteKeptToast(kept: List<DeleteRefusal>): UiText? {
+    val notes = deleteRefusalNotes(kept)
+    return when (notes.size) {
+        0 -> null
+        1 -> notes[0]
+        else -> UiText.Raw(notes.joinToString("\n") { it.now() })
+    }
+}
+
 internal fun filesDelete(full: String, row: FileRow?): DelFile {
     val b = DelFile.newBuilder().setPath(full)
     if (row != null && !row.isDir && row.raw.hash.isNotEmpty()) b.hash = row.raw.hash
@@ -1136,36 +1154,51 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val rows = _state.value.rows
         val selected = _state.value.selected.toList()
         val folder = path
+        // One at a time, the bar waiting meanwhile (its Delete a spinner): a
+        // second Delete sent the same paths again.
+        if (selected.isEmpty() || _state.value.preparing != null) return
+        _state.update { it.copy(preparing = SelectionActionTask.DELETE) }
         viewModelScope.launch {
             // The photos and videos among the files the device deleted, as
             // their rows showed them (no copies counted in Files).
             val gone = mutableListOf<DeletedOnDevice>()
-            for (p in selected) {
-                try {
-                    val full = if (p.contains("/")) p else joinPath(folder, p)
-                    val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
-                    if (resp.error && resp.errorCode == "upload_only") {
-                        showToast(S.appFilesDeleteRefused(leafName(full)))
-                        break
+            // Those still there, and why: said once all are done, as Images
+            // says them (a delete that failed used to say nothing at all).
+            val kept = mutableListOf<DeleteRefusal>()
+            try {
+                for (p in selected) {
+                    try {
+                        val full = if (p.contains("/")) p else joinPath(folder, p)
+                        val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
+                        if (resp.error && resp.errorCode == "upload_only") {
+                            showToast(S.appFilesDeleteRefused(leafName(full)))
+                            break
+                        }
+                        // Refused - issue #201's "changed" (the file holds other
+                        // content than the row showed; the folder is listed
+                        // again below), or anything else: the device's words.
+                        if (resp.error) {
+                            kept += DeleteRefusal(resp.errorCode, resp.errorMessage)
+                            continue
+                        }
+                        // A file gone from the device: its thumbnail goes from the
+                        // phone's cache too (a folder's contents aren't followed).
+                        rows.firstOrNull { it.path == p && !it.isDir }?.raw?.let { f ->
+                            if (f.hash.isNotEmpty()) ThumbStore.discard(f.hash)
+                            if (DeletePhoneCopy.isMedia(f.mime)) gone += DeletedOnDevice(f.hash, null, false)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // No answer (no connection, none in time): why, in the phone's words.
+                        kept += DeleteRefusal("", e.shownText()?.now() ?: e.javaClass.simpleName)
                     }
-                    // Issue #201: the file holds other content than the row
-                    // showed: nothing was deleted - the device says so, and the
-                    // folder is listed again below.
-                    if (resp.error && resp.errorCode == "changed") {
-                        showToast(deviceSays(resp.errorMessage) { S.appPhotosNoticeDeleteFailed(resp.errorCode) })
-                        continue
-                    }
-                    // A file gone from the device: its thumbnail goes from the
-                    // phone's cache too (a folder's contents aren't followed).
-                    if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.let { f ->
-                        if (f.hash.isNotEmpty()) ThumbStore.discard(f.hash)
-                        if (DeletePhoneCopy.isMedia(f.mime)) gone += DeletedOnDevice(f.hash, null, false)
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {}
+                }
+                if (gone.isNotEmpty()) DeletePhoneCopyModel.deleted(gone)
+                deleteKeptToast(kept)?.let { showToast(it) }
+            } finally {
+                _state.update { it.copy(preparing = null) }
             }
-            if (gone.isNotEmpty()) DeletePhoneCopyModel.deleted(gone)
             load()
         }
     }

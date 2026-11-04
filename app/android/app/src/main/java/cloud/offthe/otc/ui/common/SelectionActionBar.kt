@@ -69,7 +69,11 @@ import cloud.offthe.otc.i18n.commonShare
 import cloud.offthe.otc.i18n.commonUpload
 
 /** Which action is waiting on the device, if any. */
-enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON, PERSON_COVER }
+enum class SelectionActionTask {
+    SHARE, DOWNLOAD, OUT_OF_IMAGES, UNCOLLECT, NOT_PERSON, MOVE_PERSON, PERSON_COVER,
+    /** Deleting the selection, one item at a time: through the bridge a few hundred take minutes, and a second Delete meanwhile sent the same paths again. */
+    DELETE,
+}
 
 // One item of the bar, as it is drawn.
 private class BarItem(
@@ -136,7 +140,10 @@ fun SelectionActionBar(
             S.appShellMoveToPerson().resolve(), NavIcons.MoveToPerson, count > 0 && busy == null, onMoveToPerson,
             busy = busy == SelectionActionTask.MOVE_PERSON,
         ))
-        add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
+        add(BarItem(
+            S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete,
+            busy = busy == SelectionActionTask.DELETE, tint = MaterialTheme.colorScheme.error,
+        ))
     }
     BoxWithConstraints {
         // Five or six items share a phone's width, and a label word wider

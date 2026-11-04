@@ -4621,10 +4621,10 @@ answer, `app.social.friends.load_failed` with Try again when the answer was an e
 at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
 iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
 multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold the selection bar,
-its Delete a spinner, until every delete is done (iOS `SelectionActionTask.delete`): through the
-bridge a few hundred take minutes, and a second Delete sent the same paths again; Files says what
-wasn't deleted as Images does (`DeleteCopies.keptText`: the device's words, or why no answer came) -
-it said nothing at all. Android only: the "isn't available"/"can't connect"
+its Delete a spinner, until every delete is done (`SelectionActionTask.delete` / `DELETE`): through
+the bridge a few hundred take minutes, and a second Delete sent the same paths again; Files says
+what wasn't deleted as Images does (iOS `DeleteCopies.keptText`, Android `deleteKeptToast` over
+`deleteRefusalNotes`: the device's words, or why no answer came) - it said nothing at all. Android only: the "isn't available"/"can't connect"
 cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
 through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. Its
 colours read at 4.5:1 (`ui/theme/Theme.kt`, `ThemeContrastTest.kt`): light mode's accent is ember

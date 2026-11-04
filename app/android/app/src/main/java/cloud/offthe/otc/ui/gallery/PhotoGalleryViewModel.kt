@@ -2932,10 +2932,20 @@ class PhotoGalleryViewModel(
      * photos asked for again - at the jump after one - with the months and
      * the open collection's count; else what was deleted updates them.
      */
-    fun deleteSelected(everyCopy: Boolean = false) = scope.launch {
+    fun deleteSelected(everyCopy: Boolean = false): Job? {
         val st = _state.value
         val paths = st.selected.toList()
-        if (paths.isEmpty()) return@launch
+        // One at a time: a second Delete while one runs sent the same paths
+        // again, and the refusals for those already gone read as failures.
+        if (paths.isEmpty() || st.preparing != null) return null
+        // The bar waits, its Delete a spinner, until every one is done.
+        _state.update { it.copy(preparing = SelectionActionTask.DELETE) }
+        return scope.launch {
+            try { deleteEach(st, paths, everyCopy) } finally { _state.update { it.copy(preparing = null) } }
+        }
+    }
+
+    private suspend fun deleteEach(st: State, paths: List<String>, everyCopy: Boolean) {
         // A pick no longer on the grid (a jump or a reload since): as it was last shown.
         val shown = pickedByPath(st.items, pickedAway, st.selected)
         val deleted = mutableSetOf<String>()
