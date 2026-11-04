@@ -3068,7 +3068,18 @@ clears: nobody can make an admin). Every per-address throttle (both sign-in limi
 emails, sign-in starts, the
 contact and claim cooldowns, one-off GETs, setup beacons, pairing) counts `clientaddr.Bucket`: an
 IPv4 address, or an IPv6 /64, which one host can rotate through; logs, `BridgeClientInfo` and stored
-rows keep the address itself. The account sign-in's, sign-up's and email 429s carry Retry-After,
+rows keep the address itself. Since a /48 (free from tunnel brokers) is 65,536 such buckets, sign-ups,
+failed passwords, the "send me an email" requests and the contact form are also bounded per network
+(`clientaddr.NetBucket`: an IPv4 /24, an IPv6 /48 - 20 sign-ups an hour, 40 failed passwords in 10
+minutes, 30 emails an hour, 5 messages a minute) and on the whole node (120 sign-ups an hour; 120
+emails an hour that strangers can have sent, `emailBudget`, the new-account note dropped first; 30
+contact messages a minute); and at most half the cores hash passwords at once
+(`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
+is a 503 with Retry-After and the handler's own "could not ... right now" code, never a failed
+password. A confirmation or reset email greets the account by name only once its address is
+proven (`greetingName`): whoever signs up types the name and picks the address. The contact and
+claim cooldowns, and the admin login's limiter, are swept on a timer (or as the map doubles), not
+at every request. The account sign-in's, sign-up's and email 429s carry Retry-After,
 as the admin login's does. Proxied device responses go out through `limits.WriteAll`
 (deadline renewed
 per 32 KiB: 30 s for static assets, `cMediaWriteStall` 5 min for media, since paused players stop
@@ -4545,7 +4556,7 @@ Bluetooth, a Location hint below Android 12 and `Phase.ScanFailed` with Try agai
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
 `ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components; bridge - no `interpolateParams`,
-`admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
+`Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
 Mac, no `usePageRetry` in the web's Social feed or `DevicePhotoPicker`.

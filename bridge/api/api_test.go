@@ -789,3 +789,61 @@ func TestSetupTokenDatabaseErrorsAreTryAgain(t *testing.T) {
 		t.Errorf("unexpected DB activity: %v", err)
 	}
 }
+
+// The contact form's cooldown is per address (an IPv6 /64), so it is also
+// bounded per network (a /48 is 65,536 of them) and on the whole node:
+// past either, a 429 with Retry-After, nothing stored. The cooldowns are
+// swept on a timer, not at every message.
+func TestContactIsBoundedPerNetworkAndNode(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{},
+		contactPerNet: limits.NewRate(1.0/60, 2), contactAll: limits.NewRate(1.0/60, 3)}
+	contact := func(remote string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/contact", strings.NewReader(`{"name":"a","email":"a@b.c","message":"hi"}`))
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		api.submitContact(rec, req)
+		return rec
+	}
+	stored := func() { mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1)) }
+	stored()
+	stored()
+	for i, remote := range []string{"[2001:db8:1:1::1]:1", "[2001:db8:1:2::1]:1"} {
+		if rec := contact(remote); rec.Code != http.StatusCreated {
+			t.Fatalf("message %d of the /48: %d", i, rec.Code)
+		}
+	}
+	if rec := contact("[2001:db8:1:3::1]:1"); rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("a third /64 of the /48: %d, Retry-After %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	stored()
+	if rec := contact("198.51.100.4:1"); rec.Code != http.StatusCreated {
+		t.Errorf("another network: %d", rec.Code)
+	}
+	if rec := contact("192.0.2.9:1"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("past the node's cap: %d", rec.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+
+	// The sweep: not before cCooldownSweepEvery, then everything past the
+	// map's TTL goes.
+	now := time.Now()
+	m := map[string]time.Time{"old": now.Add(-cContactMapTTL - time.Minute), "new": now}
+	var c cooldownSweep
+	c.sweep(m, now)
+	m["older"] = now.Add(-cContactMapTTL - time.Minute)
+	c.sweep(m, now.Add(time.Second))
+	if _, ok := m["older"]; !ok || len(m) != 2 {
+		t.Errorf("swept again a second later: %v", m)
+	}
+	c.sweep(m, now.Add(cCooldownSweepEvery))
+	if _, ok := m["older"]; ok || len(m) != 1 {
+		t.Errorf("after cCooldownSweepEvery: %v", m)
+	}
+}

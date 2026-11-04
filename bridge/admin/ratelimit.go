@@ -38,6 +38,11 @@ const (
 	// a long spray across many source addresses can't grow the map without
 	// bound.
 	cLimiterEntryTTL = time.Hour
+	// The sweep runs at most once every cLimiterSweepEvery, or sooner once
+	// the map holds cLimiterSweepAt entries and has doubled since the last
+	// one: a scan of every entry on every attempt cost a spray O(n) each.
+	cLimiterSweepEvery = time.Minute
+	cLimiterSweepAt    = 10000
 )
 
 type attemptRecord struct {
@@ -50,6 +55,9 @@ type attemptRecord struct {
 type loginLimiter struct {
 	mu   sync.Mutex
 	byIP map[string]*attemptRecord
+	// swept is when purgeLocked last scanned, kept the map's size after.
+	swept time.Time
+	kept  int
 }
 
 func newLoginLimiter() *loginLimiter {
@@ -121,9 +129,15 @@ func (l *loginLimiter) recordSuccess(ip string) {
 	delete(l.byIP, ip)
 }
 
-// purgeLocked drops entries nothing has touched for cLimiterEntryTTL.
-// Callers must hold l.mu.
+// purgeLocked drops entries nothing has touched for cLimiterEntryTTL, at
+// most once a cLimiterSweepEvery unless the map has grown (see the
+// constants). Callers must hold l.mu.
 func (l *loginLimiter) purgeLocked(now time.Time) {
+	if now.Sub(l.swept) < cLimiterSweepEvery && len(l.byIP) < max(cLimiterSweepAt, 2*l.kept) {
+		return
+	}
+	l.swept = now
+	defer func() { l.kept = len(l.byIP) }()
 	for ip, rec := range l.byIP {
 		if now.Sub(rec.lastSeen) > cLimiterEntryTTL && now.After(rec.lockedUntil) {
 			delete(l.byIP, ip)

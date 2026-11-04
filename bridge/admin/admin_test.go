@@ -94,10 +94,10 @@ func TestPasswordHashRoundTrip(t *testing.T) {
 		t.Fatalf("hashPassword failed: %v", err)
 	}
 
-	if !checkPassword(hash, "correct horse battery staple") {
+	if ok, _ := checkPassword(hash, "correct horse battery staple"); !ok {
 		t.Error("expected the correct password to check out against its own hash")
 	}
-	if checkPassword(hash, "wrong password") {
+	if ok, _ := checkPassword(hash, "wrong password"); ok {
 		t.Error("expected an incorrect password to fail the check")
 	}
 }
@@ -447,7 +447,10 @@ func TestAdminLoginTimingMatchesForUnknownUsers(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("login: %d %s", w.Code, w.Body)
 	}
-	if cost, err := bcrypt.Cost([]byte(rehashed)); err != nil || cost != limits.BcryptCost || !checkPassword(rehashed, "the-real-password") {
+	if ok, _ := checkPassword(rehashed, "the-real-password"); !ok {
+		t.Error("the rehash doesn't take the password")
+	}
+	if cost, err := bcrypt.Cost([]byte(rehashed)); err != nil || cost != limits.BcryptCost {
 		t.Errorf("rehashed to cost %d (%v)", cost, err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -575,8 +578,11 @@ func TestSetPasswordHoldsThePanelsRules(t *testing.T) {
 	for _, good := range []string{strings.Repeat("x", cMinPasswordLen), strings.Repeat("x", 72)} {
 		var stored string
 		mock.ExpectExec("insert into `admin_users`").WithArgs("admin", hashArg{&stored}).WillReturnResult(sqlmock.NewResult(0, 1))
-		if err := a.SetPassword("admin", good); err != nil || !checkPassword(stored, good) {
+		if err := a.SetPassword("admin", good); err != nil {
 			t.Errorf("a %d-byte password: %v", len(good), err)
+		}
+		if ok, _ := checkPassword(stored, good); !ok {
+			t.Errorf("a %d-byte password: what was stored doesn't take it", len(good))
 		}
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

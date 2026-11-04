@@ -141,6 +141,8 @@ type Accounts struct {
 
 	// mailer sends verification and reset emails; nil without [smtp].
 	mailer *mailer.Mailer
+	// send stands in for the mailer's Send in the link emails (tests).
+	send func(to, subject, body string) error
 	// emailsPerAddr limits the "send me an email" requests per address.
 	emailsPerAddr *limits.Rate
 
@@ -148,9 +150,22 @@ type Accounts struct {
 	failures  map[string][]time.Time
 	// failuresKept is the failures map's size after its last sweep.
 	failuresKept int
+	// netFailures counts the failed passwords per network (an IPv4 /24,
+	// an IPv6 /48): one host's bucket bounds a guesser on one /64 only.
+	// Under limiterMu too.
+	netFailures failureLog
 	// signups limits account creation per address (issue #163): each is
-	// a bcrypt, and each answer says whether an email has an account.
-	signups *limits.Rate
+	// a bcrypt, and each answer says whether an email has an account;
+	// signupsPerNet per network and signupsAll on the whole node, so that
+	// many /64s of one /48, or many networks, can't sign up by the
+	// hundred thousand (each sign-up also sends two emails).
+	signups, signupsPerNet, signupsAll *limits.Rate
+	// emailsPerNet is emailsPerAddr per network; emailBudget bounds, on
+	// the whole node, the emails a stranger can have the bridge send (a
+	// sign-up's confirmation, a resend, a reset, the new-account note):
+	// past it they wait, rather than the mail account being throttled or
+	// suspended for spam and every email stopping.
+	emailsPerNet, emailBudget *limits.Rate
 	// oauthStarts limits sign-in starts per address: each one inserts an
 	// oauth_states row.
 	oauthStarts *limits.Rate
@@ -185,7 +200,11 @@ func Init(d *dao.Dao, sessionSecret []byte, tld string) *Accounts {
 		providers:        map[string]*provider{},
 		failures:         map[string][]time.Time{},
 		signups:          limits.NewRate(cSignupsPerHour/3600.0, cSignupsPerHour),
+		signupsPerNet:    limits.NewRate(cSignupsPerNetPerHour/3600.0, cSignupsPerNetPerHour),
+		signupsAll:       limits.NewRate(cSignupsAllPerHour/3600.0, cSignupsAllBurst),
 		emailsPerAddr:    limits.NewRate(cEmailsPerHour/3600.0, cEmailsPerHour),
+		emailsPerNet:     limits.NewRate(cEmailsPerNetPerHour/3600.0, cEmailsPerNetPerHour),
+		emailBudget:      limits.NewRate(cEmailBudgetPerHour/3600.0, cEmailBudgetBurst),
 		oauthStarts:      limits.NewRate(cOAuthStartsPerMinute/60.0, cOAuthStartsPerMinute),
 	}
 	a.loadProviders()
@@ -202,6 +221,7 @@ func (a *Accounts) pruneLoop() {
 		}
 		a.limiterMu.Lock()
 		a.pruneFailuresLocked(time.Now())
+		a.netFailures.prune(time.Now(), cLoginWindow)
 		a.limiterMu.Unlock()
 	}
 }
@@ -533,12 +553,13 @@ func (a *Accounts) loginAllowed(addr string, now time.Time) (ok bool, retryAfter
 	} else {
 		a.failures[addr] = recent
 	}
-	if len(recent) < cLoginFailures {
-		return true, 0
+	if len(recent) >= cLoginFailures {
+		// Free again once fewer than cLoginFailures are in the window: when
+		// the oldest of the newest cLoginFailures leaves it.
+		return false, recent[len(recent)-cLoginFailures].Add(cLoginWindow).Sub(now)
 	}
-	// Free again once fewer than cLoginFailures are in the window: when
-	// the oldest of the newest cLoginFailures leaves it.
-	return false, recent[len(recent)-cLoginFailures].Add(cLoginWindow).Sub(now)
+	// The address's network, which many hosts share.
+	return a.netFailures.allowed(clientaddr.NetBucket(addr), now, cLoginNetFailures, cLoginWindow)
 }
 
 // loginFailed counts a wrong password from addr.
@@ -562,7 +583,83 @@ func (a *Accounts) loginFailed(addr string, now time.Time) {
 		a.pruneFailuresLocked(now)
 	}
 	a.failures[addr] = append(a.failures[addr], now)
+	a.netFailures.failed(clientaddr.NetBucket(addr), now, cLoginWindow)
 }
+
+// failureLog is failures' bookkeeping for another key (a network): each
+// key's failures in the window, never one in force dropped to make room,
+// stale keys swept once the map holds cFailuresSweepAt and then each time
+// it has doubled since. Its caller holds limiterMu.
+type failureLog struct {
+	m    map[string][]time.Time
+	kept int
+}
+
+// allowed is whether key has had fewer than limit failures in the window,
+// and if not how long until it has; a key without recent ones keeps no
+// entry.
+func (l *failureLog) allowed(key string, now time.Time, limit int, window time.Duration) (bool, time.Duration) {
+	recent := l.m[key][:0]
+	for _, t := range l.m[key] {
+		if now.Sub(t) < window {
+			recent = append(recent, t)
+		}
+	}
+	if len(recent) == 0 {
+		delete(l.m, key)
+	} else {
+		l.m[key] = recent
+	}
+	if len(recent) < limit {
+		return true, 0
+	}
+	return false, recent[len(recent)-limit].Add(window).Sub(now)
+}
+
+// failed counts a failure for key.
+func (l *failureLog) failed(key string, now time.Time, window time.Duration) {
+	if l.m == nil {
+		l.m = map[string][]time.Time{}
+	}
+	if _, tracked := l.m[key]; !tracked && len(l.m) >= max(cFailuresSweepAt, 2*l.kept) {
+		l.prune(now, window)
+	}
+	l.m[key] = append(l.m[key], now)
+}
+
+// prune drops the keys whose failures are all older than the window.
+func (l *failureLog) prune(now time.Time, window time.Duration) {
+	for key, ts := range l.m {
+		if len(ts) == 0 || now.Sub(ts[len(ts)-1]) >= window {
+			delete(l.m, key)
+		}
+	}
+	l.kept = len(l.m)
+}
+
+// limitKey is a limit, and the key a request counts against it.
+type limitKey struct {
+	rate *limits.Rate
+	key  string
+}
+
+// takeAll takes a token from each limit (a nil one counts as free) for
+// its key, and says how long until the first that refused has one. Each
+// is asked only once the ones before it said yes.
+func takeAll(keys ...limitKey) (bool, time.Duration) {
+	for _, k := range keys {
+		if k.rate == nil {
+			continue
+		}
+		if ok, wait := k.rate.Take(k.key); !ok {
+			return false, wait
+		}
+	}
+	return true, 0
+}
+
+// cAll is the one key of a node-wide limit.
+const cAll = "*"
 
 // pruneFailuresLocked drops the addresses whose failures are all older
 // than the window, which loginAllowed would ignore anyway. The caller
@@ -698,16 +795,27 @@ func newPasswordRefused(w http.ResponseWriter, password string) bool {
 	return false
 }
 
+// hashRefused answers a request whose password hashing failed: busy (the
+// node is hashing all it may, limits.ErrBusy) is a 503 to try again in a
+// moment, anything else a 500; both with the handler's own "could not ...
+// right now" code and text.
+func hashRefused(w http.ResponseWriter, err error, code string, text i18n.Msg) {
+	status := http.StatusInternalServerError
+	if errors.Is(err, limits.ErrBusy) {
+		status = http.StatusServiceUnavailable
+		limits.RetryAfter(w, limits.HashRetryAfter)
+	}
+	writeError(w, status, code, errorText(text))
+}
+
 // Signup creates an email+password account. POST /api/account/signup
 // {email, password, name, surname, country, accept_terms, lang}: lang,
 // optional, is the language of the page signing up (requestLanguage).
 func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
-	if a.signups != nil {
-		if ok, wait := a.signups.Take(clientIP(r)); !ok {
-			limits.RetryAfter(w, wait)
-			writeError(w, http.StatusTooManyRequests, "too_many_signups", errorText(i18n.ApiErrorTooManySignups()))
-			return
-		}
+	if ok, wait := takeAll(limitKey{a.signups, clientIP(r)}, limitKey{a.signupsPerNet, clientaddr.NetBucketOf(r)}, limitKey{a.signupsAll, cAll}); !ok {
+		limits.RetryAfter(w, wait)
+		writeError(w, http.StatusTooManyRequests, "too_many_signups", errorText(i18n.ApiErrorTooManySignups()))
+		return
 	}
 	var body struct {
 		Email, Password, Name, Surname, Country string
@@ -745,9 +853,9 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "email_taken", errorText(i18n.ApiErrorEmailTaken()))
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
+	hash, err := limits.HashPassword(body.Password)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "signup_unavailable", errorText(i18n.ApiErrorSignupUnavailable()))
+		hashRefused(w, err, "signup_unavailable", i18n.ApiErrorSignupUnavailable())
 		return
 	}
 	now := time.Now()
@@ -756,7 +864,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	lang := requestLanguage(body.Lang, r)
 	acc := dao.Account{
 		ID: uuid.New().String(), Email: email, Name: name, Surname: surname, Country: country,
-		PasswordHash: string(hash), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0),
+		PasswordHash: hash, Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0),
 		TermsVersion: TermsVersion, TermsAcceptedAt: now, Lang: lang,
 	}
 	if err := a.dao.CreateAccount(&acc); err != nil {
@@ -792,8 +900,21 @@ var dummyHash = func() string {
 	return string(h)
 }()
 
-// cSignupsPerHour bounds account creation per address.
-const cSignupsPerHour = 5
+// cSignupsPerHour bounds account creation per address,
+// cSignupsPerNetPerHour per network (an IPv4 /24, an IPv6 /48), and
+// cSignupsAllPerHour on the whole node (with room for cSignupsAllBurst at
+// once).
+const (
+	cSignupsPerHour       = 5
+	cSignupsPerNetPerHour = 20
+	cSignupsAllPerHour    = 120
+	cSignupsAllBurst      = 60
+)
+
+// cLoginNetFailures failed passwords from one network in cLoginWindow lock
+// it out for the window, as cLoginFailures do one address: a guesser
+// rotating through the /64s of a /48 was never counted as one.
+const cLoginNetFailures = 40
 
 // cOAuthStartsPerMinute bounds Google/Apple sign-in starts per address: a
 // person starts one per attempt, a NAT or an office a few more.
@@ -821,12 +942,17 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// bcrypt runs either way, so the timing says nothing about whether the
-	// email exists.
+	// email exists. Busy is no failure: nothing was checked.
 	hash := dummyHash
 	if acc != nil && acc.PasswordHash != "" {
 		hash = acc.PasswordHash
 	}
-	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(body.Password)) != nil || acc == nil || acc.PasswordHash == "" {
+	match, err := limits.CheckPassword(hash, body.Password)
+	if err != nil {
+		hashRefused(w, err, "signin_unavailable", i18n.ApiErrorSigninUnavailable())
+		return
+	}
+	if !match || acc == nil || acc.PasswordHash == "" {
 		a.loginFailed(ip, now)
 		// The same answer whether or not the email has an account, or
 		// one without a password (issue #163).
@@ -836,8 +962,8 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	// The address's failures stay, to age out (see "Login throttling").
 	// Older hashes move to the current cost while the password is at hand.
 	if cost, err := bcrypt.Cost([]byte(acc.PasswordHash)); err == nil && cost < limits.BcryptCost {
-		if h, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost); err == nil {
-			if err := a.dao.SetAccountPassword(acc.ID, string(h)); err != nil {
+		if h, err := limits.HashPassword(body.Password); err == nil {
+			if err := a.dao.SetAccountPassword(acc.ID, h); err != nil {
 				log.Error("error rehashing a password:", err)
 			}
 		}
@@ -1030,7 +1156,12 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return
 		}
-		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(body.Current)) != nil {
+		match, err := limits.CheckPassword(acc.PasswordHash, body.Current)
+		if err != nil {
+			hashRefused(w, err, "save_unavailable", i18n.ApiErrorSaveUnavailable())
+			return
+		}
+		if !match {
 			a.loginFailed(ip, now)
 			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPasswordCurrent()))
 			return
@@ -1045,13 +1176,13 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequiredProvider()))
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
+	hash, err := limits.HashPassword(body.Password)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
+		hashRefused(w, err, "save_unavailable", i18n.ApiErrorSaveUnavailable())
 		return
 	}
 	// One statement: never a new password with the old sessions still on.
-	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, string(hash))
+	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, hash)
 	if err != nil {
 		log.Error("error setting a password:", err)
 		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
@@ -1080,7 +1211,12 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return false
 		}
-		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(password)) != nil {
+		match, err := limits.CheckPassword(acc.PasswordHash, password)
+		if err != nil {
+			hashRefused(w, err, "account_check_unavailable", i18n.ApiErrorAccountCheckUnavailable())
+			return false
+		}
+		if !match {
 			a.loginFailed(ip, now)
 			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPassword()))
 			return false
@@ -1316,6 +1452,15 @@ const (
 	cResendOnSetupIn = 10 * time.Minute
 )
 
+// The "send me an email" requests per network, and on the whole node the
+// emails a stranger can have sent (emailBudget), with room for
+// cEmailBudgetBurst at once.
+const (
+	cEmailsPerNetPerHour = 30
+	cEmailBudgetPerHour  = 120
+	cEmailBudgetBurst    = 40
+)
+
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
 
@@ -1355,6 +1500,11 @@ func (a *Accounts) notifyNewAccount(email string) {
 	if m == nil || m.Self() == "" {
 		return
 	}
+	// The first email to go when strangers send many: it is only news.
+	if !a.emailBudgetAllows() {
+		log.Info("the new-account note was not sent: the email budget is spent for now")
+		return
+	}
 	go func() {
 		if err := m.Send(m.Self(), "New account", email); err != nil { // i18n-ignore: an email to the project itself, read by its operators
 
@@ -1380,6 +1530,9 @@ func hashEmailToken(t string) string {
 // token rides in the URL's fragment, which a browser never sends to a
 // server: the account page reads it and posts it back.
 func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration, subject, body func(link string) string) error {
+	if a.send != nil {
+		return a.sendEmailLink(a.send, acc, purpose, ttl, subject, body)
+	}
 	if a.mailer == nil {
 		return mailer.ErrNotConfigured
 	}
@@ -1393,6 +1546,9 @@ func (a *Accounts) emailLink(acc *dao.Account, purpose string, ttl time.Duration
 func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc *dao.Account, purpose string, ttl time.Duration, subject, body func(link string) string) error {
 	if last, err := a.dao.LastEmailTokenSent(acc.ID, purpose); err == nil && time.Since(last) < cEmailEvery {
 		return nil // one is on its way already
+	}
+	if !a.emailBudgetAllows() {
+		return errEmailBudget
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
@@ -1420,10 +1576,13 @@ func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc 
 
 // sendVerification mails acc a link that confirms its email, in lang:
 // the account's language, or at sign-up the one chosen for it.
+// It greets no one by name until the address is proven (greetingName):
+// whoever signs up types the name, and the email goes to an address they
+// pick.
 func (a *Accounts) sendVerification(acc *dao.Account, lang string) error {
 	return a.emailLink(acc, cPurposeVerify, cVerifyTTL,
 		func(string) string { return verificationSubject(lang) },
-		func(link string) string { return a.verificationBody(lang, acc.Name, link) })
+		func(link string) string { return a.verificationBody(lang, a.greetingName(acc), link) })
 }
 
 // sendReset mails acc a password-reset link, in the account's language -
@@ -1431,7 +1590,7 @@ func (a *Accounts) sendVerification(acc *dao.Account, lang string) error {
 func (a *Accounts) sendReset(acc *dao.Account) error {
 	return a.emailLink(acc, cPurposeReset, cResetTTL,
 		func(string) string { return resetSubject(acc.Lang) },
-		func(link string) string { return a.resetBody(acc.Lang, acc.Name, link) })
+		func(link string) string { return a.resetBody(acc.Lang, a.greetingName(acc), link) })
 }
 
 // Verify confirms an email with the link's token. POST /api/account/verify
@@ -1462,15 +1621,24 @@ func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 // answering it with a 429 and its Retry-After when the address has asked
 // for too many.
 func (a *Accounts) emailAllowed(w http.ResponseWriter, r *http.Request) bool {
-	if a.emailsPerAddr == nil {
-		return true
-	}
-	ok, wait := a.emailsPerAddr.Take(clientIP(r))
+	ok, wait := takeAll(limitKey{a.emailsPerAddr, clientIP(r)}, limitKey{a.emailsPerNet, clientaddr.NetBucketOf(r)})
 	if !ok {
 		limits.RetryAfter(w, wait)
 		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
 	}
 	return ok
+}
+
+// errEmailBudget: the node has sent all the emails strangers may have it
+// send for now (emailBudget).
+var errEmailBudget = errors.New("the node's email budget is spent for now") // i18n-ignore: compared with errors.Is, never sent
+
+// cEmailBudgetRetry is the Retry-After of a request refused for it.
+const cEmailBudgetRetry = time.Minute
+
+// emailBudgetAllows takes one email from the node's budget.
+func (a *Accounts) emailBudgetAllows() bool {
+	return a.emailBudget == nil || a.emailBudget.Allow(cAll)
 }
 
 // ResendVerification mails a new verification link to the signed-in
@@ -1488,7 +1656,11 @@ func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, ac
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 		return
 	}
-	if err := a.sendVerification(acc, acc.Lang); err != nil {
+	if err := a.sendVerification(acc, acc.Lang); errors.Is(err, errEmailBudget) {
+		limits.RetryAfter(w, cEmailBudgetRetry)
+		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
+		return
+	} else if err != nil {
 		log.Error("could not send a verification email for", acc.ID, ":", err)
 		writeError(w, http.StatusInternalServerError, "email_send_unavailable", errorText(i18n.ApiErrorEmailSendUnavailableEmail()))
 		return
@@ -1540,15 +1712,15 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "reset_link_invalid", errorText(i18n.ApiErrorResetLinkInvalid()))
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
+	hash, err := limits.HashPassword(body.Password)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
+		hashRefused(w, err, "reset_unavailable", i18n.ApiErrorResetUnavailable())
 		return
 	}
 	// One transaction: the link is spent only with the new password
 	// stored, the email proven and every other session ended (a reset is
 	// often for a stolen session). A failure leaves the link working.
-	id, epoch, ok, err := a.dao.ResetPasswordWithToken(h, cPurposeReset, string(hash))
+	id, epoch, ok, err := a.dao.ResetPasswordWithToken(h, cPurposeReset, hash)
 	if err != nil {
 		log.Error("error resetting a password:", err)
 		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))

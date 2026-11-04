@@ -127,9 +127,11 @@ func verifySessionToken(secret []byte, token string, now time.Time) (username st
 // Password hashing
 // ---------------------------------------------------------------------
 
+// hashPassword and checkPassword go through the node's bound on password
+// hashing (limits.HashPassword, limits.CheckPassword): limits.ErrBusy when
+// it is hashing all it may.
 func hashPassword(plain string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(plain), limits.BcryptCost)
-	return string(hash), err
+	return limits.HashPassword(plain)
 }
 
 // adminDummyHash is compared against when the username is unknown, at the
@@ -142,8 +144,15 @@ var adminDummyHash = func() string {
 	return string(h)
 }()
 
-func checkPassword(hash, plain string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
+func checkPassword(hash, plain string) (bool, error) {
+	return limits.CheckPassword(hash, plain)
+}
+
+// writeBusy answers a request whose password check found the node hashing
+// all it may: try again in a moment.
+func writeBusy(w http.ResponseWriter) {
+	limits.RetryAfter(w, limits.HashRetryAfter)
+	writeError(w, http.StatusServiceUnavailable, "the bridge is busy right now, try again in a moment")
 }
 
 // SetPassword creates or updates an admin account. Exported so it can be
@@ -229,7 +238,12 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		hash = adminDummyHash
 	}
-	if !checkPassword(hash, body.Password) || !found {
+	match, err := checkPassword(hash, body.Password)
+	if err != nil {
+		writeBusy(w)
+		return
+	}
+	if !match || !found {
 		// Counted against the IP, not the username: a guesser picks the
 		// username, so counting per account would let them sidestep this
 		// by rotating it (and would hand anyone a way to lock the real
@@ -337,7 +351,17 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if !found || !checkPassword(hash, body.Current) {
+	if !found {
+		a.loginLimiter.recordFailure(ip, now)
+		writeError(w, http.StatusUnauthorized, "the current password is wrong")
+		return
+	}
+	match, err := checkPassword(hash, body.Current)
+	if err != nil {
+		writeBusy(w)
+		return
+	}
+	if !match {
 		a.loginLimiter.recordFailure(ip, now)
 		writeError(w, http.StatusUnauthorized, "the current password is wrong")
 		return
@@ -348,6 +372,10 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newHash, err := hashPassword(body.New)
+	if errors.Is(err, limits.ErrBusy) {
+		writeBusy(w)
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not change the password right now")
 		return

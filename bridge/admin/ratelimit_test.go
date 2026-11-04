@@ -173,3 +173,33 @@ func TestClientIPBucketsAnIPv6SlashSixtyFour(t *testing.T) {
 		t.Errorf("two /64s share the bucket %q", a)
 	}
 }
+
+// The idle entries are swept at most once a cLimiterSweepEvery - an
+// attempt no longer scans every address - and sooner only once the map
+// has doubled.
+func TestLimiterSweepsOnATimer(t *testing.T) {
+	l := newLoginLimiter()
+	now := time.Now()
+	l.recordFailure("10.0.0.1", now)
+	later := now.Add(cLimiterEntryTTL + time.Minute)
+	l.recordFailure("10.0.0.2", later) // sweeps: 10.0.0.1 has been idle long enough
+	l.recordFailure("10.0.0.3", later)
+	l.mu.Lock()
+	l.byIP["10.0.0.4"] = &attemptRecord{lastSeen: now}
+	l.mu.Unlock()
+	l.allow("10.0.0.2", later.Add(time.Second))
+	l.mu.Lock()
+	_, kept := l.byIP["10.0.0.4"]
+	l.mu.Unlock()
+	if !kept {
+		t.Error("swept again a second after the last sweep")
+	}
+	l.allow("10.0.0.2", later.Add(cLimiterSweepEvery))
+	l.mu.Lock()
+	_, kept = l.byIP["10.0.0.4"]
+	n := len(l.byIP)
+	l.mu.Unlock()
+	if kept || n != 2 {
+		t.Errorf("after cLimiterSweepEvery: idle entry kept %v, %d entries", kept, n)
+	}
+}

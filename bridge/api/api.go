@@ -68,6 +68,15 @@ const (
 	cSetupTokenMaxLen = 128
 )
 
+// cContactPerNetPerMinute (with room for cContactPerNetBurst at once) and
+// cContactAllPerMinute bound the accepted contact messages per network and
+// on the whole node.
+const (
+	cContactPerNetPerMinute = 5
+	cContactPerNetBurst     = 10
+	cContactAllPerMinute    = 30
+)
+
 // cNamePattern is a valid device name (accounts.NamePattern).
 var cNamePattern = accounts.NamePattern
 
@@ -91,9 +100,16 @@ type API struct {
 
 	contactMu         sync.Mutex
 	lastContactByAddr map[string]time.Time
+	contactSweep      cooldownSweep
+	// contactPerNet and contactAll bound the accepted contact messages per
+	// network (an IPv4 /24, an IPv6 /48) and on the whole node: each is a
+	// row of up to 4 KB in the primary and a line in the admin's Messages
+	// tab, and one /48 holds 65,536 /64s, each a cooldown of its own.
+	contactPerNet, contactAll *limits.Rate
 
 	claimMu         sync.Mutex
 	lastClaimByAddr map[string]time.Time
+	claimSweep      cooldownSweep
 	// tld is [otc-api] tld, read once at Init; device domains are <name>.<tld>.
 	tld string
 	// cluster is issue #144; nil on a single bridge.
@@ -165,6 +181,8 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	api = &API{
 		oneOffPerAddr:     limits.NewRate(cOneOffPerSecond, cOneOffBurst),
 		beaconPerAddr:     limits.NewRate(cSetupBeaconPerSecond, cSetupBeaconBurst),
+		contactPerNet:     limits.NewRate(cContactPerNetPerMinute/60.0, cContactPerNetBurst),
+		contactAll:        limits.NewRate(cContactAllPerMinute/60.0, cContactAllPerMinute),
 		websocket:         webSocket,
 		dao:               dao,
 		admin:             adm,
@@ -632,15 +650,26 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusTooManyRequests, "too_many_messages", errorText(i18n.ApiErrorTooManyMessages()))
 		return
 	}
-	api.lastContactByAddr[remoteAddr] = now
-	// Opportunistic cleanup: entries past the TTL aren't doing anything for
-	// the cooldown check above anymore, so drop them rather than letting
-	// this map grow for as long as the process runs.
-	for addr, t := range api.lastContactByAddr {
-		if now.Sub(t) > cContactMapTTL {
-			delete(api.lastContactByAddr, addr)
+	// Then the network's share, and the node's: past either, every
+	// address waits.
+	for _, k := range []struct {
+		rate *limits.Rate
+		key  string
+	}{{api.contactPerNet, clientaddr.NetBucketOf(r)}, {api.contactAll, "*"}} {
+		if k.rate == nil {
+			continue
+		}
+		if ok, wait := k.rate.Take(k.key); !ok {
+			api.contactMu.Unlock()
+			limits.RetryAfter(w, wait)
+			writeJSONErr(w, http.StatusTooManyRequests, "too_many_messages", errorText(i18n.ApiErrorTooManyMessages()))
+			return
 		}
 	}
+	api.lastContactByAddr[remoteAddr] = now
+	// Entries past the TTL do nothing for the cooldown any more: dropped,
+	// on a timer rather than a scan of the whole map per message.
+	api.contactSweep.sweep(api.lastContactByAddr, now)
 	api.contactMu.Unlock()
 
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
@@ -653,6 +682,34 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+}
+
+// cooldownSweep drops a cooldown map's entries older than cContactMapTTL
+// (which no longer hold anything back) at most once a cCooldownSweepEvery,
+// or once the map holds cCooldownSweepAt entries and has doubled since its
+// last sweep - never a scan of every address on every request. Its caller
+// holds the map's mutex.
+type cooldownSweep struct {
+	at   time.Time
+	kept int
+}
+
+const (
+	cCooldownSweepEvery = time.Minute
+	cCooldownSweepAt    = 10000
+)
+
+func (c *cooldownSweep) sweep(m map[string]time.Time, now time.Time) {
+	if now.Sub(c.at) < cCooldownSweepEvery && len(m) < max(cCooldownSweepAt, 2*c.kept) {
+		return
+	}
+	c.at = now
+	for addr, t := range m {
+		if now.Sub(t) > cContactMapTTL {
+			delete(m, addr)
+		}
+	}
+	c.kept = len(m)
 }
 
 // releaseCooldown undoes the cooldown stamped at `at` for a request that
@@ -793,11 +850,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.lastClaimByAddr[remoteAddr] = now
-	for addr, t := range api.lastClaimByAddr {
-		if now.Sub(t) > cContactMapTTL {
-			delete(api.lastClaimByAddr, addr)
-		}
-	}
+	api.claimSweep.sweep(api.lastClaimByAddr, now)
 	api.claimMu.Unlock()
 
 	domain := api.deviceDomain(name)
