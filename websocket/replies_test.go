@@ -208,6 +208,9 @@ var headEnglish = []struct {
 	{"dev.users.stop_failed", i18n.DevUsersStopFailed("kim", "boom"), fmt.Sprintf("could not stop %s's process: %v", "kim", "boom")},
 	{"dev.users.storage_dir_failed", i18n.DevUsersStorageDirFailed("boom"), fmt.Sprintf("creating storage directory: %v", "boom")},
 	{"dev.users.username_taken", i18n.DevUsersUsernameTaken(), "username already taken"},
+	// A username's length: new, so its English is the catalog's from the
+	// start.
+	{"dev.users.username_too_long", i18n.DevUsersUsernameTooLong(63), "username must be at most 63 characters long"},
 
 	{"dev.device.already_on_bridge", i18n.DevDeviceAlreadyOnBridge(), "this device is already on the bridge"},
 	{"dev.device.tagging_need_memory", i18n.DevDeviceTaggingNeedMemory(), "Image Tagging needs a device with at least 4 GB of memory"},

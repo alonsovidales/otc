@@ -8,5 +8,6 @@
   "dev.users.port_in_use": {"text": "le port {port} est déjà utilisé par un autre utilisateur"},
   "dev.users.stop_failed": {"text": "impossible d’arrêter le processus de {username} : {detail}"},
   "dev.users.storage_dir_failed": {"text": "création du dossier de stockage : {detail}"},
-  "dev.users.username_taken": {"text": "nom d’utilisateur déjà pris"}
+  "dev.users.username_taken": {"text": "nom d’utilisateur déjà pris"},
+  "dev.users.username_too_long": {"text": "le nom d’utilisateur ne peut pas dépasser {max} caractères"}
 }

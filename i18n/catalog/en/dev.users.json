@@ -8,5 +8,6 @@
   "dev.users.port_in_use": {"text": "port {port} is already in use by another user", "args": [["port", "text"]]},
   "dev.users.stop_failed": {"text": "could not stop {username}'s process: {detail}", "args": [["username", "text"], ["detail", "text"]]},
   "dev.users.storage_dir_failed": {"text": "creating storage directory: {detail}", "args": [["detail", "text"]]},
-  "dev.users.username_taken": {"text": "username already taken"}
+  "dev.users.username_taken": {"text": "username already taken"},
+  "dev.users.username_too_long": {"text": "username must be at most {max} characters long", "args": [["max", "int"]]}
 }

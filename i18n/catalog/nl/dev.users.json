@@ -8,5 +8,6 @@
   "dev.users.port_in_use": {"text": "poort {port} is al in gebruik door een andere gebruiker"},
   "dev.users.stop_failed": {"text": "kan het proces van {username} niet stoppen: {detail}"},
   "dev.users.storage_dir_failed": {"text": "aanmaken van de opslagmap mislukt: {detail}"},
-  "dev.users.username_taken": {"text": "de gebruikersnaam is al in gebruik"}
+  "dev.users.username_taken": {"text": "de gebruikersnaam is al in gebruik"},
+  "dev.users.username_too_long": {"text": "de gebruikersnaam mag hoogstens {max} tekens lang zijn"}
 }

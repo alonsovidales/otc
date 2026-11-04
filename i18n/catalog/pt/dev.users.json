@@ -8,5 +8,6 @@
   "dev.users.port_in_use": {"text": "a porta {port} já está a ser usada por outro utilizador"},
   "dev.users.stop_failed": {"text": "não foi possível parar o processo de {username}: {detail}"},
   "dev.users.storage_dir_failed": {"text": "não foi possível criar a pasta de armazenamento: {detail}"},
-  "dev.users.username_taken": {"text": "nome de utilizador já em uso"}
+  "dev.users.username_taken": {"text": "nome de utilizador já em uso"},
+  "dev.users.username_too_long": {"text": "o nome de utilizador pode ter no máximo {max} caracteres"}
 }

@@ -53,3 +53,8 @@ func DevUsersStorageDirFailed(detail string) Msg {
 func DevUsersUsernameTaken() Msg {
 	return Msg{Key: "dev.users.username_taken"}
 }
+
+// DevUsersUsernameTooLong is dev.users.username_too_long: "username must be at most {max} characters long".
+func DevUsersUsernameTooLong(max int) Msg {
+	return Msg{Key: "dev.users.username_too_long", Args: map[string]any{"max": int64(max)}}
+}

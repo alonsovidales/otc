@@ -46,5 +46,10 @@
   "dev.users.username_taken": {
     "text": "username already taken",
     "note": "Error in Settings > Users when adding a user with a username another user of this device already has."
+  },
+  "dev.users.username_too_long": {
+    "text": "username must be at most {max} characters long",
+    "args": [["max", "int"]],
+    "note": "Error in Settings > Users when adding a user whose username is too long. The username also becomes the start of the user's own address on the bridge, such as kim.anna.off-the.cloud. {max} is the most characters it may have (63)."
   }
 }

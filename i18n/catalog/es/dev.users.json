@@ -8,5 +8,6 @@
   "dev.users.port_in_use": {"text": "otro usuario ya usa el puerto {port}"},
   "dev.users.stop_failed": {"text": "no se ha podido detener el proceso de {username}: {detail}"},
   "dev.users.storage_dir_failed": {"text": "al crear la carpeta de almacenamiento: {detail}"},
-  "dev.users.username_taken": {"text": "ese nombre de usuario ya existe"}
+  "dev.users.username_taken": {"text": "ese nombre de usuario ya existe"},
+  "dev.users.username_too_long": {"text": "el nombre de usuario puede tener como máximo {max} caracteres"}
 }

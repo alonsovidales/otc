@@ -2055,7 +2055,12 @@ start takes its file.
   (`dao.OpenUserDatabase` + `session.New`) before its instance spawns, so nobody can claim the account
   by signing in first; the person changes it later with `ChangeKey`. `RespUsers.password_set` is set
   on every CreateUser answer of a device that knows the field - unset, an older device ignored the
-  password and the clients say the first sign-in sets it. A too-short first
+  password and the clients say the first sign-in sets it. `createUser` runs one at a time
+  (`createUsers`: two tabs adding one name both passed the checks), refuses a username over 63
+  characters - a DNS label, within `users.username` - before anything (`dev.users.username_too_long`),
+  and anything failing once the account's database is being made (half made too), its folder or its
+  row takes back what was made: the database and MySQL user (`DropUserDatabase`) and the storage
+  folder, which no row would otherwise name. A too-short first
   password is answered `Ack{Ok:false, ErrorMsg}` with **no code** - the phone apps take any sign-in
   code for the bridge's "device unreachable" and would keep retrying - undelayed and outside the
   lockout count (`AuthLimiter.Attempt`); `ChangeKey` answers `code = "password_too_short"`.

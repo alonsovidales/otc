@@ -4483,6 +4483,22 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 // prefix (see createUser), so it has to satisfy the same constraint.
 var usernameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// cMaxUsername is the longest username: a DNS label (the user's address
+// on the bridge starts with it) and within users.username's 64.
+const cMaxUsername = 63
+
+// createUsers serialises createUser: two Settings tabs adding the same
+// name (or taking the next free port) at once both passed the checks, and
+// the second failed on the users row, leaving what it had provisioned.
+var createUsers sync.Mutex
+
+// What createUser provisions with, and where; vars for tests.
+var (
+	provisionUserDatabase = dao.ProvisionUserDatabase
+	dropUserDatabase      = dao.DropUserDatabase
+	userStorageRoot       = "/mnt/storage"
+)
+
 // createUser (issue #82) orchestrates provisioning a brand new user end
 // to end: validate, generate identity, create its database (dao.
 // ProvisionUserDatabase also seeds its settings row), create its storage
@@ -4497,6 +4513,9 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if !usernameRe.MatchString(username) {
 		return nil, false, devtext.New(i18n.DevUsersBadUsername())
 	}
+	if len(username) > cMaxUsername {
+		return nil, false, devtext.New(i18n.DevUsersUsernameTooLong(cMaxUsername))
+	}
 	// Checked before anything is provisioned, so a password the device
 	// can't read or won't take leaves nothing to clean up.
 	var password string
@@ -4508,6 +4527,8 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 			return nil, false, session.ErrPasswordTooShort
 		}
 	}
+	createUsers.Lock()
+	defer createUsers.Unlock()
 	if taken, err := ch.mg.dao.IsUsernameTaken(username); err != nil {
 		return nil, false, err
 	} else if taken {
@@ -4546,8 +4567,12 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if err != nil {
 		return nil, false, err
 	}
-	storagePath := "/mnt/storage/user_" + id
-	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
+	storagePath := userStorageRoot + "/user_" + id
+	bridgeAddr := ""
+	if cfg.HasSection("otc") {
+		bridgeAddr = cfg.GetStr("otc", "bridge-addr")
+	}
+	subdomain := username + "." + bridgeAddr
 
 	// Issue #103: the address is registered on the bridge, under this
 	// device's account (issue #124), *before* provisioning a database, a
@@ -4572,14 +4597,27 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 		}()
 	}
 
-	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
+	// Anything that fails from here on, before the user's row is stored,
+	// takes back what was made for it - its database and MySQL user (even
+	// half made: dropped if they exist), its storage folder - which nothing
+	// would otherwise ever remove: no row names them. The name is new
+	// (a fresh uuid), so nothing else can be at either.
+	defer func() {
+		if err == nil || created {
+			return
+		}
+		if dropErr := dropUserDatabase(dbName, dbName); dropErr != nil {
+			log.Error("could not remove", username, "'s database after creating the user failed:", dropErr)
+		}
+		if rmErr := os.RemoveAll(storagePath); rmErr != nil {
+			log.Error("could not remove", username, "'s storage folder after creating the user failed:", rmErr)
+		}
+	}()
+	if err := provisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
 		return nil, false, err
 	}
 	if password != "" {
 		if err := setFirstPassword(dbName, dbPass, id, password); err != nil {
-			if dropErr := dao.DropUserDatabase(dbName, dbName); dropErr != nil {
-				log.Error("could not remove", username, "'s database after its password failed:", dropErr)
-			}
 			return nil, false, err
 		}
 	}

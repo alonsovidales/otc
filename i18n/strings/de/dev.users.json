@@ -39,5 +39,9 @@
   "dev.users.username_taken": {
     "text": "Benutzername bereits vergeben",
     "en": "username already taken"
+  },
+  "dev.users.username_too_long": {
+    "text": "der Benutzername darf höchstens {max} Zeichen lang sein",
+    "en": "username must be at most {max} characters long"
   }
 }
