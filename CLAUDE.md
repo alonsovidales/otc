@@ -2002,9 +2002,13 @@ start takes its file.
   new socket at their next request (signing in on it as before) and the apps sign in at once; through
   a bridge that only notices the relay gone at the client's next request, that request gets
   `device_unreachable` (hence the bridge's longer time). The device's own listener also takes at most
-  `cMaxAnonPerAddr` (256) sockets from one address (an IPv6 /64; `clientAddr`) before they sign in,
-  `cMaxAnonDirect` (2048) in all (`anonSlots`): past that `Listen` answers 503 before the upgrade, and
-  a connection stops counting once signed in. Both are counted in `anonLog`. `Listen` refuses another site's page with a 403 before
+  `cMaxAnonPerAddr` (256) sockets from one address (an IPv6 /64; `clientAddr`) before they sign in
+  (`anonSlots`): past that `Listen` answers 503 before the upgrade. Past `cMaxAnonDirect` (2048) in
+  all, a newcomer gets in and one socket is closed for it (`pushOut`): of the address holding the
+  most - the newcomer's own when it holds as many - the longest idle, one answering a request last.
+  Refusing every newcomer at the total let a few addresses keeping their sockets busy lock out the
+  owner's apps and pages, which open a socket before they sign in. A connection stops counting once
+  signed in. Refusals and closings are counted in `anonLog`. `Listen` refuses another site's page with a 403 before
   the upgrade (`origin.go`, `originAllowed`, also the upgrader's CheckOrigin): no Origin (apps,
   otc-sync, friends' devices), an Origin whose host is the request's Host when that is a name the
   device answers to (`deviceHost`: an address, a name with no dot, one ending in `cLocalSuffixes` -

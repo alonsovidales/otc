@@ -33,10 +33,14 @@ const (
 	// cAnonIdle: a connection that never signed in, closed once idle
 	// (anonWatch).
 	cAnonIdle = "connections closed idle before sign-in" // i18n-ignore: the log, in English
-	// cAnonTooMany: a socket refused because its address, or every
-	// address together, already holds as many as it may before signing in
-	// (anonSlots).
+	// cAnonTooMany: a socket refused because its address already holds
+	// as many as it may before signing in (anonSlots), or every address
+	// together does and none of theirs could be closed yet.
 	cAnonTooMany = "sockets refused, too many open before sign-in" // i18n-ignore: the log, in English
+	// cAnonPushedOut: a socket that hadn't signed in, closed to make room
+	// for one from another address once every address together held as
+	// many as they may (anonSlots.pushOut).
+	cAnonPushedOut = "connections closed before sign-in to make room for another address's" // i18n-ignore: the log, in English
 )
 
 // anonPanics lets one panic a minute from a connection that hasn't signed

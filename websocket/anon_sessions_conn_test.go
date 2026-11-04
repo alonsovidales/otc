@@ -174,3 +174,51 @@ func TestTooManySocketsBeforeSignInFromOneAddress(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// A few addresses keeping their sockets busy before sign-in fill the
+// device-wide total: a socket from another address - the owner's page at
+// home - still gets in and is answered, and one of theirs is closed for it.
+func TestBusyAddressesCantLockOutAnotherBeforeSignIn(t *testing.T) {
+	shortIdle(t, time.Minute)
+	directAnon = &anonSlots{perAddr: 2, total: 4}
+	url := anonServer(t, anonManager(), false)
+
+	from := func(addr string) http.Header {
+		// Over loopback, as Tailscale Funnel forwards (clientAddr).
+		h := http.Header{}
+		h.Set("X-Forwarded-For", addr)
+		return h
+	}
+	var theirs []*gorilla.Conn
+	for _, addr := range []string{"2001:db8:1::1", "2001:db8:1::2", "2001:db8:2::1", "2001:db8:2::2"} {
+		c, _, err := gorilla.DefaultDialer.Dial(url, from(addr))
+		if err != nil {
+			t.Fatal(addr, err)
+		}
+		defer c.Close()
+		theirs = append(theirs, c)
+	}
+	// Asking, as one keeping them open past the idle time would.
+	for _, c := range theirs {
+		if err := getProfile(t, c); err != nil {
+			t.Fatalf("closed while asking: %v", err)
+		}
+	}
+	mine, resp, err := gorilla.DefaultDialer.Dial(url, from("192.168.1.20"))
+	if err != nil {
+		t.Fatalf("another address was locked out: %v, %v", err, resp)
+	}
+	defer mine.Close()
+	if err := getProfile(t, mine); err != nil {
+		t.Fatalf("not answered: %v", err)
+	}
+	pushed := 0
+	for _, c := range theirs {
+		if closedWithin(c, 500*time.Millisecond) {
+			pushed++
+		}
+	}
+	if pushed != 1 {
+		t.Fatalf("%d of theirs closed, want 1", pushed)
+	}
+}

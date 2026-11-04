@@ -1090,7 +1090,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	// A socket that hasn't signed in holds one of its address's slots
 	// (anon_sessions.go) until it does or it ends: past them, refused
 	// before the upgrade.
-	release, ok := directAnon.take(clientAddr(r))
+	slot, ok := directAnon.take(clientAddr(r))
 	if !ok {
 		log.Debug("socket refused, too many open before sign-in from", clientAddr(r))
 		anonLog.note(cAnonTooMany)
@@ -1098,7 +1098,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
-	defer release()
+	defer slot.release()
 
 	conn, err := mg.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -1113,7 +1113,7 @@ func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
 	mg.activeConns.Add(1)
 	defer mg.activeConns.Add(-1)
 
-	mg.serve(conn, r, nil, release)
+	mg.serve(conn, r, nil, slot)
 }
 
 // connHandler holds one WebSocket connection's per-connection state.
@@ -5085,8 +5085,10 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 }
 
 // serve is serveConnection; anonSlot (Listen's, nil-safe) is given back
-// once the connection signs in or authenticates as a friend.
-func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), anonSlot func()) {
+// once the connection signs in or authenticates as a friend, and until
+// then the connection may be closed to make room for another address's
+// (anonSlots.pushOut).
+func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), anonSlot *anonSlot) {
 	ch := &connHandler{
 		mg:         mg,
 		fromBridge: r == nil,
@@ -5125,6 +5127,7 @@ func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), an
 	if r != nil {
 		idle.arm()
 	}
+	anonSlot.attach(closeConn, idle.activity)
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
 	// this connection left unfinished are let go once none of its requests
 	// is still running (a FinishUpload in flight still commits) - kept for
@@ -5155,7 +5158,7 @@ func (mg *Manager) serve(conn *gorilla.Conn, r *http.Request, onFirst func(), an
 		} else if anonSlot != nil {
 			// Signed in, or a friend: no longer one of its address's
 			// anonymous sockets.
-			anonSlot()
+			anonSlot.release()
 			anonSlot = nil
 		}
 		doneAnon := func() {
