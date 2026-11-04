@@ -3611,7 +3611,7 @@ whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app
 `xcodebuild test` launches it with the saved settings and may reach the live device;
 `SyncPathsTests` can run in a scratch SwiftPM package holding only `SyncPaths.swift` (module
 `OffTheCloud`), `LoginItemTests` likewise with only `LoginItem.swift` (a fake login item and a
-throwaway defaults suite), and `ChunkedUploadTests` (and `WSClientPinTests`, `WSClientStorageTests`)
+throwaway defaults suite), `FolderWatcherTests` with only `FolderWatcher.swift`, and `ChunkedUploadTests` (and `WSClientPinTests`, `WSClientStorageTests`)
 with `WSClient.swift`, `ChunkedUpload.swift`,
 `LocalRoute.swift`, `PwCrypto.swift`, `messages.pb.swift`, `i18n/*.swift` and an in-memory
 `Keychain` stand-in (SwiftProtobuf from the Xcode build's checkout, Swift 5 mode with the target's
