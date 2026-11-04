@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -32,13 +33,15 @@ import (
 // nothing. Same file on the Mac (SyncModel's SyncRecord).
 //
 //	{"v": 2, "device": {"domain": "cala.off-the.cloud", "pin": "<hex>"},
-//	 "root": "<token>", "mounts": ["nas"],
+//	 "root": "<token>", "mounts": ["nas"], "maybe_mounts": ["usb"],
 //	 "files": {"a/b.txt": "<sha-256>", ...}}
 //
 // And it says which folder here it was made with (folderMeta): the token
-// of the folder's marker file (rootid.go) and the folders below it that
-// are another disk or share mounted there (mounts.go). Those are true of
-// the folder whatever the device, and outlive a change of device.
+// of the folder's marker file (rootid.go), the folders below it that are
+// another disk or share mounted there (mounts.go), and those that looked
+// like one not mounted when a record from before "mounts" was first read
+// (maybeMounts). Those are true of the folder whatever the device, and
+// outlive a change of device.
 //
 // The file of an older version is the bare map; it is taken as the
 // configured device's, which is what it was until now. An older version
@@ -121,32 +124,37 @@ func (e *Engine) recordPinnedLocked(folderID string) bool {
 
 // syncRecord is the record file as it is written.
 type syncRecord struct {
-	V      int               `json:"v"`
-	Device recordDevice      `json:"device"`
-	Root   string            `json:"root,omitempty"`
-	Mounts []string          `json:"mounts,omitempty"`
-	Files  map[string]string `json:"files"`
+	V           int               `json:"v"`
+	Device      recordDevice      `json:"device"`
+	Root        string            `json:"root,omitempty"`
+	Mounts      []string          `json:"mounts,omitempty"`
+	MaybeMounts []string          `json:"maybe_mounts,omitempty"`
+	Files       map[string]string `json:"files"`
 }
 
 // folderMeta is what a record says about the folder here, whatever the
-// device: the token its marker file holds ("" before it had one) and the
+// device: the token its marker file holds ("" before it had one), the
 // folders below it that were another file system (relative to it,
-// slash-separated, as the disk spells them).
+// slash-separated, as the disk spells them), and the folders held as maybe
+// such a file system not mounted (keys; maybeMounts).
 type folderMeta struct {
-	Root   string
-	Mounts []string
+	Root        string
+	Mounts      []string
+	MaybeMounts []string
 }
 
 func (m folderMeta) equal(o folderMeta) bool {
-	return m.Root == o.Root && slices.Equal(m.Mounts, o.Mounts)
+	return m.Root == o.Root && slices.Equal(m.Mounts, o.Mounts) && slices.Equal(m.MaybeMounts, o.MaybeMounts)
 }
 
 // syncedFile is what loadSyncedLocked keeps of a folder's file: the device
-// it was made with (nil for an older version's file, which has none) and
-// what it says about the folder.
+// it was made with (nil for an older version's file, which has none), what
+// it says about the folder, and when the file was last written (zero once
+// this process wrote it: maybeMounts reads it only of an older version's).
 type syncedFile struct {
-	device *recordDevice
-	meta   folderMeta
+	device  *recordDevice
+	meta    folderMeta
+	written time.Time
 }
 
 func syncedPath(folderID string) (string, error) {
@@ -178,7 +186,7 @@ func parseRecordMeta(data []byte) (files map[string]string, device *recordDevice
 	if json.Unmarshal(data, &rec) == nil && rec.V == recordVersion && rec.Files != nil {
 		d := rec.Device
 
-		return nfcKeys(rec.Files), &d, folderMeta{Root: rec.Root, Mounts: rec.Mounts}, true
+		return nfcKeys(rec.Files), &d, folderMeta{Root: rec.Root, Mounts: rec.Mounts, MaybeMounts: rec.MaybeMounts}, true
 	}
 	var m map[string]string
 	if json.Unmarshal(data, &m) != nil || m == nil {
@@ -231,7 +239,11 @@ func (e *Engine) loadSyncedLocked(folderID string) {
 		return
 	}
 	e.lastSynced[folderID] = files
-	e.syncedFiles[folderID] = syncedFile{device: device, meta: meta}
+	sf := syncedFile{device: device, meta: meta}
+	if fi, err := os.Stat(p); err == nil {
+		sf.written = fi.ModTime()
+	}
+	e.syncedFiles[folderID] = sf
 	// What is on disk now: a pass that changes nothing doesn't rewrite it.
 	// An older version's file is rewritten once, with its device.
 	if device != nil {
@@ -242,11 +254,14 @@ func (e *Engine) loadSyncedLocked(folderID string) {
 }
 
 // recordedLocked is folder id's record as it is on disk, whatever device
-// it was made with, and what it says about the folder; e.mu must be held.
-func (e *Engine) recordedLocked(folderID string) (map[string]string, folderMeta) {
+// it was made with, what it says about the folder, and when the file was
+// written as this process read it (zero: not read from disk); e.mu must be
+// held.
+func (e *Engine) recordedLocked(folderID string) (map[string]string, folderMeta, time.Time) {
 	e.loadSyncedLocked(folderID)
+	sf := e.syncedFiles[folderID]
 
-	return e.lastSynced[folderID], e.syncedFiles[folderID].meta
+	return e.lastSynced[folderID], sf.meta, sf.written
 }
 
 // recordFor is folder id's record for the device a pass talks to (dev):
@@ -303,7 +318,7 @@ func (e *Engine) saveSyncedFor(folderID string, dev recordDevice, meta folderMet
 
 		return
 	}
-	data, err := json.Marshal(syncRecord{V: recordVersion, Device: dev, Root: meta.Root, Mounts: meta.Mounts, Files: synced})
+	data, err := json.Marshal(syncRecord{V: recordVersion, Device: dev, Root: meta.Root, Mounts: meta.Mounts, MaybeMounts: meta.MaybeMounts, Files: synced})
 	if err != nil {
 		log.Printf("could not save the sync record for %s: %v", folderID, err)
 

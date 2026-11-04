@@ -1591,7 +1591,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// with (rootid.go) needs nothing from the device, and a folder that
 	// isn't waits without even listing it.
 	e.mu.Lock()
-	recorded, meta := e.recordedLocked(f.ID)
+	recorded, meta, written := e.recordedLocked(f.ID)
 	pinned := e.recordPinnedLocked(f.ID)
 	e.mu.Unlock()
 	// A record that names its device by its pin, and none confirmed on
@@ -1606,13 +1606,15 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	if last == nil {
 		last = map[string]string{}
 	}
-	lv, err := e.lookHere(f, meta.Mounts)
+	lv, err := e.lookHere(f, meta, last, written)
 	if err != nil {
 		e.setRemoteState(f.ID, errorState(err))
 		e.scheduleRemoteRetry(f)
 
 		return
 	}
+	// The maybe mounts (mounts.go) are not left out of the folder's
+	// identity: only what is known to be unknown here is.
 	verdict := e.identifyFolder(f, lv.byRel, recorded, meta,
 		func(rel string) bool { return lv.unknown(rel) || lv.skipped.covers(rel) })
 	if !verdict.ok {
@@ -1624,11 +1626,11 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	if e.folderBack(f) {
 		wasMissing = true // its watcher went with it
 	}
-	meta.Root, meta.Mounts = verdict.token, lv.mounts
+	meta.Root, meta.Mounts, meta.MaybeMounts = verdict.token, lv.mounts, lv.maybeMounts
 	if verdict.mark {
 		e.markFolder(f, verdict.token)
 	}
-	e.noteGoneMounts(f, lv.goneDirs)
+	e.noteGoneMounts(f, lv.heldDirs())
 
 	// As reconcile - first, and never holding the pass up: upload only
 	// (issue #132) before anything could be deleted, and Images (issue
@@ -1736,13 +1738,16 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		for i, m := range meta.Mounts {
 			meta.Mounts[i] = renamedKey(m, renames)
 		}
-		if lv, err = e.lookHere(f, meta.Mounts); err != nil {
+		for i, m := range meta.MaybeMounts {
+			meta.MaybeMounts[i] = renamedKey(m, renames)
+		}
+		if lv, err = e.lookHere(f, meta, last, written); err != nil {
 			e.setRemoteState(f.ID, errorState(err))
 			e.scheduleRemoteRetry(f)
 
 			return
 		}
-		meta.Mounts = lv.mounts
+		meta.Mounts, meta.MaybeMounts = lv.mounts, lv.maybeMounts
 	}
 	// The hash cache forgets what is no longer here - only now that the
 	// folder is known to be the synced one (the empty mount point of a disk
@@ -1750,7 +1755,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// disk was back), and not what is under a folder that can't be read or a
 	// disk that isn't mounted: unknown, not gone.
 	e.pruneHashCache(f.ID, f.LocalPath, lv.files, lv.unknownDirs())
-	local, localByRel, unknownHere, skippedSet := lv.files, lv.byRel, lv.unknown, lv.skipped
+	local, localByRel, skippedSet := lv.files, lv.byRel, lv.skipped
+	unknownHere := func(rel string) bool { return lv.unknown(rel) || lv.maybe.covers(rel) }
 
 	localHashes := map[string]string{}
 	// The stat each hash was taken with: sizes for the progress bar, and
@@ -2524,6 +2530,10 @@ type localView struct {
 	// skipped, by key; goneDirs and mounts are mounts.go's.
 	failed, heldMounts, skipped pathSet
 	goneDirs, mounts            []string
+	// maybe is maybeMounts by key: folders held as maybe a disk or share
+	// not mounted (mounts.go).
+	maybe       pathSet
+	maybeMounts []string
 }
 
 // unknown: rel is under a folder that could not be read, or under a disk
@@ -2533,19 +2543,28 @@ func (lv localView) unknown(rel string) bool { return lv.failed.covers(rel) || l
 
 // unknownDirs are the folders (relative, slash-separated) what is under is
 // unknown here, not gone: those that could not be read and the mounts that
-// aren't now.
+// aren't now, known or maybe.
 func (lv localView) unknownDirs() []string {
-	return append(append([]string(nil), lv.folderScan.failed...), lv.goneDirs...)
+	return append(append([]string(nil), lv.folderScan.failed...), lv.heldDirs()...)
 }
 
-// lookHere scans the folder (scanFolder) and keys what it found;
-// recordedMounts are the mounts the record lists.
-func (e *Engine) lookHere(f config.RemoteFolder, recordedMounts []string) (localView, error) {
+// heldDirs are the mounts that aren't now, known (goneDirs) or maybe.
+func (lv localView) heldDirs() []string {
+	held := append(append([]string(nil), lv.goneDirs...), lv.maybeMounts...)
+	sort.Strings(held)
+
+	return held
+}
+
+// lookHere scans the folder (scanFolder) and keys what it found; meta is
+// what the record says of the folder, record the record of this device's
+// files and written when its file was written (maybeMounts).
+func (e *Engine) lookHere(f config.RemoteFolder, meta folderMeta, record map[string]string, written time.Time) (localView, error) {
 	scan, err := scanFolder(f.LocalPath)
 	if err != nil {
 		return localView{}, err
 	}
-	lv := localView{folderScan: scan, byRel: map[string]string{}, failed: pathSet{}, heldMounts: pathSet{}, skipped: pathSet{}}
+	lv := localView{folderScan: scan, byRel: map[string]string{}, failed: pathSet{}, heldMounts: pathSet{}, skipped: pathSet{}, maybe: pathSet{}}
 	twins := 0
 	for _, p := range scan.files {
 		rel, err := filepath.Rel(f.LocalPath, p)
@@ -2571,7 +2590,7 @@ func (e *Engine) lookHere(f config.RemoteFolder, recordedMounts []string) (local
 	for _, d := range scan.failed {
 		lv.failed[pathKey(d)] = true
 	}
-	lv.goneDirs, lv.mounts = goneMounts(f.LocalPath, recordedMounts, scan.mounts)
+	lv.goneDirs, lv.mounts = goneMounts(f.LocalPath, meta.Mounts, scan.mounts)
 	for _, m := range lv.goneDirs {
 		lv.heldMounts[pathKey(m)] = true
 	}
@@ -2581,6 +2600,11 @@ func (e *Engine) lookHere(f config.RemoteFolder, recordedMounts []string) (local
 	// it, and it is counted in the folder's note.
 	for _, s := range scan.skipped {
 		lv.skipped[pathKey(s)] = true
+	}
+	lv.maybeMounts = maybeMounts(f.LocalPath, meta, record, lv.byRel,
+		func(rel string) bool { return lv.unknown(rel) || lv.skipped.covers(rel) }, written)
+	for _, m := range lv.maybeMounts {
+		lv.maybe[m] = true
 	}
 
 	return lv, nil

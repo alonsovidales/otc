@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -493,5 +494,208 @@ func TestHashCacheKeptWhileTheFolderWaits(t *testing.T) {
 	e.mu.Unlock()
 	if !kept || cached() != 5 {
 		t.Fatalf("the unmounted disk's entry kept: %v, %d cached", kept, cached())
+	}
+}
+
+// oldRecord writes folder f's record as otc-sync 0.18 left it: version 2
+// with its device, no root and no mounts, written at the time given.
+func oldRecord(t *testing.T, e *Engine, f config.RemoteFolder, files map[string]string, at time.Time) {
+	t.Helper()
+	data, err := json.Marshal(map[string]any{"v": 2, "device": map[string]string{"domain": "dev"}, "files": files})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := syncedPath(f.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(p, at, at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The first pass after the update, on a record from before mounts were
+// kept, with a disk mounted in the folder not mounted: its files are held,
+// not deleted on the device, until it is back. They used to look deleted
+// here, and too few for the mass-deletion guard went.
+func TestUnmountedDiskOnAnOlderRecordIsHeld(t *testing.T) {
+	withConfigDir(t)
+	files := map[string][]byte{}
+	rec := map[string]string{}
+	here := map[string]string{}
+	for i := 0; i < 100; i++ {
+		rel := fmt.Sprintf("p%d.jpg", i)
+		if i < 22 {
+			rel = fmt.Sprintf("nas/photos/p%d.jpg", i)
+		} else {
+			here[rel] = fmt.Sprintf("photo %d", i)
+		}
+		content := fmt.Sprintf("photo %d", i)
+		files["/pc/home/"+rel] = []byte(content)
+		rec[rel] = sha([]byte(content))
+	}
+	d := storedDevice(files)
+	local := t.TempDir()
+	writeFiles(t, local, here)
+	nas := filepath.Join(local, "nas") // the mount point, empty, untouched since
+	if err := os.Mkdir(nas, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	long := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(nas, long, long); err != nil {
+		t.Fatal(err)
+	}
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/home", LocalPath: local}
+	e := twoWayEngine(t, d, "dev", f)
+	oldRecord(t, e, f, rec, time.Now().Add(-time.Hour))
+	for pass := 0; pass < 2; pass++ {
+		e.reconcileRemoteFolder(f)
+		got, deletes, _ := d.snapshot()
+		if len(deletes) != 0 || len(got) != 100 {
+			t.Fatalf("pass %d: %d deletes, %d files on the device", pass+1, len(deletes), len(got))
+		}
+		if st := remoteState(e, f.ID); st.Msg == nil || st.Msg.Key != "desk.main.files_unreadable" {
+			t.Fatalf("pass %d: state %+v", pass+1, st)
+		}
+	}
+	e.mu.Lock()
+	meta := e.syncedFiles[f.ID].meta
+	e.mu.Unlock()
+	if meta.Root == "" || len(meta.MaybeMounts) != 1 || meta.MaybeMounts[0] != "nas" {
+		t.Fatalf("record %+v", meta)
+	}
+	// The disk back: its files are there again, in sync, nothing sent.
+	if err := os.Remove(nas); err != nil {
+		t.Fatal(err)
+	}
+	back := map[string]string{}
+	for rel := range rec {
+		if strings.HasPrefix(rel, "nas/") {
+			back[rel] = string(files["/pc/home/"+rel])
+		}
+	}
+	writeFiles(t, local, back)
+	e.reconcileRemoteFolder(f)
+	got, deletes, _ := d.snapshot()
+	if len(deletes) != 0 || len(got) != 100 {
+		t.Fatalf("back: %d deletes, %d files on the device", len(deletes), len(got))
+	}
+	if st := remoteState(e, f.ID); st.Kind != StateWatching {
+		t.Fatalf("back: state %+v", st)
+	}
+	e.mu.Lock()
+	meta = e.syncedFiles[f.ID].meta
+	e.mu.Unlock()
+	if len(meta.MaybeMounts) != 0 {
+		t.Fatalf("still held: %v", meta.MaybeMounts)
+	}
+}
+
+// A folder emptied by hand since the older record was written is not
+// taken for a disk that isn't mounted: its deletes go, as they did.
+func TestFolderEmptiedSinceAnOlderRecordDeletes(t *testing.T) {
+	withConfigDir(t)
+	files := map[string][]byte{"/pc/home/old/a.txt": []byte("a"), "/pc/home/old/b.txt": []byte("b")}
+	rec := map[string]string{"old/a.txt": sha([]byte("a")), "old/b.txt": sha([]byte("b"))}
+	here := map[string]string{}
+	for i := 0; i < 4; i++ {
+		name := fmt.Sprintf("keep%d.txt", i)
+		files["/pc/home/"+name] = []byte(name)
+		rec[name] = sha([]byte(name))
+		here[name] = name
+	}
+	d := storedDevice(files)
+	local := t.TempDir()
+	writeFiles(t, local, here)
+	if err := os.Mkdir(filepath.Join(local, "old"), 0o755); err != nil { // emptied just now
+		t.Fatal(err)
+	}
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/home", LocalPath: local}
+	e := twoWayEngine(t, d, "dev", f)
+	oldRecord(t, e, f, rec, time.Now().Add(-time.Hour))
+	e.reconcileRemoteFolder(f)
+	got, deletes, _ := d.snapshot()
+	if len(deletes) != 2 || len(got) != 4 {
+		t.Fatalf("deletes %v, device %v", deletes, keysOf(got))
+	}
+	if st := remoteState(e, f.ID); st.Kind != StateWatching {
+		t.Fatalf("state %+v", st)
+	}
+}
+
+func TestMaybeMounts(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"nas", "usb/disk", "docs", "fresh"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFiles(t, root, map[string]string{"usb/readme.txt": "r", "docs/a.txt": "a"})
+	long := time.Now().Add(-48 * time.Hour)
+	for _, d := range []string{"nas", "usb/disk", "usb", "docs", root} {
+		p := d
+		if d != root {
+			p = filepath.Join(root, filepath.FromSlash(d))
+		}
+		if err := os.Chtimes(p, long, long); err != nil {
+			t.Fatal(err)
+		}
+	}
+	byRel := map[string]string{"usb/readme.txt": filepath.Join(root, "usb", "readme.txt"), "docs/a.txt": filepath.Join(root, "docs", "a.txt")}
+	rec := map[string]string{
+		"nas/a/b.jpg": "1", "usb/disk/c.jpg": "2", "usb/readme.txt": "3", "docs/a.txt": "4", "docs/gone.txt": "5",
+		"fresh/x.txt": "6", "removed/y.txt": "7", "kept/z.txt": keptOnDevicePrefix + "8",
+	}
+	written := time.Now().Add(-time.Hour)
+	got := maybeMounts(root, folderMeta{}, rec, byRel, nil, written)
+	if strings.Join(got, ",") != "nas,usb/disk" {
+		t.Fatalf("first pass of an older record: %v", got)
+	}
+	// A record of this version holds only what it keeps, while it is so.
+	meta := folderMeta{Root: "t", MaybeMounts: []string{"nas", "docs", "usb/disk", "removed"}}
+	if got := maybeMounts(root, meta, rec, byRel, nil, time.Time{}); strings.Join(got, ",") != "nas,usb/disk" {
+		t.Fatalf("kept: %v", got)
+	}
+	if got := maybeMounts(root, folderMeta{Root: "t"}, rec, byRel, nil, written); len(got) != 0 {
+		t.Fatalf("a record of this version without any: %v", got)
+	}
+}
+
+// The mount points the system declares: fstab (escapes undone) and systemd
+// units; one inside the folder is held at an older record's first pass
+// even if its folder changed since.
+func TestDeclaredMountPoints(t *testing.T) {
+	fstab := "# /etc/fstab\nUUID=1 / ext4 defaults 0 1\n//nas/photos /home/ana/Sync/My\\040NAS cifs noauto,user 0 0\nUUID=2 none swap sw 0 0\n\n/dev/sdb1 relative auto 0 0\n"
+	if got := strings.Join(fstabMountPoints([]byte(fstab)), "|"); got != "/|/home/ana/Sync/My NAS" {
+		t.Fatalf("fstab: %q", got)
+	}
+	unit := "[Unit]\nDescription=NAS\n[Mount]\nWhat=//nas/x\nWhere=/home/ana/Sync/nas\nType=cifs\n"
+	if got := unitWhere([]byte(unit)); got != "/home/ana/Sync/nas" {
+		t.Fatalf("unit: %q", got)
+	}
+	if got := unitWhere([]byte("[Install]\nWhere=/x\n")); got != "" {
+		t.Fatalf("Where outside [Mount]: %q", got)
+	}
+	if got := strings.Join(declaredUnder("/home/ana/Sync", []string{"/", "/home/ana/Sync", "/home/ana/Sync/My NAS", "/home/ana/Syncthing/x"}), "|"); got != "My NAS" {
+		t.Fatalf("under: %q", got)
+	}
+
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "nas"), 0o755); err != nil { // changed just now
+		t.Fatal(err)
+	}
+	old := declaredMounts
+	t.Cleanup(func() { declaredMounts = old })
+	declaredMounts = func() []string { return []string{filepath.Join(root, "nas")} }
+	rec := map[string]string{"nas/a.jpg": "1"}
+	if got := maybeMounts(root, folderMeta{}, rec, map[string]string{}, nil, time.Now().Add(-time.Hour)); strings.Join(got, ",") != "nas" {
+		t.Fatalf("declared, first pass: %v", got)
+	}
+	declaredMounts = func() []string { return nil }
+	if got := maybeMounts(root, folderMeta{}, rec, map[string]string{}, nil, time.Now().Add(-time.Hour)); len(got) != 0 {
+		t.Fatalf("not declared, changed since: %v", got)
 	}
 }

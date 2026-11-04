@@ -3493,7 +3493,7 @@ mtime just before acting (`stillAsScanned` / `localMatches`), and the device's f
 an upload replaces it (before LinkFile and FinishUpload) or a delete removes it, by listing that
 one path (`deviceStillAsListed`): changed since the listing, it is left for the next pass, which
 keeps both versions. A sync record (`synced/<id>.json`: `{"v": 2, "device": {"domain", "pin"},
-"root", "mounts", "files"}`) names the device it was made with - its home-network certificate pin
+"root", "mounts", "maybe_mounts", "files"}`) names the device it was made with - its home-network certificate pin
 as this sign-in confirmed it (otc-sync's `wsclient.SessionPin`: the home route's pinned handshake,
 or the device's own GetLocalEndpoint answer, asked again at most once a minute by `ConfirmPin`;
 never the pin stored from an earlier sign-in), else the address (`recordDevice`); one of another
@@ -3513,7 +3513,13 @@ lists, unchanged - then the file is written again - or it waits the same way ("N
 was synced - reconnect its drive", `desk.main.folder_replaced`): the empty mount point of a disk or
 share that isn't mounted, another disk at the same drive letter, a folder made afresh. A folder
 inside it that is another file system (st_dev; the record's `mounts`) and is a plain folder again
-holds what is under it like an unreadable one (`mounts.go`). What the scan skips but is there - a
+holds what is under it like an unreadable one (`mounts.go`). A record from before `mounts` knows of
+none, so at its first pass a folder the record lists files under, with none found under it now, a
+plain folder not changed since the record was written - a mount point nothing touched while its
+disk was away; one emptied by hand since is newer - is held the same way (`maybeMounts`, the
+record's `maybe_mounts`), as is an empty mount point that `/etc/fstab` or a systemd mount unit
+declares there (`declared.go`, Linux), until files are there again or the record lists none under
+it. The folder's identity still counts their files. What the scan skips but is there - a
 symbolic link, to a file or a folder, anything that is neither a regular file nor a folder, on
 Windows the Hidden or System attribute - is never taken for deleted (`folderScan.skipped`,
 `desk.main.files_not_synced_here`), and a device delete checks, right before it goes, that nothing
