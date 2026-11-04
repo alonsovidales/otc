@@ -208,11 +208,15 @@ emulated=false
 
 check_sandbox() {
     local pid pid1 dev db_pid db
+    # Under Rosetta (an emulated image) a process's command line starts with
+    # the translator's path: /mnt/lima-rosetta/rosetta /usr/bin/otc dev. A
+    # process that ends during the scan has no cmdline to read, and nothing
+    # found is the message below, not a silent stop of this script.
     # shellcheck disable=SC2016 # the container's sh expands them
-    pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do [ "$(tr "\0" " " < "$p/cmdline" 2>/dev/null)" = "/usr/bin/otc dev " ] && { echo "${p#/proc/}"; break; }; done')
+    pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do cmd=$( { tr "\0" " " < "$p/cmdline"; } 2>/dev/null ) || continue; case "$cmd" in "/usr/bin/otc dev "|*"/rosetta /usr/bin/otc dev ") echo "${p#/proc/}"; break ;; esac; done; exit 0')
     [ -n "$pid" ] || fail "no device process ($1)"
     # shellcheck disable=SC2016 # the container's sh expands them
-    db_pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = mariadbd ] && { echo "${p#/proc/}"; break; }; done')
+    db_pid=$(docker exec "$c" sh -c 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = mariadbd ] && { echo "${p#/proc/}"; break; }; done; exit 0')
     [ -n "$db_pid" ] || fail "no MariaDB process ($1)"
     pid1=$(docker exec "$c" awk '/^Seccomp_filters:/ {print $2}' /proc/1/status)
     dev=$(docker exec "$c" awk '/^Seccomp_filters:/ {print $2}' "/proc/$pid/status")
