@@ -35,7 +35,7 @@ struct WallpaperView: View {
     @State private var listFailed = false
 
     private var albumName: String { WallpaperRules.albumTitle(target.name) }
-    private var albumHere: Bool { model.album?.collectionID == target.id }
+    private var albumHere: Bool { model.albumIsFor(target.id) }
     private var widgetHere: Bool { model.widget?.id == target.id }
     private var canStart: Bool { (photos?.isEmpty == false) && !model.working }
 

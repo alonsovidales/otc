@@ -142,6 +142,11 @@ struct WallpaperAlbumState: Codable, Equatable {
     /// Copies taken out of the album (their photo left the collection):
     /// still in the library until Stop, as iOS asks before any delete.
     var outOfAlbum: [String] = []
+    /// Let go of (Log Out, another device, its collection gone) while the
+    /// app couldn't reach Photos: its copies only wait to be deleted, once
+    /// access is back - never kept in step, nor added to again. nil (states
+    /// kept before) is false.
+    var leftOver: Bool? = nil
 
     /// Every asset the app made: what Stop deletes.
     var assets: [String] { copies.values.sorted() + outOfAlbum }
@@ -342,7 +347,13 @@ final class WallpaperModel: ObservableObject {
     /// The collection is shown one way or the other: its menu item says
     /// "Wallpaper settings…".
     func inUse(_ collection: String) -> Bool {
-        album?.collectionID == collection || widget?.collectionID == collection
+        (album?.collectionID == collection && album?.leftOver != true) || widget?.collectionID == collection
+    }
+
+    /// The album is this collection's and in use (not one only waiting to
+    /// be deleted).
+    func albumIsFor(_ collection: String) -> Bool {
+        album?.collectionID == collection && album?.leftOver != true
     }
 
     /// A way is at work: nothing else starts meanwhile.
@@ -379,7 +390,7 @@ final class WallpaperModel: ObservableObject {
     func startAlbum(collection: String, name: String, photos: [WallpaperPhoto]) async {
         guard !busy, !photos.isEmpty else { return }
         guard await checkAccess() else { return }
-        if let current = album, current.collectionID != collection {
+        if let current = album, current.collectionID != collection || current.leftOver == true {
             guard await stopAlbum() else { return }
         }
         busy = true
@@ -611,7 +622,10 @@ final class WallpaperModel: ObservableObject {
         busy = true
         defer { busy = false }
         let gen = generation
-        if var state = album {
+        if let state = album, state.leftOver == true {
+            // Only waiting to be deleted: now, if Photos can be reached.
+            if albumStore.access() == .full { await letGoOfAlbum() }
+        } else if var state = album {
             if albumStore.access() != .full {
                 // Without full access nothing of the album can be seen: it is
                 // kept as it is until access is back (its Stop deletes what the
@@ -644,7 +658,7 @@ final class WallpaperModel: ObservableObject {
             } else {
                 // The collection was deleted: so is its album, if the
                 // person agrees; either way the app lets go of it.
-                if await stopAlbumNow() == .declined { forgetAlbum() }
+                await letGoOfAlbum()
             }
         }
         guard gen == generation else { return }
@@ -707,7 +721,7 @@ final class WallpaperModel: ObservableObject {
             // Said no to deleting them: the album stays in Photos, no
             // longer the app's to keep in step (its assets stay out of the
             // sync: SavedToPhone). Without access, kept to delete later.
-            if await stopAlbumNow() == .declined { forgetAlbum() }
+            await letGoOfAlbum()
         }
     }
 
@@ -733,12 +747,30 @@ final class WallpaperModel: ObservableObject {
         // The names of that device's collections go too.
         WidgetNames.forget(in: groupDefaults)
         // Said no: the app lets go of the album. Without access to Photos it
-        // is kept, so a later Stop (or this, once access is back) deletes
-        // its copies.
-        if album != nil, await stopAlbumNow() == .declined { forgetAlbum() }
+        // is kept only to be deleted once access is back.
+        if album != nil { await letGoOfAlbum() }
         albumPhase = .idle
         widgetPhase = .idle
         needsFullAccess = false
+    }
+
+    /// The album is no longer the app's to show: deleted with its copies if
+    /// the person agrees (iOS asks); said no, the app lets go of it; without
+    /// access to Photos, it is kept only to be deleted once access is back
+    /// (leftOver) - not forgotten with its copies in Photos, nor followed
+    /// on with another device's collection of the same id.
+    private func letGoOfAlbum() async {
+        switch await stopAlbumNow() {
+        case .declined:
+            forgetAlbum()
+        case .noAccess:
+            guard var state = album else { return }
+            state.leftOver = true
+            album = state
+            stateStore.setAlbum(state)
+        case .stopped:
+            break
+        }
     }
 
     private func forgetAlbum() {

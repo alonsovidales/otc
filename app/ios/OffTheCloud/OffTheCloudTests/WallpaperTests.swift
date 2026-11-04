@@ -584,13 +584,22 @@ struct WallpaperModelTests {
         #expect(m.needsFullAccess)
         #expect(m.album == state)
         #expect(album.deletes == 0)
-        // Log Out keeps it too, for a Stop once access is back.
+        // Log Out keeps it too - only to be deleted once access is back:
+        // never followed on, even by a collection of the same id (another
+        // device's Favourites).
         await m.signedOut()
-        #expect(WallpaperStateStore(defaults: defaults).album() == state)
+        let kept = try #require(WallpaperStateStore(defaults: defaults).album())
+        #expect(kept.leftOver == true)
+        #expect(Set(kept.assets) == Set(state.assets))
+        #expect(!m.inUse("g1"))
+        device.set("g1", "Trip", photos: 5, from: 10)
         album.accessNow = .full
         let back = WallpaperModel(device: device.device, albumStore: album, stateStore: WallpaperStateStore(defaults: defaults), widgetRoot: root)
-        #expect(await back.stopAlbumNow() == .stopped)
-        #expect(album.library.isEmpty)
+        back.isDeviceCheckPending = { false }
+        await back.keepInStep(force: true)
+        #expect(album.made == 3, "nothing added to it")
+        #expect(back.album == nil)
+        #expect(album.library.isEmpty, "deleted once access was back")
     }
 
     @Test func anAlbumDeletedInPhotosLeavesItsCopiesToStop() async throws {
