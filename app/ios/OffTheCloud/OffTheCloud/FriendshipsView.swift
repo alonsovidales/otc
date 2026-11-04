@@ -12,11 +12,49 @@
 //  just friend management now, presented from a button in SocialFeedView's
 //  own toolbar rather than a top-level tab of its own.
 
+import Combine
 import SwiftUI
 
 @MainActor
 final class FriendshipsViewModel: ObservableObject {
     private let ws = OTCConnection.shared
+    /// Asks the device for the list (tests answer in its place).
+    var request: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
+    /// Why the list didn't come (nil: it did, or nothing was asked yet).
+    @Published private(set) var loadProblem: LoadProblem?
+    /// A failed list is asked for again at a wake (signed in again, a
+    /// network up, back in front), as Alerts' is.
+    private var wakeWatch: AnyCancellable?
+
+    init() {
+        wakeWatch = OTCConnection.shared.$wakes.dropFirst().sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.loadProblem != nil, !self.loadingFriendships else { return }
+                await self.reloadFriendships()
+            }
+        }
+    }
+
+    /// What the list shows in place of its friends: they, a spinner while
+    /// the first list is on its way, why it didn't come, or that there are
+    /// none - never "No friendships yet." for a list that didn't come.
+    enum Body: Equatable {
+        case loading, problem, empty, list
+    }
+
+    /// Pure, Alerts' rule (NotificationsModel.body): a list shown stays
+    /// while a refresh of it fails.
+    nonisolated static func body(listEmpty: Bool, loading: Bool, problem: LoadProblem?) -> Body {
+        if !listEmpty { return .list }
+        if problem != nil { return .problem }
+        return loading ? .loading : .empty
+    }
+
+    var body: Body { Self.body(listEmpty: friendships.isEmpty, loading: loadingFriendships || !asked, problem: loadProblem) }
+    /// The list was asked for at least once: until then it is loading.
+    private var asked = false
 
     @Published var targetDomain = ""
     @Published var sendingRequest = false
@@ -54,16 +92,30 @@ final class FriendshipsViewModel: ObservableObject {
     }
 
     func reloadFriendships() async {
+        asked = true
         loadingFriendships = true
         defer { loadingFriendships = false }
         do {
-            let resp = try await ws.request { $0.payload = .reqFriendshipsList(Msg_FriendshipsList()) }
+            let resp = try await request(.reqFriendshipsList(Msg_FriendshipsList()))
             if case .respFriendships(let f) = resp.payload {
                 friendships = f.friendships
+                loadProblem = nil
+            } else {
+                // Any other answer (the bridge's "device unreachable", a
+                // refusal) is no list: it used to read as no friends.
+                failed(LoadProblem.now(resp: resp, error: nil))
             }
         } catch {
-            showToast(.loadFailed)
+            failed(LoadProblem.now(resp: nil, error: error))
         }
+    }
+
+    /// The list didn't come: said in its place while none shows, with Try
+    /// again; a list already shown stays, and a note says it wasn't
+    /// refreshed.
+    private func failed(_ problem: LoadProblem) {
+        loadProblem = problem
+        if !friendships.isEmpty { showToast(.loadFailed) }
     }
 
     /// Issue #142: friends are always <name>.off-the.cloud (the device
@@ -329,9 +381,25 @@ struct FriendshipsView: View {
                 }
 
                 Section {
-                    if vm.friendships.isEmpty {
+                    switch vm.body {
+                    case .loading:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text(S.commonLoading).foregroundColor(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    case .problem:
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(S.appSocialFriendsLoadFailed)
+                                .onAppear { Announce.polite(S.appSocialFriendsLoadFailed) }
+                            Button(vm.loadingFriendships ? LoadProblem.trying : LoadProblem.tryAgain) {
+                                Task { await vm.reloadFriendships() }
+                            }
+                            .disabled(vm.loadingFriendships)
+                        }
+                    case .empty:
                         Text(S.appSocialFriendsEmpty).foregroundColor(.secondary)
-                    } else {
+                    case .list:
                         ForEach(vm.friendships.filter { !($0.status == .pending && !$0.sent && !$0.leaving) }, id: \.originProfile.domain) { f in
                             FriendRow(
                                 f: f,

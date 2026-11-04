@@ -4547,7 +4547,10 @@ in front) and else every 45 s; a list that failed says why (`AlertsBody` / `body
 load subject) with Try again and is asked again while shown; a refused Accept says why. Friends
 shows `app.social.friends.your_address` (Settings.domain, else the endpoint's bridge name) with
 Copy and Share (`share_text`'s `{address}` is plain text, no isolation marks, so it pastes into a
-Friends field); the add field's keyboard Send sends. Files uploads go through `UploadQueue` (two
+Friends field); the add field's keyboard Send sends. Its list never reads "No friendships yet." for a
+list that didn't come (iOS `FriendshipsViewModel.body`, Alerts' rule): a spinner until the first
+answer, `app.social.friends.load_failed` with Try again when the answer was an error or none came
+(asked again at a wake), the list kept while a refresh of it fails. Files uploads go through `UploadQueue` (two
 at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
 iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
 multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold the selection bar,
