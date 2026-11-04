@@ -1171,8 +1171,35 @@ final class PhotoGalleryVM: ObservableObject {
             }
             return
         }
+        jumpMonth = month
         searchTask?.cancel()
         searchTask = Task { await performJump(before) }
+    }
+
+    /// The month the last jump went to; nil without one (a new search).
+    @Published private(set) var jumpMonth: String?
+
+    /// VoiceOver's scrubber (an adjustable element, the web's slider): the
+    /// month it names - the one jumped to, else the newest.
+    var scrubberMonth: String? {
+        let buckets = freshBuckets
+        if let m = jumpMonth, buckets.contains(where: { $0.month == m }) { return m }
+        return buckets.first?.month
+    }
+
+    /// VoiceOver's swipe up (newer) or down (older) on the scrubber: the
+    /// next month's photos at once, as a scrub let go there. It had nothing
+    /// for VoiceOver at all: a big library was a page at a time.
+    func scrubStep(newer: Bool) {
+        let buckets = freshBuckets
+        guard !buckets.isEmpty else { return }
+        let at = scrubberMonth.flatMap { m in buckets.firstIndex { $0.month == m } } ?? 0
+        let next = min(max(0, at + (newer ? -1 : 1)), buckets.count - 1)
+        guard next != at else { return }
+        let target = buckets[next]
+        placeholderMonth = target.month
+        placeholderCount = min(target.count, Self.maxPlaceholders)
+        jumpToDate(target.month)
     }
 
     /// A fresh search like a filter change, anchored at `before` (the last
@@ -1229,6 +1256,8 @@ final class PhotoGalleryVM: ObservableObject {
         upPendingAt = nil
         upArmed = false
         upBreaks = []
+        // A search of its own, not a jump: the scrubber names the newest.
+        if jump == nil { jumpMonth = nil }
         items = []
         // The new grid's ratings come from the device.
         ratingHeld = [:]
@@ -5591,6 +5620,7 @@ struct ImageModal: View {
                     // Issue #106: plays in the viewer, filling it the same
                     // way a photo does, starting on its own.
                     VideoPlayer(player: player)
+                        .modifier(ViewerPaging(vm: vm))
                         .onAppear {
                             // The app starts in .ambient (for the muted
                             // feed), which the ringer switch silences - a
@@ -5612,6 +5642,11 @@ struct ImageModal: View {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFit()
+                        // VoiceOver: said as its tile is, and paged through
+                        // as a swipe does it (ViewerPaging).
+                        .accessibilityLabel(PhotoMonths.tileLabel(video: item.mime.hasPrefix("video/"), date: item.created))
+                        .accessibilityAddTraits(.isImage)
+                        .modifier(ViewerPaging(vm: vm))
                         // On the photo's own frame, so it sits in the
                         // picture's corner rather than the black margin,
                         // and before the pinch so zooming doesn't grow it.
@@ -5641,6 +5676,9 @@ struct ImageModal: View {
                 VideoUnplayable { vm.retryVideo() }
             }
         }
+        // The neighbours wait off screen for the drag: only the open one is
+        // VoiceOver's.
+        .accessibilityHidden(i != vm.openIndex)
     }
 
     /// The open video couldn't be fetched or played: its poster stays,
@@ -5664,6 +5702,34 @@ struct ImageModal: View {
         // not the item: PhotoGalleryVM.open has it decoded again if it was
         // let go).
         return GridThumbCache.cached(id: item.id, maxPt: PhotoGridMetrics.decodeSide) ?? item.thumbImage
+    }
+}
+
+/// The open photo or video for VoiceOver: a three-finger swipe goes to the
+/// next or previous one (the drag doesn't reach VoiceOver), as do the
+/// actions, and where it went is said, as the page it slides in.
+private struct ViewerPaging: ViewModifier {
+    @ObservedObject var vm: PhotoGalleryVM
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityScrollAction { edge in
+                switch edge {
+                case .trailing: go(1)
+                case .leading: go(-1)
+                default: break
+                }
+            }
+            .accessibilityAction(named: S.appPhotosMemoriesNextPhoto) { go(1) }
+            .accessibilityAction(named: S.appPhotosMemoriesPreviousPhoto) { go(-1) }
+    }
+
+    private func go(_ step: Int) {
+        guard let i = vm.openIndex, vm.items.indices.contains(i + step) else { return }
+        if step > 0 { vm.next() } else { vm.prev() }
+        let it = vm.items[i + step]
+        UIAccessibility.post(notification: .pageScrolled,
+                             argument: PhotoMonths.tileLabel(video: it.mime.hasPrefix("video/"), date: it.created))
     }
 }
 
@@ -6081,6 +6147,12 @@ private struct PhotoDateScrubber: View {
                     .frame(width: cScrubberTouchWidth)
                     .tourTarget(.scrubber)
                     .contentShape(Rectangle())
+                    // VoiceOver: a control of its own (it had none), a month
+                    // a swipe up or down, jumped to at once.
+                    .accessibilityElement()
+                    .accessibilityLabel(S.appPhotosGridScrubber)
+                    .accessibilityValue(vm.scrubberMonth.map(PhotoMonths.spoken) ?? "")
+                    .accessibilityAdjustableAction { vm.scrubStep(newer: $0 == .increment) }
                     .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in

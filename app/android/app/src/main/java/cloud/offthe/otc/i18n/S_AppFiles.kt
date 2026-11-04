@@ -206,6 +206,10 @@ fun S.appFilesNoResults(query: String): UiText =
 fun S.appFilesOpenFailed(): UiText =
     UiText.Res(R.string.app_files_open_failed)
 
+/** "Folder path": The name of the field at the top of Files that shows the folder being browsed, as a path (/Photos/2026/), and takes a path typed to go there: its screen-reader name, and the grey text in it while it is empty. */
+fun S.appFilesPathLabel(): UiText =
+    UiText.Res(R.string.app_files_path_label)
+
 /** "{count} results" (one: "{count} result"): Line under the heading of a search's results in Files (app.files.results_title): how many files and folders were found. */
 fun S.appFilesResultsCount(count: Int): UiText =
     UiText.Plural(R.plurals.app_files_results_count, count, listOf(count))

@@ -68,6 +68,7 @@
     <string name="app_files_make_upload_only_title">Pôr a pasta «\u2068%1$s\u2069» em apenas carregamento?</string>
     <string name="app_files_no_results">Não há ficheiros correspondentes a «\u2068%1$s\u2069».</string>
     <string name="app_files_open_failed">Não foi possível obter o ficheiro</string>
+    <string name="app_files_path_label">Caminho da pasta</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s resultado</item>
         <item quantity="many">%1$s resultados</item>

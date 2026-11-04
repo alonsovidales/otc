@@ -292,6 +292,11 @@ extension S {
     /// Short message (toast) at the top of Files when a file was tapped to open it and the device refused to send it.
     static var appFilesOpenFailed: String { L("app.files.open_failed", table: "AppFiles") }
 
+    /// Folder path
+    ///
+    /// The name of the field at the top of Files that shows the folder being browsed, as a path (/Photos/2026/), and takes a path typed to go there: its screen-reader name, and the grey text in it while it is empty.
+    static var appFilesPathLabel: String { L("app.files.path_label", table: "AppFiles") }
+
     /// one: {count} result
     /// other: {count} results
     ///

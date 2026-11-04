@@ -64,6 +64,7 @@
     <string name="app_files_make_upload_only_title">Den Ordner „\u2068%1$s\u2069“ auf „Nur hochladen“ stellen?</string>
     <string name="app_files_no_results">Keine Dateien passen zu „\u2068%1$s\u2069“.</string>
     <string name="app_files_open_failed">Die Datei konnte nicht abgerufen werden</string>
+    <string name="app_files_path_label">Ordnerpfad</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s Ergebnis</item>
         <item quantity="other">%1$s Ergebnisse</item>

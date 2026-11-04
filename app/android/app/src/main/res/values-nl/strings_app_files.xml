@@ -64,6 +64,7 @@
     <string name="app_files_make_upload_only_title">De map “\u2068%1$s\u2069” op “Alleen uploaden” zetten?</string>
     <string name="app_files_no_results">Geen bestanden gevonden voor “\u2068%1$s\u2069”.</string>
     <string name="app_files_open_failed">Kan het bestand niet ophalen</string>
+    <string name="app_files_path_label">Mappad</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s resultaat</item>
         <item quantity="other">%1$s resultaten</item>

@@ -68,6 +68,7 @@
     <string name="app_files_make_upload_only_title">¿Hacer que la carpeta “\u2068%1$s\u2069” sea de solo subida?</string>
     <string name="app_files_no_results">No hay archivos que coincidan con “\u2068%1$s\u2069”.</string>
     <string name="app_files_open_failed">No se ha podido obtener el archivo</string>
+    <string name="app_files_path_label">Ruta de la carpeta</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s resultado</item>
         <item quantity="many">%1$s resultados</item>

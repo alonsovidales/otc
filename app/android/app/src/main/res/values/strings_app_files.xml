@@ -63,6 +63,7 @@
     <string name="app_files_make_upload_only_title">Make “\u2068%1$s\u2069” upload only?</string>
     <string name="app_files_no_results">No files match “\u2068%1$s\u2069”.</string>
     <string name="app_files_open_failed">Could not fetch file</string>
+    <string name="app_files_path_label">Folder path</string>
     <plurals name="app_files_results_count">
         <item quantity="one">%1$s result</item>
         <item quantity="other">%1$s results</item>

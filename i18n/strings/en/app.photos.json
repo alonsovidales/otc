@@ -245,6 +245,10 @@
     "note": "Under the names of the people searched for, over their photos in Images: how many photos and videos show them.",
     "max": 24
   },
+  "app.photos.grid.scrubber": {
+    "text": "Jump to a date",
+    "note": "Screen-reader name of the date scrubber beside Images (a strip at the screen's edge to jump through the photos by month). A swipe up or down goes to the next newer or older month; its value is the month."
+  },
   "app.photos.grid.tile_photo": {
     "text": "Photo",
     "note": "Screen-reader name of a photo's tile in Images when the photo has no date."

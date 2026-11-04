@@ -4368,6 +4368,15 @@ finger is over another (`range` is null). A pick that goes mid-drag (People's `k
 Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
 bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
 
+**VoiceOver where only a gesture reached** (iOS): Images' date scrubber is an adjustable element
+(`app.photos.grid.scrubber`, the web's slider: its value the month, `PhotoMonths.spoken`; a swipe up
+or down jumps a month newer or older at once, `PhotoGalleryVM.scrubStep`); the viewer's photo says
+what its tile says, a three-finger swipe or the Next/Previous photo actions page through it and say
+where (`ViewerPaging`), the neighbours waiting off screen hidden; the trimmer's handles step a
+hundredth of the clip a swipe (`DualRangeSlider.step`); a Files grid tile is one element named by
+its file with Select, versions, the lock and kept out of Images as its actions (`GridTileAccess`); a
+comment's like count says "N likes"; Files' path field is named (`app.files.path_label`). Tests:
+`VoiceOverTests.swift`.
 **Text size in the wide layout on iOS** (`AppMenu.swift`): the menu, the rail, the top bar's field
 and chips and the Collections page keep their design sizes (11-16 pt) at the default text size and
 follow the reader's text size from there (`scaledFont`, a `@ScaledMetric` relative to a text style),

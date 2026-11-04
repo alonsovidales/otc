@@ -237,6 +237,11 @@ extension S {
         L("app.photos.grid.person_items", table: "AppPhotos", count)
     }
 
+    /// Jump to a date
+    ///
+    /// Screen-reader name of the date scrubber beside Images (a strip at the screen's edge to jump through the photos by month). A swipe up or down goes to the next newer or older month; its value is the month.
+    static var appPhotosGridScrubber: String { L("app.photos.grid.scrubber", table: "AppPhotos") }
+
     /// Photo
     ///
     /// Screen-reader name of a photo's tile in Images when the photo has no date.

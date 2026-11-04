@@ -230,6 +230,10 @@
       "other": "{count} items"
     }
   },
+  "app.photos.grid.scrubber": {
+    "text": "Saltar para uma data",
+    "en": "Jump to a date"
+  },
   "app.photos.grid.tile_photo": {
     "text": "Foto",
     "en": "Photo"

@@ -233,6 +233,10 @@
     "text": "Die Datei konnte nicht abgerufen werden",
     "en": "Could not fetch file"
   },
+  "app.files.path_label": {
+    "text": "Ordnerpfad",
+    "en": "Folder path"
+  },
   "app.files.results_count": {
     "text": {
       "one": "{count} Ergebnis",
