@@ -1986,7 +1986,10 @@ start takes its file.
   X-Forwarded-Host from loopback or a container's trusted proxies, or one in `[otc-api]
   allowed-origins` (`OTC_ALLOWED_ORIGINS`); `null` and other schemes never. Strangers' routine
   requests log at Debug; refused origins, plain requests to `/ws`, passwords tried while locked out
-  and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`). `RespFriendships` never carries
+  and unreadable messages before sign-in are counted, one Info line a minute (`anonlog.go`); a request
+  before sign-in that panics is logged at Error with its stack once a minute and counted after that
+  (`recoveredPanic`: a loop of them rotated the log away), and a friend request with no profile is refused
+  before anything is dialled. `RespFriendships` never carries
   `Friendship.secret`. Push-registration syncs to the bridge go only through `mg.requestPushSync`
   (one at a time). `mediastream.Store.IssueShared(key, res)` reuses a token per resource for 5 min:
   give it a key only when it names exactly one resource every authorised caller may share (a

@@ -1966,7 +1966,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		}
 
 	case *pb.ReqEnvelope_ReqFriendshipInterRequest:
-		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) {
+		// A request with no profile is no device's: every one sends its
+		// own (SendFriendshipReq). It used to be read unchecked, and a few
+		// bytes from anyone made a panic and a stack trace in the log each
+		// time.
+		origin := p.ReqFriendshipInterRequest.GetOriginProfile()
+		if friendDomainTooLong(p.ReqFriendshipInterRequest.Domain) || origin == nil {
 			// Before ExternalFriendshipRequest, whose errors quote the
 			// domain into the log and the reply.
 			resp.Payload = &pb.RespEnvelope_RespAck{
@@ -1978,9 +1983,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		err = ch.mg.social.ExternalFriendshipRequest(
 			p.ReqFriendshipInterRequest.Domain,
 			p.ReqFriendshipInterRequest.Secret,
-			p.ReqFriendshipInterRequest.OriginProfile.Name,
-			p.ReqFriendshipInterRequest.OriginProfile.Text,
-			p.ReqFriendshipInterRequest.OriginProfile.Image)
+			origin.GetName(),
+			origin.GetText(),
+			origin.GetImage())
 
 		// Issue #140: re-linked an accepted friendship - tell the sender
 		// so it doesn't sit on "pending" until the next sync.
@@ -4764,10 +4769,12 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 	// Worked out once per request and passed down, never kept on ch:
 	// requests on a connection run concurrently.
 	lang := requestLang(env)
+	// Known before the request runs: a panic may leave ch.mu held.
+	anon := ch.anonymous()
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("recovered from panic handling request:", r, string(debug.Stack()))
+			recoveredPanic(anon, r, debug.Stack())
 			resp = &pb.RespEnvelope{
 				Id:           env.Id,
 				Error:        true,

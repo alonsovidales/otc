@@ -27,7 +27,46 @@ const (
 	// cAnonUnreadable: a message before sign-in too large, with no room,
 	// or not one at all.
 	cAnonUnreadable = "messages refused before sign-in" // i18n-ignore: the log, in English
+	// cAnonPanic: a request before sign-in that failed with a panic, past
+	// the one a minute logged with its stack (recoveredPanic).
+	cAnonPanic = "requests before sign-in that failed unexpectedly" // i18n-ignore: the log, in English
 )
+
+// anonPanics lets one panic a minute from a connection that hasn't signed
+// in reach the log with its stack.
+var anonPanics = &everyGate{every: cAnonLogEvery}
+
+// recoveredPanic logs a request's recovered panic. A signed-in owner's or
+// a friend's always goes to the log at Error with its stack. A stranger's
+// - which anyone can send again and again, each a stack trace of a couple
+// of KB - is logged so once a minute, and the rest only counted: a loop of
+// them rotated the whole log away within minutes, the history anonLog
+// exists to keep.
+func recoveredPanic(anonymous bool, r any, stack []byte) {
+	if anonymous && !anonPanics.allow(time.Now()) {
+		log.Debug("recovered from panic handling a request before sign-in:", r)
+		anonLog.note(cAnonPanic)
+		return
+	}
+	log.Error("recovered from panic handling request:", r, string(stack))
+}
+
+// everyGate says yes at most once every `every`.
+type everyGate struct {
+	mu    sync.Mutex
+	every time.Duration
+	last  time.Time
+}
+
+func (g *everyGate) allow(now time.Time) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !g.last.IsZero() && now.Sub(g.last) < g.every {
+		return false
+	}
+	g.last = now
+	return true
+}
 
 // cAnonLogEvery is how often minuteCounts writes what it counted.
 const cAnonLogEvery = time.Minute
