@@ -1091,7 +1091,7 @@ final class SyncModel: ObservableObject {
                     Task { await self.setupFolder(tf) }
                 }
             } catch {
-                print("Bookmark creation failed:", error)
+                syncLog.error("could not keep access to the folder: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -1291,7 +1291,7 @@ final class SyncModel: ObservableObject {
                 startRemoteReconcileLoop()
             }
         } catch {
-            print("Bookmark creation failed:", error)
+            syncLog.error("could not keep access to the folder: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -1404,7 +1404,16 @@ final class SyncModel: ObservableObject {
         let due = ContinuousClock.now + Self.debounceInterval
         let queue = changeQueues[folderId] ?? ChangeQueue()
         let root = folders.first(where: { $0.id == folderId })?.url.standardizedFileURL.path
+        // FSEvents dropped events (a big import overflowed it) or asks for a
+        // folder to be looked at again: the changes it doesn't name used to
+        // wait for the 10-minute pass. The whole folder is looked at now, as
+        // otc-sync does on an overflow.
+        if events.contains(where: { FolderWatcher.eventsLost($0.flags) }), let folder = folders.first(where: { $0.id == folderId }) {
+            syncLog.notice("too many changes at once in \(folder.url.path, privacy: .public) - looking at the whole folder") // i18n-ignore: a log line
+            Task { await self.reconcile(folder) }
+        }
         for event in events {
+            if FolderWatcher.eventsLost(event.flags) { continue }
             // We only care about actual file content, not directories
             // being created/renamed/removed — those surface indirectly
             // through their children's own events anyway.
@@ -1478,7 +1487,7 @@ final class SyncModel: ObservableObject {
                 try await upload(fileURL, to: remotePath, knownHash: localHash, folderId: folderId)
                 remoteHashesByFolder[folderId, default: [:]][key] = RemoteEntryHash(path: remotePath, relative: key, hash: localHash)
             } catch {
-                print("Error uploading \(path): \(error)")
+                syncLog.error("could not back up \(path, privacy: .public): \(Self.logText(error), privacy: .public)")
             }
         }
         // Gone here: nothing to do. A backup is upload only - what this Mac
@@ -1680,7 +1689,7 @@ final class SyncModel: ObservableObject {
                         // Logged and skipped, not fatal to the whole
                         // folder — the next reconcile pass (or another
                         // FSEvents change to this same path) will retry it.
-                        print("Error syncing \(item.url.lastPathComponent): \(error)")
+                        syncLog.error("backup \(remotePrefix, privacy: .public): error syncing \(item.key, privacy: .public): \(Self.logText(error), privacy: .public)")
                     }
                     bytesDone += item.size
                 }
@@ -3254,7 +3263,7 @@ final class SyncModel: ObservableObject {
             let data = try JSONEncoder().encode(bookmarks)
             UserDefaults.standard.set(data, forKey: bookmarksKey)
         } catch {
-            print("Persist error:", error)
+            syncLog.error("could not save the folders: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -3319,7 +3328,7 @@ final class SyncModel: ObservableObject {
             let data = try JSONEncoder().encode(bookmarks)
             UserDefaults.standard.set(data, forKey: remoteFoldersKey)
         } catch {
-            print("Persist error:", error)
+            syncLog.error("could not save the folders: \(error.localizedDescription, privacy: .public)")
         }
     }
 

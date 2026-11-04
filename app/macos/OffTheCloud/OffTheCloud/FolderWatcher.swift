@@ -29,6 +29,15 @@ final class FolderWatcher {
         self.onEvents = onEvents
     }
 
+    /// The event says FSEvents lost track of what changed - it dropped
+    /// events (a burst overflowed its queue, in the kernel or here) or wants
+    /// a folder looked at again as a whole: the changes it doesn't name are
+    /// for the folder's own pass to find.
+    static func eventsLost(_ flags: FSEventStreamEventFlags) -> Bool {
+        let lost = kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagUserDropped | kFSEventStreamEventFlagKernelDropped
+        return flags & FSEventStreamEventFlags(lost) != 0
+    }
+
     /// Starts watching `paths` (each a directory tree root, watched
     /// recursively). `latencySeconds` is how long FSEvents coalesces
     /// rapid-fire changes before delivering a batch — separate from (and
