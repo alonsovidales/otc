@@ -275,6 +275,23 @@
     "note": "Mac app: in the device folder picker, when the folder being looked at has no folders in it.",
     "max": 40
   },
+  "macos.plist.cfbundlename": {
+    "text": "OffTheCloud",
+    "note": "The Mac app's bundle name (Info.plist CFBundleName). Never translated.",
+    "translate": false
+  },
+  "macos.plist.nsbluetoothalwaysusagedescription": {
+    "text": "Off The Cloud uses Bluetooth to set up a new device: it finds the device and shows its setup page.",
+    "note": "macOS permission prompt (Bluetooth), shown by the system the first time the Mac app looks for a new device to set up over Bluetooth: why the app needs it. The setup page is the web page the new device serves.",
+    "review": "required",
+    "reviewed": "shipped 2026-11-04 #cfae5e8e"
+  },
+  "macos.plist.nslocalnetworkusagedescription": {
+    "text": "Off The Cloud connects to your own device on your home network, so your files sync without going out to the internet and back.",
+    "note": "macOS permission prompt (local network), shown by the system the first time the Mac app reaches the user's device on the home network: why the app needs it.",
+    "review": "required",
+    "reviewed": "shipped 2026-11-04 #9c7cbce0"
+  },
   "macos.popover.back_up": {
     "text": "Back Up",
     "note": "Mac app: the button of the folder chooser that picks a folder to back up. Title Case.",

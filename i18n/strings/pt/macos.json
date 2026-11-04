@@ -229,6 +229,16 @@
     "text": "Não há subpastas aqui.",
     "en": "No subfolders here."
   },
+  "macos.plist.nsbluetoothalwaysusagedescription": {
+    "text": "O Off The Cloud usa o Bluetooth para configurar um novo dispositivo: encontra o dispositivo e mostra a respetiva página de configuração.",
+    "en": "Off The Cloud uses Bluetooth to set up a new device: it finds the device and shows its setup page.",
+    "reviewed": "claude-backtranslation 2026-11-04 #933f88d9"
+  },
+  "macos.plist.nslocalnetworkusagedescription": {
+    "text": "O Off The Cloud liga-se ao teu próprio dispositivo na tua rede doméstica, para que os teus ficheiros sejam sincronizados sem saírem para a internet e voltarem.",
+    "en": "Off The Cloud connects to your own device on your home network, so your files sync without going out to the internet and back.",
+    "reviewed": "claude-backtranslation 2026-11-04 #196b7a5f"
+  },
   "macos.popover.back_up": {
     "text": "Fazer cópia",
     "en": "Back Up"
