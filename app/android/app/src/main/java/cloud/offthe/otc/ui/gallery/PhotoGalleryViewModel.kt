@@ -2977,7 +2977,7 @@ class PhotoGalleryViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) { refusals += DeleteRefusal("", "${e.message}"); continue }
+            } catch (e: Exception) { refusals += deleteFailed(e, online()); continue }
             deleted += p
         }
         // Also on this phone? Asked about what the device deleted.
@@ -3173,10 +3173,22 @@ internal const val DELETE_COPY_UPLOAD_ONLY = "copy_upload_only"
 
 /**
  * Issue #201: a photo of the selection's Delete that wasn't deleted: the
- * device's error_code ("" when no answer came) and its words (or the
- * phone's, when none came).
+ * device's error_code ("" when no answer came) and its words - or, when no
+ * answer came, why in the app's words ([why], [deleteFailed]).
  */
-data class DeleteRefusal(val code: String, val said: String)
+data class DeleteRefusal(val code: String, val said: String, val why: UiText? = null) {
+    /** What the note says of it: "Delete failed: " and the device's words, or why no answer came. */
+    internal fun note(): UiText = if (why != null) UiText.Res(R.string.app_photos_notice_delete_failed, listOf(why)) else S.appPhotosNoticeDeleteFailed(said)
+}
+
+/**
+ * A delete that got no answer ([e] thrown: no connection, none in time),
+ * Images' and Files': why, in the app's words and language
+ * (OTCConnection.describe; [online]: the phone has a network) - the
+ * network stack's own English ("Failed to connect to /192.168.1.20:8080",
+ * a bare EOFException) used to reach the note, in every language.
+ */
+internal fun deleteFailed(e: Throwable, online: Boolean): DeleteRefusal = DeleteRefusal("", "", OTCConnection.describe(e, online))
 
 /**
  * Issue #201: what the selection's Delete says about the photos it
@@ -3190,14 +3202,14 @@ data class DeleteRefusal(val code: String, val said: String)
  */
 fun deleteRefusalNotes(refusals: List<DeleteRefusal>): List<UiText> {
     if (refusals.isEmpty()) return emptyList()
-    if (refusals.size == 1) return listOf(S.appPhotosNoticeDeleteFailed(refusals[0].said))
+    if (refusals.size == 1) return listOf(refusals[0].note())
     val changed = refusals.count { it.code == DELETE_CHANGED }
     val copies = refusals.count { it.code == DELETE_COPY_UPLOAD_ONLY }
-    val others = refusals.filter { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }.map { it.said }.distinct()
+    val others = refusals.filter { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }.map { it.note() }.distinct()
     return buildList {
         if (changed > 0) add(S.appPhotosNoticeDeleteChanged(changed))
         if (copies > 0) add(S.appPhotosNoticeDeleteCopyUploadOnly(copies))
-        for (said in others) add(S.appPhotosNoticeDeleteFailed(said))
+        addAll(others)
     }
 }
 

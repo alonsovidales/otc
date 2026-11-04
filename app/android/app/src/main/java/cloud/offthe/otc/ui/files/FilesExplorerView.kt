@@ -122,6 +122,7 @@ import cloud.offthe.otc.i18n.commonOk
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonTryAgain
 import cloud.offthe.otc.ui.gallery.DeleteRefusal
+import cloud.offthe.otc.ui.gallery.deleteFailed
 import cloud.offthe.otc.ui.gallery.deleteRefusalNotes
 import cloud.offthe.otc.ui.settings.shownText
 import cloud.offthe.otc.ui.common.TempFiles
@@ -1198,8 +1199,8 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        // No answer (no connection, none in time): why, in the phone's words.
-                        kept += DeleteRefusal("", e.shownText()?.now() ?: e.javaClass.simpleName)
+                        // No answer (no connection, none in time): why, in the app's words.
+                        kept += deleteFailed(e, NetworkWatch.online())
                     }
                 }
                 if (gone.isNotEmpty()) DeletePhoneCopyModel.deleted(gone)

@@ -4656,7 +4656,8 @@ multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold
 its Delete a spinner, until every delete is done (`SelectionActionTask.delete` / `DELETE`): through
 the bridge a few hundred take minutes, and a second Delete sent the same paths again; Files says
 what wasn't deleted as Images does (iOS `DeleteCopies.keptText`, Android `deleteKeptToast` over
-`deleteRefusalNotes`: the device's words, or why no answer came) - it said nothing at all. Android only: the "isn't available"/"can't connect"
+`deleteRefusalNotes`: the device's words, or why no answer came - on Android in the app's words,
+`deleteFailed` over `OTCConnection.describe`, never the network stack's English) - it said nothing at all. Android only: the "isn't available"/"can't connect"
 cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
 through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. Its
 colours read at 4.5:1 (`ui/theme/Theme.kt`, `ThemeContrastTest.kt`): light mode's accent is ember
