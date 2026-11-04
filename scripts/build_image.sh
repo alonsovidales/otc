@@ -10,10 +10,12 @@
 # Run as root on any arm64 Linux box with losetup (a Raspberry Pi is fine;
 # `make image` runs it on TARGET over SSH) - the chroot below only runs
 # systemctl/apt, no binaries are copied in, so the host's own release
-# doesn't matter.
+# doesn't matter. SRC_REPO is where the scripts it puts in the image come
+# from: a `git archive` of a committed tree, never a working copy (`make
+# image` refuses uncommitted changes and ships HEAD's scripts/ there).
 #
 #   $ make image TARGET=pit.otc          # from a dev machine
-#   $ sudo bash scripts/build_image.sh   # or directly on the device
+#   $ sudo SRC_REPO=<archive> bash scripts/build_image.sh   # or by hand
 #
 # Produces, under $WORK:
 #   off-the-cloud-rpi-lite-arm64.img.xz         the image (~550MB)
@@ -77,9 +79,25 @@ LOOPDEV=$(losetup --show -fP "$IMG")
 partprobe "$LOOPDEV" || true
 sleep 1
 
+# The image's own /etc/resolv.conf (a file or a symlink), kept aside while
+# the chroot uses this machine's for apt (below) and put back afterwards:
+# the published image must not carry the DNS servers and search domains of
+# the machine that built it (a home network's, a tailnet's).
+RESOLV_KEPT="$MNT/etc/.resolv.conf.otc-image"
+restore_resolv() {
+    rm -f "$MNT/etc/resolv.conf"
+    if [ -e "$RESOLV_KEPT" ] || [ -L "$RESOLV_KEPT" ]; then
+        mv -T "$RESOLV_KEPT" "$MNT/etc/resolv.conf"
+    fi
+}
+
 cleanup() {
     set +e
     rm -f "$MNT/usr/sbin/policy-rc.d" "$MNT/zero" 2>/dev/null
+    if [ -n "${RESOLV_SWAPPED:-}" ]; then
+        restore_resolv 2>/dev/null
+        RESOLV_SWAPPED=""
+    fi
     umount "$MNT/boot/firmware" 2>/dev/null
     umount "$MNT/dev/pts" 2>/dev/null
     umount "$MNT/dev" 2>/dev/null
@@ -100,7 +118,14 @@ mount --bind /sys "$MNT/sys"
 # under); package maintainer scripts respect this file.
 printf '#!/bin/sh\nexit 101\n' > "$MNT/usr/sbin/policy-rc.d"
 chmod +x "$MNT/usr/sbin/policy-rc.d"
-cp /etc/resolv.conf "$MNT/etc/resolv.conf"
+# This machine's resolver for apt in the chroot, the image's own kept aside
+# (renamed: a symlink is moved, never written through) until clean-up.
+rm -f "$RESOLV_KEPT"
+if [ -e "$MNT/etc/resolv.conf" ] || [ -L "$MNT/etc/resolv.conf" ]; then
+    mv -T "$MNT/etc/resolv.conf" "$RESOLV_KEPT"
+fi
+RESOLV_SWAPPED=1
+cp -L /etc/resolv.conf "$MNT/etc/resolv.conf"
 
 # mdadm is what the wizard needs before install.sh has run to find the
 # RAID1 array (and the database on it) a dead Pi left behind, so the
@@ -256,6 +281,9 @@ EOF2
 echo "=== [6/7] Clean up for distribution ==="
 rm -rf "$MNT/var/lib/apt/lists/"*
 rm -f "$MNT/usr/sbin/policy-rc.d"
+# The image's own resolver configuration back in place of this machine's.
+restore_resolv
+RESOLV_SWAPPED=""
 # Fresh identity per flashed card, not this build machine's.
 rm -f "$MNT"/etc/ssh/ssh_host_*
 # ...which leaves sshd unable to start ("no hostkeys available") if the

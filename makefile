@@ -106,13 +106,20 @@ i18n-check:
 # (needs losetup + an arm64 chroot) and copied back here into dist/.
 IMAGE_NAME  := off-the-cloud-rpi-lite-arm64
 IMAGE_WORK  := /home/otc/image-build
+# The image's sources on TARGET: a `git archive` of HEAD's scripts/, never
+# this checkout's working copy - every new device runs what is in it as
+# root, so nothing uncommitted may reach it.
+IMAGE_SRC   := /home/otc/image-src
 # One rolling GitHub release, tag "image", holds the current image at a
 # stable URL: https://github.com/alonsovidales/otc/releases/download/image/$(IMAGE_NAME).img.xz
 IMAGE_RELEASE := image
+IMAGE_URL     := https://github.com/alonsovidales/otc/releases/download/$(IMAGE_RELEASE)
 
-image: sync
-	@echo "$(OK_COLOR)==> Building $(IMAGE_NAME) on $(TARGET) (base download + xz: a few minutes)...$(NO_COLOR)"
-	ssh $(PI_USER)@$(TARGET) 'sudo -n bash /home/otc/otc/scripts/build_image.sh'
+image:
+	@[ -z "$$(git status --porcelain --untracked-files=all -- scripts)" ] || { echo "scripts/ has changes that aren't committed - the image is built from HEAD only: commit or stash them first"; git status --short --untracked-files=all -- scripts; exit 1; }
+	@echo "$(OK_COLOR)==> Building $(IMAGE_NAME) from $$(git rev-parse --short HEAD) on $(TARGET) (base download + xz: a few minutes)...$(NO_COLOR)"
+	git archive --format=tar HEAD scripts | ssh $(PI_USER)@$(TARGET) 'rm -rf $(IMAGE_SRC) && mkdir -p $(IMAGE_SRC) && tar -xf - -C $(IMAGE_SRC)'
+	ssh $(PI_USER)@$(TARGET) 'sudo -n env SRC_REPO=$(IMAGE_SRC) WORK=$(IMAGE_WORK) bash $(IMAGE_SRC)/scripts/build_image.sh'
 	mkdir -p dist
 	scp $(PI_USER)@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz $(PI_USER)@$(TARGET):$(IMAGE_WORK)/$(IMAGE_NAME).img.xz.sha256 dist/
 	@echo "$(OK_COLOR)==> dist/$(IMAGE_NAME).img.xz ready - publish with: make image-publish$(NO_COLOR)"
@@ -121,13 +128,30 @@ image: sync
 
 image-publish:
 	@test -f dist/$(IMAGE_NAME).img.xz || { echo "dist/$(IMAGE_NAME).img.xz not found - run 'make image' first"; exit 1; }
+	@# The checksum that gets signed must be this image's: a new image copied
+	@# in beside an older .sha256 was signed as it was, and failed every
+	@# desktop app's check until published again.
+	@(cd dist && shasum -a 256 -c $(IMAGE_NAME).img.xz.sha256) || { echo "dist/$(IMAGE_NAME).img.xz.sha256 is not the image's checksum - nothing was signed or published"; exit 1; }
 	@gh release view $(IMAGE_RELEASE) >/dev/null 2>&1 || gh release create $(IMAGE_RELEASE) --title "Raspberry Pi image" \
 		--notes "Flash with Raspberry Pi Imager (Use custom, no customisation), boot, open the Off The Cloud app and tap Set up a new device (Bluetooth). Rebuilt whenever the setup scripts change; the software itself is installed at setup time."
 	@# Issue #184: the desktop apps' setup wizard trusts the image only through
 	@# this signature (release key, like device releases) over its SHA-256.
 	scripts/sign-file.sh dist/$(IMAGE_NAME).img.xz.sha256 dist/$(IMAGE_NAME).img.xz.sha256.sig
 	gh release upload $(IMAGE_RELEASE) dist/$(IMAGE_NAME).img.xz dist/$(IMAGE_NAME).img.xz.sha256 dist/$(IMAGE_NAME).img.xz.sha256.sig --clobber
-	@echo "$(OK_COLOR)==> https://github.com/alonsovidales/otc/releases/download/$(IMAGE_RELEASE)/$(IMAGE_NAME).img.xz$(NO_COLOR)"
+	@# What is published is what was checked and signed: each file
+	@# downloaded again and compared (retried for a minute, while the
+	@# download links may still serve the files they replace).
+	@for f in $(IMAGE_NAME).img.xz $(IMAGE_NAME).img.xz.sha256 $(IMAGE_NAME).img.xz.sha256.sig; do \
+		want="$$(shasum -a 256 "dist/$$f" | awk '{print $$1}')"; \
+		for try in 1 2 3 4 5 6 7; do \
+			got="$$(curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 "$(IMAGE_URL)/$$f" | shasum -a 256 | awk '{print $$1}')"; \
+			[ "$$got" = "$$want" ] && break; \
+			[ "$$try" -lt 7 ] || { echo "the published $$f does not match dist/$$f ($${got:-download failed}, expected $$want) - publish again"; exit 1; }; \
+			sleep 10; \
+		done; \
+		echo "published $$f checked"; \
+	done
+	@echo "$(OK_COLOR)==> $(IMAGE_URL)/$(IMAGE_NAME).img.xz$(NO_COLOR)"
 
 .PHONY: image-publish
 
