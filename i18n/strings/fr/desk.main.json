@@ -178,6 +178,10 @@
     "text": "Envoi uniquement (une option pour un dossier synchronisé depuis cet ordinateur ; toujours activée pour une sauvegarde)\nL’appareil conserve toutes les anciennes versions d’un fichier, et rien dans le dossier ne peut être supprimé sur l’appareil. Les fichiers que vous supprimez sur cet ordinateur restent sur l’appareil et ne sont pas téléchargés de nouveau ; les fichiers ajoutés ou modifiés sur l’appareil continuent d’arriver ici. Vous pourrez désactiver cette option plus tard depuis l’app web ou l’app pour téléphone (le cadenas sur le dossier dans Fichiers) ; les fichiers supprimés sur cet ordinateur pendant qu’elle était activée reviennent alors ici.",
     "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
   },
+  "desk.main.files_failed": {
+    "text": "Fichiers qui n’ont pas pu être synchronisés (voir le journal) : {files}",
+    "en": "{files} file(s) could not be synced - see the log"
+  },
   "desk.main.files_not_synced_here": {
     "text": "Fichiers qui sont ici des liens ou cachés (laissés tels quels sur l’appareil) : {files}",
     "en": "{files} file(s) are links or hidden here - left as they are on the device"
@@ -293,6 +297,10 @@
   "desk.main.no_folders": {
     "text": "Pas encore de dossiers : ajoutez-en un ci-dessous.",
     "en": "No folders yet — add one below."
+  },
+  "desk.main.no_space": {
+    "text": "Fichiers de l’appareil pour lesquels il n’y a pas assez de place ici : {files}",
+    "en": "Not enough space here for {files} file(s) from the device"
   },
   "desk.main.no_storage": {
     "text": "Votre appareil ne parvient pas à accéder à ses disques de stockage. Vérifiez qu’ils sont branchés et allumés ; il redémarre de lui-même dès qu’ils sont de retour.",
@@ -488,6 +496,10 @@
   "desk.main.title": {
     "text": "Off The Cloud — Synchronisation",
     "en": "Off The Cloud — Sync"
+  },
+  "desk.main.too_large_for_disk": {
+    "text": "Fichiers trop volumineux pour ce disque (FAT32 accepte des fichiers jusqu’à 4 Go) : {files}",
+    "en": "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
   },
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",

@@ -266,6 +266,13 @@ extension S {
     /// otc-sync: fourth paragraph of the What Do These Do? dialog: a heading line (the Upload only option), a line break, then what it means. "Files" is the app's file browser section. Keep the line break.
     static var deskMainExplainUploadOnly: String { L("desk.main.explain_upload_only", table: "DeskMain") }
 
+    /// {files} file(s) could not be synced - see the log
+    ///
+    /// Both apps: a two-way folder's state when some files couldn't be uploaded, downloaded or deleted for a reason of their own (the device refused them, for example). The app tries them again later, less often each time; the log says why. {files} is how many.
+    static func deskMainFilesFailed(files: Int) -> String {
+        L("desk.main.files_failed", table: "DeskMain", files)
+    }
+
     /// {files} file(s) are links or hidden here - left as they are on the device
     ///
     /// otc-sync: a two-way folder's state when files it synced before are now symbolic links on this computer, inside a linked folder, or hidden (Windows' Hidden attribute). The app doesn't sync those, and leaves the device's copies as they are instead of deleting them. {files} is how many.
@@ -427,6 +434,13 @@ extension S {
     ///
     /// Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.
     static var deskMainNoFolders: String { L("desk.main.no_folders", table: "DeskMain") }
+
+    /// Not enough space here for {files} file(s) from the device
+    ///
+    /// Both apps: a two-way folder's state when files from the device couldn't be downloaded because this computer's disk doesn't have room for them (the app always leaves some space free). It tries them again later, less often each time. {files} is how many.
+    static func deskMainNoSpace(files: Int) -> String {
+        L("desk.main.no_space", table: "DeskMain", files)
+    }
 
     /// Your device can't reach its storage disks. Check they're plugged in and switched on; it starts again by itself once they're back.
     ///
@@ -697,6 +711,13 @@ extension S {
     ///
     /// Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. "Off The Cloud" is the product name; "Sync" names this app, the sync client.
     static var deskMainTitle: String { L("desk.main.title", table: "DeskMain") }
+
+    /// {files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)
+    ///
+    /// Both apps: a two-way folder's state when files from the device can't be downloaded because the disk the folder is on is formatted as FAT32 (common on USB sticks and SD cards), which can't hold a file of 4 GB or more. {files} is how many. FAT32 is the name of the disk format.
+    static func deskMainTooLargeForDisk(files: Int) -> String {
+        L("desk.main.too_large_for_disk", table: "DeskMain", files)
+    }
 
     /// Off The Cloud — {status}
     ///

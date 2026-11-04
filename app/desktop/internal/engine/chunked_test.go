@@ -90,6 +90,9 @@ type fakeDevice struct {
 	dropAfter func(*pb.ReqEnvelope) bool
 	down      bool
 	conns     int
+	// beginRefusal, when set, is the device's answer to every BeginUpload
+	// (its storage full, say).
+	beginRefusal string
 }
 
 // uploadKey is BeginUpload's resume key (issue #205).
@@ -131,6 +134,10 @@ func (d *fakeDevice) answer(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 	case *pb.ReqEnvelope_ReqBeginUpload:
 		bu := p.ReqBeginUpload
 		d.begins = append(d.begins, bu)
+		if d.beginRefusal != "" {
+			resp.Error, resp.ErrorMessage = true, d.beginRefusal
+			break
+		}
 		key := uploadKey{bu.Path, bu.Size, bu.Sha256}
 		if id, ok := d.resumable[key]; ok && bu.Sha256 != "" && !d.forgetful {
 			received := int64(d.pending[id].Len())

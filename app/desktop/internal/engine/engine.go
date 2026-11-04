@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -267,6 +268,8 @@ type Engine struct {
 	passWake chan struct{}
 	// Files that changed while they were being sent, backed off (busy.go).
 	busy map[string]busyBackoff
+	// Two-way files whose transfer failed, backed off (fail.go).
+	failing map[string]failBackoff
 	// Backups whose SetUploadOnly the device linked now acknowledged, and
 	// the last error logged for the others (see ensureUploadOnly).
 	uploadOnlyOK  map[string]bool
@@ -2088,6 +2091,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// The folders local deletions emptied: removed after the pass (see
 	// removeEmptiedDirs).
 	emptied := map[string]bool{}
+	// What the pass couldn't sync, and the paths it had something to do
+	// for - failures backed off elsewhere are forgotten (fail.go).
+	var failures passFailures
+	acted := map[string]bool{}
 	for i, a := range actions {
 		if !e.stillSyncing(f.ID, domainAtStart) {
 			log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
@@ -2124,11 +2131,25 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		localPath := localPathOf(a.relative)
 		remotePath := remotePathOf(a.relative)
+		acted[localPath] = true
 		// The device's file must still be what the listing said when an
 		// upload replaces it or a delete removes it (deviceStillAsListed).
 		listed := remoteByRel[a.relative]
 		asListed := func() error { return e.deviceStillAsListed(remotePath, listed) }
+		transfer := a.kind != actDeleteLocal && a.kind != actDeleteRemote
 		var err error
+		// A transfer that failed for a reason of its own waits a while
+		// (fail.go), and still counts as not synced.
+		if kind, waiting := e.failWait(localPath); transfer && waiting {
+			failures.add(kind)
+			if prior, ok := last[a.relative]; ok {
+				newSynced[a.relative] = prior
+			} else {
+				delete(newSynced, a.relative)
+			}
+
+			continue
+		}
 		switch a.kind {
 		case actUpload:
 			fi, statErr := os.Stat(localPath)
@@ -2170,9 +2191,23 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			}
 		case actUploadKeepRemote:
 			localHash, remoteHash, _ := strings.Cut(a.hash, "\x00")
-			copyPath := conflictPath(localPath, "", time.Now())
-			if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
-				log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+			// A busy file is left as it is before a copy is made for it, and
+			// a copy of the device's version an earlier pass kept (its
+			// upload failed) is the one kept: each pass used to download
+			// another.
+			if e.busyWait(localPath) {
+				err = errBusyFile
+
+				break
+			}
+			copyPath, kept := e.conflictCopyOf(f.ID, localPath, remoteHash)
+			if !kept {
+				copyPath = conflictPath(localPath, "", time.Now())
+				if err = e.downloadIf(remotePath, copyPath, remoteHash, f.ID, absent(copyPath)); err == nil {
+					log.Printf("conflict on %s: the other version kept as %s", a.relative, filepath.Base(copyPath))
+				}
+			}
+			if err == nil {
 				if !e.stillSyncing(f.ID, domainAtStart) {
 					log.Printf("%s: folder removed or device changed - pass stopped", f.RemotePath)
 
@@ -2220,13 +2255,21 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else {
 				delete(newSynced, a.relative)
 			}
-			if errors.Is(err, errChangedHere) || errors.Is(err, errChangedOnDevice) || errors.Is(err, errBusyFile) {
+			switch {
+			case transient(err):
 				log.Printf("%s %v", a.relative, err)
-			} else {
+			case transfer:
+				failures.add(failKindOf(err))
+				e.noteFailed(localPath, err)
+			default:
+				failures.add(failKindOf(err))
 				log.Printf("error syncing %s: %v", a.relative, err)
 			}
+		} else if transfer {
+			e.noteSynced(localPath)
 		}
 	}
+	e.forgetFailedUnder(f.LocalPath, acted)
 
 	if n := removeEmptiedDirs(emptied, f.LocalPath); n > 0 {
 		log.Printf("%s: removed %d folder(s) left empty by deletions on the device", f.RemotePath, n)
@@ -2241,7 +2284,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		e.startRemoteWatcher(f)
 	}
 	// The pass ends saying what is left undone, the most pressing first:
-	// deletes held here. Files under a directory that could not be read are
+	// deletes held here, then files it couldn't sync (no room for them
+	// here first). Files under a directory that could not be read are
 	// in unreadable (see above) and counted here. Such a directory with
 	// nothing synced under it - lost+found at a mount's root, System Volume
 	// Information at a drive's - is only logged (enumerateFiles), as on the
@@ -2249,6 +2293,8 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	switch {
 	case heldNote.Kind != "":
 		e.setRemoteState(f.ID, heldNote)
+	case failures.total() > 0:
+		e.setRemoteState(f.ID, failures.note())
 	case len(unreadable) > 0:
 		e.setRemoteState(f.ID, noteState(
 			fmt.Sprintf("%d file(s) could not be read", len(unreadable)), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
@@ -2730,6 +2776,14 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, rea
 		last = c.RespFileChunk
 		if expectedHash != "" && last.Hash != "" && last.Hash != expectedHash {
 			return errors.New("the file changed on the device while downloading - will retry") // i18n-ignore: a file's error, only logged
+		}
+		// Its size known: refused before anything is written when this
+		// disk can't take it (fail.go) - it used to fill the disk, fail,
+		// free it and start again at every pass.
+		if at == 0 {
+			if err := roomFor(filepath.Dir(dest), last.Size); err != nil {
+				return err
+			}
 		}
 		size = last.Size
 		if len(last.Data) == 0 && offset < size {
@@ -3226,6 +3280,42 @@ func conflictPath(path, from string, at time.Time) string {
 		}
 		candidate = filepath.Join(dir, fmt.Sprintf("%s (%s %d)%s", stem, label, i, ext))
 	}
+}
+
+// conflictCopyRe matches the names conflictPath gives the device's
+// version of a file: "name (conflict 2026-11-04 10.16).ext", "… 10.16 2)…".
+const conflictCopyRe = ` \(conflict \d{4}-\d{2}-\d{2} \d{2}\.\d{2}( \d+)?\)`
+
+// conflictCopyOf is a copy of the device's version of path (hash) that an
+// earlier pass kept next to it, when there is one: that pass's upload of
+// the local version failed, and the next one is to reuse it rather than
+// download another.
+func (e *Engine) conflictCopyOf(folderID, path, hash string) (string, bool) {
+	dir, base := filepath.Split(path)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" {
+		stem, ext = base, ""
+	}
+	re, err := regexp.Compile("^" + regexp.QuoteMeta(stem) + conflictCopyRe + regexp.QuoteMeta(ext) + "$")
+	if err != nil {
+		return "", false
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	for _, en := range entries {
+		if !en.Type().IsRegular() || !re.MatchString(en.Name()) {
+			continue
+		}
+		p := filepath.Join(dir, en.Name())
+		if h, err := e.cachedHash(folderID, p); err == nil && h == hash {
+			return p, true
+		}
+	}
+
+	return "", false
 }
 
 // hostLabel is this computer's name for conflict copies.

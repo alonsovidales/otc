@@ -178,6 +178,10 @@
     "text": "Apenas carregamento (uma opção para uma pasta sincronizada a partir deste computador; sempre ativa numa cópia de segurança)\nO dispositivo guarda todas as versões anteriores de um ficheiro, e nada na pasta pode ser eliminado no dispositivo. Os ficheiros que eliminares neste computador ficam no dispositivo e não voltam a ser transferidos; os ficheiros adicionados ou alterados no dispositivo continuam a chegar. Podes desativá-la mais tarde na app web ou na app do telemóvel (o cadeado na pasta, em Ficheiros); os ficheiros que eliminaste neste computador enquanto estava ativa voltam então para aqui.",
     "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
   },
+  "desk.main.files_failed": {
+    "text": "Ficheiros que não foi possível sincronizar (consulta o registo): {files}",
+    "en": "{files} file(s) could not be synced - see the log"
+  },
   "desk.main.files_not_synced_here": {
     "text": "Ficheiros que aqui são ligações ou estão ocultos (ficam como estão no dispositivo): {files}",
     "en": "{files} file(s) are links or hidden here - left as they are on the device"
@@ -293,6 +297,10 @@
   "desk.main.no_folders": {
     "text": "Ainda não há pastas: adiciona uma abaixo.",
     "en": "No folders yet — add one below."
+  },
+  "desk.main.no_space": {
+    "text": "Ficheiros do dispositivo para os quais não há espaço aqui: {files}",
+    "en": "Not enough space here for {files} file(s) from the device"
   },
   "desk.main.no_storage": {
     "text": "O teu dispositivo não consegue aceder aos seus discos de armazenamento. Verifica se estão ligados e com alimentação; volta a arrancar sozinho assim que estiverem de volta.",
@@ -488,6 +496,10 @@
   "desk.main.title": {
     "text": "Off The Cloud — Sincronização",
     "en": "Off The Cloud — Sync"
+  },
+  "desk.main.too_large_for_disk": {
+    "text": "Ficheiros demasiado grandes para este disco (o FAT32 aceita ficheiros até 4 GB): {files}",
+    "en": "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
   },
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",

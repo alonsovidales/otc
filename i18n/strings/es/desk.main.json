@@ -178,6 +178,10 @@
     "text": "Solo subida (una opción para una carpeta sincronizada desde este ordenador; siempre activada en una copia de seguridad)\nEl dispositivo conserva todas las versiones anteriores de un archivo, y no se puede eliminar nada de la carpeta en el dispositivo. Los archivos que eliminas en este ordenador siguen en el dispositivo y no se vuelven a descargar; los archivos añadidos o modificados en el dispositivo sí se descargan. Puedes desactivarla más adelante desde la app web o la app del teléfono (el candado de la carpeta en Archivos); los archivos que eliminaste en este ordenador mientras estaba activada vuelven entonces aquí.",
     "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
   },
+  "desk.main.files_failed": {
+    "text": "Archivos que no se han podido sincronizar (consulta el registro): {files}",
+    "en": "{files} file(s) could not be synced - see the log"
+  },
   "desk.main.files_not_synced_here": {
     "text": "Archivos que aquí son enlaces o están ocultos (se dejan como están en el dispositivo): {files}",
     "en": "{files} file(s) are links or hidden here - left as they are on the device"
@@ -293,6 +297,10 @@
   "desk.main.no_folders": {
     "text": "Aún no hay carpetas: añade una abajo.",
     "en": "No folders yet — add one below."
+  },
+  "desk.main.no_space": {
+    "text": "Archivos del dispositivo para los que no hay espacio aquí: {files}",
+    "en": "Not enough space here for {files} file(s) from the device"
   },
   "desk.main.no_storage": {
     "text": "Tu dispositivo no puede acceder a sus discos de almacenamiento. Comprueba que estén conectados y encendidos; volverá a ponerse en marcha solo en cuanto estén de vuelta.",
@@ -488,6 +496,10 @@
   "desk.main.title": {
     "text": "Off The Cloud — Sincronización",
     "en": "Off The Cloud — Sync"
+  },
+  "desk.main.too_large_for_disk": {
+    "text": "Archivos demasiado grandes para este disco (FAT32 admite archivos de hasta 4 GB): {files}",
+    "en": "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)"
   },
   "desk.main.tray_tip": {
     "text": "Off The Cloud — {status}",

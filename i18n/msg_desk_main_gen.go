@@ -219,6 +219,11 @@ func DeskMainExplainUploadOnly() Msg {
 	return Msg{Key: "desk.main.explain_upload_only"}
 }
 
+// DeskMainFilesFailed is desk.main.files_failed: "{files} file(s) could not be synced - see the log".
+func DeskMainFilesFailed(files int) Msg {
+	return Msg{Key: "desk.main.files_failed", Args: map[string]any{"files": int64(files)}}
+}
+
 // DeskMainFilesNotSyncedHere is desk.main.files_not_synced_here: "{files} file(s) are links or hidden here - left as they are on the device".
 func DeskMainFilesNotSyncedHere(files int) Msg {
 	return Msg{Key: "desk.main.files_not_synced_here", Args: map[string]any{"files": int64(files)}}
@@ -357,6 +362,11 @@ func DeskMainMemoryLine(amount string) Msg {
 // DeskMainNoFolders is desk.main.no_folders: "No folders yet — add one below.".
 func DeskMainNoFolders() Msg {
 	return Msg{Key: "desk.main.no_folders"}
+}
+
+// DeskMainNoSpace is desk.main.no_space: "Not enough space here for {files} file(s) from the device".
+func DeskMainNoSpace(files int) Msg {
+	return Msg{Key: "desk.main.no_space", Args: map[string]any{"files": int64(files)}}
 }
 
 // DeskMainNoStorage is desk.main.no_storage: "Your device can't reach its storage disks. Check they're plugged in and switched…".
@@ -582,6 +592,11 @@ func DeskMainSwitchDeviceTitle(device string) Msg {
 // DeskMainTitle is desk.main.title: "Off The Cloud — Sync".
 func DeskMainTitle() Msg {
 	return Msg{Key: "desk.main.title"}
+}
+
+// DeskMainTooLargeForDisk is desk.main.too_large_for_disk: "{files} file(s) are too large for this disk (FAT32 holds files up to 4 GB)".
+func DeskMainTooLargeForDisk(files int) Msg {
+	return Msg{Key: "desk.main.too_large_for_disk", Args: map[string]any{"files": int64(files)}}
 }
 
 // DeskMainTrayTip is desk.main.tray_tip: "Off The Cloud — {status}".
