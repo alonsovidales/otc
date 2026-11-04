@@ -213,9 +213,19 @@
     "args": [["version", "text"]],
     "note": "Shown in Settings > Device version once an update finished. {version} is the release number the device is now on, such as 118."
   },
+  "dev.update.updated_os_pending": {
+    "text": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again",
+    "args": [["version", "text"]],
+    "note": "Shown in Settings > Device version once an update finished, when the part of it outside the app could not be set up: the operating system's automatic security updates (and a network filter that comes with them), for instance because the system's package manager failed. The device is on the new version anyway, and the next update tries that part again. {version} is the release number the device is now on, such as 118."
+  },
   "dev.update.uptodate": {
     "text": "Already up to date",
     "note": "Shown in Settings > Device version when Update found nothing to install: the device already runs the newest release."
+  },
+  "dev.update.users_unreadable": {
+    "text": "release {release} could not read this device's list of users - press Update to try again",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A release's changes could not read the list of this device's users (its database did not answer), so the update stopped there rather than leave the other users' data behind; pressing Update again retries it. {release} is the release's number, such as 118. Update is the name of the button that starts an update."
   },
   "dev.update.verified_manifest_missing": {
     "text": "the verified manifest is missing",

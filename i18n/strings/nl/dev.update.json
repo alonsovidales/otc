@@ -182,9 +182,17 @@
     "text": "Bijgewerkt naar versie {version}",
     "en": "Updated to version {version}"
   },
+  "dev.update.updated_os_pending": {
+    "text": "Bijgewerkt naar versie {version}, maar de beveiligingsupdates van het systeem konden niet worden ingesteld: de volgende update probeert het opnieuw",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again"
+  },
   "dev.update.uptodate": {
     "text": "Al up-to-date",
     "en": "Already up to date"
+  },
+  "dev.update.users_unreadable": {
+    "text": "release {release} kon de lijst met gebruikers van dit apparaat niet lezen: druk op Bijwerken om het opnieuw te proberen",
+    "en": "release {release} could not read this device's list of users - press Update to try again"
   },
   "dev.update.verified_manifest_missing": {
     "text": "het geverifieerde manifest ontbreekt",

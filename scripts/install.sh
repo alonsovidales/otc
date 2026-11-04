@@ -507,21 +507,39 @@ fi
 # packets carrying IPv4 options are dropped before the kernel's TCP code
 # sees them: that bug needs them, and nothing OTC serves uses them (an
 # nftables table of its own, otc-ipv4-options.service). The same as
-# updates/161.sh, for the devices installed before.
+# updates/corrected/161.sh, for the devices installed before
+# (updater/os_security_test.go).
+#
+# Nothing in it waits for an answer, and it sets up all it can before it
+# reports a failure (status 1): an update has no terminal, so debconf asks
+# nothing, dpkg keeps a configuration file someone changed (confold) and
+# takes the package's default for the rest (confdef) instead of asking on
+# standard input and failing, an apt run cut short (a power cut) is
+# finished first, apt waits up to 10 minutes for another apt (the daily
+# one), and a failed install is tried once more with fresh lists. The
+# IPv4-options filter needs no package where nft is there already.
 otc_os_security() {
+    local rc=0 conf=/etc/apt/apt.conf.d/52otc-security-updates reboot=true
+    local apt_get=(apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o DPkg::Lock::Timeout=600)
+    export DEBIAN_FRONTEND=noninteractive
+    dpkg --force-confdef --force-confold --configure -a || true
     # A device that hasn't asked in months has stale lists: ask first (an
     # offline device installs from what it has, or fails here).
-    apt-get update || true
-    apt-get install -y unattended-upgrades nftables
-    cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APTEOF'
+    "${apt_get[@]}" update || true
+    if ! "${apt_get[@]}" install unattended-upgrades nftables; then
+        dpkg --force-confdef --force-confold --configure -a || true
+        "${apt_get[@]}" update || true
+        "${apt_get[@]}" install unattended-upgrades nftables \
+            || { echo "WARNING: unattended-upgrades and nftables could not be installed"; rc=1; }
+    fi
+    cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APTEOF' || rc=1
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 APTEOF
-    local conf=/etc/apt/apt.conf.d/52otc-security-updates reboot=true
     if [ "${OTC_SECURITY_REBOOT:-1}" = "0" ] || grep -q 'Automatic-Reboot "false"' "$conf" 2>/dev/null; then
         reboot=false
     fi
-    cat > "$conf" <<APTEOF
+    cat > "$conf" <<APTEOF || rc=1
 // Off The Cloud (scripts/install.sh, updates/161.sh): the system's security
 // updates install by themselves every day, and when one needs a restart (a
 // new kernel) the device restarts at 04:00. Debian's and Ubuntu's security
@@ -535,8 +553,8 @@ Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
 Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 DPkg::Lock::Timeout "600";
 APTEOF
-    mkdir -p /etc/otc
-    cat > /etc/otc/ipv4-options.nft <<'NFTEOF'
+    mkdir -p /etc/otc || rc=1
+    cat > /etc/otc/ipv4-options.nft <<'NFTEOF' || rc=1
 #!/usr/sbin/nft -f
 # Off The Cloud: TCP packets carrying IPv4 options never reach the kernel's
 # TCP code (CVE-2026-98432 needs them; nothing the device serves uses them).
@@ -550,7 +568,7 @@ table ip otc_ipv4_options {
 	}
 }
 NFTEOF
-    cat > /etc/systemd/system/otc-ipv4-options.service <<'UNITEOF'
+    cat > /etc/systemd/system/otc-ipv4-options.service <<'UNITEOF' || rc=1
 [Unit]
 Description=Off The Cloud: drop TCP packets carrying IPv4 options (CVE-2026-98432)
 DefaultDependencies=no
@@ -567,12 +585,18 @@ ExecStart=/usr/sbin/nft -f /etc/otc/ipv4-options.nft
 [Install]
 WantedBy=sysinit.target
 UNITEOF
-    systemctl daemon-reload
-    systemctl enable otc-ipv4-options.service
-    systemctl restart otc-ipv4-options.service
+    systemctl daemon-reload || rc=1
+    if [ -x /usr/sbin/nft ]; then
+        { systemctl enable otc-ipv4-options.service && systemctl restart otc-ipv4-options.service; } \
+            || { echo "WARNING: the IPv4-options filter could not be loaded"; rc=1; }
+    else
+        echo "WARNING: nft is not installed, so the IPv4-options filter can't be loaded yet"
+        rc=1
+    fi
+    return "$rc"
 }
 log "[1/10] security updates and the IPv4-options filter"
-otc_os_security
+otc_os_security || die "the system's security updates could not be set up (see the lines above) - run the installer again"
 
 wiz_step account
 log "[2/10] otc service account"
@@ -1435,13 +1459,19 @@ SQL
     ALTER TABLE faces ADD COLUMN IF NOT EXISTS quality FLOAT NULL;
     ALTER TABLE settings ADD COLUMN IF NOT EXISTS face_quality_done TINYINT(1) NOT NULL DEFAULT 0;
 SQL
-    # Release 158 (updates/158.sh): whether the user chose Image Tagging -
-    # until then the device sets it by its memory. Added once, marking a
-    # switch already off (the old default was on) as their choice.
-    if [ -z "$(mysql "$db" -N -B -e "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'image_tagging_chosen'")" ]; then
+    # Release 158 (updates/corrected/158.sh): whether the user chose Image
+    # Tagging - until then the device sets it by its memory. A switch
+    # already off (the old default was on) is marked as their choice, once:
+    # the column is added with no value, given one from the switch, and only
+    # then made NOT NULL, so a run cut in between finishes the job the next
+    # time (a column still NULL-able). It used to be added NOT NULL first,
+    # and a run cut before the marking found it there and skipped it, leaving
+    # an "off" to the memory default.
+    if [ "$(mysql "$db" -N -B -e "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'settings' AND COLUMN_NAME = 'image_tagging_chosen'")" != NO ]; then
         mysql "$db" <<'SQL'
-    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_chosen TINYINT(1) NOT NULL DEFAULT 0;
-    UPDATE settings SET image_tagging_chosen = 1 WHERE image_tagging_enabled = 0;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS image_tagging_chosen TINYINT(1) NULL;
+    UPDATE settings SET image_tagging_chosen = (image_tagging_enabled = 0) WHERE image_tagging_chosen IS NULL;
+    ALTER TABLE settings MODIFY image_tagging_chosen TINYINT(1) NOT NULL DEFAULT 0;
 SQL
     fi
     # Release 163 (updates/163.sh): collection Rating - a collection's
@@ -1506,25 +1536,36 @@ SQL
 # A user whose database has gone missing entirely is skipped with a
 # warning rather than failing the whole install - the rest of the device
 # is fine, and failing here would block the upgrade for everyone else on
-# it.
-if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; then
-    for user_db in $(mysql otc -N -B -e 'SELECT db_name FROM users' 2>/dev/null); do
-        # The otc service writes this table, and the name reaches SQL, grep
-        # and mysql's command line here as root: only the shape the device
-        # itself generates (dao's checkGenerated), so nothing can pass as
-        # an option or break out of the quotes. Not echoed: untrusted text.
-        if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
-            log "  WARNING: skipping a users row whose db_name this device didn't generate"
-            continue
-        fi
-        if mysql -N -B -e "SHOW DATABASES LIKE '$user_db'" 2>/dev/null | grep -qxF -- "$user_db"; then
-            log "  migrating additional user database $user_db"
-            apply_schema_migrations "$user_db"
-        else
-            log "  WARNING: user database $user_db is in the users table but doesn't exist - skipping"
-        fi
-    done
-fi
+# it. The list itself must be read, though: the table was made just above,
+# so a query that fails is the database failing (a restart, an error), not
+# "no other users" - it used to read as that, and every other user's
+# database was left behind, for good, by a run that then succeeded.
+user_dbs="$(mysql otc -N -B -e 'SELECT db_name FROM users')" || {
+    log "ERROR: could not read the users table, so the other users' databases can't be brought up to date - nothing was skipped: run this again"
+    false
+}
+for user_db in $user_dbs; do
+    # The otc service writes this table, and the name reaches SQL, grep
+    # and mysql's command line here as root: only the shape the device
+    # itself generates (dao's checkGenerated), so nothing can pass as
+    # an option or break out of the quotes. Not echoed: untrusted text.
+    if ! [[ "$user_db" =~ ^otc_[0-9a-f]{32}$ ]]; then
+        log "  WARNING: skipping a users row whose db_name this device didn't generate"
+        continue
+    fi
+    # The same for the answer to "does it exist?": only a database that is
+    # really missing is skipped.
+    user_db_found="$(mysql -N -B -e "SHOW DATABASES LIKE '$user_db'")" || {
+        log "ERROR: could not ask the database whether $user_db exists - nothing was skipped: run this again"
+        false
+    }
+    if grep -qxF -- "$user_db" <<<"$user_db_found"; then
+        log "  migrating additional user database $user_db"
+        apply_schema_migrations "$user_db"
+    else
+        log "  WARNING: user database $user_db is in the users table but doesn't exist - skipping"
+    fi
+done
 # <<< schema-migrations
 
 # Local-only (no bridge): the subdomain is the bare name, no ".<bridge>".

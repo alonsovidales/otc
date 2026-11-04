@@ -36,9 +36,9 @@ var (
 		"repo_not_https", "restarting", "rollback_failed", "rolled_back",
 		"script_checksum", "script_failed", "script_missing",
 		"source_download_failed", "source_hash_mismatch", "source_unpack_failed",
-		"stage_failed", "staging", "unsupported_arch", "updated", "uptodate",
-		"verified_manifest_missing", "verifying", "version_unreadable", "web_checksum",
-		"web_download_failed", "web_install_failed", "web_unpack_failed")
+		"stage_failed", "staging", "unsupported_arch", "updated", "updated_os_pending", "uptodate",
+		"users_unreadable", "verified_manifest_missing", "verifying", "version_unreadable",
+		"web_checksum", "web_download_failed", "web_install_failed", "web_unpack_failed")
 	bridgeCodes = codes("dev.status.bridge.",
 		"already_on", "config_missing", "config_update_failed", "no_name", "not_host_name",
 		"on_bridge", "switching_off", "switching_on")

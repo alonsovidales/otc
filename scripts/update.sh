@@ -200,6 +200,62 @@ web_link() {
     ln -sfn "$1" "$WEB_DIR/.www.$$" && mv -Tf "$WEB_DIR/.www.$$" "$WEB_ROOT" || { rm -f "$WEB_DIR/.www.$$"; return 1; }
 }
 
+# Release 161's part outside OTC - the system's security updates and the
+# IPv4-options filter - not yet in place: written by its corrected script
+# (scripts/updates/corrected/161.sh) when apt or nft failed, removed once
+# everything is set up. Root's: the otc user can't make or remove it.
+OS_UPDATES_PENDING=/etc/otc/os-updates.pending
+
+# run_release <version> <script>: a release's script, as root, whose mysql
+# is update.sh's own (scripts/update-runner/release-mysql.sh, staged as
+# $guard: a function the script inherits, which runs it with bash, so a
+# temporary directory mounted noexec doesn't matter). It lets only the
+# database names this device generates reach the client from a release
+# before 92, whose scripts passed any users.db_name - a column the otc
+# service can write - as an option, and it notes a failed read of the users
+# list, which every release before 169 took for "no other users", leaving
+# their databases behind for good: the release is then run again once the
+# database answers, once (scripts are idempotent). Nothing a script runs
+# asks a question (DEBIAN_FRONTEND: an update has no terminal).
+# 0: applied; 1: the script failed; 2: the users list couldn't be read.
+run_release() {
+    local version="$1" script="$2" names=0 try rc
+    [ "$version" -ge 92 ] 2>/dev/null || names=1
+    for try in 1 2; do
+        rm -f "$tmp/users-unreadable"
+        (
+            mysql() { /bin/bash "$OTC_RELEASE_MYSQL_GUARD" "$@"; }
+            export -f mysql
+            export OTC_RELEASE_MYSQL_GUARD="$guard" OTC_RELEASE_MYSQL="$real_mysql" \
+                OTC_RELEASE_MYSQL_NAMES="$names" OTC_RELEASE_MYSQL_FAILED="$tmp/users-unreadable" \
+                DEBIAN_FRONTEND=noninteractive
+            exec /bin/bash "$script"
+        )
+        rc=$?
+        if [ ! -e "$tmp/users-unreadable" ]; then
+            [ "$rc" -eq 0 ] || return 1
+            return 0
+        fi
+        [ "$try" = 1 ] || break
+        echo "release $version could not read this device's users: running it again once the database answers"
+        for _ in $(seq 1 60); do
+            [ -n "$real_mysql" ] && "$real_mysql" -N -B -e 'SELECT 1' >/dev/null 2>&1 && break
+            sleep 2
+        done
+    done
+    return 2
+}
+
+# updated_status: the update is done; when release 161's part outside OTC
+# is still waiting (OS_UPDATES_PENDING), it says so.
+updated_status() {
+    if [ -e "$OS_UPDATES_PENDING" ]; then
+        status done "Updated to version $updated, but the system's security updates could not be set up: the next update tries again" updated_os_pending "$(args version "$updated")"
+    else
+        status done "Updated to version $updated" updated "$(args version "$updated")"
+    fi
+}
+
 exec >>"$LOG_FILE" 2>&1
 echo "=== update run $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
@@ -341,6 +397,14 @@ echo "pending releases: ${#pending[@]}"
 free_space / 1024 || fail "not enough free space for the update: / has $free_h free, it needs $need_h" no_space "$(args path "/" free "$free_h" needed "$need_h")"
 free_space "$tmp" 300 || fail "not enough free space for the update: $tmp has $free_h free, it needs $need_h" no_space "$(args path "$tmp" free "$free_h" needed "$need_h")"
 
+# The mysql release scripts run with (run_release), from this verified
+# release, in root's own temporary directory; and the client it hands on to.
+real_mysql="$(command -v mysql 2>/dev/null || true)"
+guard="$tmp/release-mysql.sh"
+install -m 0644 "$OTC_VERIFIED_SRC/scripts/update-runner/release-mysql.sh" "$guard" 2>/dev/null \
+    || fail "could not stage the new source" stage_failed
+ran_161=""
+
 for entry in "${pending[@]}"; do
     version="${entry%%$'\t'*}"
     sha="${entry##*$'\t'}"
@@ -371,13 +435,44 @@ for entry in "${pending[@]}"; do
         fail "release $version failed its checksum (expected $sha, got $actual)" script_checksum "$(args release "$version" expected "$sha" actual "$actual")"
     fi
 
-    bash "$tmp/$version.sh" || fail "release $version failed to apply" script_failed "$(args release "$version")"
+    # A released script is never changed: its hash is the signed manifest's.
+    # One a later release found wrong runs as corrected there
+    # (scripts/updates/corrected/<N>.sh, README.md beside it), from the same
+    # verified source, once the original has matched its signed hash above.
+    run="$tmp/$version.sh"
+    if [ -f "$OTC_VERIFIED_SRC/scripts/updates/corrected/$version.sh" ]; then
+        cp "$OTC_VERIFIED_SRC/scripts/updates/corrected/$version.sh" "$tmp/$version.corrected.sh" \
+            || fail "release $version's script is not in the verified source" script_missing "$(args release "$version")"
+        run="$tmp/$version.corrected.sh"
+        echo "release $version runs as corrected by a later release"
+    fi
+    [ "$version" != 161 ] || ran_161=1
+
+    run_release "$version" "$run"
+    case "$?" in
+        0) ;;
+        2) fail "release $version could not read this device's list of users - press Update to try again" users_unreadable "$(args release "$version")" ;;
+        *) fail "release $version failed to apply" script_failed "$(args release "$version")" ;;
+    esac
 
     # Written per release: an interrupted run then resumes after the last
     # script that actually completed.
     write_atomic "$MIGRATED_FILE" "$version"
     echo "release $version applied"
 done
+
+# Release 161's part outside OTC - the system's security updates and the
+# IPv4-options filter - on a device where apt or nft failed when it ran:
+# tried again at every update until everything is in place (its corrected
+# script removes OS_UPDATES_PENDING then). A failure only warns: the rest of
+# the update goes on, and its last words say what is still missing.
+if [ -e "$OS_UPDATES_PENDING" ] && [ -z "$ran_161" ] && [ -f "$OTC_VERIFIED_SRC/scripts/updates/corrected/161.sh" ]; then
+    status running "Applying release 161" applying "$(args release "161")"
+    echo "--- release 161, again: the system's security updates were not all in place ---"
+    cp "$OTC_VERIFIED_SRC/scripts/updates/corrected/161.sh" "$tmp/161.corrected.sh" \
+        && run_release 161 "$tmp/161.corrected.sh" \
+        || echo "WARNING: release 161 could not run again - the next update tries again"
+fi
 
 # On this day's photo quality model (release 150): optional, so a device
 # whose download failed - at release 150's script or since - gets it from
@@ -652,7 +747,7 @@ sync
 # restart ends it, so it reports first and restarts last, as it always did,
 # with nothing to check the start with.
 if grep -q '/otc\.service$' /proc/self/cgroup 2>/dev/null; then
-    status done "Updated to version $updated" updated "$(args version "$updated")"
+    updated_status
     echo "=== update complete, restarting service ==="
     systemctl restart otc
     exit 0
@@ -668,7 +763,7 @@ echo "=== restarting the service, waiting for release $target to start ==="
 systemctl restart otc
 status running "Checking that the new version starts" verifying
 if otc_started "$START_WAIT_S"; then
-    status done "Updated to version $updated" updated "$(args version "$updated")"
+    updated_status
     echo "=== update complete: release $target started ==="
     # The web app served and the one before it stay; older ones go.
     if [ -n "$web_switched" ]; then

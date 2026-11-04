@@ -182,9 +182,17 @@
     "text": "Actualizado a la versión {version}",
     "en": "Updated to version {version}"
   },
+  "dev.update.updated_os_pending": {
+    "text": "Actualizado a la versión {version}, pero no se han podido configurar las actualizaciones de seguridad del sistema: la próxima actualización lo volverá a intentar",
+    "en": "Updated to version {version}, but the system's security updates could not be set up: the next update tries again"
+  },
   "dev.update.uptodate": {
     "text": "Ya está actualizado",
     "en": "Already up to date"
+  },
+  "dev.update.users_unreadable": {
+    "text": "la versión {release} no ha podido leer la lista de usuarios de este dispositivo: pulsa Actualizar para volver a intentarlo",
+    "en": "release {release} could not read this device's list of users - press Update to try again"
   },
   "dev.update.verified_manifest_missing": {
     "text": "falta el manifiesto verificado",
