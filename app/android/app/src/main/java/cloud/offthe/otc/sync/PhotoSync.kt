@@ -25,6 +25,7 @@ import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.data.DeviceChange
 import cloud.offthe.otc.ui.SyncChoice
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CancellationException
@@ -647,6 +648,10 @@ object PhotoSync {
     /** One pass: what holds it up first, then the sync. */
     private suspend fun onePass(gen: Int): PassEnd {
         if (SyncChoice.pending.value) return PassEnd.Skipped
+        // Another address saved, and its device hasn't said yet whether it
+        // is the last one (DeviceChange): its watermark may not be this
+        // device's to go on from.
+        if (DeviceChange.pending) { Log.i(tag, "sync waits: is the device at the new address the same one?"); return PassEnd.Skipped }
         if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return PassEnd.Skipped }
         val secrets = SecretsStore.loadOrCreate()
         // No device yet (the welcome screen): nothing.

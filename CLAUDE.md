@@ -3641,8 +3641,7 @@ Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) 
 returns at once - background runs included. No run asks for access: Photos/media are asked from Start
 Sync (iOS registers its PHPhotoLibrary observer only once allowed - registering asks), notifications
 once after the first accepted sign-in and the tour, with what they bring (`NotificationsAsk`).
-**Another address in Settings** (iOS `DeviceChange.swift`; not in Android yet, which stops the
-wallpaper at every address saved and whose photo sync goes on from the last watermark): Settings ›
+**Another address in Settings** (iOS `DeviceChange.swift` <-> Android `data/DeviceChange.kt`): Settings ›
 Connection's Save, or the "can't connect" card's Save & Retry, with another address (not the same
 one respelled, nor a first sign-in) may be another device or the same one reached another way. The
 screens are made afresh at once (`addressChanged`: the session models Log Out resets, and RootView
@@ -3658,7 +3657,17 @@ stops, SyncChoice is asked as at a sign-in, and the wallpaper stops as at Log Ou
 then the last device's watermark carried over, so the new one never got the photos taken before it.
 Leave the Bridge is the same device (`saveCredentials(sameDevice:)`): no check, and its pin moves to
 the new address. Tests: `DeviceChangeTests.swift`, `WallpaperTests`'
-`anotherAddressSavedStopsAKeepInStepUnderWay`.
+`anotherAddressSavedStopsAKeepInStepUnderWay`. Android: the check's pin is kept in the `otc_sync`
+prefs (`deviceChangePin`, hex; wiped at Log Out, not backed up); `SecretsStore.deviceSession` keys
+MainView in RootView, whose view models live in a store of that session (`SessionStores`, an
+Activity view model, so a recreation keeps them); the screens' singletons reset as at Log Out
+(`DeviceChange.addressChanged`) and the feed and the Alerts poll start again; Settings' Save sends
+`UnregisterFcmToken` over the socket in use first; `PhotoSync.onePass` is skipped while
+`DeviceChange.pending`; the wallpaper (`Wallpaper.addressChanged`: its generation bumped and the
+copies' fetch cancelled, nothing deleted) isn't fetched meanwhile and goes on rotating its copies,
+then `sameDeviceAt` (the stored endpoint follows, a fetch is queued) or `deviceChanged()` (stopped);
+Leave the Bridge and the same address respelled keep it (`sameDeviceAt`). Tests:
+`DeviceChangeTest.kt`, `PinnedAddressTest.theSameDeviceAtAnotherAddressKeepsItsPin`.
 **Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
 iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
 missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and

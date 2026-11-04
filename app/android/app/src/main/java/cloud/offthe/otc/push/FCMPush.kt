@@ -154,6 +154,10 @@ object FCMPush {
         prefs.edit().remove(TOKEN_KEY).apply()
     }
 
+    /** The token this phone registered with the device, if any. */
+    fun knownToken(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(TOKEN_KEY, null)?.ifEmpty { null }
+
     /** Drops the stored token without telling anyone (SecretsStore's restore recovery). */
     fun forgetToken(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(TOKEN_KEY).apply()

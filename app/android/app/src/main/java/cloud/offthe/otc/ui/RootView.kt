@@ -9,10 +9,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,6 +24,11 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
@@ -32,6 +39,29 @@ import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.compose.mediaPermissions
 import cloud.offthe.otc.ui.gallery.DeletePhoneCopyDialog
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
+
+/**
+ * The view models of one device session (SecretsStore.deviceSession): a
+ * new store for each, the last one cleared - iOS's `.id(deviceSession)` on
+ * MainView. An Activity-scoped view model itself, so it outlives a
+ * recreation.
+ */
+class SessionStores : ViewModel() {
+    private var session = -1
+    private var store = ViewModelStore()
+
+    fun owner(session: Int): ViewModelStoreOwner {
+        if (session != this.session) {
+            if (this.session >= 0) store.clear()
+            store = ViewModelStore()
+            this.session = session
+        }
+        val s = store
+        return object : ViewModelStoreOwner { override val viewModelStore = s }
+    }
+
+    override fun onCleared() = store.clear()
+}
 
 // Port of RootView.swift: onboarding until the connection is configured,
 // then the tabs; foreground/background transitions drive the photo sync
@@ -114,8 +144,19 @@ fun RootView() {
     LaunchedEffect(configured, choicePending) { if (configured && !choicePending && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
 
     // Issue #133: a no-op on first launch (the model's init already started
-    // it), the restart after Log Out + sign in.
-    LaunchedEffect(configured) { if (configured) SocialFeedViewModel.startAutoLoad() }
+    // it), the restart after Log Out + sign in - and after another address
+    // was saved (DeviceChange reset the feed and the Alerts poll).
+    val deviceSession by secrets.deviceSession.collectAsState()
+    LaunchedEffect(configured, deviceSession) {
+        if (!configured) return@LaunchedEffect
+        SocialFeedViewModel.startAutoLoad()
+        if (deviceSession > 0 && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) NotificationsModel.startPolling()
+    }
+    // The view models MainView's screens make, one store per device
+    // session: another address saved makes every screen afresh, none keeping
+    // the last device's lists. Kept by the Activity's own view model, so a
+    // recreation (a change of language) keeps them as before.
+    val sessions: SessionStores = viewModel()
 
     // The first-run tour (Tour.kt): opens by itself once signed in, with
     // MainView up and no card over it, after the sync question.
@@ -132,7 +173,12 @@ fun RootView() {
         Box(Modifier.fillMaxSize()) {
             // Out of TalkBack's reach while the tour lies over it.
             Box(Modifier.fillMaxSize().then(if (tourShown) Modifier.clearAndSetSemantics {} else Modifier)) {
-                MainView(secrets = secrets)
+                key(deviceSession) {
+                    val owner = remember { sessions.owner(deviceSession) }
+                    CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+                        MainView(secrets = secrets)
+                    }
+                }
             }
             if (tourShown) TourView()
         }

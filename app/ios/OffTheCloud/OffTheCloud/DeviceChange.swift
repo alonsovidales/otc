@@ -24,8 +24,7 @@
 //  device - the question every sign-in to a device asks (SyncChoice) is
 //  asked again, and the wallpaper stops (`apply`). Leave the Bridge is the
 //  same device by definition, and no change (SecretsStore.saveCredentials'
-//  sameDevice). Android doesn't do this yet: it stops the wallpaper at every
-//  address saved, and its photo sync goes on from the last watermark.
+//  sameDevice). Android's DeviceChange.kt has the same rules.
 //
 
 import Foundation

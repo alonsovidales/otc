@@ -763,10 +763,27 @@ fun SettingsView(secrets: SecretsStore) {
                 // Never an empty address or password: that would be Log Out
                 // without the wipe.
                 val canSave = editEntry.endpoint.trim().isNotEmpty() && editPassword.isNotEmpty()
+                // Another address is being saved (below).
+                var savingConnection by remember { mutableStateOf(false) }
                 val save = {
-                    if (canSave) {
-                        secrets.saveCredentials(editEntry.endpoint.trim(), editPassword)
-                        OTCConnection.invalidate()
+                    if (canSave && !savingConnection) {
+                        val address = editEntry.endpoint.trim()
+                        val typed = editPassword
+                        if (SecretsStore.sameAddress(address, secrets.endpoint.value)) {
+                            secrets.saveCredentials(address, typed)
+                            OTCConnection.invalidate()
+                        } else {
+                            // Another address: the device left forgets this
+                            // phone's push token first (a moment at most),
+                            // then the new one is dialled (DeviceChange).
+                            savingConnection = true
+                            scope.launch {
+                                OTCConnection.unregisterPushBeforeLeaving(3_000)
+                                secrets.saveCredentials(address, typed)
+                                OTCConnection.invalidate()
+                                savingConnection = false
+                            }
+                        }
                     }
                 }
                 ConnectionEndpointFields(editEntry, onNext = { passwordFocus.requestFocus() })
@@ -776,7 +793,7 @@ fun SettingsView(secrets: SecretsStore) {
                 )
                 routeLine(signedIn, route, endpoint)?.let { Caption(it.resolve()) }
                 Caption(S.appSettingsConnectionDeviceId(deviceId).resolve())
-                RowButton(S.appSettingsConnectionSave().resolve(), enabled = canSave) { save() }
+                RowButton(S.appSettingsConnectionSave().resolve(), enabled = canSave && !savingConnection) { save() }
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
 

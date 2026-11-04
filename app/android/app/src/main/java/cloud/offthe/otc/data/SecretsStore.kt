@@ -71,6 +71,14 @@ class SecretsStore private constructor(
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
 
+    /**
+     * Bumped when the saved address changes to another one (not Leave the
+     * Bridge): RootView makes MainView afresh, its view models with it, so
+     * no screen keeps the last device's lists (DeviceChange).
+     */
+    private val _deviceSession = MutableStateFlow(0)
+    val deviceSession: StateFlow<Int> = _deviceSession
+
     // Issue #190: where the device answers on the home network, with the
     // endpoint it was learnt through - only ever used for that endpoint.
     @Volatile private var home: Pair<String, HomeEndpoint>? = home
@@ -124,6 +132,12 @@ class SecretsStore private constructor(
      */
     fun saveCredentials(endpoint: String, password: String, sameDevice: Boolean = false) {
         val before = normalizedEndpoint(secure().getString("endpoint", "") ?: "")
+        // Another address than the one signed in to before is a change of
+        // device until its device says otherwise (DeviceChange): its
+        // screens are made afresh and the photo sync waits for the answer.
+        val changed = DeviceChange.isChange(before, normalizedEndpoint(endpoint), sameDevice)
+        // Read before the old address's home endpoint goes below.
+        val pinBefore = if (changed) homeEndpoint(before)?.certSha256 else null
         _endpoint.value = endpoint
         _password.value = password
         if (isConfigured) {
@@ -144,9 +158,19 @@ class SecretsStore private constructor(
                 h -> {}
                 else -> saveHomeEndpoint(kept.first, kept.second)
             }
-            // A collection shown as wallpaper stops (its copies were the
-            // other one's photos).
-            Wallpaper.deviceChanged(endpointURLString)
+            when {
+                changed -> {
+                    DeviceChange.begin(pinBefore)
+                    DeviceChange.addressChanged()
+                    _deviceSession.value += 1
+                }
+                // The same device at its new address (Leave the Bridge), or
+                // the same address spelled otherwise: the wallpaper goes on.
+                before.isNotEmpty() && endpointURLString.isNotEmpty() -> Wallpaper.sameDeviceAt(endpointURLString)
+                // A first sign-in: a collection left from another endpoint
+                // stops (its copies were that one's photos).
+                else -> Wallpaper.deviceChanged(endpointURLString)
+            }
         }
         secure().edit()
             .putString("endpoint", _endpoint.value)

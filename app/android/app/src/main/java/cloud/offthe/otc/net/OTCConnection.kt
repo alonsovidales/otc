@@ -4,6 +4,7 @@ package cloud.offthe.otc.net
 import android.os.SystemClock
 import android.util.Log
 import cloud.offthe.otc.R
+import cloud.offthe.otc.data.DeviceChange
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
@@ -25,6 +26,7 @@ import cloud.offthe.otc.proto.GetLocalEndpoint
 import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.proto.UnregisterFcmToken
 import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.now
 import com.google.protobuf.ByteString
@@ -576,6 +578,8 @@ object OTCConnection {
             kept = true
             signedIn(url)
             Log.i(TAG, "signed in over the home network")
+            // The device the pin names, which is who it is (DeviceChange).
+            DeviceChange.resolve(ep.certSha256)
             // This phone reaches the device's pinned link: from now on a
             // ws:// address goes only that way. Where it is now (a new DHCP
             // lease) is asked there.
@@ -630,6 +634,35 @@ object OTCConnection {
     }
 
     /** [connectPinned]'s sign-in over the pinned link: no other way to fall back to, so any failure is the connect's. */
+    /**
+     * DeviceChange: how often, and how far apart, a device that says
+     * nothing about its home network is asked before it counts as one that
+     * can't say.
+     */
+    private const val DEVICE_CHECK_TRIES = 5
+    private const val DEVICE_CHECK_PAUSE_MS = 30_000L
+
+    /**
+     * Another address saved in Settings: the device signed in to now forgets
+     * this phone's push token first, as at Log Out - it went on pushing to a
+     * phone that had moved to another device otherwise (the same device at
+     * its new address registers it again at the sign-in). Over this
+     * connection only, never one made for it, [withinMs] at most.
+     */
+    suspend fun unregisterPushBeforeLeaving(withinMs: Long) {
+        if (!_authenticated.value) return
+        val token = cloud.offthe.otc.push.FCMPush.knownToken(cloud.offthe.otc.OTCApp.instance) ?: return
+        val c = ws
+        if (!c.connected) return
+        withTimeoutOrNull(withinMs) {
+            try {
+                c.request(withinMs) { it.setReqUnregisterFcmToken(UnregisterFcmToken.newBuilder().setToken(token)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {}
+        }
+    }
+
     private suspend fun signInPinned(opened: HomeNetwork.Opened, ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String, gen: Int) {
         val c = opened.socket
         var kept = false
@@ -646,6 +679,7 @@ object OTCConnection {
             kept = true
             signedIn(url)
             Log.i(TAG, "signed in over the home network (pinned address)")
+            DeviceChange.resolve(ep.certSha256)
             refreshHomeEndpoint(c, url, gen, overHome = true)
         } finally {
             if (!kept) c.close()
@@ -842,11 +876,13 @@ object OTCConnection {
      * what it says (a ws:// endpoint would go back to signing in in the
      * clear) - and there is no route to move to.
      */
-    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int, overHome: Boolean = false) {
+    private fun refreshHomeEndpoint(c: WSClient, url: String, gen: Int, overHome: Boolean = false, attempt: Int = 0) {
         scope.launch {
             val resp = try {
                 c.request(LIST_TIMEOUT_MS) { it.setReqGetLocalEndpoint(GetLocalEndpoint.getDefaultInstance()) }
             } catch (e: Exception) {
+                // A network error: what is stored stays, and a device check
+                // waits for the next sign-in.
                 return@launch
             }
             val answer = HomeNetwork.answer(resp).let { if (overHome && it !is HomeNetwork.Answer.Store) HomeNetwork.Answer.Keep else it }
@@ -868,6 +904,24 @@ object OTCConnection {
                     }
                     HomeNetwork.Answer.Forget -> { secrets.clearHomeEndpoint(); false }
                     HomeNetwork.Answer.Keep -> false
+                }
+            }
+            // The answer also says which device this is (DeviceChange: its
+            // pin), when another address was saved. One that says nothing
+            // about it (no code: not known yet at the device's start) is
+            // asked again a few times while that waits; a device that never
+            // says is taken for another one.
+            if (!overHome) when (answer) {
+                is HomeNetwork.Answer.Store -> DeviceChange.resolve(answer.endpoint.certSha256)
+                HomeNetwork.Answer.Forget -> DeviceChange.resolve(null)
+                HomeNetwork.Answer.Keep -> if (DeviceChange.pending) {
+                    if (attempt + 1 >= DEVICE_CHECK_TRIES) DeviceChange.resolve(null)
+                    else scope.launch {
+                        delay(DEVICE_CHECK_PAUSE_MS)
+                        if (synchronized(connectLock) { gen == configGen } && _authenticated.value && ws === c) {
+                            refreshHomeEndpoint(c, url, gen, attempt = attempt + 1)
+                        }
+                    }
                 }
             }
             // A new or changed endpoint is tried now, as on the Mac and in
