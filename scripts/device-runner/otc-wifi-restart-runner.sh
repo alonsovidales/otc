@@ -40,7 +40,10 @@ LAST=/run/otc-wifi-restart.last
 MIN_INTERVAL=1800
 CONNECT_WAIT=150
 
-rm -f "$REQUEST"
+# Whatever is there goes: a directory, which -f alone can't remove, had the
+# path unit start this again and again; a symlink is removed, never
+# followed.
+rm -rf -- "$REQUEST"
 
 log() { echo "[otc-wifi-restart] $*"; }
 

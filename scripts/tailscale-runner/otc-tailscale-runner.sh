@@ -164,7 +164,10 @@ fi
 # without blocking on a FIFO put in the file's place (as
 # otc-update-stopped.sh reads its status), 8 bytes at most.
 want="$(dd if="$REQUEST" iflag=nofollow,nonblock bs=8 count=1 status=none 2>/dev/null | tr -dc '[:lower:]')"
-rm -f "$REQUEST"
+# Whatever is there goes: a directory, which -f alone can't remove, had the
+# path unit start this back to back for good (no start limit); a symlink
+# is removed, never followed.
+rm -rf -- "$REQUEST"
 
 # This unit's RuntimeDirectory (root's, 0700, removed when the run ends);
 # made here when run by hand. /run is root's alone, so nothing can be

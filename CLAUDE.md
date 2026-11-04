@@ -4586,6 +4586,9 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 stalled transfer (no `--max-time`).
 More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
 every update (one that reads its request's words does so with `dd iflag=nofollow,nonblock`; each
+removes whatever is at its request path with `rm -rf --` - a directory there, which `rm -f` can't
+remove, had its `PathExists=` unit start it back to back for good; `-r` never follows a symlink;
+`updater/runner_requests_test.go`; each
 oneshot has a `TimeoutStartSec`, 2min for the bridge's, 3min for Tailscale's): `scripts/bridge-runner/`
 (switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for

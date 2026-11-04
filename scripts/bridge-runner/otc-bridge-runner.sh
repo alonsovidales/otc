@@ -30,7 +30,10 @@ DEFAULT_BRIDGE=off-the.cloud
 # the file's place (as otc-update-stopped.sh reads its status), 64 bytes
 # at most.
 request="$(dd if="$REQUEST" iflag=nofollow,nonblock bs=64 count=1 status=none 2>/dev/null | head -1)"
-rm -f "$REQUEST"
+# Whatever is there goes: a directory, which -f alone can't remove, had the
+# path unit start this again and again; a symlink is removed, never
+# followed.
+rm -rf -- "$REQUEST"
 
 # Written to a fresh temp file and moved into place: the directory is the
 # otc user's, and a plain "> $STATUS_FILE" as root followed a symlink it

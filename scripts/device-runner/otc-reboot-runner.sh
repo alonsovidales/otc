@@ -16,7 +16,10 @@ set -uo pipefail
 REQUEST=/var/lib/otc/reboot.request
 MIN_UPTIME=120
 
-rm -f "$REQUEST"
+# Whatever is there goes: a directory, which -f alone can't remove, had the
+# path unit start this again and again; a symlink is removed, never
+# followed.
+rm -rf -- "$REQUEST"
 
 up="$(cut -d. -f1 /proc/uptime 2>/dev/null)"
 if [ -z "$up" ] || [ "$up" -lt "$MIN_UPTIME" ]; then
