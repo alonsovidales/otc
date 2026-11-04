@@ -1070,26 +1070,68 @@ if [ -n "$mariadb_pool" ] && [ -d /etc/mysql/mariadb.conf.d ]; then
     fi
 fi
 # <<< release 143
-# Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
-# target) before touching it any further below - a recovered array already
-# holding a previous device's /mysql/mysql is used as-is (the rsync is
-# skipped); a fresh/empty array is seeded from the package's own
-# just-initialized datadir instead. Skipped entirely under OTC_SKIP_RAID=1,
-# where MariaDB just keeps using its normal default datadir.
+# mariadb_datadir DIR SEED ACCOUNT: DIR made MariaDB's datadir, owned by
+# ACCOUNT (mysql) - seeded from SEED, the package's own just-initialized
+# datadir, unless DIR holds a datadir already (its mysql/, as a recovered
+# array's does), which is used as it is.
+#
+# DIR sits in the storage root the otc user owns, and the otc service keeps
+# running through a re-run of this script: it can rename DIR and put a
+# symlink in its place at any moment, which a check of the name and a later
+# use of it can't tell apart - and the copy, run as root, wrote MariaDB's
+# files through such a link and gave its target the datadir's owner and
+# mode (/etc/systemd/system's, say). So root never uses the name past one
+# step: it changes into the directory (cd -P resolves a link there and
+# then) and goes on only if that directory is DIR itself; everything after
+# works on ".", the directory root is in, wherever its name goes. A
+# directory still to be seeded is made root's alone first (nobody else can
+# add to it from then on), and is seeded only if nothing in it is anyone
+# else's or writable by anyone else - a fresh one is empty, one an earlier
+# run left half-copied holds only root's and MariaDB's files. chown -R
+# never follows a link.
+mariadb_datadir() {
+    local dir="${1%/}" seed="${2%/}" account="$3" want
+    want="$(cd -P -- "${dir%/*}" && pwd -P)/${dir##*/}" || return 1
+    if [ -L "$dir" ] || { [ -e "$dir" ] && [ ! -d "$dir" ]; }; then
+        echo "$dir is not a directory" >&2
+        return 1
+    fi
+    mkdir -p -- "$dir" || return 1
+    (
+        cd -P -- "$dir" || exit 1
+        if [ "$(pwd -P)" != "$want" ]; then
+            echo "$dir changed while it was being set up (it is $(pwd -P) now)" >&2
+            exit 1
+        fi
+        if [ ! -d mysql ] || [ -L mysql ]; then
+            chown root:root . && chmod 0700 . || exit 1
+            if [ -n "$(find . -mindepth 1 \( \( ! -user root ! -user "$account" \) -o \( ! -type l \
+                \( -perm -0002 -o \( -perm -0020 ! -group root ! -group "$account" \) \) \) \) -print -quit)" ]; then
+                echo "$dir holds files of another account, and no datadir to keep" >&2
+                exit 1
+            fi
+            rsync -aHAX --numeric-ids -- "$seed/" ./ || exit 1
+        fi
+        chown -R "$account:$account" . || exit 1
+    )
+}
+# Point MariaDB's datadir at the RAID array before touching it any further
+# below - a recovered array already holding a previous device's
+# mysql/mysql is used as-is; a fresh/empty array is seeded from the
+# package's own just-initialized datadir instead (mariadb_datadir). Skipped
+# entirely under OTC_SKIP_RAID=1, where MariaDB just keeps using its normal
+# default datadir.
 if [ "$SKIP_RAID" != "1" ]; then
     log "Pointing MariaDB's datadir at $MOUNT_POINT..."
-    # MariaDB's own directory, in the storage root the otc user owns: never
-    # a symlink, which the copy below would write MariaDB's files through
-    # and MariaDB would then run on. Checked before anything is stopped.
-    if [ -L "$MOUNT_POINT/mysql" ]; then
-        die "$MOUNT_POINT/mysql is a symbolic link, not MariaDB's directory - nothing was changed. Remove the link (or move the directory it points to in its place) and run the installer again"
+    # A symlink or a file there (an old device can leave one on its disks
+    # for a recovery) stops the install before anything is stopped;
+    # mariadb_datadir checks again, on the directory itself.
+    if [ -L "$MOUNT_POINT/mysql" ] || { [ -e "$MOUNT_POINT/mysql" ] && [ ! -d "$MOUNT_POINT/mysql" ]; }; then
+        die "$MOUNT_POINT/mysql is not a directory (a symbolic link, or a file), so it can't be MariaDB's - nothing was changed. Remove it (or move the directory a link points to in its place) and run the installer again"
     fi
     systemctl stop mariadb || true
-    mkdir -p "$MOUNT_POINT/mysql"
-    if [ ! -d "$MOUNT_POINT/mysql/mysql" ]; then
-        rsync -aHAX --numeric-ids /var/lib/mysql/ "$MOUNT_POINT/mysql/"
-    fi
-    chown -R mysql:mysql "$MOUNT_POINT/mysql"
+    mariadb_datadir "$MOUNT_POINT/mysql" /var/lib/mysql mysql \
+        || die "could not set up $MOUNT_POINT/mysql as MariaDB's directory (see above) - MariaDB is stopped. Check what is there and run the installer again"
     if grep -q "^datadir" /etc/mysql/mariadb.conf.d/50-server.cnf; then
         sed -i "s#^datadir.*#datadir = $MOUNT_POINT/mysql#" /etc/mysql/mariadb.conf.d/50-server.cnf
     else

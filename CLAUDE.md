@@ -4765,8 +4765,13 @@ used to chown a symlink planted at `/var/lib/otc/users` or the storage's `unencr
 its target (`/var/lib/dpkg/info`, say) to the otc user: `otc_dir` removes anything there that
 isn't a directory, has the otc user make a missing one (`runuser`), hands over one root made before
 with `chown -h`, and sets the mode as the otc user (`updater/install_dirs_test.go`, as root on
-Linux). A symlink at `/mnt/storage/mysql`, MariaDB's datadir, stops the install before MariaDB is
-stopped. OpenCV's source build runs in a `mktemp -d` directory under the world-writable `/var/tmp`
+Linux). MariaDB's datadir, `/mnt/storage/mysql` in that same storage root, is set up by
+`mariadb_datadir`: a symlink or a file there stops the install before MariaDB is stopped, and after
+the stop root changes into the directory and works only on `.`, once it has checked that is the
+datadir itself - the service keeps running through a re-run and can swap the name for a link at any
+moment, and the copy of a fresh datadir wrote through such a link, giving its target the datadir's
+owner and mode. A directory still to be seeded is made root's alone first and seeded only when
+nothing in it is another account's (`updater/install_mariadb_test.go`, as root on Linux). OpenCV's source build runs in a `mktemp -d` directory under the world-writable `/var/tmp`
 (its log inside), and `/etc/otc/otc-install.env` is written under umask 077, then renamed. A
 failed read of the users table, or of whether a user's database exists, stops the schema block
 (the container runs it too) instead of skipping every other user's database. A re-run keeps the config's `[otc]` lines it doesn't write itself (a fork's
