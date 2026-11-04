@@ -146,6 +146,11 @@
     "note": "Account page, list of domains: error when the domain could not be released and the bridge gave no reason.",
     "max": 60
   },
+  "site.account.domains.release_password_label": {
+    "text": "Your password, to release {domain}",
+    "args": [["domain", "text"]],
+    "note": "Account page, list of domains: label of the password field shown after Release (and its confirmation), for an account with a password - the password is asked again before a domain is released, since that takes its device off the bridge. {domain} is the device's address (name.off-the.cloud)."
+  },
   "site.account.domains.since": {
     "text": "since {date}",
     "args": [["date", "text"]],
@@ -165,10 +170,10 @@
     "reviewed": "shipped 2026-10-11 #5a9ab9b3"
   },
   "site.account.error.move_needs_signin": {
-    "text": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
-    "note": "The bridge's answer when a device being set up (the setup wizard, or Settings › Bridge on a device) asks for a name the account already uses on another device, with a setup code or a session from more than 15 minutes after the last sign-in: moving a name needs a sign-in just made. Error (lower case, like the bridge's); the setup wizard and the device show it as it is, and the account page has it in its error table.",
+    "text": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "note": "The bridge's answer when a device being set up (the setup wizard, or Settings › Bridge on a device) asks for a name the account uses on another device, or released less than 30 days ago, with a setup code or a session from more than 15 minutes after the last sign-in: moving a name needs a sign-in just made. Error (lower case, like the bridge's); the setup wizard and the device show it as it is, and the account page has it in its error table.",
     "review": "required",
-    "reviewed": "claude-backtranslation 2026-11-04 #5a256216"
+    "reviewed": "claude-backtranslation 2026-11-04 #9b936f2a"
   },
   "site.account.error.password_too_long": {
     "text": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji",

@@ -129,6 +129,11 @@ func SiteAccountDomainsReleaseFailed() Msg {
 	return Msg{Key: "site.account.domains.release_failed"}
 }
 
+// SiteAccountDomainsReleasePasswordLabel is site.account.domains.release_password_label: "Your password, to release {domain}".
+func SiteAccountDomainsReleasePasswordLabel(domain string) Msg {
+	return Msg{Key: "site.account.domains.release_password_label", Args: map[string]any{"domain": domain}}
+}
+
 // SiteAccountDomainsSince is site.account.domains.since: "since {date}".
 func SiteAccountDomainsSince(date string) Msg {
 	return Msg{Key: "site.account.domains.since", Args: map[string]any{"date": date}}
@@ -144,7 +149,7 @@ func SiteAccountErrorConfirmRequired(body string) Msg {
 	return Msg{Key: "site.account.error.confirm_required", Args: map[string]any{"body": body}}
 }
 
-// SiteAccountErrorMoveNeedsSignin is site.account.error.move_needs_signin: "that name is yours and in use on another device: to move it to this one, sign in…".
+// SiteAccountErrorMoveNeedsSignin is site.account.error.move_needs_signin: "that name is yours and has been in use on another device: to move it to this one…".
 func SiteAccountErrorMoveNeedsSignin() Msg {
 	return Msg{Key: "site.account.error.move_needs_signin"}
 }

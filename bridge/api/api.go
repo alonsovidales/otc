@@ -132,6 +132,18 @@ type API struct {
 	// recordVisit counts a visit to the public site (visits.go):
 	// dao.RecordSiteVisit; nil (most tests) counts nothing.
 	recordVisit func(page, source string)
+	// identityNotice stands in for accounts.NotifyNewIdentity in tests.
+	identityNotice func(accountID, domain string)
+}
+
+// notifyNewIdentity tells the owner of accountID that domain now leads to
+// a device with a new identity (accounts.NotifyNewIdentity).
+func (api *API) notifyNewIdentity(accountID, domain string) {
+	if api.identityNotice != nil {
+		api.identityNotice(accountID, domain)
+		return
+	}
+	api.accounts.NotifyNewIdentity(accountID, domain)
 }
 
 // oneOff sends one request frame to domain's device (ForwardOneOff).
@@ -848,6 +860,9 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 // the new identity - that is how a lost device is replaced: run setup
 // again, signed in, pick the same name. Without an account the claim is
 // refused (401 login_required) unless [accounts] open-registration is on.
+// Moving one of the account's names - one it holds, or one it released
+// less than 30 days ago - needs its owner just signed in (claimAccount's
+// ownerConfirmed), else 403 move_needs_signin, and the owner is emailed.
 func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name       string `json:"name"`
@@ -933,17 +948,31 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			// when they registered: close them, or clients go on reaching
 			// it. Not this device's, which registers as soon as it is told.
 			api.websocket.DropReplacedIdentity(domain, body.OwnerUUID)
-			api.accounts.NotifyNewIdentity(accountID, domain)
+			api.notifyNewIdentity(accountID, domain)
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
 		writeJSONErr(w, http.StatusConflict, "name_taken", errorText(i18n.ApiErrorNameTaken()))
 		return
 	}
-	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
-		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
-	} else if held {
+	// A name this account released a moment ago is still its own: taking
+	// it back with a new identity relays its clients there, as a move does,
+	// so it asks what a move asks. Otherwise a session alone would release
+	// it and claim it again for a device of its own.
+	heldForOthers, heldForAccount, err := api.dao.NameHold(domain, accountID)
+	if err != nil {
+		log.Error("could not check whether", domain, "is held:", err)
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", errorText(i18n.ApiErrorClaimUnavailable()))
+		return
+	}
+	if heldForOthers {
 		writeJSONErr(w, http.StatusConflict, "name_held", errorText(i18n.ApiErrorNameHeld()))
+		return
+	}
+	if heldForAccount && !ownerConfirmed {
+		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+		writeJSONErr(w, http.StatusForbidden, "move_needs_signin", errorText(i18n.SiteAccountErrorMoveNeedsSignin()))
 		return
 	}
 	if accountID != "" {
@@ -973,6 +1002,9 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
+	if heldForAccount {
+		api.notifyNewIdentity(accountID, domain)
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 }
 
@@ -1087,7 +1119,9 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 // accountAddDomain registers a name for a device installed by hand (the
 // install script rather than the wizard): the identity is generated here
 // and shown once, for the installer's environment file. POST
-// /api/account/domains {name}.
+// /api/account/domains {name, password}: the password only for a name the
+// account released less than 30 days ago (dao.NameHold), which needs its
+// owner as a new identity does.
 func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	// One read, as claimAccount's: a database error is "try again", not a
 	// verified account told to confirm its email or accept the terms.
@@ -1106,7 +1140,8 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
@@ -1126,10 +1161,21 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		writeJSONErr(w, http.StatusConflict, "name_taken", errorText(i18n.ApiErrorNameTaken()))
 		return
 	}
-	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
-		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
-	} else if held {
+	heldForOthers, heldForAccount, err := api.dao.NameHold(domain, accountID)
+	if err != nil {
+		log.Error("could not check whether", domain, "is held:", err)
+		writeJSONErr(w, http.StatusInternalServerError, "register_unavailable", errorText(i18n.ApiErrorRegisterUnavailable()))
+		return
+	}
+	if heldForOthers {
 		writeJSONErr(w, http.StatusConflict, "name_held", errorText(i18n.ApiErrorNameHeld()))
+		return
+	}
+	// A name this account released a moment ago comes back with a new
+	// identity, which receives every client that still knows it: as for
+	// New identity, the owner confirms (the password, or a Google/Apple
+	// sign-in within 15 minutes) and is told by email.
+	if heldForAccount && !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
 		return
 	}
 	if status, limit := api.domainLimitReached(accountID); status != 0 {
@@ -1147,6 +1193,9 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	log.Info("name registered from the account page:", domain)
+	if heldForAccount {
+		api.notifyNewIdentity(accountID, domain)
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 
@@ -1186,15 +1235,28 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	log.Info("domain re-issued from the account page:", domain)
 	// Locked out means its open connections too, not just its next dial.
 	api.websocket.DropReplacedIdentity(domain, owner)
-	api.accounts.NotifyNewIdentity(accountID, domain)
+	api.notifyNewIdentity(accountID, domain)
 	writeJSON(w, http.StatusOK, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 
 // accountReleaseDomain deletes one of the account's domains; the device
-// behind it loses the bridge, the name becomes free. DELETE
-// /api/account/domains/{domain}.
+// behind it loses the bridge, and the name is held for the account for 30
+// days. DELETE /api/account/domains/{domain} {"password"}.
+//
+// It takes a device off the bridge as deleting the account does, so it
+// asks for the owner the same way (accounts.ConfirmOwner): a session
+// cookie alone (a borrowed laptop, a stolen cookie) never does it.
 func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, accountID string) {
 	domain := r.PathValue("domain")
+	var body struct{ Password string }
+	// No body is no password (a page from before it was asked for).
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil && !errors.Is(err, io.EOF) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
+		return
+	}
+	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
+		return
+	}
 	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
 	if err != nil {
 		log.Error("error releasing", domain, ":", err)

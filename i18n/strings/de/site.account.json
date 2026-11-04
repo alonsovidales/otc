@@ -108,6 +108,10 @@
     "text": "Diese Domain konnte nicht freigegeben werden",
     "en": "Could not release that domain"
   },
+  "site.account.domains.release_password_label": {
+    "text": "Dein Passwort, um {domain} freizugeben",
+    "en": "Your password, to release {domain}"
+  },
   "site.account.domains.since": {
     "text": "seit {date}",
     "en": "since {date}"
@@ -122,9 +126,9 @@
     "reviewed": "claude-backtranslation 2026-10-11 #da918a33"
   },
   "site.account.error.move_needs_signin": {
-    "text": "dieser Name gehört dir und wird auf einem anderen Gerät genutzt: Um ihn auf dieses zu übertragen, melde dich erneut an oder nutze einen Einrichtungscode, den du innerhalb von 15 Minuten nach einer Anmeldung auf deiner Kontoseite bekommen hast",
-    "en": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
-    "reviewed": "claude-backtranslation 2026-11-04 #5e604ff4"
+    "text": "dieser Name gehört dir und wurde auf einem anderen Gerät genutzt: Um ihn auf dieses zu übertragen, melde dich erneut an oder nutze einen Einrichtungscode, den du innerhalb von 15 Minuten nach einer Anmeldung auf deiner Kontoseite bekommen hast",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #94966c7c"
   },
   "site.account.error.password_too_long": {
     "text": "das Passwort darf höchstens {max_chars} Zeichen lang sein, weniger mit Buchstaben mit Akzent, aus anderen Alphabeten oder Emojis",

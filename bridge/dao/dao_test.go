@@ -417,3 +417,49 @@ func TestAuthEventDueThrottles(t *testing.T) {
 		t.Fatal("still throttled after a minute")
 	}
 }
+
+// A name released less than 30 days ago is held for the account that
+// released it: anyone else (or a claim without an account) is refused,
+// and that account learns it is its own, which comes back to it only as a
+// move would.
+func TestNameHold(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	d := NewWithDB(db)
+	for _, c := range []struct {
+		holder                any // nil: no row; "": a NULL account_id
+		accountID             string
+		forOthers, forAccount bool
+	}{
+		{nil, "acc1", false, false},
+		{"acc1", "acc1", false, true},
+		{"acc2", "acc1", true, false},
+		{"", "acc1", true, false},
+		{"acc1", "", true, false},
+		{"", "", true, false},
+	} {
+		q := mock.ExpectQuery("select `account_id` from `released_domains` where `domain` = \\? and `released_at` > \\?").WithArgs("casa.off-the.cloud", sqlmock.AnyArg())
+		switch c.holder {
+		case nil:
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+		case "":
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(nil))
+		default:
+			q.WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow(c.holder))
+		}
+		forOthers, forAccount, err := d.NameHold("casa.off-the.cloud", c.accountID)
+		if err != nil || forOthers != c.forOthers || forAccount != c.forAccount {
+			t.Errorf("held for %v, asked by %q: others %v, account %v, %v", c.holder, c.accountID, forOthers, forAccount, err)
+		}
+	}
+	mock.ExpectQuery("from `released_domains`").WillReturnError(sql.ErrConnDone)
+	if _, _, err := d.NameHold("casa.off-the.cloud", "acc1"); err == nil {
+		t.Error("a database error read as no hold")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

@@ -1252,10 +1252,13 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 }
 
 // ConfirmOwner checks, before something that can't be undone (deleting
-// the account, issue #182), that whoever holds this session is the
-// account's owner right now: its password, or for an account that signs
-// in only with Google or Apple, a sign-in within cFreshSignIn. It answers
-// the request itself when the check fails.
+// the account, issue #182, releasing a name, giving one a new identity),
+// that whoever holds this session is the account's owner right now: its
+// password, or for an account that signs in only with Google or Apple, a
+// sign-in within cFreshSignIn. It answers the request itself when the
+// check fails. No password at all is wrong_password at once, uncounted and
+// unhashed: the account page asks for it after that answer (a name being
+// registered again), and nothing can be guessed with it.
 func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountID, password string) bool {
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
@@ -1263,6 +1266,10 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 		return false
 	}
 	now := time.Now()
+	if acc.PasswordHash != "" && password == "" {
+		writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPassword()))
+		return false
+	}
 	if acc.PasswordHash != "" {
 		ip := clientIP(r)
 		if ok, wait := a.loginAllowed(ip, now); !ok {

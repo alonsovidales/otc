@@ -87,7 +87,7 @@ func TestMovingANameNeedsAFreshSignIn(t *testing.T) {
 			WithArgs("11111111-2222-3333-4444-555555555555", "0123456789abcdef0123456789abcdef01234567", dao.SecretHash("0123456789abcdef0123456789abcdef01234567"), "casa.off-the.cloud", "acc1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 	}
-	want := `{"code":"move_needs_signin","error":"that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page"}` + "\n"
+	want := `{"code":"move_needs_signin","error":"that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page"}` + "\n"
 
 	// A code made for an old session: refused, nothing changed.
 	code(false)
@@ -98,7 +98,7 @@ func TestMovingANameNeedsAFreshSignIn(t *testing.T) {
 	// ... but it registers a new name.
 	code(false)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WithArgs("newpi.off-the.cloud").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	if rec := claim("newpi", withCode); rec.Code != http.StatusCreated {
@@ -194,6 +194,151 @@ func TestNewIdentityNeedsTheOwner(t *testing.T) {
 	reissued()
 	if rec := reissue(`{}`, freshSessionCookie(secret, "acc1")); rec.Code != http.StatusOK {
 		t.Errorf("provider account, a sign-in just made: %d %s", rec.Code, rec.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected DB activity: %v", err)
+	}
+}
+
+// Releasing one of the account's names takes its device off the bridge,
+// and taking it back gives it a new identity that every client of the name
+// is then relayed to: a session cookie alone does neither. A release needs
+// the password (or, without one, a sign-in within 15 minutes); the name,
+// held for the account for 30 days, comes back from the account page only
+// with the password, and through a claim only with a setup code made right
+// after a sign-in, as a move does - and its owner is emailed.
+func TestReleasingAndTakingBackANameNeedTheOwner(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	secret := []byte("test session secret")
+	d := dao.NewWithDB(db)
+	var notices []string
+	api := &API{muxHTTPServer: http.NewServeMux(), dao: d, accounts: accounts.Init(d, secret, "off-the.cloud"), lastClaimByAddr: map[string]time.Time{},
+		identityNotice: func(accountID, domain string) { notices = append(notices, accountID+" "+domain) }}
+	hash, err := bcrypt.GenerateFromPassword([]byte("the-owners-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := sessionCookie(secret, "acc1")
+	release := func(body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodDelete, "/api/account/domains/casa.off-the.cloud", strings.NewReader(body))
+		req.SetPathValue("domain", "casa.off-the.cloud")
+		req.RemoteAddr = "203.0.113.8:1111"
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		api.accountReleaseDomain(rec, req, "acc1")
+		return rec
+	}
+	add := func(body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/account/domains", strings.NewReader(body))
+		req.RemoteAddr = "203.0.113.8:1111"
+		req.AddCookie(stale)
+		rec := httptest.NewRecorder()
+		api.accountAddDomain(rec, req, "acc1")
+		return rec
+	}
+	const identity = `"owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"`
+	claim := func(setup func(r *http.Request)) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(`{"name":"casa",`+identity+`}`))
+		req.RemoteAddr = "203.0.113.7:1111"
+		setup(req)
+		rec := httptest.NewRecorder()
+		api.claimName(rec, req)
+		return rec
+	}
+	notRegistered := func() {
+		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WithArgs("casa.off-the.cloud").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+	}
+	heldForAcc1 := func() {
+		mock.ExpectQuery("select `account_id` from `released_domains` where `domain` = \\?").WithArgs("casa.off-the.cloud", sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc1"))
+	}
+	registered := func() {
+		mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+		mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
+	}
+
+	// A release with the session alone (no password, or a wrong one) is
+	// refused before anything is deleted.
+	for _, body := range []string{"", `{}`, `{"password":"a-guess"}`} {
+		accountWithPassword(mock, string(hash))
+		if rec := release(body, stale); rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), `"wrong_password"`) {
+			t.Errorf("release, body %q: %d %s", body, rec.Code, rec.Body.String())
+		}
+	}
+	// With the password it goes, and the name is held for the account.
+	accountWithPassword(mock, string(hash))
+	mock.ExpectExec("delete from `devices` where `domain` = \\? and `account_id` = \\?").WithArgs("casa.off-the.cloud", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("insert into `released_domains`").WillReturnResult(sqlmock.NewResult(0, 1))
+	for _, table := range []string{"push_registrations", "push_apns_tokens", "push_fcm_tokens", "push_web_subs", "device_metrics"} {
+		mock.ExpectExec("delete from `" + table + "` where `domain` = \\?").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+	if rec := release(`{"password":"the-owners-password"}`, stale); rec.Code != http.StatusOK {
+		t.Errorf("release with the password: %d %s", rec.Code, rec.Body.String())
+	}
+	// Google or Apple only: an old session can't release, a sign-in just
+	// made can (refused here before the delete, which the case above ran).
+	accountWithPassword(mock, "")
+	epochRow(mock)
+	if rec := release(`{}`, stale); rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), `"recent_signin_required"`) {
+		t.Errorf("provider account, release with an old session: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// Taking it back from the account page: the password is asked for.
+	accountWithPassword(mock, string(hash))
+	notRegistered()
+	heldForAcc1()
+	accountWithPassword(mock, string(hash))
+	if rec := add(`{"name":"casa"}`); rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), `"wrong_password"`) {
+		t.Errorf("taking a released name back without the password: %d %s", rec.Code, rec.Body.String())
+	}
+	accountWithPassword(mock, string(hash))
+	notRegistered()
+	heldForAcc1()
+	accountWithPassword(mock, string(hash))
+	registered()
+	if rec := add(`{"name":"casa","password":"the-owners-password"}`); rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"secret"`) {
+		t.Errorf("taking a released name back with the password: %d %s", rec.Code, rec.Body.String())
+	}
+	if len(notices) != 1 || notices[0] != "acc1 casa.off-the.cloud" {
+		t.Errorf("the owner was told %v", notices)
+	}
+
+	// Through a claim: an old session, or a code made for one, is refused.
+	epochRow(mock)
+	accountRow(mock, true, accounts.TermsVersion)
+	epochRow(mock) // FreshSignIn
+	notRegistered()
+	heldForAcc1()
+	if rec := claim(func(r *http.Request) { r.AddCookie(stale) }); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"move_needs_signin"`) {
+		t.Errorf("claiming a released name back with an old session: %d %s", rec.Code, rec.Body.String())
+	}
+	code := func(confirmed bool) {
+		mock.ExpectQuery("select `account_id`, `owner_confirmed` from `account_setup_codes`").
+			WillReturnRows(sqlmock.NewRows([]string{"account_id", "owner_confirmed"}).AddRow("acc1", confirmed))
+		accountRow(mock, true, accounts.TermsVersion)
+	}
+	withCode := func(r *http.Request) { r.Header.Set("Authorization", "Bearer ABCD-2345") }
+	code(false)
+	notRegistered()
+	heldForAcc1()
+	if rec := claim(withCode); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"move_needs_signin"`) {
+		t.Errorf("claiming a released name back with a code made for an old session: %d %s", rec.Code, rec.Body.String())
+	}
+	// ... and those refusals left the claim cooldown alone: a code made
+	// right after a sign-in takes it back, and the owner is told.
+	code(true)
+	notRegistered()
+	heldForAcc1()
+	registered()
+	if rec := claim(withCode); rec.Code != http.StatusCreated {
+		t.Errorf("claiming a released name back with a code made after a sign-in: %d %s", rec.Code, rec.Body.String())
+	}
+	if len(notices) != 2 || notices[1] != "acc1 casa.off-the.cloud" {
+		t.Errorf("the owner was told %v", notices)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unexpected DB activity: %v", err)

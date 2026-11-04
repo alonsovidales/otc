@@ -205,9 +205,11 @@ var accountScriptEnglish = map[string]string{
 
 // accountScriptAdded is what the account page's script says that the old
 // page didn't: the password asked again before a domain gets a new
-// identity, and the note under a setup code that moves no name.
+// identity or is released, and the note under a setup code that moves no
+// name.
 var accountScriptAdded = map[string]string{
 	"identityPassword":  "Your password, to give {domain} a new identity",
+	"releasePassword":   "Your password, to release {domain}",
 	"setupNewNamesOnly": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
 }
 

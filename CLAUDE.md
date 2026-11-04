@@ -3139,7 +3139,13 @@ says `owner_confirmed`) or a session that is a sign-in that recent (`FreshSignIn
 `move_needs_signin`; the account page's New identity (`accountNewIdentity`) needs `ConfirmOwner`
 (the password, asked inline, or a provider sign-in within 15 minutes); and either emails the owner
 (`NotifyNewIdentity`, `mail.identity.*`). A code made for a session alone still registers new
-names. `websocket.go`'s `ReqBridgeRegister` no longer
+names. A name the account released less than 30 days ago (`dao.NameHold`: held for it, where
+`NameHeld` is held from everyone else) is still its own here - else a session would release it and
+register it again for a device of its own: a claim takes it back only as it moves one, the account
+page's add (`accountAddDomain`) asks `ConfirmOwner` for it (the page shows the password field after
+the `wrong_password` that no password gets - answered at once, unhashed and uncounted), and both
+email the owner; a hold that can't be read is a 500. Release (`accountReleaseDomain`) needs
+`ConfirmOwner` as account deletion does: it takes the device off the bridge. `websocket.go`'s `ReqBridgeRegister` no longer
 registers an unknown domain on dial-in unless open registration is on. A device's additional
 users with bridge access (issue #103, `pepe.off-the.cloud`) get theirs from the primary:
 `ReqRegisterUserDomain` (141, `bridge/websocket/user_domains.go`), authenticated as the primary

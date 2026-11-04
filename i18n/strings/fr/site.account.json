@@ -108,6 +108,10 @@
     "text": "Impossible de libérer ce domaine",
     "en": "Could not release that domain"
   },
+  "site.account.domains.release_password_label": {
+    "text": "Votre mot de passe, pour libérer {domain}",
+    "en": "Your password, to release {domain}"
+  },
   "site.account.domains.since": {
     "text": "depuis le {date}",
     "en": "since {date}"
@@ -122,9 +126,9 @@
     "reviewed": "claude-backtranslation 2026-10-11 #66c73bbd"
   },
   "site.account.error.move_needs_signin": {
-    "text": "ce nom est à vous et utilisé par un autre appareil : pour le transférer sur celui-ci, reconnectez-vous, ou utilisez un code de configuration obtenu dans les 15 minutes qui suivent une connexion à la page de votre compte",
-    "en": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
-    "reviewed": "claude-backtranslation 2026-11-04 #93fa79aa"
+    "text": "ce nom est à vous et a été utilisé par un autre appareil : pour le transférer sur celui-ci, reconnectez-vous, ou utilisez un code de configuration obtenu dans les 15 minutes qui suivent une connexion à la page de votre compte",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #5f34503a"
   },
   "site.account.error.password_too_long": {
     "text": "le mot de passe peut contenir au maximum {max_chars} caractères, moins avec des lettres accentuées, d’autres alphabets ou des emojis",

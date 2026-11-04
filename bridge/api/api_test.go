@@ -123,7 +123,7 @@ func TestCooldownsCountAnIPv6SlashSixtyFour(t *testing.T) {
 	}
 	claimed := func() {
 		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 		mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	}
 
@@ -303,8 +303,8 @@ func TestClaimNameReservesAFreeNameAndRefusesATakenOne(t *testing.T) {
 		WithArgs("newpi.off-the.cloud").
 		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	// Not a recently released name (held for its previous account).
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
-		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	// The secret and its hash (the plaintext for a node of an older
 	// release, until migration 014 drops it).
 	mock.ExpectExec("insert into `devices` \\(`owner_uuid`, `domain`, `secret`, `secret_hash`\\)").
@@ -462,8 +462,8 @@ func TestClaimRefusesARecentlyReleasedName(t *testing.T) {
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").
 		WithArgs("gone.off-the.cloud").
 		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").
-		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	mock.ExpectQuery("select `account_id` from `released_domains`").
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}).AddRow("acc-before"))
 
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastClaimByAddr: map[string]time.Time{}}
 	req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
@@ -581,7 +581,7 @@ func TestClaimWithASessionNeedsAVerifiedAccount(t *testing.T) {
 	epoch()
 	accountRow(mock, true, accounts.TermsVersion)
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectQuery("select count\\(\\*\\) from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 	if rec := claim("203.0.113.7:1111"); rec.Code != http.StatusCreated {
@@ -604,7 +604,7 @@ func TestRetryAfterAFailedStoreIsNotThrottled(t *testing.T) {
 	mock.ExpectExec("insert into `contact_requests`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnError(errors.New("driver: bad connection"))
 	mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-	mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 	mock.ExpectExec("insert into `devices`").WillReturnResult(sqlmock.NewResult(1, 1))
 
 	api := &API{muxHTTPServer: http.NewServeMux(), dao: dao.NewWithDB(db), lastContactByAddr: map[string]time.Time{}, lastClaimByAddr: map[string]time.Time{}}
@@ -664,7 +664,7 @@ func TestClaimInsertFailureIsNotTaken(t *testing.T) {
 		{&mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'newpi.off-the.cloud' for key 'domain'"}, http.StatusConflict},
 	} {
 		mock.ExpectQuery("select `account_id` from `devices` where `domain` = \\?").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
-		mock.ExpectQuery("select count\\(\\*\\) from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+		mock.ExpectQuery("select `account_id` from `released_domains`").WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
 		mock.ExpectExec("insert into `devices`").WillReturnError(c.err)
 		req := httptest.NewRequest(http.MethodPost, "/api/claim", strings.NewReader(
 			`{"name":"newpi","owner_uuid":"11111111-2222-3333-4444-555555555555","secret":"0123456789abcdef0123456789abcdef01234567"}`))

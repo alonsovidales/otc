@@ -52,6 +52,29 @@ func (dao *Dao) NameHeld(domain, accountID string) (bool, error) {
 	return n > 0, err
 }
 
+// NameHold is NameHeld for a request that registers the name: forOthers
+// when it can't be taken by accountID yet (NameHeld), and forAccount when
+// accountID itself released it less than cNameHold ago. Such a name comes
+// back to its account only as a move to a new identity would: whoever
+// takes it receives every client and friend that still knows it.
+func (dao *Dao) NameHold(domain, accountID string) (forOthers, forAccount bool, err error) {
+	var holder sql.NullString
+	err = dao.db.QueryRow(
+		"select `account_id` from `released_domains` where `domain` = ? and `released_at` > ?",
+		domain, time.Now().Add(-cNameHold),
+	).Scan(&holder)
+	if err == sql.ErrNoRows {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	if accountID != "" && holder.Valid && holder.String == accountID {
+		return false, true, nil
+	}
+	return true, false, nil
+}
+
 // recordRelease holds domain for accountID (empty: for no one) from now.
 func (dao *Dao) recordRelease(domain, accountID string) error {
 	var acc any

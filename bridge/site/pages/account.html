@@ -206,6 +206,7 @@
     "identityFailed" "site.account.domains.identity_failed"
     "releaseConfirm" (jsform "site.account.domains.release_confirm" "domain" "text" "address" "text")
     "releaseFailed" "site.account.domains.release_failed"
+    "releasePassword" (jsform "site.account.domains.release_password_label" "domain" "text")
     "passwordTitle" "site.account.password.title"
     "passwordCurrent" "site.account.password.current_label"
     "passwordProvider" "site.account.password.provider_hint"
@@ -788,10 +789,24 @@
       $('#code').replaceChildren(h('div', { class: 'code' }, r.setup_token), h('p', { class: 'hint' }, t('setupExpires', { minutes: Math.round(r.expires_in_seconds / 60) })),
         r.owner_confirmed === false ? h('p', { class: 'hint' }, t('setupNewNamesOnly')) : null);
     };
+    // A name the account released less than 30 days ago comes back with a
+    // new identity, so the bridge asks for the password then (wrong_password
+    // while none was sent): the field appears, and the same button sends it.
+    // An account without one (Google or Apple) needs a recent sign-in, which
+    // the bridge checks itself.
     $('#add-go').onclick = async () => {
+      const pw = $('#add-pw');
       $('#add-msg').textContent = ''; $('#add-go').disabled = true;
-      const r = await api('POST', '/api/account/domains', { name: $('#add-name').value });
+      const r = await api('POST', '/api/account/domains', { name: $('#add-name').value, password: pw ? pw.value : '' });
       $('#add-go').disabled = false;
+      if (!r.ok && r.code === 'wrong_password' && !pw && me.has_password) {
+        const domain = $('#add-name').value.trim().toLowerCase() + '.' + location.hostname;
+        $('#add-out').replaceChildren(h('label', { for: 'add-pw' }, t('identityPassword', { domain })),
+          h('input', { id: 'add-pw', type: 'password', autocomplete: 'current-password' }));
+        $('#add-pw').focus();
+        $('#add-pw').onkeydown = (e) => { if (e.key === 'Enter') $('#add-go').click(); };
+        return;
+      }
       if (!r.ok) { $('#add-msg').textContent = errText(r, t('manualFailed')); $('#add-msg').className = 'msg bad'; return; }
       $('#add-out').replaceChildren(...identityBlock(r));
       const d = await api('GET', '/api/account/domains'); domains = d.domains || []; renderDomainsOnly();
@@ -820,6 +835,23 @@
     $('#dom-out').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('identityFailed')))); // i18n-ignore: CSS classes
   }
 
+  // Releasing takes the device off the bridge, as deleting the account
+  // does: the password is asked again first, and an account without one
+  // needs a sign-in from the last 15 minutes.
+  async function releaseDomain(domain, password) {
+    const go = $('#rel-go');
+    if (go) go.disabled = true;
+    const r = await api('DELETE', '/api/account/domains/' + encodeURIComponent(domain), { password });
+    if (go) go.disabled = false;
+    if (!r.ok) {
+      const m = $('#rel-msg');
+      if (m) { m.textContent = errText(r, t('releaseFailed')); m.className = 'msg bad'; return; }
+      $('#dom-out').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('releaseFailed')))); // i18n-ignore: CSS classes
+      return;
+    }
+    const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();
+  }
+
   function bindDomainButtons() {
     document.querySelectorAll('[data-identity]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.identity;
@@ -835,9 +867,13 @@
     document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.release;
       if (!confirm(t('releaseConfirm', { domain, address: HOME_ADDRESS }))) return;
-      const r = await api('DELETE', '/api/account/domains/' + encodeURIComponent(domain));
-      if (!r.ok) { $('#dom-out').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('releaseFailed')))); return; }
-      const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();
+      if (!me.has_password) return releaseDomain(domain, '');
+      const go = h('button', { class: 'btn danger', id: 'rel-go' }, t('release')); // i18n-ignore: CSS classes
+      $('#dom-out').replaceChildren(h('label', { for: 'rel-pw' }, t('releasePassword', { domain })),
+        h('input', { id: 'rel-pw', type: 'password', autocomplete: 'current-password' }), ' ', go, h('div', { class: 'msg', id: 'rel-msg' }));
+      $('#rel-pw').focus();
+      $('#rel-pw').onkeydown = (e) => { if (e.key === 'Enter') go.click(); };
+      go.onclick = () => releaseDomain(domain, $('#rel-pw').value);
     });
   }
 

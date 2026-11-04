@@ -108,6 +108,10 @@
     "text": "Kan dat domein niet vrijgeven",
     "en": "Could not release that domain"
   },
+  "site.account.domains.release_password_label": {
+    "text": "Je wachtwoord, om {domain} vrij te geven",
+    "en": "Your password, to release {domain}"
+  },
   "site.account.domains.since": {
     "text": "sinds {date}",
     "en": "since {date}"
@@ -122,9 +126,9 @@
     "reviewed": "claude-backtranslation 2026-10-11 #fbe7a5e7"
   },
   "site.account.error.move_needs_signin": {
-    "text": "die naam is van jou en in gebruik op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen",
-    "en": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
-    "reviewed": "claude-backtranslation 2026-11-04 #b4a1a926"
+    "text": "die naam is van jou en werd gebruikt op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen",
+    "en": "that name is yours and has been in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #dceff577"
   },
   "site.account.error.password_too_long": {
     "text": "het wachtwoord mag hoogstens {max_chars} tekens lang zijn, minder met letters met accenten, uit andere alfabetten of emoji’s",
