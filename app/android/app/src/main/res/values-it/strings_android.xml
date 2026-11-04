@@ -147,7 +147,9 @@
     <string name="android_storage_show_details_attention">Archiviazione, richiede attenzione, mostra dettagli</string>
     <string name="android_storage_used">Spazio utilizzato, %1$s%%</string>
     <string name="android_trim_cant">Impossibile tagliare questo video: %1$s</string>
+    <string name="android_trim_end_handle">Fine del taglio</string>
     <string name="android_trim_play_cut">▶ Riproduci taglio</string>
+    <string name="android_trim_start_handle">Inizio del taglio</string>
     <string name="android_wallpaper_both">Entrambe</string>
     <string name="android_wallpaper_change">Cambia foto</string>
     <string name="android_wallpaper_every_15">Ogni 15 minuti</string>

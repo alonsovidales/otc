@@ -316,6 +316,15 @@ import cloud.offthe.otc.i18n.commonOk
 import cloud.offthe.otc.i18n.commonSave
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonShare
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import cloud.offthe.otc.i18n.appPhotosGridScrubber
+import cloud.offthe.otc.i18n.appPhotosMemoriesNextPhoto
+import cloud.offthe.otc.i18n.appPhotosMemoriesPreviousPhoto
 
 // Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
 // tags, people and files, as the web's top bar), the People button and page
@@ -1970,8 +1979,32 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
                 Box(Modifier.align(Alignment.TopEnd).offset { IntOffset(0, (heightPx * frac - 5.dp.toPx()).toInt()) }.size(ScrubberPlacement.HANDLE.dp).background(Color.Yellow, CircleShape))
             }
         }
+        // TalkBack: a slider of its own (it had none), named "Jump to a date"
+        // with the month as its value; a swipe up or down (or the volume
+        // keys) jumps a month newer or older at once. Its progress runs
+        // oldest (0) to newest, one month a step.
+        val buckets = st.freshBuckets
+        val resources = LocalResources.current
+        val spokenMonth = scrubberMonth(buckets, st.jumpMonth)
+        val atIndex = buckets.indexOfFirst { it.month == spokenMonth }.coerceAtLeast(0)
         Box(
-            Modifier.align(Alignment.CenterEnd).width(ScrubberPlacement.GRAB_STRIP.dp).fillMaxHeight().tourTarget(TourTarget.SCRUBBER).pointerInput(heightPx) {
+            Modifier.align(Alignment.CenterEnd).width(ScrubberPlacement.GRAB_STRIP.dp).fillMaxHeight().tourTarget(TourTarget.SCRUBBER)
+                .semantics {
+                    contentDescription = S.appPhotosGridScrubber().resolve(resources)
+                    spokenMonth?.let { stateDescription = monthSpoken(it).resolve(resources) }
+                    if (buckets.size > 1) {
+                        val last = buckets.size - 1
+                        progressBarRangeInfo = ProgressBarRangeInfo((last - atIndex).toFloat(), 0f..last.toFloat(), steps = maxOf(0, last - 1))
+                        setProgress { v ->
+                            val target = (last - kotlin.math.round(v).toInt()).coerceIn(0, last)
+                            if (target == atIndex) return@setProgress false
+                            vm.scrubStep(newer = target < atIndex)
+                            // One month a step, whatever TalkBack asked for.
+                            true
+                        }
+                    }
+                }
+                .pointerInput(heightPx) {
                 detectDragGestures(
                     onDragStart = { startY = it.y; engaged = false },
                     onDrag = { change, _ ->
@@ -2052,6 +2085,19 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // fetch and the video start when a page settles), and is followed by
     // it when the index changes for another reason (a delete).
     LaunchedEffect(pagerState.settledPage) { if (pagerState.settledPage != vm.state.value.openIndex) vm.open(pagerState.settledPage) }
+    // TalkBack says where a page change went, as the page it slides in.
+    val view = LocalView.current
+    val pageResources = LocalResources.current
+    var announcedPage by remember { mutableStateOf(idx) }
+    LaunchedEffect(pagerState.settledPage) {
+        val page = pagerState.settledPage
+        if (page == announcedPage) return@LaunchedEffect
+        announcedPage = page
+        st.items.getOrNull(page)?.let { item ->
+            @Suppress("DEPRECATION") // the page's own announcement, as iOS's .pageScrolled
+            view.announceForAccessibility(tileLabel(item.mime.startsWith("video/"), item.created, ZoneId.systemDefault()).resolve(pageResources))
+        }
+    }
     LaunchedEffect(idx) { if (pagerState.currentPage != idx && !pagerState.isScrollInProgress) pagerState.scrollToPage(idx) }
 
     Dialog(onDismissRequest = { vm.closeModal() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
@@ -2345,7 +2391,25 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
     val item = st.items.getOrNull(page) ?: return
     val video = if (isCurrent) st.videoUrl else null
     val path = item.path
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    val resources = LocalResources.current
+    val count = st.items.size
+    Box(
+        Modifier.fillMaxSize()
+            // TalkBack: the open photo says what its tile says, and Next /
+            // Previous photo page through it (the swipe doesn't reach
+            // TalkBack); the neighbours waiting off screen are hidden.
+            .then(
+                if (!isCurrent) Modifier.clearAndSetSemantics {}
+                else Modifier.semantics {
+                    contentDescription = tileLabel(item.mime.startsWith("video/"), item.created, ZoneId.systemDefault()).resolve(resources)
+                    customActions = buildList {
+                        if (page < count - 1) add(CustomAccessibilityAction(S.appPhotosMemoriesNextPhoto().resolve(resources)) { vm.next(); true })
+                        if (page > 0) add(CustomAccessibilityAction(S.appPhotosMemoriesPreviousPhoto().resolve(resources)) { vm.prev(); true })
+                    }
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
         if (video != null) {
             val player = remember(video) { MediaStream.player(context, video).apply { setMediaItem(MediaItem.fromUri(video)); prepare(); playWhenReady = true } }
             DisposableEffect(video) {

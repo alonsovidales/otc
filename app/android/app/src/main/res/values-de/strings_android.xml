@@ -140,7 +140,9 @@
     <string name="android_storage_show_details_attention">Speicher, erfordert Aufmerksamkeit, Details anzeigen</string>
     <string name="android_storage_used">Belegter Speicher, %1$s %%</string>
     <string name="android_trim_cant">Dieses Video kann nicht gekürzt werden: %1$s</string>
+    <string name="android_trim_end_handle">Ende des Ausschnitts</string>
     <string name="android_trim_play_cut">▶ Schnitt abspielen</string>
+    <string name="android_trim_start_handle">Anfang des Ausschnitts</string>
     <string name="android_wallpaper_both">Beide</string>
     <string name="android_wallpaper_change">Foto wechseln</string>
     <string name="android_wallpaper_every_15">Alle 15 Minuten</string>

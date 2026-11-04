@@ -29,6 +29,13 @@ class ComposerTest {
         assertEquals("Number 2 in the post", S.appSocialComposePosition(2).english())
     }
 
+    /** TalkBack steps a trimmer handle a hundredth of the clip, a tenth of a second at least (iOS's DualRangeSlider.step). */
+    @Test fun aTrimmerHandleStepsAHundredthOfTheClip() {
+        assertEquals(0.6, trimStep(60.0), 1e-9)
+        assertEquals(0.1, trimStep(3.0), 1e-9)
+        assertEquals(1.2, trimStep(118.0), 1e-9)
+    }
+
     @Test fun picksStayWhenTheGridShowsAnotherSource() {
         // Two from Synced, then the grid starts over on Phone (its items
         // gone): the picks don't go with them.

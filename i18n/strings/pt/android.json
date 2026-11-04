@@ -527,9 +527,17 @@
     "text": "Não é possível cortar este vídeo: {reason}",
     "en": "Can't trim this video: {reason}"
   },
+  "android.trim_end_handle": {
+    "text": "Fim do corte",
+    "en": "End of the cut"
+  },
   "android.trim_play_cut": {
     "text": "▶ Reproduzir corte",
     "en": "▶ Play cut"
+  },
+  "android.trim_start_handle": {
+    "text": "Início do corte",
+    "en": "Start of the cut"
   },
   "android.wallpaper_both": {
     "text": "Ambos",

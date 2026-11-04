@@ -310,6 +310,9 @@ class PhotoGalleryViewModel(
         // title (placeholderMonth), so the photos land where they were.
         val placeholderCount: Int? = null,
         val placeholderMonth: String? = null,
+        // The month the last jump went to (TalkBack's scrubber names it);
+        // null after a search of its own.
+        val jumpMonth: String? = null,
         // Counts the jumps whose photos have landed: the grid goes to its top
         // then, the month's title.
         val jumpsLanded: Int = 0,
@@ -915,8 +918,21 @@ class PhotoGalleryViewModel(
         // Not a month (the device's "No date" bucket has its own cutoff): no
         // jump, the photos as they were - never grey tiles left standing.
         val before = jumpCutoffMs(month, ZoneId.systemDefault()) ?: run { previewMonth(null); return }
+        _state.update { it.copy(jumpMonth = month) }
         searchJob?.cancel()
         searchJob = scope.launch { performJump(before) }
+    }
+
+    /**
+     * TalkBack's swipe up ([newer]) or down on the scrubber: the next
+     * month's photos at once, as a scrub let go there. It had nothing for
+     * TalkBack at all: a big library was a page at a time.
+     */
+    fun scrubStep(newer: Boolean) {
+        val st = _state.value
+        val target = scrubStepBucket(st.freshBuckets, scrubberMonth(st.freshBuckets, st.jumpMonth), newer) ?: return
+        previewMonth(target)
+        jumpToDate(target.month)
     }
 
     // A fresh search like a filter change, anchored at `before` (the last
@@ -1561,7 +1577,7 @@ class PhotoGalleryViewModel(
         _state.update {
             it.copy(
                 loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
-                scrubFrac = null, placeholderCount = null, placeholderMonth = null, searchesStarted = it.searchesStarted + 1,
+                scrubFrac = null, placeholderCount = null, placeholderMonth = null, jumpMonth = null, searchesStarted = it.searchesStarted + 1,
                 upOn = false, upLoading = false, upProblem = null,
             )
         }

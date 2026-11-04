@@ -147,7 +147,9 @@
     <string name="android_storage_show_details_attention">Armazenamento, requer atenção, mostrar detalhes</string>
     <string name="android_storage_used">Armazenamento usado, %1$s%%</string>
     <string name="android_trim_cant">Não é possível cortar este vídeo: %1$s</string>
+    <string name="android_trim_end_handle">Fim do corte</string>
     <string name="android_trim_play_cut">▶ Reproduzir corte</string>
+    <string name="android_trim_start_handle">Início do corte</string>
     <string name="android_wallpaper_both">Ambos</string>
     <string name="android_wallpaper_change">Mudar de foto</string>
     <string name="android_wallpaper_every_15">A cada 15 minutos</string>

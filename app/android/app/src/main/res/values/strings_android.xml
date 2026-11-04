@@ -139,7 +139,9 @@
     <string name="android_storage_show_details_attention">Storage, needs attention, show details</string>
     <string name="android_storage_used">Storage used, %1$s%%</string>
     <string name="android_trim_cant">Can\'t trim this video: %1$s</string>
+    <string name="android_trim_end_handle">End of the cut</string>
     <string name="android_trim_play_cut">▶ Play cut</string>
+    <string name="android_trim_start_handle">Start of the cut</string>
     <string name="android_wallpaper_both">Both</string>
     <string name="android_wallpaper_change">Change the photo</string>
     <string name="android_wallpaper_every_15">Every 15 minutes</string>

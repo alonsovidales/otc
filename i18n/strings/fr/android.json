@@ -527,9 +527,17 @@
     "text": "Impossible de découper cette vidéo : {reason}",
     "en": "Can't trim this video: {reason}"
   },
+  "android.trim_end_handle": {
+    "text": "Fin de l’extrait",
+    "en": "End of the cut"
+  },
   "android.trim_play_cut": {
     "text": "▶ Lire l’extrait",
     "en": "▶ Play cut"
+  },
+  "android.trim_start_handle": {
+    "text": "Début de l’extrait",
+    "en": "Start of the cut"
   },
   "android.wallpaper_both": {
     "text": "Les deux",

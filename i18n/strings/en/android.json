@@ -583,10 +583,18 @@
     "args": [["reason", "text"]],
     "note": "In the Trim video screen of the New Post composer when the video can't be opened. {reason} says why (app.social.trim.cant_open or app.social.trim.no_length)."
   },
+  "android.trim_end_handle": {
+    "text": "End of the cut",
+    "note": "Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5)."
+  },
   "android.trim_play_cut": {
     "text": "▶ Play cut",
     "note": "Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol.",
     "max": 20
+  },
+  "android.trim_start_handle": {
+    "text": "Start of the cut",
+    "note": "Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0)."
   },
   "android.wallpaper_both": {
     "text": "Both",

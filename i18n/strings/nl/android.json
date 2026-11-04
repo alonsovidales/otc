@@ -527,9 +527,17 @@
     "text": "Kan deze video niet inkorten: {reason}",
     "en": "Can't trim this video: {reason}"
   },
+  "android.trim_end_handle": {
+    "text": "Einde van het fragment",
+    "en": "End of the cut"
+  },
   "android.trim_play_cut": {
     "text": "▶ Fragment afspelen",
     "en": "▶ Play cut"
+  },
+  "android.trim_start_handle": {
+    "text": "Begin van het fragment",
+    "en": "Start of the cut"
   },
   "android.wallpaper_both": {
     "text": "Allebei",

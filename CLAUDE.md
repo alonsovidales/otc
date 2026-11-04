@@ -4423,7 +4423,15 @@ where (`ViewerPaging`), the neighbours waiting off screen hidden; the trimmer's 
 hundredth of the clip a swipe (`DualRangeSlider.step`); a Files grid tile is one element named by
 its file with Select, versions, the lock and kept out of Images as its actions (`GridTileAccess`); a
 comment's like count says "N likes"; Files' path field is named (`app.files.path_label`). Tests:
-`VoiceOverTests.swift`.
+`VoiceOverTests.swift`. Android does the same for TalkBack: the scrubber's grab strip is a slider
+(`progressBarRangeInfo` oldest to newest, one month a step, `setProgress` ->
+`PhotoGalleryViewModel.scrubStep`; `scrubberMonth`, `scrubStepBucket`, `monthSpoken` in
+`PhotoMonths.kt`; `State.jumpMonth`); the viewer's page is named as its tile, has Next/Previous photo
+actions, announces the page a swipe settled on, and the neighbours are hidden; the trimmer's
+handles are two named elements over the slider stepped by `trimStep`
+(`android.trim_start_handle`/`_end_handle`); a Files grid tile is one element with its badges as
+actions and the versions badge reads `android.files.older_versions`; Settings' section titles are
+headings. Tests: `PhotoMonthsTest.theScrubbersMonthAndSteps`, `ComposerTest`.
 **Text size in the wide layout on iOS** (`AppMenu.swift`): the menu, the rail, the top bar's field
 and chips and the Collections page keep their design sizes (11-16 pt) at the default text size and
 follow the reader's text size from there (`scaledFont`, a `@ScaledMetric` relative to a text style),

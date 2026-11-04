@@ -147,7 +147,9 @@
     <string name="android_storage_show_details_attention">Stockage, attention requise, afficher les détails</string>
     <string name="android_storage_used">Stockage utilisé, %1$s %%</string>
     <string name="android_trim_cant">Impossible de découper cette vidéo : %1$s</string>
+    <string name="android_trim_end_handle">Fin de l’extrait</string>
     <string name="android_trim_play_cut">▶ Lire l’extrait</string>
+    <string name="android_trim_start_handle">Début de l’extrait</string>
     <string name="android_wallpaper_both">Les deux</string>
     <string name="android_wallpaper_change">Changer de photo</string>
     <string name="android_wallpaper_every_15">Toutes les 15 minutes</string>

@@ -474,9 +474,17 @@ fun S.androidStorageUsed(percent: String): UiText =
 fun S.androidTrimCant(reason: String): UiText =
     UiText.Res(R.string.android_trim_cant, listOf(reason))
 
+/** "End of the cut": Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5). */
+fun S.androidTrimEndHandle(): UiText =
+    UiText.Res(R.string.android_trim_end_handle)
+
 /** "▶ Play cut": Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol. */
 fun S.androidTrimPlayCut(): UiText =
     UiText.Res(R.string.android_trim_play_cut)
+
+/** "Start of the cut": Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0). */
+fun S.androidTrimStartHandle(): UiText =
+    UiText.Res(R.string.android_trim_start_handle)
 
 /** "Both": Choice under Show on (android.wallpaper_show_on): the lock screen and the home screen (agree with screen if your language needs it). */
 fun S.androidWallpaperBoth(): UiText =
