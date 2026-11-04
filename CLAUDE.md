@@ -141,9 +141,19 @@ event (a USB brownout drops both for a second; they come back while md still hol
 and their incremental add fails against it), so while fstab's array is not in `/proc/mdstat` at all
 the disks nothing holds that carry its superblock (its UUID from mdadm.conf, read with a bounded
 `mdadm --examine --export`) are handed to udev again (`_assemble_again`: `udevadm trigger
---action=change`, the same incremental assembly and last-resort start as a plug-in) - at once after
+--action=add`, the same incremental assembly and last-resort start as a plug-in; not `change`, which
+trixie's md rule, mdadm 4.4, skips for a bare disk - bookworm's 4.2 ran it on both) - at once after
 the guard's own stop, otherwise once it has been apart 30 s (udev's own assembly at boot or a plug-in
-is far quicker), then 30 s doubling to 10 min. A dead array is never mounted (`source_present`) nor
+is far quicker), then 30 s doubling to 10 min. Which array that is goes by fstab's source
+(`_md_name`, used by `_array_of` too): `/dev/mdN` as install.sh writes it, or what a `UUID=` line
+(raid_watch's own first-sign-in setup writes one), `LABEL=` or udev link led to - a stopped array
+takes its node and its filesystem's by-uuid link with it, so the guard remembers the name from the
+last time the source resolved (`md_seen`), and one started while the array was apart takes
+CONFIG's `raid_dev` when mdadm.conf has its ARRAY line. Checked on 2026-11-04 in a throwaway Debian
+13 VM (mdadm 4.4, two loop disks as md0, the guard on the real sysfs, udev and systemd): md0 failed
+to broken, taken down, stopped and assembled again by the add trigger and mounted 4 s later, for a
+`UUID=` and a `/dev/md0` line, and by a guard started while it was apart; with `change` it stayed
+apart. A dead array is never mounted (`source_present`) nor
 added to (`guard.dead_array` gates the repair), and the companion starts as soon as the storage is
 unmounted (grace 0; the outage, and the Alert's minutes, begin at the detection), as it does when a
 storage seen mounted goes with its device (the single disk, which systemd unmounts itself,
