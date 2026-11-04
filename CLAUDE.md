@@ -2281,11 +2281,14 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   English is the only shipping language. Parity: iOS `LanguageSettings.swift` <-> Android
   `i18n/LanguageSettings.kt` (rules in `LanguageSync`); macOS `LanguageSettings.swift` <-> otc-sync
   `engine/language.go` + `internal/oslang`; `otc-sync language [auto|<code>]` (English output).
-  Android recreates the Activity on a change, except on the Bluetooth setup (the manifest's
-  `locale|layoutDirection` plus `LanguageSettings.holdInPlace()`, so its link and page survive):
-  state that must survive uses `rememberSaveable` or a view model (the connection forms'
-  `ConnectionFormModel`; never a password in saved state), and launch-time prompts ask only on a
-  fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
+  Android recreates the Activity on a change, except on the Bluetooth setup (the manifest handles
+  `locale|layoutDirection|uiMode|density|fontScale`, and `MainActivity.onConfigurationChanged`
+  recreates for a new locale, dark mode, display or text size unless `LanguageSettings.holdInPlace()`
+  is held, so the setup's link and page survive a language pick and a dark-mode or text-size
+  switch alike - Compose follows in place; Onboarding's `setupOpen` is saveable, so a recreation
+  that does happen comes back to the setup): state that must survive uses `rememberSaveable` or a
+  view model (the connection forms' `ConnectionFormModel`; never a password in saved state), and
+  launch-time prompts ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
 - New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
   `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state
   (keep a key or a `UiText`). A `UiText` is a function, so never hand one bare to React:
