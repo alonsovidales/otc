@@ -723,6 +723,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// Bumped by each ask for the faces: an answer to an earlier one is
     /// dropped.
     private var facesAsk = 0
+    /// Info's details: the latest GetFileInfo (openInfo).
+    private var infoAsk = 0
 
     /// `thumbCache`: where the tiles' thumbnails are kept (tests use their own).
     init(deviceID: String, localPhotosFolder: URL?, thumbCache: ThumbDiskCache = .shared) {
@@ -2675,7 +2677,9 @@ final class PhotoGalleryVM: ObservableObject {
         videoPlayer = nil
         playerWatch = []
         infoOpen = false
+        infoLoading = false
         infoData = nil
+        infoAsk &+= 1
         clearInfoFaces()
         // The open photo first, alone; its neighbours once it is on screen.
         let path = items[index].path
@@ -2962,20 +2966,31 @@ final class PhotoGalleryVM: ObservableObject {
         infoLoading = true
         infoData = nil
         let path = items[idx].path
+        // Only this opening's answer counts: one for the photo before (Info
+        // opened on A, the viewer moved to B, Info opened again) used to
+        // show A's camera, date and map under B, and its end cleared B's
+        // spinner early. Android's openInfo does the same.
+        infoAsk &+= 1
+        let ask = infoAsk
         Task {
-            defer { infoLoading = false }
             var gi = Msg_GetFileInfo()
             gi.path = path
-            do {
-                let resp = try await photoRequest(.reqGetFileInfo(gi), nil)
-                if case .respFileInfo(let info) = resp.payload {
-                    infoData = info
-                }
-            } catch { /* leave infoData nil, shows "no metadata" */ }
+            let resp = try? await photoRequest(.reqGetFileInfo(gi), nil)
+            guard ask == infoAsk, infoOpen, openPath == path else { return }
+            // No answer leaves infoData nil, which shows "no metadata".
+            if case .respFileInfo(let info)? = resp?.payload {
+                infoData = info
+            }
+            infoLoading = false
         }
         Task { await loadInfoFaces() }
     }
-    func closeInfo() { infoOpen = false; infoData = nil }
+    func closeInfo() {
+        infoAsk &+= 1
+        infoOpen = false
+        infoLoading = false
+        infoData = nil
+    }
     func prev() { if let i = openIndex, i > 0 { open(index: i-1) } }
     func next() { if let i = openIndex, i < items.count - 1 { open(index: i+1) } }
 
