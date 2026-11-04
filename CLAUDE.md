@@ -3075,8 +3075,9 @@ setup beacons (the last two a database write each) are also bounded per network
 (`clientaddr.NetBucket`: an IPv4 /24, an IPv6 /48 - 20 sign-ups an hour, 40 failed passwords in 10
 minutes, 30 emails an hour, 5 messages a minute, 120 sign-in starts a minute, beacons 20/s with a
 burst of 100) and on the whole node (120 sign-ups an hour; 120
-emails an hour that strangers can have sent, `emailBudget`, the new-account note dropped first; 30
-contact messages a minute); and at most half the cores hash passwords at once
+emails an hour that strangers can have sent, `emailBudget` - the new-account note to the project
+goes after the person's confirmation, and only while 10 more stay (`AllowLeaving`, `cNoteReserve`),
+so it is the first to go; 30 contact messages a minute); and at most half the cores hash passwords at once
 (`limits.HashPassword`/`CheckPassword`, the admin panel's too): a hash that can't start within 3 s
 is a 503 with Retry-After and the handler's own "could not ... right now" code, never a failed
 password. Every request that hashes a password it carries takes a token per address and per network

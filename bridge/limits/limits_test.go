@@ -181,3 +181,29 @@ func TestDecodeJSONLimit(t *testing.T) {
 		t.Fatalf("a small body failed: %v %v", err, v)
 	}
 }
+
+// AllowLeaving takes a token only while the reserve stays: with 3 tokens
+// and a reserve of 2, one goes; the rest are left for Allow.
+func TestRateAllowLeavingKeepsTheReserve(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := NewRate(1, 3)
+	l.now = func() time.Time { return now }
+	if !l.AllowLeaving("a", 2) {
+		t.Fatal("a full bucket refused with the reserve left")
+	}
+	if l.AllowLeaving("a", 2) {
+		t.Fatal("took a token out of the reserve")
+	}
+	for i := 0; i < 2; i++ {
+		if !l.Allow("a") {
+			t.Fatalf("the reserve's token %d was gone", i)
+		}
+	}
+	if l.Allow("a") || l.AllowLeaving("a", 0) {
+		t.Fatal("an empty bucket gave a token")
+	}
+	now = now.Add(time.Second)
+	if !l.AllowLeaving("a", 0) {
+		t.Error("a refilled token refused without a reserve")
+	}
+}

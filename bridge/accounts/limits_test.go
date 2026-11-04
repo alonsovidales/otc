@@ -91,8 +91,8 @@ func TestLoginFailuresCountPerNetwork(t *testing.T) {
 }
 
 // The emails strangers can have sent are bounded on the whole node: past
-// the budget, a link email isn't sent (a resend is a 429 with Retry-After),
-// and the new-account note is dropped first.
+// the budget, a link email isn't sent (a resend is a 429 with Retry-After).
+// The new-account note goes first: TestSignupConfirmsBeforeTheNote.
 func TestEmailBudget(t *testing.T) {
 	a, mock := testAccounts(t)
 	a.emailBudget = limits.NewRate(1.0/3600, 1)
@@ -380,5 +380,50 @@ func TestEveryPasswordHashIsBounded(t *testing.T) {
 	is429("Reset", w)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A sign-up sends the person's confirmation before the note to the
+// project, and the note takes only what the email budget has to spare
+// (cNoteReserve): with the budget nearly spent, the confirmation goes and
+// the note doesn't; with room, both go.
+func TestSignupConfirmsBeforeTheNote(t *testing.T) {
+	for _, c := range []struct {
+		budget   float64
+		wantNote bool
+	}{{1, false}, {cNoteReserve, false}, {cNoteReserve + 2, true}} {
+		a, mock := testAccounts(t)
+		a.emailBudget = limits.NewRate(1.0/3600, c.budget)
+		a.noteTo = "info@example.org"
+		sent := make(chan string, 4)
+		a.send = func(to, subject, body string) error { sent <- to; return nil }
+		mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols))
+		mock.ExpectExec("insert into `accounts`").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectQuery("select max\\(`created`\\) from `account_email_tokens`").WillReturnRows(sqlmock.NewRows([]string{"t"}).AddRow(nil))
+		mock.ExpectExec("insert into `account_email_tokens`").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("delete from `account_email_tokens`").WillReturnResult(sqlmock.NewResult(0, 0))
+		epochRow(mock, 0)
+		mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
+		w := httptest.NewRecorder()
+		a.Signup(w, signupRequest(`{`+cSignupBody+`}`, ""))
+		if w.Code != http.StatusCreated {
+			t.Fatalf("budget %v: sign-up %d %s", c.budget, w.Code, w.Body.String())
+		}
+		if to := <-sent; to != "new@example.com" {
+			t.Errorf("budget %v: the first email went to %q", c.budget, to)
+		}
+		select {
+		case to := <-sent:
+			if !c.wantNote || to != "info@example.org" {
+				t.Errorf("budget %v: an email to %q", c.budget, to)
+			}
+		case <-time.After(200 * time.Millisecond):
+			if c.wantNote {
+				t.Errorf("budget %v: no note", c.budget)
+			}
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("budget %v: %v", c.budget, err)
+		}
 	}
 }

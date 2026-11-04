@@ -126,6 +126,31 @@ func (l *Rate) Allow(key string) bool {
 func (l *Rate) Take(key string) (ok bool, retryAfter time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	b := l.refilled(key)
+	if b.tokens < 1 {
+		return false, time.Duration((1 - b.tokens) / l.perSecond * float64(time.Second))
+	}
+	b.tokens--
+	return true, 0
+}
+
+// AllowLeaving is Allow that takes key's token only while at least
+// reserve more stay after it: what can wait gives way to what can't (the
+// new-account note to a person's confirmation email).
+func (l *Rate) AllowLeaving(key string, reserve float64) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b := l.refilled(key)
+	if b.tokens < 1+reserve {
+		return false
+	}
+	b.tokens--
+	return true
+}
+
+// refilled is key's bucket with the tokens earned since its last use. The
+// caller holds mu.
+func (l *Rate) refilled(key string) *bucket {
 	now := l.now()
 	l.sweep(now)
 	b := l.buckets[key]
@@ -135,11 +160,7 @@ func (l *Rate) Take(key string) (ok bool, retryAfter time.Duration) {
 	}
 	b.tokens = min(l.burst, b.tokens+now.Sub(b.last).Seconds()*l.perSecond)
 	b.last = now
-	if b.tokens < 1 {
-		return false, time.Duration((1 - b.tokens) / l.perSecond * float64(time.Second))
-	}
-	b.tokens--
-	return true, 0
+	return b
 }
 
 // sweep drops the keys idle for long enough to be full again (exactly

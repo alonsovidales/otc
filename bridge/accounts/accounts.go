@@ -141,8 +141,11 @@ type Accounts struct {
 
 	// mailer sends verification and reset emails; nil without [smtp].
 	mailer *mailer.Mailer
-	// send stands in for the mailer's Send in the link emails (tests).
-	send func(to, subject, body string) error
+	// send stands in for the mailer's Send in the link emails and the
+	// new-account note, and noteTo for its own address, where the note
+	// goes (tests).
+	send   func(to, subject, body string) error
+	noteTo string
 	// emailsPerAddr limits the "send me an email" requests per address.
 	emailsPerAddr *limits.Rate
 
@@ -952,10 +955,12 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	// The account's id, never its email or the address it came from
 	// (issue #162: personal data kept in logs with no retention).
 	log.Info("account created:", acc.ID)
-	a.notifyNewAccount(acc.Email)
+	// The person's confirmation first: the note to the project takes what
+	// the email budget has left over (notifyNewAccount).
 	if err := a.sendVerification(&acc, lang); err != nil {
 		log.Error("could not send the verification email for", acc.ID, ":", err)
 	}
+	a.notifyNewAccount(acc.Email)
 	a.signedIn(w, r, &acc, http.StatusCreated)
 }
 
@@ -1581,6 +1586,9 @@ const (
 	cEmailsPerNetPerHour = 30
 	cEmailBudgetPerHour  = 120
 	cEmailBudgetBurst    = 40
+	// cNoteReserve is how much of the budget the new-account note leaves
+	// for everything else.
+	cNoteReserve = 10
 )
 
 // SetMailer gives the account emails a way out (main, after [smtp]).
@@ -1618,18 +1626,24 @@ func (a *Accounts) notifyNewIdentity(accountID, domain string, send func(to, sub
 // and nothing else. In the background, so a slow SMTP server never holds
 // up a sign-up; a failure is only logged, by account-free text (#162).
 func (a *Accounts) notifyNewAccount(email string) {
-	m := a.mailer
-	if m == nil || m.Self() == "" {
+	to, send := a.noteTo, a.send
+	if send == nil {
+		if m := a.mailer; m != nil {
+			to, send = m.Self(), m.Send
+		}
+	}
+	if send == nil || to == "" {
 		return
 	}
-	// The first email to go when strangers send many: it is only news.
-	if !a.emailBudgetAllows() {
-		log.Info("the new-account note was not sent: the email budget is spent for now")
+	// The first email to go when strangers send many: it is only news. It
+	// never takes the budget's last cNoteReserve, which are left for the
+	// emails people wait for (a confirmation, a reset).
+	if a.emailBudget != nil && !a.emailBudget.AllowLeaving(cAll, cNoteReserve) {
+		log.Info("the new-account note was not sent: the email budget is running low")
 		return
 	}
 	go func() {
-		if err := m.Send(m.Self(), "New account", email); err != nil { // i18n-ignore: an email to the project itself, read by its operators
-
+		if err := send(to, "New account", email); err != nil { // i18n-ignore: an email to the project itself, read by its operators
 			log.Error("could not send the new-account email:", err)
 		}
 	}()
