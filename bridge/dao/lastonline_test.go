@@ -154,10 +154,10 @@ func TestInactivityCountsDevicesOnline(t *testing.T) {
 	defer db.Close()
 	d := NewWithDB(db)
 	before := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	cols := []string{"id", "email", "name", "inactivity_warned_at", "lang"}
+	cols := []string{"id", "email", "name", "email_verified", "inactivity_warned_at", "lang"}
 
 	mock.ExpectQuery("from `accounts` a where a.`last_seen` < \\? and not exists \\(select 1 from `devices` d where d.`account_id` = a.`id` and \\(d.`last_client_at` >= \\? or d.`last_online_at` >= \\?\\)\\)").
-		WithArgs(before, before, before).WillReturnRows(sqlmock.NewRows(cols).AddRow("acc1", "a@b.c", "A", nil, "en"))
+		WithArgs(before, before, before).WillReturnRows(sqlmock.NewRows(cols).AddRow("acc1", "a@b.c", "A", true, nil, "en"))
 	if out, err := d.InactiveAccounts(before); err != nil || len(out) != 1 || out[0].ID != "acc1" {
 		t.Fatalf("with the column: %+v %v", out, err)
 	}
@@ -174,7 +174,7 @@ func TestInactivityCountsDevicesOnline(t *testing.T) {
 	d = NewWithDB(db)
 	mock.ExpectQuery("d.`last_online_at` >= \\?").WillReturnError(unknownColumn("d.last_online_at"))
 	mock.ExpectQuery("from `accounts` a where a.`last_seen` < \\? and not exists \\(select 1 from `devices` d where d.`account_id` = a.`id` and d.`last_client_at` >= \\?\\)$").
-		WithArgs(before, before).WillReturnRows(sqlmock.NewRows(cols).AddRow("acc1", "a@b.c", "A", nil, "en"))
+		WithArgs(before, before).WillReturnRows(sqlmock.NewRows(cols).AddRow("acc1", "a@b.c", "A", true, nil, "en"))
 	if out, err := d.InactiveAccounts(before); err != nil || len(out) != 1 || out[0].Lang != "en" {
 		t.Fatalf("without the column: %+v %v", out, err)
 	}
@@ -199,7 +199,7 @@ func TestInactivityCountsDevicesOnline(t *testing.T) {
 			mock.ExpectQuery("a.`lang` from `accounts` a .*d.`last_client_at` >= \\?\\)$").WillReturnError(unknownColumn("a.lang"))
 		}
 		mock.ExpectQuery("a.`inactivity_warned_at` from `accounts` a .*d.`last_client_at` >= \\?\\)$").
-			WillReturnRows(sqlmock.NewRows(cols[:4]).AddRow("acc1", "a@b.c", "A", nil))
+			WillReturnRows(sqlmock.NewRows(cols[:5]).AddRow("acc1", "a@b.c", "A", true, nil))
 		if out, err := d.InactiveAccounts(before); err != nil || len(out) != 1 || out[0].Lang != "" {
 			t.Fatalf("without both columns (%s first): %+v %v", first, out, err)
 		}

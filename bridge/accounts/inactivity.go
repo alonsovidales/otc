@@ -68,8 +68,11 @@ func (a *Accounts) inactivityPass(now time.Time, send func(to, subject, body str
 		if err != nil || !claimed {
 			continue
 		}
-		// In the account's language (emails.go), never logged.
-		subject, body := a.inactivityEmail(acc.Lang, acc.Name, acc.Email, now.Add(cWarnAhead))
+		// In the account's language (emails.go), never logged. By name
+		// only once the address is proven (greetingName): an account
+		// nobody confirmed was made by whoever typed the address, name
+		// and all.
+		subject, body := a.inactivityEmail(acc.Lang, greetingName(acc.Name, acc.EmailVerified), acc.Email, now.Add(cWarnAhead))
 		if err := send(acc.Email, subject, body); mailer.AddressRefused(err) {
 			// The mail server refuses the address itself: no later pass
 			// would get a warning through either, and releasing it would
