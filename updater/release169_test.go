@@ -38,7 +38,13 @@ func TestRelease169MonthCountsAreRelease168s(t *testing.T) {
 	if len(months) != 4 {
 		t.Fatalf("168.sh has %d month-count statements, want 4", len(months))
 	}
-	if got := sqlLines(readFile(t, "../scripts/updates/169.sh")); strings.Join(got, "\n") != strings.Join(months, "\n") {
+	var got []string
+	for _, line := range sqlLines(readFile(t, "../scripts/updates/169.sh")) {
+		if strings.Contains(line, "photo_month") {
+			got = append(got, line)
+		}
+	}
+	if strings.Join(got, "\n") != strings.Join(months, "\n") {
 		t.Errorf("169.sh's statements are\n%s\nwant 168's\n%s", strings.Join(got, "\n"), strings.Join(months, "\n"))
 	}
 }
@@ -65,8 +71,9 @@ func TestRelease169ReadsTheUsersStrictly(t *testing.T) {
 			sqlTo = append(sqlTo, call[0])
 		}
 	}
-	if strings.Join(sqlTo, " ") != "otc "+goodDB {
-		t.Errorf("the month counts went to %v, want otc and %s\n%s", sqlTo, goodDB, r.output)
+	// The ratings' table goes to the same two first, then the month counts.
+	if want := "otc " + goodDB + " otc " + goodDB; strings.Join(sqlTo, " ") != want {
+		t.Errorf("the SQL went to %v, want otc and %s for each section\n%s", sqlTo, goodDB, r.output)
 	}
 	if !strings.Contains(r.output, "in a container") {
 		t.Errorf("the system part ran under OTC_CONTAINER=1\n%s", r.output)

@@ -12,7 +12,8 @@ import (
 )
 
 // raid-watch.service is started again 5 s after a failure, with no start
-// limit: install.sh and Makefile.pi write it so for new devices, and
+// limit: install.sh writes it so for new devices (Makefile.pi runs that
+// installer too), and
 // updates/169.sh adds the same two lines to the unit installed before -
 // which, run once or twice, then reads exactly as install.sh writes it.
 func TestRaidWatchUnitIsTheSameInInstallAndRelease169(t *testing.T) {
@@ -34,16 +35,6 @@ func TestRaidWatchUnitIsTheSameInInstallAndRelease169(t *testing.T) {
 		if !strings.Contains(unit, want) {
 			t.Fatalf("install.sh's raid-watch.service lacks %q:\n%s", want, unit)
 		}
-	}
-
-	// Makefile.pi's raid-watch target: the same unit (its heredoc is
-	// indented with tabs, which <<- strips).
-	mk := regexp.MustCompile(`(?s)raid-watch\.service >/dev/null' <<-'EOF'\n(.*?\n)\tEOF\n`).FindStringSubmatch(read("../Makefile.pi"))
-	if mk == nil {
-		t.Fatal("Makefile.pi writes no raid-watch.service")
-	}
-	if got := regexp.MustCompile(`(?m)^\t`).ReplaceAllString(mk[1], ""); got != unit {
-		t.Errorf("Makefile.pi's raid-watch.service differs from install.sh's:\n%s\n---\n%s", got, unit)
 	}
 
 	if _, err := exec.LookPath("bash"); err != nil {
