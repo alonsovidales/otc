@@ -4895,6 +4895,14 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	// A password change closes it if it is signed in (passwordChanged).
 	mg.track(ch, closeConn)
 	defer mg.untrack(ch)
+	// On a connection to the bridge, the requests still running are named
+	// to it now and then, so it doesn't take a long one for a device that
+	// stopped answering (bridge_busy.go).
+	var busy *busyRequests
+	if ch.fromBridge {
+		busy = newBusyRequests(conn)
+		defer busy.stop()
+	}
 	// Deferred before wg.Wait, so it runs after it: the chunked uploads
 	// this connection left unfinished are let go once none of its requests
 	// is still running (a FinishUpload in flight still commits) - kept for
@@ -4983,6 +4991,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			defer doneAnon()
 			defer func() { <-inFlight }()
 			defer releaseFrame()
+			defer busy.track(env.Id)()
 
 			// A download waits here for room in the device's memory
 			// budget, and holds it until its reply is on the wire (see

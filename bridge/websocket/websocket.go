@@ -30,6 +30,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -85,7 +86,10 @@ var cOfflineAlertGrace = 60 * time.Second
 // deliver). Generous rather than tight: a real GetFile for a large photo/
 // video over a slow connection can legitimately take a while, and this
 // only exists to catch "will actually never answer", not to race normal
-// slow requests. Var, not const, so tests can shrink it.
+// slow requests. It runs from the last sign of the device working on the
+// request: a device names the ones it is still on (busy.go), so a long
+// one is waited for (up to cForwardMaxWait) and one it stopped answering
+// still fails after this. Var, not const, so tests can shrink it.
 var cForwardTimeout = 90 * time.Second
 
 // maxConnectionsPerDevice reads [bridge] max-connections-per-device,
@@ -277,7 +281,7 @@ type deviceRelay struct {
 	registeredAt time.Time
 
 	mu      sync.Mutex
-	waiters map[int32]chan deviceReply
+	waiters map[int32]*waiter
 	// budget bounds the memory of the replies read here (replyBudget).
 	budget *wsframe.Budget
 
@@ -323,7 +327,7 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 // so a registration can answer the device before anything else may write
 // to conn or the relay's death can be counted.
 func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{}), dead: make(chan struct{})}
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]*waiter), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{}), dead: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
 	// a connection's limit: from here on this connection carries the
@@ -336,8 +340,13 @@ func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 	conn.SetWriteDeadline(time.Time{})
 
 	conn.SetReadDeadline(time.Now().Add(cPongWait))
-	conn.SetPongHandler(func(string) error {
+	conn.SetPongHandler(func(data string) error {
 		conn.SetReadDeadline(time.Now().Add(cPongWait))
+		// A device (from this release on) names the requests it is
+		// still working on in pongs of its own (busy.go).
+		if ids := busyIDs(data); len(ids) > 0 {
+			d.stillWorking(ids)
+		}
 		return nil
 	})
 	return d
@@ -411,12 +420,12 @@ func (d *deviceRelay) readLoop() {
 			continue
 		}
 		d.mu.Lock()
-		ch, ok := d.waiters[id]
+		w, ok := d.waiters[id]
 		if ok {
 			delete(d.waiters, id)
 			// Sent under d.mu (the channel has room for it), so abandon
 			// knows a reply is either in ch or never coming.
-			ch <- deviceReply{frame, release}
+			w.ch <- deviceReply{frame, release}
 		}
 		d.mu.Unlock()
 		if !ok {
@@ -433,10 +442,10 @@ func (d *deviceRelay) readLoop() {
 func (d *deviceRelay) failAll() {
 	d.mu.Lock()
 	waiters := d.waiters
-	d.waiters = make(map[int32]chan deviceReply)
+	d.waiters = make(map[int32]*waiter)
 	d.mu.Unlock()
-	for _, ch := range waiters {
-		close(ch)
+	for _, w := range waiters {
+		close(w.ch)
 	}
 
 	// Close the underlying socket here, not just when the public Close()
@@ -564,14 +573,14 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 		return nil, noRelease, fmt.Errorf("bad proto: %w", err) // i18n-ignore: logged, never sent
 	}
 
-	ch := make(chan deviceReply, 1)
+	w := &waiter{ch: make(chan deviceReply, 1), since: time.Now()}
 	d.mu.Lock()
-	d.waiters[id] = ch
+	d.waiters[id] = w
 	d.mu.Unlock()
 
 	err = d.writeFrame(frame)
 	if err != nil {
-		d.abandon(id, ch)
+		d.abandon(id, w)
 		return nil, noRelease, err
 	}
 
@@ -583,28 +592,73 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	// closes was a client's request (and the client itself) hanging
 	// forever with no error at all, which is worse than the request just
 	// failing.
-	select {
-	case resp, ok := <-ch:
-		if !ok {
-			return nil, noRelease, errors.New("device connection closed") // i18n-ignore: logged, never sent
+	//
+	// timeout runs from the last sign that the device is working on the
+	// request: the write, then each pong naming it (busy.go). A device
+	// that stopped answering is given up on as before; one cutting a
+	// post's videos or deleting a big folder is waited for, up to
+	// cForwardMaxWait.
+	w.signOfLife()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case resp, ok := <-w.ch:
+			if !ok {
+				return nil, noRelease, errors.New("device connection closed") // i18n-ignore: logged, never sent
+			}
+			return resp.frame, resp.release, nil
+		case <-timer.C:
+			waited := time.Since(w.since)
+			if left := timeout - (waited - time.Duration(w.alive.Load())); left > 0 && waited < cForwardMaxWait {
+				timer.Reset(left)
+				continue
+			}
+			d.abandon(id, w)
+			return nil, noRelease, fmt.Errorf("timed out waiting for device response") // i18n-ignore: logged, never sent
 		}
-		return resp.frame, resp.release, nil
-	case <-time.After(timeout):
-		d.abandon(id, ch)
-		return nil, noRelease, fmt.Errorf("timed out waiting for device response") // i18n-ignore: logged, never sent
 	}
 }
 
-// abandon gives up waiting on ch. A reply readLoop already handed over in
-// the meantime is released, or its budget share would be lost for good.
-func (d *deviceRelay) abandon(id int32, ch chan deviceReply) {
+// waiter is a forward() waiting for its reply.
+type waiter struct {
+	ch chan deviceReply
+	// alive is when the device last showed it is working on the request -
+	// the request written, or a pong naming it - as time since since (the
+	// monotonic clock: a change of the wall clock moves nothing).
+	since time.Time
+	alive atomic.Int64
+}
+
+// signOfLife records that the device is working on w's request now.
+func (w *waiter) signOfLife() { w.alive.Store(int64(time.Since(w.since))) }
+
+// cForwardMaxWait bounds a request the device keeps saying it works on:
+// longer than any real one (a post with long videos on a Pi), short of
+// forever. Var so tests can shrink it.
+var cForwardMaxWait = 2 * time.Hour
+
+// stillWorking marks the requests ids names as worked on now.
+func (d *deviceRelay) stillWorking(ids []int32) {
 	d.mu.Lock()
-	if d.waiters[id] == ch {
+	defer d.mu.Unlock()
+	for _, id := range ids {
+		if w := d.waiters[id]; w != nil {
+			w.signOfLife()
+		}
+	}
+}
+
+// abandon gives up waiting on w. A reply readLoop already handed over in
+// the meantime is released, or its budget share would be lost for good.
+func (d *deviceRelay) abandon(id int32, w *waiter) {
+	d.mu.Lock()
+	if d.waiters[id] == w {
 		delete(d.waiters, id)
 	}
 	d.mu.Unlock()
 	select {
-	case r, ok := <-ch:
+	case r, ok := <-w.ch:
 		if ok {
 			r.release()
 		}

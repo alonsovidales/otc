@@ -1968,7 +1968,9 @@ start takes its file.
   `ensureBridgePool()`/`openBridgeConn()`, which the device uses to dial *out* to the bridge relay
   (`[otc] bridge-addr`) so the bridge can reach an otherwise unreachable home device. The pool is
   self-managing (5 ready, refilling in batches of 2 once it dips to 3) rather than a fixed count
-  dialed once at startup — see `ensureBridgePool`'s doc comment. Issue #170: a pooled connection stops counting as available at its first relayed message (the bridge keeps it for the client's whole session), and the pool refills right then - `serveConnection`'s `onFirst`.
+  dialed once at startup — see `ensureBridgePool`'s doc comment. On those connections the requests
+  running 10 s or more are named to the bridge every 20 s (`bridge_busy.go`: a pong carrying
+  `BusyPrefix` and the ids), so it waits for a long one instead of answering "unreachable" at 90 s. Issue #170: a pooled connection stops counting as available at its first relayed message (the bridge keeps it for the client's whole session), and the pool refills right then - `serveConnection`'s `onFirst`.
   The pool's `pending` counts dials in flight *and* retries waiting out a backoff; a successful
   registration ends every backoff (`bridgePool.wake`). Replies go through `writeReply` (stall
   deadline `cReplyStall`, 1 min, renewed per 64 KiB piece) and `marshalReply` (a marshal error sends
@@ -2267,7 +2269,14 @@ refusals are a line a minute per address (`logRefusal`), as is the API's cross-o
 the Origin and path cut to 160 bytes. Every write to a
 client goes through `writeClient` (fragments above 256 KiB, a fresh 60 s deadline per piece, so only
 a client that stopped reading trips it) - never on a device socket; `pingLoop` uses `WriteControl`
-so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and
+so pongs flow during large uploads. A forward waits for its reply 90 s (`cForwardTimeout`) from the
+last sign of the device working on it, not from when it was sent: on a connection it opened to the
+bridge, a device names the requests running 10 s or more every 20 s in an unsolicited pong
+(`otcbusy` and the ids as uvarints; `websocket/bridge_busy.go`, read by `busyIDs` in `busy.go`), so
+a post whose videos are cut, a big folder deleted or a large file over a slow line is waited for -
+up to 2 h (`cForwardMaxWait`) - while a request the device stopped answering, or never names, still
+fails at 90 s. A bridge from before this takes those pongs for any pong, and a device from before
+it sends none and is waited for as it always was. Device replies are read under `replyBudget` (8 GiB), and
 `forward()`'s `release` is never nil. Pairing is limited per client address (IPv6 by /64) and Host
 to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per device to 64 in use
 (`[bridge] max-paired-per-device`). A paired session is a stranger's until the device accepts a
