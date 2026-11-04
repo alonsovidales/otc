@@ -1712,7 +1712,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		deviceKeys[k] = true
 	}
 	for round := 0; round < 8; round++ {
-		renames := matchFolderCase(f.LocalPath, lv.byRel, deviceKeys)
+		renames := matchFolderCase(f.LocalPath, lv.byRel, deviceKeys, last)
 		if len(renames) == 0 {
 			break
 		}
@@ -2265,11 +2265,18 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		case actDeleteRemote:
-			// Still nothing at its path here, right before it goes: a file
-			// put back during the pass, or anything the scan doesn't sync
-			// (a link, a hidden file, the same name in another case on a
-			// disk that ignores case) - left for the next pass.
-			if err = absent(localPath)(); err == nil {
+			// Still nothing here by that very name, right before it goes: a
+			// file put back during the pass, or anything the scan doesn't
+			// sync (a link, a hidden file) - left for the next pass. Only
+			// that name: on a disk that ignores case, the file the old name
+			// finds after a rename made here only in case is the new name,
+			// whose upload goes with this delete (presentAsNamed).
+			if here, herr := presentAsNamed(f.LocalPath, a.relative); herr != nil {
+				err = herr
+			} else if here {
+				err = errChangedHere
+			}
+			if err == nil {
 				err = asListed()
 			}
 			if err == nil {

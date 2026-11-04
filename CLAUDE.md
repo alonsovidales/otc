@@ -3517,13 +3517,16 @@ holds what is under it like an unreadable one (`mounts.go`). What the scan skips
 symbolic link, to a file or a folder, anything that is neither a regular file nor a folder, on
 Windows the Hidden or System attribute - is never taken for deleted (`folderScan.skipped`,
 `desk.main.files_not_synced_here`), and a device delete checks, right before it goes, that nothing
-is at the path here. A download is refused before it starts when the disk can't take it (its free
+is here under that very name (`presentAsNamed`: each component as its folder lists it, in NFC - on a
+disk that ignores case the old name finds the new one after a rename made here only in case, which
+goes up as an upload and a delete). A download is refused before it starts when the disk can't take it (its free
 space less 256 MB, FAT's 4 GiB; `roomFor`); a transfer that failed for a reason of its own waits as
 a busy file does (`fail.go`), and the pass ends saying so (`desk.main.no_space`,
 `desk.main.too_large_for_disk`, `desk.main.files_failed`); the copy of the device's version in a
 conflict is made once, reused while its upload fails (`conflictCopyOf`), and not at all for a busy
 file. On a disk that ignores case, a folder renamed only in case on the device is renamed so here
-before the pass plans (`casefix.go`). On Windows, device names Windows can't hold
+before the pass plans (`casefix.go`); one renamed so here - the record has its files under the
+device's spelling only - is left as it is, and goes up as any rename. On Windows, device names Windows can't hold
 (`\ < > : " | ? *`, a last dot or space, device names) are left out either way (`names.go`,
 `desk.main.names_not_allowed`). Tests: engine `rootid_test.go`, `skipped_test.go`, `trash_test.go`,
 `fail_test.go`, `casefix_test.go`, `names_test.go`; the engine's tests run with HOME and the XDG

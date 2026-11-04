@@ -3,6 +3,8 @@
 package engine
 
 import (
+	"errors"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -29,6 +31,12 @@ import (
 // records and their cached hashes under the new name, so nothing is sent or
 // fetched for it. A disk that tells case apart has the two as two folders,
 // and nothing is renamed.
+//
+// Unless the rename was made here (Explorer, Finder): the record then has
+// the folder's files under the device's spelling and none under this one.
+// That folder is left as it is, and the pass sends the rename up as any -
+// its files uploaded under the new name and deleted under the old, which
+// is never held by the old name finding the new one (presentAsNamed).
 
 var foldCase = cases.Fold()
 
@@ -42,8 +50,10 @@ type caseRename struct{ from, to, fromDir, toDir string }
 // matchFolderCase renames the folders here (in root, holding files, keyed
 // by path in local) whose names are the device's (remote's keys) but for
 // case, the shallowest first - one level a call; a caller looks at the
-// folder again after any rename. It returns what it renamed.
-func matchFolderCase(root string, local map[string]string, remote map[string]bool) []caseRename {
+// folder again after any rename. record is the sync record: a folder it
+// lists under the device's spelling only was renamed here, and stays. It
+// returns what it renamed.
+func matchFolderCase(root string, local map[string]string, remote map[string]bool, record map[string]string) []caseRename {
 	deviceDirs := map[string]bool{}
 	for key := range remote {
 		for d := parentKey(key); d != ""; d = parentKey(d) {
@@ -65,6 +75,13 @@ func matchFolderCase(root string, local map[string]string, remote map[string]boo
 			localDirs[k] = disk
 		}
 	}
+	// The folders the record has files in.
+	recordDirs := map[string]bool{}
+	for key := range record {
+		for d := parentKey(key); d != "" && !recordDirs[d]; d = parentKey(d) {
+			recordDirs[d] = true
+		}
+	}
 	var wrong []string
 	depth := -1
 	for k := range localDirs {
@@ -75,6 +92,11 @@ func matchFolderCase(root string, local map[string]string, remote map[string]boo
 		// The device's folder, in one case only; and this folder's parent
 		// already the device's spelling (shallowest first).
 		if len(same) != 1 || parentKey(same[0]) != parentKey(k) {
+			continue
+		}
+		// Synced under the device's spelling, never under this one: the
+		// rename is this computer's, and goes up.
+		if recordDirs[same[0]] && !recordDirs[k] {
 			continue
 		}
 		n := strings.Count(k, "/")
@@ -108,6 +130,62 @@ func matchFolderCase(root string, local map[string]string, remote map[string]boo
 	}
 
 	return done
+}
+
+// presentAsNamed: something is at rel (a key) below root under exactly that
+// name - each component as its folder lists it, compared in NFC - and not
+// only under a name the disk takes for it. On a disk that ignores case
+// (NTFS, APFS) "a.txt" finds "A.txt": a file renamed only in case here,
+// which must not hold up the delete of its old name on the device (the
+// device tells the two apart, and kept both for good). Read only when
+// something answers to the name: a folder's listing per component.
+func presentAsNamed(root, rel string) (bool, error) {
+	if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, err
+	}
+	dir := root
+	for _, part := range strings.Split(rel, "/") {
+		name, found, err := listedAs(dir, part)
+		if err != nil || !found {
+			return false, err
+		}
+		dir = filepath.Join(dir, name)
+	}
+
+	return true, nil
+}
+
+// listedAs is the entry of dir whose name is name in NFC, as dir spells it.
+func listedAs(dir, name string) (string, bool, error) {
+	d, err := os.Open(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", false, nil
+		}
+
+		return "", false, err
+	}
+	defer d.Close()
+	want := pathKey(name)
+	for {
+		names, err := d.Readdirnames(256)
+		for _, n := range names {
+			if n == name || pathKey(n) == want {
+				return n, true, nil
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return "", false, nil
+			}
+
+			return "", false, err
+		}
+	}
 }
 
 // parentKey is the folder holding key, "" at the top.
