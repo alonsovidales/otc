@@ -54,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -321,7 +322,7 @@ class NewPostPickerViewModel : ViewModel() {
     }
 
     fun cleanUpTrimPreviews() {
-        for (u in trimPreviewUrls.values) if (u.contains("otc-trim-")) try { File(Uri.parse(u).path ?: "").delete() } catch (_: Exception) {}
+        for (u in trimPreviewUrls.values) if (u.contains("/tmp/${TempFiles.Kind.TRIM.dir}/")) try { File(Uri.parse(u).path ?: "").delete() } catch (_: Exception) {}
         trimPreviewUrls.clear()
     }
 
@@ -541,7 +542,7 @@ class NewPostPickerViewModel : ViewModel() {
     // In pieces: a synced video can be far bigger than the app's heap.
     private suspend fun downloadForTrimming(path: String): String {
         val ext = path.substringAfterLast('.', "mp4")
-        val f = File(OTCApp.instance.cacheDir, "otc-trim-${UUID.randomUUID()}.$ext")
+        val f = TempFiles.file(OTCApp.instance.cacheDir, TempFiles.Kind.TRIM, ext)
         val meta = try {
             ChunkedDownload.download(path, "", f)
         } catch (e: ChunkedDownload.Refused) {

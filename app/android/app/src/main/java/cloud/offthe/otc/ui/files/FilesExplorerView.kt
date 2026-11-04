@@ -120,6 +120,7 @@ import cloud.offthe.otc.i18n.commonDone
 import cloud.offthe.otc.i18n.commonOk
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonTryAgain
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Text
@@ -1107,7 +1108,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
      * hands viewers a JPEG of it, as before. Refused: the device said no.
      */
     private suspend fun fetchToCache(context: Context, row: FileRow, hash: String): Pair<File, String?> {
-        val tmp = File(context.cacheDir, leafName(row.path))
+        // Under its own name, for the app it opens in; the file opened before
+        // goes now (that app has it open, or is done with it), and what is
+        // left goes at the next start (TempFiles).
+        withContext(Dispatchers.IO) { TempFiles.clear(context.cacheDir, TempFiles.Kind.PREVIEW) }
+        val tmp = TempFiles.named(context.cacheDir, TempFiles.Kind.PREVIEW, leafName(row.path))
         if (row.name.endsWith(".heic", ignoreCase = true) || row.raw.mime.equals("image/heic", ignoreCase = true)) {
             val resp = OTCConnection.request { it.setReqGetFile(GetFile.newBuilder().setPath(fullPath(row)).setHash(hash)) }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE) throw ChunkedDownload.Refused(resp.errorMessage)

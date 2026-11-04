@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.PauseWhenStopped
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
@@ -699,7 +700,7 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                         val resp = OTCConnection.request { it.setReqGetPublicationMedia(GetPublicationMedia.newBuilder().setPubUuid(post.uuid).setHash(file.hash)) }
                         if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE || !resp.respFile.hasContent()) return@withContext null
                         val ext = when (resp.respFile.mime.lowercase()) { "video/quicktime" -> "mov"; "video/x-matroska" -> "mkv"; "video/3gpp" -> "3gp"; else -> "mp4" }
-                        val tmp = File(context.cacheDir, "${UUID.randomUUID()}.$ext")
+                        val tmp = TempFiles.file(context.cacheDir, TempFiles.Kind.FEED, ext)
                         // Straight from the message, not through a copy of it.
                         tmp.outputStream().use { resp.respFile.content.writeTo(it) }
                         // The post left the screen meanwhile: nothing will play it.

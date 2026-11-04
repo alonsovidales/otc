@@ -57,6 +57,7 @@ import cloud.offthe.otc.proto.SetImageGroupRating
 import cloud.offthe.otc.i18n.appPhotosRatingNeedsUpdate
 import cloud.offthe.otc.i18n.appPhotosRatingTurnedOn
 import cloud.offthe.otc.proto.ShareFilesLink
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
 import cloud.offthe.otc.ui.common.deviceNeedsUpdate
@@ -2061,6 +2062,7 @@ class PhotoGalleryViewModel(
         // Rating: a comment written for another photo and not saved is saved now.
         _state.value.ratingDraft?.path?.let { d -> if (d != _state.value.items[index].path) leaveRatingDraft(d) }
         photoFacesAsk++
+        dropVideoCopy()
         _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null, infoFaces = null, ratingNote = null) }
         // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
@@ -2106,6 +2108,7 @@ class PhotoGalleryViewModel(
         favouritesSaid.keys.retainAll(favouriteWanted.keys)
         favouriteTaps.keys.retainAll(favouriteWanted.keys)
         favouriteSends.values.removeAll { !it.isActive }
+        dropVideoCopy()
         _state.update {
             it.copy(openIndex = null, hiResImages = emptyMap(), videoUrl = null, bigThumbs = emptyMap(), unplayable = emptySet(), favourites = emptyMap(), favouriteNote = null, ratingNote = null)
         }
@@ -2219,6 +2222,7 @@ class PhotoGalleryViewModel(
     /** The open video ([path]) couldn't be fetched or played: its poster stays, saying so. */
     fun videoFailed(path: String) {
         if (openPath() != path) return
+        dropVideoCopy()
         _state.update { it.copy(unplayable = it.unplayable + path, videoUrl = null) }
         thumbnailStays(path)
     }
@@ -2587,6 +2591,22 @@ class PhotoGalleryViewModel(
         return true
     }
 
+    // The viewer's whole-file copy of the video playing (no stream URL), if
+    // any: deleted as the viewer moves on or closes. Main thread only.
+    private var videoCopy: File? = null
+
+    private fun dropVideoCopy() {
+        val f = videoCopy ?: return
+        videoCopy = null
+        scope.launch(Dispatchers.IO) { TempFiles.delete(f) }
+    }
+
+    override fun onCleared() {
+        // Its scope is gone with it: the copy is deleted on a thread of its own.
+        videoCopy?.let { f -> Thread { TempFiles.delete(f) }.start() }
+        videoCopy = null
+    }
+
     /** Issue #110: streamed when the device offers a URL, downloaded otherwise. */
     private suspend fun fetchVideo(it: Item) {
         // Still on this video? Stepping on before a slow stream URL or
@@ -2597,8 +2617,7 @@ class PhotoGalleryViewModel(
         try {
             // In pieces (a video can be far bigger than the heap), stopped as
             // soon as the viewer moves on; named once its mime is known.
-            val uuid = UUID.randomUUID().toString()
-            val raw = File(OTCApp.instance.cacheDir, uuid)
+            val raw = TempFiles.file(OTCApp.instance.cacheDir, TempFiles.Kind.VIEWER, "part")
             val meta = ChunkedDownload.download(it.path, "", raw, keepGoing = { stillOpen() })
             if (meta.size == 0L) { raw.delete(); return }
             val ext = when (meta.mime.lowercase()) {
@@ -2608,9 +2627,13 @@ class PhotoGalleryViewModel(
                 "video/3gpp" -> "3gp"
                 else -> it.path.substringAfterLast('.', "mp4").lowercase()
             }
-            val tmp = File(OTCApp.instance.cacheDir, "$uuid.$ext")
+            val tmp = File(raw.parentFile, raw.name.removeSuffix(".part") + ".$ext")
             if (!stillOpen() || !raw.renameTo(tmp)) { raw.delete(); return }
             got = true
+            // The one before (the last video played this way) goes: one copy
+            // at most, deleted as the viewer moves on or closes.
+            dropVideoCopy()
+            videoCopy = tmp
             _state.update { s -> s.copy(videoUrl = tmp.toURI().toString()) }
         } catch (e: CancellationException) {
             throw e
@@ -2641,8 +2664,12 @@ class PhotoGalleryViewModel(
     suspend fun shareCurrentPhoto(context: Context) {
         val img = currentImage() ?: run { alert(S.appPhotosNoticeNotLoaded()); return }
         try {
-            val tmp = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
-            withContext(Dispatchers.IO) { tmp.outputStream().use { img.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+            // One at a time: the last share's picture goes (the share sheet
+            // has handed it over by now); what's left goes at the next start.
+            val tmp = withContext(Dispatchers.IO) {
+                TempFiles.clear(context.cacheDir, TempFiles.Kind.SHARE)
+                TempFiles.file(context.cacheDir, TempFiles.Kind.SHARE, "jpg").also { f -> f.outputStream().use { img.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+            }
             Share.file(context, tmp, "image/jpeg")
         } catch (e: Exception) { alert(S.appPhotosNoticeShareFailed("${e.message}")) }
     }
@@ -2666,7 +2693,7 @@ class PhotoGalleryViewModel(
         val app = context.applicationContext
         _state.update { it.copy(saving = true) }
         scope.launch {
-            val tmp = File(app.cacheDir, "save-${UUID.randomUUID()}")
+            val tmp = TempFiles.file(app.cacheDir, TempFiles.Kind.VIEWER, "save")
             try {
                 val meta = ChunkedDownload.download(item.path, "", tmp)
                 val mime = meta.mime.ifEmpty { item.mime }

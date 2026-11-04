@@ -49,6 +49,7 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.GetLogs
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SendLogs
+import cloud.offthe.otc.ui.common.TempFiles
 import cloud.offthe.otc.ui.common.OTCTextField
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.TextIOException
@@ -247,7 +248,9 @@ class LogsViewModel : ViewModel() {
 // A share intent's extras go through a ~1 MB binder buffer: a longer log goes as a file.
 private fun shareLog(context: Context, source: String, text: String) {
     if (text.length <= 100_000) { Share.link(context, text); return }
-    val f = File(context.cacheDir, "otc-${if (source == "update") "updates" else "device"}.log")
+    // With the other copies handed to another app (TempFiles), one at a time.
+    TempFiles.clear(context.cacheDir, TempFiles.Kind.SHARE)
+    val f = TempFiles.named(context.cacheDir, TempFiles.Kind.SHARE, "otc-${if (source == "update") "updates" else "device"}.log")
     f.writeText(text)
     Share.file(context, f, "text/plain")
 }

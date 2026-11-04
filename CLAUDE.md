@@ -4352,7 +4352,13 @@ Files open, versions, trimming and the gallery's video fallback read 4 MiB `Read
 Free Up Space's copies of an asset, the viewer's whole-file video (removed with its player) and
 Share's picture (once the sheet closes), Files' Quick Look copies (as the preview closes); each
 launch removes earlier launches' folders and the copies older versions left at tmp's top level
-- an app suspended mid-run and then ended used to leave multi-GB videos there. Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
+- an app suspended mid-run and then ended used to leave multi-GB videos there. Android's are in
+`cacheDir/tmp/<kind>/` (`ui/common/TempFiles.kt`, `TempFilesTest.kt`): the viewer's whole-file
+video (no stream URL; deleted as the viewer moves on or closes), Files' opened files and versions
+(under their own name, one at a time) and Share's picture and logs (one at a time), the composer's
+trims and the feed's fallback videos; each process start moves the folder aside and deletes it,
+with the plain files older versions left at the cache's top level (all but
+`social_feed_cache.pb`), and the FileProvider grants only `cacheDir/tmp/` (`file_paths.xml`). Android keeps at most 3 `UploadChunk`s in flight (OkHttp closes a
 socket past 16 MiB queued). Android only: backup and device transfer include just
 `otc_settings.xml` (`data_extraction_rules.xml`, `backup_rules.xml`) - new prefs and files stay out
 unless added there on purpose; `SecretsStore` recovers an `otc_secrets` restored without its
