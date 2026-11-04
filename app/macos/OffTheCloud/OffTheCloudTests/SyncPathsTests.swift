@@ -423,6 +423,34 @@ struct SyncPathsTests {
         #expect(SyncPaths.maybeMounts(root: root, meta: meta, record: record, here: here.union(["usb/new.jpg"]), known: none, written: later).isEmpty)
     }
 
+    /// What a pass sees of its folder holds what its record says is a disk
+    /// that isn't mounted; a folder picked again that isn't the synced one
+    /// loses its record, and with it all of that - as otc-sync's folder
+    /// removed and added. It used to keep the old record's mounts: what
+    /// was under one was held at every pass after, neither sent nor
+    /// fetched.
+    @Test func aViewWithoutItsRecordHoldsNothing() throws {
+        let dir = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+        for d in ["nas", "usb", "photos"] { try fm.createDirectory(at: dir.appendingPathComponent(d), withIntermediateDirectories: true) }
+        try Data("x".utf8).write(to: dir.appendingPathComponent("photos/a.jpg"))
+        let scan = SyncPaths.scanFolder(at: dir)
+        let record = ["nas/1.jpg": "h", "usb/2.jpg": "h", "photos/a.jpg": "h"]
+        let later = Date().addingTimeInterval(60)
+        let old = SyncPaths.localView(root: dir, scan: scan, meta: .init(root: "t", mounts: ["nas"], maybeMounts: ["usb"]), record: record, written: later)
+        #expect(old.goneDirs == ["nas"] && old.mounts == ["nas"] && old.maybeMounts == ["usb"] && old.heldDirs == ["nas", "usb"])
+        #expect(old.unknown("nas/1.jpg") && old.maybe.covers("usb/2.jpg") && !old.unknown("photos/a.jpg"))
+        // A record from before mounts were kept: the untouched empty folders.
+        let older = SyncPaths.localView(root: dir, scan: scan, meta: .init(), record: record, written: later)
+        #expect(older.maybeMounts == ["nas", "usb"] && older.goneDirs.isEmpty)
+        let fresh = SyncPaths.localView(root: dir, scan: scan, meta: .init(), record: [:], written: nil)
+        #expect(fresh.heldDirs.isEmpty && fresh.mounts.isEmpty && fresh.unknownDirs.isEmpty)
+        #expect(!fresh.unknown("nas/1.jpg") && !fresh.maybe.covers("usb/2.jpg"))
+        #expect(Set(fresh.byRelative.keys) == ["photos/a.jpg"] && fresh.byRelative.keys.sorted() == old.byRelative.keys.sorted())
+        #expect(fresh.present == [dir.appendingPathComponent("photos/a.jpg").standardizedFileURL.path])
+    }
+
     /// Disk images mounted inside the folder, one inside the other. The
     /// enumerator lists a mount point as an empty folder: the files on a
     /// disk mounted in a two-way folder were neither sent nor seen, one

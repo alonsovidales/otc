@@ -2117,8 +2117,14 @@ final class SyncModel: ObservableObject {
                 meta = SyncPaths.FolderMeta()
                 written = nil
                 record = (files: [:], uncertain: false, save: device, otherDevice: false)
-                view.maybe = SyncPaths.PathSet()
-                view.maybeMounts = []
+                // What the old record made of this scan goes with it - the
+                // mounts it held while they are plain folders above all,
+                // which the new record would have kept: as a folder removed
+                // and added again, only what can't be read is held.
+                let scan = view.scan, root = folder.localURL
+                view = await Task.detached(priority: .utility) {
+                    SyncPaths.localView(root: root, scan: scan, meta: SyncPaths.FolderMeta(), record: [:], written: nil)
+                }.value
                 verdict = SyncPaths.RootVerdict(ok: true, token: SyncPaths.newMarkerToken(), mark: true)
             }
             adoptOnce.remove(folder.id)
@@ -2737,77 +2743,14 @@ final class SyncModel: ObservableObject {
 
     // MARK: - Is it the synced folder? (SyncPaths.judgeRoot)
 
-    /// What a two-way pass sees of its folder here (lookHere).
-    private struct LocalView: Sendable {
-        var scan: SyncPaths.FolderScan
-        /// The files by key.
-        var byRelative: [String: URL] = [:]
-        /// Each file's path below the folder as the disk spells it, by key.
-        var diskRelative: [String: String] = [:]
-        /// The files' full paths, as the hash cache keys them.
-        var present: Set<String> = []
-        /// The folders that could not be read (as the disk spells them), and
-        /// by key.
-        var failedDirs: [String] = []
-        var failed = SyncPaths.PathSet()
-        /// The mounts the record lists that aren't now, by key.
-        var heldMounts = SyncPaths.PathSet()
-        /// What the scan skipped (links, what Finder hides), by key.
-        var skipped = SyncPaths.PathSet()
-        /// Folders held as maybe a disk not mounted (keys).
-        var maybe = SyncPaths.PathSet()
-        var goneDirs: [String] = []
-        /// What the record keeps of the disks mounted in the folder.
-        var mounts: [String] = []
-        var maybeMounts: [String] = []
-
-        /// `rel` is under a folder that could not be read, or under a disk
-        /// mounted in the folder that isn't now - unknown here rather than
-        /// gone, so nothing is done for it either way.
-        func unknown(_ rel: String) -> Bool { failed.covers(rel) || heldMounts.covers(rel) }
-
-        /// The mounts that aren't now, known or maybe.
-        var heldDirs: [String] { (goneDirs + maybeMounts).sorted() }
-
-        /// What is under these is unknown here, not gone.
-        var unknownDirs: [String] { failedDirs + heldDirs }
-    }
-
     /// Scans the folder (SyncPaths.scanFolder, off the main actor) and keys
-    /// what it found; `meta` is what the record says of the folder, `record`
-    /// the record of this device's files and `written` when its file was
-    /// written (SyncPaths.maybeMounts).
-    private func lookHere(_ folder: RemoteFolder, meta: SyncPaths.FolderMeta, record: [String: String], written: Date?) async -> LocalView {
+    /// what it found (SyncPaths.localView); `meta` is what the record says
+    /// of the folder, `record` the record of this device's files and
+    /// `written` when its file was written (SyncPaths.maybeMounts).
+    private func lookHere(_ folder: RemoteFolder, meta: SyncPaths.FolderMeta, record: [String: String], written: Date?) async -> SyncPaths.LocalView {
         let root = folder.localURL
-        return await Task.detached(priority: .utility) { () -> LocalView in
-            let scan = SyncPaths.scanFolder(at: root)
-            var view = LocalView(scan: scan)
-            let rootPath = root.standardizedFileURL.path
-            for url in scan.files {
-                let full = url.standardizedFileURL.path
-                guard let rel = SyncPaths.relativePath(full, root: rootPath), !rel.isEmpty else { continue }
-                view.present.insert(full)
-                // By key (NFC): this Mac hands out NFD here.
-                let key = SyncPaths.key(rel)
-                view.byRelative[key] = url
-                view.diskRelative[key] = rel
-            }
-            for url in scan.failed {
-                guard let rel = SyncPaths.relativePath(url.standardizedFileURL.path, root: rootPath), !rel.isEmpty else { continue }
-                view.failedDirs.append(rel)
-                view.failed.insert(SyncPaths.key(rel))
-            }
-            let (gone, keep) = SyncPaths.goneMounts(root: rootPath, recorded: meta.mounts, now: scan.mounts)
-            view.goneDirs = gone
-            view.mounts = keep
-            for m in gone { view.heldMounts.insert(SyncPaths.key(m)) }
-            for s in scan.skipped { view.skipped.insert(SyncPaths.key(s)) }
-            let known = view
-            let maybe = SyncPaths.maybeMounts(root: rootPath, meta: meta, record: record, here: Set(view.byRelative.keys),
-                                              known: { known.unknown($0) || known.skipped.covers($0) }, written: written)
-            view.maybeMounts = maybe
-            for m in maybe { view.maybe.insert(m) }
-            return view
+        return await Task.detached(priority: .utility) {
+            SyncPaths.localView(root: root, scan: SyncPaths.scanFolder(at: root), meta: meta, record: record, written: written)
         }.value
     }
 
@@ -2823,7 +2766,7 @@ final class SyncModel: ObservableObject {
     /// left out: only what is known to be unknown is). Hashes only as far as
     /// the answer needs - the cache answers most - showing the files it
     /// checks.
-    private func identifyFolder(_ folder: RemoteFolder, _ view: LocalView, recorded: [String: String], meta: SyncPaths.FolderMeta,
+    private func identifyFolder(_ folder: RemoteFolder, _ view: SyncPaths.LocalView, recorded: [String: String], meta: SyncPaths.FolderMeta,
                                 marker: String) async -> SyncPaths.RootVerdict {
         if !meta.root.isEmpty, marker == meta.root { return SyncPaths.RootVerdict(ok: true, token: meta.root) }
         let unknown: (String) -> Bool = { view.unknown($0) || view.skipped.covers($0) }

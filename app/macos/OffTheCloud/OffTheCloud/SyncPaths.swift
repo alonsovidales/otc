@@ -690,6 +690,81 @@ enum SyncPaths {
         return found.sorted()
     }
 
+    // MARK: What a two-way pass sees of its folder
+
+    /// What a two-way pass sees of its folder here: the scan, keyed, and
+    /// what the record makes of it - the disks mounted in it that aren't
+    /// now, held.
+    struct LocalView: Sendable {
+        var scan: FolderScan
+        /// The files by key.
+        var byRelative: [String: URL] = [:]
+        /// Each file's path below the folder as the disk spells it, by key.
+        var diskRelative: [String: String] = [:]
+        /// The files' full paths, as the hash cache keys them.
+        var present: Set<String> = []
+        /// The folders that could not be read (as the disk spells them), and
+        /// by key.
+        var failedDirs: [String] = []
+        var failed = PathSet()
+        /// The mounts the record lists that aren't now, by key.
+        var heldMounts = PathSet()
+        /// What the scan skipped (links, what Finder hides), by key.
+        var skipped = PathSet()
+        /// Folders held as maybe a disk not mounted (keys).
+        var maybe = PathSet()
+        var goneDirs: [String] = []
+        /// What the record keeps of the disks mounted in the folder.
+        var mounts: [String] = []
+        var maybeMounts: [String] = []
+
+        /// `rel` is under a folder that could not be read, or under a disk
+        /// mounted in the folder that isn't now - unknown here rather than
+        /// gone, so nothing is done for it either way.
+        func unknown(_ rel: String) -> Bool { failed.covers(rel) || heldMounts.covers(rel) }
+
+        /// The mounts that aren't now, known or maybe.
+        var heldDirs: [String] { (goneDirs + maybeMounts).sorted() }
+
+        /// What is under these is unknown here, not gone.
+        var unknownDirs: [String] { failedDirs + heldDirs }
+    }
+
+    /// The scan of `root` keyed (key: NFC - this Mac hands out NFD), with
+    /// what `meta` (what the record says of the folder), `record` (its
+    /// files) and `written` (when its file was written: maybeMounts) make
+    /// of it. With no record - a folder picked again that isn't the synced
+    /// one, whose record goes - nothing is held but what can't be read, and
+    /// the mounts are the scan's: as otc-sync's folder removed and added.
+    static func localView(root: URL, scan: FolderScan, meta: FolderMeta, record: [String: String], written: Date?) -> LocalView {
+        var view = LocalView(scan: scan)
+        let rootPath = root.standardizedFileURL.path
+        for url in scan.files {
+            let full = url.standardizedFileURL.path
+            guard let rel = relativePath(full, root: rootPath), !rel.isEmpty else { continue }
+            view.present.insert(full)
+            let k = key(rel)
+            view.byRelative[k] = url
+            view.diskRelative[k] = rel
+        }
+        for url in scan.failed {
+            guard let rel = relativePath(url.standardizedFileURL.path, root: rootPath), !rel.isEmpty else { continue }
+            view.failedDirs.append(rel)
+            view.failed.insert(key(rel))
+        }
+        let (gone, keep) = goneMounts(root: rootPath, recorded: meta.mounts, now: scan.mounts)
+        view.goneDirs = gone
+        view.mounts = keep
+        for m in gone { view.heldMounts.insert(key(m)) }
+        for s in scan.skipped { view.skipped.insert(key(s)) }
+        let known = view
+        let maybe = maybeMounts(root: rootPath, meta: meta, record: record, here: Set(view.byRelative.keys),
+                                known: { known.unknown($0) || known.skipped.covers($0) }, written: written)
+        view.maybeMounts = maybe
+        for m in maybe { view.maybe.insert(m) }
+        return view
+    }
+
     // MARK: A folder renamed only in case on the device
     //
     // A folder renamed only in case on the device ("photos" to "Photos",

@@ -3533,8 +3533,8 @@ its watcher stays stopped. The marker is deleted with the folder from the app (o
 lock / the main actor). On the Mac, a folder whose marker isn't the record's follows its bookmark
 when that finds the folder holding it (renamed away, a fresh one made at its path:
 `followMarkedBookmark`), and a folder picked again where it waits (`relink`: missing or not the
-synced one) keeps its record only when it passes the check - else its record goes and that pass,
-a first pass, deletes nothing (`adoptOnce`). A disk or share mounted inside a two-way folder or a
+synced one) keeps its record only when it passes the check - else its record goes, with the mounts
+it held (`SyncPaths.localView` without it), and that pass, a first pass, deletes nothing (`adoptOnce`). A disk or share mounted inside a two-way folder or a
 backup is synced with it: the scan goes into it as into any folder (`filepath.WalkDir`; the Mac's
 `FileManager` enumerator lists a mount point as an empty folder, so `SyncPaths.scanFolder` walks
 each one it finds on its own). A folder
