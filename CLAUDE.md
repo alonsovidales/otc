@@ -2786,8 +2786,9 @@ that shows Tailscale, Update and Logs (`useInstanceRole`; the bridge's answer us
 Grids that page have `usePageRetry`; the library's lists ask again while they show. A post whose answer never came (`postConfirm.ts`, `node
 web/scripts/post-confirm-test.mjs`): unsent (`NoAnswer.sent` false) says nothing was posted; went and
 unanswered keeps the composer with a note, "Post again" on its button, and looks for the post among
-the newest four (the owner's own, none the feed showed as it went - Social's `knownPosts` -, the
-same caption, no more items than were sent, made no earlier than 15 minutes before it was sent) at 3, 7 and 15 s, then every 30 s and at once when the device
+the newest four (the owner's own, none there as it went - those the feed showed, Social's
+`knownPosts`, and the newest four the device had besides, asked just before it went, 5 s at most:
+`postsBefore` -, the same caption, no more items than were sent, made no earlier than 15 minutes before it was sent) at 3, 7 and 15 s, then every 30 s and at once when the device
 answers again, closing as posted once it is there. Users' create and delete that went unanswered say
 the device may still be at it and list the users again, then 10 s on. Uploads from the web resume
 (issue #205's rules): a file of more than one 4 MB piece is hashed first (`net/sha256.ts`, fed a piece

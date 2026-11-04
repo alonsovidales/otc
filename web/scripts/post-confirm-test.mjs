@@ -281,6 +281,38 @@ describe("postConfirm: the post sent, among the newest", () => {
     // Nothing known of the feed (it hadn't loaded): as before.
     assert.equal(pc.findSentPost([older], { ...sent, before: [] })?.uuid, "older");
   });
+  test("a post made elsewhere since the feed loaded is not it either: the device is asked as it goes", async () => {
+    // The feed loaded 40 minutes ago; a photo with no caption went from
+    // the phone 5 minutes ago; now three with no caption from here.
+    const feedPost = pub({ uuid: "feed-post", text: "", files: [file], dateTime: new Date(sentAt - 40 * 60_000) });
+    const phonePost = pub({ uuid: "phone-post", text: "", files: [file], dateTime: new Date(sentAt - 5 * 60_000) });
+    const asked = [];
+    const before = await pc.postsBefore(["feed-post"], async (req) => {
+      asked.push(req);
+      // The newest the device has that the feed doesn't show.
+      return wire({ payload: { $case: "respSocialPublications", respSocialPublications: { publications: [phonePost] } } });
+    });
+    assert.equal(asked.length, 1);
+    assert.equal(asked[0].total, pc.cLookPosts, "as many as a look sees");
+    assert.deepEqual(asked[0].excludeUuids, ["feed-post"], "the feed's left out: a small answer");
+    assert.deepEqual([...before].sort(), ["feed-post", "phone-post"]);
+    const three = { text: "", files: 3, sentAt, before };
+    assert.equal(pc.findSentPost([phonePost, feedPost], three), null);
+    // The new one, once the device made it, above them.
+    const made = pub({ uuid: "new", text: "", files: [file, file, file] });
+    assert.equal(pc.findSentPost([made, phonePost, feedPost], three)?.uuid, "new");
+  });
+  test("the device not answering in time, or answering for nothing: the feed's posts alone", async () => {
+    assert.deepEqual(await pc.postsBefore(["a"], async () => { throw new ws.NoAnswer("closed"); }), ["a"]);
+    assert.deepEqual(await pc.postsBefore(["a"], async () => wire(bridgeAck("device_unreachable"))), ["a"]);
+    const late = new Promise(() => {}); // an answer that never comes
+    const started = Date.now();
+    assert.deepEqual(await pc.postsBefore(["a"], () => late, 20), ["a"]);
+    assert.ok(Date.now() - started < 1_000, "the post doesn't wait for it");
+    assert.ok(pc.cBeforeWaitMs <= 10_000);
+    assert.deepEqual(await pc.postsBefore([], async () => wire({ payload: { $case: "respSocialPublications", respSocialPublications: { publications: [pub({ uuid: "b" })] } } })), ["b"],
+      "a feed that hadn't loaded: the device's alone");
+  });
   test("looked for soon, then every half minute", () => {
     assert.ok(pc.nextLookMs(0) <= 5_000);
     assert.ok(pc.nextLookMs(1) >= pc.nextLookMs(0));

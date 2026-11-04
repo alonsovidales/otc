@@ -24,7 +24,7 @@ import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
-import { cLookPosts, findSentPost, nextLookMs, publishOutcome, type SentPost } from "./postConfirm";
+import { cLookPosts, findSentPost, nextLookMs, postsBefore, publishOutcome, type SentPost } from "./postConfirm";
 import { subscribeDeviceStatus } from "../net/deviceStatus";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -47,7 +47,8 @@ type Props = {
   onCancel: (unconfirmed: boolean) => void;
   onPosted: () => void;
   // The posts the feed shows (their uuids): a post sent whose answer never
-  // came is none of them (postConfirm.findSentPost).
+  // came is none of them, nor of the newest the device has besides
+  // (postConfirm.postsBefore).
   knownPosts?: () => readonly string[];
 };
 
@@ -580,8 +581,11 @@ export default function NewPostPicker({ onCancel, onPosted, knownPosts }: Props)
       // shrunk first): an answer that never comes leaves it made, or on
       // its way, as often as not. It is looked for in the feed then
       // (unconfirmed, below), not left to a guess - publishing again made
-      // every friend get it twice.
-      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now(), before: knownPosts?.() ?? [] };
+      // every friend get it twice. The posts there already are none of it.
+      const before = await postsBefore(knownPosts?.() ?? [], (req) => useWS.request((e) => {
+        e.payload = { $case: "reqGetSocialPublications", reqGetSocialPublications: req };
+      }));
+      const sent: SentPost = { text: caption, files: paths.length, sentAt: Date.now(), before };
       let answer: { resp: RespEnvelope } | { error: unknown };
       try {
         answer = { resp: await useWS.request(e => {

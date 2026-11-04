@@ -10,7 +10,7 @@
 // (findSentPost): the composer closes as posted once it is there.
 //
 // Tested by web/scripts/post-confirm-test.mjs.
-import type { RespEnvelope, SocialPublication } from "../proto/messages";
+import type { GetSocialPublications, RespEnvelope, SocialPublication } from "../proto/messages";
 import { isBridgeAnswer } from "../net/deviceStatus";
 import { NoAnswer } from "../net/ws";
 
@@ -36,7 +36,7 @@ export function publishOutcome(answer: { resp: RespEnvelope } | { error: unknown
 
 /** What was sent: the caption, how many photos and videos, when (this
  *  browser's clock), and the posts already there as it went (`before`:
- *  their uuids, those the feed showed) - none of those is it. */
+ *  their uuids, from postsBefore) - none of those is it. */
 export type SentPost = { text: string; files: number; sentAt: number; before?: readonly string[] };
 
 /** How far the device's clock may be from this browser's (a post is dated
@@ -60,6 +60,39 @@ export function findSentPost(pubs: readonly SocialPublication[], sent: SentPost)
 /** How many of the newest posts each look asks for: the post, made a
  *  moment ago, is among the first unless friends posted meanwhile. */
 export const cLookPosts = 4;
+
+/** How long a post waits for postsBefore's answer before it goes. */
+export const cBeforeWaitMs = 5_000;
+
+/** The posts there as one is sent (SentPost.before): those the feed shows
+ *  (`known`), and the newest cLookPosts the device has besides, asked just
+ *  before it goes - made since the feed loaded, on the phone or in another
+ *  tab, perhaps with the same caption. Every post a look can see that was
+ *  there before is one of the two: a look asks for the newest cLookPosts,
+ *  so fewer than that are newer than any it sees. With no answer in
+ *  waitMs, the feed's alone. */
+export async function postsBefore(
+  known: readonly string[],
+  ask: (req: GetSocialPublications) => Promise<RespEnvelope>,
+  waitMs = cBeforeWaitMs,
+): Promise<string[]> {
+  const before = new Set(known);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const resp = await Promise.race([
+      ask({ since: undefined, total: cLookPosts, excludeUuids: [...known] }),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), waitMs); }),
+    ]);
+    if (resp?.payload?.$case === "respSocialPublications") {
+      for (const p of resp.payload.respSocialPublications.publications) before.add(p.uuid);
+    }
+  } catch {
+    // No answer: the feed's alone.
+  } finally {
+    clearTimeout(timer);
+  }
+  return [...before];
+}
 
 /** When the next look for it goes (after `looks` of them): soon at first,
  *  then every half minute while the composer stays open - a long video
