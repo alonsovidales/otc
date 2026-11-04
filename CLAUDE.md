@@ -277,12 +277,18 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 
 **Tests**: most device and bridge packages have `_test.go` files (`face_recognition` needs the
 OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
-`TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestListAdminDevicesMySQL` under
-`ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
+`TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestEmailLinksSpentWithTheirWriteMySQL`,
+`TestListAdminDevicesMySQL` under `ONLY_FULL_GROUP_BY`, `TestLanguageMySQL`, `TestLastOnlineMySQL`,
+`TestNameHoldMySQL`, `TestHashedSecretsMySQL`) skip unless `OTC_TEST_MYSQL_DSN`
 points at the Lima VM's bridge schema (with `&time_zone=%27%2B00%3A00%27`, as the bridge's own
 DSN); the ones about an optional column run against both schemas - the VM's `otc` database has
 migrations 010 and 012, `otc_b1_nolang` neither (neither has 011's tables, so `TestGrowthMySQL`
-fails there). A
+fails there). `TestHashedSecretsMySQL` is meant for each step of the move to hashed secrets: a
+schema from before migration 013 (`devices.secret` and `account_tokens` only), one with 013 run
+(both forms), and one with 014 run or a fresh `db.sql` (the hashes only) - it says which it found,
+and refuses a schema between the steps. A scratch database of your own (`db.sql` without its first
+lines, which create the `otc` user and database) and a user for it, both dropped afterwards, keep
+the shared VM's alone. A
 package var a test shortens must be restored only after the handlers reading it are done (a plain
 `defer` raced under `-race`): bridge tests use `setVar` with a test bridge that waits for its
 handlers; httptest's `Close` doesn't wait for hijacked websockets. `websocket/write_reply_test.go`'s
