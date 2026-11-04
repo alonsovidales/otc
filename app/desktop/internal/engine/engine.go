@@ -2355,6 +2355,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		log.Printf("%s: removed %d folder(s) left empty by deletions on the device", f.RemotePath, n)
 	}
 	pruneFolderTrashes(f.LocalPath, meta.Mounts, time.Now())
+	pruneSystemTrash(time.Now())
 	e.mu.Lock()
 	e.lastSynced[f.ID] = newSynced
 	e.mu.Unlock()

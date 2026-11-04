@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -92,4 +93,57 @@ func containsLine(s, line string) bool {
 	}
 
 	return false
+}
+
+// What otc-sync put in the trash is emptied after 30 days - a computer
+// running it as a service has nobody to empty the trash - and only that:
+// a file restored from the trash, and one the user trashed, stay.
+func TestOwnTrashIsEmptiedAfter30Days(t *testing.T) {
+	withConfigDir(t)
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	ownTrashPruned = time.Time{}
+	t.Cleanup(func() { ownTrashPruned = time.Time{} })
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{"old.txt": "o", "new.txt": "n", "restored.txt": "r"})
+	now := time.Now()
+	for name, at := range map[string]time.Time{"old.txt": now.AddDate(0, 0, -31), "new.txt": now.AddDate(0, 0, -1), "restored.txt": now.AddDate(0, 0, -40)} {
+		if err := freedesktopTrash(filepath.Join(dir, name), at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	trash := filepath.Join(data, "Trash")
+	// Restored by the user, from the file manager.
+	if err := os.Rename(filepath.Join(trash, "files", "restored.txt"), filepath.Join(dir, "restored.txt")); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Remove(filepath.Join(trash, "info", "restored.txt.trashinfo"))
+	// Trashed by the user, long ago.
+	writeFiles(t, trash, map[string]string{"files/mine.txt": "m", "info/mine.txt.trashinfo": "[Trash Info]\nPath=/x/mine.txt\nDeletionDate=2020-01-01T00:00:00\n"})
+
+	pruneOwnTrash(now)
+	exists := func(p string) bool { _, err := os.Lstat(p); return err == nil }
+	for p, want := range map[string]bool{
+		filepath.Join(trash, "files", "old.txt"): false, filepath.Join(trash, "info", "old.txt.trashinfo"): false,
+		filepath.Join(trash, "files", "new.txt"): true, filepath.Join(trash, "info", "new.txt.trashinfo"): true,
+		filepath.Join(trash, "files", "mine.txt"): true, filepath.Join(dir, "restored.txt"): true,
+	} {
+		if exists(p) != want {
+			t.Errorf("%s there: %v, want %v", p, !want, want)
+		}
+	}
+	log, _ := ownTrashPath()
+	listed, err := os.ReadFile(log)
+	if err != nil || strings.Count(string(listed), "\n") != 1 || !strings.Contains(string(listed), `"new.txt"`) {
+		t.Fatalf("still listed: %q %v", listed, err)
+	}
+	// Not again within the hour; 30 days on, the rest goes and the list too.
+	pruneOwnTrash(now.Add(time.Minute))
+	if !exists(filepath.Join(trash, "files", "new.txt")) {
+		t.Fatal("a file of yesterday emptied")
+	}
+	pruneOwnTrash(now.AddDate(0, 0, 30))
+	if exists(filepath.Join(trash, "files", "new.txt")) || exists(log) {
+		t.Fatal("not emptied 31 days on")
+	}
 }

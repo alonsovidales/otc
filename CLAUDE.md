@@ -3446,7 +3446,10 @@ baselines, `desk.main.deletes_held`, until they are back here or deleted there t
 under another name - a move - doesn't count); a backup keeps on the device what vanished locally.
 What a two-way pass deletes here goes to the trash: the Mac's Trash, and otc-sync's system trash
 (`engine/trash*.go`: the freedesktop.org trash on Linux - the home trash, or the disk's own
-`.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo` -, the Recycle Bin on Windows,
+`.Trash/<uid>` or `.Trash-<uid>`, each file with its `.trashinfo`; what otc-sync put there is
+emptied after 30 days, as a service with no desktop has nobody to do it - only its own entries,
+listed in `<config dir>/trashed.jsonl` and still as it left them (`pruneOwnTrash`) -, the Recycle
+Bin on Windows,
 fixed disks only; else a `.otc-trash/<day>/` folder in the synced folder - at the top of a disk
 mounted in it for a file on that disk, which a rename can't leave -, never synced, each emptied of
 days older than 30 after a pass, `pruneFolderTrashes`); a file that can't be moved stays, and is tried again. Upload-only folders from before backups were a choice were migrated to two-way once

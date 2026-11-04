@@ -7,6 +7,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // systemTrash moves p to the user's Trash (otc-sync is built for macOS for
@@ -27,3 +28,7 @@ func systemTrash(p string) error {
 
 	return os.Rename(p, dest)
 }
+
+// pruneSystemTrash: the Trash is the Finder's to empty (its own "after 30
+// days" setting).
+func pruneSystemTrash(time.Time) {}

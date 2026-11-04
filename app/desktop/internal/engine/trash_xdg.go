@@ -5,14 +5,20 @@
 package engine
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/alonsovidales/otc/app/desktop/internal/config"
 )
 
 // freedesktopTrash moves p to the trash of the freedesktop.org Trash
@@ -184,11 +190,161 @@ func trashInto(dir, abs, path string, now time.Time) error {
 
 			return err
 		}
+		noteOwnTrash(dir, name, body, now)
 
 		return nil
 	}
 
 	return fmt.Errorf("no free name in %s", dir) // i18n-ignore: a file's error, only logged
+}
+
+// What otc-sync puts in a freedesktop.org trash is emptied after
+// folderTrashDays, as its own .otc-trash is. A computer that runs otc-sync
+// as a service, with no desktop, has nobody to empty the trash: every file
+// deleted on the device piled up in ~/.local/share/Trash for good, until
+// the disk was full and downloads were refused for room. Only its own
+// entries go - each listed, as it is trashed, in a file in the config
+// folder - and only while still as it left them (its .trashinfo
+// unchanged): one restored, emptied or replaced is forgotten.
+
+// ownTrashFile is that list's file name: one JSON line per trashed file.
+const ownTrashFile = "trashed.jsonl"
+
+// ownTrashEntry is one file otc-sync put in a trash.
+type ownTrashEntry struct {
+	Dir  string `json:"dir"`  // the trash (files/, info/)
+	Name string `json:"name"` // its name in files/, and in info/ with .trashinfo
+	Info string `json:"info"` // the .trashinfo written for it
+	At   int64  `json:"at"`   // when, unix seconds
+}
+
+var (
+	ownTrashMu     sync.Mutex
+	ownTrashPruned time.Time // the last pruneOwnTrash, at most hourly
+	ownTrashLogged bool      // a failure to list one is logged once
+)
+
+func ownTrashPath() (string, error) {
+	dir, err := config.Dir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, ownTrashFile), nil
+}
+
+// noteOwnTrash lists a file otc-sync just put in the trash dir; best effort
+// (a file not listed stays in the trash, as any).
+func noteOwnTrash(dir, name, info string, now time.Time) {
+	ownTrashMu.Lock()
+	defer ownTrashMu.Unlock()
+	err := appendOwnTrash(ownTrashEntry{Dir: dir, Name: name, Info: info, At: now.Unix()})
+	if err != nil && !ownTrashLogged {
+		ownTrashLogged = true
+		log.Printf("could not note what went to the trash (%v) - it stays there until the trash is emptied", err)
+	}
+}
+
+func appendOwnTrash(en ownTrashEntry) error {
+	p, err := ownTrashPath()
+	if err != nil {
+		return err
+	}
+	line, err := json.Marshal(en)
+	if err != nil {
+		return err
+	}
+	fh, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600) // perms: rw-------
+	if err != nil {
+		return err
+	}
+	_, werr := fh.Write(append(line, '\n'))
+	if cerr := fh.Close(); werr == nil {
+		werr = cerr
+	}
+
+	return werr
+}
+
+// pruneOwnTrash empties what otc-sync put in a trash more than
+// folderTrashDays ago, at most once an hour (after the passes). An entry
+// whose trash isn't there now (a disk not mounted) waits for it.
+func pruneOwnTrash(now time.Time) {
+	ownTrashMu.Lock()
+	defer ownTrashMu.Unlock()
+	if !ownTrashPruned.IsZero() && now.Sub(ownTrashPruned) < time.Hour && now.After(ownTrashPruned) {
+		return
+	}
+	ownTrashPruned = now
+	p, err := ownTrashPath()
+	if err != nil {
+		return
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return
+	}
+	cutoff := now.AddDate(0, 0, -folderTrashDays).Unix()
+	var keep [][]byte
+	changed := false
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var en ownTrashEntry
+		if json.Unmarshal(line, &en) != nil || en.Dir == "" || en.Name == "" || strings.ContainsAny(en.Name, "/\x00") {
+			changed = true
+
+			continue
+		}
+		if en.At > cutoff || !emptyOwnTrashEntry(en) {
+			keep = append(keep, line)
+
+			continue
+		}
+		changed = true
+	}
+	if !changed {
+		return
+	}
+	if len(keep) == 0 {
+		_ = os.Remove(p)
+
+		return
+	}
+	out := append(bytes.Join(keep, []byte("\n")), '\n')
+	if err := config.WriteFileAtomic(p, out, 0o600); err != nil { // perms: rw-------
+		log.Printf("could not update the list of what went to the trash: %v", err)
+	}
+}
+
+// emptyOwnTrashEntry removes en's file and .trashinfo from its trash when
+// they are still as otc-sync left them, and says whether en is done with:
+// removed, or no longer otc-sync's (restored, emptied, replaced). False
+// keeps it for later: its trash isn't there now, or the removal failed.
+func emptyOwnTrashEntry(en ownTrashEntry) bool {
+	info := filepath.Join(en.Dir, "info", en.Name+".trashinfo")
+	got, err := os.ReadFile(info)
+	if errors.Is(err, os.ErrNotExist) {
+		_, derr := os.Stat(filepath.Join(en.Dir, "info"))
+
+		return derr == nil // the trash is there, without it: not ours now
+	}
+	if err != nil {
+		return false
+	}
+	if string(got) != en.Info {
+		return true
+	}
+	file := filepath.Join(en.Dir, "files", en.Name)
+	if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("could not empty %s from the trash: %v", file, err)
+
+		return false
+	}
+	_ = os.Remove(info)
+
+	return true
 }
 
 // trashPathEscape writes a path as .trashinfo's Path wants it: the bytes

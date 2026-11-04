@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -90,3 +91,7 @@ func systemTrash(p string) error {
 
 	return nil
 }
+
+// pruneSystemTrash: the Recycle Bin is Windows' to empty (its size limit
+// and Storage Sense).
+func pruneSystemTrash(time.Time) {}
