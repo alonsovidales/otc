@@ -18,7 +18,9 @@ import (
 // on its standard input), and answers what the scripts ask - the users
 // list (FAKE_USERS, or FAKE_USERS_ERROR with status 1, or failing only
 // the first time when FAKE_USERS_FAIL_ONCE names a file not there yet),
-// whether a database exists (FAKE_DBS) and whether the users table does.
+// whether a database exists (FAKE_DBS, or FAKE_DBS_ERROR with status 1, or
+// failing only the first time when FAKE_DBS_FAIL_ONCE names a file not
+// there yet) and whether the users table does.
 const fakeMysql = `#!/bin/bash
 stmt=""
 args=("$@")
@@ -41,6 +43,12 @@ case "$stmt" in
         printf '%s\n' "$FAKE_USERS"
         ;;
     "SHOW DATABASES LIKE '"*)
+        if [ -n "${FAKE_DBS_FAIL_ONCE:-}" ] && [ ! -e "$FAKE_DBS_FAIL_ONCE" ]; then
+            : >"$FAKE_DBS_FAIL_ONCE"
+            echo "ERROR 2002 (HY000): Can't connect to local server through socket '/run/mysqld/mysqld.sock' (2)" >&2
+            exit 1
+        fi
+        if [ -n "${FAKE_DBS_ERROR:-}" ]; then echo "$FAKE_DBS_ERROR" >&2; exit 1; fi
         name="${stmt#"SHOW DATABASES LIKE '"}"
         name="${name%"'"}"
         printf '%s\n' "$FAKE_DBS" | grep -xF -- "$name" || true
@@ -210,6 +218,45 @@ func TestReleasesStopWhenTheUsersCantBeRead(t *testing.T) {
 		r := runRelease(t, v, script, "FAKE_USERS="+goodDB, "FAKE_DBS="+goodDB, "FAKE_USERS_FAIL_ONCE="+once)
 		if r.rc != "0" {
 			t.Errorf("release %s, the users read failing once: run_release = %q, want 0\n%s", v, r.rc, r.output)
+		}
+		reached := false
+		for _, call := range r.calls {
+			if len(call) == 2 && call[0] == goodDB && call[1] == "<stdin>" {
+				reached = true
+			}
+		}
+		if !reached {
+			t.Errorf("release %s, run again: %s's SQL never ran\n%s", v, goodDB, r.output)
+		}
+	}
+}
+
+// The users list read, then the database stopped answering (MariaDB
+// restarted by a security update half-way through the loop): from release
+// 92 on, the scripts asked whether each user's database exists through a
+// pipe into grep, so every user left read as "no such database" and the
+// release was recorded as applied without them. Now that failure is noted
+// like a failed users list: the release runs again once the database
+// answers, and the update stops (2) when it still can't be asked. Before
+// 92 the guard asks itself, and notes it the same way.
+func TestReleasesStopWhenADatabaseCantBeChecked(t *testing.T) {
+	down := "ERROR 2002 (HY000): Can't connect to local server through socket '/run/mysqld/mysqld.sock' (2)"
+	// 168 also drives Tailscale, which a test has none of; 169 adds its
+	// month counts again, read the same way.
+	scripts := map[string]string{"158": "../scripts/updates/corrected/158.sh"}
+	for _, v := range []string{"1", "74", "92", "93", "108", "118", "148", "152", "157", "163", "169"} {
+		scripts[v] = "../scripts/updates/" + v + ".sh"
+	}
+	for v, script := range scripts {
+		// 169's network section is the host's in a container: left alone.
+		r := runRelease(t, v, script, "OTC_CONTAINER=1", "FAKE_USERS="+goodDB, "FAKE_DBS_ERROR="+down)
+		if r.rc != "2" {
+			t.Errorf("release %s, the database down after the users list: run_release = %q, want 2\n%s", v, r.rc, r.output)
+		}
+		once := filepath.Join(t.TempDir(), "failed-once")
+		r = runRelease(t, v, script, "OTC_CONTAINER=1", "FAKE_USERS="+goodDB, "FAKE_DBS="+goodDB, "FAKE_DBS_FAIL_ONCE="+once)
+		if r.rc != "0" {
+			t.Errorf("release %s, the existence check failing once: run_release = %q, want 0\n%s", v, r.rc, r.output)
 		}
 		reached := false
 		for _, call := range r.calls {

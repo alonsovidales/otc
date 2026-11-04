@@ -22,7 +22,8 @@ devices still missing their release.
 The releases before 92 that loop over the device's users are run with update.sh's own `mysql`
 (`scripts/update-runner/release-mysql.sh`) instead of a corrected copy each: it lets only the
 database names the device generates reach the client. Every release script runs with it, and a
-failed read of the users list stops that release instead of reading as "no other users".
+failed read of the users list, or of whether a user's database exists, stops that release instead
+of reading as "no other users" or "no such database".
 
 A corrected script follows the rules of any release script: idempotent, safe on every older
 release, and only ever run as part of an update.

@@ -213,11 +213,13 @@ OS_UPDATES_PENDING=/etc/otc/os-updates.pending
 # database names this device generates reach the client from a release
 # before 92, whose scripts passed any users.db_name - a column the otc
 # service can write - as an option, and it notes a failed read of the users
-# list, which every release before 169 took for "no other users", leaving
-# their databases behind for good: the release is then run again once the
-# database answers, once (scripts are idempotent). Nothing a script runs
-# asks a question (DEBIAN_FRONTEND: an update has no terminal).
-# 0: applied; 1: the script failed; 2: the users list couldn't be read.
+# list, which every release before 169 took for "no other users", and a
+# failed check of whether a user's database exists, which the releases
+# from 92 on took for "no such database" - either way leaving databases
+# behind for good: the release is then run again once the database
+# answers, once (scripts are idempotent). Nothing a script runs asks a
+# question (DEBIAN_FRONTEND: an update has no terminal).
+# 0: applied; 1: the script failed; 2: the users couldn't be read.
 run_release() {
     local version="$1" script="$2" names=0 try rc
     [ "$version" -ge 92 ] 2>/dev/null || names=1

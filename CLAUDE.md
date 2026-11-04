@@ -4717,11 +4717,13 @@ temporary directory mounted noexec doesn't matter). For releases before 92 it le
 `-e <statement>` and the database `otc` or an existing `otc_<32 hex>` reach the client - their
 loops passed any users.db_name as mysql's first argument, where `--defaults-extra-file=` makes
 root's client read a file of the otc user's - and skips anything else, as 92 onwards do. For every
-release it notes a failed `SELECT db_name FROM users` other than error 1146 (no users table): the
-release runs again once MariaDB answers, then the update stops with `users_unreadable` ("release
-N could not read this device's list of users - press Update to try again"); it used to read as "no
-other users", and the release was recorded with every other user's database left behind. Tested
-by running the released scripts themselves against a stand-in client
+release it notes a failed `SELECT db_name FROM users` other than error 1146 (no users table), and a
+failed `SHOW DATABASES LIKE '<name>'` (92 onwards pipe it into grep, so it read as "no such
+database"): the release runs again once MariaDB answers, then the update stops with
+`users_unreadable` ("release N could not read this device's list of users - press Update to try
+again"); either used to read as nothing to do - MariaDB restarted by a security update half-way
+through the loop was enough - and the release was recorded with every other user's database left
+behind. Tested by running the released scripts themselves against a stand-in client
 (`updater/release_mysql_test.go`).
 Then run `scripts/docker-release.sh` (the `container` paragraph above): the Docker image for that
 release is built, tested and published from the Mac (about an hour cold, less once its cache is
