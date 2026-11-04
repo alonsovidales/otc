@@ -12,12 +12,13 @@ FILE="${1:?usage: sign-file.sh FILE SIGFILE}"; OUT="${2:?usage: sign-file.sh FIL
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 KEY="${OTC_RELEASE_KEY:-$HOME/.otc/otc-release-signing.pem}"
 OPENSSL="$(command -v /opt/homebrew/bin/openssl || command -v openssl)"
-KEY_PASS="$(security find-generic-password -s otc-release-signing -a otc -w 2>/dev/null)" \
+# Never exported: only the openssl that decrypts the key gets it.
+unset KEY_PASS
+release_pass="$(security find-generic-password -s otc-release-signing -a otc -w 2>/dev/null)" \
     || { echo "can't read the signing key's passphrase from the Keychain (locked? run: security unlock-keychain)" >&2; exit 1; }
-export KEY_PASS
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 for attempt in 1 2 3 4 5; do
-    if "$OPENSSL" pkcs8 -in "$KEY" -passin env:KEY_PASS 2>/dev/null \
+    if KEY_PASS="$release_pass" "$OPENSSL" pkcs8 -in "$KEY" -passin env:KEY_PASS 2>/dev/null \
         | "$OPENSSL" pkeyutl -sign -inkey /dev/stdin -rawin -in "$FILE" -out "$tmp/sig" 2>/dev/null; then
         "$OPENSSL" pkeyutl -verify -pubin -inkey "$ROOT/scripts/release-signing.pub" -rawin -in "$FILE" -sigfile "$tmp/sig" >/dev/null
         base64 < "$tmp/sig" | tr -d '\n' > "$OUT"; echo >> "$OUT"
