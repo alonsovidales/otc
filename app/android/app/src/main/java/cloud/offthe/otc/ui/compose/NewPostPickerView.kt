@@ -853,7 +853,7 @@ private fun PickTile(
         }
         if (selectionNumber != null) {
             Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(22.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
-                Text("$selectionNumber", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("$selectionNumber", color = MaterialTheme.colorScheme.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -101,6 +101,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.ui.theme.AlertRed
+import cloud.offthe.otc.ui.theme.EmberInk
 import cloud.offthe.otc.data.SmartSearchAnnouncement
 import cloud.offthe.otc.data.SmartSearchModelState
 import cloud.offthe.otc.data.SmartSearchSupport
@@ -830,7 +832,7 @@ fun SettingsView(secrets: SecretsStore) {
                     else -> {
                         RowButton((if (dst.startingReprocess) S.appSettingsReprocessStarting() else S.appSettingsReprocessAll()).resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
                         if (dst.reprocessStatus == "completed") Caption(S.appSettingsReprocessCompleted(dst.reprocessProcessed).resolve())
-                        else if (dst.reprocessStatus == "failed") Caption(S.appSettingsReprocessFailed(dst.reprocessProcessed).resolve(), Color(0xFFE53935))
+                        else if (dst.reprocessStatus == "failed") Caption(S.appSettingsReprocessFailed(dst.reprocessProcessed).resolve(), MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -850,7 +852,7 @@ fun SettingsView(secrets: SecretsStore) {
             onDismissRequest = { confirmLogout = false },
             title = { Text(S.appSettingsConnectionLogOutTitle().resolve()) },
             text = { Text(S.appSettingsConnectionLogOutMessage().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text(S.appSettingsConnectionLogOutConfirm().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text(S.appSettingsConnectionLogOutConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -859,7 +861,7 @@ fun SettingsView(secrets: SecretsStore) {
         AlertDialog(
             onDismissRequest = { device.setReprocessConfirm(null) },
             text = { Text((if (resume) S.appSettingsReprocessConfirmResume() else S.appSettingsReprocessConfirmRestart()).resolve()) },
-            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text((if (resume) S.appSettingsReprocessResumeButton() else S.appSettingsReprocessRestartButton()).resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text((if (resume) S.appSettingsReprocessResumeButton() else S.appSettingsReprocessRestartButton()).resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { device.setReprocessConfirm(null) }) { Text(S.commonCancel().resolve()) } },
         )
     }
@@ -1026,9 +1028,9 @@ private fun StatusSectionContent(vm: StatusViewModel) {
             val state = raidStateLabel(s).resolve()
             Caption((if (s.raidLevel.isEmpty()) S.appSettingsStatusRaid(state, s.disks) else S.appSettingsStatusRaidLevel(s.raidLevel, state, s.disks)).resolve())
             // The device's own words (in the request's language) after a sign.
-            s.errorsList.forEach { Caption("⚠️ ${it.message}", Color(0xFFE53935)) } // i18n-ignore: a sign before the device's own words
+            s.errorsList.forEach { Caption("⚠️ ${it.message}", MaterialTheme.colorScheme.error) } // i18n-ignore: a sign before the device's own words
         }
-        st.errorText != null -> Caption(st.errorText!!.resolve(), Color(0xFFE53935))
+        st.errorText != null -> Caption(st.errorText!!.resolve(), MaterialTheme.colorScheme.error)
         else -> CircularProgressIndicator()
     }
 }
@@ -1070,12 +1072,12 @@ private fun UpdateSection() {
         }
         val message = st.statusMessage.resolve()
         if (st.running) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(message.ifEmpty { S.commonUpdating().resolve() }) }
-        if (st.state == "failed") Caption((if (st.lastUpdated.isEmpty()) S.appSettingsUpdateFailed(message) else S.appSettingsUpdateFailedOn(st.lastUpdated, message)).resolve(), Color(0xFFE53935))
+        if (st.state == "failed") Caption((if (st.lastUpdated.isEmpty()) S.appSettingsUpdateFailed(message) else S.appSettingsUpdateFailedOn(st.lastUpdated, message)).resolve(), MaterialTheme.colorScheme.error)
         if (st.checkError.isNotEmpty()) Caption(S.appSettingsUpdateCheckError().resolve())
         RowButton((if (st.checking) S.appSettingsUpdateChecking() else S.appSettingsUpdateCheckAgain()).resolve(), enabled = !st.checking && !st.running) { scope.launch { vm.check() } }
         if (st.hasUpdate) RowButton((if (st.starting) S.appSettingsUpdateStarting() else st.updateToText).resolve(), enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
         if (st.hasUpdate || st.running) Caption(S.appSettingsUpdateRestartNote().resolve())
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
         // Settings > Restart device: the whole machine, owner of the primary only.
         RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmRestart = true }
         when (st.restartPhase) {
@@ -1083,7 +1085,7 @@ private fun UpdateSection() {
             "back" -> Caption(S.appSettingsUpdateBack().resolve())
             "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), Color(0xFFFF9800))
         }
-        st.restartError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.restartError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
         // Settings > Shut down device (issue #202): turned off cleanly, so it
         // can be unplugged; owner of the primary only, as Restart.
         RowButton(S.appSettingsUpdateShutDown().resolve(), enabled = !st.restarting && !st.running && !st.shuttingDown) { confirmShutDown = true }
@@ -1092,13 +1094,13 @@ private fun UpdateSection() {
             Spacer(Modifier.width(6.dp))
             Caption(S.appSettingsUpdateShuttingDownNote().resolve())
         }
-        st.shutDownError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.shutDownError?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (confirmRestart) AlertDialog(
         onDismissRequest = { confirmRestart = false },
         title = { Text(S.appSettingsUpdateRestartTitle().resolve()) },
         text = { Text(S.appSettingsUpdateRestartMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text(S.commonCancel().resolve()) } },
     )
     // Cancel is the default; Shut Down is the red button.
@@ -1106,7 +1108,7 @@ private fun UpdateSection() {
         onDismissRequest = { confirmShutDown = false },
         title = { Text(S.appSettingsUpdateShutDownTitle().resolve()) },
         text = { Text(S.appSettingsUpdateShutDownMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmShutDown = false; vm.viewModelScope.launch { vm.shutDown() } }) { Text(S.appSettingsUpdateShutDownConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmShutDown = false; vm.viewModelScope.launch { vm.shutDown() } }) { Text(S.appSettingsUpdateShutDownConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmShutDown = false }) { Text(S.commonCancel().resolve()) } },
     )
     // A device too old to be shut down from here: its update, as elsewhere.
@@ -1118,10 +1120,11 @@ private fun UpdateSection() {
 private fun KindBadge(kind: String) {
     val (label, color) = when (kind) {
         "major" -> S.appSettingsUpdateMajor().resolve() to Color(0xFFFF9800)
-        "critical" -> S.appSettingsUpdateCritical().resolve() to Color(0xFFE53935)
+        "critical" -> S.appSettingsUpdateCritical().resolve() to AlertRed
         else -> return
     }
-    Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+    // Dark text on the orange (white was 2.2:1), white on the red (5.6:1).
+    Text(label, color = if (kind == "major") EmberInk else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 6.dp).background(color, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
 }
 
@@ -1164,7 +1167,7 @@ private fun TailscaleSection() {
             Caption(S.appSettingsTailscaleNotInstalled().resolve())
         }
         st.note?.let { Caption(it.resolve()) }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
 }
 
@@ -1227,7 +1230,7 @@ private fun WifiSection() {
             WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), Color(0xFFFF9800))
             WifiViewModel.Phase.IDLE -> st.note?.let { Caption(it.resolve()) }
         }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (st.confirming) AlertDialog(
         onDismissRequest = { vm.cancelConfirm() },
@@ -1389,20 +1392,20 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
         }
         RowLink(S.appShellPrivacy().resolve()) { open("privacy") }
         st.note?.let { Caption(it.resolve()) }
-        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.error?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     if (confirmLeave) AlertDialog(
         onDismissRequest = { confirmLeave = false },
         title = { Text(S.appSettingsBridgeLeaveTitle().resolve()) },
         text = { Text(S.appSettingsBridgeLeaveMessage(st.domain).resolve()) },
-        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text(S.appSettingsBridgeLeaveConfirm().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text(S.appSettingsBridgeLeaveConfirm().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
     )
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
         title = { Text(S.appSettingsBridgeDeleteTitle().resolve()) },
         text = { Text(S.appSettingsBridgeDeleteMessage().resolve()) },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text(S.androidSettingsBridgeLeaveDelete().resolve(), color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text(S.androidSettingsBridgeLeaveDelete().resolve(), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(S.commonCancel().resolve()) } },
     )
 }

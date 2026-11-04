@@ -157,6 +157,7 @@ import cloud.offthe.otc.ui.common.relativeTime
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.compose.NewPostPickerView
 import cloud.offthe.otc.ui.theme.Ember
+import cloud.offthe.otc.ui.theme.EmberInk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -303,7 +304,7 @@ private fun Feed(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
                 IconButton(onClick = onFriends, Modifier.tourTarget(TourTarget.FRIENDS_BUTTON)) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
-                IconButton(onClick = onNewPost, Modifier.tourTarget(TourTarget.NEW_POST)) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
+                IconButton(onClick = onNewPost, Modifier.tourTarget(TourTarget.NEW_POST)) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = MaterialTheme.colorScheme.primary) }
             },
         )
     }) { pad ->
@@ -417,7 +418,8 @@ private fun EmptyFeed(onNewPost: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = Color.White, modifier = Modifier.size(48.dp))
+            // Ember-ink on ember, as the web's: white on it is too faint.
+            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = EmberInk, modifier = Modifier.size(48.dp))
         }
     }
 }

@@ -17,7 +17,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -267,7 +266,7 @@ internal fun StorageSection(status: StatusViewModel, vm: MirrorDiskViewModel = v
                 Caption(raidStateLabel(s).resolve())
             }
         }
-        st.notAdded?.let { Text(S.appSettingsStorageNotAdded(it.name()).resolve(), style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE53935)) }
+        st.notAdded?.let { Text(S.appSettingsStorageNotAdded(it.name()).resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         if (asked == null) {
             offered.forEachIndexed { i, d ->
                 androidx.compose.runtime.key(d.id) {
@@ -279,7 +278,7 @@ internal fun StorageSection(status: StatusViewModel, vm: MirrorDiskViewModel = v
                 }
             }
         }
-        st.failure?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+        st.failure?.let { Caption(it.resolve(), MaterialTheme.colorScheme.error) }
     }
     // Cancel is the default; erasing is the red button.
     st.confirming?.let { d ->

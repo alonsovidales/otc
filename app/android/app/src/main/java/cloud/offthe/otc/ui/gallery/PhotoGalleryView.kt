@@ -1121,7 +1121,7 @@ fun TextDialog(
 fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss, title = { Text(title) }, text = message?.let { m -> { Text(m) } },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = Color(0xFFE53935)) } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } },
     )
 }
@@ -1134,7 +1134,7 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
  */
 @Composable
 private fun CopiesDialog(title: String, text: String, onlyLabel: String, allLabel: String, onOnly: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit) {
-    val danger = Color(0xFFE53935)
+    val danger = MaterialTheme.colorScheme.error
     AlertDialog(
         onDismissRequest = onDismiss, title = { Text(title) }, text = { Text(text) },
         confirmButton = {
@@ -1559,7 +1559,7 @@ private fun CollectionHeader(
     onRatingSort: (RatingSort) -> Unit = {}, onRatingShow: (RatingShow) -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
-    val danger = Color(0xFFE53935)
+    val danger = colors.error
     val rename = S.appPhotosCollectionsRename().resolve()
     val share = S.appShellShareAsGallery().resolve()
     val delete = S.appPhotosCollectionsDelete().resolve()

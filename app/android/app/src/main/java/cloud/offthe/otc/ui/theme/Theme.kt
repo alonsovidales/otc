@@ -12,8 +12,24 @@ import androidx.compose.ui.graphics.Color
 // highlights (Color(red: 1.0, green: 0.42, blue: 0.29) in SwiftUI).
 val Ember = Color(0xFFFF6B4A)
 
-private val Light = lightColorScheme(primary = Ember)
-private val Dark = darkColorScheme(primary = Ember)
+/** The web's --ember-ink: text on ember, 6.42:1 (white on ember is 2.82:1). */
+val EmberInk = Color(0xFF26100A)
+
+/**
+ * Ember deepened for light backgrounds: text and lines on white at 5.95:1
+ * (4.8:1 on a light dialog), and white on it as much - ember itself is
+ * 2.7:1 there, which every text button, dialog button and filled button
+ * of the light theme used to be.
+ */
+val EmberDeep = Color(0xFFB5371C)
+
+/** A red to put white text on (a critical update): 5.6:1. */
+val AlertRed = Color(0xFFC62828)
+
+// Text in the theme's error colour reads at 4.5:1 or more on its surfaces
+// and dialogs: what removes or signs out, and what failed.
+internal val Light = lightColorScheme(primary = EmberDeep, onPrimary = Color.White, error = Color(0xFFB3261E))
+internal val Dark = darkColorScheme(primary = Ember, onPrimary = EmberInk, error = Color(0xFFFF8A75))
 
 @Composable
 fun OTCTheme(content: @Composable () -> Unit) {

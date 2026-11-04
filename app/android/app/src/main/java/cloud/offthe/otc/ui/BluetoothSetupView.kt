@@ -260,7 +260,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
             onDismissRequest = { confirmLeave = false },
             title = { Text(S.appShellSetupLeaveTitle().resolve()) },
             text = { Text(S.appShellSetupLeaveText().resolve()) },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onClose() }) { Text(S.appShellSetupLeave().resolve(), color = Color(0xFFE53935)) } },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onClose() }) { Text(S.appShellSetupLeave().resolve(), color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
         )
     }

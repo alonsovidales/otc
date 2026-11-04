@@ -4611,7 +4611,11 @@ bridge a few hundred take minutes, and a second Delete sent the same paths again
 wasn't deleted as Images does (`DeleteCopies.keptText`: the device's words, or why no answer came) -
 it said nothing at all. Android only: the "isn't available"/"can't connect"
 cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
-through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. The
+through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. Its
+colours read at 4.5:1 (`ui/theme/Theme.kt`, `ThemeContrastTest.kt`): light mode's accent is ember
+deepened (`EmberDeep`, #B5371C) with white on it - ember itself is 2.7:1 on white -, dark mode's
+is ember with ember-ink (#26100A) on it, what removes or signs out takes the theme's `error`
+(#B3261E light, #FF8A75 dark), and the critical update's banner `AlertRed`. The
 Bluetooth setup's Back steps back in the wizard (its `#back`) or leaves, asking first while the
 device installs (`setupLeaveAsks` / `leaveAsks`); `app.shell.setup_not_found` after 30 s of
 looking; Open Settings when access is needed (`ios.open_settings` / `android.open_settings`);

@@ -226,7 +226,7 @@ private fun ErrorRow(n: Notification, now: Long) {
         Column(Modifier.weight(1f)) {
             // The title is the device's, already in the app's language.
             if (n.occurrences > 1) Text(
-                S.appSocialAlertsErrorMore(n.title, n.occurrences - 1).resolve(mapOf("b" to boldTag, "dim" to RichTag(style = SpanStyle(color = Color.Gray)))),
+                S.appSocialAlertsErrorMore(n.title, n.occurrences - 1).resolve(mapOf("b" to boldTag, "dim" to RichTag(style = SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)))),
                 style = MaterialTheme.typography.bodyMedium,
             )
             else Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
