@@ -1068,9 +1068,21 @@ object OTCConnection {
      * Plain words for the errors the network stack hands back, decided now
      * (the phone may be back online by the time the card shows them).
      */
-    private fun describe(e: Throwable): UiText = when {
+    private fun describe(e: Throwable): UiText = describe(e, NetworkWatch.online()).also { t ->
+        if (t == S.appShellNoAnswerAddress() && e !is ConnectException && e !is SocketTimeoutException) Log.i(TAG, "can't connect: ${e.javaClass.simpleName}")
+    }
+
+    /**
+     * [describe], pure ([online]: the phone has a network). Whatever the
+     * network stack threw that isn't one of those - "Host unreachable", a
+     * proxy's "unexpected end of stream", a socket closed while signing in,
+     * a bare EOFException - is the device not answering, in the app's
+     * language: its own English words (and a class name) used to reach the
+     * card. A device's or the app's own words stay as they are.
+     */
+    internal fun describe(e: Throwable, online: Boolean): UiText = when {
         // No network at all: not the address's fault, whatever failed.
-        !NetworkWatch.online() -> OFFLINE_MESSAGE
+        !online -> OFFLINE_MESSAGE
         e is UnknownHostException -> S.appShellHostNotFound()
         e is ConnectException || e is SocketTimeoutException -> S.appShellNoAnswerAddress()
         e is SSLException -> S.appShellInsecure()
@@ -1078,7 +1090,10 @@ object OTCConnection {
         // Ours: worded where shown, in the language shown then.
         e is TextIOException -> e.text
         e is WSClient.RequestTimeout -> e.text
-        else -> UiText.Raw(e.message ?: e.javaClass.simpleName)
+        e is WSClient.SentNoAnswer -> e.text
+        // The device's (or the app's) words, already in the app's language.
+        e is RequestError -> UiText.Raw(e.message ?: "")
+        else -> S.appShellNoAnswerAddress()
     }
 
     private fun handleDisconnect() {
