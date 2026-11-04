@@ -89,6 +89,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -782,7 +783,7 @@ private fun BoxScope.SelectArt(p: ArtPalette) {
 private fun BoxScope.ViewerArt(p: ArtPalette) {
     // the grid, tapped, open, swiped, the next one, to Info, pressed, Info
     val at = rememberScene(intArrayOf(700, 300, 600, 600, 500, 500, 250, 2100), 7)
-    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
     for (i in 0 until 6) Tile(p, i + 1, Modifier.at(10f + (i % 3) * 102f, 8f + (i / 3) * 82f).size(96.dp, 76.dp))
     val open = eased(if (at >= 2) 1f else 0f)
     Box(Modifier.at(0f, 0f).size(STAGE_W.dp, STAGE_H.dp).graphicsLayer { alpha = open; scaleX = 0.4f + 0.6f * open; scaleY = 0.4f + 0.6f * open; transformOrigin = TransformOrigin(0.5f, 0.3f) }.background(Color.Black)) {
@@ -806,9 +807,9 @@ private fun BoxScope.ViewerArt(p: ArtPalette) {
             Words(S.appPhotosViewerInfoTitle().resolve(), 11f, FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    val taken = remember {
+                    val taken = remember(locale) {
                         val c = Calendar.getInstance(); c.add(Calendar.MONTH, -2)
-                        java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, context.resources.configuration.locales[0]).format(c.time)
+                        java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale).format(c.time)
                     }
                     InfoRow(p, S.appPhotosViewerInfoTaken().resolve()) { Words(taken, 8f) }
                     InfoRow(p, S.appPhotosViewerInfoCamera().resolve()) { Bar(p, 50f, 4f) }
