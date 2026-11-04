@@ -68,6 +68,7 @@
     <string name="android_friends_remove_title_unnamed">Retirer cette personne de vos amis ?</string>
     <string name="android_location_off_hint">La localisation est désactivée. Sur cette version d’Android, le téléphone ne trouve les appareils Bluetooth qu’avec la localisation activée.</string>
     <string name="android_menu_sections">Sections</string>
+    <string name="android_no_app_for_link">Aucune app de ce téléphone ne peut ouvrir ce lien.</string>
     <string name="android_notification_channel">Amis et publications</string>
     <string name="android_notification_channel_description">Demandes d’ami, nouvelles publications, J’aime et commentaires</string>
     <string name="android_open_settings">Ouvrir les Paramètres</string>

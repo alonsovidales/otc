@@ -68,6 +68,7 @@
     <string name="android_friends_remove_title_unnamed">Rimuovere questa persona dagli amici?</string>
     <string name="android_location_off_hint">La posizione è disattivata. Con questa versione di Android, il telefono trova i dispositivi Bluetooth solo con la posizione attiva.</string>
     <string name="android_menu_sections">Sezioni</string>
+    <string name="android_no_app_for_link">Nessuna app su questo telefono può aprire questo link.</string>
     <string name="android_notification_channel">Amici e post</string>
     <string name="android_notification_channel_description">Richieste di amicizia, nuovi post, Mi piace e commenti</string>
     <string name="android_open_settings">Apri Impostazioni</string>

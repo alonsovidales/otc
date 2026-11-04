@@ -65,6 +65,7 @@
     <string name="android_friends_remove_title_unnamed">Deze vriend verwijderen?</string>
     <string name="android_location_off_hint">Locatie staat uit. Op deze versie van Android vindt de telefoon Bluetooth-apparaten alleen als Locatie aanstaat.</string>
     <string name="android_menu_sections">Onderdelen</string>
+    <string name="android_no_app_for_link">Geen app op deze telefoon kan deze link openen.</string>
     <string name="android_notification_channel">Vrienden en berichten</string>
     <string name="android_notification_channel_description">Vriendschapsverzoeken, nieuwe berichten, likes en reacties</string>
     <string name="android_open_settings">Instellingen openen</string>

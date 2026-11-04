@@ -68,6 +68,7 @@
     <string name="android_friends_remove_title_unnamed">Remover esta amizade?</string>
     <string name="android_location_off_hint">A localização está desativada. Nesta versão do Android, o telemóvel só encontra dispositivos Bluetooth com a localização ativada.</string>
     <string name="android_menu_sections">Secções</string>
+    <string name="android_no_app_for_link">Nenhuma app deste telemóvel consegue abrir esta ligação.</string>
     <string name="android_notification_channel">Amigos e publicações</string>
     <string name="android_notification_channel_description">Pedidos de amizade, novas publicações, gostos e comentários</string>
     <string name="android_open_settings">Abrir Definições</string>

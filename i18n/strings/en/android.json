@@ -270,6 +270,10 @@
     "text": "Sections",
     "note": "Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown."
   },
+  "android.no_app_for_link": {
+    "text": "No app on this phone can open this link.",
+    "note": "Short message (a toast at the bottom of the screen) when a link was tapped - a web page, or a photo's place in a maps app - and no app on the phone can open it (a phone without a browser or maps app)."
+  },
   "android.notification_channel": {
     "text": "Friends and posts",
     "note": "Name of the notification channel for pushes, shown in Android's notification settings for the app.",

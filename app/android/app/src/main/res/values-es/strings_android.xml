@@ -68,6 +68,7 @@
     <string name="android_friends_remove_title_unnamed">¿Eliminar la amistad con esta persona?</string>
     <string name="android_location_off_hint">La ubicación está desactivada. En esta versión de Android, el teléfono solo encuentra dispositivos Bluetooth con la ubicación activada.</string>
     <string name="android_menu_sections">Secciones</string>
+    <string name="android_no_app_for_link">Ninguna app de este teléfono puede abrir este enlace.</string>
     <string name="android_notification_channel">Amigos y publicaciones</string>
     <string name="android_notification_channel_description">Solicitudes de amistad, publicaciones nuevas, Me gusta y comentarios</string>
     <string name="android_open_settings">Abrir Ajustes</string>

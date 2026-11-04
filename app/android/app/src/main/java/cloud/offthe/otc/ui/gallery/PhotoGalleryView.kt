@@ -2492,7 +2492,7 @@ private fun FileInfoView(
                     // panel shows, on Places' map (PlacesMap.kt); a tap on the
                     // caption opens the point in the phone's maps app.
                     LocationMap(info.latitude, info.longitude, Modifier.fillMaxWidth().height(200.dp))
-                    TextButton(onClick = { Share.openInBrowser(context, "geo:${info.latitude},${info.longitude}?q=${info.latitude},${info.longitude}") }) {
+                    TextButton(onClick = { Share.openMap(context, info.latitude, info.longitude) }) {
                         Text(S.androidPhotosOpenInMaps("%.5f".format(info.latitude), "%.5f".format(info.longitude)).resolve())
                     }
                 }

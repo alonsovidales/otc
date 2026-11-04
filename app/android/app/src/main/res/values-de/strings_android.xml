@@ -65,6 +65,7 @@
     <string name="android_friends_remove_title_unnamed">Diese Person entfernen?</string>
     <string name="android_location_off_hint">Der Standort ist deaktiviert. Unter dieser Android-Version findet das Handy Bluetooth-Geräte nur mit aktiviertem Standort.</string>
     <string name="android_menu_sections">Bereiche</string>
+    <string name="android_no_app_for_link">Keine App auf diesem Telefon kann diesen Link öffnen.</string>
     <string name="android_notification_channel">Freunde und Beiträge</string>
     <string name="android_notification_channel_description">Freundschaftsanfragen, neue Beiträge, Likes und Kommentare</string>
     <string name="android_open_settings">Einstellungen öffnen</string>

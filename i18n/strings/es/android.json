@@ -244,6 +244,10 @@
     "text": "Secciones",
     "en": "Sections"
   },
+  "android.no_app_for_link": {
+    "text": "Ninguna app de este teléfono puede abrir este enlace.",
+    "en": "No app on this phone can open this link."
+  },
   "android.notification_channel": {
     "text": "Amigos y publicaciones",
     "en": "Friends and posts"

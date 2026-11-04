@@ -64,6 +64,7 @@
     <string name="android_friends_remove_title_unnamed">Remove this friend?</string>
     <string name="android_location_off_hint">Location is off. On this version of Android, the phone finds Bluetooth devices only with Location on.</string>
     <string name="android_menu_sections">Sections</string>
+    <string name="android_no_app_for_link">No app on this phone can open this link.</string>
     <string name="android_notification_channel">Friends and posts</string>
     <string name="android_notification_channel_description">Friend requests, new posts, likes and comments</string>
     <string name="android_open_settings">Open Settings</string>

@@ -222,6 +222,10 @@ fun S.androidLocationOffHint(): UiText =
 fun S.androidMenuSections(): UiText =
     UiText.Res(R.string.android_menu_sections)
 
+/** "No app on this phone can open this link.": Short message (a toast at the bottom of the screen) when a link was tapped - a web page, or a photo's place in a maps app - and no app on the phone can open it (a phone without a browser or maps app). */
+fun S.androidNoAppForLink(): UiText =
+    UiText.Res(R.string.android_no_app_for_link)
+
 /** "Friends and posts": Name of the notification channel for pushes, shown in Android's notification settings for the app. */
 fun S.androidNotificationChannel(): UiText =
     UiText.Res(R.string.android_notification_channel)
