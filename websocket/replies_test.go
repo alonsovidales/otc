@@ -93,6 +93,9 @@ var headEnglish = []struct {
 	{"dev.social.not_found_error", i18n.DevSocialNotFoundError(), "Error: Friendship not found"},
 	{"dev.social.not_your_comment", i18n.DevSocialNotYourComment(), "not your comment, nor a comment on one of your posts"},
 	{"dev.social.not_your_post", i18n.DevSocialNotYourPost(), "not your publication"},
+	// Profile pictures within the cap: new, so its English is the
+	// catalog's from the start.
+	{"dev.social.picture_unusable", i18n.DevSocialPictureUnusable(), "this picture can't be used: choose another photo"},
 	{"dev.social.post_failed", i18n.DevSocialPostFailed("boom"), fmt.Sprintf("error trying to create publication: %s", "boom")},
 	{"dev.social.post_likers_failed", i18n.DevSocialPostLikersFailed("boom"), fmt.Sprintf("error getting publication likers: %s", "boom")},
 	{"dev.social.posts_failed", i18n.DevSocialPostsFailed("boom"), fmt.Sprintf("error trying to collect publications: %s", "boom")},

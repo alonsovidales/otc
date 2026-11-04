@@ -2050,7 +2050,25 @@ start takes its file.
   accepted friendship answers the sender with `Ack.code = "accepted"`, which the sender stores at
   once (`social.ErrFriendsAgain`); the sender reuses its own existing row with the new secret and
   restores it (or deletes a row it just created) when the request fails. `ReqFriendshipRequest`
-  always answers with an Ack, so the clients show the reason.
+  always answers with an Ack, so the clients show the reason. A friend request is one unread alert
+  per domain (`dao.AddFriendRequestNotification`: one sent again while it is unread moves it up, its
+  time and name) and pushes only with a new alert - a stranger re-sending one in a loop used to add an
+  alert and a push each time.
+  Profile pictures, the owner's and the friends' (they go out again with every Alerts row and feed
+  post of their person): at most `dao.MaxProfilePictureBytes` (128 KB) is kept
+  (`files_manager/profile_picture.go`, `FitProfilePicture`) - a picture within it as it came (a header
+  Go reads: JPEG, PNG, GIF, WebP, HEIC), a larger one made again as a JPEG of at most 512 px a side
+  within the cap, depending on whose it is: the owner's own in any format the device shows, turned as
+  its metadata says (`SetProfile`, and at each start the one stored before the cap:
+  `fitStoredPictures`); an accepted friend's (the sync's `refreshProfile`) or that of a device the
+  owner asks to befriend only as a JPEG or PNG, by Go's decoders within the decode budget, once per
+  picture and process (`Social.friendPicture`, keyed by the sent picture's SHA-256: the sync asks
+  every pass); a stranger's friend request's never decoded - over the cap it is stored without it,
+  and the sync fetches it once accepted. What isn't a picture is never kept: SetProfile then answers
+  `dev.social.picture_unusable` and keeps the old one. Friends' pictures stored larger before are
+  dropped at each start (`DropOversizedFriendPictures`; asked for again at the next sync) and read back
+  as none (`storedPicture`; `ListNotifications` leaves them out in its query). The apps have sent a
+  crop of at most 45 KB since 2026-09-29 (the setup wizard 96 KB); before, the photo as picked.
   Issue #169: every socket this device opens to someone else (a friend's device, the bridge's
   one-off calls) is a `wsframe.Client` (`wsframe.Dial`): 15 s handshake, 30 s per write/read,
   64 MiB read limit (`ReadMedia`: a whole file, 10 min, the 1000 MiB cap); friend sync closes

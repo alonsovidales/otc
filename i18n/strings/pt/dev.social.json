@@ -99,6 +99,10 @@
     "text": "a publicação não é tua",
     "en": "not your publication"
   },
+  "dev.social.picture_unusable": {
+    "text": "esta imagem não pode ser usada: escolhe outra foto",
+    "en": "this picture can't be used: choose another photo"
+  },
   "dev.social.post_failed": {
     "text": "erro ao tentar criar a publicação: {detail}",
     "en": "error trying to create publication: {detail}"

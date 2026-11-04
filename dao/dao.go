@@ -1868,6 +1868,7 @@ func (dao *Dao) FriendshipByDomain(domain string) (*FriendshipRow, error) {
 		return nil, err
 	}
 	r.Name, r.Text, r.Secret = name.String, text.String, secret.String
+	r.Image = storedPicture(r.Image)
 	return &r, nil
 }
 
@@ -1916,12 +1917,14 @@ func (dao *Dao) RelinkFriendship(domain, secret, name, text string, image []byte
 
 func (dao *Dao) GetFriendship(domain, secret string) (status, name, text string, image []byte, sent bool, err error) {
 	err = dao.db.QueryRow("select `status`, `name`, `image`, `text`, `sent` from `social_friendship` where `domain` = ? and `secret` = ?", domain, secret).Scan(&status, &name, &image, &text, &sent)
+	image = storedPicture(image)
 
 	return
 }
 
 func (dao *Dao) getFriendshipByDomain(domain string) (status, name, text string, image []byte, sent bool, err error) {
 	err = dao.db.QueryRow("select `status`, `name`, `image`, `text`, `sent` from `social_friendship` where `domain` = ?", domain).Scan(&status, &name, &image, &text, &sent)
+	image = storedPicture(image)
 
 	return
 }
@@ -1955,6 +1958,7 @@ func (dao *Dao) GetFriendships() (friendships []*pb.Friendship, err error) {
 		}
 		friendship.OriginProfile.Name = name.String
 		friendship.OriginProfile.Text = text.String
+		friendship.OriginProfile.Image = storedPicture(friendship.OriginProfile.Image)
 		if latestSync.Valid {
 			friendship.LatestSync = timestamppb.New(latestSync.Time)
 		}
@@ -2302,7 +2306,8 @@ func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorD
 // ListNotifications returns the most recent notifications, newest first,
 // with each row's ActorImage already filled in (a plain DB blob - social_
 // friendship.image, keyed by the same actor_domain every notification
-// already carries). thumbHashes maps notification uuid -> the hash of
+// already carries - left out when it is over MaxProfilePictureBytes, in the
+// query itself: it is read once for every row of its person). thumbHashes maps notification uuid -> the hash of
 // pub_uuid's first file, for callers (social.ListNotifications) to resolve
 // into actual thumbnail bytes by reading the on-disk *_thumbnail file -
 // that's filesystem I/O, which belongs above this package, not in it (see
@@ -2315,12 +2320,12 @@ func (dao *Dao) NewNotification(notifType pb.NotificationType, actorName, actorD
 func (dao *Dao) ListNotifications(limit int) (notifications []*pb.Notification, thumbHashes map[string]string, err error) {
 	query := func(groupCol string) (*sql.Rows, error) {
 		return dao.db.Query(
-			"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, f.image, pf.hash, n.title, n.details, n.occurrences"+groupCol+" "+
+			"select n.uuid, n.dt, n.type, n.actor_name, n.actor_domain, n.pub_uuid, n.comment_uuid, n.acknowledged, case when length(f.image) <= ? then f.image end, pf.hash, n.title, n.details, n.occurrences"+groupCol+" "+
 				"from `notifications` n "+
 				"left join `social_friendship` f on f.domain = n.actor_domain "+
 				"left join `social_publications_files` pf on pf.uuid = n.pub_uuid and pf.pos = 0 "+
 				"order by n.dt desc limit ?",
-			limit,
+			MaxProfilePictureBytes, limit,
 		)
 	}
 	withGroup := true

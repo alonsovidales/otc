@@ -3,6 +3,7 @@
 package profile
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/alonsovidales/otc/dao"
@@ -82,15 +83,32 @@ func (pr *Profile) Snapshot() (name, text string, image []byte) {
 	return pr.name, pr.text, pr.image
 }
 
+// SetProfile stores and keeps a new profile. Under mu, the write too: the
+// stored profile and the one kept are always the same version, whatever
+// ReplaceImage does meanwhile.
 func (pr *Profile) SetProfile(name string, image []byte, text string) (err error) {
-	err = pr.dao.UpdateProfile(name, text, image)
-	if err == nil {
-		pr.mu.Lock()
+	pr.mu.Lock()
+	defer pr.mu.Unlock()
+	if err = pr.dao.UpdateProfile(name, text, image); err == nil {
 		pr.image = image
 		pr.text = text
 		pr.name = name
-		pr.mu.Unlock()
 	}
-
 	return err
+}
+
+// ReplaceImage stores image as the profile's picture in place of old, only
+// while the picture is still old - not one set meanwhile. replaced says
+// whether it was.
+func (pr *Profile) ReplaceImage(old, image []byte) (replaced bool, err error) {
+	pr.mu.Lock()
+	defer pr.mu.Unlock()
+	if !bytes.Equal(pr.image, old) {
+		return false, nil
+	}
+	if err := pr.dao.UpdateProfile(pr.name, pr.text, image); err != nil {
+		return false, err
+	}
+	pr.image = image
+	return true, nil
 }

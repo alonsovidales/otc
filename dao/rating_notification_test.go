@@ -40,7 +40,7 @@ func TestAddRatingNotification(t *testing.T) {
 func TestListNotificationsRating(t *testing.T) {
 	d, mock := ratingsMock(t)
 	cols := []string{"uuid", "dt", "type", "actor_name", "actor_domain", "pub_uuid", "comment_uuid", "acknowledged", "image", "hash", "title", "details", "occurrences"}
-	mock.ExpectQuery("n\\.occurrences, n\\.group_id from `notifications` n").WithArgs(10).
+	mock.ExpectQuery("n\\.occurrences, n\\.group_id from `notifications` n").WithArgs(MaxProfilePictureBytes, 10).
 		WillReturnRows(sqlmock.NewRows(append(cols, "group_id")).
 			AddRow("n1", time.Now(), "Rating", "", "", nil, nil, false, nil, nil, "Photos rated through a shared link", "d", 1, "g1").
 			AddRow("n2", time.Now(), "Error", "This device", "", nil, nil, false, nil, nil, "t", "d", 1, nil))
@@ -56,7 +56,7 @@ func TestListNotificationsRating(t *testing.T) {
 	}
 
 	mock.ExpectQuery("n\\.group_id from").WillReturnError(unknownColumn("n.group_id"))
-	mock.ExpectQuery("n\\.occurrences from `notifications` n").WithArgs(10).
+	mock.ExpectQuery("n\\.occurrences from `notifications` n").WithArgs(MaxProfilePictureBytes, 10).
 		WillReturnRows(sqlmock.NewRows(cols).AddRow("n2", time.Now(), "Error", "This device", "", nil, nil, false, nil, nil, "t", "d", 1))
 	if ns, _, err := d.ListNotifications(10); err != nil || len(ns) != 1 || ns[0].Type != pb.NotificationType_NotificationError {
 		t.Fatalf("schema behind: %v %v", ns, err)

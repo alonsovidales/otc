@@ -24,6 +24,7 @@
   "dev.social.not_found_error": {"text": "Error: amistad no encontrada"},
   "dev.social.not_your_comment": {"text": "no es tu comentario ni un comentario en una de tus publicaciones"},
   "dev.social.not_your_post": {"text": "no es tu publicación"},
+  "dev.social.picture_unusable": {"text": "esta imagen no se puede usar: elige otra foto"},
   "dev.social.post_failed": {"text": "error al intentar crear la publicación: {detail}"},
   "dev.social.post_likers_failed": {"text": "error al obtener los Me gusta de la publicación: {detail}"},
   "dev.social.posts_failed": {"text": "error al intentar obtener las publicaciones: {detail}"},

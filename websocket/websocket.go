@@ -399,6 +399,10 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		}
 	}
 
+	// Profile pictures within dao.MaxProfilePictureBytes (pictures.go): the
+	// owner's own made small, the friends' stored before the cap dropped.
+	go mg.fitStoredPictures()
+
 	// Issue #62: re-sync on every startup too, not just on the next
 	// register - the bridge's own copy of this device's push registrations
 	// could otherwise stay stale forever after a bridge-side DB reset, or
@@ -3376,7 +3380,17 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	case *pb.ReqEnvelope_ReqSetProfile:
 		log.Info("Set profile")
-		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, p.ReqSetProfile.Image, p.ReqSetProfile.Text)
+		// Kept within dao.MaxProfilePictureBytes - every friend gets it, again
+		// with each post and alert: an app before 2026-09-29 sent the photo
+		// as picked, several MB, made small here. One the device can't read
+		// is refused, the picture kept as it was.
+		image := filesmanager.FitProfilePicture(p.ReqSetProfile.Image, filesmanager.PictureFromOwner)
+		if image == nil && len(p.ReqSetProfile.Image) > 0 {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevSocialPictureUnusable().Render(lang)
+			break
+		}
+		err := ch.mg.profile.SetProfile(p.ReqSetProfile.Name, image, p.ReqSetProfile.Text)
 
 		if err != nil {
 			log.Error("error trying to get serrings:", err)
