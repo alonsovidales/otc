@@ -2254,7 +2254,18 @@ a client that stopped reading trips it) - never on a device socket; `pingLoop` u
 so pongs flow during large uploads. Device replies are read under `replyBudget` (8 GiB), and
 `forward()`'s `release` is never nil. Pairing is limited per client address (IPv6 by /64) and Host
 to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per device to 64 in use
-(`[bridge] max-paired-per-device`). A relay records its owner uuid (never the secret), and a
+(`[bridge] max-paired-per-device`). A paired session is a stranger's until the device accepts a
+sign-in on it (`sessions.go`; read off the relayed frames, so for devices of any release: a payload
+of Auth, AuthWithToken or AuthAsFriend answered by an Ack with ok and no error - `isSignIn`,
+`isAccepted` - and never for an id sent twice at once). Strangers' sessions count against a share
+per address and device - an IPv4 address, an IPv6 /64 and its /48, a quarter of the device's cap
+(`[bridge] max-unauthenticated-per-addr`; a newcomer waits up to 3 s for room, as a household's
+tabs sign in) - one with nothing in flight is closed after 2 min without a message
+(`cAnonPairedIdle`; the web app and the shared pages reconnect with their next request), and at the
+device's cap a newcomer closes the one idle for 5 s or more of the address holding the most
+(`evictIdleAnon`). Signed-in sessions are never closed for anyone. A client whose relay dies while
+it has nothing in flight is hung up on at once (`deviceRelay.dead`), so its next request pairs anew
+instead of being told the device is unreachable. A relay records its owner uuid (never the secret), and a
 registration evicts other owners' relays. `DropDomains` (release, account deletion,
 `BridgeReleaseDomain`, inactivity) and `DropReplacedIdentity` (claim replace, `accountNewIdentity`)
 publish on Redis `otc:drop` for every node, and every 20 s each node checks its domains against

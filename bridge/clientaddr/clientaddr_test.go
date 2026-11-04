@@ -87,3 +87,20 @@ func TestBucketCountsAnIPv6SlashSixtyFour(t *testing.T) {
 		t.Errorf("Of() = %q, want the address itself", got)
 	}
 }
+
+// An IPv6 network is also counted by its /48, all the /64s a tunnel broker
+// hands out at once; an IPv4 address has nothing wider.
+func TestWideCountsAnIPv6SlashFortyEight(t *testing.T) {
+	for addr, want := range map[string]string{
+		"2001:db8:1:2::1":      "2001:db8:1::/48",
+		"2001:db8:1:ffff:1::9": "2001:db8:1::/48",
+		"2001:db8:2::1":        "2001:db8:2::/48",
+		"203.0.113.7":          "",
+		"::ffff:203.0.113.7":   "",
+		"not an address":       "",
+	} {
+		if got := Wide(addr); got != want {
+			t.Errorf("Wide(%q) = %q, want %q", addr, got, want)
+		}
+	}
+}

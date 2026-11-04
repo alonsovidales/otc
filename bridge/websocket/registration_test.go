@@ -270,8 +270,8 @@ func TestPairingCannotDrainThePool(t *testing.T) {
 }
 
 // A socket that never sends anything, or stalls inside its first frame,
-// is closed after cUnpairedReadTimeout; a paired client may go quiet for
-// as long as it likes.
+// is closed after cUnpairedReadTimeout; a paired client that has signed in
+// may go quiet for as long as it likes (one that hasn't: sessions_test.go).
 func TestUnpairedConnectionsTimeOutPairedOnesDoNot(t *testing.T) {
 	setVar(t, &cUnpairedReadTimeout, 200*time.Millisecond)
 
@@ -300,13 +300,15 @@ func TestUnpairedConnectionsTimeOutPairedOnesDoNot(t *testing.T) {
 	}
 	expectClosed(t, stalled)
 
-	srv, wsURL := newEchoDeviceServer(t, func(int32) time.Duration { return 0 })
-	t.Cleanup(srv.Close)
-	mg.bridges[host] = &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{dialRelay(t, wsURL)}}
+	mg.bridges[host] = &bridgePool{lock: new(sync.Mutex), availableConns: []*deviceRelay{dialRelay(t, newSignInDeviceServer(t, nil))}}
 	paired := dial()
 	for i, wait := range []time.Duration{0, 3 * cUnpairedReadTimeout} {
 		time.Sleep(wait)
-		if err := paired.WriteMessage(gorilla.BinaryMessage, envelopeFrame(t, int32(i+1))); err != nil {
+		frame := envelopeFrame(t, int32(i+1))
+		if i == 0 {
+			frame = signInFrame(t, 1, "good")
+		}
+		if err := paired.WriteMessage(gorilla.BinaryMessage, frame); err != nil {
 			t.Fatal(err)
 		}
 		if resp := readResp(t, paired); resp.Id != int32(i+1) || resp.Error {

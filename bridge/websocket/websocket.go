@@ -109,9 +109,11 @@ func maxConnectionsPerDevice() int {
 // tab and every app holds one paired socket for as long as it is open, so
 // a household behind one NAT (or one IPv6 /64) - a browser restoring about
 // 20 tabs, phones, a desktop app, otc-sync - needs a few dozen: the
-// per-address cap is as high as the per-device one, and it is the
-// per-device cap and the rate that bound abuse. Vars so tests can shrink
-// them.
+// per-address cap is as high as the per-device one. What keeps one
+// address from holding the whole device is that its sessions sign in: the
+// ones that don't count against a quarter of the device, are closed when
+// they go quiet, and make room for newcomers (sessions.go). Vars so tests
+// can shrink them.
 var (
 	cPairPerSecond             = 2.0
 	cPairBurst                 = 30.0
@@ -287,7 +289,11 @@ type deviceRelay struct {
 	once    sync.Once
 
 	stopPing chan struct{}  // closed once, from failAll, to stop pingLoop
-	wg       sync.WaitGroup // readLoop + pingLoop, so Close() can wait for both to actually exit
+	// dead is closed once, from failAll, when the connection is gone: the
+	// client paired with it is hung up on then (handleConnection), so its
+	// next request opens a socket with a live connection.
+	dead chan struct{}
+	wg   sync.WaitGroup // readLoop + pingLoop, so Close() can wait for both to actually exit
 }
 
 // newDeviceRelay wraps conn and immediately starts reading from it via
@@ -312,7 +318,7 @@ func newDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
 // so a registration can answer the device before anything else may write
 // to conn or the relay's death can be counted.
 func newIdleDeviceRelay(conn *gorilla.Conn, onDeath func()) *deviceRelay {
-	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{})}
+	d := &deviceRelay{conn: conn, waiters: make(map[int32]chan deviceReply), budget: replyBudget, onDeath: onDeath, stopPing: make(chan struct{}), dead: make(chan struct{})}
 
 	// The registration was read with cUnpairedReadLimit, and gorilla keeps
 	// a connection's limit: from here on this connection carries the
@@ -450,6 +456,7 @@ func (d *deviceRelay) failAll() {
 	// exiting right after this, so there's nothing left probing this
 	// connection's liveness once it's gone anyway.
 	close(d.stopPing)
+	close(d.dead)
 
 	// Exactly once per relay, regardless of how many times failAll could
 	// theoretically run (readLoop only calls it the one time it returns,
@@ -666,6 +673,11 @@ type Manager struct {
 	pairedMu     sync.Mutex
 	pairedByAddr map[string]int
 	refusalLog   *limits.Rate
+	// sessions are the paired clients by device, and anonByKey how many
+	// of them haven't signed in by address share (sessions.go). Under
+	// pairedMu.
+	sessions  map[string]map[*clientSession]struct{}
+	anonByKey map[string]int
 
 	// Issue #144: nil on a single bridge. dirty queues the domains whose
 	// claim in Redis may have to change; one goroutine (clusterSync)
@@ -1548,6 +1560,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 	// before this function returns — makes sure none of them are left
 	// trying to write to conn after it's already closed.
 	var relay *deviceRelay
+	// sess is the client's session once paired: whether it has signed in,
+	// and the idle deadline of one that hasn't (sessions.go).
+	var sess *clientSession
 	var writeMu sync.Mutex
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -1574,17 +1589,21 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if relay != nil {
 			limit = cRelayedReadLimit
 		} else {
-			// Paired clients may sit idle as long as they like: the
-			// deadline is cleared when the pairing happens.
+			// Once paired, the deadline is the session's (sessions.go):
+			// none after it has signed in, cAnonPairedIdle while it
+			// hasn't and has nothing in flight.
 			conn.SetReadDeadline(time.Now().Add(cUnpairedReadTimeout))
 		}
 		_, frame, releaseFrame, err := wsframe.Read(conn, limit, frameBudget)
 		if err != nil {
 			var ne net.Error
-			if relay == nil && errors.As(err, &ne) && ne.Timeout() {
+			switch {
+			case (relay == nil || sess.anonymous()) && errors.As(err, &ne) && ne.Timeout():
 				// A background tab, mostly: not worth an error line each.
-				log.Debug("closing an unpaired connection that went quiet:", err)
-			} else {
+				log.Debug("closing a connection that went quiet before signing in:", err)
+			case sess.wasEvicted():
+				log.Debug("closing a session closed for a new client:", err)
+			default:
 				log.Error("error processing message:", err)
 			}
 			return
@@ -1603,10 +1622,22 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 		if relay != nil {
 			inFlight <- struct{}{}
 			wg.Add(1)
+			reqID, idErr := envelopeID(frame)
+			signIn := isSignIn(frame)
+			sess.started(reqID)
 			go func(frame []byte) {
 				defer wg.Done()
 				defer func() { <-inFlight }()
 				defer releaseFrame()
+				// Last, once the answer is out: a sign-in the device
+				// accepted ends the session's stranger limits, and one
+				// that hasn't signed in starts its idle clock again.
+				accepted := false
+				defer func() {
+					if sess.finished(reqID, accepted) {
+						mg.releaseAnon(sess.keys)
+					}
+				}()
 				// Mirrors handleConnection's own top-level recover: this
 				// now runs on its own goroutine, which the outer recover
 				// above can't reach — an unrecovered panic here would
@@ -1618,9 +1649,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}()
 
 				reqLen := int64(len(frame))
-				reqID, idErr := envelopeID(frame)
 				respFrame, releaseResp, err := relay.forward(frame)
 				defer releaseResp()
+				accepted = err == nil && signIn && isAccepted(respFrame)
 				// The request is on the device now: its budget share and
 				// memory aren't needed while the reply goes out, which a
 				// slow client can stretch out.
@@ -2185,7 +2216,9 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if ok {
 					// Reserved before a candidate is popped, so a refused
 					// client never costs the device the first round trip.
-					pairKey := pairingKey(clientAddr(r, conn), r.Host)
+					addr := clientAddr(r, conn)
+					pairKey := pairingKey(addr, r.Host)
+					shareKeys := anonKeys(addr, r.Host)
 					allowed := mg.reservePairing(pairKey)
 					if !allowed {
 						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host) // i18n-ignore: a log line
@@ -2193,7 +2226,15 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						mg.releasePairing(pairKey)
 						allowed = false
 						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host) // i18n-ignore: a log line
+					} else if !mg.waitAnon(shareKeys, cAnonShareWait) {
+						// Every new session counts as a stranger's until it
+						// signs in; this address holds its share of the
+						// device in sessions that haven't.
+						mg.releasePairing(pairKey)
+						allowed = false
+						mg.logRefusal(pairKey, "too many sessions that never signed in from one address to", r.Host) // i18n-ignore: a log line
 					}
+					evicted := false
 					for attempt := 0; allowed && picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
 						// candidate - never across the round trips to the
@@ -2224,6 +2265,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// of memory.
 						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
 							pool.lock.Unlock()
+							// Once, and spending no attempt: an idle session
+							// that never signed in makes room (sessions.go),
+							// so strangers can't keep the device's people out.
+							if !evicted && mg.evictIdleAnon(r.Host) {
+								evicted = true
+								attempt--
+								continue
+							}
 							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host) // i18n-ignore: a log line
 							break
 						}
@@ -2261,7 +2310,6 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 
 						picked = candidate
 						relay = candidate
-						conn.SetReadDeadline(time.Time{})
 						// Single use connection, close as soon as it is
 						// finished since they are authenticated. Close()
 						// triggers candidate's onDeath exactly once (via
@@ -2270,6 +2318,29 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// deviceRelay.onDeath's doc comment.
 						defer relay.Close()
 						defer mg.releasePairing(pairKey)
+						sess = newClientSession(r.Host, shareKeys, conn, relay)
+						mg.addSession(sess)
+						defer mg.removeSession(sess)
+						if isSignIn(frame) && isAccepted(respFrame) {
+							mg.signedIn(sess)
+						}
+						sess.idleFrom(time.Now())
+						// The device's end of an idle session gone, the
+						// client's goes too: its next request opens a new
+						// socket, paired with a live connection, where it
+						// would have been answered "unreachable". Requests
+						// in flight are answered so, and hang up themselves.
+						sessionOver := make(chan struct{})
+						defer close(sessionOver)
+						go func(s *clientSession, dead <-chan struct{}) {
+							select {
+							case <-dead:
+								if s.idle() {
+									conn.Close()
+								}
+							case <-sessionOver:
+							}
+						}(sess, relay.dead)
 
 						err = writeClient(conn, respFrame)
 						releaseResp()
@@ -2283,6 +2354,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					}
 					if allowed && picked == nil {
 						mg.releasePairing(pairKey)
+						mg.releaseAnon(shareKeys)
 					}
 				}
 

@@ -66,3 +66,15 @@ func Bucket(addr string) string {
 
 // BucketOf is Bucket(Of(r)): the throttle key of r's client.
 func BucketOf(r *http.Request) string { return Bucket(Of(r)) }
+
+// Wide is the network around Bucket's, for a limit one network may not
+// get past however many /64s it has: an IPv6 address by its /48 (what a
+// tunnel broker hands out for free, 65,536 /64s), "" for anything else -
+// an IPv4 address has no wider bucket than itself.
+func Wide(addr string) string {
+	ip := net.ParseIP(addr)
+	if ip == nil || ip.To4() != nil {
+		return ""
+	}
+	return ip.Mask(net.CIDRMask(48, 128)).String() + "/48"
+}
