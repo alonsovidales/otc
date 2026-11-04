@@ -62,7 +62,10 @@ struct DeviceChangeSignInTests {
         let deviceB = try DeviceStandIn(answersPings: true, reply: { b.reply($0) }) { _ in 0 }
         let urlA = try await deviceA.start()
         let urlB = try await deviceB.start()
+        // Not the session models' reset: other suites read them meanwhile.
+        DeviceChange.onAddressChange = {}
         defer {
+            DeviceChange.onAddressChange = { DeviceChange.addressChanged() }
             deviceA.stop()
             deviceB.stop()
             LocalEndpoint.clear()
@@ -117,7 +120,10 @@ struct DeviceChangeSignInTests {
     @Test func leavingTheBridgeIsNoChange() throws {
         guard SecretsStore.loadOrCreate().endpoint.isEmpty, HomeNetworkTests.keychainWorks else { return }
         let s = SecretsStore.loadOrCreate()
+        // Not the session models' reset: other suites read them meanwhile.
+        DeviceChange.onAddressChange = {}
         defer {
+            DeviceChange.onAddressChange = { DeviceChange.addressChanged() }
             LocalEndpoint.clear()
             UserDefaults.standard.removeObject(forKey: DeviceChange.pendingKey)
             s.saveCredentials(endpoint: "", password: "")

@@ -303,7 +303,7 @@ final class SecretsStore: ObservableObject {
         }
         if changed && !sameDevice {
             DeviceChange.begin(before: pinBefore)
-            DeviceChange.addressChanged()
+            DeviceChange.onAddressChange()
             deviceSession &+= 1
         }
         // Not device_id: only loadOrCreate and logOut set it, and both save

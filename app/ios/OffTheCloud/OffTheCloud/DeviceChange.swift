@@ -99,6 +99,10 @@ enum DeviceChange {
         Task { await WallpaperModel.shared.deviceChanged() }
     }
 
+    /// What saving another address does at once (addressChanged); tests,
+    /// whose other suites read those models, put their own.
+    @MainActor static var onAddressChange: () -> Void = { addressChanged() }
+
     /// Save with another address, at once: the run going stops (it read the
     /// last device's watermark), and what the screens' models hold for the
     /// last device goes, as at Log Out - asked again from the new one as
