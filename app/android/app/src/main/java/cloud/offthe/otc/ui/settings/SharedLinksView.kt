@@ -74,6 +74,8 @@ import cloud.offthe.otc.i18n.appSettingsLinksUntitledZip
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonDelete
 import cloud.offthe.otc.i18n.commonDone
+import cloud.offthe.otc.ui.common.TRYING
+import cloud.offthe.otc.ui.common.TRY_AGAIN
 
 /*
  * Port of SharedLinksView.swift (issue #180): Settings > Shared Links, every
@@ -156,6 +158,13 @@ fun SharedLinksView(onClose: () -> Unit) {
                 TextButton(onClick = onClose) { Text(S.commonDone().resolve()) }
             }
             st.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+            // The list didn't come: Try again here (it took closing and
+            // opening the screen).
+            if (st.error != null && !st.loaded) {
+                TextButton(onClick = { scope.launch { vm.load() } }, enabled = !st.loading, modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Text((if (st.loading) TRYING else TRY_AGAIN).resolve())
+                }
+            }
             if (st.loaded && st.links.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

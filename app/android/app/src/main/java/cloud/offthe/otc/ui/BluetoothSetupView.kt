@@ -313,11 +313,16 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                 }
                 // The install takes about 20 minutes: keepScreenOn stops a
                 // locked phone from dropping the Bluetooth link.
-                AndroidView(factory = { makeWebView(it, transport, page, scope) { cb ->
-                    pendingFile[0]?.onReceiveValue(null)
-                    pendingFile[0] = cb
-                    pickImage.launch("image/*")
-                }.apply { keepScreenOn = true } }, modifier = Modifier.weight(1f).fillMaxWidth())
+                AndroidView(
+                    factory = { makeWebView(it, transport, page, scope) { cb ->
+                        pendingFile[0]?.onReceiveValue(null)
+                        pendingFile[0] = cb
+                        pickImage.launch("image/*")
+                    }.apply { keepScreenOn = true } },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    // Let go with the setup: a WebView left behind per opening.
+                    onRelease = { (it as? android.webkit.WebView)?.apply { stopLoading(); destroy() } },
+                )
             } else {
                 Waiting(phase, transport, locationOn, actions, Modifier.weight(1f))
             }
