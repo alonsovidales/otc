@@ -1585,18 +1585,36 @@ func takeRSAKey(addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
 	return takeKey(rsaKeyPool, keyTurns, addr, gone)
 }
 
-// takeKey is takeRSAKey's turn and wait, from pool.
+// takeKey is takeRSAKey's turn and wait, from pool. A connection already
+// gone is answered before anything else (select picks at random among
+// what is ready).
 func takeKey(pool <-chan *rsa.PrivateKey, turns *addrTurns, addr string, gone <-chan struct{}) (*rsa.PrivateKey, error) {
+	if closedChan(gone) {
+		return nil, errPeerGone
+	}
 	release, ok := turns.wait(anonBucket(addr), gone)
 	if !ok {
 		return nil, errPeerGone
 	}
 	defer release()
+	if closedChan(gone) {
+		return nil, errPeerGone
+	}
 	select {
 	case key := <-pool:
 		return key, nil
 	case <-gone:
 		return nil, errPeerGone
+	}
+}
+
+// closedChan reports whether c is closed (a nil one never is).
+func closedChan(c <-chan struct{}) bool {
+	select {
+	case <-c:
+		return true
+	default:
+		return false
 	}
 }
 

@@ -89,3 +89,23 @@ func TestKeysComeInTurnByAddress(t *testing.T) {
 	}
 	t.Fatal("the owner got no key")
 }
+
+// A connection that has gone takes no key, even with one in the pool.
+func TestAKeyIsNotTakenForAConnectionGoneAlready(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool := make(chan *rsa.PrivateKey, 1)
+	pool <- key
+	gone := make(chan struct{})
+	close(gone)
+	for range 50 {
+		if _, err := takeKey(pool, &addrTurns{per: 1}, "203.0.113.9", gone); !errors.Is(err, errPeerGone) {
+			t.Fatalf("got %v, want errPeerGone", err)
+		}
+	}
+	if len(pool) != 1 {
+		t.Fatal("a key was taken for a connection gone")
+	}
+}
