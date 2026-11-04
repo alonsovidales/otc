@@ -1251,20 +1251,21 @@ def _fs_uuid(dev):
 STORAGE_MOUNT_OPTS = "defaults,nosuid,nodev,nofail,x-systemd.device-timeout=3min"
 STORAGE_DROPINS = ("otc", "mariadb")
 
-def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
+def _add_fstab(dev, mount_point, fstab="/etc/fstab", unit_dir="/etc/systemd/system"):
     """Adds the storage's line - by its filesystem's UUID, which stays with
     the disk whatever sdX it gets - written beside fstab, flushed and
-    renamed over it. False when the line can't be made or written."""
+    renamed over it, and the drop-ins. False when the line can't be made or
+    written."""
     uuid = _fs_uuid(dev)
     if not uuid or "\n" in mount_point:
         _fail_bootstrap(f"could not read the new filesystem's UUID on {dev}")
         return False
+    tmp = f"{fstab}.otc.{os.getpid()}"
     try:
         text = Path(fstab).read_text()
         if text and not text.endswith("\n"):
             text += "\n"
         text += f"UUID={uuid}   {mount_point}   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
-        tmp = f"{fstab}.otc.{os.getpid()}"
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
         try:
             os.write(fd, text.encode())
@@ -1273,10 +1274,14 @@ def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
             os.close(fd)
         os.replace(tmp, fstab)
     except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
         _fail_bootstrap(f"could not write {fstab}: {e}")
         return False
     for unit in STORAGE_DROPINS:
-        d = f"/etc/systemd/system/{unit}.service.d"
+        d = os.path.join(unit_dir, f"{unit}.service.d")
         try:
             os.makedirs(d, mode=0o755, exist_ok=True)
             with open(os.path.join(d, "otc-storage.conf"), "w") as f:
@@ -1287,21 +1292,99 @@ def _add_fstab(dev, mount_point, fstab="/etc/fstab"):
     run(["systemctl", "daemon-reload"])
     return True
 
+def _record_array(raid_dev, conf="/etc/mdadm/mdadm.conf"):
+    """The new mirror in mdadm.conf (its ARRAY line, from mdadm --detail
+    --brief) and the initramfs, so it comes up as raid_dev at the next boot
+    and not as md127 - unless mdadm.conf names it already. False, said why,
+    when that can't be done (the setup is tried again)."""
+    name = raid_name_from_dev(raid_dev)
+    try:
+        text = Path(conf).read_text()
+    except FileNotFoundError:
+        text = ""
+    except OSError as e:
+        _fail_bootstrap(f"could not read {conf}: {e}")
+        return False
+    if conf_array_uuid(text, name):
+        return True
+    r = run([CONFIG["paths"]["mdadm"], "--detail", "--brief", raid_dev], timeout=SUPERBLOCK_READ_S)
+    lines = [l for l in (r.stdout or "").splitlines() if l.startswith("ARRAY ")]
+    if r.returncode != 0 or not lines:
+        _fail_bootstrap(f"could not read {raid_dev}'s line for {conf}: {(r.stderr or '').strip()}")
+        return False
+    try:
+        os.makedirs(os.path.dirname(conf), exist_ok=True)
+        with open(conf, "a") as f:
+            if text and not text.endswith("\n"):
+                f.write("\n")
+            f.write("\n".join(lines) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError as e:
+        _fail_bootstrap(f"could not write {conf}: {e}")
+        return False
+    run(["update-initramfs", "-u"])
+    return True
+
+def _finish_setup(device_paths, mount_point, raid_dev, mountinfo="/proc/self/mountinfo",
+                  fstab="/etc/fstab", conf="/etc/mdadm/mdadm.conf", unit_dir="/etc/systemd/system"):
+    """The storage mounted already: a try before this one formatted and
+    mounted it, then stopped before its last steps (blkid had no UUID yet,
+    the card's root filesystem was full) - the retry used to take the mount
+    for a finished setup, so after the next reboot otc and MariaDB started
+    on the empty directory under the mount point. Those steps are done now:
+    the storage given to otc, the array in mdadm.conf, fstab's line and the
+    drop-ins. Only for what
+    this setup mounts - the disk the request named, or its mirror - and only
+    while fstab has no line for the mount point: a mount of the owner's own
+    is left as it is. False when a step fails (tried again)."""
+    try:
+        top = mount_on_top(mount_point, Path(mountinfo).read_text())
+    except OSError:
+        top = None
+    if top is None or _fstab_has(mount_point, fstab):
+        return True
+    source = top[1]
+    real = os.path.realpath(source) if source.startswith("/dev/") else source
+    if len(device_paths) == 1 and real == os.path.realpath(device_paths[0]):
+        dev = device_paths[0]
+    elif len(device_paths) == 2 and real == os.path.realpath(raid_dev):
+        dev = raid_dev
+        if not _record_array(raid_dev, conf):
+            return False
+    else:
+        return True
+    print(f"[raid-watch] {mount_point} is mounted from {dev} but /etc/fstab has no line for it: finishing the storage setup")
+    if not _own_storage(mount_point, os.path.join(mount_point, CONFIG["unenc_subdir"])):
+        return False
+    return _add_fstab(dev, mount_point, fstab, unit_dir)
+
 def _own_storage(mount_point, unenc_path):
     """The new filesystem's root and unencrypted/ as install.sh leaves
     them: the service's (a new filesystem's root is root's, and uploads
     failed), 0750, the root also o+x (MariaDB passes through it when its
-    datadir is on the storage)."""
+    datadir is on the storage). Each set on the directory opened without
+    following a link: when a later try finishes the setup, the service may
+    have written in the new storage already. False, said why, on failure."""
     import pwd
     try:
         otc = pwd.getpwnam("otc")
     except KeyError:
         print("[raid-watch] no otc user: the new storage keeps root's ownership")
-        return
-    os.makedirs(unenc_path, exist_ok=True)
-    for path, mode in ((mount_point, 0o751), (unenc_path, 0o750)):
-        os.lchown(path, otc.pw_uid, otc.pw_gid)
-        os.chmod(path, mode)
+        return True
+    try:
+        os.makedirs(unenc_path, exist_ok=True)
+        for path, mode in ((mount_point, 0o751), (unenc_path, 0o750)):
+            fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                os.fchown(fd, otc.pw_uid, otc.pw_gid)
+                os.fchmod(fd, mode)
+            finally:
+                os.close(fd)
+    except OSError as e:
+        _fail_bootstrap(f"could not give the new storage to the otc user: {e}")
+        return False
+    return True
 
 # The largest request the service writes (storage.RequestSetup).
 MAX_REQUEST_BYTES = 4096
@@ -1389,6 +1472,9 @@ def perform_pending_storage_setup():
         return True
 
     if os.path.ismount(mount_point):
+        # An earlier try may have mounted it and stopped before fstab.
+        if not _finish_setup(device_paths, mount_point, raid_dev):
+            return False
         print(f"[raid-watch] {mount_point} is already mounted — treating storage setup as already done.")
         drop_setup_request(req_path)
         return True
@@ -1428,7 +1514,8 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", dev, mount_point]):
             return False
-        _own_storage(mount_point, unenc_path)
+        if not _own_storage(mount_point, unenc_path):
+            return False
         if not _add_fstab(dev, mount_point):
             return False
         print(f"[raid-watch] {dev} formatted and mounted at {mount_point} (no RAID, single disk); "
@@ -1453,11 +1540,10 @@ def perform_pending_storage_setup():
         os.makedirs(mount_point, exist_ok=True)
         if not _run_step(["mount", "-o", "nosuid,nodev", raid_dev, mount_point]):
             return False
-        _own_storage(mount_point, unenc_path)
-        scan = run([CONFIG["paths"]["mdadm"], "--detail", "--scan"])
-        with open("/etc/mdadm/mdadm.conf", "a") as f:
-            f.write(scan.stdout)
-        run(["update-initramfs", "-u"])
+        if not _own_storage(mount_point, unenc_path):
+            return False
+        if not _record_array(raid_dev):
+            return False
         if not _add_fstab(raid_dev, mount_point):
             return False
         print(f"[raid-watch] RAID1 built on {raid_dev} from {d1}+{d2}, mounted at {mount_point}; "
@@ -2955,6 +3041,7 @@ def selftest():
     selftest_storage_gone()
     selftest_assemble()
     selftest_bounded()
+    selftest_setup_finish()
     print("selftest ok")
 
 def selftest_disks():
@@ -3702,6 +3789,120 @@ def selftest_storage_gone():
         g = guard()
         del calls[:]
         assert step(g)[0] == "ok" and calls == [], calls
+
+def selftest_setup_finish():
+    """First-sign-in storage setup cut short after the mount (blkid had no
+    UUID yet, the card was full): the next try finishes it - the array in
+    mdadm.conf, fstab's line and the drop-ins - instead of taking the mount
+    for a finished setup, and touches nothing it didn't mount."""
+    import tempfile
+    import io
+    import contextlib
+    global run, _own_storage
+    real = (run, _own_storage)
+    uuid = "1111aaaa:2222bbbb:3333cccc:4444dddd"
+    ran = []
+    world = {"blkid": "0a1b2c3d-4e5f-6789-abcd-ef0123456789", "brief": f"ARRAY /dev/md0 metadata=1.2 name=otc:0 UUID={uuid}\n",
+             "owned": True}
+    def fake_own(mount_point, unenc_path):
+        ran.append(f"own {mount_point} {unenc_path}")
+        return world["owned"]
+    def fake_run(cmd, timeout=None, **_kw):
+        ran.append(" ".join([os.path.basename(cmd[0])] + list(cmd[1:])))
+        name = os.path.basename(cmd[0])
+        if name == "blkid":
+            return subprocess.CompletedProcess(cmd, 0 if world["blkid"] else 2, world["blkid"] + "\n", "")
+        if name == "mdadm" and cmd[1:3] == ["--detail", "--brief"]:
+            return subprocess.CompletedProcess(cmd, 0 if world["brief"] else 1, world["brief"], "" if world["brief"] else "mdadm: cannot open")
+        if name in ("update-initramfs", "systemctl"):
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        raise AssertionError(cmd)
+    with tempfile.TemporaryDirectory() as tmp:
+        mp = os.path.join(tmp, "storage")
+        os.makedirs(mp)
+        fstab, info, conf, units = (os.path.join(tmp, f) for f in ("fstab", "mountinfo", "mdadm.conf", "system"))
+        root = "22 1 179:2 / / rw,relatime shared:1 - ext4 /dev/mmcblk0p2 rw\n"
+        base = "PARTUUID=1-02  /  ext4  defaults  0  1\n"
+        def finish(paths, mounted_from):
+            Path(info).write_text(root + (f"31 22 8:16 / {mp} rw,nosuid,nodev,relatime - ext4 {mounted_from} rw\n" if mounted_from else ""))
+            del ran[:]
+            with contextlib.redirect_stdout(io.StringIO()):
+                return _finish_setup(paths, mp, "/dev/md0", info, fstab, conf, units)
+        run, _own_storage = fake_run, fake_own
+        try:
+            # One disk, mounted, fstab never written (blkid had no UUID yet):
+            # tried again until it can be, then the line and the drop-ins.
+            Path(fstab).write_text(base)
+            world["blkid"] = ""
+            assert finish(["/dev/sdb"], "/dev/sdb") is False and Path(fstab).read_text() == base, ran
+            assert ran[:2] == [f"own {mp} {os.path.join(mp, CONFIG['unenc_subdir'])}", "blkid -s UUID -o value /dev/sdb"], ran
+            assert not [f for f in os.listdir(tmp) if f.startswith("fstab.otc.")]
+            world["blkid"] = "0a1b2c3d-4e5f-6789-abcd-ef0123456789"
+            # The storage not given to otc yet (that step failed): tried again too.
+            world["owned"] = False
+            assert finish(["/dev/sdb"], "/dev/sdb") is False and Path(fstab).read_text() == base, ran
+            world["owned"] = True
+            assert finish(["/dev/sdb"], "/dev/sdb") is True, ran
+            assert Path(fstab).read_text() == base + f"UUID=0a1b2c3d-4e5f-6789-abcd-ef0123456789   {mp}   ext4   {STORAGE_MOUNT_OPTS}   0   0\n"
+            for unit in STORAGE_DROPINS:
+                assert f"RequiresMountsFor={mp}" in Path(units, f"{unit}.service.d", "otc-storage.conf").read_text()
+            assert "systemctl daemon-reload" in ran, ran
+            # Done: nothing more (the line is there).
+            assert finish(["/dev/sdb"], "/dev/sdb") is True and ran == [], ran
+            # Two disks: the mirror's ARRAY line first (mdadm.conf without it,
+            # its append had failed), the initramfs, then fstab.
+            Path(fstab).write_text(base)
+            Path(conf).write_text("# mdadm.conf\nARRAY /dev/md1 metadata=1.2 UUID=9999eeee:0000ffff:1212abab:3434cdcd")
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is True, ran
+            assert Path(conf).read_text().endswith(f"UUID=9999eeee:0000ffff:1212abab:3434cdcd\nARRAY /dev/md0 metadata=1.2 name=otc:0 UUID={uuid}\n")
+            assert ran[:2] == ["mdadm --detail --brief /dev/md0", "update-initramfs -u"] and ran[2].startswith("own "), ran
+            assert Path(fstab).read_text().count(f" {mp} ") == 1
+            # mdadm.conf naming it already: nothing appended, no initramfs.
+            Path(fstab).write_text(base)
+            before = Path(conf).read_text()
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is True and Path(conf).read_text() == before, ran
+            assert not any(r.startswith(("mdadm", "update-initramfs")) for r in ran) and any(r.startswith("own ") for r in ran), ran
+            # Its line can't be read: tried again, fstab untouched.
+            Path(fstab).write_text(base)
+            Path(conf).write_text("")
+            world["brief"] = ""
+            assert finish(["/dev/sdb", "/dev/sdc"], "/dev/md0") is False and Path(fstab).read_text() == base
+            # Not this setup's mount (another disk, the other kind), or not
+            # mounted at all: nothing touched.
+            for paths, mounted in ((["/dev/sdb"], "/dev/sdz"), (["/dev/sdb"], "/dev/md0"), (["/dev/sdb", "/dev/sdc"], "/dev/sdb"),
+                                   ([], "/dev/sdb"), (["/dev/sdb"], "")):
+                assert finish(paths, mounted) is True and ran == [] and Path(fstab).read_text() == base, (paths, mounted, ran)
+        finally:
+            run, _own_storage = real
+
+        # The owner and modes, set on each directory opened without following
+        # a link: a symlink planted where unencrypted/ goes is refused, and
+        # what it points to keeps its mode. (As this user: the otc user is
+        # stood in for by the one running the test.)
+        import pwd
+        import collections
+        real_getpwnam = pwd.getpwnam
+        me = collections.namedtuple("pw", "pw_uid pw_gid")(os.getuid(), os.getgid())
+        pwd.getpwnam = lambda name: me if name == "otc" else real_getpwnam(name)
+        try:
+            new = os.path.join(tmp, "new")
+            os.makedirs(new)
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert _own_storage(new, os.path.join(new, "unencrypted")) is True
+            assert stat.S_IMODE(os.stat(new).st_mode) == 0o751
+            assert stat.S_IMODE(os.stat(os.path.join(new, "unencrypted")).st_mode) == 0o750
+            elsewhere = os.path.join(tmp, "elsewhere")
+            os.makedirs(elsewhere, mode=0o700)
+            os.chmod(elsewhere, 0o700)
+            planted = os.path.join(tmp, "planted")
+            os.makedirs(planted)
+            os.symlink(elsewhere, os.path.join(planted, "unencrypted"))
+            with contextlib.redirect_stdout(io.StringIO()) as said:
+                assert _own_storage(planted, os.path.join(planted, "unencrypted")) is False
+            assert "could not give the new storage to the otc user" in said.getvalue(), said.getvalue()
+            assert stat.S_IMODE(os.stat(elsewhere).st_mode) == 0o700
+        finally:
+            pwd.getpwnam = real_getpwnam
 
 def selftest_bounded():
     """The loop never waits long on a disk, nor ends on one failure: a

@@ -1508,8 +1508,14 @@ start takes its file.
   `<storage>/.raid-use-answered`), and a request not taken in a minute is withdrawn with one. First-sign-in
   storage setup (`OTC_SKIP_RAID` hand installs) refuses storage that already holds files, a disk with a
   signature, partitions or an md superblock, and storage fstab already names; it reads its request with
-  O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750) and writes fstab by
-  `UUID=` with nofail and the drop-ins below (MariaDB stays on the SD card there). Tested on
+  O_NOFOLLOW|O_NONBLOCK, gives the new filesystem to otc (0751, `unencrypted/` 0750, set on each
+  directory opened O_NOFOLLOW) and writes fstab by `UUID=` with nofail and the drop-ins below
+  (MariaDB stays on the SD card there). A try cut short after the mount (blkid without a UUID yet, a
+  full card) is finished by the next one (`_finish_setup`: the storage given to otc, the mirror's
+  ARRAY line in mdadm.conf and the initramfs - `_record_array`, `mdadm --detail --brief` - fstab's
+  line and the drop-ins), only for the disk or mirror the request named and only while fstab has no
+  line there: it used to take the mount for a finished setup, and after a reboot otc and MariaDB
+  started on the empty directory under the mount point. Tested on
   `scsi_debug` disks in the Lima VM (`per_host_store=1`, or every disk shares one store). More storage:
   swap the cards for bigger ones one at a time (each is added and
   rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
