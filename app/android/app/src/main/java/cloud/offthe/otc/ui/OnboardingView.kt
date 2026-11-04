@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -64,7 +65,9 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     // Issue #137: a brand-new device is set up from here over Bluetooth;
     // when it is done its address lands in the form and the first sign in
     // sets the owner password.
-    var setupOpen by remember { mutableStateOf(false) }
+    // Saved: a recreation of the Activity (one the setup can't hold in
+    // place) comes back to the setup, not to this form.
+    var setupOpen by rememberSaveable { mutableStateOf(false) }
     if (setupOpen) {
         BluetoothSetupView(
             onUseDevice = { newEndpoint, newPassword ->
