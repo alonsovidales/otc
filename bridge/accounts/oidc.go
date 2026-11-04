@@ -281,11 +281,11 @@ func signInError(w http.ResponseWriter, r *http.Request, code string) {
 
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
 // id_token, finds or creates the account, sets the session, and sends the
-// browser on: to /account (or to complete the profile first); to the app
-// with its one-time code when the sign-in started there; and when it
-// started on a device's page on the home network, to the question before
-// that page gets a setup token (askBeforeSetup, setupconfirm.go) - this
-// page itself, or ContinueSetup's after the profile.
+// browser on: to /account (or to complete the profile first); and when it
+// started on a device's page on the home network or in an app, to the
+// question before that page gets a setup token or the app its one-time
+// code (askBeforeSetup, setupconfirm.go) - this page itself, or
+// ContinueSetup's after the profile.
 func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
@@ -484,14 +484,16 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 
 // ContinueSetup is the last step of "complete your profile" after a
 // provider sign-in that started on a device's page or in an app: GET
-// /api/account/continue?return=. The app gets its one-time code; a device's
-// page the question before its setup token (askBeforeSetup), for the grant
-// the provider's callback gave this browser for that address - none, and
-// nothing goes there.
+// /api/account/continue?return=. Either gets the question first
+// (askBeforeSetup) - before the device's page gets its setup token, or the
+// app its one-time code - for the grant the provider's callback gave this
+// browser for that address; none, and nothing goes there.
 //
 // Only the account page itself may send the browser here: the Lax cookie
 // rides on any site's link, and that site would pick where the token goes
-// (an address on the same LAN) or the app flow's PKCE challenge.
+// (an address on the same LAN) or the app flow's PKCE challenge. The page
+// takes ?return= from its own address, which a link can write too: the
+// grant is what ties it to a sign-in this browser made.
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !a.sameOriginNavigation(r) {
 		log.Info("refused a cross-site /api/account/continue")
@@ -499,21 +501,17 @@ func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, account
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
-	if !ok || returnURL == "" {
+	if !ok || !needsConfirm(returnURL) {
 		a.pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
-	if needsConfirm(returnURL) {
-		g, ok := a.setupGrantFor(r, accountID, returnURL, time.Now())
-		if !ok {
-			log.Info("refused a setup's continue without this browser's sign-in for it")
-			a.pageError(w, r, i18n.ApiPageSetupExpired(), http.StatusBadRequest)
-			return
-		}
-		a.askBeforeSetup(w, r, g)
+	g, ok := a.setupGrantFor(r, accountID, returnURL, time.Now())
+	if !ok {
+		log.Info("refused a setup's continue without this browser's sign-in for it")
+		a.pageError(w, r, i18n.ApiPageSetupExpired(), http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)
+	a.askBeforeSetup(w, r, g)
 }
 
 // sameOriginNavigation is whether a request was started by one of the

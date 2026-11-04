@@ -3141,7 +3141,8 @@ Inside the apps' Bluetooth setup the phone has its own internet, so the
 account step also offers "Continue with Apple/Google" (the wizard's `/api/providers`): the app
 runs `/account/auth/<p>/start?return=otcsetup://done&challenge=…` in the system sign-in sheet
 (`ASWebAuthenticationSession` / a Custom Tab + `SetupSignInCallbackActivity`) and, PKCE-style,
-the redirect carries only a one-time code that `POST /api/account/app-exchange` trades with the
+once the person says Continue on the bridge's question page (below), the redirect carries only a
+one-time code that `POST /api/account/app-exchange` trades with the
 app's verifier for a setup token (`bridge/accounts/appsignin.go`) - kept in the database (`app_signin_codes`, by SHA-256, single use), never one node's memory: the callback and the exchange can reach different bridge nodes (#144) - a custom scheme can be
 claimed by any Android app. "Continue without an account" sets `skip_bridge`, and `install.sh` gets `OTC_BRIDGE_ADDR=""`
 (local-only, name `otc`). Schema: `bridge/db/db.sql` + `bridge/db/migrations/001-accounts.sql`
@@ -3173,12 +3174,17 @@ sign-in's state is tied to the browser by `__Host-otc_oauth_<state[:16]>` (SameS
 passes without. `GET /account/auth/{provider}/start` answers 400 unless it is a top-level
 navigation: open it as a page, never fetch or frame it. `GET /api/account/continue` needs
 `Sec-Fetch-Site: same-origin` (or an https Referer on the bridge's host). Audit F4
-(`setupconfirm.go`): a sign-in that comes back to a device's page on the home network (BridgePanel;
-not the apps' `otcsetup://`) never redirects there with the token straight away: the callback answers
-with the question page itself ("Continue setting up the device at <host>?", `site.ContinueSetup`,
-site CSP, `X-Frame-Options: DENY`, `no-store`), or `/api/account/continue` does after the profile,
-and only its Continue (`GET /account/auth/continue?id=`: a same-origin page navigation, not a
-prefetch, signed in to the grant's account) mints the token. The grant is the callback's signed
+(`setupconfirm.go`): a sign-in that comes back to a device's page on the home network (BridgePanel)
+or to an app (`otcsetup://`) never redirects there with the token or the app's code straight away:
+the callback answers with the question page itself ("Continue setting up the device at <host>?", or
+"Continue in the Off The Cloud app?" - `site.Options.SetupApp`; `site.ContinueSetup`, site CSP,
+`X-Frame-Options: DENY`, `no-store`), or `/api/account/continue` does after the profile, and only
+its Continue (`GET /account/auth/continue?id=`: a same-origin page navigation, not a prefetch,
+signed in to the grant's account) mints the token or the app's one-time code. The app's PKCE
+verifier alone doesn't cover it: anyone can start a sign-in in someone else's browser with a
+challenge of their own (a link to the start, or to the account page with that return), and any
+Android app can claim `otcsetup://`; the apps in the stores need no change (their sheet shows the
+question, Continue's redirect reaches them as before). The grant is the callback's signed
 `__Host-otc_setup_<id>` cookie (account, address, 15 min, used once), so a link to
 `/account?complete=1&return=<another address>` leads nowhere; Cancel opens the account page.
 `pageError` answers a browser with the site's `signin.html` in its Accept-Language (the

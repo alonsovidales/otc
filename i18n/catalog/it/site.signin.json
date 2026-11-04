@@ -1,4 +1,6 @@
 {
+  "site.signin.continue.app_heading": {"text": "Continuare nell’app di Off The Cloud?"},
+  "site.signin.continue.app_text": {"text": "Se continui, l’app di Off The Cloud riceve il tuo accesso per finire di configurare un dispositivo. Fallo solo se hai iniziato tu a configurarlo nell’app, proprio adesso: per 15 minuti, chiunque abbia questo accesso può aggiungere dispositivi al tuo account o spostare uno dei nomi dei tuoi dispositivi su un dispositivo suo."},
   "site.signin.continue.button": {"text": "Continua"},
   "site.signin.continue.cancel": {"text": "Annulla"},
   "site.signin.continue.heading": {"text": "Continuare la configurazione del dispositivo all’indirizzo <b>{host}</b>?"},

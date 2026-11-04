@@ -869,3 +869,27 @@ func TestNotFoundPage(t *testing.T) {
 		}
 	}
 }
+
+// The question before a sign-in goes back to the Off The Cloud app names
+// the app, not an address, in every language - with the same Continue and
+// Cancel as the question for a device's page.
+func TestContinueSetupForTheApp(t *testing.T) {
+	o := testOptions
+	o.SetupHost, o.SetupApp = "", true
+	for _, l := range i18n.Languages() {
+		out, err := Render(ContinueSetup, l.Code, o)
+		if err != nil {
+			t.Fatalf("%s: %v", l.Code, err)
+		}
+		s := string(out)
+		heading := html.EscapeString(i18n.SiteSigninContinueAppHeading().Render(l.Code))
+		text := html.EscapeString(i18n.SiteSigninContinueAppText().Render(l.Code))
+		if !strings.Contains(s, "<h1>"+heading+"</h1>") || !strings.Contains(s, "<p>"+text+"</p>") ||
+			!strings.Contains(s, `href="`+html.EscapeString(o.SetupContinue)+`"`) || !strings.Contains(s, `href="`+AccountPath(l.Code)+`"`) {
+			t.Errorf("%s: the app's question is not on the page:\n%s", l.Code, s)
+		}
+		if strings.Contains(s, testOptions.SetupHost) || strings.Contains(s, i18n.SiteSigninContinueText(testOptions.SetupHost).Render(l.Code)) {
+			t.Errorf("%s: the app's question names an address", l.Code)
+		}
+	}
+}

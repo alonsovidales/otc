@@ -1,4 +1,17 @@
 {
+  "site.signin.continue.app_heading": {
+    "text": "Continue in the Off The Cloud app?",
+    "note": "Heading of the page the bridge shows after a sign-in with Google or Apple that started in the Off The Cloud app (an iPhone, Android or Mac app setting up a device over Bluetooth), before it hands that sign-in back to the app. Off The Cloud is the product name.",
+    "max": 100,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #33a58b35"
+  },
+  "site.signin.continue.app_text": {
+    "text": "Continue hands your sign-in to the Off The Cloud app, to finish setting up a device. Only do this if you started setting it up in the app yourself, just now: for 15 minutes, whoever has the sign-in can add devices to your account, or move one of your device names to a device of theirs.",
+    "note": "Text under site.signin.continue.app_heading, above the Continue (site.signin.continue.button) and Cancel (site.signin.continue.cancel) buttons: why to continue only when the person started the setup in the app themselves - a link someone else sent can start the same sign-in, and another app on the phone could catch what it hands over. Off The Cloud is the product name.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #b8d30fae"
+  },
   "site.signin.continue.button": {
     "text": "Continue",
     "note": "Button of the page the bridge shows before it sends a setup code to a device's page on the home network: it sends the code and goes back to that page.",

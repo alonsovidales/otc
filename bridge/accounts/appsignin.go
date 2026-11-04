@@ -30,6 +30,13 @@ import (
 // keeps), the redirect carries only a one-time exchange code, and
 // POST /api/account/app-exchange trades code + verifier for the token. An
 // app that intercepts the redirect has the code but not the verifier.
+//
+// The verifier proves only that the code goes to whoever chose the
+// challenge, and a sign-in can be started with any challenge, in anyone's
+// browser - a link to the start, or to the account page with that return
+// address. So the redirect waits for the person's Continue on the bridge's
+// question page, which says the sign-in goes to the app (setupconfirm.go),
+// and is tied to the browser that signed in.
 
 // AppReturn is the apps' sign-in return address.
 const AppReturn = "otcsetup://done"

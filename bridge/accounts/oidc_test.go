@@ -185,7 +185,7 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 	}
 
 	// Allowed: the device's page gets the question, with nothing sent yet;
-	// the app gets a code.
+	// so does the app.
 	for _, h := range []map[string]string{
 		{"Sec-Fetch-Site": "same-origin"},
 		{"Referer": "https://off-the.cloud/account?complete=1"},
@@ -203,14 +203,45 @@ func TestContinueSetupOnlyFromTheAccountPage(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	appReturn := AppReturn + "?challenge=" + challenge
 	a, mock := testAccounts(t)
 	a.tld = "off-the.cloud"
-	mock.ExpectExec("delete from `app_signin_codes`").WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("insert into `app_signin_codes`").WillReturnResult(sqlmock.NewResult(1, 1))
+	_, grant := grantCookie(t, a, "acc1", appReturn, time.Now())
 	w := httptest.NewRecorder()
-	a.ContinueSetup(w, continueReq(AppReturn+"?challenge="+challenge, map[string]string{"Sec-Fetch-Site": "same-origin"}), "acc1")
-	if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.HasPrefix(loc, AppReturn+"?code=") {
-		t.Errorf("app return: %d %q", w.Code, loc)
+	a.ContinueSetup(w, continueReq(appReturn, map[string]string{"Sec-Fetch-Site": "same-origin"}, grant), "acc1")
+	if body := w.Body.String(); w.Code != http.StatusOK || w.Header().Get("Location") != "" ||
+		!strings.Contains(body, "<h1>Continue in the Off The Cloud app?</h1>") || !strings.Contains(body, ContinuePath+"?id=") {
+		t.Errorf("app return: %d %q, want the app's question", w.Code, w.Header().Get("Location"))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+	// The challenge in a link to the account page ("complete your
+	// profile", then Save and continue) was the attacker's own: without
+	// this browser's sign-in for it, no question and no code - nothing
+	// stored, no database call.
+	for _, g := range []func(a *Accounts) *http.Cookie{
+		func(*Accounts) *http.Cookie { return nil },
+		func(a *Accounts) *http.Cookie {
+			other := sha256.Sum256([]byte("the-attackers-verifier-the-attackers-verifier"))
+			_, c := grantCookie(t, a, "acc1", AppReturn+"?challenge="+base64.RawURLEncoding.EncodeToString(other[:]), time.Now())
+			return c
+		},
+	} {
+		a, mock := testAccounts(t)
+		a.tld = "off-the.cloud"
+		cookies := []*http.Cookie{}
+		if c := g(a); c != nil {
+			cookies = append(cookies, c)
+		}
+		w := httptest.NewRecorder()
+		a.ContinueSetup(w, continueReq(appReturn, map[string]string{"Sec-Fetch-Site": "same-origin"}, cookies...), "acc1")
+		if w.Code != http.StatusBadRequest || w.Header().Get("Location") != "" || strings.Contains(w.Body.String(), ContinuePath) {
+			t.Errorf("an app return without its grant: %d %q", w.Code, w.Header().Get("Location"))
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Error(err)
+		}
 	}
 
 	// No grant for that address and account: nothing asked, nothing sent.
