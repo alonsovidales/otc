@@ -103,7 +103,9 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 mkdir "$work/check"
 git archive --format=tar HEAD | tar -xf - -C "$work/check"
 cp -R proto/generated "$work/check/proto/"
-npm ci --prefix "$work/check/web" --no-audit --no-fund --prefer-offline >/dev/null \
+# From inside web/: npm 11 reads --prefix as a workspace of the directory
+# it runs in and refuses the lockfile ("Missing: web@0.0.0").
+(cd "$work/check/web" && npm ci --no-audit --no-fund --prefer-offline >/dev/null) \
     || { echo "npm ci failed in the archive of HEAD - nothing was built or tagged"; exit 1; }
 
 # The translations' gate (docs/i18n.md), before anything is built or tagged:
