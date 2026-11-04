@@ -28,7 +28,7 @@ export class Sha256 {
 
   /** Adds data, in any pieces. */
   update(data: Uint8Array): this {
-    if (this.done) throw new Error("sha256: already digested");
+    if (this.done) throw new Error("sha256: already digested"); // i18n-ignore: a programming error, never shown
     this.bytes += data.length;
     let at = 0;
     if (this.bufLen > 0) {
@@ -51,7 +51,7 @@ export class Sha256 {
 
   /** The digest of everything added, as lowercase hex. */
   hex(): string {
-    if (this.done) throw new Error("sha256: already digested");
+    if (this.done) throw new Error("sha256: already digested"); // i18n-ignore: a programming error, never shown
     this.done = true;
     const bits = this.bytes * 8;
     const pad = new Uint8Array(((this.bufLen + 8) >> 6 << 6) + 64);
