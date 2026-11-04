@@ -65,6 +65,16 @@
     "text": "Hola:",
     "en": "Hello,"
   },
+  "mail.identity.body": {
+    "text": "El nombre de dispositivo {domain} de tu cuenta de Off The Cloud acaba de recibir una identidad nueva: el dispositivo que lo usaba hasta ahora ya no puede conectarse al puente, y el nombre lleva ahora al dispositivo que tiene la nueva.\n\nSi lo has hecho tú (configurando de nuevo un dispositivo con el mismo nombre, o con Identidad nueva en la página de tu cuenta), no tienes que hacer nada más.\n\nSi no has sido tú, otra persona está usando tu cuenta: inicia sesión en {link}, elige Cerrar sesión en todas partes y cambia tu contraseña, y después vuelve a configurar tu dispositivo con el mismo nombre.",
+    "en": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "reviewed": "claude-backtranslation 2026-11-04 #82d0e861"
+  },
+  "mail.identity.subject": {
+    "text": "Identidad nueva para {domain}",
+    "en": "New identity for {domain}",
+    "reviewed": "claude-backtranslation 2026-11-04 #d2700eac"
+  },
   "mail.inactivity.body": {
     "text": "Tu cuenta del puente de Off The Cloud ({email}) lleva cinco meses sin usarse: nadie ha iniciado sesión en ella, ninguno de tus dispositivos se ha conectado al puente y ninguna app ni ningún amigo ha accedido a ellos a través de él.\n\nComo indican nuestras condiciones, una cuenta que no se usa durante seis meses se elimina. Si nada cambia, esta cuenta y los nombres de sus dispositivos se eliminarán el {date}. Tus dispositivos seguirán funcionando en casa.\n\nPara conservarla, inicia sesión en {link} o enciende uno de tus dispositivos con acceso a internet antes de esa fecha.",
     "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",

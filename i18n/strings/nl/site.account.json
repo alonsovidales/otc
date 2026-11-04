@@ -121,6 +121,11 @@
     "en": "confirm with {body}",
     "reviewed": "claude-backtranslation 2026-10-11 #fbe7a5e7"
   },
+  "site.account.error.move_needs_signin": {
+    "text": "die naam is van jou en in gebruik op een ander apparaat: log opnieuw in om hem naar dit apparaat te verplaatsen, of gebruik een configuratiecode die je binnen 15 minuten na het inloggen op je accountpagina hebt gekregen",
+    "en": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #b4a1a926"
+  },
   "site.account.error.password_too_long": {
     "text": "het wachtwoord mag hoogstens {max_chars} tekens lang zijn, minder met letters met accenten, uit andere alfabetten of emoji’s",
     "en": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji"
@@ -202,6 +207,10 @@
   "site.account.home.summary": {
     "text": "{registered} van {max} domeinen geregistreerd · gratis tot <b>{date}</b> · <details>je gegevens</details>",
     "en": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>"
+  },
+  "site.account.identity.password_label": {
+    "text": "Je wachtwoord, om {domain} een nieuwe identiteit te geven",
+    "en": "Your password, to give {domain} a new identity"
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> is van jou. Kopieer dit nu, want het wordt niet nog een keer getoond:",
@@ -385,6 +394,11 @@
     "text": "Een apparaat kwijt? Stel de vervanger op dezelfde manier in en geef die <b>dezelfde naam</b>: de naam gaat over naar het nieuwe apparaat en het oude wordt buitengesloten.",
     "en": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
     "reviewed": "claude-backtranslation 2026-10-11 #a5636aa0"
+  },
+  "site.account.setup.new_names_only": {
+    "text": "Deze code is alleen voor nieuwe namen. Wil je een van je namen met een code naar een nieuw apparaat verplaatsen, log dan uit en opnieuw in op deze pagina en vraag een nieuwe aan.",
+    "en": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
+    "reviewed": "claude-backtranslation 2026-11-04 #54065c2e"
   },
   "site.account.setup.title": {
     "text": "Een apparaat instellen?",

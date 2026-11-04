@@ -185,6 +185,7 @@
     "setupLost" "site.account.setup.lost"
     "setupFailed" "site.account.setup.failed"
     "setupExpires" (jsform "site.account.setup.expires" "minutes" "int")
+    "setupNewNamesOnly" "site.account.setup.new_names_only"
     "manualTitle" "site.account.manual.title"
     "manualHint" (jsform "site.account.manual.hint" "path" "text")
     "manualNameLabel" "site.account.manual.name_label"
@@ -192,6 +193,7 @@
     "manualRegister" "site.account.manual.register"
     "manualFailed" "site.account.manual.failed"
     "identityYours" (jsform "site.account.identity.yours" "domain" "text")
+    "identityPassword" (jsform "site.account.identity.password_label" "domain" "text")
     "domainsTitle" "site.account.domains.title"
     "connected" "site.account.domains.connected"
     "notConnected" "site.account.domains.not_connected"
@@ -277,6 +279,7 @@
     "name_held" "api.error.name_held"
     "domain_limit" (jsform "api.error.domain_limit" "max_domains" "int" "price_eur" "int" "contact" "text")
     "reissue_unavailable" "api.error.reissue_unavailable"
+    "move_needs_signin" "site.account.error.move_needs_signin"
     "not_your_domain" "api.error.not_your_domain"
     "release_unavailable" "api.error.release_unavailable"
     "invalid_language" "api.error.invalid_language"}},"signin":{{jstexts
@@ -779,7 +782,11 @@
     $('#code-go').onclick = async () => {
       const r = await api('GET', '/api/account/setup-token');
       if (!r.ok) { $('#code').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('setupFailed')))); return; }
-      $('#code').replaceChildren(h('div', { class: 'code' }, r.setup_token), h('p', { class: 'hint' }, t('setupExpires', { minutes: Math.round(r.expires_in_seconds / 60) })));
+      // A code asked for long after the last sign-in registers new names
+      // but moves none (owner_confirmed false; a bridge from before says
+      // nothing).
+      $('#code').replaceChildren(h('div', { class: 'code' }, r.setup_token), h('p', { class: 'hint' }, t('setupExpires', { minutes: Math.round(r.expires_in_seconds / 60) })),
+        r.owner_confirmed === false ? h('p', { class: 'hint' }, t('setupNewNamesOnly')) : null);
     };
     $('#add-go').onclick = async () => {
       $('#add-msg').textContent = ''; $('#add-go').disabled = true;
@@ -798,12 +805,32 @@
 
   function renderDomainsOnly() { render(); }
 
+  // A new identity hands the name's clients to whoever holds it, so the
+  // password is asked again first; an account without one (Google or
+  // Apple) needs a sign-in from the last 15 minutes, which the bridge
+  // checks itself.
+  async function newIdentity(domain, password) {
+    const go = $('#id-go');
+    if (go) go.disabled = true;
+    const r = await api('POST', '/api/account/domains/' + encodeURIComponent(domain) + '/identity', { password });
+    if (go) go.disabled = false;
+    if (r.ok) { $('#dom-out').replaceChildren(...identityBlock(r)); return; }
+    const m = $('#id-msg');
+    if (m) { m.textContent = errText(r, t('identityFailed')); m.className = 'msg bad'; return; }
+    $('#dom-out').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('identityFailed')))); // i18n-ignore: CSS classes
+  }
+
   function bindDomainButtons() {
     document.querySelectorAll('[data-identity]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.identity;
       if (!confirm(t('identityConfirm', { domain }))) return;
-      const r = await api('POST', '/api/account/domains/' + encodeURIComponent(domain) + '/identity');
-      $('#dom-out').replaceChildren(...(r.ok ? identityBlock(r) : [h('div', { class: 'msg bad' }, errText(r, t('identityFailed')))]));
+      if (!me.has_password) return newIdentity(domain, '');
+      const go = h('button', { class: 'btn ghost', id: 'id-go' }, t('newIdentity')); // i18n-ignore: CSS classes
+      $('#dom-out').replaceChildren(h('label', { for: 'id-pw' }, t('identityPassword', { domain })),
+        h('input', { id: 'id-pw', type: 'password', autocomplete: 'current-password' }), ' ', go, h('div', { class: 'msg', id: 'id-msg' }));
+      $('#id-pw').focus();
+      $('#id-pw').onkeydown = (e) => { if (e.key === 'Enter') go.click(); };
+      go.onclick = () => newIdentity(domain, $('#id-pw').value);
     });
     document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.release;

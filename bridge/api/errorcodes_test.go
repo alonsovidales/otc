@@ -161,7 +161,7 @@ func goErrors(t *testing.T) map[string][]string {
 		if m := catalogCall.FindStringSubmatch(expr); m != nil {
 			// A key without arguments; one with them is made at run time.
 			if text = english[m[1]]; text == "" {
-				t.Errorf("%s: no api.* key without arguments has this constructor", expr)
+				t.Errorf("%s: no api.* or site.account.* key without arguments has this constructor", expr)
 			}
 		} else if err != nil {
 			text = named[expr] // a constant; "" for anything made at run time
@@ -190,23 +190,27 @@ func goErrors(t *testing.T) map[string][]string {
 var catalogCall = regexp.MustCompile(`^errorText\(i18n\.(\w+)\(\)\)$`)
 
 // catalogEnglish is the English the Go side renders for each api.* key
-// without arguments, by the name of its constructor (ApiErrorNameTaken).
+// without arguments, by the name of its constructor (ApiErrorNameTaken) -
+// and each site.account.* one, the words of the codes added since the
+// api.* keys (SiteAccountErrorMoveNeedsSignin).
 func catalogEnglish(t *testing.T) map[string]string {
 	t.Helper()
-	b, err := os.ReadFile("../../i18n/strings/en/api.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var entries map[string]struct {
-		Args []json.RawMessage `json:"args"`
-	}
-	if err := json.Unmarshal(b, &entries); err != nil {
-		t.Fatal(err)
-	}
 	out := map[string]string{}
-	for key, e := range entries {
-		if len(e.Args) == 0 {
-			out[model.GoName(key)] = i18n.T("en", key, nil)
+	for _, file := range []string{"api.json", "site.account.json"} {
+		b, err := os.ReadFile("../../i18n/strings/en/" + file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var entries map[string]struct {
+			Args []json.RawMessage `json:"args"`
+		}
+		if err := json.Unmarshal(b, &entries); err != nil {
+			t.Fatal(err)
+		}
+		for key, e := range entries {
+			if len(e.Args) == 0 {
+				out[model.GoName(key)] = i18n.T("en", key, nil)
+			}
 		}
 	}
 	return out

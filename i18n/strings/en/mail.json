@@ -66,6 +66,20 @@
     "note": "First line of every email the bridge sends to an Off The Cloud account holder whose name isn't known (an account made with Apple that shared no name), on its own line above the text. Plain-text email.",
     "max": 30
   },
+  "mail.identity.body": {
+    "text": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "args": [["domain", "text"], ["link", "text"]],
+    "note": "Text of the email sent when one of the account's device names gets a new identity: a device set up again with that name, or New identity (site.account.domains.new_identity) on the account page. Plain text: keep the empty lines. It follows the greeting (mail.greeting.*) and is signed \"- Off The Cloud\" with the website's address below. {domain} is the device's address (name.off-the.cloud), {link} the account page's address. New identity and Sign out everywhere are the account page's buttons (site.account.domains.new_identity, site.account.password.sign_out_all): use their words.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #e328642a"
+  },
+  "mail.identity.subject": {
+    "text": "New identity for {domain}",
+    "args": [["domain", "text"]],
+    "note": "Subject of the email sent to an Off The Cloud account holder when one of the account's device names gets a new identity (mail.identity.body). {domain} is the device's address (name.off-the.cloud).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #242ee17d"
+  },
   "mail.inactivity.body": {
     "text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",
     "args": [["email", "text"], ["date", "text"], ["link", "text"]],

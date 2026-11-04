@@ -65,6 +65,16 @@
     "text": "Bonjour,",
     "en": "Hello,"
   },
+  "mail.identity.body": {
+    "text": "Le nom d’appareil {domain} de votre compte Off The Cloud vient de recevoir une nouvelle identité : l’appareil qui l’utilisait jusqu’ici ne peut plus se connecter à la passerelle, et le nom mène désormais à l’appareil qui a la nouvelle.\n\nSi c’est vous (en configurant de nouveau un appareil avec le même nom, ou avec Nouvelle identité sur la page de votre compte), vous n’avez rien d’autre à faire.\n\nSinon, quelqu’un d’autre utilise votre compte : connectez-vous sur {link}, choisissez Se déconnecter partout et changez votre mot de passe, puis configurez de nouveau votre appareil avec le même nom.",
+    "en": "The device name {domain} of your Off The Cloud account was just given a new identity: the device that used it until now can no longer connect to the bridge, and the name now leads to the device that has the new one.\n\nIf you did this yourself - setting a device up again with the same name, or New identity on your account page - there is nothing more to do.\n\nIf you didn't, someone else is using your account: sign in at {link}, choose Sign out everywhere and change your password, then set your own device up again with the same name.",
+    "reviewed": "claude-backtranslation 2026-11-04 #22b25482"
+  },
+  "mail.identity.subject": {
+    "text": "Nouvelle identité pour {domain}",
+    "en": "New identity for {domain}",
+    "reviewed": "claude-backtranslation 2026-11-04 #e239e783"
+  },
   "mail.inactivity.body": {
     "text": "Votre compte de passerelle Off The Cloud ({email}) n’a pas été utilisé depuis cinq mois : personne ne s’y est connecté, aucun de vos appareils n’a été relié à la passerelle, et aucune app ni aucun ami ne les a joints par celle-ci.\n\nComme le prévoient nos conditions, un compte inutilisé pendant six mois est supprimé. Si rien ne change, celui-ci et ses noms d’appareils seront supprimés le {date}. Vos appareils continuent de fonctionner à la maison.\n\nPour le conserver, connectez-vous sur {link} ou allumez l’un de vos appareils avec un accès à Internet d’ici là.",
     "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, none of your devices has been connected to the bridge, and no app or friend has reached them through it.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or switch on one of your devices with internet access before then.",

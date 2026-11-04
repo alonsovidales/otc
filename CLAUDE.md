@@ -3110,7 +3110,16 @@ next to the claim (`accountDomains`, `accountAddDomain`, `accountNewIdentity`,
 body or `Authorization: Bearer`, refuses with `401 login_required` when there is none (unless
 `[accounts] open-registration=true`), hands a name the same account already owns to the new
 identity (`dao.ReplaceDeviceIdentity` - how a lost device is replaced), and caps an account at
-`accounts.MaxDomains` (403 `domain_limit`). `websocket.go`'s `ReqBridgeRegister` no longer
+`accounts.MaxDomains` (403 `domain_limit`). Moving a name to a new identity relays every client
+of it there, so a session cookie alone (a borrowed laptop, a stolen cookie) never does it: a claim
+for the account's own name needs a setup code made right after its owner proved who they are
+(a password or a Google/Apple sign-in just made - `?for=setup` sign-ins, the provider flows, the
+app's exchange - or the account page asked within 15 minutes of a sign-in, whose answer then
+says `owner_confirmed`) or a session that is a sign-in that recent (`FreshSignIn`), else 403
+`move_needs_signin`; the account page's New identity (`accountNewIdentity`) needs `ConfirmOwner`
+(the password, asked inline, or a provider sign-in within 15 minutes); and either emails the owner
+(`NotifyNewIdentity`, `mail.identity.*`). A code made for a session alone still registers new
+names. `websocket.go`'s `ReqBridgeRegister` no longer
 registers an unknown domain on dial-in unless open registration is on. A device's additional
 users with bridge access (issue #103, `pepe.off-the.cloud`) get theirs from the primary:
 `ReqRegisterUserDomain` (141, `bridge/websocket/user_domains.go`), authenticated as the primary

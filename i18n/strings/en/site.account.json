@@ -164,6 +164,12 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #5a9ab9b3"
   },
+  "site.account.error.move_needs_signin": {
+    "text": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "note": "The bridge's answer when a device being set up (the setup wizard, or Settings › Bridge on a device) asks for a name the account already uses on another device, with a setup code or a session from more than 15 minutes after the last sign-in: moving a name needs a sign-in just made. Error (lower case, like the bridge's); the setup wizard and the device show it as it is, and the account page has it in its error table.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #5a256216"
+  },
   "site.account.error.password_too_long": {
     "text": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji",
     "args": [["max_chars", "int"]],
@@ -268,6 +274,11 @@
     "args": [["registered", "int"], ["max", "int"], ["date", "text"]],
     "note": "Account page: line under the main heading once signed in, three parts separated by a middle dot. {registered} is how many domains the account has, {max} how many it may have (5); {date} is when the free period ends, a date already written in the page's language, in bold (<b>); <details> links to the form for changing the account's name and country.",
     "rich": ["b", "details"]
+  },
+  "site.account.identity.password_label": {
+    "text": "Your password, to give {domain} a new identity",
+    "args": [["domain", "text"]],
+    "note": "Account page, list of domains: label of the password field shown after New identity (and its confirmation), for an account with a password - the password is asked again before a domain gets a new identity. {domain} is the device's address (name.off-the.cloud)."
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> is yours. Copy this now — it is not shown again:",
@@ -499,6 +510,12 @@
     "rich": ["b"],
     "review": "required",
     "reviewed": "shipped 2026-10-11 #c5fb1b3e"
+  },
+  "site.account.setup.new_names_only": {
+    "text": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
+    "note": "Account page, setup-code box: line under a code that can't move a name the account already uses to a new device, because it was asked for more than 15 minutes after the last sign-in (it can still register new names).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-11-04 #c207057d"
   },
   "site.account.setup.title": {
     "text": "Setting up a device?",

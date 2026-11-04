@@ -378,9 +378,12 @@ func (a *Accounts) setupCodeHash(code string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// freshSignIn is whether r's session was issued within cFreshSignIn: a
-// sign-in just made, not a session kept for days, says whoever holds it is
-// the account's owner right now. A failure to check is a no.
+// FreshSignIn is whether r carries a session issued within cFreshSignIn:
+// a sign-in just made, not a session kept for days (a borrowed laptop, a
+// stolen cookie), says whoever holds it is the account's owner right now.
+// A failure to check is a no.
+func (a *Accounts) FreshSignIn(r *http.Request) bool { return a.freshSignIn(r, time.Now()) }
+
 func (a *Accounts) freshSignIn(r *http.Request, now time.Time) bool {
 	c, err := r.Cookie(cSessionCookie)
 	if err != nil {
@@ -1135,8 +1138,10 @@ func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, acco
 // GET /api/account/setup-token.
 func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID string) {
 	// The account page's code moves a name to a new device only when it
-	// is asked for right after signing in there.
-	tok, err := a.IssueSetupToken(accountID, a.freshSignIn(r, time.Now()))
+	// is asked for right after signing in there; owner_confirmed says
+	// which, so the page can tell.
+	confirmed := a.freshSignIn(r, time.Now())
+	tok, err := a.IssueSetupToken(accountID, confirmed)
 	if errors.Is(err, ErrEmailNotVerified) {
 		writeError(w, http.StatusForbidden, "email_not_verified", errorText(i18n.ApiErrorEmailNotVerified()))
 		return
@@ -1150,7 +1155,7 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 		writeError(w, http.StatusInternalServerError, "setup_code_unavailable", errorText(i18n.ApiErrorSetupCodeUnavailable()))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"setup_token": tok, "expires_in_seconds": int(cSetupTokenTTL.Seconds())})
+	writeJSON(w, http.StatusOK, map[string]any{"setup_token": tok, "expires_in_seconds": int(cSetupTokenTTL.Seconds()), "owner_confirmed": confirmed})
 }
 
 // SetupTokenInfo tells a wizard whose code it was handed. GET
@@ -1313,6 +1318,33 @@ const (
 
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
+
+// NotifyNewIdentity tells the owner of accountID that domain was given a
+// new identity - a device set up again with its name, or New identity on
+// the account page: the device that used it is locked out, and its clients
+// now reach whichever device has the new one. Nothing else tells them, and
+// done by someone else it hands the name to a device of theirs. In the
+// background, best effort: a failure is only logged, by the account's id.
+func (a *Accounts) NotifyNewIdentity(accountID, domain string) {
+	m := a.mailer
+	if m == nil {
+		return
+	}
+	go a.notifyNewIdentity(accountID, domain, m.Send)
+}
+
+// notifyNewIdentity is NotifyNewIdentity's work, sending through send.
+func (a *Accounts) notifyNewIdentity(accountID, domain string, send func(to, subject, body string) error) {
+	acc, err := a.dao.GetAccount(accountID)
+	if err != nil || acc == nil {
+		log.Error("could not tell account", accountID, "about a new identity:", err)
+		return
+	}
+	subject, body := a.identityEmail(acc.Lang, a.greetingName(acc), domain)
+	if err := send(acc.Email, subject, body); err != nil {
+		log.Error("could not tell account", accountID, "about a new identity:", err)
+	}
+}
 
 // notifyNewAccount tells the project that an account was created, at its
 // own address (info@off-the.cloud, the mailer's): the new account's email

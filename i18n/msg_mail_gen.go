@@ -79,6 +79,16 @@ func MailGreetingPlain() Msg {
 	return Msg{Key: "mail.greeting.plain"}
 }
 
+// MailIdentityBody is mail.identity.body: "The device name {domain} of your Off The Cloud account was just given a new iden…".
+func MailIdentityBody(domain string, link string) Msg {
+	return Msg{Key: "mail.identity.body", Args: map[string]any{"domain": domain, "link": link}}
+}
+
+// MailIdentitySubject is mail.identity.subject: "New identity for {domain}".
+func MailIdentitySubject(domain string) Msg {
+	return Msg{Key: "mail.identity.subject", Args: map[string]any{"domain": domain}}
+}
+
 // MailInactivityBody is mail.inactivity.body: "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no…".
 func MailInactivityBody(email string, date string, link string) Msg {
 	return Msg{Key: "mail.inactivity.body", Args: map[string]any{"email": email, "date": date, "link": link}}

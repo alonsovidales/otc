@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/admin"
@@ -21,6 +22,7 @@ import (
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/staticassets"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -757,7 +759,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
-	accountID, refusal, err := api.claimAccount(r, body.SetupToken)
+	accountID, ownerConfirmed, refusal, err := api.claimAccount(r, body.SetupToken)
 	if err != nil {
 		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", errorText(i18n.ApiErrorClaimUnavailable()))
 		return
@@ -809,7 +811,16 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	if registered {
 		if accountID != "" && owner == accountID {
 			// The account's own name on a new device: the old device's
-			// identity stops working, this one takes over.
+			// identity stops working, this one takes over - every client of
+			// the name is relayed to it from then on. So only right after
+			// the owner proved who they are: a setup code made just after a
+			// sign-in, or a session that is one. A session cookie alone (a
+			// borrowed laptop, a stolen cookie), or a code it got, is not.
+			if !ownerConfirmed {
+				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
+				writeJSONErr(w, http.StatusForbidden, "move_needs_signin", errorText(i18n.SiteAccountErrorMoveNeedsSignin()))
+				return
+			}
 			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
 				log.Error("error handing", domain, "to a new device:", err)
 				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
@@ -821,6 +832,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			// when they registered: close them, or clients go on reaching
 			// it. Not this device's, which registers as soon as it is told.
 			api.websocket.DropReplacedIdentity(domain, body.OwnerUUID)
+			api.accounts.NotifyNewIdentity(accountID, domain)
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
@@ -864,15 +876,19 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 }
 
 // claimAccount is the account behind a claim: a setup token from the
-// body or the Authorization header, or the account page's own session.
+// body or the Authorization header, or the account page's own session -
+// and whether its owner was confirmed just now (ownerConfirmed), which a
+// claim that moves one of the account's names to a new device needs: a
+// code made right after a sign-in (accounts.LookupSetupCode), or a session
+// that is one (accounts.FreshSignIn).
 // A session is refused (with the reason, a non-empty refusal.code) for an
 // account that hasn't proved its email or accepted the terms in force, as
 // on the account page: a token is only ever issued to one that has. err
 // is the database failing to load the session's account (logged here):
 // not a refusal, the claim can be tried again.
-func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID string, refusal apiError, err error) {
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID string, ownerConfirmed bool, refusal apiError, err error) {
 	if api.accounts == nil {
-		return "", apiError{}, nil
+		return "", false, apiError{}, nil
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -881,32 +897,32 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID strin
 	if token != "" {
 		// A database error is "try again" (500), not login_required for a
 		// code that may well be good.
-		id, ok, err := api.accounts.LookupSetupToken(token)
+		sc, ok, err := api.accounts.LookupSetupCode(token)
 		if err != nil || !ok {
-			return "", apiError{}, err
+			return "", false, apiError{}, err
 		}
-		return id, apiError{}, nil
+		return sc.AccountID, sc.OwnerConfirmed, apiError{}, nil
 	}
 	id, ok, err := api.accounts.AccountFromRequest(r)
 	if err != nil {
-		return "", apiError{}, err
+		return "", false, apiError{}, err
 	}
 	if ok {
 		acc, err := api.dao.GetAccount(id)
 		if err != nil {
 			log.Error("error loading the account behind a claim:", err)
-			return "", apiError{}, err
+			return "", false, apiError{}, err
 		}
 		if acc == nil || !acc.EmailVerified {
-			return "", cConfirmEmailFirst, nil
+			return "", false, cConfirmEmailFirst, nil
 		}
 		if !accounts.TermsAccepted(acc) {
-			return "", cAcceptTermsFirst, nil
+			return "", false, cAcceptTermsFirst, nil
 		}
-		return id, apiError{}, nil
+		return id, api.accounts.FreshSignIn(r), apiError{}, nil
 	}
 
-	return "", apiError{}, nil
+	return "", false, apiError{}, nil
 }
 
 // Why an account may not register a name yet (accountAddDomain, and a
@@ -1037,9 +1053,24 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 // uuid and secret, shown once: the old device is locked out the moment
 // this answers. For a device installed by hand; the wizard does the same
 // on its own when setup runs again with the same name. POST
-// /api/account/domains/{domain}/identity.
+// /api/account/domains/{domain}/identity {"password"}.
+//
+// Whoever holds the new identity receives every client of the name, so a
+// session cookie alone (a borrowed laptop, a stolen cookie) is not enough,
+// as for deleting the account: the account's password, or for one that
+// signs in only with Google or Apple a sign-in within the last 15 minutes
+// (accounts.ConfirmOwner). The owner is told by email.
 func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accountID string) {
 	domain := r.PathValue("domain")
+	var body struct{ Password string }
+	// No body is no password (a page from before it was asked for).
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil && !errors.Is(err, io.EOF) {
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
+		return
+	}
+	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
+		return
+	}
 	owner, secret := uuid.New().String(), newSecret()
 	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
 	if err != nil {
@@ -1054,6 +1085,7 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	log.Info("domain re-issued from the account page:", domain)
 	// Locked out means its open connections too, not just its next dial.
 	api.websocket.DropReplacedIdentity(domain, owner)
+	api.accounts.NotifyNewIdentity(accountID, domain)
 	writeJSON(w, http.StatusOK, map[string]any{"domain": domain, "owner_uuid": owner, "secret": secret})
 }
 

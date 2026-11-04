@@ -121,6 +121,11 @@
     "en": "confirm with {body}",
     "reviewed": "claude-backtranslation 2026-10-11 #da918a33"
   },
+  "site.account.error.move_needs_signin": {
+    "text": "dieser Name gehört dir und wird auf einem anderen Gerät genutzt: Um ihn auf dieses zu übertragen, melde dich erneut an oder nutze einen Einrichtungscode, den du innerhalb von 15 Minuten nach einer Anmeldung auf deiner Kontoseite bekommen hast",
+    "en": "that name is yours and in use on another device: to move it to this one, sign in again, or use a setup code made within 15 minutes of signing in to your account page",
+    "reviewed": "claude-backtranslation 2026-11-04 #5e604ff4"
+  },
   "site.account.error.password_too_long": {
     "text": "das Passwort darf höchstens {max_chars} Zeichen lang sein, weniger mit Buchstaben mit Akzent, aus anderen Alphabeten oder Emojis",
     "en": "the password can be at most {max_chars} characters long, fewer with accented letters, other alphabets or emoji"
@@ -202,6 +207,10 @@
   "site.account.home.summary": {
     "text": "{registered} von {max} Domains registriert · kostenlos bis <b>{date}</b> · <details>deine Angaben</details>",
     "en": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>"
+  },
+  "site.account.identity.password_label": {
+    "text": "Dein Passwort, um {domain} eine neue Identität zu geben",
+    "en": "Your password, to give {domain} a new identity"
   },
   "site.account.identity.yours": {
     "text": "<b>{domain}</b> gehört jetzt dir. Kopiere das jetzt – es wird nicht noch einmal angezeigt:",
@@ -385,6 +394,11 @@
     "text": "Ein Gerät verloren? Richte den Ersatz auf dieselbe Weise ein und gib ihm <b>denselben Namen</b>: Der Name wechselt zum neuen Gerät, und das alte wird ausgesperrt.",
     "en": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
     "reviewed": "claude-backtranslation 2026-10-11 #bf87915a"
+  },
+  "site.account.setup.new_names_only": {
+    "text": "Dieser Code richtet nur neue Namen ein. Um einen deiner Namen mit einem Code auf ein neues Gerät zu übertragen, melde dich auf dieser Seite ab und wieder an und fordere dann einen neuen an.",
+    "en": "This code sets up new names only. To move one of your names to a new device with a code, sign out and sign in again on this page, then get a new one.",
+    "reviewed": "claude-backtranslation 2026-11-04 #99b1e4b3"
   },
   "site.account.setup.title": {
     "text": "Richtest du ein Gerät ein?",
