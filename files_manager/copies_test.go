@@ -506,3 +506,36 @@ func TestDelPathOfAFileChangedMeanwhile(t *testing.T) {
 		t.Error("something was deleted")
 	}
 }
+
+// A delete of "" or "/" - which resolvePaths takes for the folder holding
+// every file - is refused before anything is read, with every_copy too:
+// a client's empty relative path used to delete the whole library.
+func TestDelOfTheWholeLibraryIsRefused(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	for _, path := range []string{"", "/", "//"} {
+		for _, everyCopy := range []bool{false, true} {
+			mg, mock, seen := recordingMock(t)
+			keptOut(mg)
+			if everyCopy {
+				mock.ExpectQuery(reByPath).WithArgs(path).WillReturnError(sql.ErrNoRows)
+			}
+			expectSentinel(mock)
+			var err error
+			if everyCopy {
+				err = mg.DelEveryCopy(ses, path, "")
+			} else {
+				err = mg.DelPath(ses, path, "")
+			}
+			if !errors.Is(err, ErrWholeLibrary) {
+				t.Errorf("%q, every copy %v: %v", path, everyCopy, err)
+			}
+			metUpToSentinel(t, mock)
+			if seen.ran("`path` >=") || seen.ran("delete from") {
+				t.Errorf("%q, every copy %v: the library was listed or deleted from", path, everyCopy)
+			}
+		}
+	}
+	if got, want := ErrWholeLibrary.Error(), "the whole library can't be deleted at once: delete its folders or files instead"; got != want {
+		t.Errorf("English %q, want %q", got, want)
+	}
+}

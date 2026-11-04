@@ -96,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "kan geen beelden uit de video halen"},
   "dev.files.video_no_frames_extracted": {"text": "geen beelden uit de video gehaald"},
   "dev.files.video_not_cut": {"text": "de video kon niet worden ingekort, dus er is niets geplaatst: probeer het opnieuw, of plaats hem zonder hem in te korten"},
-  "dev.files.video_not_reduced": {"text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen"}
+  "dev.files.video_not_reduced": {"text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen"},
+  "dev.files.whole_library": {"text": "de hele bibliotheek kan niet in één keer worden verwijderd: verwijder in plaats daarvan de mappen of bestanden"}
 }

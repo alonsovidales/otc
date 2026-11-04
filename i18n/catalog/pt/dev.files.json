@@ -96,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "não foi possível extrair nenhum fotograma do vídeo"},
   "dev.files.video_no_frames_extracted": {"text": "nenhum fotograma extraído do vídeo"},
   "dev.files.video_not_cut": {"text": "não foi possível cortar o vídeo, por isso nada foi publicado: tenta novamente ou publica-o sem o cortar"},
-  "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"}
+  "dev.files.video_not_reduced": {"text": "não foi possível reduzir o vídeo para a publicação e, com {size}, é demasiado grande para o partilhar tal como está"},
+  "dev.files.whole_library": {"text": "não é possível eliminar toda a biblioteca de uma vez: elimina antes as suas pastas ou ficheiros"}
 }

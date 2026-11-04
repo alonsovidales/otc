@@ -96,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "impossible d’extraire une image de la vidéo"},
   "dev.files.video_no_frames_extracted": {"text": "aucune image extraite de la vidéo"},
   "dev.files.video_not_cut": {"text": "la vidéo n’a pas pu être découpée, rien n’a donc été publié : réessayez, ou publiez-la sans la découper"},
-  "dev.files.video_not_reduced": {"text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle"}
+  "dev.files.video_not_reduced": {"text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle"},
+  "dev.files.whole_library": {"text": "la bibliothèque entière ne peut pas être supprimée d’un coup : supprimez plutôt ses dossiers ou ses fichiers"}
 }

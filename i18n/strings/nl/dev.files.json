@@ -393,5 +393,9 @@
   "dev.files.video_not_reduced": {
     "text": "de video kon niet kleiner worden gemaakt voor het bericht, en met {size} is hij te groot om zo te delen",
     "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
+  },
+  "dev.files.whole_library": {
+    "text": "de hele bibliotheek kan niet in één keer worden verwijderd: verwijder in plaats daarvan de mappen of bestanden",
+    "en": "the whole library can't be deleted at once: delete its folders or files instead"
   }
 }

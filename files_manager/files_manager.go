@@ -1797,6 +1797,14 @@ func locationTags(ex *exifinfo.Info) []imagestagger.RAMTag {
 // file's path: when set and the file holds other content now, nothing is
 // deleted (ContentChangedError). A directory's path ignores it.
 func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
+	// Never the whole library: "" and "/" have no row, so resolvePaths
+	// takes them for the folder holding every file. No app's delete names
+	// them; one that did - a client's relative path worked out empty, a
+	// folder synced at the root - took every file, kept version and
+	// content, for good.
+	if strings.Trim(path, "/") == "" {
+		return ErrWholeLibrary
+	}
 	entries, err := mg.resolvePaths([]string{path})
 	if err != nil {
 		return err
@@ -1860,6 +1868,9 @@ func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	}
 	return nil
 }
+
+// ErrWholeLibrary is DelPath's refusal of the whole library at once.
+var ErrWholeLibrary error = devtext.New(i18n.DevFilesWholeLibrary())
 
 // DelFile deletes the file at path, with its kept versions and whatever
 // content nothing uses any more.

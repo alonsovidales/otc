@@ -96,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "impossibile estrarre fotogrammi dal video"},
   "dev.files.video_no_frames_extracted": {"text": "nessun fotogramma estratto dal video"},
   "dev.files.video_not_cut": {"text": "non è stato possibile tagliare il video, quindi non è stato pubblicato nulla: riprova, o pubblicalo senza tagliarlo"},
-  "dev.files.video_not_reduced": {"text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è"}
+  "dev.files.video_not_reduced": {"text": "non è stato possibile ridurre il video per il post e, con {size}, è troppo grande per condividerlo così com’è"},
+  "dev.files.whole_library": {"text": "non si può eliminare l’intera libreria in una volta: elimina invece le sue cartelle o i suoi file"}
 }

@@ -393,5 +393,9 @@
   "dev.files.video_not_reduced": {
     "text": "la vidéo n’a pas pu être réduite pour la publication, et avec {size} elle est trop volumineuse pour être partagée telle quelle",
     "en": "the video could not be made smaller for the post, and at {size} it is too large to share as it is"
+  },
+  "dev.files.whole_library": {
+    "text": "la bibliothèque entière ne peut pas être supprimée d’un coup : supprimez plutôt ses dossiers ou ses fichiers",
+    "en": "the whole library can't be deleted at once: delete its folders or files instead"
   }
 }

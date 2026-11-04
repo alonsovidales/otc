@@ -96,5 +96,6 @@
   "dev.files.video_no_frames": {"text": "could not extract any frames from video"},
   "dev.files.video_no_frames_extracted": {"text": "no frames extracted from video"},
   "dev.files.video_not_cut": {"text": "the video could not be cut, so nothing was posted: try again, or post it without cutting it"},
-  "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]}
+  "dev.files.video_not_reduced": {"text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is", "args": [["size", "bytes"]]},
+  "dev.files.whole_library": {"text": "the whole library can't be deleted at once: delete its folders or files instead"}
 }

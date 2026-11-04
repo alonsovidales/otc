@@ -444,5 +444,9 @@
     "text": "the video could not be made smaller for the post, and at {size} it is too large to share as it is",
     "args": [["size", "bytes"]],
     "note": "Error shown after \"error trying to create publication: \" when a large video is posted: the device makes a smaller copy for friends, and here it could not, and the original is too large to send to friends instead. {size} is the original video's size, such as 3.2 GB."
+  },
+  "dev.files.whole_library": {
+    "text": "the whole library can't be deleted at once: delete its folders or files instead",
+    "note": "Error shown after \"error trying to delete file: \" when an app asks the device to delete everything in it at once (the path of the whole library, which no app's delete names: an app fault). Nothing is deleted."
   }
 }

@@ -169,6 +169,8 @@ var headEnglish = []struct {
 	// Processing within the content budget (2026-11): new.
 	{"dev.files.too_large_to_process", i18n.DevFilesTooLargeToProcess(2_100_000_000, 760_000_000), "the file is 2.1 GB, more than this device can process at once (at most 760 MB)"},
 	{"dev.files.upload_bad_hash", i18n.DevFilesUploadBadHash(), "the upload's content doesn't match its hash"},
+	// The whole library refused as one delete (2026-11): new.
+	{"dev.files.whole_library", i18n.DevFilesWholeLibrary(), "the whole library can't be deleted at once: delete its folders or files instead"},
 	{"dev.files.upload_failed", i18n.DevFilesUploadFailed("boom"), fmt.Sprintf("error trying to upload file: %s", "boom")},
 	{"dev.files.upload_finish_failed", i18n.DevFilesUploadFinishFailed("boom"), fmt.Sprintf("error finishing the upload: %s", "boom")},
 	{"dev.files.upload_incomplete", i18n.DevFilesUploadIncomplete(10, 900), fmt.Sprintf("upload incomplete: %d of %d bytes", 10, 900)},

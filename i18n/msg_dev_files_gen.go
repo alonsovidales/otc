@@ -493,3 +493,8 @@ func DevFilesVideoNotCut() Msg {
 func DevFilesVideoNotReduced(size int64) Msg {
 	return Msg{Key: "dev.files.video_not_reduced", Args: map[string]any{"size": size}}
 }
+
+// DevFilesWholeLibrary is dev.files.whole_library: "the whole library can't be deleted at once: delete its folders or files instead".
+func DevFilesWholeLibrary() Msg {
+	return Msg{Key: "dev.files.whole_library"}
+}
