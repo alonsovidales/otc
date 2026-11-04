@@ -410,8 +410,16 @@ if ! opencv_ok; then
         die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"
     fi
     ldconfig
+    # The sources and the build tree go now (about 2 GB); the log, in the
+    # same directory, only once pkg-config finds what was installed - the
+    # failure below points at it.
+    rm -rf "$OPENCV_BUILD_DIR/src.tar.gz" "$OPENCV_BUILD_DIR/opencv-$OPENCV_SRC_VERSION" "$OPENCV_BUILD_DIR/build"
+    if ! opencv_ok; then
+        log "OpenCV built and installed, but pkg-config finds $(pkg-config --modversion opencv4 2>/dev/null || echo none), not $OPENCV_MIN or newer"
+        wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"
+        die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"
+    fi
     rm -rf "$OPENCV_BUILD_DIR"
-    opencv_ok || { wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"; die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"; }
     log "OpenCV $(pkg-config --modversion opencv4) installed in /usr/local"
 fi
 
