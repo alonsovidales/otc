@@ -4549,7 +4549,11 @@ Copy and Share (`share_text`'s `{address}` is plain text, no isolation marks, so
 Friends field); the add field's keyboard Send sends. Files uploads go through `UploadQueue` (two
 at a time, `app.files.uploading` with Cancel, a cancel never reported) in the view model's scope;
 iOS reads each through `NSFileCoordinator` and both say `app.files.cannot_read`; Android's
-multi-delete runs in the view model's scope. Android only: the "isn't available"/"can't connect"
+multi-delete runs in the view model's scope. Images' and Files' bulk Delete hold the selection bar,
+its Delete a spinner, until every delete is done (iOS `SelectionActionTask.delete`): through the
+bridge a few hundred take minutes, and a second Delete sent the same paths again; Files says what
+wasn't deleted as Images does (`DeleteCopies.keptText`: the device's words, or why no answer came) -
+it said nothing at all. Android only: the "isn't available"/"can't connect"
 cards lie over the whole Scaffold (touches consumed, its semantics cleared; iOS hides the tabs
 through `tabsCovered`), Welcome scrolls with imePadding, and the window theme is DayNight. The
 Bluetooth setup's Back steps back in the wizard (its `#back`) or leaves, asking first while the

@@ -34,6 +34,10 @@ enum SelectionActionTask {
     /// A person's face changing (SetPersonCover): Use this face, an
     /// uploaded photo, Choose automatically.
     case personCover
+    /// Deleting the selection, one item at a time: through the bridge a few
+    /// hundred take minutes, and a second Delete meanwhile sent the same
+    /// paths again.
+    case delete
 }
 
 struct SelectionActionBar: View {
@@ -176,7 +180,7 @@ struct SelectionActionBar: View {
                          busy: busy == .moveToPerson, action: onMoveToPerson)
                         .disabled(count == 0)
                 }
-                item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)
+                item(S.commonDelete, symbol: "trash", tint: .red, busy: busy == .delete, action: onDelete)
                     .disabled(count == 0)
             }
             .padding(.vertical, 10)

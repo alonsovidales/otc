@@ -1009,9 +1009,16 @@ final class FilesExplorerViewModel: ObservableObject {
     }
 
     func deleteSelected() async {
+        guard preparing == nil else { return }
+        // The bar waits, its Delete a spinner, until every one is done.
+        preparing = .delete
+        defer { preparing = nil }
         // The photos and videos among the files the device deleted, as
         // their rows showed them (no copies counted in Files).
         var deleted: [DeletedOnDevice] = []
+        // Those still there, and why: said once all are done, as Images
+        // says them (a delete that failed used to say nothing at all).
+        var kept: [DeleteCopies.Kept] = []
         for p in selected {
             // Issue #201: with the content the row was listed with, so the
             // device deletes nothing that changed since ("changed").
@@ -1019,17 +1026,23 @@ final class FilesExplorerViewModel: ObservableObject {
             let req = DeleteCopies.request(path: p.contains("/") ? p : joinPath(path, p),
                                            hash: row.map { $0.isDir ? "" : $0.raw.hash } ?? "",
                                            copies: nil, everyCopy: false)
-            guard let resp = try? await request(.reqDelFile(req)) else { continue }
+            let resp: Msg_RespEnvelope
+            do {
+                resp = try await request(.reqDelFile(req))
+            } catch {
+                kept.append(.failed(error))
+                continue
+            }
             if resp.error && resp.errorCode == "upload_only" {
                 let name = leafName(req.path)
                 showToast { S.appFilesDeleteRefused(name: name) }
                 break
             }
-            // It changed on the device since it was listed: the device's
-            // words; the listing is read again below.
-            if resp.error && resp.errorCode == "changed" {
-                let words = resp.errorMessage
-                showToast { words }
+            // Refused - changed on the device since it was listed (the
+            // listing is read again below), or anything else: the device's
+            // words.
+            if case .refused(let words, let reason) = DeleteCopies.outcome(resp) {
+                kept.append(.refused(words, reason))
                 continue
             }
             // A deleted photo's thumbnail doesn't stay on the phone either.
@@ -1041,6 +1054,7 @@ final class FilesExplorerViewModel: ObservableObject {
             }
         }
         if !deleted.isEmpty { deletedOnDevice(deleted) }
+        if let text = DeleteCopies.keptText(kept) { showToast { text } }
         await load()
     }
 

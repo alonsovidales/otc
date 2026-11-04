@@ -3501,9 +3501,14 @@ final class PhotoGalleryVM: ObservableObject {
     // picked photos that have other copies; the rest as before.
     func deleteSelected(everyCopy: Bool = false) {
         let paths = Array(selected)
-        guard !paths.isEmpty else { return }
+        guard !paths.isEmpty, preparing == nil else { return }
         let picked = pickedItems()
+        // The bar waits, its Delete a spinner, until every one is done: a
+        // second Delete sent the same paths again, and the refusals for
+        // those already gone were reported as failures.
+        preparing = .delete
         Task {
+            defer { preparing = nil }
             // Collect the successes and apply them as one batch at the end,
             // rather than mutating `items` (and so re-rendering the grid)
             // once per successful delete inside the loop. With several
