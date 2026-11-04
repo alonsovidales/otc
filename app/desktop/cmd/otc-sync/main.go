@@ -426,8 +426,29 @@ func (a *app) start(cfg *config.Config) error {
 	eng.Start()
 	go a.watchConfig()
 	go a.retryPassword()
+	go a.heartbeat()
 
 	return nil
+}
+
+// stateHeartbeat is how often the engine's process writes state.json
+// whatever happens. A tray next to the service, and `otc-sync status`, take
+// one older than 30 s for a sync that isn't running; it was written only on
+// changes, so a service waiting on a wrong password - or on nothing - went
+// quiet and read as "Sync not running", its Change Password shortcut gone.
+var stateHeartbeat = 10 * time.Second
+
+func (a *app) heartbeat() {
+	t := time.NewTicker(stateHeartbeat)
+	defer t.Stop()
+	for {
+		select {
+		case <-a.quit:
+			return
+		case <-t.C:
+			a.scheduleStateWrite()
+		}
+	}
 }
 
 // retryPassword reads the password again while a device is set and it
