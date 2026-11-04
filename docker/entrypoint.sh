@@ -48,6 +48,7 @@ START_FAILS=$CONF/start-failures
 SHARE=/usr/share/otc
 RELEASE=$(cat "$SHARE/release")
 MIRROR_TOOL=/usr/local/sbin/otc-mirror
+SANDBOX=/usr/local/sbin/otc-sandbox
 
 # install.sh's pinned models (its step 6): the image carries none of them.
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
@@ -867,9 +868,15 @@ setup_password() {
 # that on a Pi). Its OOM score is raised so the kernel picks it before
 # MariaDB; lowering it back would need a privilege it doesn't have.
 # (A background job of this script starts with SIGINT ignored; env puts
-# every signal back to its default, as systemd starts a service.)
+# every signal back to its default, as systemd starts a service.) It runs
+# under otc-sandbox's system-call filter (docker/sandbox), which it and all
+# it starts keep: no new namespaces, mounts or bpf - what Docker's profile
+# refuses a container without CAP_SYS_ADMIN, which the mirror's compose file
+# adds for otc-mirror. Where the filter can't be installed (an emulated
+# architecture) it says so and the device runs without it.
 start_app() {
-    local mirror=()
+    local mirror=() sandbox=()
+    [ -x "$SANDBOX" ] && sandbox=("$SANDBOX")
     # The mirror the device watches and names in its alerts: its array, and
     # each disk's major:minor and name (the device's environment only).
     [ -z "$MIRROR_ARRAY" ] || mirror=(
@@ -880,7 +887,7 @@ start_app() {
     (
         cd "$STATE" || exit 1
         echo 500 > /proc/self/oom_score_adj
-        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc "${mirror[@]}" \
+        exec setsid env --default-signal HOME="$STATE" USER=otc LOGNAME=otc "${mirror[@]}" "${sandbox[@]}" \
             setpriv --reuid "$OTC_UID" --regid "$OTC_UID" --init-groups --no-new-privs /usr/bin/otc dev
     ) &
     APP_PID=$!

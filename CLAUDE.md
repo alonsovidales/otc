@@ -1054,7 +1054,26 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `b 9:* rmw`, `SYS_ADMIN` + `MKNOD` + `SYS_RESOURCE` (online `resize2fs`) and AppArmor/SELinux off
   (Docker's AppArmor profile refuses mount; the devices in the long `source`/`target` form, as USB
   disks' by-id names hold a `:`): root in that container is close to root on the host, while the
-  device still runs with no capabilities. Rules otc-mirror keeps (each from a review or the VM):
+  device still runs with no capabilities - and, in either mode, under a seccomp filter of its own:
+  with `SYS_ADMIN` in the container, Docker's default profile allows every process in it `unshare`,
+  `setns`, clone with `CLONE_NEW*`, `mount` and `bpf` (it decides per container, by capability),
+  so code run in the device could take capabilities in a user namespace of its own (the nf_tables
+  kind of kernel bug). `otc-sandbox` (`docker/sandbox`, static, `/usr/local/sbin`; the entrypoint's
+  `start_app` runs `setpriv` through it) installs a classic-BPF filter refusing what that profile
+  refuses a container without `SYS_ADMIN` - those, the newer mount calls, `perf_event_open`,
+  `quotactl`, `syslog`, `sethostname`, and the keyring, file handles, module loading and
+  `pivot_root` - with clone's flags masked as Docker does and `clone3` answering ENOSYS (glibc falls
+  back to clone); calls of a foreign architecture and x32 are refused, and both architectures'
+  numbers are in the one program (`filter.go`; numbers checked against x/sys by
+  `tables_linux_test.go`). It sets no_new_privs, installs with `SECCOMP_FILTER_FLAG_TSYNC` and
+  execs the command; first a copy of itself (`--probe`) installs it and checks it - where it can't
+  be (Rosetta answers `seccomp()` EINVAL, so `docker-release.sh`'s amd64 tests run without it) the
+  device runs without, saying so. `test-image.sh` checks the device has one filter more than the
+  container's PID 1 and, in mirror mode, that a process run as the device's gets no user
+  namespace. Tests: `filter_test.go` (a BPF interpreter: every call of both tables, clone's flags,
+  clone3, foreign architectures, x32), `sandbox_linux_test.go` (real calls under the filter: EPERM,
+  ENOSYS, and exec, glibc threads and pipes still working), run in the Linux VM and in containers
+  with the mirror's capabilities. Rules otc-mirror keeps (each from a review or the VM):
   only arrays named `otc`/`*:otc` are used (another system's raid1 never), and once
   `config/storage-mode` names this device's mirror (`OTC_MIRROR_UUID`) only that one; `mkfs.ext4`
   only on an array built in that run, never on one whose filesystem can't be read (a read error on a

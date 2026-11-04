@@ -16,6 +16,8 @@
 #      asked for by hand meanwhile is refused, and a stop ends it - the
 #      dump itself too - at once; a copy that ends is read at the next
 #      look, said when it failed.
+#   3. The device is started through otc-sandbox, setpriv and its
+#      environment after it (without the binary, as before).
 #
 # The loaded script reads the variables set here (BACKOFF, APP_STARTED,
 # LAST_DUMP) and calls the functions stood in for; `a && b || fail` is the
@@ -177,4 +179,25 @@ wait_dump
 nightly_dump > "$work/said"
 grep -q "WARNING: the nightly database copy failed" "$work/said" || fail "a failed copy wasn't said: $(cat "$work/said")"
 echo "ok: the nightly copy runs beside the loop, and a stop ends it"
+
+# --- 3. The device started through its system-call filter ------------------
+# setsid stood in for: what start_app would run, written down.
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s"\n' "$work/started" > "$work/bin/setsid"
+printf '#!/bin/sh\n' > "$work/bin/otc-sandbox"
+chmod 0755 "$work/bin/setsid" "$work/bin/otc-sandbox"
+install_live_config() { :; }
+read_ports
+SANDBOX=$work/bin/otc-sandbox
+MIRROR_ARRAY=md0 MIRROR_DEV1=8:16 MIRROR_DEV2=8:32 MIRROR_LABEL1=a MIRROR_LABEL2=b
+start_app >/dev/null
+wait "$APP_PID"
+want="env --default-signal HOME=$work/state USER=otc LOGNAME=otc OTC_MIRROR_ARRAY=md0 OTC_MIRROR_DEV1=8:16 OTC_MIRROR_DEV2=8:32 OTC_MIRROR_LABEL1=a OTC_MIRROR_LABEL2=b $work/bin/otc-sandbox setpriv --reuid 7310 --regid 7310 --init-groups --no-new-privs /usr/bin/otc dev"
+[ "$(cat "$work/started")" = "$want" ] || fail "the device was started as: $(cat "$work/started")"
+SANDBOX=$work/none
+MIRROR_ARRAY=
+start_app >/dev/null
+wait "$APP_PID"
+want="env --default-signal HOME=$work/state USER=otc LOGNAME=otc setpriv --reuid 7310 --regid 7310 --init-groups --no-new-privs /usr/bin/otc dev"
+[ "$(cat "$work/started")" = "$want" ] || fail "without otc-sandbox, the device was started as: $(cat "$work/started")"
+echo "ok: the device starts under otc-sandbox"
 echo "PASS"
