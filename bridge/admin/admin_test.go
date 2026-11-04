@@ -548,3 +548,38 @@ func TestChangePasswordRefusesAWrongCurrentOrShortNewOne(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// set-admin-password (bin/otc_bridge.go) goes through SetPassword whether
+// the password was typed at a terminal or piped in: the panel's rules hold
+// either way - at least 12 characters, at most the 72 bytes bcrypt keeps -
+// and nothing is stored for a password that breaks them.
+func TestSetPasswordHoldsThePanelsRules(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	for _, bad := range []string{"admin1", strings.Repeat("x", cMinPasswordLen-1), strings.Repeat("x", 73), strings.Repeat("é", 37)} {
+		// Refused for what it is, before anything is hashed or stored.
+		if err := a.SetPassword("admin", bad); err == nil || !strings.HasPrefix(err.Error(), "use at ") {
+			t.Errorf("a %d-byte password: %v", len(bad), err)
+		}
+	}
+	if err := a.SetPassword("admin", ""); err == nil {
+		t.Error("an empty password was set")
+	}
+	if err := a.SetPassword("", "a-long-enough-password"); err == nil {
+		t.Error("a password was set for no username")
+	}
+	for _, good := range []string{strings.Repeat("x", cMinPasswordLen), strings.Repeat("x", 72)} {
+		var stored string
+		mock.ExpectExec("insert into `admin_users`").WithArgs("admin", hashArg{&stored}).WillReturnResult(sqlmock.NewResult(0, 1))
+		if err := a.SetPassword("admin", good); err != nil || !checkPassword(stored, good) {
+			t.Errorf("a %d-byte password: %v", len(good), err)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

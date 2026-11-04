@@ -174,7 +174,8 @@ func logLevel() int {
 }
 
 // readAdminPassword asks for the password twice on a terminal, without
-// echo, or reads one line from a pipe.
+// echo, or reads one line from a pipe. Either way admin.SetPassword then
+// holds it to the panel's rules (at least 12 characters, at most 72 bytes).
 func readAdminPassword() (string, error) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
@@ -198,9 +199,6 @@ func readAdminPassword() (string, error) {
 	}
 	if string(first) != string(second) {
 		return "", errors.New("the passwords don't match")
-	}
-	if len(first) < 12 { // admin.cMinPasswordLen, the panel's minimum too
-		return "", errors.New("use at least 12 characters")
 	}
 	return string(first), nil
 }

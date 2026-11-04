@@ -850,7 +850,8 @@ There's no sign-up - bootstrap (or change) an admin account from the bridge's sh
 $ sudo /usr/bin/otc_bridge <env> set-admin-password <username>
 ```
 It asks for the password twice without echoing it (or reads one line from a pipe) - never on the
-command line, where `ps` and the shell history would keep it.
+command line, where `ps` and the shell history would keep it. Either way the password must have at
+least 12 characters and at most 72 bytes, as in the panel.
 `[admin] session-secret` must also be set in the bridge's config file (`/etc/otc_<env>.ini`) - a
 random value that stays stable across restarts, e.g. `openssl rand -hex 32` - otherwise every
 restart logs every admin out.

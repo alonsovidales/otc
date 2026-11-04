@@ -149,10 +149,15 @@ func checkPassword(hash, plain string) bool {
 // SetPassword creates or updates an admin account. Exported so it can be
 // driven from a one-off CLI bootstrap command (see bridge/bin/otc_bridge.go)
 // rather than needing its own HTTP endpoint - nothing should be able to
-// create admin accounts over the network.
+// create admin accounts over the network. The panel's own rules hold here
+// too, however the password came: typed at a terminal, piped in, or any
+// caller to come.
 func (a *Admin) SetPassword(username, plain string) error {
 	if username == "" || plain == "" {
 		return errors.New("username and password are required")
+	}
+	if err := passwordRule(plain); err != nil {
+		return err
 	}
 	hash, err := hashPassword(plain)
 	if err != nil {
@@ -269,9 +274,26 @@ func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
-// cMinPasswordLen is the shortest admin password accepted, here and by the
-// command-line bootstrap (readAdminPassword in bin/otc_bridge.go).
-const cMinPasswordLen = 12
+// cMinPasswordLen is the shortest admin password accepted, by the panel
+// and by the command-line bootstrap (SetPassword, which
+// bin/otc_bridge.go's set-admin-password calls); cMaxPasswordLen the
+// longest, in bytes: bcrypt reads only the first 72, and x/crypto refuses
+// to hash more.
+const (
+	cMinPasswordLen = 12
+	cMaxPasswordLen = 72
+)
+
+// passwordRule is why plain can't be an admin password, nil when it can.
+func passwordRule(plain string) error {
+	if len(plain) < cMinPasswordLen {
+		return fmt.Errorf("use at least %d characters for the new password", cMinPasswordLen)
+	}
+	if len(plain) > cMaxPasswordLen {
+		return fmt.Errorf("use at most %d characters for the new password", cMaxPasswordLen)
+	}
+	return nil
+}
 
 // ChangePassword lets the signed-in admin change their own password, from
 // the panel (POST /admin/api/password, behind RequireAuth). The current
@@ -305,14 +327,8 @@ func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if len(body.New) < cMinPasswordLen {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("use at least %d characters for the new password", cMinPasswordLen))
-		return
-	}
-	if len(body.New) > 72 {
-		// bcrypt reads only the first 72 bytes; longer would look accepted
-		// and silently not count.
-		writeError(w, http.StatusBadRequest, "use at most 72 characters for the new password")
+	if err := passwordRule(body.New); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	hash, found, err := a.dao.GetAdminPasswordHash(user)
