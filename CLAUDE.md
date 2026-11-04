@@ -29,15 +29,35 @@ make web      # npm run build (web/) then copy dist/ into ios app and scp to TAR
 make pb       # regenerate proto/generated/*.go, web/src/proto/*.ts, and app/*/OffTheCloud/*.pb.swift from proto/messages.proto
 make sync     # rsync the whole repo to the device (excludes handled by rsync flags)
 make clean    # remove generated protobuf, the otc binary, and ios web-dist
-make image    # issue #38: build the flashable Pi image ON TARGET (scripts/build_image.sh) and copy it to dist/
-make image-publish  # upload dist/off-the-cloud-rpi-lite-arm64.img.xz to the rolling "image" GitHub release
+make image    # issue #38: build the flashable Pi image ON TARGET (scripts/build_image.sh) from HEAD's scripts/ and copy it to dist/
+make image-publish  # check dist/off-the-cloud-rpi-lite-arm64.img.xz against its .sha256, sign that, upload them to the rolling "image" GitHub release and check what was published
 ```
 
+`Makefile.pi` (README's Option 2) sets up a device on a plain Raspberry Pi OS from another
+computer: its `bootstrap` shows the two disks, asks before it lets them be wiped (an OTC mirror on
+them is always kept), and runs `verified-install.sh` on the Pi over SSH - the same install as the
+one-line script, so the device updates itself and gets the system's security updates. It logs in
+with an account of the owner's (`PI_USER`, never `otc`: the installer makes that the service's
+account, with no login) and needs GNU make 3.82 or newer (`.ONESHELL`; macOS ships 3.81, so
+`brew install make` and `gmake`). Its own step-by-step bring-up (unpinned downloads, a config
+every account could read, no update runner, release key or version file - a device that never
+updated) is gone.
+
 Without a Pi at hand the image builds in the Lima VM just as well (arm64 Ubuntu with losetup and
-chroot): `limactl copy -r scripts otc:/tmp/otcrepo/scripts`, then in the VM `sudo
+chroot): from a clean checkout, `limactl shell otc -- mkdir -p /tmp/otcrepo` and `git archive HEAD
+scripts | limactl shell otc -- tar -xf - -C /tmp/otcrepo`, then in the VM `sudo
 WORK=$HOME/image-build SRC_REPO=/tmp/otcrepo bash /tmp/otcrepo/scripts/build_image.sh` - WORK on
 the VM's disk, not under `/tmp`, which is a RAM disk too small for the decompressed image - and
-`limactl copy` the `.img.xz` and its `.sha256` into `dist/` for `make image-publish`. The base is
+`limactl copy` the `.img.xz` and its `.sha256` into `dist/` for `make image-publish`. The image is
+built from a committed tree only: every device made from it runs its scripts as root. `make image`
+refuses to start while `scripts/` has changes or untracked files, and ships a `git archive` of
+HEAD's `scripts/` to `TARGET:/home/otc/image-src` (never the working copy, which `make sync`
+copies); `make image-publish` checks the image against its `.sha256` before signing that (a new
+image beside an old checksum was signed as it was, and failed every desktop app's check), and
+downloads the three published files again to compare them. `build_image.sh` keeps the base's own
+`/etc/resolv.conf` (a file or a symlink, moved, never written through) aside while the chroot uses
+the build machine's for apt, and puts it back at clean-up, a failed build's too: the published
+image carried the builder's DNS servers and search domains. The base is
 one dated Raspberry Pi OS Lite release pinned with the SHA-256 Raspberry Pi publishes beside it
 (`BASE_URL`/`BASE_SHA256` in build_image.sh, checked before anything is unpacked; a cached base from
 another pin is fetched again): a newer base is a deliberate edit there.
@@ -226,15 +246,34 @@ console login is `otc-debug` / `off-the-cloud` (with sudo), set in `build_image.
 in README.md under "Console access" - the only way into a device like Cala short of enabling SSH
 from that console. System updates (release 161, critical; CVE-2026-98432, a Linux IPv4 TCP
 use-after-free with IP options; owner, 2026-11-01): until then a device never updated its OS.
-`otc_os_security` - the same function in install.sh and `updates/161.sh`
-(`updater/os_security_test.go`), skipped in a container - installs unattended-upgrades and
+`otc_os_security` - the same function in install.sh and `updates/corrected/161.sh`
+(`updater/os_security_test.go`, the whole function; corrected scripts under "Cutting a release"),
+skipped in a container - installs unattended-upgrades and
 nftables, enables daily runs (`20auto-upgrades`), allows the Raspberry Pi archive's main component
 besides the distribution's own security origins, reboots at 04:00 when an update needs it
 (`52otc-security-updates`; `OTC_SECURITY_REBOOT=0` or an existing "false" keeps it off), makes apt
 wait 600 s for a lock, and loads `/etc/otc/ipv4-options.nft` at boot (`otc-ipv4-options.service`,
 `WantedBy=sysinit.target`): its own table drops TCP with IPv4 options (`ip hdrlength != 5`; TCP only,
 so IGMP's router-alert option still passes). Tested on the 2 GB Debian 13 VM: the rule loads at
-boot, re-runs are idempotent. The servers got the same rule by hand in ufw's `before.rules`
+boot, re-runs are idempotent. Release 161 as released (`set -e` around `apt-get install`) stopped
+every later update for good on a device whose apt was unwell - an update has no terminal, so
+dpkg's question about a changed configuration file failed, and so did a dpkg a power cut left
+"interrupted", another apt holding the lock, stale lists. The function now asks nothing
+(`DEBIAN_FRONTEND=noninteractive`, dpkg's `--force-confdef --force-confold`,
+`DPkg::Lock::Timeout=600` on apt's command line), finishes what dpkg left (`dpkg --configure -a`),
+tries a failed install once more with fresh lists, and sets up all it can before it reports a
+failure (status 1) - the filter wherever nft is there already. install.sh stops on that failure (a
+fresh install is run again); the corrected 161 never stops the update: it leaves root's
+`/etc/otc/os-updates.pending`, every later update that installs a release runs it again until
+everything is in place (and removes the mark), and the update ends with `updated_os_pending`
+("Updated to version X, but the system's security updates could not be set up: the next update
+tries again") - tested with stand-ins for apt, dpkg, systemctl and nft (`updater/release161_test.go`).
+TCP keeps the window it learnt on a connection that sat idle (release 169: `otc_network_tuning`,
+the same function in install.sh and `updates/169.sh`, `updater/release169_test.go`;
+`net.ipv4.tcp_slow_start_after_idle = 0` in `/etc/sysctl.d/80-otc-network.conf`, set at once and
+at every boot, not in a container): the bridge connections the device keeps open for the apps sit
+idle between requests, and each 4 MiB piece of a video sent over one started again from slow
+start, several round trips before full speed. A failure only warns. The servers got the same rule by hand in ufw's `before.rules`
 (bridge1, bridge2, redis; a `u32` match) until Ubuntu's fixed kernel (6.8.0-149) ships.
 
 The bridge has its own `bridge/makefile` (`make -C bridge bridge`) which builds
@@ -2135,9 +2174,10 @@ glossary in `i18n/glossary/`, staleness), fails on a stale generated file, runs 
 hard-coded-text ratchet (`i18n/scan/README.md`: a file whose count of literal UI text rises
 fails - lower the baseline with `go run ./i18n/cmd/i18nscan -update -path <files>` in the commit
 that moves text into the catalog) and builds what embeds the catalog. It gates
-`scripts/release.sh` (on a `git archive` of HEAD; needs `make pb`'s `proto/generated` and
-`web/node_modules`), `scripts/desktop-release.sh` (needs `i18n/` committed), `make -C bridge
-bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
+`scripts/release.sh` (on a `git archive` of HEAD, with the web app's packages installed there by
+`npm ci`; needs `make pb`'s `proto/generated`), `scripts/desktop-release.sh` (on a `git archive`
+of HEAD, its Go protobuf code generated there; its web scanner reads `web/node_modules`), `make -C
+bridge bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
 the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
 LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
 Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, disk
@@ -3183,7 +3223,11 @@ timed out is dropped, not retried.
 this module (it shares `proto/generated`), pure Go so `make desktop` cross-compiles all four
 binaries into `dist/` from any machine (version `dev`: development builds never update
 themselves). Publishing is `scripts/desktop-release.sh [--patch] "notes"` (or `NOTES=… make
-desktop-publish`): it bumps `app/desktop/VERSION`, builds the four binaries with it, writes
+desktop-publish`), like a device release from a clean, pushed `main` only (nothing uncommitted,
+HEAD = origin/main, the version commit pushed to main): it builds from a `git archive` of HEAD -
+never this checkout's other files - with the Go protobuf code generated there by the
+`protoc-gen-go` go.mod pins (as devices do; `brew install protobuf` for protoc). It bumps
+`app/desktop/VERSION`, builds the four binaries with it, writes
 `desktop.json` (version, notes, per `GOOS-GOARCH` the download URL and SHA-256), signs it with the
 release key (`scripts/sign-file.sh`, the same key and Keychain passphrase as `release.sh`) into
 `desktop.json.sig`, uploads everything to the rolling GitHub release `desktop` (binaries first,
@@ -4539,7 +4583,11 @@ the device cannot sudo. `updater.Apply` writes `/var/lib/otc/update.request`; sy
 root: it reads `[otc] update-repo`/`update-releases` from the root-owned config, downloads
 `scripts/update.sh` from there into `/run/otc-update/` and runs it. Those three files live in
 `scripts/update-runner/` and are installed by install.sh and by release 5. A device without the
-runner falls back to the old `sudo -n` path, which only works on a hand-set-up box like Pit. To
+runner falls back to the old `sudo -n` path, which only works on a hand-set-up box like Pit; where
+it can't - the service runs with NoNewPrivileges (every unit install.sh and Makefile.pi ever wrote)
+or `sudo -n true` fails - Update now answers `dev.update.no_updater` ("This device was set up
+without the updater ... run the README's install script on it again") instead of starting nothing
+while the log said it had started (`legacyUpdaterWorks`, `updater/legacy_test.go`). To
 exercise the whole flow on Pit without the app: `ssh otc@pit.otc touch /var/lib/otc/update.request`
 and watch `/var/lib/otc/update-status.json`.
 otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside it) and
@@ -4627,19 +4675,54 @@ last version + 1; it runs as root on the primary and on every per-user database 
 be idempotent; update.sh runs it before building the new binary, so it only sees rows the old code
 wrote). A script that loops over users must let only a `db_name` matching `^otc_[0-9a-f]{32}$` reach
 root's mysql command line (the otc service can write `users`, and a name starting with `-` would be
-an option), as `92.sh` (one like per domain) does. The tool builds the web bundle, tags `vN`, makes
+an option), as `92.sh` (one like per domain) does, and must stop when the list can't be read: a
+query that fails is the database failing, not "no other users" (`169.sh`'s `dev_release_months`:
+the table checked with `SHOW TABLES LIKE 'users'`, then the list and each database's existence read
+strictly). Each change in a release's script is a section of its own, `# --- <area>: <what> ---`
+(`169.sh`). The tool refuses anything uncommitted or untracked under `scripts/updates` (a script
+whose hash was signed while it was missing from the archive stopped every device's update for
+good), unpacks a `git archive` of HEAD, installs the web app's packages there from its lockfile
+(`npm ci`), runs the i18n gate and builds the web bundle in that tree (never this checkout's files,
+nor a `VITE_` variable of the shell), tags `vN`, makes
 the release's own source archive (`src.tar.gz`, `git archive` + `gzip -n`; the manifests and their
 signatures are `export-ignore`d in `.gitattributes`, since they carry its hash, and so are
 `docs/app-store`, `docs/play-store`, `docs/screenshots` and `bridge/bin/otc_bridge` - about 11 MB
-instead of 90; over 30 MB is refused), appends the manifest line (version, script sha, web sha,
-summary, source sha) and signs the whole manifest with the release key into
-`scripts/updates/VERSIONS.sig`. Then it pushes the tag, publishes the GitHub release, checks the
+instead of 90; over 30 MB is refused), appends the manifest line (version, script sha - of the
+script as that archive holds it, what devices check - web sha, summary, source sha) and signs the
+whole manifest with the release key into `scripts/updates/VERSIONS.sig`. Then it pushes the tag, publishes the GitHub release, checks the
 published archives, and only then commits and pushes the signed manifest to main - archives first,
 manifest last. A failure before that commit deletes the release and the tag; a failed final push of
 main must be finished by hand (`pull --rebase`, push). The key is Ed25519 at
 `~/.otc/otc-release-signing.pem` on the Mac mini (passphrase in the Keychain item
 `otc-release-signing`; never on GitHub - back it up offline); its public half is
-`scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`.
+`scripts/release-signing.pub`, which devices pin in `/etc/otc/release-signing.pub`. The passphrase
+is never exported (release.sh, sign-file.sh): only the `openssl pkcs8` that decrypts the key gets
+it - the build runs npm packages and Go programs, any of which could read an exported variable and
+the key's fixed path.
+
+**A released script is never edited**: its hash is line N of the signed manifest, and
+`updater/released_scripts_test.go` holds every `scripts/updates/<N>.sh` to it. One found wrong
+later gets a corrected copy, `scripts/updates/corrected/<N>.sh` (its `README.md` lists them):
+update.sh checks the original against the manifest as always, then runs the corrected one in its
+place, from the same verified source - so only a device still missing release N ever runs it.
+Release 5's installs the update runner from the verified source (it downloaded it from the
+branch, unsigned); 47's and 58's work on the logs and the storage as the otc user (root edited,
+chowned and chmodded names in directories that user owns, and a symlink put there handed it the
+target, or a copy of it); 158's makes the Image Tagging choice restartable (the column added with
+no value, given one, then made NOT NULL - install.sh's block does the same); 161's is the system
+updates' (above). Every release script runs through `run_release` (update.sh), with
+`DEBIAN_FRONTEND=noninteractive` and update.sh's own `mysql`
+(`scripts/update-runner/release-mysql.sh`, inherited as a function that runs it with bash, so a
+temporary directory mounted noexec doesn't matter). For releases before 92 it lets only `-N`, `-B`,
+`-e <statement>` and the database `otc` or an existing `otc_<32 hex>` reach the client - their
+loops passed any users.db_name as mysql's first argument, where `--defaults-extra-file=` makes
+root's client read a file of the otc user's - and skips anything else, as 92 onwards do. For every
+release it notes a failed `SELECT db_name FROM users` other than error 1146 (no users table): the
+release runs again once MariaDB answers, then the update stops with `users_unreadable` ("release
+N could not read this device's list of users - press Update to try again"); it used to read as "no
+other users", and the release was recorded with every other user's database left behind. Tested
+by running the released scripts themselves against a stand-in client
+(`updater/release_mysql_test.go`).
 Then run `scripts/docker-release.sh` (the `container` paragraph above): the Docker image for that
 release is built, tested and published from the Mac (about an hour cold, less once its cache is
 warm); a failure there never touches the Pi release.
@@ -4676,14 +4759,29 @@ over to it. The install copies that source instead of cloning, installs the rele
 (no Node or npm on devices), pins Go, ONNX Runtime, protoc and the models by SHA-256
 (`fetch_pinned`: into a mktemp directory beside the destination, then renamed; `/usr/local/models`
 is root's, 0755, read by the service), and installs Tailscale from its apt repository with the key
-pinned by hash. A re-run keeps the config's `[otc]` lines it doesn't write itself (a fork's
+pinned by hash. Root never makes, chowns or chmods a name inside a directory the otc user owns by
+following it - a re-run (or the wizard's Recover, from a link an old device left on its disks)
+used to chown a symlink planted at `/var/lib/otc/users` or the storage's `unencrypted/`, handing
+its target (`/var/lib/dpkg/info`, say) to the otc user: `otc_dir` removes anything there that
+isn't a directory, has the otc user make a missing one (`runuser`), hands over one root made before
+with `chown -h`, and sets the mode as the otc user (`updater/install_dirs_test.go`, as root on
+Linux). A symlink at `/mnt/storage/mysql`, MariaDB's datadir, stops the install before MariaDB is
+stopped. OpenCV's source build runs in a `mktemp -d` directory under the world-writable `/var/tmp`
+(its log inside), and `/etc/otc/otc-install.env` is written under umask 077, then renamed. A
+failed read of the users table, or of whether a user's database exists, stops the schema block
+(the container runs it too) instead of skipping every other user's database. A re-run keeps the config's `[otc]` lines it doesn't write itself (a fork's
 `update-repo`/`update-releases`, `low-memory`, a watchdog switched off) and, without
 `OTC_BRIDGE_ADDR`, the `bridge-addr`/`bridge-default` it finds (empty after a switch-off, #182); the
 config is written temp (0640 root:otc), sync, rename. The device's MariaDB account holds ALL on `otc`
 and, with GRANT OPTION, on `otc_%` (in a GRANT the `_` of `otc_<uuid>` is itself a wildcard: an
 escaped `otc\_%` can't hand ALL on `otc_<uuid>` to that user's account - error 1044), plus CREATE
 USER and RELOAD - nothing on `*.*` (install.sh, the container's entrypoint, release 143's REVOKE;
-tested in the Lima VM by provisioning, measuring and dropping a user through `dao`).
+tested in the Lima VM by provisioning, measuring and dropping a user through `dao`). A limit of
+that narrowing: MariaDB's CREATE USER is server-wide - `ALTER USER` reaches root@localhost too -
+and the datadir sits in the storage root the otc user owns, so a compromised service can still
+make itself MariaDB's root (FILE, files as the `mysql` account) or drop root's account, which every
+release script signs in with. Provisioning the per-user accounts through a root runner that checks
+the name, and the datadir under a root-owned directory, would close it.
 
 **Checking it worked**: a device shows its version under Settings → Device version. The full
 log of any run is at `/var/log/otc-update/update.log` (Settings › Logs › Updates), and the current
