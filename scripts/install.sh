@@ -1006,6 +1006,27 @@ if command -v iw >/dev/null 2>&1; then
         iw dev "$dev" set power_save off 2>/dev/null || true
     done
 fi
+# A TCP connection that sat idle for a moment starts again from slow start
+# on Linux, as if it were new. The bridge connections the device keeps open
+# for the apps do sit idle between two requests, and each piece of a video
+# sent over one then spent several round trips reaching full speed: the
+# window TCP learnt on the connection is kept instead
+# (net.ipv4.tcp_slow_start_after_idle=0), now and at every boot. The same
+# as updates/169.sh, for the devices installed before
+# (updater/release169_test.go).
+otc_network_tuning() {
+    local conf=/etc/sysctl.d/80-otc-network.conf want
+    want='# Off The Cloud (scripts/install.sh, updates/169.sh): a connection that sat
+# idle - the bridge connections the device keeps open for the apps - keeps
+# the window TCP learnt on it instead of starting again from slow start.
+net.ipv4.tcp_slow_start_after_idle = 0'
+    if [ "$(cat "$conf" 2>/dev/null)" != "$want" ]; then
+        { mkdir -p /etc/sysctl.d && printf '%s\n' "$want" > "$conf.tmp.$$" && chmod 0644 "$conf.tmp.$$" \
+            && mv -f "$conf.tmp.$$" "$conf"; } || { rm -f "$conf.tmp.$$"; return 1; }
+    fi
+    sysctl -q -w net.ipv4.tcp_slow_start_after_idle=0
+}
+otc_network_tuning || log "WARNING: TCP keeps slowing down connections that sat idle (net.ipv4.tcp_slow_start_after_idle could not be set)"
 
 wiz_step service
 log "[10/10] Database, config, and the systemd service"
