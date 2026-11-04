@@ -1095,7 +1095,12 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   placing a 10-bit grid's tiles (`TestDecodeHeicGridAtTenBits`); AV1 still goes to goheif. A camera
   raw (a DNG - Apple ProRAW, whose IFD0 x/image/tiff refused as "color model" - or a TIFF with a
   CFA/linear-raw directory) is its largest embedded 8-bit JPEG (`rawPreview`, raw_preview.go), first;
-  any other TIFF Go can't read is tried for one before ffmpeg. A preview
+  any other TIFF Go can't read is tried for one before ffmpeg. Its parse reads only the values it
+  looks at (`maxValues`: a scalar's first, 16 bits-per-sample, 2 strip entries - one strip or more -,
+  64 sub-image offsets, 64 KiB of JPEG tables) and 256K values in all (`cMaxRawValues`), and puts
+  together only the largest preview (a strip with its tables is a copy): a crafted 1 MB TIFF of 64
+  directories, every tag a million values on the same bytes, held 3.4 GB before the decode budget
+  was asked for anything (`TestCraftedRawIsCheapToRead`). A preview
   that failed leaves `<hash>.nothumb` holding `cDecoders`: `BackfillMissingThumbnails` skips it
   until a release adds to `cDecoders` (heic10 did), then retries it once. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
