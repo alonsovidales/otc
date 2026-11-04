@@ -2653,9 +2653,12 @@ final class SyncModel: ObservableObject {
                             // name: on a disk that ignores case the old name
                             // finds the new one after a rename made here only
                             // in case, whose upload goes with this delete
-                            // (SyncPaths.presentAsNamed).
+                            // (SyncPaths.presentAsNamed). What can't be told
+                            // (a folder on the path that can't be searched,
+                            // the volume failing) throws: the delete waits,
+                            // counted as failed.
                             let relative = action.relative
-                            if await Task.detached(priority: .utility, operation: { SyncPaths.presentAsNamed(root: localRoot, rel: relative) }).value {
+                            if try await Task.detached(priority: .utility, operation: { try SyncPaths.presentAsNamed(root: localRoot, rel: relative) }).value {
                                 throw ChangedHere(description: "something is here at this name again - not deleted on the device") // i18n-ignore: a file's error, only logged
                             }
                             try await asListed()

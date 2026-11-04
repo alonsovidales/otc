@@ -3553,7 +3553,8 @@ the enumerator's `.skipsHiddenFiles`, which dropped those without a word),
 `desk.main.files_not_synced_here`), and a device delete checks, right before it goes, that nothing
 is here under that very name (`presentAsNamed` / `SyncPaths.presentAsNamed`: each component as its folder lists it, in NFC - on a
 disk that ignores case the old name finds the new one after a rename made here only in case, which
-goes up as an upload and a delete). A download is refused before it starts when the disk can't take it (its free
+goes up as an upload and a delete; what it can't tell - a folder on the path that can't be searched
+or listed, a failing volume: any error but nothing there - holds the delete, counted as failed). A download is refused before it starts when the disk can't take it (its free
 space less 256 MB, FAT's 4 GiB; `roomFor` / `SyncPaths.roomProblem`; the Mac takes the most free
 space any of the system's measures gives, what macOS frees for an important file included,
 `SyncPaths.volumeLimits`); a transfer that failed for a reason of its own waits as a busy file does

@@ -798,19 +798,51 @@ enum SyncPaths {
     /// that ignores case, "a.jpg" finds "A.jpg": a file renamed only in case
     /// here, which must not hold up the delete of its old name on the
     /// device (the device tells the two apart, and kept both for good).
-    /// Folders are listed only when something answers to the name. As
-    /// otc-sync's presentAsNamed.
-    static func presentAsNamed(root: String, rel: String) -> Bool {
+    /// Folders are listed only when something answers to the name. Throws
+    /// when it can't tell - a folder on the path that can't be searched or
+    /// listed, a volume failing -: only "nothing there" (ENOENT, or ENOTDIR,
+    /// a folder on the path that is a file now) is no; anything else used
+    /// to read as no too, and the device's copy went. The delete then waits
+    /// for the next pass, counted as failed. As otc-sync's presentAsNamed.
+    static func presentAsNamed(root: String, rel: String) throws -> Bool {
         var st = stat()
-        guard lstat((root as NSString).appendingPathComponent(rel), &st) == 0 else { return false }
+        if lstat((root as NSString).appendingPathComponent(rel), &st) != 0 {
+            let e = errno
+            if e == ENOENT || e == ENOTDIR { return false }
+            throw POSIXError(POSIXErrorCode(rawValue: e) ?? .EIO)
+        }
         var dir = root
         for part in rel.utf8.split(separator: UInt8(ascii: "/"), omittingEmptySubsequences: false).map({ String(decoding: $0, as: UTF8.self) }) {
             // Swift's == is NFC-blind and minds case: what is wanted here.
-            guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir),
-                  let name = names.first(where: { $0 == part }) else { return false }
+            guard let names = try listedNames(dir), let name = names.first(where: { $0 == part }) else { return false }
             dir = (dir as NSString).appendingPathComponent(name)
         }
         return true
+    }
+
+    /// The names in the folder `dir`; nil when nothing is there (ENOENT,
+    /// ENOTDIR). By readdir, whose errno tells the two apart: FileManager
+    /// reports a folder below one that can't be searched as not found.
+    static func listedNames(_ dir: String) throws -> [String]? {
+        guard let d = opendir(dir) else {
+            let e = errno
+            if e == ENOENT || e == ENOTDIR { return nil }
+            throw POSIXError(POSIXErrorCode(rawValue: e) ?? .EIO)
+        }
+        defer { closedir(d) }
+        var names: [String] = []
+        while true {
+            errno = 0
+            guard let entry = readdir(d) else {
+                let e = errno
+                if e != 0 { throw POSIXError(POSIXErrorCode(rawValue: e) ?? .EIO) }
+                return names
+            }
+            let name = withUnsafeBytes(of: entry.pointee.d_name) { raw in
+                String(decoding: raw.prefix(Int(entry.pointee.d_namlen)), as: UTF8.self)
+            }
+            if name != "." && name != ".." { names.append(name) }
+        }
     }
 
     // MARK: A conflict copy is made once

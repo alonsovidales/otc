@@ -515,15 +515,45 @@ struct SyncPathsTests {
         try FileManager.default.createDirectory(at: dir.appendingPathComponent("Trip"), withIntermediateDirectories: true)
         try Data("x".utf8).write(to: dir.appendingPathComponent("Trip/Caf\u{E9}.jpg"))
         let root = dir.standardizedFileURL.path
-        #expect(SyncPaths.presentAsNamed(root: root, rel: "Trip/Caf\u{E9}.jpg"))
-        #expect(SyncPaths.presentAsNamed(root: root, rel: "Trip/Cafe\u{301}.jpg"))
+        #expect(try SyncPaths.presentAsNamed(root: root, rel: "Trip/Caf\u{E9}.jpg"))
+        #expect(try SyncPaths.presentAsNamed(root: root, rel: "Trip/Cafe\u{301}.jpg"))
         // Another case: a rename made here, which goes up.
-        #expect(!SyncPaths.presentAsNamed(root: root, rel: "trip/Caf\u{E9}.jpg"))
-        #expect(!SyncPaths.presentAsNamed(root: root, rel: "Trip/caf\u{E9}.jpg"))
-        #expect(!SyncPaths.presentAsNamed(root: root, rel: "Trip/gone.jpg"))
+        #expect(try !SyncPaths.presentAsNamed(root: root, rel: "trip/Caf\u{E9}.jpg"))
+        #expect(try !SyncPaths.presentAsNamed(root: root, rel: "Trip/caf\u{E9}.jpg"))
+        #expect(try !SyncPaths.presentAsNamed(root: root, rel: "Trip/gone.jpg"))
+        #expect(try !SyncPaths.presentAsNamed(root: root, rel: "Gone/a.jpg"))
         // A link counts: something is there.
         try FileManager.default.createSymbolicLink(atPath: root + "/link.jpg", withDestinationPath: "nowhere")
-        #expect(SyncPaths.presentAsNamed(root: root, rel: "link.jpg"))
+        #expect(try SyncPaths.presentAsNamed(root: root, rel: "link.jpg"))
+        // A folder that is a file now: nothing can be under it.
+        #expect(try !SyncPaths.presentAsNamed(root: root, rel: "Trip/Caf\u{E9}.jpg/x"))
+    }
+
+    /// What can't be told is not "nothing here": the device's copy of a
+    /// file was deleted for good when a folder on its path couldn't be
+    /// searched or listed right before the delete. As otc-sync's.
+    @Test func aDeviceDeleteWaitsWhenItCantTell() throws {
+        let dir = try scratchDirectory()
+        let fm = FileManager.default
+        let root = dir.standardizedFileURL.path
+        try fm.createDirectory(atPath: root + "/locked", withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: root + "/unlisted", withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: URL(fileURLWithPath: root + "/unlisted/a.jpg"))
+        // No search permission: lstat fails with EACCES, the file gone or not.
+        #expect(chmod(root + "/locked", 0) == 0)
+        // Search but no read: lstat finds the file, the folder can't be listed.
+        #expect(chmod(root + "/unlisted", 0o111) == 0)
+        defer {
+            chmod(root + "/locked", 0o755)
+            chmod(root + "/unlisted", 0o755)
+            try? fm.removeItem(at: dir)
+        }
+        #expect(throws: POSIXError.self) { try SyncPaths.presentAsNamed(root: root, rel: "locked/a.jpg") }
+        #expect(throws: POSIXError.self) { try SyncPaths.presentAsNamed(root: root, rel: "unlisted/a.jpg") }
+        #expect(throws: POSIXError.self) { try SyncPaths.listedNames(root + "/locked") }
+        #expect(try SyncPaths.listedNames(root + "/gone") == nil)
+        let names = try #require(try SyncPaths.listedNames(root))
+        #expect(Set(names) == ["locked", "unlisted"])
     }
 
     // MARK: A conflict copy is made once
