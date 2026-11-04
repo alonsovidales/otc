@@ -43,6 +43,22 @@ struct DeviceUnreachableView: View {
     }
 
     var body: some View {
+        // Scrolls when it doesn't fit: held sideways, or at a large text
+        // size, the foot - the language menu, the only way to change the
+        // language while this covers the app - was cut off. Centred, and
+        // still, when it fits. Android's card scrolls the same way.
+        GeometryReader { geo in
+            ScrollView {
+                card
+                    .padding(24)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .background(.background.opacity(0.92))
+    }
+
+    private var card: some View {
         VStack(spacing: 16) {
             icon
                 .frame(width: 56, height: 56)
@@ -111,9 +127,6 @@ struct DeviceUnreachableView: View {
         } message: {
             Text(S.appShellLeaveMessageConnection)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.background.opacity(0.92))
     }
 
     @ViewBuilder
