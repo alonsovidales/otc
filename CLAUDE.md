@@ -2281,11 +2281,15 @@ up to 2 h (`cForwardMaxWait`) - while a request the device stopped answering, or
 fails at 90 s. The reply of a request sent earlier on the same connection also starts the clock
 again for the ones sent after it, which waited behind it (a device sends its replies one after
 another: a video's span asked ahead, on a slow line); a later request's reply never does, so a
-forgotten request still fails. A one-off (a static asset, a `/media` span) is waited for at most 3 x 45 s in all
-however long it is named (`oneOffMaxWait`, what its 3 attempts took before), since it holds one of
-the device's 3 one-off slots meanwhile, and a `/media` response's session is closed as soon as its
-client hangs up (`Session.Close` from `context.AfterFunc`), its first span and probes included. A bridge from before this takes those pongs for any pong, and a device from before
-it sends none and is waited for as it always was. Device replies are read under `replyBudget` (8 GiB), and
+forgotten request still fails. A one-off (a static asset, a `/media` span) is waited for at most 3 x
+45 s in all however long it is named (`oneOffMaxWait`, what its 3 attempts took before), since it
+holds one of the device's 3 one-off slots meanwhile, and a `/media` response's session is closed as
+soon as its client hangs up (`Session.Close` from `context.AfterFunc`), its first span and probes
+included. A bridge from before this takes those pongs for any pong, and a device from before it
+sends none and is waited for as it always was. A client's request the device keeps naming is ended
+by the client's own clock, not the bridge's 90 s: for a page or a sign-in, the apps' 120 s
+(`PAGE_TIMEOUT_MS`/`pageTimeout`, `SIGN_IN_TIMEOUT_MS`/`signInTimeout`), after which the screen asks
+again with more patience. Device replies are read under `replyBudget` (8 GiB), and
 `forward()`'s `release` is never nil. Pairing is limited per client address (IPv6 by /64) and Host
 to 64 open (`[bridge] max-paired-per-addr`), 2/s with a burst of 30, and per device to 64 in use
 (`[bridge] max-paired-per-device`). A paired session is a stranger's until the device accepts a

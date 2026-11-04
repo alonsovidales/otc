@@ -166,9 +166,12 @@ object OTCConnection {
      * a kind that timed out more time (Patience). PAGE: a page of photos,
      * posts or covers, a folder's listing - a first page of Images from Pit
      * measured 6-70 s over the bridge, so 2 minutes, above the bridge's own
-     * 90 s forward timeout (cForwardTimeout): through the bridge its "device
-     * unreachable" always comes first, and this only ends a request nothing
-     * will answer (at home, straight to the device, nothing else would).
+     * 90 s forward timeout (cForwardTimeout): through the bridge a request
+     * the device stopped answering is answered "device unreachable" first.
+     * One the device says it is still working on (a device that names its
+     * running requests to the bridge, which then waits up to 2 hours) ends
+     * here instead, and the screen asks again with more patience; at home,
+     * straight to the device, this is all that ends one nothing will answer.
      * LIST: the small lists (tags, date buckets), which still queue behind a
      * page on the device's upload. The clock starts once the request has
      * left the phone (WSClient.exchange), and connecting gets the same time
@@ -180,9 +183,11 @@ object OTCConnection {
 
     /**
      * GetPubKey and Auth while signing in: above the bridge's 90 s, so its
-     * own "device unreachable" comes first, and far above an Argon2id
-     * derivation on a busy device. They used to have the socket's 30
-     * minutes, and every request waits on a sign-in in progress.
+     * own "device unreachable" comes first for a device that stopped
+     * answering (one still working on it and saying so is waited for past
+     * that, and ends here), and far above an Argon2id derivation on a busy
+     * device. They used to have the socket's 30 minutes, and every request
+     * waits on a sign-in in progress.
      */
     private const val SIGN_IN_TIMEOUT_MS = 120_000L
 
