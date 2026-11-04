@@ -265,6 +265,9 @@ type Engine struct {
 	// Changes a two-way folder holds until the device's pin is confirmed,
 	// as last logged (noteUnconfirmed).
 	unconfirmed map[string]int
+	// Two-way folders whose marker couldn't be written, as last logged
+	// (markFolder).
+	markFailed map[string]bool
 	// The passes holding one of the maxPasses slots (passSlot), and a
 	// channel closed whenever one is freed.
 	passing  map[string]passEntry
@@ -631,6 +634,7 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 	delete(e.goneMountsSeen, id)
 	delete(e.massHeld, id)
 	delete(e.unconfirmed, id)
+	delete(e.markFailed, id)
 	delete(e.remoteStates, id)
 	e.dropRequestsLocked(id)
 	e.dropHashCacheLocked(id)
@@ -1616,9 +1620,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	}
 	meta.Root, meta.Mounts = verdict.token, lv.mounts
 	if verdict.mark {
-		if err := writeMarker(f.LocalPath, f.ID, verdict.token); err != nil {
-			log.Printf("could not mark %s as the folder otc-sync syncs (%v) - its files are checked again at each pass instead", f.LocalPath, err)
-		}
+		e.markFolder(f, verdict.token)
 	}
 	e.noteGoneMounts(f, lv.goneDirs)
 
@@ -2401,6 +2403,26 @@ func (e *Engine) holdMassDeviceDeletes(f config.RemoteFolder, actions []action, 
 	}
 
 	return held
+}
+
+// markFolder writes the folder's marker (rootid.go); a folder that can't
+// take it is checked by its files at each pass instead, and said once.
+func (e *Engine) markFolder(f config.RemoteFolder, token string) {
+	err := writeMarker(f.LocalPath, f.ID, token)
+	e.mu.Lock()
+	if e.markFailed == nil {
+		e.markFailed = map[string]bool{}
+	}
+	first := err != nil && !e.markFailed[f.ID]
+	if err != nil {
+		e.markFailed[f.ID] = true
+	} else {
+		delete(e.markFailed, f.ID)
+	}
+	e.mu.Unlock()
+	if first {
+		log.Printf("could not mark %s as the folder otc-sync syncs (%v) - its files are checked again at each pass instead", f.LocalPath, err)
+	}
 }
 
 // noteUnconfirmed logs how many changes of a two-way folder wait for the
