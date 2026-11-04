@@ -1413,10 +1413,13 @@ start takes its file.
   the alerts' thumbnails are their posts') - nothing else in the folder. The same post sent again
   is made once (`social/post_once.go`; NewSocialPublication carries no id of the client's): a long
   video's cut and shrink can outlast the answer - a dropped socket, the bridge's 90 s - and publishing
-  again made it twice for every friend. Its text, paths and cuts are the key (`postKey`; the device has
-  one owner, whichever app or socket sends it): sent while the first is being made it waits for that
-  one's answer, within `cPostAgainWindow` (10 minutes) of it being made it gets its uuid at once; one
-  that failed is made again, and deleting the post forgets it. `budgetSize` uses the row's int64 size and
+  again made it twice for every friend. Its text, its files' content hashes (the `files` row at each
+  path; the path when there is none) and their cuts are the key (`postKey`; the device has one owner,
+  whichever app or socket sends it) - content, not paths, since the web app uploads a file from the
+  computer to a new `/web/` path each time and a composer closed by `device_unreachable` sends it
+  again: sent while the first is being made it waits for that one's answer, within
+  `cPostAgainWindow` (10 minutes) of it being made it gets its uuid at once; one that failed is made
+  again, and deleting the post forgets it. `budgetSize` uses the row's int64 size and
   looks at the blob only until the size backfill below has run. Since release 93 (`93.sh`, and
   `install.sh` `apply_schema_migrations`) the size columns of `files`, `file_versions` and
   `social_publications_files` are BIGINT; `files_manager/size_backfill.go` corrects, once and in

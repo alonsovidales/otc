@@ -22,9 +22,12 @@ import (
 // makes the post, while the app shows a failure with Publish enabled, and
 // publishing again used to make it twice, for every friend. NewSocial-
 // Publication carries no id of the client's, so the device recognises the
-// same post by what it is: its text, its files and their cuts (postKey) -
-// the device has one owner, whichever of their apps or sockets it comes
-// from. Sent while the first is still being made, it waits for it and gets
+// same post by what it is: its text, its files' content and their cuts
+// (postKey) - the device has one owner, whichever of their apps or sockets
+// it comes from. Content, not paths: the web app uploads a file from the
+// computer to a new path each time, and a composer that was closed (the
+// whole page shows "can't reach the device" on device_unreachable) sends
+// the same video again at another path. Sent while the first is still being made, it waits for it and gets
 // its answer; within cPostAgainWindow of it being made, the post's uuid at
 // once. A post that failed is made again. Deleting a post forgets it, so
 // the same one can be posted again.
@@ -55,9 +58,10 @@ type postsOnce struct {
 	made   map[[sha256.Size]byte]recentPost
 }
 
-// postKey is what makes two posts the same one: the text, then each path
-// and its cut, in order.
-func postKey(text string, paths []string, trims []*pb.VideoTrim) [sha256.Size]byte {
+// postKey is what makes two posts the same one: the text, then each file
+// and its cut, in order. A file is its content's hash (contentOf, "" when
+// the device has no file there: then its path, and the post fails anyway).
+func postKey(text string, paths []string, trims []*pb.VideoTrim, contentOf func(path string) string) [sha256.Size]byte {
 	h := sha256.New()
 	field := func(s string) {
 		var n [8]byte
@@ -78,7 +82,11 @@ func postKey(text string, paths []string, trims []*pb.VideoTrim) [sha256.Size]by
 		}
 	}
 	for _, p := range paths {
-		field(p)
+		if hash := contentOf(p); hash != "" {
+			field("hash:" + hash)
+		} else {
+			field("path:" + p)
+		}
 		if t := cuts[p]; t != nil {
 			number(t.StartSecs)
 			number(t.EndSecs)

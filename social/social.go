@@ -393,11 +393,21 @@ func shouldTrimForSocial(mime string, trim *pb.VideoTrim) bool {
 
 // NewPublication makes the owner's post: its files' copies for friends,
 // its event and its row. The same post sent again - its answer lost while
-// it was being made - is made once (post_once.go).
+// it was being made - is made once (post_once.go), wherever its files
+// were uploaded to.
 func (sc *Social) NewPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (string, error) {
-	return sc.posts.once(postKey(text, paths, trims), func() (string, error) {
+	return sc.posts.once(postKey(text, paths, trims, sc.contentAt), func() (string, error) {
 		return sc.newPublication(ses, text, paths, trims)
 	})
+}
+
+// contentAt is the hash of the file at path, or "" when there is none.
+func (sc *Social) contentAt(path string) string {
+	f, err := sc.dao.GetFileByPath(path)
+	if err != nil || f == nil {
+		return ""
+	}
+	return f.Hash
 }
 
 func (sc *Social) newPublication(ses *session.Session, text string, paths []string, trims []*pb.VideoTrim) (pubUuID string, err error) {
