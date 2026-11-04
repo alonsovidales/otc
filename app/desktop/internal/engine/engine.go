@@ -1744,6 +1744,12 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		}
 		meta.Mounts = lv.mounts
 	}
+	// The hash cache forgets what is no longer here - only now that the
+	// folder is known to be the synced one (the empty mount point of a disk
+	// that isn't mounted emptied it, and every file was read again once the
+	// disk was back), and not what is under a folder that can't be read or a
+	// disk that isn't mounted: unknown, not gone.
+	e.pruneHashCache(f.ID, f.LocalPath, lv.files, lv.unknownDirs())
 	local, localByRel, unknownHere, skippedSet := lv.files, lv.byRel, lv.unknown, lv.skipped
 
 	localHashes := map[string]string{}
@@ -2525,15 +2531,21 @@ type localView struct {
 // gone, so nothing is done for it either way.
 func (lv localView) unknown(rel string) bool { return lv.failed.covers(rel) || lv.heldMounts.covers(rel) }
 
-// lookHere scans the folder (scanFolder), prunes its hash cache, and keys
-// what it found; recordedMounts are the mounts the record lists.
+// unknownDirs are the folders (relative, slash-separated) what is under is
+// unknown here, not gone: those that could not be read and the mounts that
+// aren't now.
+func (lv localView) unknownDirs() []string {
+	return append(append([]string(nil), lv.folderScan.failed...), lv.goneDirs...)
+}
+
+// lookHere scans the folder (scanFolder) and keys what it found;
+// recordedMounts are the mounts the record lists.
 func (e *Engine) lookHere(f config.RemoteFolder, recordedMounts []string) (localView, error) {
 	scan, err := scanFolder(f.LocalPath)
 	if err != nil {
 		return localView{}, err
 	}
 	lv := localView{folderScan: scan, byRel: map[string]string{}, failed: pathSet{}, heldMounts: pathSet{}, skipped: pathSet{}}
-	e.pruneHashCache(f.ID, f.LocalPath, scan.files, scan.failed)
 	twins := 0
 	for _, p := range scan.files {
 		rel, err := filepath.Rel(f.LocalPath, p)

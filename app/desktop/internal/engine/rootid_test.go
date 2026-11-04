@@ -424,3 +424,74 @@ func TestRemovedFolderLosesItsMarkerOffTheLock(t *testing.T) {
 		t.Fatalf("the marker is still there: %v", err)
 	}
 }
+
+// A folder that waits as not the synced one keeps its hash cache: once
+// its disk is back, its files aren't all read again. Nor does a disk
+// mounted in the folder that isn't now lose its files' entries.
+func TestHashCacheKeptWhileTheFolderWaits(t *testing.T) {
+	withConfigDir(t)
+	files := map[string][]byte{"/pc/docs/nas/n.jpg": []byte("n")}
+	for i := 0; i < 4; i++ {
+		files[fmt.Sprintf("/pc/docs/p%d.jpg", i)] = []byte(fmt.Sprintf("photo %d", i))
+	}
+	d := storedDevice(files)
+	local := t.TempDir()
+	f := config.RemoteFolder{ID: "r1", RemotePath: "/pc/docs", LocalPath: local}
+	e := twoWayEngine(t, d, "dev", f)
+	e.reconcileRemoteFolder(f)
+	e.reconcileRemoteFolder(f) // reads what came down
+	cached := func() int {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+
+		return len(e.hashCache[f.ID])
+	}
+	if n := cached(); n != 5 {
+		t.Fatalf("%d hashes cached after two passes", n)
+	}
+	// Unmounted: an empty mount point at the folder's path.
+	mounted := filepath.Join(t.TempDir(), "disk")
+	if err := os.Rename(local, mounted); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(local, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e.reconcileRemoteFolder(f)
+	if st := remoteState(e, f.ID); st.Msg == nil || st.Msg.Key != "desk.main.folder_replaced" {
+		t.Fatalf("state %+v", st)
+	}
+	if n := cached(); n != 5 {
+		t.Fatalf("%d hashes left while the folder waits, want 5", n)
+	}
+	// Back, with the disk mounted in it ("nas", in the record) not mounted.
+	if err := os.Remove(local); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(mounted, local); err != nil {
+		t.Fatal(err)
+	}
+	nas := filepath.Join(local, "nas")
+	if err := os.Rename(nas, filepath.Join(t.TempDir(), "nas")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(nas, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e.mu.Lock()
+	meta := e.syncedFiles[f.ID].meta
+	rec := e.lastSynced[f.ID]
+	e.mu.Unlock()
+	meta.Mounts = []string{"nas"}
+	e.saveSyncedFor(f.ID, e.deviceFor("dev"), meta, rec)
+	e.reconcileRemoteFolder(f)
+	if _, deletes, _ := d.snapshot(); len(deletes) != 0 {
+		t.Fatalf("deletes %v", deletes)
+	}
+	e.mu.Lock()
+	_, kept := e.hashCache[f.ID][filepath.Join(nas, "n.jpg")]
+	e.mu.Unlock()
+	if !kept || cached() != 5 {
+		t.Fatalf("the unmounted disk's entry kept: %v, %d cached", kept, cached())
+	}
+}
